@@ -4,6 +4,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import { AgentBusyError, ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { assertValidTransition, type TaskState } from '../orchestration/task-state-machine.js';
 import { EventService } from './event-service.js';
+import { PipelineStateService } from './pipeline-state-service.js';
 
 interface CreateTaskInput {
   title: string;
@@ -43,10 +44,14 @@ interface ListTaskQuery {
 const priorityCase = "CASE priority WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END";
 
 export class TaskService {
+  private readonly pipelineStateService: PipelineStateService;
+
   constructor(
     private readonly pool: Pool,
     private readonly eventService: EventService,
-  ) {}
+  ) {
+    this.pipelineStateService = new PipelineStateService(pool, eventService);
+  }
 
   private async loadTaskOrThrow(tenantId: string, taskId: string, client?: PoolClient) {
     const db = client ?? this.pool;
@@ -262,7 +267,15 @@ export class TaskService {
         ? this.pool.query('SELECT id, name, description, memory FROM projects WHERE tenant_id = $1 AND id = $2', [tenantId, task.project_id])
         : Promise.resolve({ rows: [] }),
       task.pipeline_id
-        ? this.pool.query('SELECT id, name, context, git_branch FROM pipelines WHERE tenant_id = $1 AND id = $2', [tenantId, task.pipeline_id])
+        ? this.pool.query(
+            `SELECT p.id, p.name, p.context, p.git_branch, p.parameters,
+                    t.id AS template_id, t.slug AS template_slug, t.name AS template_name,
+                    t.version AS template_version, t.schema AS template_schema
+             FROM pipelines p
+             LEFT JOIN templates t ON t.tenant_id = p.tenant_id AND t.id = p.template_id
+             WHERE p.tenant_id = $1 AND p.id = $2`,
+            [tenantId, task.pipeline_id],
+          )
         : Promise.resolve({ rows: [] }),
       (task.depends_on as string[]).length > 0
         ? this.pool.query(
@@ -276,10 +289,29 @@ export class TaskService {
       depsRes.rows.map((row) => [row.role ?? row.type ?? row.id, row.output ?? {}]),
     );
 
+    const pipelineRow = pipelineRes.rows[0] as Record<string, unknown> | undefined;
+    const templateSchema = (pipelineRow?.template_schema as Record<string, unknown> | undefined) ?? {};
+    const pipelineContext = pipelineRow
+      ? {
+          id: pipelineRow.id,
+          name: pipelineRow.name,
+          context: pipelineRow.context,
+          git_branch: pipelineRow.git_branch,
+          variables: pipelineRow.parameters ?? {},
+          template: {
+            id: pipelineRow.template_id,
+            slug: pipelineRow.template_slug,
+            name: pipelineRow.template_name,
+            version: pipelineRow.template_version,
+            metadata: templateSchema.metadata ?? {},
+          },
+        }
+      : null;
+
     return {
       agent,
       project: projectRes.rows[0] ?? null,
-      pipeline: pipelineRes.rows[0] ?? null,
+      pipeline: pipelineContext,
       task: {
         id: task.id,
         input: task.input,
@@ -474,6 +506,13 @@ export class TaskService {
         await this.handleTaskCompletionSideEffects(identity, updatedTask, client);
       }
 
+      if (task.pipeline_id) {
+        await this.pipelineStateService.recomputePipelineState(identity.tenantId, task.pipeline_id as string, client, {
+          actorType: 'system',
+          actorId: 'task_state_transition',
+        });
+      }
+
       await client.query('COMMIT');
       return this.toTaskResponse(updatedTask);
     } catch (error) {
@@ -619,7 +658,9 @@ export class TaskService {
         `UPDATE pipelines
          SET context = jsonb_set(context, $2::text[], $3::jsonb, true),
              context_size_bytes = octet_length(jsonb_set(context, $2::text[], $3::jsonb, true)::text)
-         WHERE tenant_id = $1 AND id = $4`,
+         WHERE tenant_id = $1
+           AND id = $4
+           AND octet_length(jsonb_set(context, $2::text[], $3::jsonb, true)::text) <= context_max_bytes`,
         [identity.tenantId, [contextKey], task.output ?? {}, task.pipeline_id],
       );
     }

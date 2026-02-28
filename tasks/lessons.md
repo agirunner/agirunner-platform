@@ -13,3 +13,6 @@
 
 - **What went wrong:** New dependency cascade integration test used `claimTask`, which non-deterministically claimed unrelated ready tasks from earlier tests, causing invalid state transitions.
 - **Preventive rule:** Keep integration tests isolated from global queue state; for targeted lifecycle assertions, set explicit task states/assignments directly or scope claims with strict filters.
+
+- **What went wrong:** In a Postgres `CASE` expression during test setup, UUID columns received untyped text params, causing `column is of type uuid but expression is of type text`.
+- **Preventive rule:** In SQL `CASE` updates against typed columns, cast each branch parameter explicitly (`$n::uuid`) to keep inference aligned.

@@ -19,6 +19,7 @@ export const templates = pgTable(
     schema: jsonb('schema').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (table) => [
     uniqueIndex('uq_template_tenant_slug_version').on(table.tenantId, table.slug, table.version),

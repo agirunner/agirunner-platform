@@ -1,22 +1,20 @@
 {
-  "task": "Fix PR #9 review findings for Platform Milestone B",
-  "issue": "Milestone B / PR #9 review",
-  "branch": "feature/milestone-b",
+  "task": "Address PR #10 review findings for Platform Milestone C",
+  "issue": "#3",
+  "branch": "feature/milestone-c",
   "phase": "COMPLETE",
   "completed": [
-    "Enforced lifecycle ownership in TaskService startTask/completeTask/failTask using calling API key agent identity (ownerId)",
-    "Changed agent assignment mismatch on lifecycle transitions to ForbiddenError (403)",
-    "Removed invalid state machine transition running -> awaiting_approval",
-    "Added heartbeat grace period support in AgentService enforceHeartbeatTimeouts with env-configurable HEARTBEAT_GRACE_PERIOD_MS (default 300000)",
-    "Prevented immediate task failure on first heartbeat miss; fail happens only after grace deadline",
-    "Added integration regression test for IDOR: agent B cannot complete task assigned to agent A (403)",
-    "Added integration test for A→B→C dependency cascade readiness progression",
-    "Updated heartbeat integration test to verify no immediate failure, then failure after grace",
-    "Updated unit state machine tests for removed transition",
-    "Verified quality gates: pnpm test and pnpm lint pass",
-    "Committed and pushed fixes to feature/milestone-b"
+    "Updated pipeline state derivation to fail immediately when any task is failed",
+    "Updated pipeline cancel cascade to cancel all non-completed tasks, including failed tasks",
+    "Refactored template PATCH to create immutable versioned rows instead of mutating in place",
+    "Updated pipeline instantiation to resolve the latest non-deleted template version by slug",
+    "Added unit regression coverage for immediate failed-state derivation",
+    "Added integration regression coverage for immediate failed pipeline state and mixed-state cancel cascade",
+    "Added integration coverage for template version immutability and latest-version pipeline instantiation",
+    "Extended Milestone C e2e to validate PATCH versioning semantics and latest-version pipeline creation",
+    "Validated with full workspace quality gates: pnpm test and pnpm lint"
   ],
   "remaining": [],
-  "lastCommit": "9e7fcc1",
-  "updatedAt": "2026-02-28T21:30:00Z"
+  "lastCommit": "c8d028a",
+  "updatedAt": "2026-02-28T22:03:00Z"
 }
