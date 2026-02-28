@@ -1,0 +1,21 @@
+# PR #6 Review Fix Plan
+
+- [ ] Update Drizzle schema + SQL migration:
+  - [ ] Add `orchestrator_grants` table
+  - [ ] Add `projects.is_active` column
+  - [ ] Fix `tasks.costCapUsd` to `numeric(10,4)` in Drizzle
+  - [ ] Add all design-specified indexes (including GIN on `tasks.depends_on` and `agents.capabilities`)
+  - [ ] Add `.references()` declarations for all FK columns in schema files
+- [ ] Harden auth flow:
+  - [ ] Remove API key prefix enumeration oracle (single error message + dummy bcrypt compare on miss)
+  - [ ] Bind JWT claims to API key (`keyId`) and validate key on refresh
+- [ ] Protect and harden API surface:
+  - [ ] Require admin auth for `/metrics`
+  - [ ] Add and configure `@fastify/rate-limit` (100 req/min per key)
+- [ ] Add/adjust tests:
+  - [ ] Metrics endpoint auth coverage
+  - [ ] Rate limiting coverage
+  - [ ] JWT-key binding / revoked-key refresh rejection
+- [ ] Run `pnpm test` and `pnpm lint`
+- [ ] Update STATUS.json + memory log
+- [ ] Commit and push to `feature/milestone-a`

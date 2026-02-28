@@ -1,0 +1,22 @@
+{
+  "task": "PR #6 review findings remediation (Platform Milestone A)",
+  "issue": "PR #6",
+  "branch": "feature/milestone-a",
+  "phase": "COMPLETE",
+  "completed": [
+    "Added orchestrator_grants table in Drizzle schema and SQL migration",
+    "Added projects.is_active BOOLEAN NOT NULL DEFAULT true in Drizzle schema and SQL migration",
+    "Aligned tasks.costCapUsd Drizzle type to numeric(10,4)",
+    "Added design-specified indexes (including GIN on tasks.depends_on and agents.capabilities) in schema + migration",
+    "Added FK .references() declarations across Drizzle schema tables",
+    "Hardened API key verification to avoid prefix enumeration oracle and normalized miss timing with dummy bcrypt.compare",
+    "Protected /metrics with API key auth + admin scope",
+    "Added @fastify/rate-limit with default 100 req/min (configurable)",
+    "Bound JWT refresh flow to API key identity via keyId claim and active-key validation",
+    "Added/updated tests for metrics auth, rate limiting, and JWT-key binding",
+    "Validated quality gates: pnpm lint and pnpm test passing"
+  ],
+  "remaining": [],
+  "lastCommit": "6f15b05",
+  "updatedAt": "2026-02-28T21:03:54Z"
+}

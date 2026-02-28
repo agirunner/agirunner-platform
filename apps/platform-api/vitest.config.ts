@@ -1,0 +1,16 @@
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    environment: 'node',
+    include: ['tests/**/*.test.ts'],
+    testTimeout: 120000,
+    hookTimeout: 120000,
+    coverage: {
+      reporter: ['text', 'lcov'],
+      thresholds: {
+        lines: 80,
+      },
+    },
+  },
+});
