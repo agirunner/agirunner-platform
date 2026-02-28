@@ -43,8 +43,8 @@ TypeScript / Node.js / Fastify / PostgreSQL / React.
 |---|-----------|-------|-------|--------|
 | A | Foundation | Scaffold, DB, config, auth, health, metrics | #1 | ✅ Complete (merged) |
 | B | Task Lifecycle | CRUD, state machine, atomic claim, events | #2 | ✅ Complete (merged) |
-| C | Pipeline/Template | Templates, instantiation, dependency resolution, context | #3 | 🔄 In Progress |
-| D | Worker/Events | Registration, heartbeat, WebSocket, webhooks | #4 | ⏳ Pending |
+| C | Pipeline/Template | Templates, instantiation, dependency resolution, context | #3 | ✅ Complete (merged) |
+| D | Worker/Events | Registration, heartbeat, WebSocket, webhooks | #4 | 🔄 In Progress |
 | E | Dashboard + MCP | React SPA, MCP tools, SDKs, E2E, packaging | #5 | ⏳ Pending |
 
 ## Technology Stack (Approved)
