@@ -16,3 +16,12 @@
 
 - **What went wrong:** In a Postgres `CASE` expression during test setup, UUID columns received untyped text params, causing `column is of type uuid but expression is of type text`.
 - **Preventive rule:** In SQL `CASE` updates against typed columns, cast each branch parameter explicitly (`$n::uuid`) to keep inference aligned.
+
+- **What went wrong:** SSE integration test assumed the first stream chunk would be a business event; server emitted `: connected` heartbeat first, causing assertion failures.
+- **Preventive rule:** For SSE tests, aggregate/read multiple chunks until expected event marker appears (or explicit timeout) rather than asserting on first chunk.
+
+- **What went wrong:** Webhook e2e test subscribed to `task.completed`, but current lifecycle emits `task.state_changed` on completion.
+- **Preventive rule:** Align webhook subscription filters to canonical emitted event names used by services, or add explicit event aliases before asserting downstream behavior.
+
+- **What went wrong:** Added webhook PATCH response fields assuming an `updated_at` column existed on `webhooks`, which caused runtime 500s in integration tests.
+- **Preventive rule:** Verify migration/schema columns before returning new fields from SQL updates; if uncertain, inspect DDL first.

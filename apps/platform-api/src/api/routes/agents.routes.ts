@@ -23,7 +23,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const agentRoutes: FastifyPluginAsync = async (app) => {
-  const agentService = new AgentService(app.pgPool, new EventService(app.pgPool));
+  const agentService = new AgentService(app.pgPool, new EventService(app.pgPool), app.config);
 
   app.post('/api/v1/agents/register', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request, reply) => {
     const body = parseOrThrow(registerSchema.safeParse(request.body));

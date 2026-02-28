@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 
 import { createApiKey, type ApiKeyIdentity } from '../auth/api-key.js';
+import type { AppEnv } from '../config/schema.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
 
@@ -13,23 +14,19 @@ interface RegisterAgentInput {
   profile?: Record<string, unknown>;
 }
 
-const DEFAULT_HEARTBEAT_GRACE_PERIOD_MS = 300_000;
-
-function resolveHeartbeatGracePeriodMs(): number {
-  const raw = process.env.HEARTBEAT_GRACE_PERIOD_MS;
-  if (!raw) {
-    return DEFAULT_HEARTBEAT_GRACE_PERIOD_MS;
-  }
-
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_HEARTBEAT_GRACE_PERIOD_MS;
-}
+type AgentServiceConfig = Pick<
+  AppEnv,
+  | 'AGENT_HEARTBEAT_GRACE_PERIOD_MS'
+  | 'AGENT_DEFAULT_HEARTBEAT_INTERVAL_SECONDS'
+  | 'AGENT_KEY_EXPIRY_MS'
+  | 'AGENT_HEARTBEAT_TOLERANCE_MS'
+>;
 
 export class AgentService {
   constructor(
     private readonly pool: Pool,
     private readonly eventService: EventService,
-    private readonly heartbeatGracePeriodMs = resolveHeartbeatGracePeriodMs(),
+    private readonly config: AgentServiceConfig,
   ) {}
 
   async registerAgent(identity: ApiKeyIdentity, input: RegisterAgentInput) {
@@ -45,7 +42,7 @@ export class AgentService {
         input.worker_id ?? null,
         input.name,
         input.capabilities ?? [],
-        input.heartbeat_interval_seconds ?? 60,
+        input.heartbeat_interval_seconds ?? this.config.AGENT_DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
         metadata,
       ],
     );
@@ -57,7 +54,7 @@ export class AgentService {
       ownerType: 'agent',
       ownerId: agent.id,
       label: `agent:${agent.name}`,
-      expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() + this.config.AGENT_KEY_EXPIRY_MS),
     });
 
     await this.eventService.emit({
@@ -115,8 +112,8 @@ export class AgentService {
        FROM agents
        WHERE status IN ('active', 'idle', 'busy', 'degraded', 'inactive')
          AND last_heartbeat_at IS NOT NULL
-         AND last_heartbeat_at < ($1::timestamptz - (heartbeat_interval_seconds * INTERVAL '2 seconds'))`,
-      [now],
+         AND last_heartbeat_at < ($1::timestamptz - (heartbeat_interval_seconds * $2::double precision * INTERVAL '1 millisecond'))`,
+      [now, this.config.AGENT_HEARTBEAT_TOLERANCE_MS],
     );
 
     let affected = 0;
@@ -144,9 +141,9 @@ export class AgentService {
       }
 
       if (agent.current_task_id) {
-        const heartbeatCutoffMs = Number(agent.heartbeat_interval_seconds) * 2_000;
+        const heartbeatCutoffMs = Number(agent.heartbeat_interval_seconds) * this.config.AGENT_HEARTBEAT_TOLERANCE_MS;
         const lastHeartbeatMs = new Date(agent.last_heartbeat_at as string | Date).getTime();
-        const failAfterMs = lastHeartbeatMs + heartbeatCutoffMs + this.heartbeatGracePeriodMs;
+        const failAfterMs = lastHeartbeatMs + heartbeatCutoffMs + this.config.AGENT_HEARTBEAT_GRACE_PERIOD_MS;
 
         if (now.getTime() >= failAfterMs) {
           await this.pool.query(

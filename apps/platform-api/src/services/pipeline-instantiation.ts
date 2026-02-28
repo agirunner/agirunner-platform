@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { PoolClient } from 'pg';
 
+import type { AppEnv } from '../config/schema.js';
 import { NotFoundError, SchemaValidationFailedError } from '../errors/domain-errors.js';
 import type { TemplateTaskDefinition } from '../orchestration/pipeline-engine.js';
 import { substituteTemplateVariables } from '../orchestration/template-variables.js';
@@ -35,6 +36,11 @@ export async function loadTemplateOrThrow(tenantId: string, templateId: string, 
   return template.rows[0];
 }
 
+type PipelineInstantiationConfig = Pick<
+  AppEnv,
+  'TASK_DEFAULT_TIMEOUT_MINUTES' | 'TASK_DEFAULT_AUTO_RETRY' | 'TASK_DEFAULT_MAX_RETRIES'
+>;
+
 export async function insertTaskFromTemplate(params: {
   tenantId: string;
   pipelineId: string;
@@ -43,8 +49,9 @@ export async function insertTaskFromTemplate(params: {
   parameters: Record<string, unknown>;
   taskIdMap: Map<string, string>;
   client: PoolClient;
+  config: PipelineInstantiationConfig;
 }) {
-  const { tenantId, pipelineId, projectId, task, parameters, taskIdMap, client } = params;
+  const { tenantId, pipelineId, projectId, task, parameters, taskIdMap, client, config } = params;
 
   const taskId = taskIdMap.get(task.id);
   if (!taskId) {
@@ -88,9 +95,9 @@ export async function insertTaskFromTemplate(params: {
       task.capabilities_required ?? [],
       roleConfig,
       task.environment ?? null,
-      task.timeout_minutes ?? 30,
-      task.auto_retry ?? false,
-      task.max_retries ?? 0,
+      task.timeout_minutes ?? config.TASK_DEFAULT_TIMEOUT_MINUTES,
+      task.auto_retry ?? config.TASK_DEFAULT_AUTO_RETRY,
+      task.max_retries ?? config.TASK_DEFAULT_MAX_RETRIES,
       metadata,
     ],
   );

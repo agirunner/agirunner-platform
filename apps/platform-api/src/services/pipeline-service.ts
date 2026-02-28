@@ -1,6 +1,7 @@
 import type { Pool } from 'pg';
 
 import type { ApiKeyIdentity } from '../auth/api-key.js';
+import type { AppEnv } from '../config/schema.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 import { validateTemplateSchema } from '../orchestration/pipeline-engine.js';
 import { resolveTemplateVariables } from '../orchestration/template-variables.js';
@@ -24,12 +25,18 @@ interface ListPipelineQuery {
   per_page: number;
 }
 
+type PipelineServiceConfig = Pick<
+  AppEnv,
+  'TASK_DEFAULT_TIMEOUT_MINUTES' | 'TASK_DEFAULT_AUTO_RETRY' | 'TASK_DEFAULT_MAX_RETRIES'
+>;
+
 export class PipelineService {
   private readonly stateService: PipelineStateService;
 
   constructor(
     private readonly pool: Pool,
     private readonly eventService: EventService,
+    private readonly config: PipelineServiceConfig,
   ) {
     this.stateService = new PipelineStateService(pool, eventService);
   }
@@ -70,6 +77,7 @@ export class PipelineService {
           parameters,
           taskIdMap,
           client,
+          config: this.config,
         });
         createdTasks.push(createdTask);
 

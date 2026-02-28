@@ -10,6 +10,12 @@ import { startTestDatabase, stopTestDatabase, type TestDatabase } from '../helpe
 
 const tenantId = '00000000-0000-0000-0000-000000000001';
 
+const testConfig = {
+  TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+  TASK_DEFAULT_AUTO_RETRY: false,
+  TASK_DEFAULT_MAX_RETRIES: 0,
+};
+
 describe('pipeline/template integration', () => {
   let db: TestDatabase;
   let templateService: TemplateService;
@@ -29,8 +35,8 @@ describe('pipeline/template integration', () => {
     db = await startTestDatabase();
     const eventService = new EventService(db.pool);
     templateService = new TemplateService(db.pool, eventService);
-    pipelineService = new PipelineService(db.pool, eventService);
-    taskService = new TaskService(db.pool, eventService);
+    pipelineService = new PipelineService(db.pool, eventService, testConfig);
+    taskService = new TaskService(db.pool, eventService, testConfig);
   });
 
   afterAll(async () => {

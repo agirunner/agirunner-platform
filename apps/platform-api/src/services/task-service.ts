@@ -1,6 +1,7 @@
 import type { Pool, PoolClient } from 'pg';
 
 import type { ApiKeyIdentity } from '../auth/api-key.js';
+import type { AppEnv } from '../config/schema.js';
 import { AgentBusyError, ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { assertValidTransition, type TaskState } from '../orchestration/task-state-machine.js';
 import { EventService } from './event-service.js';
@@ -43,12 +44,18 @@ interface ListTaskQuery {
 
 const priorityCase = "CASE priority WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END";
 
+type TaskServiceConfig = Pick<
+  AppEnv,
+  'TASK_DEFAULT_TIMEOUT_MINUTES' | 'TASK_DEFAULT_AUTO_RETRY' | 'TASK_DEFAULT_MAX_RETRIES'
+>;
+
 export class TaskService {
   private readonly pipelineStateService: PipelineStateService;
 
   constructor(
     private readonly pool: Pool,
     private readonly eventService: EventService,
+    private readonly config: TaskServiceConfig,
   ) {
     this.pipelineStateService = new PipelineStateService(pool, eventService);
   }
@@ -121,11 +128,11 @@ export class TaskService {
         input.role_config ?? null,
         input.environment ?? null,
         input.resource_bindings ?? [],
-        input.timeout_minutes ?? 30,
+        input.timeout_minutes ?? this.config.TASK_DEFAULT_TIMEOUT_MINUTES,
         input.token_budget ?? null,
         input.cost_cap_usd ?? null,
-        input.auto_retry ?? false,
-        input.max_retries ?? 0,
+        input.auto_retry ?? this.config.TASK_DEFAULT_AUTO_RETRY,
+        input.max_retries ?? this.config.TASK_DEFAULT_MAX_RETRIES,
         metadata,
       ],
     );

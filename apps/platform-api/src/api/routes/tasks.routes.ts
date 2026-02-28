@@ -65,7 +65,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const taskRoutes: FastifyPluginAsync = async (app) => {
-  const taskService = new TaskService(app.pgPool, new EventService(app.pgPool));
+  const taskService = new TaskService(app.pgPool, new EventService(app.pgPool), app.config);
 
   app.post('/api/v1/tasks', { preHandler: [authenticateApiKey, withScope('worker')] }, async (request, reply) => {
     const body = parseOrThrow(taskCreateSchema.safeParse(request.body));

@@ -9,6 +9,16 @@ import { startTestDatabase, stopTestDatabase, type TestDatabase } from '../helpe
 
 const tenantId = '00000000-0000-0000-0000-000000000001';
 
+const testConfig = {
+  AGENT_HEARTBEAT_GRACE_PERIOD_MS: 300000,
+  AGENT_DEFAULT_HEARTBEAT_INTERVAL_SECONDS: 60,
+  AGENT_KEY_EXPIRY_MS: 31536000000,
+  AGENT_HEARTBEAT_TOLERANCE_MS: 2000,
+  TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+  TASK_DEFAULT_AUTO_RETRY: false,
+  TASK_DEFAULT_MAX_RETRIES: 0,
+};
+
 describe('task lifecycle integration', () => {
   let db: TestDatabase;
   let taskService: TaskService;
@@ -17,8 +27,8 @@ describe('task lifecycle integration', () => {
   beforeAll(async () => {
     db = await startTestDatabase();
     const eventService = new EventService(db.pool);
-    taskService = new TaskService(db.pool, eventService);
-    agentService = new AgentService(db.pool, eventService);
+    taskService = new TaskService(db.pool, eventService, testConfig);
+    agentService = new AgentService(db.pool, eventService, testConfig);
   });
 
   afterAll(async () => {

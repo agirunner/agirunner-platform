@@ -1,20 +1,18 @@
 {
-  "task": "Address PR #10 review findings for Platform Milestone C",
-  "issue": "#3",
-  "branch": "feature/milestone-c",
+  "task": "Externalize remaining hardcoded operational defaults blocking PR #11",
+  "issue": "#4",
+  "branch": "feature/milestone-d",
   "phase": "COMPLETE",
   "completed": [
-    "Updated pipeline state derivation to fail immediately when any task is failed",
-    "Updated pipeline cancel cascade to cancel all non-completed tasks, including failed tasks",
-    "Refactored template PATCH to create immutable versioned rows instead of mutating in place",
-    "Updated pipeline instantiation to resolve the latest non-deleted template version by slug",
-    "Added unit regression coverage for immediate failed-state derivation",
-    "Added integration regression coverage for immediate failed pipeline state and mixed-state cancel cascade",
-    "Added integration coverage for template version immutability and latest-version pipeline instantiation",
-    "Extended Milestone C e2e to validate PATCH versioning semantics and latest-version pipeline creation",
-    "Validated with full workspace quality gates: pnpm test and pnpm lint"
+    "Added env schema entries for remaining agent/task operational defaults (heartbeat grace, default heartbeat interval, key expiry, heartbeat tolerance, default timeout, default auto-retry, default max retries)",
+    "Refactored AgentService to consume config for registration defaults, API key expiry, stale-agent heartbeat tolerance SQL window, and task-fail grace evaluation",
+    "Refactored TaskService and pipeline-instantiation to consume shared task default timeout/retry config values",
+    "Threaded typed config through bootstrap and route-level service construction (AgentService/TaskService/PipelineService)",
+    "Updated integration tests for new service constructor signatures and explicit config fixtures",
+    "Ran grep audit over services/jobs/orchestration and removed remaining hardcoded numeric defaults in targeted paths",
+    "Validated quality gates: pnpm test && pnpm lint"
   ],
   "remaining": [],
-  "lastCommit": "c8d028a",
-  "updatedAt": "2026-02-28T22:03:00Z"
+  "lastCommit": "8c649e4",
+  "updatedAt": "2026-02-28T23:00:38Z"
 }
