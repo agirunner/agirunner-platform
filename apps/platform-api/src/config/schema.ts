@@ -9,6 +9,7 @@ export const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('1h'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   RATE_LIMIT_MAX_PER_MINUTE: z.coerce.number().int().min(1).default(100),
+  HEARTBEAT_GRACE_PERIOD_MS: z.coerce.number().int().min(0).default(300000),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

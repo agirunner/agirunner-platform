@@ -1,21 +1,14 @@
-# PR #6 Review Fix Plan
+# Milestone B — Review Findings Fix Plan (PR #9)
 
-- [ ] Update Drizzle schema + SQL migration:
-  - [ ] Add `orchestrator_grants` table
-  - [ ] Add `projects.is_active` column
-  - [ ] Fix `tasks.costCapUsd` to `numeric(10,4)` in Drizzle
-  - [ ] Add all design-specified indexes (including GIN on `tasks.depends_on` and `agents.capabilities`)
-  - [ ] Add `.references()` declarations for all FK columns in schema files
-- [ ] Harden auth flow:
-  - [ ] Remove API key prefix enumeration oracle (single error message + dummy bcrypt compare on miss)
-  - [ ] Bind JWT claims to API key (`keyId`) and validate key on refresh
-- [ ] Protect and harden API surface:
-  - [ ] Require admin auth for `/metrics`
-  - [ ] Add and configure `@fastify/rate-limit` (100 req/min per key)
-- [ ] Add/adjust tests:
-  - [ ] Metrics endpoint auth coverage
-  - [ ] Rate limiting coverage
-  - [ ] JWT-key binding / revoked-key refresh rejection
-- [ ] Run `pnpm test` and `pnpm lint`
-- [ ] Update STATUS.json + memory log
-- [ ] Commit and push to `feature/milestone-a`
+- [x] Read MEMORY.md and CONTEXT.md
+- [x] Fix lifecycle endpoint authorization (IDOR): enforce calling agent ownership in start/complete/fail
+- [x] Remove invalid state transition `running -> awaiting_approval`
+- [x] Add heartbeat grace period config + enforcement logic (`HEARTBEAT_GRACE_PERIOD_MS`, default 300000)
+- [x] Add/adjust tests:
+  - [x] Agent A claims task, Agent B complete attempt returns 403
+  - [x] State machine tests updated for removed transition
+  - [x] Heartbeat timeout does not fail tasks until grace period expires
+  - [x] Dependency cascade A→B→C readiness progression
+- [x] Run `pnpm test && pnpm lint`
+- [x] Update STATUS.json and memory log
+- [x] Commit and push to `feature/milestone-b`

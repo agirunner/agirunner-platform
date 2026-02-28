@@ -39,6 +39,12 @@ export class ConflictError extends DomainError {
   }
 }
 
+export class AgentBusyError extends DomainError {
+  constructor(message: string, details?: Record<string, unknown>) {
+    super('AGENT_BUSY', 409, message, details);
+  }
+}
+
 export class InvalidStateTransitionError extends DomainError {
   constructor(message: string, details?: Record<string, unknown>) {
     super('INVALID_STATE_TRANSITION', 409, message, details);

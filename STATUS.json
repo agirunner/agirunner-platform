@@ -1,22 +1,22 @@
 {
-  "task": "PR #6 review findings remediation (Platform Milestone A)",
-  "issue": "PR #6",
-  "branch": "feature/milestone-a",
+  "task": "Fix PR #9 review findings for Platform Milestone B",
+  "issue": "Milestone B / PR #9 review",
+  "branch": "feature/milestone-b",
   "phase": "COMPLETE",
   "completed": [
-    "Added orchestrator_grants table in Drizzle schema and SQL migration",
-    "Added projects.is_active BOOLEAN NOT NULL DEFAULT true in Drizzle schema and SQL migration",
-    "Aligned tasks.costCapUsd Drizzle type to numeric(10,4)",
-    "Added design-specified indexes (including GIN on tasks.depends_on and agents.capabilities) in schema + migration",
-    "Added FK .references() declarations across Drizzle schema tables",
-    "Hardened API key verification to avoid prefix enumeration oracle and normalized miss timing with dummy bcrypt.compare",
-    "Protected /metrics with API key auth + admin scope",
-    "Added @fastify/rate-limit with default 100 req/min (configurable)",
-    "Bound JWT refresh flow to API key identity via keyId claim and active-key validation",
-    "Added/updated tests for metrics auth, rate limiting, and JWT-key binding",
-    "Validated quality gates: pnpm lint and pnpm test passing"
+    "Enforced lifecycle ownership in TaskService startTask/completeTask/failTask using calling API key agent identity (ownerId)",
+    "Changed agent assignment mismatch on lifecycle transitions to ForbiddenError (403)",
+    "Removed invalid state machine transition running -> awaiting_approval",
+    "Added heartbeat grace period support in AgentService enforceHeartbeatTimeouts with env-configurable HEARTBEAT_GRACE_PERIOD_MS (default 300000)",
+    "Prevented immediate task failure on first heartbeat miss; fail happens only after grace deadline",
+    "Added integration regression test for IDOR: agent B cannot complete task assigned to agent A (403)",
+    "Added integration test for A→B→C dependency cascade readiness progression",
+    "Updated heartbeat integration test to verify no immediate failure, then failure after grace",
+    "Updated unit state machine tests for removed transition",
+    "Verified quality gates: pnpm test and pnpm lint pass",
+    "Committed and pushed fixes to feature/milestone-b"
   ],
   "remaining": [],
-  "lastCommit": "6f15b05",
-  "updatedAt": "2026-02-28T21:03:54Z"
+  "lastCommit": "9e7fcc1",
+  "updatedAt": "2026-02-28T21:30:00Z"
 }
