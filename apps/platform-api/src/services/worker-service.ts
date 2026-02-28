@@ -1,4 +1,4 @@
-import type { Pool } from 'pg';
+import type { DatabasePool } from '../db/database.js';
 
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { AppEnv } from '../config/schema.js';
@@ -46,7 +46,7 @@ export interface WorkerSignalInput {
 }
 
 export interface WorkerServiceContext {
-  pool: Pool;
+  pool: DatabasePool;
   eventService: EventService;
   connectionHub: WorkerConnectionHub;
   config: AppEnv;
@@ -55,7 +55,7 @@ export interface WorkerServiceContext {
 export class WorkerService {
   private readonly context: WorkerServiceContext;
 
-  constructor(pool: Pool, eventService: EventService, connectionHub: WorkerConnectionHub, config: AppEnv) {
+  constructor(pool: DatabasePool, eventService: EventService, connectionHub: WorkerConnectionHub, config: AppEnv) {
     this.context = { pool, eventService, connectionHub, config };
   }
 

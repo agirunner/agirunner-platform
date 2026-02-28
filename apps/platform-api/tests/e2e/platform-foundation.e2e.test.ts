@@ -37,7 +37,7 @@ describe('platform foundation e2e', () => {
     await stopTestDatabase(db);
   });
 
-  it('returns health 200', async () => {
+  it('returns healthy status payload from /health endpoint', async () => {
     const response = await app.inject({ method: 'GET', url: '/health' });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({ status: 'ok' });

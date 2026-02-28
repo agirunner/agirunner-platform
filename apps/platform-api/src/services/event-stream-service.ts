@@ -1,4 +1,4 @@
-import type { Pool, PoolClient } from 'pg';
+import type { DatabaseClient, DatabasePool } from '../db/database.js';
 
 interface EventFilters {
   types?: string[];
@@ -19,14 +19,14 @@ export interface StreamEvent {
 }
 
 export class EventStreamService {
-  private listenerClient: PoolClient | null = null;
+  private listenerClient: DatabaseClient | null = null;
   private nextSubscriberId = 1;
   private readonly subscribers = new Map<
     number,
     { tenantId?: string; filters: EventFilters; onEvent: (event: StreamEvent) => void }
   >();
 
-  constructor(private readonly pool: Pool) {}
+  constructor(private readonly pool: DatabasePool) {}
 
   async start(): Promise<void> {
     if (this.listenerClient) {

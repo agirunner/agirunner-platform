@@ -1,4 +1,4 @@
-import type { Pool, PoolClient } from 'pg';
+import type { DatabaseClient, DatabasePool } from '../db/database.js';
 
 import { NotFoundError } from '../errors/domain-errors.js';
 import { derivePipelineState } from '../orchestration/pipeline-engine.js';
@@ -6,14 +6,14 @@ import { EventService } from './event-service.js';
 
 export class PipelineStateService {
   constructor(
-    private readonly pool: Pool,
+    private readonly pool: DatabasePool,
     private readonly eventService: EventService,
   ) {}
 
   async recomputePipelineState(
     tenantId: string,
     pipelineId: string,
-    client?: PoolClient,
+    client?: DatabaseClient,
     actor: { actorType: string; actorId?: string } = { actorType: 'system', actorId: 'pipeline_state_deriver' },
   ) {
     const db = client ?? this.pool;

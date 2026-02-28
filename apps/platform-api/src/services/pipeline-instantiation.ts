@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { PoolClient } from 'pg';
+import type { DatabaseClient } from '../db/database.js';
 
 import type { AppEnv } from '../config/schema.js';
 import { NotFoundError, SchemaValidationFailedError } from '../errors/domain-errors.js';
@@ -14,7 +14,7 @@ export function buildTemplateTaskIdMap(tasks: TemplateTaskDefinition[]): Map<str
   return map;
 }
 
-export async function loadTemplateOrThrow(tenantId: string, templateId: string, client: PoolClient) {
+export async function loadTemplateOrThrow(tenantId: string, templateId: string, client: DatabaseClient) {
   const requestedTemplate = await client.query(`SELECT * FROM templates WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL`, [
     tenantId,
     templateId,
@@ -48,7 +48,7 @@ export async function insertTaskFromTemplate(params: {
   task: TemplateTaskDefinition;
   parameters: Record<string, unknown>;
   taskIdMap: Map<string, string>;
-  client: PoolClient;
+  client: DatabaseClient;
   config: PipelineInstantiationConfig;
 }) {
   const { tenantId, pipelineId, projectId, task, parameters, taskIdMap, client, config } = params;

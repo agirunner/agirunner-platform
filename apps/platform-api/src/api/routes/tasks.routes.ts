@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
+import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { EventService } from '../../services/event-service.js';
 import { TaskService } from '../../services/task-service.js';
@@ -75,9 +76,9 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/api/v1/tasks', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
     const query = request.query as Record<string, string | undefined>;
-    const page = Number(query.page ?? 1);
-    const perPage = Number(query.per_page ?? 20);
-    if (!Number.isFinite(page) || page <= 0 || !Number.isFinite(perPage) || perPage <= 0 || perPage > 100) {
+    const page = Number(query.page ?? DEFAULT_PAGE);
+    const perPage = Number(query.per_page ?? DEFAULT_PER_PAGE);
+    if (!Number.isFinite(page) || page <= 0 || !Number.isFinite(perPage) || perPage <= 0 || perPage > MAX_PER_PAGE) {
       throw new ValidationError('Invalid pagination values');
     }
 

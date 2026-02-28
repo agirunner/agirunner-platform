@@ -1,4 +1,4 @@
-import type { Pool } from 'pg';
+import type { DatabasePool } from '../db/database.js';
 
 import { createApiKey, type ApiKeyIdentity } from '../auth/api-key.js';
 import type { AppEnv } from '../config/schema.js';
@@ -24,7 +24,7 @@ type AgentServiceConfig = Pick<
 
 export class AgentService {
   constructor(
-    private readonly pool: Pool,
+    private readonly pool: DatabasePool,
     private readonly eventService: EventService,
     private readonly config: AgentServiceConfig,
   ) {}

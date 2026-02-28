@@ -1,4 +1,4 @@
-import type { Pool } from 'pg';
+import type { DatabasePool } from '../db/database.js';
 
 interface ReadyTaskRow {
   id: string;
@@ -19,7 +19,7 @@ interface ExpiredDispatch {
   workerId: string;
 }
 
-export async function findReadyTasks(pool: Pool, limit: number): Promise<ReadyTaskRow[]> {
+export async function findReadyTasks(pool: DatabasePool, limit: number): Promise<ReadyTaskRow[]> {
   const result = await pool.query<ReadyTaskRow>(
     `SELECT id, tenant_id, capabilities_required
      FROM tasks
@@ -32,7 +32,7 @@ export async function findReadyTasks(pool: Pool, limit: number): Promise<ReadyTa
 }
 
 export async function findDispatchCandidateWorker(
-  pool: Pool,
+  pool: DatabasePool,
   tenantId: string,
   connectedWorkerIds: string[],
   requiredCapabilities: string[],
@@ -56,7 +56,7 @@ export async function findDispatchCandidateWorker(
 }
 
 export async function claimTaskForWorker(
-  pool: Pool,
+  pool: DatabasePool,
   taskId: string,
   tenantId: string,
   workerId: string,
@@ -76,7 +76,7 @@ export async function claimTaskForWorker(
   return result.rows[0] ?? null;
 }
 
-export async function resetTaskClaim(pool: Pool, tenantId: string, taskId: string): Promise<void> {
+export async function resetTaskClaim(pool: DatabasePool, tenantId: string, taskId: string): Promise<void> {
   await pool.query(
     `UPDATE tasks
      SET state = 'ready', assigned_worker_id = NULL, claimed_at = NULL, metadata = metadata - 'dispatch_pending'
@@ -85,7 +85,7 @@ export async function resetTaskClaim(pool: Pool, tenantId: string, taskId: strin
   );
 }
 
-export async function markWorkerBusy(pool: Pool, tenantId: string, workerId: string, taskId: string): Promise<void> {
+export async function markWorkerBusy(pool: DatabasePool, tenantId: string, workerId: string, taskId: string): Promise<void> {
   await pool.query(
     `UPDATE workers
      SET status = CASE WHEN status = 'draining' THEN status ELSE 'busy' END,
@@ -96,7 +96,7 @@ export async function markWorkerBusy(pool: Pool, tenantId: string, workerId: str
 }
 
 export async function acknowledgeTaskAssignment(
-  pool: Pool,
+  pool: DatabasePool,
   tenantId: string,
   taskId: string,
   workerId: string,
@@ -115,7 +115,7 @@ export async function acknowledgeTaskAssignment(
 }
 
 export async function resetExpiredDispatch(
-  pool: Pool,
+  pool: DatabasePool,
   dispatch: ExpiredDispatch,
 ): Promise<ClaimedTaskRow | null> {
   const result = await pool.query<ClaimedTaskRow>(

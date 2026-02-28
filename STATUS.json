@@ -1,18 +1,18 @@
 {
-  "task": "Externalize remaining hardcoded operational defaults blocking PR #11",
-  "issue": "#4",
-  "branch": "feature/milestone-d",
+  "task": "Full Clean Code / Clean Architecture / Clean Tests audit and remediation for platform API",
+  "issue": "N/A",
+  "branch": "chore/clean-code-audit",
   "phase": "COMPLETE",
   "completed": [
-    "Added env schema entries for remaining agent/task operational defaults (heartbeat grace, default heartbeat interval, key expiry, heartbeat tolerance, default timeout, default auto-retry, default max retries)",
-    "Refactored AgentService to consume config for registration defaults, API key expiry, stale-agent heartbeat tolerance SQL window, and task-fail grace evaluation",
-    "Refactored TaskService and pipeline-instantiation to consume shared task default timeout/retry config values",
-    "Threaded typed config through bootstrap and route-level service construction (AgentService/TaskService/PipelineService)",
-    "Updated integration tests for new service constructor signatures and explicit config fixtures",
-    "Ran grep audit over services/jobs/orchestration and removed remaining hardcoded numeric defaults in targeted paths",
-    "Validated quality gates: pnpm test && pnpm lint"
+    "Ran full source audit over apps/platform-api/src (large files, hardcoded operational values, DIP checks, swallowed-error checks)",
+    "Split oversized multi-responsibility services into focused modules (task/pipeline/template domains); no source file in apps/platform-api/src exceeds 200 LOC",
+    "Introduced DB abstractions in apps/platform-api/src/db/database.ts and removed direct pg imports from services/orchestration",
+    "Extracted pagination defaults and limits into shared constants (apps/platform-api/src/api/pagination.ts)",
+    "Refined tests for clarity and isolation (split scope enforcement assertions into focused tests; improved e2e test behavior naming)",
+    "Validated quality gates: pnpm test && pnpm lint (all passing)",
+    "Pushed branch and opened PR #16 against main"
   ],
   "remaining": [],
-  "lastCommit": "8c649e4",
-  "updatedAt": "2026-02-28T23:00:38Z"
+  "lastCommit": "b142ccf",
+  "updatedAt": "2026-02-28T23:25:50Z"
 }

@@ -1,4 +1,4 @@
-import type { Pool, PoolClient } from 'pg';
+import type { DatabaseClient, DatabasePool } from '../db/database.js';
 
 type EventEntityType = 'task' | 'pipeline' | 'agent' | 'worker' | 'project' | 'template' | 'system';
 
@@ -13,13 +13,13 @@ interface EventInput {
 }
 
 interface DbLike {
-  query: Pool['query'];
+  query: DatabasePool['query'];
 }
 
 export class EventService {
-  constructor(private readonly pool: Pool) {}
+  constructor(private readonly pool: DatabasePool) {}
 
-  async emit(input: EventInput, client?: PoolClient): Promise<void> {
+  async emit(input: EventInput, client?: DatabaseClient): Promise<void> {
     const db: DbLike = client ?? this.pool;
     await db.query(
       `INSERT INTO events (tenant_id, type, entity_type, entity_id, actor_type, actor_id, data)

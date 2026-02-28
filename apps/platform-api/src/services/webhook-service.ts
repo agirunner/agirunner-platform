@@ -1,4 +1,4 @@
-import type { Pool } from 'pg';
+import type { DatabasePool } from '../db/database.js';
 
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { AppEnv } from '../config/schema.js';
@@ -36,7 +36,7 @@ function matchesEvent(eventType: string, subscriptions: string[]): boolean {
 
 export class WebhookService {
   constructor(
-    private readonly pool: Pool,
+    private readonly pool: DatabasePool,
     private readonly config: AppEnv,
   ) {}
 
