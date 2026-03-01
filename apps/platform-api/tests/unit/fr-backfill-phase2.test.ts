@@ -135,6 +135,7 @@ describe('FR-222: orchestrator fallback on timeout', () => {
     const env = loadEnv({
       DATABASE_URL: 'postgres://x',
       JWT_SECRET: 'a'.repeat(32),
+      WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32),
     });
     expect(env.LIFECYCLE_TASK_TIMEOUT_CHECK_INTERVAL_MS).toBeGreaterThan(0);
   });
@@ -150,13 +151,13 @@ describe('FR-285: localhost bypass in dev mode', () => {
   });
 
   it('loadEnv accepts NODE_ENV values and defaults to development', () => {
-    const devEnv = loadEnv({ DATABASE_URL: 'postgres://x', JWT_SECRET: 'a'.repeat(32) });
+    const devEnv = loadEnv({ DATABASE_URL: 'postgres://x', JWT_SECRET: 'a'.repeat(32), WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32) });
     expect(devEnv.NODE_ENV).toBe('development');
 
-    const testEnv = loadEnv({ DATABASE_URL: 'postgres://x', JWT_SECRET: 'a'.repeat(32), NODE_ENV: 'test' });
+    const testEnv = loadEnv({ DATABASE_URL: 'postgres://x', JWT_SECRET: 'a'.repeat(32), WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32), NODE_ENV: 'test' });
     expect(testEnv.NODE_ENV).toBe('test');
 
-    const prodEnv = loadEnv({ DATABASE_URL: 'postgres://x', JWT_SECRET: 'a'.repeat(32), NODE_ENV: 'production' });
+    const prodEnv = loadEnv({ DATABASE_URL: 'postgres://x', JWT_SECRET: 'a'.repeat(32), WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32), NODE_ENV: 'production' });
     expect(prodEnv.NODE_ENV).toBe('production');
   });
 });
@@ -201,7 +202,7 @@ describe('FR-405: output schema validation', () => {
   });
 
   it('loadEnv provides sensible defaults for all output-relevant config fields', () => {
-    const env = loadEnv({ DATABASE_URL: 'postgres://x', JWT_SECRET: 'a'.repeat(32) });
+    const env = loadEnv({ DATABASE_URL: 'postgres://x', JWT_SECRET: 'a'.repeat(32), WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32) });
     // The config exists and is parseable without error
     expect(env.DATABASE_URL).toBe('postgres://x');
   });
@@ -396,7 +397,7 @@ describe('FR-744: BYOK model for built-in worker', () => {
   });
 
   it('loadEnv provides WORKER_API_KEY_TTL_MS with a positive default', () => {
-    const env = loadEnv({ DATABASE_URL: 'postgres://x', JWT_SECRET: 'a'.repeat(32) });
+    const env = loadEnv({ DATABASE_URL: 'postgres://x', JWT_SECRET: 'a'.repeat(32), WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32) });
     expect(env.WORKER_API_KEY_TTL_MS).toBeGreaterThan(0);
   });
 });

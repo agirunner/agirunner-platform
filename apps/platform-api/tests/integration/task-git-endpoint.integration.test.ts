@@ -20,6 +20,7 @@ describe('task git endpoint integration (FR-055)', () => {
     process.env.PORT = '8081';
     process.env.DATABASE_URL = db.databaseUrl;
     process.env.JWT_SECRET = 'x'.repeat(64);
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'k'.repeat(64);
     process.env.LOG_LEVEL = 'error';
     process.env.RATE_LIMIT_MAX_PER_MINUTE = '100';
 

@@ -1,11 +1,13 @@
-# TODO — Fix review issues for built-in worker roles (PR #44)
+# TODO — QA audit remediation (platform)
 
-- [ ] Review current branch diff and confirm issue #45/#46/#47 scope in code/tests
-- [ ] Implement runtime prohibited-operations guard in `createBuiltInTaskHandler`
-- [ ] Add/adjust unit test proving docker-exec capability is rejected with clear error
-- [ ] Differentiate `modelPreference` values across all built-in roles config
-- [ ] Add integer min/max range test coverage for output validator
-- [ ] Run quality gates: `pnpm build && pnpm test && pnpm lint`
-- [ ] Commit changes with conventional commit message referencing issues #45/#46/#47
-- [ ] Push to `feature/built-in-worker-roles`
-- [ ] Update PR #44 with a comment summarizing fixes
+- [x] Confirm baseline and identify all files touched by audit findings
+- [x] Remove JWT secret fallback in docker compose and enforce startup failure with clear message when missing
+- [x] Encrypt webhook secrets at rest (config + crypto helper + write/read paths + migration + tests)
+- [x] Remove source-scraping assertion from `worker-dispatch-and-hmac.test.ts`
+- [x] Add `.catch(logger.error)` to all fire-and-forget `void pool.query(...)` calls in the specified files
+- [x] Resolve validation package finding (delete if unused; otherwise implement meaningful exports)
+- [x] Add at least one meaningful test for `config`, `test-utils`, and `shared-types`
+- [x] Run `pnpm -r exec tsc --noEmit` and fix all type errors
+- [x] Run quality gates: `pnpm build && pnpm test && pnpm lint`
+- [x] Evaluate `docs/requirements-matrix-v1.0.md` impact (no FR mapping changes required)
+- [x] Update `STATUS.json`, commit, push branch `fix/qa-audit-platform`, and open PR

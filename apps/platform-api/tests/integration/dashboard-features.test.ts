@@ -20,7 +20,7 @@ describe('dashboard api contracts', () => {
   beforeAll(async () => {
     db = await startTestDatabase();
 
-    for (const key of ['NODE_ENV', 'PORT', 'DATABASE_URL', 'JWT_SECRET', 'LOG_LEVEL', 'RATE_LIMIT_MAX_PER_MINUTE']) {
+    for (const key of ['NODE_ENV', 'PORT', 'DATABASE_URL', 'JWT_SECRET', 'WEBHOOK_ENCRYPTION_KEY', 'LOG_LEVEL', 'RATE_LIMIT_MAX_PER_MINUTE']) {
       previousEnv[key] = process.env[key];
     }
 
@@ -28,6 +28,7 @@ describe('dashboard api contracts', () => {
     process.env.PORT = '8083';
     process.env.DATABASE_URL = db.databaseUrl;
     process.env.JWT_SECRET = 'x'.repeat(64);
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'k'.repeat(64);
     process.env.LOG_LEVEL = 'error';
     process.env.RATE_LIMIT_MAX_PER_MINUTE = '200';
 

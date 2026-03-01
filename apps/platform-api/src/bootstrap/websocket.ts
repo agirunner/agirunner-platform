@@ -96,13 +96,15 @@ export function registerWebsocketGateway(app: FastifyInstance): void {
       if (identity.scope === 'worker' && identity.ownerId) {
         workerId = identity.ownerId;
         app.workerConnectionHub.registerWorker(workerId, identity.tenantId, ws);
-        void app.pgPool.query(
-          `UPDATE workers
-           SET connected_at = now(),
-               status = CASE WHEN status = 'draining' THEN status ELSE 'online' END
-           WHERE tenant_id = $1 AND id = $2`,
-          [identity.tenantId, workerId],
-        );
+        void app.pgPool
+          .query(
+            `UPDATE workers
+             SET connected_at = now(),
+                 status = CASE WHEN status = 'draining' THEN status ELSE 'online' END
+             WHERE tenant_id = $1 AND id = $2`,
+            [identity.tenantId, workerId],
+          )
+          .catch((error) => app.log.error({ err: error, workerId, tenantId: identity.tenantId }, 'worker_connected_state_update_failed'));
       }
 
       ws.send(
@@ -151,10 +153,9 @@ export function registerWebsocketGateway(app: FastifyInstance): void {
       ws.on('close', () => {
         if (workerId) {
           app.workerConnectionHub.unregisterWorker(workerId);
-          void app.pgPool.query(`UPDATE workers SET status = 'offline' WHERE tenant_id = $1 AND id = $2`, [
-            identity.tenantId,
-            workerId,
-          ]);
+          void app.pgPool
+            .query(`UPDATE workers SET status = 'offline' WHERE tenant_id = $1 AND id = $2`, [identity.tenantId, workerId])
+            .catch((error) => app.log.error({ err: error, workerId, tenantId: identity.tenantId }, 'worker_disconnected_state_update_failed'));
         }
       });
 

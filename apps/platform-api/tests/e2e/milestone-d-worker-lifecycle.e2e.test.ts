@@ -38,6 +38,7 @@ describe('milestone d e2e worker lifecycle + webhook', () => {
     process.env.PORT = '8093';
     process.env.DATABASE_URL = db.databaseUrl;
     process.env.JWT_SECRET = 'e'.repeat(64);
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'k'.repeat(64);
     process.env.LOG_LEVEL = 'error';
 
     adminKey = (

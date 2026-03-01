@@ -16,6 +16,7 @@ describe('auth token flow', () => {
     process.env.PORT = '8081';
     process.env.DATABASE_URL = db.databaseUrl;
     process.env.JWT_SECRET = 'x'.repeat(64);
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'k'.repeat(64);
     process.env.JWT_EXPIRES_IN = '1s';
     process.env.JWT_REFRESH_EXPIRES_IN = '30s'; // long enough to avoid timing flakiness from bcrypt overhead
     process.env.LOG_LEVEL = 'error';

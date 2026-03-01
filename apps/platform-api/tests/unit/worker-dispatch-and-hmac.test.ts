@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-
 import { describe, expect, it } from 'vitest';
 
 import { createWebhookSignature, selectLeastLoadedWorker, verifyWebhookSignature } from '../../src/services/worker-service.js';
@@ -40,8 +38,4 @@ describe('worker dispatch and webhook hmac', () => {
     expect(verifyWebhookSignature(secret, payload, signature.slice(0, -2))).toBe(false);
   });
 
-  it('implements timingSafeEqual in webhook signature verification', () => {
-    const source = fs.readFileSync(new URL('../../src/services/webhook-delivery.ts', import.meta.url), 'utf-8');
-    expect(source).toContain('timingSafeEqual');
-  });
 });

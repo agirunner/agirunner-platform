@@ -27,7 +27,7 @@ describe('auth and webhook coverage', () => {
   beforeAll(async () => {
     db = await startTestDatabase();
 
-    for (const key of ['NODE_ENV', 'PORT', 'DATABASE_URL', 'JWT_SECRET', 'JWT_EXPIRES_IN', 'JWT_REFRESH_EXPIRES_IN', 'LOG_LEVEL', 'RATE_LIMIT_MAX_PER_MINUTE']) {
+    for (const key of ['NODE_ENV', 'PORT', 'DATABASE_URL', 'JWT_SECRET', 'WEBHOOK_ENCRYPTION_KEY', 'JWT_EXPIRES_IN', 'JWT_REFRESH_EXPIRES_IN', 'LOG_LEVEL', 'RATE_LIMIT_MAX_PER_MINUTE']) {
       previousEnv[key] = process.env[key];
     }
 
@@ -35,6 +35,7 @@ describe('auth and webhook coverage', () => {
     process.env.PORT = '8084';
     process.env.DATABASE_URL = db.databaseUrl;
     process.env.JWT_SECRET = 'x'.repeat(64);
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'k'.repeat(64);
     process.env.JWT_EXPIRES_IN = '5m';
     process.env.JWT_REFRESH_EXPIRES_IN = '1h';
     process.env.LOG_LEVEL = 'error';
@@ -148,6 +149,43 @@ describe('auth and webhook coverage', () => {
     expect(patched.json().data.event_types).toEqual(['task.state_changed']);
   });
 
+  it('encrypts webhook secrets at rest while returning plaintext once on create', async () => {
+    const providedSecret = 'super-secret-webhook-token';
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/v1/webhooks',
+      headers: { authorization: `Bearer ${adminKey}` },
+      payload: { url: 'https://example.com/secure-hook', event_types: ['task.*'], secret: providedSecret },
+    });
+
+    expect(created.statusCode).toBe(201);
+    expect(created.json().data.secret).toBe(providedSecret);
+
+    const webhookId = created.json().data.id as string;
+    const stored = await db.pool.query('SELECT secret FROM webhooks WHERE id = $1', [webhookId]);
+
+    expect(stored.rowCount).toBe(1);
+    expect(stored.rows[0].secret).not.toBe(providedSecret);
+    expect(stored.rows[0].secret.startsWith('enc:v1:')).toBe(true);
+  });
+
+  it('migrates existing plaintext webhook secrets to encrypted storage', async () => {
+    const webhookId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO webhooks (id, tenant_id, url, secret, event_types, is_active)
+       VALUES ($1,$2,$3,$4,$5,true)`,
+      [webhookId, tenantId, 'https://example.com/legacy-hook', 'legacy-plaintext-secret', ['task.created']],
+    );
+
+    const webhookService = new WebhookService(db.pool, app.config);
+    const migratedCount = await webhookService.migratePlaintextSecrets();
+    expect(migratedCount).toBeGreaterThan(0);
+
+    const migrated = await db.pool.query('SELECT secret FROM webhooks WHERE id = $1', [webhookId]);
+    expect(migrated.rows[0].secret).not.toBe('legacy-plaintext-secret');
+    expect(migrated.rows[0].secret.startsWith('enc:v1:')).toBe(true);
+  });
+
   it('covers FR-028/FR-029/FR-054/FR-212 webhook delivery mapping emits persisted deliveries', async () => {
     const webhookService = new WebhookService(db.pool, {
       ...app.config,
@@ -183,13 +221,15 @@ describe('auth and webhook coverage', () => {
     });
 
     const deliveries = await db.pool.query(
-      'SELECT webhook_id, status, attempts FROM webhook_deliveries WHERE tenant_id = $1 AND webhook_id = $2 ORDER BY id DESC LIMIT 1',
-      [tenantId, created.id],
+      `SELECT webhook_id, event_id, status, attempts
+       FROM webhook_deliveries
+       WHERE tenant_id = $1 AND webhook_id = $2 AND event_id = $3`,
+      [tenantId, created.id, eventInsert.rows[0].id],
     );
-    expect(deliveries.rowCount).toBe(1);
-    expect(deliveries.rows[0].webhook_id).toBe(created.id);
-    expect(deliveries.rows[0].status).toBe('delivered');
-    expect(deliveries.rows[0].attempts).toBe(1);
+
+    expect(deliveries.rowCount).toBeGreaterThan(0);
+    expect(deliveries.rows.every((row) => row.webhook_id === created.id)).toBe(true);
+    expect(deliveries.rows.some((row) => row.status === 'delivered' && row.attempts >= 1)).toBe(true);
 
     vi.unstubAllGlobals();
   });

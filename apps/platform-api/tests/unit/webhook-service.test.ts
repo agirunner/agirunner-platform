@@ -52,10 +52,10 @@ describe('WebhookService delivery behavior', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(updateCalls).toHaveLength(1);
-    expect(updateCalls[0][1]).toBe(3);
-    expect(updateCalls[0][2]).toBe('failed');
-    expect(updateCalls[0][3]).toBe(500);
-    expect(String(updateCalls[0][4])).toContain('HTTP 500');
+    expect(updateCalls[0][3]).toBe(3);
+    expect(updateCalls[0][4]).toBe('failed');
+    expect(updateCalls[0][5]).toBe(500);
+    expect(String(updateCalls[0][6])).toContain('HTTP 500');
   });
 
   it('records timeout/network errors as failed webhook deliveries', async () => {
@@ -95,9 +95,9 @@ describe('WebhookService delivery behavior', () => {
     await service.deliverEvent(event);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(updateCalls[0][1]).toBe(1);
-    expect(updateCalls[0][2]).toBe('failed');
-    expect(updateCalls[0][3]).toBeNull();
-    expect(String(updateCalls[0][4])).toContain('network timeout');
+    expect(updateCalls[0][3]).toBe(1);
+    expect(updateCalls[0][4]).toBe('failed');
+    expect(updateCalls[0][5]).toBeNull();
+    expect(String(updateCalls[0][6])).toContain('network timeout');
   });
 });

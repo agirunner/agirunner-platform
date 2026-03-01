@@ -192,11 +192,17 @@ importers:
         specifier: 2.1.8
         version: 2.1.8(@types/node@22.13.5)
 
-  packages/shared-types: {}
+  packages/shared-types:
+    devDependencies:
+      vitest:
+        specifier: 2.1.8
+        version: 2.1.8(@types/node@22.13.5)
 
-  packages/test-utils: {}
-
-  packages/validation: {}
+  packages/test-utils:
+    devDependencies:
+      vitest:
+        specifier: 2.1.8
+        version: 2.1.8(@types/node@22.13.5)
 
 packages:
 

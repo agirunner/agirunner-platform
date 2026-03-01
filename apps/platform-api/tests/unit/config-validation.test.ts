@@ -9,6 +9,7 @@ describe('config validation', () => {
       PORT: '9999',
       DATABASE_URL: 'postgres://user:pass@localhost:5432/db',
       JWT_SECRET: 'a'.repeat(32),
+      WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32),
       LOG_LEVEL: 'info',
     });
 
@@ -24,6 +25,7 @@ describe('config validation', () => {
         PORT: 'abc',
         DATABASE_URL: '',
         JWT_SECRET: 'short',
+        WEBHOOK_ENCRYPTION_KEY: 'tiny',
         LOG_LEVEL: 'info',
       }),
     ).toThrowError();

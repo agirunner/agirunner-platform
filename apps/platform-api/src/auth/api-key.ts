@@ -4,9 +4,11 @@ import bcrypt from 'bcryptjs';
 
 import type { DatabaseQueryable } from '../db/database.js';
 import { UnauthorizedError } from '../errors/domain-errors.js';
+import { createLogger } from '../observability/logger.js';
 import type { ApiKeyScope } from './scope.js';
 
 const DUMMY_API_KEY_HASH = '$2a$12$C6UzMDM.H6dfI/f/IKcEeO5m8j6jVWeItPxX2VINeodIZ6Tn6PvxW';
+const logger = createLogger(process.env.LOG_LEVEL ?? 'info');
 
 export interface ApiKeyIdentity {
   id: string;
@@ -81,7 +83,9 @@ export async function verifyApiKey(pool: DatabaseQueryable, apiKeyRaw: string): 
     throw new UnauthorizedError('Invalid API key');
   }
 
-  void pool.query('UPDATE api_keys SET last_used_at = now() WHERE id = $1', [key.id]);
+  void pool
+    .query('UPDATE api_keys SET last_used_at = now() WHERE id = $1', [key.id])
+    .catch((error) => logger.error({ err: error, keyId: key.id }, 'api_key_last_used_at_update_failed'));
 
   return toIdentity(key);
 }

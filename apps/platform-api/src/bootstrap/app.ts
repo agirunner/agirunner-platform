@@ -20,7 +20,15 @@ import { registerPlugins } from './plugins.js';
 import { registerRoutes } from './routes.js';
 import { registerWebsocketGateway } from './websocket.js';
 
+export function assertRequiredStartupSecrets(source: NodeJS.ProcessEnv = process.env): void {
+  const jwtSecret = source.JWT_SECRET;
+  if (!jwtSecret || jwtSecret.trim().length === 0) {
+    throw new Error('Missing required environment variable JWT_SECRET. Set JWT_SECRET before starting platform-api.');
+  }
+}
+
 export async function buildApp() {
+  assertRequiredStartupSecrets();
   const config = loadEnv();
   const app = Fastify({
     logger: {
@@ -41,6 +49,7 @@ export async function buildApp() {
   const workerConnectionHub = new WorkerConnectionHub();
   const workerService = new WorkerService(pool, eventService, workerConnectionHub, config);
   const webhookService = new WebhookService(pool, config);
+  const migratedWebhookSecrets = await webhookService.migratePlaintextSecrets();
 
   app.decorate('config', config);
   app.decorate('pgPool', pool);
@@ -49,6 +58,10 @@ export async function buildApp() {
   app.decorate('workerConnectionHub', workerConnectionHub);
   app.decorate('workerService', workerService);
   app.decorate('webhookService', webhookService);
+
+  if (migratedWebhookSecrets > 0) {
+    app.log.info({ migratedWebhookSecrets }, 'webhook_secrets_migrated_to_encrypted_storage');
+  }
 
   registerRequestContext(app);
   await registerPlugins(app);

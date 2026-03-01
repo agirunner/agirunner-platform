@@ -42,6 +42,7 @@ describe('milestone d worker/events integration', () => {
     process.env.PORT = '8092';
     process.env.DATABASE_URL = db.databaseUrl;
     process.env.JWT_SECRET = 'w'.repeat(64);
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'k'.repeat(64);
     process.env.LOG_LEVEL = 'error';
     process.env.WORKER_OFFLINE_GRACE_PERIOD_MS = '10000';
 

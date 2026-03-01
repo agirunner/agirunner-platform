@@ -21,6 +21,7 @@ describe('milestone b lifecycle e2e', () => {
     process.env.PORT = '8089';
     process.env.DATABASE_URL = db.databaseUrl;
     process.env.JWT_SECRET = 'z'.repeat(64);
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'k'.repeat(64);
     process.env.LOG_LEVEL = 'error';
 
     adminKey = (

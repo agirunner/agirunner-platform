@@ -1,23 +1,21 @@
 {
-  "task": "Implement 8 built-in worker FRs (FR-743/745/747/748/749/750/751/753)",
-  "issue": "built-in-worker-roles",
-  "branch": "feature/built-in-worker-roles",
+  "task": "Fix all QA audit findings on agentbaton-platform",
+  "issue": "qa-audit-platform",
+  "branch": "fix/qa-audit-platform",
   "phase": "COMPLETE",
   "completed": [
-    "FR-743: 4 core role agents registered via configs/built-in-roles.json + role-config.ts",
-    "FR-745: Anthropic/OpenAI/Google provider support (BYOK via env)",
-    "FR-747: Curated role configs from file (system prompt, tools, model pref, verification)",
-    "FR-748: Output schema validation (JSON Schema subset) in output-validator.ts",
-    "FR-749: Rework flow with configurable max attempts in rework-controller.ts",
-    "FR-750: LLM-API-only capability constraint in config + code",
-    "FR-751: Dashboard capability badge in built-in-capability-badge.tsx + task-detail-page",
-    "FR-753: External agent preference verified end-to-end (5 new unit tests)",
-    "Fixed pre-existing webhook test (vi.spyOn → vi.stubGlobal)",
-    "Updated docs/requirements-matrix-v1.0.md (8 FRs: 🔜 → ✅)",
-    "pnpm build && pnpm test && pnpm lint all pass",
-    "PR #44 opened"
+    "Removed JWT_SECRET docker-compose fallback and added bootstrap startup guard with clear error for missing JWT_SECRET",
+    "Added WEBHOOK_ENCRYPTION_KEY to env schema and implemented webhook secret AES-256-GCM encryption/decryption helper",
+    "Encrypted webhook secrets on write, decrypted on read, and added startup migration that backfills existing plaintext webhook secrets",
+    "Removed source-scraping timingSafeEqual assertion from worker-dispatch-and-hmac unit tests",
+    "Added error logging catch handlers to fire-and-forget DB updates in auth/api-key.ts and bootstrap/websocket.ts",
+    "Deleted unused packages/validation workspace package",
+    "Added meaningful tests for config, test-utils, and shared-types packages and implemented concrete exports in test-utils/shared-types",
+    "Ran strict TypeScript check with pnpm -r exec tsc --noEmit (passes)",
+    "Ran pnpm build && pnpm test && pnpm lint successfully",
+    "Pushed branch fix/qa-audit-platform and opened PR #48"
   ],
   "remaining": [],
-  "lastCommit": "47e6697",
-  "updatedAt": "2026-03-01T04:30:00Z"
+  "lastCommit": "838ed96",
+  "updatedAt": "2026-03-01T06:48:30Z"
 }

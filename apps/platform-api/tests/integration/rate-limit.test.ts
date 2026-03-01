@@ -13,6 +13,7 @@ describe('rate limiting', () => {
     process.env.PORT = '8084';
     process.env.DATABASE_URL = db.databaseUrl;
     process.env.JWT_SECRET = 'r'.repeat(64);
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'k'.repeat(64);
     process.env.LOG_LEVEL = 'error';
     process.env.RATE_LIMIT_MAX_PER_MINUTE = '2';
 

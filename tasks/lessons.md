@@ -48,3 +48,6 @@
 
 - **What went wrong:** Webhook delivery assertion read the latest tenant delivery row and occasionally matched a different webhook when multiple hooks existed.
 - **Preventive rule:** Scope delivery assertions by both `tenant_id` and `webhook_id` (or `event_id`) to avoid nondeterministic cross-hook matches.
+
+- **What went wrong:** Implemented encrypted webhook secret format with a delimiter in the prefix (`enc:v1`) and then parsed with a fixed 4-part split, causing decryption failures.
+- **Preventive rule:** For serialized cryptographic payloads, define a stable tokenized schema (`marker`, `version`, `iv`, `ciphertext`, `tag`) and test round-trip parsing before integrating with service flows.

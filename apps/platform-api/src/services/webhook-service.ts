@@ -4,6 +4,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { AppEnv } from '../config/schema.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import type { StreamEvent } from './event-stream-service.js';
+import { decryptWebhookSecret, encryptWebhookSecret, isWebhookSecretEncrypted } from './webhook-secret-crypto.js';
 import { createWebhookSignature, generateWebhookSecret } from './webhook-delivery.js';
 
 interface WebhookInput {
@@ -16,6 +17,13 @@ interface UpdateWebhookInput {
   url?: string;
   event_types?: string[];
   is_active?: boolean;
+}
+
+interface WebhookRow {
+  id: string;
+  url: string;
+  secret: string;
+  event_types: string[] | null;
 }
 
 function validateWebhookUrl(url: string): void {
@@ -40,15 +48,33 @@ export class WebhookService {
     private readonly config: AppEnv,
   ) {}
 
+  async migratePlaintextSecrets(): Promise<number> {
+    const result = await this.pool.query<{ id: string; secret: string }>('SELECT id, secret FROM webhooks');
+
+    let migratedCount = 0;
+    for (const row of result.rows) {
+      if (isWebhookSecretEncrypted(row.secret)) {
+        continue;
+      }
+
+      const encryptedSecret = encryptWebhookSecret(row.secret, this.config.WEBHOOK_ENCRYPTION_KEY);
+      await this.pool.query('UPDATE webhooks SET secret = $2 WHERE id = $1', [row.id, encryptedSecret]);
+      migratedCount += 1;
+    }
+
+    return migratedCount;
+  }
+
   async registerWebhook(identity: ApiKeyIdentity, input: WebhookInput) {
     validateWebhookUrl(input.url);
 
     const secret = input.secret ?? generateWebhookSecret();
+    const encryptedSecret = encryptWebhookSecret(secret, this.config.WEBHOOK_ENCRYPTION_KEY);
     const result = await this.pool.query(
       `INSERT INTO webhooks (tenant_id, url, secret, event_types, is_active)
        VALUES ($1,$2,$3,$4,true)
        RETURNING id, url, event_types, is_active, created_at`,
-      [identity.tenantId, input.url, secret, input.event_types ?? []],
+      [identity.tenantId, input.url, encryptedSecret, input.event_types ?? []],
     );
 
     return { ...result.rows[0], secret };
@@ -92,7 +118,7 @@ export class WebhookService {
   }
 
   async deliverEvent(event: StreamEvent): Promise<void> {
-    const hooks = await this.pool.query(
+    const hooks = await this.pool.query<WebhookRow>(
       'SELECT id, url, secret, event_types FROM webhooks WHERE tenant_id = $1 AND is_active = true',
       [event.tenant_id],
     );
@@ -111,12 +137,28 @@ export class WebhookService {
         created_at: event.created_at,
       });
 
-      const delivery = await this.pool.query(
+      await this.pool.query(
         `INSERT INTO webhook_deliveries (tenant_id, webhook_id, event_id, event_type, attempts, status)
-         VALUES ($1,$2,$3,$4,0,'pending')
-         RETURNING id`,
+         VALUES ($1,$2,$3,$4,0,'pending')`,
         [event.tenant_id, hook.id, event.id, event.type],
       );
+
+      let signingSecret: string;
+      try {
+        signingSecret = decryptWebhookSecret(hook.secret, this.config.WEBHOOK_ENCRYPTION_KEY);
+      } catch (error) {
+        await this.pool.query(
+          `UPDATE webhook_deliveries
+           SET attempts = 1,
+               status = 'failed',
+               last_status_code = NULL,
+               last_error = $4,
+               delivered_at = NULL
+           WHERE tenant_id = $1 AND webhook_id = $2 AND event_id = $3 AND status = 'pending'`,
+          [event.tenant_id, hook.id, event.id, `Webhook secret decryption failed: ${(error as Error).message}`],
+        );
+        continue;
+      }
 
       let attempts = 0;
       let delivered = false;
@@ -130,7 +172,7 @@ export class WebhookService {
             method: 'POST',
             headers: {
               'content-type': 'application/json',
-              'x-agentbaton-signature': createWebhookSignature(hook.secret, payload),
+              'x-agentbaton-signature': createWebhookSignature(signingSecret, payload),
               'x-agentbaton-event': event.type,
             },
             body: payload,
@@ -152,13 +194,13 @@ export class WebhookService {
 
       await this.pool.query(
         `UPDATE webhook_deliveries
-         SET attempts = $2,
-             status = $3,
-             last_status_code = $4,
-             last_error = $5,
-             delivered_at = CASE WHEN $3 = 'delivered' THEN now() ELSE NULL END
-         WHERE id = $1`,
-        [delivery.rows[0].id, attempts, delivered ? 'delivered' : 'failed', lastStatusCode, lastError],
+         SET attempts = $4,
+             status = $5,
+             last_status_code = $6,
+             last_error = $7,
+             delivered_at = CASE WHEN $5 = 'delivered' THEN now() ELSE NULL END
+         WHERE tenant_id = $1 AND webhook_id = $2 AND event_id = $3 AND status = 'pending'`,
+        [event.tenant_id, hook.id, event.id, attempts, delivered ? 'delivered' : 'failed', lastStatusCode, lastError],
       );
     }
   }

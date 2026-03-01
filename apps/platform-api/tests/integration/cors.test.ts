@@ -13,6 +13,7 @@ describe('CORS preflight', () => {
     process.env.PORT = '8089';
     process.env.DATABASE_URL = db.databaseUrl;
     process.env.JWT_SECRET = 'c'.repeat(64);
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'k'.repeat(64);
     process.env.LOG_LEVEL = 'error';
     process.env.CORS_ORIGIN = 'http://localhost:5173';
     app = await buildApp();
