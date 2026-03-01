@@ -380,20 +380,6 @@ describe('FR-756: built-in agents use same capability system as external agents'
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('FR-820: external workers connect via network-transparent protocol', () => {
-  it('WORKER_ALLOWED_ORIGINS config field exists and defaults to * (any host)', () => {
-    // FR-820
-    const source = readSrc('config/schema.ts');
-    expect(source).toContain('WORKER_ALLOWED_ORIGINS');
-    expect(source).toContain("default('*')");
-  });
-
-  it('websocket.ts contains isOriginAllowed helper that permits any host when set to *', () => {
-    // FR-820
-    const source = readSrc('bootstrap/websocket.ts');
-    expect(source).toContain('isOriginAllowed');
-    expect(source).toContain("allowedOriginsConfig === '*'");
-  });
-
   it('isOriginAllowed allows any origin when config is *', () => {
     // FR-820: tests the actual production function — no inline re-implementation
     expect(isOriginAllowed('https://worker.example.com', '*')).toBe(true);

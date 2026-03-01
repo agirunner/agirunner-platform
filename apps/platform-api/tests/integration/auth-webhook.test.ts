@@ -81,18 +81,50 @@ describe('auth and webhook coverage', () => {
     const tokenRes = await app.inject({ method: 'POST', url: '/api/v1/auth/token', payload: { api_key: adminKey } });
     expect(tokenRes.statusCode).toBe(200);
     expect(tokenRes.json().data.token).toBeTypeOf('string');
-    expect((tokenRes.headers['set-cookie'] as string) ?? '').toContain('HttpOnly');
+
+    // Both access and refresh tokens set as httpOnly cookies
+    const cookies = Array.isArray(tokenRes.headers['set-cookie'])
+      ? tokenRes.headers['set-cookie']
+      : [tokenRes.headers['set-cookie'] as string];
+    const accessCookie = cookies.find((c) => c.startsWith('agentbaton_access_token='));
+    const refreshCookie = cookies.find((c) => c.startsWith('agentbaton_refresh_token='));
+    expect(accessCookie).toContain('HttpOnly');
+    expect(refreshCookie).toContain('HttpOnly');
 
     const forbidden = await app.inject({ method: 'GET', url: '/api/v1/workers', headers: { authorization: `Bearer ${workerKey}` } });
     expect(forbidden.statusCode).toBe(403);
 
+    const refreshCookieValue = refreshCookie!.split(';')[0];
     const refresh = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/refresh',
-      headers: { cookie: (tokenRes.headers['set-cookie'] as string).split(';')[0] },
+      headers: { cookie: refreshCookieValue },
     });
     expect(refresh.statusCode).toBe(200);
     expect(refresh.json().data.token).toBeTypeOf('string');
+  });
+
+  it('GET /api/v1/auth/me returns identity from httpOnly access cookie', async () => {
+    const tokenRes = await app.inject({ method: 'POST', url: '/api/v1/auth/token', payload: { api_key: adminKey } });
+    const cookies = Array.isArray(tokenRes.headers['set-cookie'])
+      ? tokenRes.headers['set-cookie']
+      : [tokenRes.headers['set-cookie'] as string];
+    const accessCookie = cookies.find((c) => c.startsWith('agentbaton_access_token='))!.split(';')[0];
+
+    const meRes = await app.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me',
+      headers: { cookie: accessCookie },
+    });
+    expect(meRes.statusCode).toBe(200);
+    expect(meRes.json().data.authenticated).toBe(true);
+    expect(meRes.json().data.scope).toBe('admin');
+    expect(meRes.json().data.tenant_id).toBe(tenantId);
+  });
+
+  it('GET /api/v1/auth/me returns 401 without credentials', async () => {
+    const meRes = await app.inject({ method: 'GET', url: '/api/v1/auth/me' });
+    expect(meRes.statusCode).toBe(401);
   });
 
   it('covers FR-047/FR-048 periodic timeout checks and auto-retry on timeout', async () => {
@@ -187,19 +219,17 @@ describe('auth and webhook coverage', () => {
   });
 
   it('covers FR-028/FR-029/FR-054/FR-212 webhook delivery mapping emits persisted deliveries', async () => {
+    const fetchMock = vi.fn<typeof globalThis.fetch>().mockResolvedValue(new Response('ok', { status: 200 }));
     const webhookService = new WebhookService(db.pool, {
       ...app.config,
       WEBHOOK_MAX_ATTEMPTS: 1,
       WEBHOOK_RETRY_BASE_DELAY_MS: 1,
-    });
+    }, fetchMock);
 
     const created = await webhookService.registerWebhook(
       { id: 'admin', tenantId, scope: 'admin', ownerType: 'user', ownerId: null, keyPrefix: 'admin' },
       { url: 'https://example.com/git-events', event_types: ['task.state_changed'] },
     );
-
-    const fetchMock = vi.fn().mockResolvedValue(new Response('ok', { status: 200 }));
-    vi.stubGlobal('fetch', fetchMock);
 
     const eventInsert = await db.pool.query(
       `INSERT INTO events (tenant_id, type, entity_type, entity_id, actor_type, actor_id, data)
@@ -220,6 +250,8 @@ describe('auth and webhook coverage', () => {
       created_at: eventInsert.rows[0].created_at,
     });
 
+    expect(fetchMock).toHaveBeenCalled();
+
     const deliveries = await db.pool.query(
       `SELECT webhook_id, event_id, status, attempts
        FROM webhook_deliveries
@@ -230,7 +262,5 @@ describe('auth and webhook coverage', () => {
     expect(deliveries.rowCount).toBeGreaterThan(0);
     expect(deliveries.rows.every((row) => row.webhook_id === created.id)).toBe(true);
     expect(deliveries.rows.some((row) => row.status === 'delivered' && row.attempts >= 1)).toBe(true);
-
-    vi.unstubAllGlobals();
   });
 });

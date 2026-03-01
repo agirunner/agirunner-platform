@@ -52,7 +52,10 @@ describe('platform foundation e2e', () => {
     });
 
     expect(exchange.statusCode).toBe(200);
-    const refreshCookie = (exchange.headers['set-cookie'] as string).split(';')[0];
+    const setCookies = Array.isArray(exchange.headers['set-cookie'])
+      ? exchange.headers['set-cookie']
+      : [exchange.headers['set-cookie'] as string];
+    const refreshCookie = setCookies.find((c) => c.startsWith('agentbaton_refresh_token='))!.split(';')[0];
 
     const refresh = await app.inject({
       method: 'POST',

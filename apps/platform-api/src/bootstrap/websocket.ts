@@ -143,7 +143,7 @@ export function registerWebsocketGateway(app: FastifyInstance): void {
 
         if (payload.type === 'worker.heartbeat' && workerId) {
           void app.workerService.heartbeat(identity, workerId, {
-            status: payload.status as 'online' | 'busy' | 'draining' | 'offline' | undefined,
+            status: payload.status as 'online' | 'busy' | 'draining' | 'disconnected' | 'offline' | undefined,
             current_task_id: typeof payload.current_task_id === 'string' ? payload.current_task_id : null,
             metrics: (payload.metrics as Record<string, unknown> | undefined) ?? {},
           });

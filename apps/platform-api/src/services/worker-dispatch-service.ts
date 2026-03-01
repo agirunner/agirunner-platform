@@ -18,7 +18,7 @@ const BUILT_IN_RUNTIME_TYPES = new Set(['internal', 'built_in']);
 
 interface DispatchCandidate {
   id: string;
-  status: 'online' | 'busy' | 'draining' | 'degraded' | 'offline';
+  status: 'online' | 'busy' | 'draining' | 'degraded' | 'disconnected' | 'offline';
   capabilities: string[];
   currentLoad: number;
 }

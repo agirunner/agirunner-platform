@@ -62,12 +62,19 @@ describe('auth token flow', () => {
     expect(body.data.token).toBeTypeOf('string');
     expect(body.data.refresh_token).toBeUndefined();
 
-    const cookieHeader = response.headers['set-cookie'] as string;
-    expect(cookieHeader).toContain('agentbaton_refresh_token=');
-    expect(cookieHeader).toContain('HttpOnly');
-    expect(cookieHeader).toContain('Secure');
-    expect(cookieHeader).toContain('SameSite=Strict');
-    expect(cookieHeader).toContain('Path=/api/v1/auth/refresh');
+    const cookies = Array.isArray(response.headers['set-cookie'])
+      ? response.headers['set-cookie']
+      : [response.headers['set-cookie'] as string];
+    const refreshCookieHeader = cookies.find((c) => c.startsWith('agentbaton_refresh_token='))!;
+    expect(refreshCookieHeader).toContain('agentbaton_refresh_token=');
+    expect(refreshCookieHeader).toContain('HttpOnly');
+    expect(refreshCookieHeader).toContain('Secure');
+    expect(refreshCookieHeader).toContain('SameSite=Strict');
+    expect(refreshCookieHeader).toContain('Path=/api/v1/auth/refresh');
+
+    const accessCookieHeader = cookies.find((c) => c.startsWith('agentbaton_access_token='))!;
+    expect(accessCookieHeader).toContain('HttpOnly');
+    expect(accessCookieHeader).toContain('Secure');
   });
 
   it('refreshes access token when short-lived token expires', async () => {
@@ -78,8 +85,10 @@ describe('auth token flow', () => {
     });
 
     const expiredAccessToken = authResponse.json().data.token as string;
-    const cookieHeader = authResponse.headers['set-cookie'] as string;
-    const refreshCookie = cookieHeader.split(';')[0];
+    const authCookies = Array.isArray(authResponse.headers['set-cookie'])
+      ? authResponse.headers['set-cookie']
+      : [authResponse.headers['set-cookie'] as string];
+    const refreshCookie = authCookies.find((c) => c.startsWith('agentbaton_refresh_token='))!.split(';')[0];
 
     await new Promise((resolve) => setTimeout(resolve, 1_200));
 
@@ -168,8 +177,10 @@ describe('auth token flow', () => {
       payload: { api_key: adminKey },
     });
 
-    const cookieHeader = response.headers['set-cookie'] as string;
-    const refreshCookie = cookieHeader.split(';')[0];
+    const bindCookies = Array.isArray(response.headers['set-cookie'])
+      ? response.headers['set-cookie']
+      : [response.headers['set-cookie'] as string];
+    const refreshCookie = bindCookies.find((c) => c.startsWith('agentbaton_refresh_token='))!.split(';')[0];
     await db.pool.query('UPDATE api_keys SET is_revoked = true WHERE key_prefix = $1', [adminKey.slice(0, 12)]);
 
     const refresh = await app.inject({

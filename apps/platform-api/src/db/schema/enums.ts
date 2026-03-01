@@ -32,7 +32,7 @@ export const agentStatusEnum = pgEnum('agent_status', [
   'offline',
 ]);
 
-export const workerStatusEnum = pgEnum('worker_status', ['online', 'busy', 'draining', 'degraded', 'offline']);
+export const workerStatusEnum = pgEnum('worker_status', ['online', 'busy', 'draining', 'degraded', 'disconnected', 'offline']);
 export const workerConnectionModeEnum = pgEnum('worker_connection_mode', [
   'websocket',
   'sse',

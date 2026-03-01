@@ -137,6 +137,45 @@ describe('McpStdioServer', () => {
     );
   });
 
+  it('does not crash when onMessage rejects — returns parse error instead', async () => {
+    const malformedSpy = vi.fn();
+    const processor = createMessageProcessor(
+      async () => { throw new Error('boom'); },
+      malformedSpy,
+    );
+    const validBody = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
+
+    processor(Buffer.from(`Content-Length: ${validBody.length}\r\n\r\n${validBody}`));
+
+    // Allow the microtask (promise rejection handler) to run
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(malformedSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jsonrpc: '2.0',
+        id: null,
+        error: expect.objectContaining({ code: -32700 }),
+      }),
+    );
+  });
+
+  it('continues processing after malformed JSON instead of stopping', () => {
+    const onMessage = vi.fn(async () => {});
+    const malformedSpy = vi.fn();
+    const processor = createMessageProcessor(onMessage, malformedSpy);
+    const badBody = '{invalid json}';
+    const goodBody = JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+
+    // Send both messages in a single chunk
+    const chunk =
+      `Content-Length: ${badBody.length}\r\n\r\n${badBody}` +
+      `Content-Length: ${goodBody.length}\r\n\r\n${goodBody}`;
+    processor(Buffer.from(chunk));
+
+    expect(malformedSpy).toHaveBeenCalledTimes(1);
+    expect(onMessage).toHaveBeenCalledTimes(1);
+  });
+
   it('passes batch payload through parser for protocol edge handling', async () => {
     const onMessage = vi.fn(async () => {});
     const malformedSpy = vi.fn();

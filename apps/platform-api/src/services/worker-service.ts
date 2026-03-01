@@ -33,7 +33,7 @@ export interface RegisterWorkerInput {
 }
 
 export interface WorkerHeartbeatInput {
-  status?: 'online' | 'busy' | 'draining' | 'offline';
+  status?: 'online' | 'busy' | 'draining' | 'disconnected' | 'offline';
   current_task_id?: string | null;
   current_tasks?: string[];
   metrics?: Record<string, unknown>;

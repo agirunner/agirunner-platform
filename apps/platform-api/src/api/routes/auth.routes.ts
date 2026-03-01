@@ -6,8 +6,20 @@ import { issueAccessToken, issueRefreshToken, verifyJwt } from '../../auth/jwt.j
 import { UnauthorizedError } from '../../errors/domain-errors.js';
 
 const tokenExchangeSchema = z.object({ api_key: z.string().min(20) });
+const ACCESS_COOKIE_NAME = 'agentbaton_access_token';
 const REFRESH_COOKIE_NAME = 'agentbaton_refresh_token';
 
+/** Cookie options for the httpOnly access token cookie. */
+function accessCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'strict' as const,
+    path: '/api/v1',
+  };
+}
+
+/** Cookie options for the httpOnly refresh token cookie. */
 function refreshCookieOptions() {
   return {
     httpOnly: true,
@@ -40,6 +52,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       keyPrefix: identity.keyPrefix,
     });
 
+    reply.setCookie(ACCESS_COOKIE_NAME, token, accessCookieOptions());
     reply.setCookie(REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions());
     return {
       data: {
@@ -52,6 +65,42 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/api/v1/auth/token', loginHandler);
   app.post('/api/v1/auth/login', loginHandler);
+
+  /**
+   * GET /api/v1/auth/me — Returns the authenticated user's identity from
+   * the httpOnly access-token cookie (or Authorization header).
+   * Dashboard clients use this instead of parsing localStorage tokens.
+   */
+  app.get('/api/v1/auth/me', async (request) => {
+    const cookieToken = request.cookies[ACCESS_COOKIE_NAME];
+    const headerToken = request.headers.authorization
+      ? parseBearerToken(request.headers.authorization)
+      : undefined;
+    const token = cookieToken ?? headerToken;
+
+    if (!token) {
+      throw new UnauthorizedError('Authentication required');
+    }
+
+    const claims = await verifyJwt<{
+      keyId: string;
+      tenantId: string;
+      scope: 'agent' | 'worker' | 'admin';
+      ownerType: string;
+      ownerId: string | null;
+      keyPrefix: string;
+    }>(app, token);
+
+    return {
+      data: {
+        authenticated: true,
+        scope: claims.scope,
+        tenant_id: claims.tenantId,
+        owner_type: claims.ownerType,
+        owner_id: claims.ownerId,
+      },
+    };
+  });
 
   app.post('/api/v1/auth/refresh', async (request, reply) => {
     const cookieToken = request.cookies[REFRESH_COOKIE_NAME];
@@ -119,6 +168,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       keyPrefix: keyIdentity.keyPrefix,
     });
 
+    reply.setCookie(ACCESS_COOKIE_NAME, nextToken, accessCookieOptions());
     reply.setCookie(REFRESH_COOKIE_NAME, nextRefreshToken, refreshCookieOptions());
     return {
       data: {

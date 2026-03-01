@@ -217,7 +217,7 @@ describe('milestone d worker/events integration', () => {
       db.pool.query('SELECT state, assigned_worker_id FROM tasks WHERE id = $1', [staleTaskId]),
     ]);
 
-    expect(workerAfterOffline.rows[0].status).toBe('offline');
+    expect(workerAfterOffline.rows[0].status).toBe('disconnected');
     expect(taskBeforeGrace.rows[0].state).toBe('claimed');
     expect(taskBeforeGrace.rows[0].assigned_worker_id).toBe(workerId);
 

@@ -19,6 +19,13 @@ export function writeMessage(payload: JsonRpcResponse): void {
   stdout.write(`Content-Length: ${Buffer.byteLength(body, 'utf8')}\r\n\r\n${body}`);
 }
 
+/**
+ * Creates a streaming message processor for the JSON-RPC over stdio transport.
+ *
+ * Handles Content-Length framing, JSON parsing, and error recovery.
+ * Never throws or crashes on malformed input — returns JSON-RPC `-32700`
+ * (Parse Error) responses instead.
+ */
 export function createMessageProcessor(
   onMessage: (message: JsonRpcRequest) => Promise<void>,
   onMalformedMessage: (error: JsonRpcResponse) => void,
@@ -48,11 +55,17 @@ export function createMessageProcessor(
       const body = buffer.slice(start, end);
       buffer = buffer.slice(end);
 
+      let parsed: JsonRpcRequest;
       try {
-        void onMessage(JSON.parse(body) as JsonRpcRequest);
+        parsed = JSON.parse(body) as JsonRpcRequest;
       } catch {
         onMalformedMessage(parseError('Malformed JSON payload'));
+        continue;
       }
+
+      onMessage(parsed).catch(() => {
+        onMalformedMessage(parseError('Internal error processing message'));
+      });
     }
   };
 }

@@ -65,7 +65,7 @@ export async function enforceHeartbeatTimeouts(context: WorkerServiceContext, no
   const workers = await context.pool.query(
     `SELECT id, tenant_id, status, heartbeat_interval_seconds, last_heartbeat_at
      FROM workers
-     WHERE status IN ('online', 'busy', 'draining', 'degraded', 'offline')
+     WHERE status IN ('online', 'busy', 'draining', 'degraded', 'disconnected', 'offline')
        AND last_heartbeat_at IS NOT NULL`,
   );
 
@@ -76,31 +76,56 @@ export async function enforceHeartbeatTimeouts(context: WorkerServiceContext, no
     const elapsed = now.getTime() - lastHeartbeat;
     const offlineCutoffMs = intervalMs * context.config.WORKER_OFFLINE_THRESHOLD_MULTIPLIER;
     const degradedCutoffMs = intervalMs * context.config.WORKER_DEGRADED_THRESHOLD_MULTIPLIER;
+    const gracePeriodMs = context.config.WORKER_OFFLINE_GRACE_PERIOD_MS;
 
     if (elapsed >= offlineCutoffMs) {
-      if (worker.status !== 'offline') {
-        await context.pool.query(`UPDATE workers SET status = 'offline' WHERE tenant_id = $1 AND id = $2`, [
-          worker.tenant_id,
-          worker.id,
-        ]);
-
-        await context.eventService.emit({
-          tenantId: worker.tenant_id,
-          type: 'worker.offline',
-          entityType: 'worker',
-          entityId: worker.id,
-          actorType: 'system',
-          actorId: 'worker_heartbeat_monitor',
-          data: {
-            last_heartbeat_at: worker.last_heartbeat_at,
-            reassignment_grace_period_ms: context.config.WORKER_OFFLINE_GRACE_PERIOD_MS,
-          },
-        });
-        affected += 1;
-      }
-
       const graceElapsed = elapsed - offlineCutoffMs;
-      if (graceElapsed >= context.config.WORKER_OFFLINE_GRACE_PERIOD_MS) {
+
+      if (graceElapsed < gracePeriodMs) {
+        // Within grace period — transition to disconnected (tasks stay assigned)
+        if (worker.status !== 'disconnected' && worker.status !== 'offline') {
+          await context.pool.query(`UPDATE workers SET status = 'disconnected' WHERE tenant_id = $1 AND id = $2`, [
+            worker.tenant_id,
+            worker.id,
+          ]);
+
+          await context.eventService.emit({
+            tenantId: worker.tenant_id,
+            type: 'worker.disconnected',
+            entityType: 'worker',
+            entityId: worker.id,
+            actorType: 'system',
+            actorId: 'worker_heartbeat_monitor',
+            data: {
+              last_heartbeat_at: worker.last_heartbeat_at,
+              grace_period_ms: gracePeriodMs,
+            },
+          });
+          affected += 1;
+        }
+      } else {
+        // Grace period expired — transition to offline and requeue tasks
+        if (worker.status !== 'offline') {
+          await context.pool.query(`UPDATE workers SET status = 'offline' WHERE tenant_id = $1 AND id = $2`, [
+            worker.tenant_id,
+            worker.id,
+          ]);
+
+          await context.eventService.emit({
+            tenantId: worker.tenant_id,
+            type: 'worker.offline',
+            entityType: 'worker',
+            entityId: worker.id,
+            actorType: 'system',
+            actorId: 'worker_heartbeat_monitor',
+            data: {
+              last_heartbeat_at: worker.last_heartbeat_at,
+              grace_period_ms: gracePeriodMs,
+            },
+          });
+          affected += 1;
+        }
+
         const reassigned = await context.pool.query(
           `UPDATE tasks
            SET state = 'ready',

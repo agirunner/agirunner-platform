@@ -42,11 +42,19 @@ function matchesEvent(eventType: string, subscriptions: string[]): boolean {
   );
 }
 
+/** Function signature for the HTTP client used by webhook delivery. */
+export type WebhookFetchFn = typeof globalThis.fetch;
+
 export class WebhookService {
+  private readonly fetchFn: WebhookFetchFn;
+
   constructor(
     private readonly pool: DatabasePool,
     private readonly config: AppEnv,
-  ) {}
+    fetchFn?: WebhookFetchFn,
+  ) {
+    this.fetchFn = fetchFn ?? globalThis.fetch;
+  }
 
   async migratePlaintextSecrets(): Promise<number> {
     const result = await this.pool.query<{ id: string; secret: string }>('SELECT id, secret FROM webhooks');
@@ -168,7 +176,7 @@ export class WebhookService {
       while (!delivered && attempts < this.config.WEBHOOK_MAX_ATTEMPTS) {
         attempts += 1;
         try {
-          const response = await fetch(hook.url, {
+          const response = await this.fetchFn(hook.url, {
             method: 'POST',
             headers: {
               'content-type': 'application/json',

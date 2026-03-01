@@ -24,7 +24,7 @@ const registerSchema = z.object({
 });
 
 const heartbeatSchema = z.object({
-  status: z.enum(['online', 'busy', 'draining', 'offline']).optional(),
+  status: z.enum(['online', 'busy', 'draining', 'disconnected', 'offline']).optional(),
   current_task_id: z.string().uuid().nullable().optional(),
   current_tasks: z.array(z.string().uuid()).optional(),
   metrics: z.record(z.unknown()).optional(),
