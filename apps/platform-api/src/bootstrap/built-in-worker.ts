@@ -1,10 +1,16 @@
 /**
- * Built-in Worker Bootstrap — FR-741, FR-752, FR-754, FR-756
+ * Built-in Worker Bootstrap — FR-741, FR-743, FR-745, FR-747, FR-748, FR-749, FR-750, FR-752, FR-754, FR-756
  *
  * This module provides the lifecycle functions for the platform's optional
  * built-in worker.  The built-in worker:
  *
  *   FR-741 — runs as a separate process from the API server.
+ *   FR-743 — registers 4 core role agents: developer, reviewer, architect, qa.
+ *   FR-745 — supports Anthropic, OpenAI, Google as LLM providers (BYOK via env).
+ *   FR-747 — uses curated role configs loaded from configs/built-in-roles.json.
+ *   FR-748 — validates task output against an output schema before marking complete.
+ *   FR-749 — re-queues failed tasks with feedback for rework (configurable max attempts).
+ *   FR-750 — capabilities are explicitly limited to LLM API work only.
  *   FR-752 — uses the same worker registration protocol as external workers,
  *             so any external agent with matching capabilities can replace it.
  *   FR-754 — starts automatically on first run when a default API key exists
@@ -17,12 +23,33 @@ import http from 'node:http';
 import https from 'node:https';
 import { WebSocket } from 'ws';
 
+import {
+  loadBuiltInRolesConfig,
+  getAllCapabilities,
+  resolveProvider,
+  resolveProviderApiKey,
+  type BuiltInRolesConfig,
+  type RoleName,
+} from '../built-in/role-config.js';
+import { validateOutputSchema, type OutputSchema } from '../built-in/output-validator.js';
+import {
+  decideRework,
+  extractReworkAttemptCount,
+} from '../built-in/rework-controller.js';
+
+// Re-export role config types for consumers of this module.
+export type { BuiltInRolesConfig, RoleName };
+export { loadBuiltInRolesConfig, getAllCapabilities, resolveProvider, resolveProviderApiKey };
+
 export interface BuiltInWorkerConfig {
   /** Base URL of the Platform API (e.g. http://localhost:8080) */
   apiBaseUrl: string;
   /** Admin API key used to register the worker on first connect */
   adminApiKey: string;
-  /** Capabilities this worker advertises (same set as any external worker) */
+  /**
+   * Capabilities this worker advertises (same set as any external worker).
+   * FR-750: capabilities are derived from role configs and limited to llm-api work.
+   */
   capabilities: string[];
   /** Human-readable worker name surfaced in the dashboard */
   name: string;
@@ -30,6 +57,50 @@ export interface BuiltInWorkerConfig {
   heartbeatIntervalSeconds: number;
   /** Task executor configuration */
   executor?: TaskExecutorConfig;
+  /**
+   * Maximum number of rework attempts before permanently failing a task.
+   * FR-749: must come from config, not hardcoded.
+   */
+  maxReworkAttempts?: number;
+  /**
+   * Operations this worker is prohibited from executing.
+   * FR-750: sourced from llmOnlyConstraint.prohibitedOperations in the role config.
+   * Tasks that declare any of these operations in their requirements are rejected
+   * immediately before execution begins.
+   */
+  prohibitedOperations?: string[];
+}
+
+/**
+ * Builds a BuiltInWorkerConfig from the loaded role config and environment.
+ *
+ * FR-743: registers all 4 core role capabilities on startup.
+ * FR-745: resolves LLM provider from BUILT_IN_WORKER_LLM_PROVIDER env var.
+ * FR-750: capabilities are derived from the role config, which limits them to llm-api.
+ */
+export function buildWorkerConfigFromRoles(
+  baseConfig: Omit<BuiltInWorkerConfig, 'capabilities' | 'maxReworkAttempts'>,
+  rolesConfig: BuiltInRolesConfig,
+  env: NodeJS.ProcessEnv = process.env,
+): BuiltInWorkerConfig {
+  const provider = resolveProvider(rolesConfig, env);
+  const providerApiKey = resolveProviderApiKey(rolesConfig, provider, env);
+
+  return {
+    ...baseConfig,
+    // FR-743: all 4 role capabilities merged into one registration.
+    // FR-750: getAllCapabilities returns only llm-api and role:* capabilities.
+    capabilities: getAllCapabilities(rolesConfig),
+    // FR-749: max rework attempts from config.
+    maxReworkAttempts: rolesConfig.maxReworkAttempts,
+    // FR-750: prohibited operations sourced from llmOnlyConstraint — not hardcoded.
+    prohibitedOperations: rolesConfig.llmOnlyConstraint.prohibitedOperations,
+    executor: {
+      ...baseConfig.executor,
+      // FR-745: provider API key injected from env (BYOK — never hardcoded).
+      agentApiKey: providerApiKey ?? baseConfig.executor?.agentApiKey,
+    },
+  };
 }
 
 /**
@@ -66,6 +137,29 @@ export interface TaskExecutionResult {
   output: Record<string, unknown>;
   success: boolean;
   error?: string;
+}
+
+/**
+ * Checks whether a task's declared requirements contain any prohibited operation.
+ *
+ * FR-750: enforced at runtime before task execution begins so that tasks
+ * requesting Docker, bare-metal, or other out-of-scope operations are rejected
+ * immediately with a clear error rather than silently failing later.
+ *
+ * @param taskRequirements - The `requirements` field from the task payload (any type).
+ * @param prohibitedOperations - The list of operations the worker refuses to perform.
+ * @returns The first prohibited operation found, or `undefined` if the task is allowed.
+ */
+export function checkProhibitedOperations(
+  taskRequirements: unknown,
+  prohibitedOperations: string[],
+): string | undefined {
+  if (!Array.isArray(taskRequirements) || prohibitedOperations.length === 0) {
+    return undefined;
+  }
+  return (taskRequirements as unknown[]).find(
+    (req): req is string => typeof req === 'string' && prohibitedOperations.includes(req),
+  );
 }
 
 /**
@@ -152,22 +246,60 @@ export async function executeTask(
 }
 
 /**
+ * Optional overrides for the built-in task handler — used in testing to inject
+ * a mock executor without modifying production code paths.
+ */
+export interface TaskHandlerOptions {
+  /**
+   * Replaces the default `executeTask` implementation.
+   * Useful in unit tests to verify that execution is (or is not) reached.
+   */
+  executeTaskFn?: (
+    task: Record<string, unknown>,
+    config: TaskExecutorConfig,
+  ) => Promise<TaskExecutionResult>;
+}
+
+/**
  * Creates a task handler that uses the Platform API to mark tasks running,
  * execute them via the configured executor, then mark them complete or failed.
+ *
+ * FR-748: validates task output against the task's output_schema before completing.
+ * FR-749: re-queues the task with rework feedback if validation fails or output is rejected.
+ * FR-750: rejects tasks that declare a prohibited operation before execution begins.
  *
  * The returned handler is suitable for passing to `connectBuiltInWorkerWebSocket`.
  */
 export function createBuiltInTaskHandler(
   config: BuiltInWorkerConfig,
   registration: WorkerRegistration,
+  options?: TaskHandlerOptions,
 ): (task: Record<string, unknown>) => Promise<void> {
   const apiBaseUrl = config.apiBaseUrl;
   const agentApiKey = registration.workerApiKey;
   const executorConfig = config.executor ?? {};
+  const maxReworkAttempts = config.maxReworkAttempts ?? 3;
+  const prohibitedOps = config.prohibitedOperations ?? [];
+  const taskExecutor = options?.executeTaskFn ?? executeTask;
 
   return async (task: Record<string, unknown>): Promise<void> => {
     const taskId = String(task.id);
     const agentId = typeof task.assigned_agent_id === 'string' ? task.assigned_agent_id : undefined;
+    const outputSchema = (task.output_schema ?? undefined) as OutputSchema | undefined;
+    const taskContext = (task.context ?? {}) as Record<string, unknown>;
+
+    // FR-750: reject tasks that require a prohibited operation before doing any work.
+    const violation = checkProhibitedOperations(task['requirements'], prohibitedOps);
+    if (violation !== undefined) {
+      await callPlatformApi(apiBaseUrl, agentApiKey, 'POST', `/api/v1/tasks/${taskId}/fail`, {
+        error: {
+          message: `Task requires prohibited operation "${violation}". The built-in worker is restricted to LLM API calls only.`,
+          source: 'built-in-worker',
+          prohibited_operation: violation,
+        },
+      });
+      return;
+    }
 
     // Mark the task as running via the Platform API
     await callPlatformApi(apiBaseUrl, agentApiKey, 'POST', `/api/v1/tasks/${taskId}/start`, {
@@ -175,18 +307,70 @@ export function createBuiltInTaskHandler(
     });
 
     // Execute the task using the configured executor
-    const result = await executeTask(task, executorConfig);
+    const result = await taskExecutor(task, executorConfig);
 
-    if (result.success) {
-      await callPlatformApi(apiBaseUrl, agentApiKey, 'POST', `/api/v1/tasks/${taskId}/complete`, {
-        output: result.output,
-      });
-    } else {
+    if (!result.success) {
       await callPlatformApi(apiBaseUrl, agentApiKey, 'POST', `/api/v1/tasks/${taskId}/fail`, {
         error: { message: result.error ?? 'Unknown execution error', source: 'built-in-worker' },
       });
+      return;
     }
+
+    // FR-748: validate output against the task's declared output schema.
+    const validationResult = validateOutputSchema(result.output, outputSchema);
+    if (!validationResult.valid) {
+      const feedback = `Output schema validation failed: ${validationResult.error ?? 'unknown validation error'}`;
+      await handleReworkOrFail(
+        apiBaseUrl,
+        agentApiKey,
+        taskId,
+        taskContext,
+        maxReworkAttempts,
+        feedback,
+      );
+      return;
+    }
+
+    await callPlatformApi(apiBaseUrl, agentApiKey, 'POST', `/api/v1/tasks/${taskId}/complete`, {
+      output: result.output,
+    });
   };
+}
+
+/**
+ * Handles the rework-or-fail decision after a task output is rejected.
+ *
+ * FR-749: if the attempt limit has not been reached, the task context is enriched
+ * with rework feedback and the task is marked for rework. Otherwise, the task is
+ * permanently failed so the pipeline can escalate.
+ */
+async function handleReworkOrFail(
+  apiBaseUrl: string,
+  agentApiKey: string,
+  taskId: string,
+  taskContext: Record<string, unknown>,
+  maxReworkAttempts: number,
+  feedback: string,
+): Promise<void> {
+  const attemptsSoFar = extractReworkAttemptCount(taskContext);
+  const decision = decideRework(attemptsSoFar, maxReworkAttempts, feedback, taskContext);
+
+  if (decision.shouldRework && decision.nextContext) {
+    // Re-queue the task with enriched context so the next attempt has the feedback.
+    await callPlatformApi(apiBaseUrl, agentApiKey, 'POST', `/api/v1/tasks/${taskId}/rework`, {
+      feedback,
+      context: decision.nextContext,
+    });
+  } else {
+    // Attempt limit exhausted — permanently fail the task.
+    await callPlatformApi(apiBaseUrl, agentApiKey, 'POST', `/api/v1/tasks/${taskId}/fail`, {
+      error: {
+        message: decision.reason,
+        source: 'built-in-worker',
+        rework_attempts_exhausted: true,
+      },
+    });
+  }
 }
 
 /**

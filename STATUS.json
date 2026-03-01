@@ -1,23 +1,23 @@
 {
-  "task": "Honest audit and update of docs/requirements-matrix-v1.0.md",
-  "issue": "N/A",
-  "branch": "docs/honest-matrix-audit",
+  "task": "Implement 8 built-in worker FRs (FR-743/745/747/748/749/750/751/753)",
+  "issue": "built-in-worker-roles",
+  "branch": "feature/built-in-worker-roles",
   "phase": "COMPLETE",
   "completed": [
-    "Audited all 255 FR rows in docs/requirements-matrix-v1.0.md with evidence-only path validation",
-    "Updated Implementation/Unit/Integration/Live/Docs cells to reflect actual repository evidence",
-    "Recomputed status values using strict derivation rules",
-    "Updated coverage summary with audited counts",
-    "Verified FR row count = 255",
-    "Pushed branch and opened PR #28"
+    "FR-743: 4 core role agents registered via configs/built-in-roles.json + role-config.ts",
+    "FR-745: Anthropic/OpenAI/Google provider support (BYOK via env)",
+    "FR-747: Curated role configs from file (system prompt, tools, model pref, verification)",
+    "FR-748: Output schema validation (JSON Schema subset) in output-validator.ts",
+    "FR-749: Rework flow with configurable max attempts in rework-controller.ts",
+    "FR-750: LLM-API-only capability constraint in config + code",
+    "FR-751: Dashboard capability badge in built-in-capability-badge.tsx + task-detail-page",
+    "FR-753: External agent preference verified end-to-end (5 new unit tests)",
+    "Fixed pre-existing webhook test (vi.spyOn → vi.stubGlobal)",
+    "Updated docs/requirements-matrix-v1.0.md (8 FRs: 🔜 → ✅)",
+    "pnpm build && pnpm test && pnpm lint all pass",
+    "PR #44 opened"
   ],
-  "remaining": [
-    "Address failing integration test in auth-flow if requested (outside this docs-only scope)"
-  ],
-  "lastCommit": "acc3ffba96c1e7744e75dfecfaa306073a0419de",
-  "updatedAt": "2026-03-01T02:30:16Z",
-  "verification": {
-    "pnpmTest": "failed",
-    "failure": "apps/platform-api/tests/integration/auth-flow.test.ts :: refreshes access token when short-lived token expires (expected 200, got 401)"
-  }
+  "remaining": [],
+  "lastCommit": "47e6697",
+  "updatedAt": "2026-03-01T04:30:00Z"
 }

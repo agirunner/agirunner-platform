@@ -160,7 +160,8 @@ describe('auth and webhook coverage', () => {
       { url: 'https://example.com/git-events', event_types: ['task.state_changed'] },
     );
 
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('ok', { status: 200 }));
+    const fetchMock = vi.fn().mockResolvedValue(new Response('ok', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
 
     const eventInsert = await db.pool.query(
       `INSERT INTO events (tenant_id, type, entity_type, entity_id, actor_type, actor_id, data)
@@ -190,6 +191,6 @@ describe('auth and webhook coverage', () => {
     expect(deliveries.rows[0].status).toBe('delivered');
     expect(deliveries.rows[0].attempts).toBe(1);
 
-    fetchMock.mockRestore();
+    vi.unstubAllGlobals();
   });
 });

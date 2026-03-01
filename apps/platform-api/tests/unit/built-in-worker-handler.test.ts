@@ -5,12 +5,15 @@
  * and that the handler functions exist and behave correctly.
  */
 
-import { describe, expect, it } from 'vitest';
+import { createServer } from 'node:http';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   executeTask,
   createBuiltInTaskHandler,
+  checkProhibitedOperations,
   type TaskExecutorConfig,
+  type TaskExecutionResult,
   type WorkerRegistration,
   type BuiltInWorkerConfig,
 } from '../../src/bootstrap/built-in-worker.js';
@@ -101,5 +104,180 @@ describe('createBuiltInTaskHandler', () => {
     expect(freshHandler).not.toBe(freshExecute);
     expect(typeof freshHandler).toBe('function');
     expect(typeof freshExecute).toBe('function');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FR-750 — checkProhibitedOperations pure helper
+// ---------------------------------------------------------------------------
+
+describe('checkProhibitedOperations', () => {
+  it('returns undefined when task has no requirements field', () => {
+    const result = checkProhibitedOperations(undefined, ['docker-exec', 'bare-metal-exec']);
+    expect(result).toBeUndefined();
+  });
+
+  it('returns undefined when task requirements array is empty', () => {
+    const result = checkProhibitedOperations([], ['docker-exec']);
+    expect(result).toBeUndefined();
+  });
+
+  it('returns undefined when prohibited operations list is empty', () => {
+    const result = checkProhibitedOperations(['docker-exec'], []);
+    expect(result).toBeUndefined();
+  });
+
+  it('returns undefined when requirements contain only allowed operations', () => {
+    const result = checkProhibitedOperations(['llm-api-call', 'text-processing'], ['docker-exec', 'bare-metal-exec']);
+    expect(result).toBeUndefined();
+  });
+
+  it('returns the prohibited operation when task requires docker-exec', () => {
+    const result = checkProhibitedOperations(['docker-exec'], ['docker-exec', 'bare-metal-exec']);
+    expect(result).toBe('docker-exec');
+  });
+
+  it('returns the prohibited operation when task requires bare-metal-exec', () => {
+    const result = checkProhibitedOperations(['bare-metal-exec'], ['docker-exec', 'bare-metal-exec']);
+    expect(result).toBe('bare-metal-exec');
+  });
+
+  it('returns the first prohibited operation encountered in requirements', () => {
+    const result = checkProhibitedOperations(
+      ['llm-api-call', 'host-filesystem-write', 'docker-exec'],
+      ['docker-exec', 'host-filesystem-write'],
+    );
+    // 'host-filesystem-write' appears first in the requirements array
+    expect(result).toBe('host-filesystem-write');
+  });
+
+  it('ignores non-string entries in requirements', () => {
+    const result = checkProhibitedOperations([42, null, 'llm-api-call'], ['docker-exec']);
+    expect(result).toBeUndefined();
+  });
+
+  it('returns undefined when requirements is not an array (e.g. a string)', () => {
+    const result = checkProhibitedOperations('docker-exec', ['docker-exec']);
+    expect(result).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FR-750 — handler rejects prohibited operations before execution
+// ---------------------------------------------------------------------------
+
+describe('createBuiltInTaskHandler with prohibitedOperations', () => {
+  it('does not invoke the task executor when a prohibited operation is required', async () => {
+    const configWithProhibitions: BuiltInWorkerConfig = {
+      ...minimalConfig,
+      prohibitedOperations: ['docker-exec', 'bare-metal-exec'],
+    };
+
+    const executorSpy = vi.fn<(_: Record<string, unknown>, __: TaskExecutorConfig) => Promise<TaskExecutionResult>>();
+
+    const handler = createBuiltInTaskHandler(configWithProhibitions, mockRegistration, {
+      executeTaskFn: executorSpy,
+    });
+
+    const forbiddenTask = {
+      id: 'task-docker',
+      type: 'infra',
+      title: 'Run Docker container',
+      requirements: ['docker-exec'],
+    };
+
+    // The handler will attempt to call the Platform API /fail endpoint.
+    // No real API server exists so the network call throws — that is expected.
+    await handler(forbiddenTask).catch(() => undefined);
+
+    // Critical assertion: the executor must never be called for a prohibited task.
+    expect(executorSpy).not.toHaveBeenCalled();
+  });
+
+  it('invokes the task executor when requirements contain no prohibited operations', async () => {
+    const server = createServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('{}');
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+      throw new Error('Failed to start mock Platform API server');
+    }
+
+    try {
+      const configWithProhibitions: BuiltInWorkerConfig = {
+        ...minimalConfig,
+        apiBaseUrl: `http://127.0.0.1:${address.port}`,
+        prohibitedOperations: ['docker-exec', 'bare-metal-exec'],
+      };
+
+      const executorSpy = vi.fn<(_: Record<string, unknown>, __: TaskExecutorConfig) => Promise<TaskExecutionResult>>()
+        .mockResolvedValue({ output: { result: 'done' }, success: true });
+
+      const handler = createBuiltInTaskHandler(configWithProhibitions, mockRegistration, {
+        executeTaskFn: executorSpy,
+      });
+
+      const allowedTask = {
+        id: 'task-llm',
+        type: 'code',
+        title: 'Generate code',
+        requirements: ['llm-api-call'],
+      };
+
+      await handler(allowedTask);
+
+      expect(executorSpy).toHaveBeenCalledOnce();
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      }));
+    }
+  });
+
+  it('invokes the task executor when no requirements field is present', async () => {
+    const server = createServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('{}');
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+      throw new Error('Failed to start mock Platform API server');
+    }
+
+    try {
+      const configWithProhibitions: BuiltInWorkerConfig = {
+        ...minimalConfig,
+        apiBaseUrl: `http://127.0.0.1:${address.port}`,
+        prohibitedOperations: ['docker-exec'],
+      };
+
+      const executorSpy = vi.fn<(_: Record<string, unknown>, __: TaskExecutorConfig) => Promise<TaskExecutionResult>>()
+        .mockResolvedValue({ output: {}, success: true });
+
+      const handler = createBuiltInTaskHandler(configWithProhibitions, mockRegistration, {
+        executeTaskFn: executorSpy,
+      });
+
+      await handler({ id: 'task-no-req', type: 'code', title: 'No requirements' });
+
+      expect(executorSpy).toHaveBeenCalledOnce();
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      }));
+    }
   });
 });
