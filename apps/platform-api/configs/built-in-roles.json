@@ -10,50 +10,90 @@
     },
     "openai": {
       "envKey": "OPENAI_API_KEY",
-      "defaultModel": "gpt-4o"
+      "defaultModel": "gpt-4o-mini"
     },
     "google": {
       "envKey": "GOOGLE_API_KEY",
-      "defaultModel": "gemini-2.0-flash-exp"
+      "defaultModel": "gemini-2.5-flash"
     }
   },
   "roles": {
     "developer": {
       "description": "Implements features, writes code, and resolves bugs.",
-      "systemPrompt": "You are a senior software engineer. Implement the requested feature or fix with clean, well-tested code. Follow the repository's coding conventions. Output only production-ready code with inline documentation. Do not explain — just deliver.",
-      "allowedTools": ["code_edit", "file_read", "file_write", "shell_exec", "test_runner"],
+      "systemPrompt": "You are a senior software engineer. Implement the requested feature or fix with clean, well-tested code. Follow the repository's coding conventions. Output only production-ready code with inline documentation. Do not explain \u2014 just deliver.",
+      "allowedTools": [
+        "code_edit",
+        "file_read",
+        "file_write",
+        "shell_exec",
+        "test_runner"
+      ],
       "modelPreference": "claude-3-5-sonnet-20241022",
       "verificationStrategy": "unit_tests",
-      "capabilities": ["llm-api", "role:developer", "lang:typescript", "lang:python", "lang:go"]
+      "capabilities": [
+        "llm-api",
+        "role:developer",
+        "lang:typescript",
+        "lang:python",
+        "lang:go"
+      ]
     },
     "reviewer": {
       "description": "Reviews code and architecture for quality, correctness, and standards compliance.",
-      "systemPrompt": "You are a meticulous code reviewer. Review the provided code or design for correctness, security, performance, and adherence to clean code principles. Return a structured review with: APPROVED or CHANGES_REQUIRED, a severity-ranked list of findings, and specific improvement suggestions. Be direct — do not soften feedback.",
-      "allowedTools": ["file_read", "search_codebase"],
-      "modelPreference": "claude-3-opus-20240229",
+      "systemPrompt": "You are a meticulous code reviewer. Review the provided code or design for correctness, security, performance, and adherence to clean code principles. Return a structured review with: APPROVED or CHANGES_REQUIRED, a severity-ranked list of findings, and specific improvement suggestions. Be direct \u2014 do not soften feedback.",
+      "allowedTools": [
+        "file_read",
+        "search_codebase"
+      ],
+      "modelPreference": "gpt-4o-mini",
       "verificationStrategy": "structured_review",
-      "capabilities": ["llm-api", "role:reviewer"]
+      "capabilities": [
+        "llm-api",
+        "role:reviewer"
+      ]
     },
     "architect": {
       "description": "Designs system architecture, module boundaries, and technical strategies.",
-      "systemPrompt": "You are a principal software architect. Design the system or module described. Produce: a component diagram (text-based), interface definitions, data flow description, and a risk/trade-off analysis. Decisions must be justified. Apply clean architecture principles — dependencies point inward.",
-      "allowedTools": ["file_read", "search_codebase"],
-      "modelPreference": "o1-preview",
+      "systemPrompt": "You are a principal software architect. Design the system or module described. Produce: a component diagram (text-based), interface definitions, data flow description, and a risk/trade-off analysis. Decisions must be justified. Apply clean architecture principles \u2014 dependencies point inward.",
+      "allowedTools": [
+        "file_read",
+        "search_codebase"
+      ],
+      "modelPreference": "gemini-2.5-flash",
       "verificationStrategy": "peer_review",
-      "capabilities": ["llm-api", "role:architect"]
+      "capabilities": [
+        "llm-api",
+        "role:architect"
+      ]
     },
     "qa": {
       "description": "Writes and executes test plans, identifies edge cases, and validates requirements.",
       "systemPrompt": "You are a QA engineer specialising in automated testing. Given a feature or requirement, produce: a comprehensive test plan, unit test skeletons, integration test scenarios, and edge-case analysis. Tests must follow Arrange-Act-Assert pattern with one concept per test. Identify boundary conditions and failure modes.",
-      "allowedTools": ["file_read", "test_runner", "search_codebase"],
-      "modelPreference": "gemini-2.0-flash-exp",
+      "allowedTools": [
+        "file_read",
+        "test_runner",
+        "search_codebase"
+      ],
+      "modelPreference": "claude-sonnet-4-6",
       "verificationStrategy": "test_coverage_check",
-      "capabilities": ["llm-api", "role:qa"]
+      "capabilities": [
+        "llm-api",
+        "role:qa"
+      ]
     }
   },
   "llmOnlyConstraint": {
     "description": "The built-in worker is explicitly limited to LLM API calls. It cannot run Docker containers, execute bare-metal commands, access the host filesystem outside its sandbox, or perform network operations beyond LLM provider API calls.",
-    "allowedOperations": ["llm-api-call", "json-validation", "text-processing"],
-    "prohibitedOperations": ["docker-exec", "bare-metal-exec", "host-filesystem-write", "arbitrary-network"]
+    "allowedOperations": [
+      "llm-api-call",
+      "json-validation",
+      "text-processing"
+    ],
+    "prohibitedOperations": [
+      "docker-exec",
+      "bare-metal-exec",
+      "host-filesystem-write",
+      "arbitrary-network"
+    ]
   }
 }
