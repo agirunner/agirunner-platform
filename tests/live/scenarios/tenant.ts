@@ -91,11 +91,11 @@ export async function createTestTenant(label: string): Promise<TenantContext> {
   }
 
   const adminClient = new LiveApiClient(config.apiBaseUrl, adminKey);
-  const workerClient = new LiveApiClient(config.apiBaseUrl, workerKey);
-  const agentClient = new LiveApiClient(config.apiBaseUrl, agentKey);
+  const bootstrapWorkerClient = new LiveApiClient(config.apiBaseUrl, workerKey);
+  const bootstrapAgentClient = new LiveApiClient(config.apiBaseUrl, agentKey);
 
-  // Register worker
-  const workerReg = await workerClient.registerWorker({
+  // Register worker and switch to the worker-scoped key bound to that worker id.
+  const workerReg = await bootstrapWorkerClient.registerWorker({
     name: `live-worker-${label}`,
     capabilities: [
       'llm-api',
@@ -111,8 +111,19 @@ export async function createTestTenant(label: string): Promise<TenantContext> {
     runtime_type: 'external',
   });
 
-  // Register agent
-  const agentReg = await agentClient.registerAgent({
+  const registeredWorkerId = workerReg.worker_id ?? workerReg.id;
+  if (!registeredWorkerId) {
+    throw new Error(`Worker registration did not return an id: ${JSON.stringify(workerReg)}`);
+  }
+
+  if (!workerReg.worker_api_key) {
+    throw new Error('Worker registration did not return worker_api_key');
+  }
+
+  const scopedWorkerClient = new LiveApiClient(config.apiBaseUrl, workerReg.worker_api_key);
+
+  // Register agent and switch to the agent-scoped key bound to that agent id.
+  const agentReg = await bootstrapAgentClient.registerAgent({
     name: `live-agent-${label}`,
     capabilities: [
       'llm-api',
@@ -121,8 +132,14 @@ export async function createTestTenant(label: string): Promise<TenantContext> {
       'role:reviewer',
       'role:qa',
     ],
-    worker_id: workerReg.worker_id,
+    worker_id: registeredWorkerId,
   });
+
+  if (!agentReg.api_key) {
+    throw new Error('Agent registration did not return api_key');
+  }
+
+  const scopedAgentClient = new LiveApiClient(config.apiBaseUrl, agentReg.api_key);
 
   const cleanup = async (): Promise<void> => {
     const cleanupPool = new pg.Pool({ connectionString: config.postgresUrl });
@@ -146,12 +163,12 @@ export async function createTestTenant(label: string): Promise<TenantContext> {
   return {
     tenantId,
     adminKey,
-    workerKey,
-    agentKey,
+    workerKey: workerReg.worker_api_key,
+    agentKey: agentReg.api_key,
     adminClient,
-    workerClient,
-    agentClient,
-    workerId: workerReg.worker_id,
+    workerClient: scopedWorkerClient,
+    agentClient: scopedAgentClient,
+    workerId: registeredWorkerId,
     agentId: agentReg.id,
     cleanup,
   };

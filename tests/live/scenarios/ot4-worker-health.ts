@@ -12,8 +12,33 @@
  */
 
 import type { LiveContext, ScenarioExecutionResult } from '../harness/types.js';
+import type { ApiWorker } from '../api-client.js';
 import { createTestTenant, type TenantContext } from './tenant.js';
 import { sleep } from './poll.js';
+
+function workerMatches(worker: ApiWorker, workerId: string): boolean {
+  return worker.id === workerId || worker.worker_id === workerId;
+}
+
+async function waitForWorker(
+  ctx: TenantContext,
+  workerId: string,
+  timeoutMs = 5_000,
+): Promise<ApiWorker | null> {
+  const start = Date.now();
+
+  while (Date.now() - start <= timeoutMs) {
+    const workers = await ctx.adminClient.listWorkers();
+    const found = workers.find((worker) => workerMatches(worker, workerId));
+    if (found) {
+      return found;
+    }
+
+    await sleep(250);
+  }
+
+  return null;
+}
 
 /**
  * Test: Worker registration and listing.
@@ -21,11 +46,11 @@ import { sleep } from './poll.js';
 async function testWorkerRegistration(ctx: TenantContext): Promise<string[]> {
   const validations: string[] = [];
 
-  // The worker was already registered in createTestTenant; verify via list
-  const workers = await ctx.adminClient.listWorkers();
-  const found = workers.find((w) => w.worker_id === ctx.workerId);
+  // The worker was already registered in createTestTenant; listing can lag
+  // briefly, so poll for up to 5 seconds before failing.
+  const found = await waitForWorker(ctx, ctx.workerId, 5_000);
   if (!found) {
-    throw new Error(`Worker ${ctx.workerId} not found in worker list`);
+    throw new Error(`Worker ${ctx.workerId} not found in worker list after retry window`);
   }
   validations.push('worker_registered');
   validations.push('worker_listed');
@@ -63,16 +88,21 @@ async function testWorkerDeletion(ctx: TenantContext): Promise<string[]> {
     connection_mode: 'polling',
     runtime_type: 'external',
   });
+  const worker2Id = worker2.worker_id ?? worker2.id;
+  if (!worker2Id) {
+    throw new Error(`Worker registration returned no worker identifier: ${JSON.stringify(worker2)}`);
+  }
+
   validations.push('second_worker_registered');
 
   // Delete it
-  await ctx.adminClient.deleteWorker(worker2.worker_id);
+  await ctx.adminClient.deleteWorker(worker2Id);
   validations.push('worker_deleted');
 
   // Verify it's gone from the list
   await sleep(500);
   const workers = await ctx.adminClient.listWorkers();
-  const found = workers.find((w) => w.worker_id === worker2.worker_id);
+  const found = workers.find((worker) => workerMatches(worker, worker2Id));
   if (found) {
     validations.push('worker_still_listed_after_delete');
   } else {

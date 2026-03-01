@@ -32,9 +32,16 @@ async function testSdkListTasks(ctx: TenantContext): Promise<string[]> {
     accessToken: ctx.agentKey,
   });
 
-  const result = await client.listTasks();
-  if (!result.data) throw new Error('SDK listTasks returned no data array');
-  if (!result.pagination) throw new Error('SDK listTasks returned no pagination');
+  const result = await client.listTasks({ page: 1, per_page: 10 });
+  if (!Array.isArray(result.data)) throw new Error('SDK listTasks returned no data array');
+
+  const metadata = (result as unknown as { meta?: Record<string, unknown>; pagination?: Record<string, unknown> }).meta
+    ?? (result as unknown as { pagination?: Record<string, unknown> }).pagination;
+
+  if (!metadata || typeof metadata !== 'object') {
+    throw new Error('SDK listTasks returned no pagination metadata');
+  }
+
   validations.push('sdk_list_tasks_ok');
 
   return validations;

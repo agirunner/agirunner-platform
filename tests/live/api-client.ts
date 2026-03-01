@@ -63,6 +63,7 @@ export interface ApiWorker {
 
 export interface ApiAgent {
   id: string;
+  api_key?: string;
   [key: string]: unknown;
 }
 

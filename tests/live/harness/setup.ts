@@ -190,6 +190,10 @@ export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveC
   if (!liveConfig.skipStackSetup) {
     ensureBootstrapAdminKey();
     runDocker(`${composeBinary()} up -d --build postgres platform-api worker dashboard`);
+  } else {
+    // When reusing an existing stack across provider runs, restart critical services
+    // so each run starts from a healthy baseline.
+    runDocker(`${composeBinary()} restart platform-api worker`);
   }
 
   await waitForHealth(`${API_BASE_URL}/health`, 'platform-api health');

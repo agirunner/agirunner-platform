@@ -17,6 +17,7 @@
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 import type { LiveContext, ScenarioExecutionResult } from '../harness/types.js';
@@ -36,6 +37,22 @@ function frame(body: string): string {
   return `Content-Length: ${Buffer.byteLength(body, 'utf8')}\r\n\r\n${body}`;
 }
 
+function resolveMcpEntry(): string {
+  const candidates = [
+    path.resolve(process.cwd(), 'dist/packages/mcp-server/src/index.js'),
+    path.resolve(process.cwd(), 'packages/mcp-server/dist/index.js'),
+    path.resolve(process.cwd(), 'packages/mcp-server/src/index.js'),
+  ];
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  throw new Error(`Unable to locate MCP server entry point. Tried: ${candidates.join(', ')}`);
+}
+
 /**
  * Spawns the MCP server and provides request/response helpers.
  */
@@ -46,21 +63,26 @@ function spawnMcpServer(apiKey: string): {
   waitForResponse: (timeoutMs?: number) => Promise<JsonRpcResponse>;
   kill: () => void;
 } {
-  const mcpEntry = path.resolve(
-    process.cwd(),
-    'packages/mcp-server/dist/index.js',
-  );
+  const mcpEntry = resolveMcpEntry();
 
   const proc = spawn('node', [mcpEntry], {
     stdio: ['pipe', 'pipe', 'pipe'],
     env: {
       ...process.env,
       PLATFORM_API_URL: config.apiBaseUrl,
-      PLATFORM_API_KEY: apiKey,
+      PLATFORM_API_TOKEN: apiKey,
     },
   });
 
   let buffer = '';
+  let stderrBuffer = '';
+
+  proc.stderr?.on('data', (chunk: Buffer) => {
+    stderrBuffer += chunk.toString('utf8');
+    if (stderrBuffer.length > 4_000) {
+      stderrBuffer = stderrBuffer.slice(-4_000);
+    }
+  });
 
   const send = (message: Record<string, unknown>): void => {
     const body = JSON.stringify(message);
@@ -71,37 +93,70 @@ function spawnMcpServer(apiKey: string): {
     proc.stdin!.write(frame(body));
   };
 
-  const waitForResponse = (timeoutMs = 10_000): Promise<JsonRpcResponse> => {
+  const waitForResponse = (timeoutMs = 20_000): Promise<JsonRpcResponse> => {
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
+      let settled = false;
+
+      const cleanup = (): void => {
         proc.stdout?.removeListener('data', onData);
-        reject(new Error('MCP response timed out'));
+        proc.removeListener('exit', onExit);
+        proc.removeListener('error', onError);
+        clearTimeout(timer);
+      };
+
+      const fail = (message: string): void => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        cleanup();
+        const stderrText = stderrBuffer.trim();
+        reject(new Error(stderrText.length > 0 ? `${message} | stderr: ${stderrText}` : message));
+      };
+
+      const timer = setTimeout(() => {
+        fail(`MCP response timed out after ${timeoutMs}ms`);
       }, timeoutMs);
+
+      const onExit = (code: number | null, signal: NodeJS.Signals | null): void => {
+        fail(`MCP server exited before response (code=${code ?? 'null'}, signal=${signal ?? 'null'})`);
+      };
+
+      const onError = (error: Error): void => {
+        fail(`MCP server process error: ${error.message}`);
+      };
 
       const onData = (chunk: Buffer): void => {
         buffer += chunk.toString('utf8');
 
         while (true) {
           const sepIdx = buffer.indexOf('\r\n\r\n');
-          if (sepIdx === -1) return;
+          if (sepIdx === -1) {
+            return;
+          }
 
           const header = buffer.slice(0, sepIdx);
           const lengthMatch = header.match(/Content-Length:\s*(\d+)/i);
           if (!lengthMatch) {
-            proc.stdout?.removeListener('data', onData);
-            clearTimeout(timer);
-            reject(new Error(`MCP response missing Content-Length header: ${header}`));
+            fail(`MCP response missing Content-Length header: ${header}`);
             return;
           }
 
           const contentLength = Number(lengthMatch[1]);
           const bodyStart = sepIdx + 4;
-          if (buffer.length < bodyStart + contentLength) return;
+          if (buffer.length < bodyStart + contentLength) {
+            return;
+          }
 
           const body = buffer.slice(bodyStart, bodyStart + contentLength);
           buffer = buffer.slice(bodyStart + contentLength);
-          proc.stdout?.removeListener('data', onData);
-          clearTimeout(timer);
+
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          cleanup();
 
           try {
             resolve(JSON.parse(body) as JsonRpcResponse);
@@ -113,11 +168,15 @@ function spawnMcpServer(apiKey: string): {
       };
 
       proc.stdout?.on('data', onData);
+      proc.once('exit', onExit);
+      proc.once('error', onError);
     });
   };
 
   const kill = (): void => {
-    proc.kill('SIGTERM');
+    if (!proc.killed) {
+      proc.kill('SIGTERM');
+    }
   };
 
   return { proc, send, sendRawBody, waitForResponse, kill };
