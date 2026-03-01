@@ -1,21 +1,17 @@
 {
-  "task": "Fix all QA audit findings on agentbaton-platform",
-  "issue": "qa-audit-platform",
-  "branch": "fix/qa-audit-platform",
+  "task": "Update requirements matrix post-QA",
+  "issue": "matrix-update-post-qa",
+  "branch": "docs/matrix-update-post-qa",
   "phase": "COMPLETE",
   "completed": [
-    "Removed JWT_SECRET docker-compose fallback and added bootstrap startup guard with clear error for missing JWT_SECRET",
-    "Added WEBHOOK_ENCRYPTION_KEY to env schema and implemented webhook secret AES-256-GCM encryption/decryption helper",
-    "Encrypted webhook secrets on write, decrypted on read, and added startup migration that backfills existing plaintext webhook secrets",
-    "Removed source-scraping timingSafeEqual assertion from worker-dispatch-and-hmac unit tests",
-    "Added error logging catch handlers to fire-and-forget DB updates in auth/api-key.ts and bootstrap/websocket.ts",
-    "Deleted unused packages/validation workspace package",
-    "Added meaningful tests for config, test-utils, and shared-types packages and implemented concrete exports in test-utils/shared-types",
-    "Ran strict TypeScript check with pnpm -r exec tsc --noEmit (passes)",
-    "Ran pnpm build && pnpm test && pnpm lint successfully",
-    "Pushed branch fix/qa-audit-platform and opened PR #48"
+    "Verified FR matrix row counts and removed deferred rows from v1.0 matrix scope",
+    "Recomputed and corrected coverage summary counts from audited table rows",
+    "Fixed FR-753 column mapping (integration evidence moved to Integration Tests column)",
+    "Updated webhook-related FR rows to reflect QA audit hardening coverage (encryption + delivery tests)",
+    "Confirmed all 8 built-in worker FRs remain ✅ in Status column",
+    "Ran full monorepo tests via pnpm test"
   ],
   "remaining": [],
-  "lastCommit": "838ed96",
-  "updatedAt": "2026-03-01T06:48:30Z"
+  "lastCommit": "pending",
+  "updatedAt": "2026-03-01T07:02:34Z"
 }
