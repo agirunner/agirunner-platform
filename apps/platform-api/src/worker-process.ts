@@ -54,7 +54,9 @@ async function run(): Promise<void> {
 
   const registration = await registerBuiltInWorker(workerConfig);
 
-  console.info(`[built-in-worker] Registered as worker ${registration.workerId}. Connecting…`);
+  console.info(
+    `[built-in-worker] Registered as worker ${registration.workerId} with agent ${registration.agent.agentId}. Connecting…`,
+  );
 
   const taskHandler = createBuiltInTaskHandler(workerConfig, registration);
 

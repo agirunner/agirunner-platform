@@ -23,6 +23,12 @@ const mockRegistration: WorkerRegistration = {
   workerApiKey: 'ab_worker_testkey',
   websocketUrl: '/ws/workers',
   heartbeatIntervalSeconds: 30,
+  agent: {
+    agentId: 'agent-123',
+    agentApiKey: 'ab_agent_testkey',
+    name: 'built-in-worker-agent',
+    capabilities: ['general'],
+  },
 };
 
 const minimalConfig: BuiltInWorkerConfig = {

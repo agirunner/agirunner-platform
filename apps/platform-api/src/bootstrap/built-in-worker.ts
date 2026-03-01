@@ -126,11 +126,19 @@ export interface TaskExecutorConfig {
   taskTimeoutMs?: number;
 }
 
+export interface BuiltInAgentRegistration {
+  agentId: string;
+  agentApiKey: string;
+  name: string;
+  capabilities: string[];
+}
+
 export interface WorkerRegistration {
   workerId: string;
   workerApiKey: string;
   websocketUrl: string;
   heartbeatIntervalSeconds: number;
+  agent: BuiltInAgentRegistration;
 }
 
 export interface TaskExecutionResult {
@@ -276,7 +284,8 @@ export function createBuiltInTaskHandler(
   options?: TaskHandlerOptions,
 ): (task: Record<string, unknown>) => Promise<void> {
   const apiBaseUrl = config.apiBaseUrl;
-  const agentApiKey = registration.workerApiKey;
+  const agentApiKey = registration.agent.agentApiKey;
+  const registeredAgentId = registration.agent.agentId;
   const executorConfig = config.executor ?? {};
   const maxReworkAttempts = config.maxReworkAttempts ?? 3;
   const prohibitedOps = config.prohibitedOperations ?? [];
@@ -284,7 +293,14 @@ export function createBuiltInTaskHandler(
 
   return async (task: Record<string, unknown>): Promise<void> => {
     const taskId = String(task.id);
-    const agentId = typeof task.assigned_agent_id === 'string' ? task.assigned_agent_id : undefined;
+    const taskAssignedAgentId = typeof task.assigned_agent_id === 'string' ? task.assigned_agent_id : undefined;
+    if (taskAssignedAgentId && taskAssignedAgentId !== registeredAgentId) {
+      throw new Error(
+        `Task ${taskId} is assigned to agent ${taskAssignedAgentId}, but this worker is authenticated as agent ${registeredAgentId}.`,
+      );
+    }
+
+    const agentId = taskAssignedAgentId ?? registeredAgentId;
     const outputSchema = (task.output_schema ?? undefined) as OutputSchema | undefined;
     const taskContext = (task.context ?? {}) as Record<string, unknown>;
 
@@ -303,7 +319,8 @@ export function createBuiltInTaskHandler(
 
     // Mark the task as running via the Platform API
     await callPlatformApi(apiBaseUrl, agentApiKey, 'POST', `/api/v1/tasks/${taskId}/start`, {
-      ...(agentId ? { agent_id: agentId } : {}),
+      agent_id: agentId,
+      worker_id: registration.workerId,
     });
 
     // Execute the task using the configured executor
@@ -422,71 +439,133 @@ async function callPlatformApi(
 }
 
 /**
- * Registers the built-in worker with the platform API.  Uses the exact same
- * REST endpoint as any external worker (FR-752, FR-756).
+ * Sends an authenticated POST request and returns the `data` payload envelope
+ * used by the Platform API.
  */
-export async function registerBuiltInWorker(config: BuiltInWorkerConfig): Promise<WorkerRegistration> {
-  const body = JSON.stringify({
-    name: config.name,
-    // FR-756: built-in worker advertises capabilities through the same system.
-    capabilities: config.capabilities,
-    // FR-752: connection_mode is 'websocket' — identical to external workers.
-    connection_mode: 'websocket',
-    runtime_type: 'internal',
-    heartbeat_interval_seconds: config.heartbeatIntervalSeconds,
-  });
+async function postPlatformApiData<T>(
+  apiBaseUrl: string,
+  apiKey: string,
+  path: string,
+  body: Record<string, unknown>,
+  operationName: string,
+): Promise<T> {
+  const bodyStr = JSON.stringify(body);
+  const url = new URL(path, apiBaseUrl);
+  const isHttps = url.protocol === 'https:';
+  const requestModule = isHttps ? https : http;
+  const options: http.RequestOptions = {
+    hostname: url.hostname,
+    port: url.port || (isHttps ? 443 : 80),
+    path: url.pathname,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(bodyStr),
+      Authorization: `Bearer ${apiKey}`,
+    },
+  };
 
   return new Promise((resolve, reject) => {
-    const url = new URL('/api/v1/workers/register', config.apiBaseUrl);
-    const isHttps = url.protocol === 'https:';
-    const requestModule = isHttps ? https : http;
-    const options: http.RequestOptions = {
-      hostname: url.hostname,
-      port: url.port || (isHttps ? 443 : 80),
-      path: url.pathname,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body),
-        Authorization: `Bearer ${config.adminApiKey}`,
-      },
-    };
-
     const req = requestModule.request(options, (res) => {
       let data = '';
       res.on('data', (chunk: Buffer) => {
         data += chunk.toString();
       });
       res.on('end', () => {
-        if (res.statusCode !== 201 && res.statusCode !== 200) {
-          reject(new Error(`Worker registration failed: HTTP ${res.statusCode ?? 'unknown'} — ${data}`));
+        if ((res.statusCode ?? 500) >= 400) {
+          reject(new Error(`${operationName} failed: HTTP ${res.statusCode ?? 'unknown'} — ${data}`));
           return;
         }
+
         try {
-          const parsed = JSON.parse(data) as {
-            data: {
-              worker_id: string;
-              worker_api_key: string;
-              websocket_url: string;
-              heartbeat_interval_seconds: number;
-            };
-          };
-          resolve({
-            workerId: parsed.data.worker_id,
-            workerApiKey: parsed.data.worker_api_key,
-            websocketUrl: parsed.data.websocket_url,
-            heartbeatIntervalSeconds: parsed.data.heartbeat_interval_seconds,
-          });
+          const parsed = JSON.parse(data) as { data?: T };
+          if (!parsed || typeof parsed !== 'object' || !('data' in parsed) || parsed.data === undefined) {
+            throw new Error('Missing "data" envelope');
+          }
+          resolve(parsed.data);
         } catch (parseError) {
-          reject(new Error(`Failed to parse registration response: ${String(parseError)}`));
+          reject(new Error(`Failed to parse ${operationName} response: ${String(parseError)}`));
         }
       });
     });
 
     req.on('error', reject);
-    req.write(body);
+    req.write(bodyStr);
     req.end();
   });
+}
+
+/**
+ * Registers an agent identity for the built-in worker.
+ *
+ * Task lifecycle routes require an `agent` scoped API key, so the built-in
+ * worker provisions a dedicated agent and uses its key for start/complete/fail/rework.
+ */
+export async function registerBuiltInAgent(
+  config: BuiltInWorkerConfig,
+  workerId: string,
+): Promise<BuiltInAgentRegistration> {
+  const response = await postPlatformApiData<{
+    id: string;
+    name: string;
+    capabilities: string[];
+    api_key: string;
+  }>(
+    config.apiBaseUrl,
+    config.adminApiKey,
+    '/api/v1/agents/register',
+    {
+      name: config.name,
+      capabilities: config.capabilities,
+      worker_id: workerId,
+      heartbeat_interval_seconds: config.heartbeatIntervalSeconds,
+    },
+    'Agent registration',
+  );
+
+  return {
+    agentId: response.id,
+    agentApiKey: response.api_key,
+    name: response.name,
+    capabilities: response.capabilities,
+  };
+}
+
+/**
+ * Registers the built-in worker with the platform API and then provisions a
+ * dedicated built-in agent identity linked to that worker.
+ */
+export async function registerBuiltInWorker(config: BuiltInWorkerConfig): Promise<WorkerRegistration> {
+  const worker = await postPlatformApiData<{
+    worker_id: string;
+    worker_api_key: string;
+    websocket_url: string;
+    heartbeat_interval_seconds: number;
+  }>(
+    config.apiBaseUrl,
+    config.adminApiKey,
+    '/api/v1/workers/register',
+    {
+      name: config.name,
+      // FR-756: built-in worker advertises capabilities through the same system.
+      capabilities: config.capabilities,
+      // FR-752: connection_mode is 'websocket' — identical to external workers.
+      connection_mode: 'websocket',
+      runtime_type: 'internal',
+      heartbeat_interval_seconds: config.heartbeatIntervalSeconds,
+    },
+    'Worker registration',
+  );
+
+  const agent = await registerBuiltInAgent(config, worker.worker_id);
+
+  return {
+    workerId: worker.worker_id,
+    workerApiKey: worker.worker_api_key,
+    websocketUrl: worker.websocket_url,
+    heartbeatIntervalSeconds: worker.heartbeat_interval_seconds,
+    agent,
+  };
 }
 
 /**
@@ -525,7 +604,7 @@ export function connectBuiltInWorkerWebSocket(
       if (payload.type === 'task.assigned' && payload.task) {
         const task = payload.task as Record<string, unknown>;
         // Acknowledge receipt before processing.
-        ws.send(JSON.stringify({ type: 'task.assignment_ack', task_id: task.id }));
+        ws.send(JSON.stringify({ type: 'task.assignment_ack', task_id: task.id, agent_id: registration.agent.agentId }));
         void onTask(task).catch((error: unknown) => {
           console.error('[built-in-worker] Task handler error:', error);
         });
