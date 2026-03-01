@@ -44,10 +44,20 @@ export interface ApiPipeline {
 }
 
 export interface ApiWorker {
-  worker_id: string;
-  worker_api_key: string;
-  websocket_url: string;
-  heartbeat_interval_seconds: number;
+  // register response fields
+  worker_id?: string;
+  worker_api_key?: string;
+  websocket_url?: string;
+  heartbeat_interval_seconds?: number;
+
+  // list/get response fields
+  id?: string;
+  name?: string;
+  status?: string;
+  connection_mode?: string;
+  runtime_type?: string;
+  capabilities?: string[];
+
   [key: string]: unknown;
 }
 

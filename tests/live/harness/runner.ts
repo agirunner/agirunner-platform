@@ -42,6 +42,7 @@ import { runOt4WorkerHealth } from '../scenarios/ot4-worker-health.js';
 import { runIt1Sdk } from '../scenarios/it1-sdk.js';
 import { runIt2Mcp } from '../scenarios/it2-mcp.js';
 import { runSi1TenantIsolation } from '../scenarios/si1-tenant-isolation.js';
+import { LiveApiClient, type ApiWorker } from '../api-client.js';
 
 const PROVIDERS: Provider[] = ['openai', 'google', 'anthropic'];
 const TEMPLATES: TemplateType[] = ['sdlc', 'maintenance'];
@@ -67,6 +68,15 @@ const ALL_SCENARIOS: ScenarioName[] = [
   'it2-mcp',
   'si1-isolation',
 ];
+
+const AP_SCENARIOS_REQUIRING_AUTONOMOUS_WORKER = new Set<ScenarioName>([
+  'sdlc-happy', // AP-1
+  'ap5-full', // AP-5
+  'sdlc-sad', // AP-7
+]);
+
+const WORKER_PREFLIGHT_TIMEOUT_MS = Number(process.env.LIVE_WORKER_PREFLIGHT_TIMEOUT_MS ?? 45_000);
+const WORKER_PREFLIGHT_INTERVAL_MS = Number(process.env.LIVE_WORKER_PREFLIGHT_INTERVAL_MS ?? 1_500);
 
 function loadEnvFile(envPath = '/root/.secrets/openai-test.env'): void {
   if (!existsSync(envPath)) return;
@@ -206,6 +216,61 @@ function resolveScenarios(options: ExtendedOptions): ScenarioName[] {
   return names;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function summarizeWorkers(workers: ApiWorker[]): string {
+  if (workers.length === 0) {
+    return 'none';
+  }
+
+  return workers
+    .map((worker) => {
+      const workerId = String(worker.id ?? worker.worker_id ?? 'unknown-id');
+      const name = String(worker.name ?? 'unnamed');
+      const status = String(worker.status ?? 'unknown');
+      const mode = String(worker.connection_mode ?? 'unknown');
+      const runtime = String(worker.runtime_type ?? 'unknown');
+      return `${name}(${workerId}):${status}/${mode}/${runtime}`;
+    })
+    .join(', ');
+}
+
+async function assertAutonomousWorkerReady(
+  live: Awaited<ReturnType<typeof setupLiveEnvironment>>,
+  scenarios: ScenarioName[],
+): Promise<void> {
+  const requiredScenarios = scenarios.filter((name) => AP_SCENARIOS_REQUIRING_AUTONOMOUS_WORKER.has(name));
+  if (requiredScenarios.length === 0) {
+    return;
+  }
+
+  const client = new LiveApiClient(live.env.apiBaseUrl, live.keys.admin);
+  const startedAt = Date.now();
+  let lastWorkers: ApiWorker[] = [];
+
+  while (Date.now() - startedAt < WORKER_PREFLIGHT_TIMEOUT_MS) {
+    lastWorkers = await client.listWorkers();
+
+    const hasOnlineWebsocketWorker = lastWorkers.some(
+      (worker) => (worker.status === 'online' || worker.status === 'busy') && worker.connection_mode === 'websocket',
+    );
+
+    if (hasOnlineWebsocketWorker) {
+      return;
+    }
+
+    await sleep(WORKER_PREFLIGHT_INTERVAL_MS);
+  }
+
+  throw new Error(
+    `Live harness preflight failed: AP scenarios (${requiredScenarios.join(', ')}) require at least one online websocket worker, but none were found. `
+    + `Observed workers: ${summarizeWorkers(lastWorkers)}. `
+    + 'Ensure docker-compose service "worker" is running and DEFAULT_ADMIN_API_KEY is shared between platform-api and worker.',
+  );
+}
+
 function makeRunId(template: TemplateType, provider: Provider, repeatIndex: number): string {
   const date = new Date().toISOString().replace(/[.:]/g, '-');
   return `${date}-${template}-${provider}-r${repeatIndex + 1}`;
@@ -256,22 +321,31 @@ async function runCombination(
   const scenarios = resolveScenarios(options);
   const scenarioResults: Record<string, ScenarioResult> = {};
   let totalCost = 0;
+  let cleanup: ReturnType<typeof teardownLiveEnvironment> = {
+    leakedContainers: 0,
+    leakedTempFiles: 0,
+  };
 
-  for (const scenario of scenarios) {
-    console.log(`\n▶ Running scenario: ${scenario}`);
-    const scenarioStartedAt = Date.now();
-    try {
-      const result = await runScenarioByName(scenario, live);
-      scenarioResults[scenario] = scenarioResultFromSuccess(scenarioStartedAt, result);
-      totalCost += result.costUsd;
-      console.log(`  ✓ ${scenario} — ${result.validations.length} validations`);
-    } catch (error) {
-      scenarioResults[scenario] = scenarioResultFromFailure(scenarioStartedAt, error);
-      console.error(`  ✗ ${scenario} — ${error instanceof Error ? error.message : String(error)}`);
+  try {
+    await assertAutonomousWorkerReady(live, scenarios);
+
+    for (const scenario of scenarios) {
+      console.log(`\n▶ Running scenario: ${scenario}`);
+      const scenarioStartedAt = Date.now();
+      try {
+        const result = await runScenarioByName(scenario, live);
+        scenarioResults[scenario] = scenarioResultFromSuccess(scenarioStartedAt, result);
+        totalCost += result.costUsd;
+        console.log(`  ✓ ${scenario} — ${result.validations.length} validations`);
+      } catch (error) {
+        scenarioResults[scenario] = scenarioResultFromFailure(scenarioStartedAt, error);
+        console.error(`  ✗ ${scenario} — ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
+  } finally {
+    cleanup = teardownLiveEnvironment();
   }
 
-  const cleanup = teardownLiveEnvironment();
   return {
     runId, startedAt, finishedAt: new Date().toISOString(),
     template, provider, repeat: options.repeat,

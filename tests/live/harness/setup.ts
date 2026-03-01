@@ -18,6 +18,8 @@ const POSTGRES_URL =
   process.env.LIVE_POSTGRES_URL ??
   'postgresql://agentbaton:agentbaton@127.0.0.1:5432/agentbaton';
 
+const DEFAULT_ADMIN_KEY_PREFIX = 'ab_admin_def';
+
 function composeBinary(): string {
   try {
     execSync('docker compose version', { stdio: 'ignore' });
@@ -62,6 +64,21 @@ async function waitForHealth(
 function generateApiKey(scope: 'admin' | 'worker' | 'agent'): string {
   const randomPart = randomBytes(24).toString('base64url');
   return `ab_${scope}_${randomPart}`;
+}
+
+function ensureBootstrapAdminKey(): void {
+  const existing = process.env.DEFAULT_ADMIN_API_KEY?.trim();
+  if (existing && existing.length > 0) {
+    if (!existing.startsWith(DEFAULT_ADMIN_KEY_PREFIX) || existing.length < 20) {
+      throw new Error(
+        `DEFAULT_ADMIN_API_KEY must start with ${DEFAULT_ADMIN_KEY_PREFIX} and be at least 20 chars for live harness bootstrap`,
+      );
+    }
+    return;
+  }
+
+  const randomSuffix = randomBytes(18).toString('base64url');
+  process.env.DEFAULT_ADMIN_API_KEY = `${DEFAULT_ADMIN_KEY_PREFIX}${randomSuffix}`;
 }
 
 async function insertApiKey(
@@ -168,7 +185,8 @@ async function seedDatabase(): Promise<void> {
 }
 
 export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveContext> {
-  runDocker(`${composeBinary()} up -d --build postgres platform-api dashboard`);
+  ensureBootstrapAdminKey();
+  runDocker(`${composeBinary()} up -d --build postgres platform-api worker dashboard`);
 
   await waitForHealth(`${API_BASE_URL}/health`, 'platform-api health');
   await waitForHealth(`${DASHBOARD_BASE_URL}/`, 'dashboard');
