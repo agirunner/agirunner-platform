@@ -23,7 +23,59 @@ export interface TemplateTaskDefinition {
 export interface TemplateSchema {
   variables?: TemplateVariableDefinition[];
   tasks: TemplateTaskDefinition[];
+  /**
+   * Workflow patterns map (reserved for v1.1).  Present here so the
+   * no-nesting constraint (FR-712) can be validated at creation time even
+   * before pattern expansion is enabled.
+   */
+  patterns?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
+}
+
+/**
+ * FR-712 — No pattern nesting constraint.
+ *
+ * Validates that no pattern definition within the `patterns` map references
+ * another pattern by name.  Pipeline templates must remain flat: nested
+ * template references are rejected at creation time so the graph always has
+ * bounded, statically-analysable depth.
+ *
+ * A pattern is considered to nest another pattern when its definition object
+ * contains a `pattern_ref` field or when its `tasks` array contains a task
+ * with `type = "pattern"`.
+ */
+export function assertNoPatternNesting(patterns: Record<string, unknown>): void {
+  for (const [name, definition] of Object.entries(patterns)) {
+    if (!definition || typeof definition !== 'object' || Array.isArray(definition)) {
+      continue;
+    }
+
+    const patternDef = definition as Record<string, unknown>;
+
+    // Direct reference to another pattern via `pattern_ref` field.
+    if ('pattern_ref' in patternDef) {
+      throw new SchemaValidationFailedError(
+        `Pattern '${name}' contains a nested pattern reference via 'pattern_ref'. ` +
+          'Pattern nesting is not allowed (FR-712).',
+      );
+    }
+
+    // Tasks within the pattern that themselves reference another pattern.
+    if (Array.isArray(patternDef.tasks)) {
+      for (const task of patternDef.tasks as unknown[]) {
+        if (!task || typeof task !== 'object' || Array.isArray(task)) {
+          continue;
+        }
+        const taskDef = task as Record<string, unknown>;
+        if (taskDef.type === 'pattern' || 'pattern_ref' in taskDef) {
+          throw new SchemaValidationFailedError(
+            `Pattern '${name}' contains a nested pattern task. ` +
+              'Pattern nesting is not allowed (FR-712).',
+          );
+        }
+      }
+    }
+  }
 }
 
 const allowedTaskTypes = new Set(['analysis', 'code', 'review', 'test', 'docs', 'orchestration', 'custom']);
@@ -172,9 +224,21 @@ export function validateTemplateSchema(input: unknown): TemplateSchema {
     });
   }
 
+  // FR-712: Validate that no pattern nests another pattern.
+  const patternsValue = input.patterns;
+  let validatedPatterns: Record<string, unknown> | undefined;
+  if (patternsValue !== undefined) {
+    if (!isObject(patternsValue)) {
+      throw new SchemaValidationFailedError("Template schema field 'patterns' must be an object");
+    }
+    assertNoPatternNesting(patternsValue);
+    validatedPatterns = patternsValue;
+  }
+
   return {
     variables: parseTemplateVariables(input.variables),
     tasks,
+    patterns: validatedPatterns,
     metadata: isObject(input.metadata) ? input.metadata : undefined,
   };
 }

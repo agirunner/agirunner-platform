@@ -42,12 +42,41 @@ async function authenticateUpgrade(app: FastifyInstance, authorization?: string)
   }
 }
 
+/**
+ * FR-820 — External workers run anywhere.
+ *
+ * Checks whether the Origin header of an upgrade request is allowed by the
+ * configured WORKER_ALLOWED_ORIGINS list.  When the value is '*', every
+ * origin is permitted so workers can connect from any network location.
+ */
+function isOriginAllowed(origin: string | undefined, allowedOriginsConfig: string): boolean {
+  if (allowedOriginsConfig === '*') {
+    return true;
+  }
+
+  if (!origin) {
+    // No Origin header — native TCP clients (e.g. SDK / CLI) are always allowed.
+    return true;
+  }
+
+  const allowed = allowedOriginsConfig.split(',').map((o) => o.trim().toLowerCase());
+  return allowed.includes(origin.toLowerCase());
+}
+
 export function registerWebsocketGateway(app: FastifyInstance): void {
   const wss = new WebSocketServer({ noServer: true });
 
   app.server.on('upgrade', async (request, socket, head) => {
     const url = new URL(request.url ?? '', 'http://localhost');
     if (url.pathname !== app.config.WORKER_WEBSOCKET_PATH) {
+      return;
+    }
+
+    // FR-820: Enforce network-transparent origin policy.
+    const origin = request.headers.origin;
+    if (!isOriginAllowed(origin, app.config.WORKER_ALLOWED_ORIGINS)) {
+      socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+      socket.destroy();
       return;
     }
 

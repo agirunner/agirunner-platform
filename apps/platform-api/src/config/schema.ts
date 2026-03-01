@@ -41,6 +41,17 @@ export const envSchema = z.object({
   LIFECYCLE_WORKER_HEARTBEAT_CHECK_INTERVAL_MS: z.coerce.number().int().min(1).default(15000),
   LIFECYCLE_TASK_TIMEOUT_CHECK_INTERVAL_MS: z.coerce.number().int().min(1).default(60000),
   LIFECYCLE_DISPATCH_LOOP_INTERVAL_MS: z.coerce.number().int().min(1).default(2000),
+  /**
+   * FR-820 — External workers run anywhere.
+   *
+   * Comma-separated list of origins allowed to connect to the worker
+   * WebSocket endpoint.  Defaults to '*' (any host) so that external workers
+   * can connect from any network location without additional configuration.
+   *
+   * Example for restricted deployments:
+   *   WORKER_ALLOWED_ORIGINS=https://workers.example.com,http://localhost:3000
+   */
+  WORKER_ALLOWED_ORIGINS: z.string().default('*'),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;
