@@ -90,7 +90,14 @@ async function testWorkerDeletion(ctx: TenantContext): Promise<string[]> {
   });
   const worker2Id = worker2.worker_id ?? worker2.id;
   if (!worker2Id) {
-    throw new Error(`Worker registration returned no worker identifier: ${JSON.stringify(worker2)}`);
+    const workerSummary = {
+      id: worker2.worker_id ?? worker2.id,
+      name: worker2.name,
+      status: worker2.status,
+    };
+    throw new Error(
+      `Worker registration returned no worker identifier: ${JSON.stringify(workerSummary)}`,
+    );
   }
 
   validations.push('second_worker_registered');

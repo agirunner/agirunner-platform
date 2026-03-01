@@ -113,7 +113,12 @@ export async function createTestTenant(label: string): Promise<TenantContext> {
 
   const registeredWorkerId = workerReg.worker_id ?? workerReg.id;
   if (!registeredWorkerId) {
-    throw new Error(`Worker registration did not return an id: ${JSON.stringify(workerReg)}`);
+    const workerSummary = {
+      id: workerReg.worker_id ?? workerReg.id,
+      name: workerReg.name,
+      status: workerReg.status,
+    };
+    throw new Error(`Worker registration did not return an id: ${JSON.stringify(workerSummary)}`);
   }
 
   if (!workerReg.worker_api_key) {
