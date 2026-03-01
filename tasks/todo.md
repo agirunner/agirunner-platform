@@ -1,16 +1,15 @@
-# Test Backfill Plan — feature/test-backfill
+# Complete Remaining Test Backfill — feature/complete-test-backfill
 
 ## Scope
-Backfill dedicated, meaningful automated tests for all undertested (`⚠️`) features tracked in `docs/requirements-matrix-v1.0.md`, with explicit focus on Dashboard/Auth, MCP server, SDK, webhook, pipeline, worker, and template edge cases.
+Close remaining requirements-matrix ⚠️/❌ gaps by adding implementation + unit/integration coverage, while leaving Docs and Live Tests columns unchanged.
 
-## Execution Plan
-- [x] Inventory every `⚠️` requirement in `docs/requirements-matrix-v1.0.md` and map each to a concrete test case file
-- [x] Backfill auth/dashboard tests (JWT refresh, refresh expiry redirect, secure cookie flags)
-- [x] Backfill MCP tests for all 8 tools, per-tool error responses, and JSON-RPC edge cases
-- [x] Backfill SDK tests (SSE reconnect, WS auth-first-frame, API error mapping, pagination helper)
-- [x] Backfill webhook tests (invalid HMAC, timeout behavior, retry exhaustion marking failed)
-- [x] Backfill pipeline/template tests (cancel during resolution, parameter type expansion, mixed terminal state derivation, version preservation, cycle rejection, optional params)
-- [x] Backfill worker tests (offline grace requeue, heartbeat timeout detection, concurrent claim race)
-- [ ] Cover remaining `⚠️` requirements with focused tests and explicit assertions
-- [x] Run quality gates: `pnpm build && pnpm test && pnpm lint`
-- [ ] Update STATUS.json + lesson log (if needed), commit, push branch, open PR
+## Plan
+- [x] Inventory all remaining ⚠️/❌ rows from `docs/requirements-matrix-v1.0.md` and baseline counts
+- [x] Implement missing FRs that currently have no implementation/tests (focus on non-deferred)
+- [x] Add dedicated unit tests mapped to FR IDs
+- [x] Add dedicated integration tests mapped to FR IDs
+- [x] Update matrix rows to ✅ only where implementation + unit + integration are present
+- [x] Recompute and update coverage summary at top (255 FRs total)
+- [x] Run `pnpm build && pnpm test && pnpm lint`
+- [ ] Update STATUS.json and daily memory log
+- [ ] Commit, push branch, open PR

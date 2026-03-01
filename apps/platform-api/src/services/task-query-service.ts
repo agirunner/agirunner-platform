@@ -67,6 +67,23 @@ export class TaskQueryService {
     return this.toTaskResponse(await this.loadTaskOrThrow(tenantId, taskId));
   }
 
+  async getTaskGitActivity(tenantId: string, taskId: string) {
+    const task = await this.loadTaskOrThrow(tenantId, taskId);
+    return {
+      linked_prs: Array.isArray((task.git_info as Record<string, unknown> | null)?.linked_prs)
+        ? ((task.git_info as Record<string, unknown>).linked_prs as unknown[])
+        : [],
+      branches: Array.isArray((task.git_info as Record<string, unknown> | null)?.branches)
+        ? ((task.git_info as Record<string, unknown>).branches as unknown[])
+        : [],
+      ci_status: (task.git_info as Record<string, unknown> | null)?.ci_status ?? null,
+      merge_history: Array.isArray((task.git_info as Record<string, unknown> | null)?.merge_history)
+        ? ((task.git_info as Record<string, unknown>).merge_history as unknown[])
+        : [],
+      raw: (task.git_info as Record<string, unknown> | null) ?? {},
+    };
+  }
+
   async getTaskContext(tenantId: string, taskId: string, agentId?: string) {
     return buildTaskContext(this.pool, tenantId, await this.loadTaskOrThrow(tenantId, taskId), agentId);
   }

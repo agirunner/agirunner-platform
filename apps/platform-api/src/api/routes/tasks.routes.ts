@@ -116,6 +116,12 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     return { data: context };
   });
 
+  app.get('/api/v1/tasks/:id/git', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
+    const params = request.params as { id: string };
+    const git = await taskService.getTaskGitActivity(request.auth!.tenantId, params.id);
+    return { data: git };
+  });
+
   app.post('/api/v1/tasks/claim', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request, reply) => {
     const body = parseOrThrow(claimSchema.safeParse(request.body));
     const task = await taskService.claimTask(request.auth!, body);

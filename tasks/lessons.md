@@ -39,3 +39,6 @@
 
 - **What went wrong:** Added module-level dashboard API tests without accounting for `dashboardApi` eager initialization touching `localStorage` in non-browser test runtimes.
 - **Preventive rule:** Browser-only storage helpers must guard `typeof localStorage !== 'undefined'` to keep SSR/unit-test imports safe.
+
+- **What went wrong:** `packages/config` build emitted compiled `.js` into `src/` and polluted git status because no `outDir` was configured.
+- **Preventive rule:** For package builds, always set `compilerOptions.outDir` (e.g., `dist`) to keep generated artifacts out of tracked source directories.

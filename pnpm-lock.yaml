@@ -152,7 +152,11 @@ importers:
         specifier: 2.1.8
         version: 2.1.8(@types/node@22.13.5)
 
-  packages/config: {}
+  packages/config:
+    devDependencies:
+      vitest:
+        specifier: 2.1.8
+        version: 2.1.8(@types/node@22.13.5)
 
   packages/mcp-server:
     dependencies:

@@ -1,0 +1,177 @@
+# Remaining matrix gaps
+
+- FR-001 — ⚠️ Gaps — 9 task states
+- FR-002 — ⚠️ Gaps — Pending → ready on dependency completion
+- FR-003 — ⚠️ Gaps — Pending → awaiting_approval when requires_approval
+- FR-004 — ⚠️ Gaps — Awaiting_approval → ready on human approval
+- FR-005 — ⚠️ Gaps — Cancellable from any non-completed state
+- FR-006 — ⚠️ Gaps — Failed → ready retry
+- FR-007 — ⚠️ Gaps — Reject invalid state transitions (409)
+- FR-008 — ⚠️ Gaps — Task entity with required fields
+- FR-009 — ⚠️ Gaps — Input/output arbitrary JSON up to 1MB
+- FR-010 — ⚠️ Gaps — Tasks support parent_id
+- FR-010a — ⚠️ Gaps — Circular dependency detection at creation
+- FR-012a — ⚠️ Gaps — One claimed task per agent (v1.0)
+- FR-013 — ⚠️ Gaps — Dependency cascade on completion
+- FR-014 — ⚠️ Gaps — Event stream with filtering
+- FR-023 — ⚠️ Gaps — Inactive agent → task failed (grace period)
+- FR-025 — ⚠️ Gaps — Capability tag matching for claims
+- FR-026 — ⚠️ Gaps — Priority + FIFO claim ordering
+- FR-027 — ⚠️ Gaps — Webhook support (GitHub, GitLab, Gitea)
+- FR-028 — ⚠️ Gaps — Webhook-to-task-state mappings
+- FR-029 — ⚠️ Gaps — Task reference pattern in git events
+- FR-054 — ⚠️ Gaps — Branch-name-based task association
+- FR-030 — ⚠️ Gaps — Modern SPA (React, dark/light, responsive, keyboard shortcuts)
+- FR-030a — ⚠️ Gaps — All updates via WebSocket (not polling)
+- FR-031 — ⚠️ Gaps — Real-time activity feed
+- FR-031a — ⚠️ Gaps — Live pipeline execution view
+- FR-031b — ⚠️ Gaps — Live agent/worker status
+- FR-032 — ⚠️ Gaps — Board view + list view with filtering
+- FR-033 — ⚠️ Gaps — Approval button for awaiting_approval
+- FR-034 — ⚠️ Gaps — Retry button for failed tasks
+- FR-035 — ⚠️ Gaps — Pipeline-level controls (pause/resume/cancel/rework)
+- FR-035a — ⚠️ Gaps — Task-level intervention (cancel/reassign/escalate/override)
+- FR-036 — ⚠️ Gaps — Task detail views (full data, JSON viewer)
+- FR-036a — ⚠️ Gaps — Pipeline detail views
+- FR-037 — ⚠️ Gaps — Agent registry view
+- FR-038 — ⚠️ Gaps — MCP server with 6 core tool operations
+- FR-039 — ⚠️ Gaps — MCP deployable standalone or integrated
+- FR-041 — ⚠️ Gaps — TypeScript SDK typed client
+- FR-042 — ⚠️ Gaps — SDK automatic heartbeat (background)
+- FR-043 — ⚠️ Gaps — SDK worker convenience function
+- FR-044 — ⚠️ Gaps — API key auth via Bearer header
+- FR-045 — ⚠️ Gaps — Agent keys + admin keys
+- FR-046 — ⚠️ Gaps — Agent key scope enforcement
+- FR-046a — ⚠️ Gaps — Configurable max key lifetimes per scope
+- FR-047 — ⚠️ Gaps — Periodic timeout check for claimed tasks
+- FR-048 — ⚠️ Gaps — Auto-retry on timeout (auto_retry + max_retries)
+- FR-097 — ⚠️ Gaps — Git-as-workspace with branch per pipeline
+- FR-149 — ⚠️ Gaps — Tenant entity (CRUD, platform admin)
+- FR-150 — ⚠️ Gaps — All entities scoped to tenant
+- FR-151 — ⚠️ Gaps — Tenant context from API key
+- FR-152 — ⚠️ Gaps — Tenant filter at data-access layer
+- FR-153 — ⚠️ Gaps — API keys scoped to tenant
+- FR-154 — ⚠️ Gaps — Admin keys tenant-scoped
+- FR-155 — ⚠️ Gaps — Event bus tenant isolation
+- FR-156 — ⚠️ Gaps — Dashboard tenant-scoped
+- FR-158 — ⚠️ Gaps — Background jobs tenant-scoped
+- FR-159 — ⚠️ Gaps — Super-admin can list/deactivate tenants
+- FR-160 — ⚠️ Gaps — Tenant deactivation blocks all API access
+- FR-161 — ⚠️ Gaps — Pipeline entity with required fields
+- FR-162 — ⚠️ Gaps — Pipeline status derived from tasks
+- FR-167 — ⚠️ Gaps — Pipeline events
+- FR-169 — ⚠️ Gaps — Pipeline instantiation from template
+- FR-170 — ⚠️ Gaps — Pipeline instantiation creates tasks with deps
+- FR-171 — ⚠️ Gaps — Template entity with required fields
+- FR-172 — ⚠️ Gaps — Template CRUD API
+- FR-173 — ⚠️ Gaps — Template validation (DAG, refs)
+- FR-174 — ⚠️ Gaps — Built-in templates
+- FR-175 — ⚠️ Gaps — Template versioning
+- FR-176 — ⚠️ Gaps — Template listing with pagination
+- FR-177 — ⚠️ Gaps — Template detail retrieval
+- FR-178 — ⚠️ Gaps — Project entity
+- FR-179 — ⚠️ Gaps — Project CRUD API
+- FR-180 — ⚠️ Gaps — Project groups related pipelines
+- FR-181 — ⚠️ Gaps — Project memory (persistent KV/text)
+- FR-182 — ⚠️ Gaps — Pipeline context (scoped to pipeline)
+- FR-183 — ⚠️ Gaps — Agent profile in context
+- FR-184 — ⚠️ Gaps — GET /tasks/:id/context returns full stack
+- FR-185 — ⚠️ Gaps — Context includes upstream task outputs
+- FR-186 — ⚠️ Gaps — Project memory CRUD API
+- FR-187 — ⚠️ Gaps — Pipeline context CRUD API
+- FR-188 — ⚠️ Gaps — Context size limits (configurable)
+- FR-189 — ⚠️ Gaps — Agent can append to pipeline context
+- FR-190 — ⚠️ Gaps — Project memory persists across pipelines
+- FR-191 — ⚠️ Gaps — Pipeline context scoped per pipeline
+- FR-192 — ⚠️ Gaps — Context versioning
+- FR-193 — ⚠️ Gaps — Context includes execution constraints
+- FR-205 — ⚠️ Gaps — Sub-task creation via parent_id
+- FR-206 — ⚠️ Gaps — Sub-task status cascading to parent
+- FR-207 — ⚠️ Gaps — Sub-task inherits pipeline context
+- FR-208 — ⚠️ Gaps — Max sub-task depth/count limits (Should)
+- FR-209 — ⚠️ Gaps — Sub-tasks inherit pipeline_id, project, tenant
+- FR-210 — ⚠️ Gaps — Webhook-based task creation (Should)
+- FR-211 — ⚠️ Gaps — Webhook trigger CRUD API (Should)
+- FR-212 — ⚠️ Gaps — POST /webhooks/:trigger_id receiver (Should)
+- FR-213 — ⚠️ Gaps — Dashboard task injection (Should)
+- FR-215 — ⚠️ Gaps — Pipeline engine handles mechanical orchestration
+- FR-216 — ⚠️ Gaps — Optional orchestrator role per template
+- FR-217 — ⚠️ Gaps — Orchestrator elevated permissions (pipeline-scoped)
+- FR-218 — ⚠️ Gaps — Orchestrator permission enforcement at API level
+- FR-219 — ⚠️ Gaps — Granular permission grants for non-orchestrators (Should)
+- FR-220 — ⚠️ Gaps — Orchestration task created on pipeline instantiation
+- FR-221 — ⚠️ Gaps — Permission grant/revoke on orchestration task claim/complete
+- FR-222 — ⚠️ Gaps — Orchestrator fallback on timeout (Should)
+- FR-280 — ⚠️ Gaps — Worker entity with required fields
+- FR-281 — ⚠️ Gaps — Worker status derived from heartbeat
+- FR-282 — ⚠️ Gaps — Worker API key scope
+- FR-284 — ⚠️ Gaps — Auto-create agent on worker registration
+- FR-285 — ⚠️ Gaps — Localhost bypass in dev mode (Should)
+- FR-291 — ⚠️ Gaps — Pluggable runtime adapters
+- FR-292 — ⚠️ Gaps — Built-in adapters (OpenClaw, Claude Code, Custom Script) Must
+- FR-293 — ⚠️ Gaps — Custom script adapter (universal escape hatch)
+- FR-299 — ⚠️ Gaps — Worker status in dashboard (Should)
+- FR-400 — ⚠️ Gaps — Template role definition schema
+- FR-401 — ⚠️ Gaps — Task-to-role binding on instantiation
+- FR-402 — ⚠️ Gaps — Parameter substitution (${parameter})
+- FR-403 — ⚠️ Gaps — Task context delivery (role prompt + upstream)
+- FR-404 — ⚠️ Gaps — Quality standards schema (Should)
+- FR-405 — ⚠️ Gaps — Output schema validation (Should)
+- FR-406 — ⚠️ Gaps — Template versioning (semver)
+- FR-409 — ⚠️ Gaps — Template CRUD REST API
+- FR-410 — ⚠️ Gaps — Pipeline instantiation with role resolution
+- FR-411 — ⚠️ Gaps — Inline role override at creation (Should)
+- FR-412 — ⚠️ Gaps — Worker instruction assembly
+- FR-420 — ⚠️ Gaps — Template browser
+- FR-423 — ⚠️ Gaps — Pipeline status view with dependency graph
+- FR-423a — ⚠️ Gaps — Single WebSocket for all real-time updates
+- FR-424 — ⚠️ Gaps — Pipeline launch form
+- FR-425 — ⚠️ Gaps — Worker management view
+- FR-426 — ⚠️ Gaps — API key management
+- FR-426a — ⚠️ Gaps — JWT-based session (httpOnly refresh, configurable lifetimes)
+- FR-427 — ⚠️ Gaps — Dashboard navigation and layout
+- FR-428 — ⚠️ Gaps — Responsive design and theming (Should)
+- FR-429 — ⚠️ Gaps — Pipeline list view with filters
+- FR-SM-001 — ⚠️ Gaps — Canonical state transitions enforced (409 on invalid)
+- FR-SM-002 — ⚠️ Gaps — Terminal states (no further transitions)
+- FR-SM-003 — ⚠️ Gaps — State-specific events emitted
+- FR-SM-004 — ⚠️ Gaps — Template state profile declaration (Should)
+- FR-SM-006 — ⚠️ Gaps — Dashboard state colors
+- FR-SM-007 — ⚠️ Gaps — State transition audit log
+- FR-700 — ⚠️ Gaps — Template workflow.phases schema
+- FR-701 — ⚠️ Gaps — Phase gate types (all_complete, any_complete, percentage, manual, auto)
+- FR-702 — ⚠️ Gaps — Phases sequential by default
+- FR-703 — ⚠️ Gaps — Tasks parallel within phase by default
+- FR-704 — ⚠️ Gaps — depends_on intra-phase mechanism
+- FR-705 — ⚠️ Gaps — Cross-phase depends_on (dotted notation) (Should)
+- FR-706 — ⚠️ Gaps — blocked_by as deprecated alias for depends_on
+- FR-707 — ⚠️ Gaps — Manual gate events and API
+- FR-708 — ⚠️ Gaps — Phase parallel flag (Should)
+- FR-712 — ⚠️ Gaps — No pattern nesting (constraint)
+- FR-713 — ⚠️ Gaps — Dynamic task creation within phases
+- FR-714 — ⚠️ Gaps — Phase status in pipeline API response
+- FR-715 — ⚠️ Gaps — Phase-level cancellation (Should)
+- FR-716 — ⚠️ Gaps — Template workflow validation
+- FR-717 — ⚠️ Gaps — Dashboard renders phases as swimlanes
+- FR-718 — ⚠️ Gaps — Legacy flat templates → single default phase
+- FR-720 — ⚠️ Gaps — Phase-level events
+- FR-740 — ⚠️ Gaps — Optional built-in worker (opt-in via LLM key)
+- FR-741 — ⚠️ Gaps — Built-in worker separate from server
+- FR-742 — ⚠️ Gaps — Built-in worker uses standard worker protocol
+- FR-744 — ⚠️ Gaps — BYOK model for built-in worker
+- FR-752 — ⚠️ Gaps — Built-in agent replaceable by external
+- FR-754 — ⚠️ Gaps — Zero-config first run with built-in worker
+- FR-755 — ⚠️ Gaps — Quickstart docs for 15-min first pipeline
+- FR-756 — ⚠️ Gaps — Built-in agents have no exclusive capabilities
+- FR-760 — ⚠️ Gaps — Consistent error response format
+- FR-761 — ⚠️ Gaps — All entities tenant-scoped
+- FR-762 — ⚠️ Gaps — All list endpoints paginated
+- FR-763 — ⚠️ Gaps — Immutable audit log for all mutations
+- FR-818 — ⚠️ Gaps — External worker artifact delivery contract
+- FR-819 — ⚠️ Gaps — External worker deliverable validation
+- FR-820 — ⚠️ Gaps — External workers run anywhere
+- FR-821 — ⚠️ Gaps — Execution environment metadata tracking (Should)
+- FR-822 — ⚠️ Gaps — Template environment section for managed workers
+- FR-824 — ⚠️ Gaps — Environment declaration validation at creation
+
+Total: 173

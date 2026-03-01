@@ -1,28 +1,30 @@
 {
-  "task": "Backfill undertested requirement coverage for auth/dashboard, MCP server, SDK, webhook, pipeline/template, and worker race/timeout paths",
+  "task": "Complete remaining requirements-matrix test backfill and close implementation gaps for active FRs",
   "issue": "N/A",
-  "branch": "feature/test-backfill",
+  "branch": "feature/complete-test-backfill",
   "phase": "IN_PROGRESS",
-  "testsRun": 136,
-  "testsPassed": 136,
-  "defectsFound": [
-    "Auth refresh endpoint returned 500 for expired refresh JWT; normalized to 401 Unauthorized"
-  ],
+  "testsRun": 144,
+  "testsPassed": 144,
+  "defectsFound": [],
   "completed": [
-    "Added dashboard unit test harness and session-refresh tests for token refresh retry + expired refresh session clearing",
-    "Added auth integration tests for refresh flow and secure refresh cookie flags (httpOnly, secure, SameSite=Strict, refresh path)",
-    "Expanded MCP server test suite for all 8 tool handlers, required-parameter validation errors, unknown method/tool, parse errors, notification/batch protocol edges",
-    "Extended SDK with PlatformApiError and paginate helper, plus tests for 401/403/404/500 handling and pagination",
-    "Added SDK realtime reconnection behavior and websocket auth-first-frame tests",
-    "Added webhook delivery failure tests (retry exhaustion and timeout/network failure -> failed delivery records)",
-    "Added pipeline/template tests for 3-node circular dependency rejection, mixed completed+cancelled state derivation, and optional/default variable instantiation",
-    "Added worker dispatch concurrency integration test proving only one worker wins concurrent claim",
-    "Full quality gates passing: pnpm build && pnpm test && pnpm lint"
+    "Added FR-055 implementation: GET /api/v1/tasks/:id/git with normalized git activity payload",
+    "Added FR-055 unit coverage in tests/unit/task-query-service.test.ts",
+    "Added FR-055 integration coverage in tests/integration/task-git-endpoint.integration.test.ts",
+    "Implemented worker configuration loader in packages/config/src/index.ts (FR-294)",
+    "Implemented environment override precedence in worker configuration loader (FR-295)",
+    "Added worker config unit coverage in packages/config/src/index.test.ts",
+    "Added worker config integration coverage in packages/config/src/index.integration.test.ts",
+    "Updated matrix rows FR-055, FR-294, FR-295 to ✅ with implementation + unit + integration paths",
+    "Updated Coverage Summary + Status Breakdown counts (255 FRs; warnings reduced from 176 to 173)",
+    "Generated tasks/remaining-gaps.md with current unresolved ⚠️/❌ rows",
+    "Quality gates passing: pnpm build && pnpm test && pnpm lint"
   ],
   "remaining": [
-    "Map and backfill remaining ⚠️ requirements in docs/requirements-matrix-v1.0.md not yet explicitly covered by dedicated tests"
+    "Backfill unit/integration coverage for remaining 173 ⚠️ rows",
+    "Implement and test still-missing active FRs currently marked with ⚠️",
+    "Finalize matrix status updates for all closed rows",
+    "Open PR for this branch once full backfill objective is complete"
   ],
-  "lastCommit": "4677a25",
-  "pullRequest": "https://github.com/agirunner/agentbaton-platform/pulls/24",
-  "updatedAt": "2026-03-01T01:33:00Z"
+  "lastCommit": "WORKING_TREE",
+  "updatedAt": "2026-03-01T01:45:00Z"
 }

@@ -61,6 +61,10 @@ export class TaskService {
     return this.queryService.getTask(tenantId, taskId);
   }
 
+  getTaskGitActivity(tenantId: string, taskId: string) {
+    return this.queryService.getTaskGitActivity(tenantId, taskId);
+  }
+
   updateTask(tenantId: string, taskId: string, payload: Record<string, unknown>) {
     return this.writeService.updateTask(tenantId, taskId, payload);
   }
