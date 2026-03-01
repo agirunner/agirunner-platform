@@ -16,6 +16,8 @@ describe('auth token flow', () => {
     process.env.PORT = '8081';
     process.env.DATABASE_URL = db.databaseUrl;
     process.env.JWT_SECRET = 'x'.repeat(64);
+    process.env.JWT_EXPIRES_IN = '1s';
+    process.env.JWT_REFRESH_EXPIRES_IN = '2s';
     process.env.LOG_LEVEL = 'error';
     process.env.RATE_LIMIT_MAX_PER_MINUTE = '100';
 
@@ -47,7 +49,7 @@ describe('auth token flow', () => {
     await stopTestDatabase(db);
   });
 
-  it('exchanges valid API key for JWT', async () => {
+  it('exchanges valid API key for JWT and sets secure refresh cookie flags', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/token',
@@ -58,7 +60,59 @@ describe('auth token flow', () => {
     const body = response.json();
     expect(body.data.token).toBeTypeOf('string');
     expect(body.data.refresh_token).toBeUndefined();
-    expect(response.headers['set-cookie']).toContain('agentbaton_refresh_token=');
+
+    const cookieHeader = response.headers['set-cookie'] as string;
+    expect(cookieHeader).toContain('agentbaton_refresh_token=');
+    expect(cookieHeader).toContain('HttpOnly');
+    expect(cookieHeader).toContain('Secure');
+    expect(cookieHeader).toContain('SameSite=Strict');
+    expect(cookieHeader).toContain('Path=/api/v1/auth/refresh');
+  });
+
+  it('refreshes access token when short-lived token expires', async () => {
+    const authResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/token',
+      payload: { api_key: adminKey },
+    });
+
+    const expiredAccessToken = authResponse.json().data.token as string;
+    const cookieHeader = authResponse.headers['set-cookie'] as string;
+    const refreshCookie = cookieHeader.split(';')[0];
+
+    await new Promise((resolve) => setTimeout(resolve, 1_200));
+
+    const refreshResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      headers: { cookie: refreshCookie },
+    });
+    expect(refreshResponse.statusCode).toBe(200);
+
+    const refreshedAccessToken = refreshResponse.json().data.token as string;
+    expect(refreshedAccessToken).toBeTypeOf('string');
+    expect(refreshedAccessToken).not.toBe(expiredAccessToken);
+  });
+
+  it('rejects refresh when refresh token session has expired', async () => {
+    const authResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/token',
+      payload: { api_key: adminKey },
+    });
+
+    const cookieHeader = authResponse.headers['set-cookie'] as string;
+    const refreshCookie = cookieHeader.split(';')[0];
+
+    await new Promise((resolve) => setTimeout(resolve, 2_200));
+
+    const refresh = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/refresh',
+      headers: { cookie: refreshCookie },
+    });
+
+    expect(refresh.statusCode).toBe(401);
   });
 
   it('rejects invalid API key', async () => {

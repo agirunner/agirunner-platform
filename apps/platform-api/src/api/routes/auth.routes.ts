@@ -62,7 +62,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       throw new UnauthorizedError('Refresh token required');
     }
 
-    const claims = await verifyJwt<{
+    let claims: {
       keyId: string;
       tenantId: string;
       scope: 'agent' | 'worker' | 'admin';
@@ -70,7 +70,21 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       ownerId: string | null;
       keyPrefix: string;
       tokenType?: string;
-    }>(app, token);
+    };
+
+    try {
+      claims = await verifyJwt<{
+        keyId: string;
+        tenantId: string;
+        scope: 'agent' | 'worker' | 'admin';
+        ownerType: string;
+        ownerId: string | null;
+        keyPrefix: string;
+        tokenType?: string;
+      }>(app, token);
+    } catch {
+      throw new UnauthorizedError('Refresh token expired or invalid');
+    }
 
     if (claims.tokenType !== 'refresh') {
       throw new UnauthorizedError('Refresh token required');

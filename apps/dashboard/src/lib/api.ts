@@ -4,6 +4,12 @@ import { clearSession, readSession, writeSession } from './session.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 
+interface DashboardApiOptions {
+  baseUrl?: string;
+  client?: PlatformApiClient;
+  fetcher?: typeof fetch;
+}
+
 export interface DashboardApi {
   login(apiKey: string): Promise<void>;
   logout(): void;
@@ -16,12 +22,16 @@ export interface DashboardApi {
   getMetrics(): Promise<string>;
 }
 
-export function createDashboardApi(): DashboardApi {
+export function createDashboardApi(options: DashboardApiOptions = {}): DashboardApi {
+  const baseUrl = options.baseUrl ?? API_BASE_URL;
   const session = readSession();
-  const client = new PlatformApiClient({
-    baseUrl: API_BASE_URL,
-    accessToken: session?.accessToken ?? undefined,
-  });
+  const client =
+    options.client ??
+    new PlatformApiClient({
+      baseUrl,
+      accessToken: session?.accessToken ?? undefined,
+    });
+  const requestFetch = options.fetcher ?? fetch;
 
   async function withRefresh<T>(handler: () => Promise<T>): Promise<T> {
     try {
@@ -37,13 +47,18 @@ export function createDashboardApi(): DashboardApi {
         throw error;
       }
 
-      const refreshed = await client.refreshSession();
-      writeSession({
-        accessToken: refreshed.token,
-        tenantId: activeSession.tenantId,
-      });
-      client.setAccessToken(refreshed.token);
-      return handler();
+      try {
+        const refreshed = await client.refreshSession();
+        writeSession({
+          accessToken: refreshed.token,
+          tenantId: activeSession.tenantId,
+        });
+        client.setAccessToken(refreshed.token);
+        return handler();
+      } catch (refreshError) {
+        clearSession();
+        throw refreshError;
+      }
     }
   }
 
@@ -72,7 +87,7 @@ export function createDashboardApi(): DashboardApi {
           throw new Error('HTTP 401: missing access token');
         }
 
-        const response = await fetch(`${API_BASE_URL}/metrics`, {
+        const response = await requestFetch(`${baseUrl}/metrics`, {
           headers: {
             Authorization: `Bearer ${activeSession.accessToken}`,
           },

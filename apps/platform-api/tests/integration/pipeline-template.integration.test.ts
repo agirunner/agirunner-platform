@@ -224,6 +224,38 @@ describe('pipeline/template integration', () => {
     expect(byId.get(taskD.id as string)).toBe('cancelled');
   });
 
+  it('instantiates template with optional parameters and defaults', async () => {
+    const template = await templateService.createTemplate(adminIdentity, {
+      name: 'Optional Params Template',
+      slug: 'optional-params-template',
+      schema: {
+        variables: [
+          { name: 'feature', type: 'string', required: true },
+          { name: 'lang', type: 'string', default: 'typescript' },
+          { name: 'maxFiles', type: 'number', default: 5 },
+        ],
+        tasks: [
+          {
+            id: 'impl',
+            title_template: 'Implement ${feature} in ${lang}',
+            type: 'code',
+            input_template: { limit: '${maxFiles}' },
+          },
+        ],
+      },
+    });
+
+    const pipeline = await pipelineService.createPipeline(adminIdentity, {
+      template_id: template.id as string,
+      name: 'Optional Parameter Pipeline',
+      parameters: { feature: 'auth-refresh' },
+    });
+
+    const [task] = pipeline.tasks as Array<Record<string, unknown>>;
+    expect(task.title).toBe('Implement auth-refresh in typescript');
+    expect(task.input).toEqual({ limit: '5' });
+  });
+
   it('creates a new immutable template version on update and uses latest version for new pipelines', async () => {
     const templateV1 = await templateService.createTemplate(adminIdentity, {
       name: 'Versioned Template',

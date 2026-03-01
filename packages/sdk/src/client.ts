@@ -9,6 +9,18 @@ import type {
   Worker,
 } from './types.js';
 
+export class PlatformApiError extends Error {
+  readonly status: number;
+  readonly responseBody: string;
+
+  constructor(status: number, responseBody: string) {
+    super(`HTTP ${status}: ${responseBody}`);
+    this.name = 'PlatformApiError';
+    this.status = status;
+    this.responseBody = responseBody;
+  }
+}
+
 export interface PlatformClientOptions {
   baseUrl: string;
   accessToken?: string;
@@ -139,6 +151,29 @@ export class PlatformApiClient {
     return response.data;
   }
 
+  async paginate<T>(
+    fetchPage: (query: Query) => Promise<ApiListResponse<T>>,
+    options: { perPage?: number; startPage?: number } = {},
+  ): Promise<T[]> {
+    const perPage = options.perPage ?? 50;
+    let page = options.startPage ?? 1;
+    const all: T[] = [];
+
+    while (true) {
+      const response = await fetchPage({ page, per_page: perPage });
+      all.push(...response.data);
+
+      const totalPages = Number(response.pagination?.total_pages ?? page);
+      if (page >= totalPages || response.data.length === 0) {
+        break;
+      }
+
+      page += 1;
+    }
+
+    return all;
+  }
+
   private withQuery(path: string, query: Query): string {
     const search = new URLSearchParams();
     Object.entries(query).forEach(([key, value]) => {
@@ -185,7 +220,7 @@ export class PlatformApiClient {
 
     if (!response.ok) {
       const errorBody = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errorBody}`);
+      throw new PlatformApiError(response.status, errorBody);
     }
 
     return (await response.json()) as T;

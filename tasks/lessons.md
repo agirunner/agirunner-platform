@@ -33,3 +33,9 @@
 
 - **What went wrong:** Trusted Zod inference for `z.object({ output: z.unknown() })`, but route payload inferred `output` as optional and failed service contract typing.
 - **Preventive rule:** When a downstream contract requires a required key, construct an explicit payload object at call boundaries (`{ output: body.output }`) instead of relying on inferred optionality.
+
+- **What went wrong:** Switched dashboard package test script to generic `vitest run`, which attempted to execute Playwright e2e files as unit tests.
+- **Preventive rule:** Scope unit test runners to unit test globs (`src/**/*.test.ts`) when e2e specs share the same repo/package.
+
+- **What went wrong:** Added module-level dashboard API tests without accounting for `dashboardApi` eager initialization touching `localStorage` in non-browser test runtimes.
+- **Preventive rule:** Browser-only storage helpers must guard `typeof localStorage !== 'undefined'` to keep SSR/unit-test imports safe.

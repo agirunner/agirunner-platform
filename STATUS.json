@@ -1,22 +1,28 @@
 {
-  "task": "Fix pre-existing TypeScript build errors from DIP/clean refactor in platform-api",
+  "task": "Backfill undertested requirement coverage for auth/dashboard, MCP server, SDK, webhook, pipeline/template, and worker race/timeout paths",
   "issue": "N/A",
-  "branch": "feature/live-test-suite",
-  "phase": "COMPLETE",
-  "testsRun": 3,
-  "testsPassed": 3,
-  "defectsFound": [],
-  "completed": [
-    "Adjusted API key auth helpers to depend on DatabaseQueryable so DatabasePool is accepted where only query capability is required",
-    "Fixed websocket upgrade unauthorized writer typing to accept Duplex from Node upgrade handler",
-    "Narrowed validated template task type to TemplateTaskDefinition union in pipeline engine",
-    "Resolved complete-task payload optionality mismatch by passing explicit { output: body.output } object",
-    "Added null-safe rowCount handling in worker dispatch repository",
-    "Fixed integration test typing for template reload object access",
-    "Verified full gates: pnpm build, pnpm test, pnpm lint"
+  "branch": "feature/test-backfill",
+  "phase": "IN_PROGRESS",
+  "testsRun": 136,
+  "testsPassed": 136,
+  "defectsFound": [
+    "Auth refresh endpoint returned 500 for expired refresh JWT; normalized to 401 Unauthorized"
   ],
-  "remaining": [],
-  "lastCommit": "2fee14c",
-  "pullRequest": "https://github.com/agirunner/agentbaton-platform/pulls/22",
-  "updatedAt": "2026-03-01T01:06:40Z"
+  "completed": [
+    "Added dashboard unit test harness and session-refresh tests for token refresh retry + expired refresh session clearing",
+    "Added auth integration tests for refresh flow and secure refresh cookie flags (httpOnly, secure, SameSite=Strict, refresh path)",
+    "Expanded MCP server test suite for all 8 tool handlers, required-parameter validation errors, unknown method/tool, parse errors, notification/batch protocol edges",
+    "Extended SDK with PlatformApiError and paginate helper, plus tests for 401/403/404/500 handling and pagination",
+    "Added SDK realtime reconnection behavior and websocket auth-first-frame tests",
+    "Added webhook delivery failure tests (retry exhaustion and timeout/network failure -> failed delivery records)",
+    "Added pipeline/template tests for 3-node circular dependency rejection, mixed completed+cancelled state derivation, and optional/default variable instantiation",
+    "Added worker dispatch concurrency integration test proving only one worker wins concurrent claim",
+    "Full quality gates passing: pnpm build && pnpm test && pnpm lint"
+  ],
+  "remaining": [
+    "Map and backfill remaining ⚠️ requirements in docs/requirements-matrix-v1.0.md not yet explicitly covered by dedicated tests"
+  ],
+  "lastCommit": "4677a25",
+  "pullRequest": "https://github.com/agirunner/agentbaton-platform/pulls/24",
+  "updatedAt": "2026-03-01T01:33:00Z"
 }

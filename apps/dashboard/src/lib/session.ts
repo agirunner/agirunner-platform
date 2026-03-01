@@ -8,6 +8,10 @@ export interface SessionTokens {
 }
 
 export function readSession(): SessionTokens | null {
+  if (typeof localStorage === 'undefined') {
+    return null;
+  }
+
   const tenantId = localStorage.getItem(TENANT_KEY);
   if (!tenantId) {
     return null;
@@ -18,10 +22,14 @@ export function readSession(): SessionTokens | null {
 
 export function writeSession(nextSession: SessionTokens): void {
   accessToken = nextSession.accessToken;
-  localStorage.setItem(TENANT_KEY, nextSession.tenantId);
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(TENANT_KEY, nextSession.tenantId);
+  }
 }
 
 export function clearSession(): void {
   accessToken = null;
-  localStorage.removeItem(TENANT_KEY);
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem(TENANT_KEY);
+  }
 }

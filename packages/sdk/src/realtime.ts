@@ -38,12 +38,31 @@ export class PlatformRealtimeClient {
 
   private connectSse(onEvent: (event: PlatformEvent) => void, onError?: (error: unknown) => void): Unsubscribe {
     const controller = new AbortController();
-    void this.streamEvents(controller.signal, onEvent, onError).catch((error) => {
-      if (!controller.signal.aborted) {
+    void this.streamEventsWithReconnect(controller.signal, onEvent, onError);
+    return () => controller.abort();
+  }
+
+  private async streamEventsWithReconnect(
+    signal: AbortSignal,
+    onEvent: (event: PlatformEvent) => void,
+    onError?: (error: unknown) => void,
+  ): Promise<void> {
+    while (!signal.aborted) {
+      try {
+        await this.streamEvents(signal, onEvent, onError);
+      } catch (error) {
+        if (signal.aborted) {
+          return;
+        }
         onError?.(error);
       }
-    });
-    return () => controller.abort();
+
+      if (signal.aborted) {
+        return;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
   }
 
   private async streamEvents(

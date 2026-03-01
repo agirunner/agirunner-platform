@@ -25,23 +25,43 @@ describe('pipeline engine unit', () => {
     ).toThrow(/cycle/i);
   });
 
+  it('rejects templates with 3-node cyclic dependency graph', () => {
+    expect(() =>
+      validateTemplateSchema({
+        tasks: [
+          { id: 'a', title_template: 'A', type: 'code', depends_on: ['c'] },
+          { id: 'b', title_template: 'B', type: 'test', depends_on: ['a'] },
+          { id: 'c', title_template: 'C', type: 'review', depends_on: ['b'] },
+        ],
+      }),
+    ).toThrow(/cycle/i);
+  });
+
   it('resolves variables with defaults and applies substitution recursively', () => {
     const variables = [
       { name: 'feature', type: 'string' as const, required: true },
       { name: 'language', type: 'string' as const, default: 'typescript' },
+      { name: 'maxFiles', type: 'number' as const, default: 10 },
+      { name: 'dryRun', type: 'boolean' as const, default: false },
+      { name: 'metadata', type: 'json' as const, required: false },
     ];
 
-    const resolved = resolveTemplateVariables(variables, { feature: 'login' });
+    const resolved = resolveTemplateVariables(variables, { feature: 'login', dryRun: true });
     const output = substituteTemplateVariables(
       {
         title: 'Implement ${feature}',
-        nested: { language: '${language}' },
+        nested: { language: '${language}', dryRun: '${dryRun}' },
       },
       resolved,
     );
 
-    expect(resolved).toEqual({ feature: 'login', language: 'typescript' });
-    expect(output).toEqual({ title: 'Implement login', nested: { language: 'typescript' } });
+    expect(resolved).toEqual({
+      feature: 'login',
+      language: 'typescript',
+      maxFiles: 10,
+      dryRun: true,
+    });
+    expect(output).toEqual({ title: 'Implement login', nested: { language: 'typescript', dryRun: 'true' } });
   });
 
   it('derives pipeline state from task state set', () => {
@@ -50,6 +70,7 @@ describe('pipeline engine unit', () => {
     expect(derivePipelineState(['awaiting_approval', 'pending'])).toBe('paused');
     expect(derivePipelineState(['failed', 'running', 'pending'])).toBe('failed');
     expect(derivePipelineState(['completed', 'failed'])).toBe('failed');
+    expect(derivePipelineState(['completed', 'cancelled'])).toBe('failed');
     expect(derivePipelineState(['cancelled', 'cancelled'])).toBe('cancelled');
     expect(derivePipelineState(['completed', 'completed'])).toBe('completed');
   });
