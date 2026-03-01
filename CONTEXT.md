@@ -1,7 +1,7 @@
 # CONTEXT.md — AgentBaton Platform v1.0
 
 ## Last Updated
-2026-03-01 16:49 UTC
+2026-03-01 16:50 UTC
 
 ## Product
 AgentBaton Platform — coordination engine for agentic software development pipelines.
@@ -13,16 +13,31 @@ AgentBaton Platform — coordination engine for agentic software development pip
 - **Live tests:** in active one-test-at-a-time validation mode
 
 ## Authoritative Docs (`docs/`)
-- `docs/test-plan-v1.0.md` — platform live test scope (AP, OT, HL, IT, SI, dashboard)
-- `docs/live-test-traceability.md` — per-test pass/fail/not-run status board
-- `docs/requirements-matrix-v1.0.md` — FR coverage and traceability
 
-## Platform Test Harness Links
+### Requirements baseline (v1.0)
+- `docs/requirements/platform-v1.0.md`
+- `docs/requirements/product-brief.md`
+- `docs/requirements-matrix-v1.0.md`
+
+### Design baseline (v1.0)
+- `docs/design/platform-design.md`
+- `docs/design/platform-v1.0-detailed.md`
+- `docs/design/system-architecture.md`
+- `docs/design/interface-contract-v1.0.md`
+- `docs/design/technology-selections-v1.0.md`
+
+### Test governance
+- `docs/test-plan-v1.0.md`
+- `docs/live-test-traceability.md`
+
+## What is under test (`tests/`)
 - `tests/live/harness/runner.ts` — primary live-test runner
 - `tests/live/harness/setup.ts` — environment setup/health checks
 - `tests/live/harness/teardown.ts` — teardown/cleanup
 - `tests/live/api-client.ts` — live API client used by scenarios
 - `tests/live/scenarios/` — AP/OT/IT/SI scenario implementations
+- `tests/live/dashboard/*.spec.ts` — Playwright dashboard test specs
+- `tests/live/validators/` — post-run validators (events, artifacts, cleanup, dashboard, cost)
 
 ## Runtime/Worker Integration References
 - `apps/platform-api/src/bootstrap/built-in-worker.ts` — built-in worker registration + lifecycle
