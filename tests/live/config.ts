@@ -24,6 +24,17 @@ export interface LiveConfig {
   sseDurationMs: number;
   /** Docker compose project name for leak detection */
   composeProject: string;
+  /** If true, setup skips docker compose stack startup and validates health only */
+  skipStackSetup: boolean;
+}
+
+function parseBooleanEnv(value: string | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
 }
 
 export function loadConfig(): LiveConfig {
@@ -39,5 +50,6 @@ export function loadConfig(): LiveConfig {
     healthTimeoutMs: Number(process.env.LIVE_HEALTH_TIMEOUT_MS ?? 180_000),
     sseDurationMs: Number(process.env.LIVE_SSE_DURATION_MS ?? 10_000),
     composeProject: process.env.COMPOSE_PROJECT_NAME ?? 'agentbaton-platform',
+    skipStackSetup: parseBooleanEnv(process.env.LIVE_SKIP_STACK_SETUP),
   };
 }

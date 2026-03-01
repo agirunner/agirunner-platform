@@ -4,6 +4,8 @@ import { randomBytes } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import pg from 'pg';
 
+import { loadConfig } from '../config.js';
+
 import type { LiveContext, Provider, TemplateType } from './types.js';
 
 interface SetupOptions {
@@ -12,11 +14,11 @@ interface SetupOptions {
   template: TemplateType;
 }
 
-const API_BASE_URL = process.env.LIVE_API_BASE_URL ?? 'http://127.0.0.1:8080';
-const DASHBOARD_BASE_URL = process.env.LIVE_DASHBOARD_BASE_URL ?? 'http://127.0.0.1:3000';
-const POSTGRES_URL =
-  process.env.LIVE_POSTGRES_URL ??
-  'postgresql://agentbaton:agentbaton@127.0.0.1:5432/agentbaton';
+const liveConfig = loadConfig();
+
+const API_BASE_URL = liveConfig.apiBaseUrl;
+const DASHBOARD_BASE_URL = liveConfig.dashboardBaseUrl;
+const POSTGRES_URL = liveConfig.postgresUrl;
 
 const DEFAULT_ADMIN_KEY_PREFIX = 'ab_admin_def';
 
@@ -43,7 +45,7 @@ function runDocker(command: string): void {
 async function waitForHealth(
   url: string,
   label: string,
-  timeoutMs = 180_000,
+  timeoutMs = liveConfig.healthTimeoutMs,
 ): Promise<void> {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
@@ -185,8 +187,10 @@ async function seedDatabase(): Promise<void> {
 }
 
 export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveContext> {
-  ensureBootstrapAdminKey();
-  runDocker(`${composeBinary()} up -d --build postgres platform-api worker dashboard`);
+  if (!liveConfig.skipStackSetup) {
+    ensureBootstrapAdminKey();
+    runDocker(`${composeBinary()} up -d --build postgres platform-api worker dashboard`);
+  }
 
   await waitForHealth(`${API_BASE_URL}/health`, 'platform-api health');
   await waitForHealth(`${DASHBOARD_BASE_URL}/`, 'dashboard');
