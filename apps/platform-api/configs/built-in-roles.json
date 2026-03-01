@@ -6,7 +6,7 @@
   "providers": {
     "anthropic": {
       "envKey": "ANTHROPIC_API_KEY",
-      "defaultModel": "claude-3-5-haiku-latest"
+      "defaultModel": "claude-sonnet-4-6"
     },
     "openai": {
       "envKey": "OPENAI_API_KEY",
@@ -28,7 +28,7 @@
         "shell_exec",
         "test_runner"
       ],
-      "modelPreference": "claude-3-5-haiku-latest",
+      "modelPreference": "claude-sonnet-4-6",
       "verificationStrategy": "unit_tests",
       "capabilities": [
         "llm-api",
@@ -74,7 +74,7 @@
         "test_runner",
         "search_codebase"
       ],
-      "modelPreference": "claude-sonnet-4-6",
+      "modelPreference": "gpt-5.3-codex",
       "verificationStrategy": "test_coverage_check",
       "capabilities": [
         "llm-api",
