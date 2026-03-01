@@ -34,7 +34,10 @@ import { runSdlcHappyScenario } from '../scenarios/sdlc-happy.js';
 import { runSdlcSadScenario } from '../scenarios/sdlc-sad.js';
 import { runMaintenanceHappyScenario } from '../scenarios/maintenance-happy.js';
 import { runMaintenanceSadScenario } from '../scenarios/maintenance-sad.js';
+import { runAp2ExternalRuntime } from '../scenarios/ap2-external-runtime.js';
+import { runAp4MixedWorkers } from '../scenarios/ap4-mixed-workers.js';
 import { runAp5MaintenancePipeline } from '../scenarios/ap5-maintenance-pipeline.js';
+import { runAp6RuntimeMaintenance } from '../scenarios/ap6-runtime-maintenance.js';
 import { runOt1DependencyCascade } from '../scenarios/ot1-dependency-cascade.js';
 import { runOt2TaskRouting } from '../scenarios/ot2-task-routing.js';
 import { runOt3PipelineState } from '../scenarios/ot3-pipeline-state.js';
@@ -47,19 +50,32 @@ import { LiveApiClient, type ApiWorker } from '../api-client.js';
 const PROVIDERS: Provider[] = ['openai', 'google', 'anthropic'];
 const TEMPLATES: TemplateType[] = ['sdlc', 'maintenance'];
 type ScenarioName =
-  | 'sdlc-happy' | 'sdlc-sad'
-  | 'maintenance-happy' | 'maintenance-sad'
+  | 'sdlc-happy'
+  | 'sdlc-sad'
+  | 'maintenance-happy'
+  | 'maintenance-sad'
+  | 'ap2-external-runtime'
+  | 'ap4-mixed-workers'
   | 'ap5-full'
-  | 'ot1-cascade' | 'ot2-routing' | 'ot3-state' | 'ot4-health'
-  | 'it1-sdk' | 'it2-mcp' | 'si1-isolation';
+  | 'ap6-runtime-maintenance'
+  | 'ot1-cascade'
+  | 'ot2-routing'
+  | 'ot3-state'
+  | 'ot4-health'
+  | 'it1-sdk'
+  | 'it2-mcp'
+  | 'si1-isolation';
 
 /** All scenarios in priority order per the test plan. */
 const ALL_SCENARIOS: ScenarioName[] = [
   'sdlc-happy',
+  'ap2-external-runtime',
+  'ap4-mixed-workers',
   'sdlc-sad',
   'maintenance-happy',
   'maintenance-sad',
   'ap5-full',
+  'ap6-runtime-maintenance',
   'ot1-cascade',
   'ot2-routing',
   'ot3-state',
@@ -88,7 +104,10 @@ function loadEnvFile(envPath = '/root/.secrets/openai-test.env'): void {
     if (eqIndex <= 0) continue;
     const key = trimmed.slice(0, eqIndex).trim();
     let value = trimmed.slice(eqIndex + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
       value = value.slice(1, -1);
     }
     if (!process.env[key]) process.env[key] = value;
@@ -96,7 +115,9 @@ function loadEnvFile(envPath = '/root/.secrets/openai-test.env'): void {
 }
 
 function printUsage(): void {
-  console.log(`Usage: pnpm test:live [options]\n\nOptions:\n  --all                       Run both templates across all providers\n  --template <sdlc|maintenance>\n                              Run a single template (default: sdlc)\n  --scenario <name>           Run a specific scenario by name\n  --provider <openai|google|anthropic>\n                              Run a single provider (default: openai)\n  --happy-only                Run happy-path scenarios only\n  --sad-only                  Run sad-path scenarios only\n  --repeat <N>                Repeat the selected matrix N times (default: 1)\n  --dashboard                 Run Playwright dashboard E2E suite\n  -h, --help                  Show this help message\n\nScenarios: ${ALL_SCENARIOS.join(', ')}\n`);
+  console.log(
+    `Usage: pnpm test:live [options]\n\nOptions:\n  --all                       Run both templates across all providers\n  --template <sdlc|maintenance>\n                              Run a single template (default: sdlc)\n  --scenario <name>           Run a specific scenario by name\n  --provider <openai|google|anthropic>\n                              Run a single provider (default: openai)\n  --happy-only                Run happy-path scenarios only\n  --sad-only                  Run sad-path scenarios only\n  --repeat <N>                Repeat the selected matrix N times (default: 1)\n  --dashboard                 Run Playwright dashboard E2E suite\n  -h, --help                  Show this help message\n\nScenarios: ${ALL_SCENARIOS.join(', ')}\n`,
+  );
 }
 
 function requireArgValue(argv: string[], index: number, flag: string): string {
@@ -131,23 +152,38 @@ function parseArgs(argv: string[]): ExtendedOptions {
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--all') options.all = true;
-    else if (arg === '--template') { options.template = parseTemplate(requireArgValue(argv, i, '--template')); i += 1; }
-    else if (arg === '--scenario') { options.scenario = requireArgValue(argv, i, '--scenario'); i += 1; }
-    else if (arg === '--provider') { options.provider = parseProvider(requireArgValue(argv, i, '--provider')); i += 1; }
-    else if (arg === '--happy-only') options.happyOnly = true;
+    else if (arg === '--template') {
+      options.template = parseTemplate(requireArgValue(argv, i, '--template'));
+      i += 1;
+    } else if (arg === '--scenario') {
+      options.scenario = requireArgValue(argv, i, '--scenario');
+      i += 1;
+    } else if (arg === '--provider') {
+      options.provider = parseProvider(requireArgValue(argv, i, '--provider'));
+      i += 1;
+    } else if (arg === '--happy-only') options.happyOnly = true;
     else if (arg === '--sad-only') options.sadOnly = true;
-    else if (arg === '--repeat') { options.repeat = Number(requireArgValue(argv, i, '--repeat')); i += 1; }
-    else if (arg === '--dashboard') options.dashboard = true;
-    else if (arg === '--help' || arg === '-h') { printUsage(); process.exit(0); }
-    else throw new Error(`Unknown argument: ${arg}`);
+    else if (arg === '--repeat') {
+      options.repeat = Number(requireArgValue(argv, i, '--repeat'));
+      i += 1;
+    } else if (arg === '--dashboard') options.dashboard = true;
+    else if (arg === '--help' || arg === '-h') {
+      printUsage();
+      process.exit(0);
+    } else throw new Error(`Unknown argument: ${arg}`);
   }
 
-  if (options.happyOnly && options.sadOnly) throw new Error('Cannot pass both --happy-only and --sad-only');
-  if (!Number.isInteger(options.repeat) || options.repeat <= 0) throw new Error(`--repeat must be a positive integer; got ${options.repeat}`);
+  if (options.happyOnly && options.sadOnly)
+    throw new Error('Cannot pass both --happy-only and --sad-only');
+  if (!Number.isInteger(options.repeat) || options.repeat <= 0)
+    throw new Error(`--repeat must be a positive integer; got ${options.repeat}`);
   return options;
 }
 
-function scenarioResultFromSuccess(startedAt: number, result: ScenarioExecutionResult): ScenarioResult {
+function scenarioResultFromSuccess(
+  startedAt: number,
+  result: ScenarioExecutionResult,
+): ScenarioResult {
   const durationSec = ((Date.now() - startedAt) / 1000).toFixed(2);
   return {
     status: 'pass',
@@ -177,26 +213,48 @@ async function runScenarioByName(
   live: Awaited<ReturnType<typeof setupLiveEnvironment>>,
 ): Promise<ScenarioExecutionResult> {
   switch (name) {
-    case 'sdlc-happy': return runSdlcHappyScenario(live);
-    case 'sdlc-sad': return runSdlcSadScenario(live);
-    case 'maintenance-happy': return runMaintenanceHappyScenario(live);
-    case 'maintenance-sad': return runMaintenanceSadScenario(live);
-    case 'ap5-full': return runAp5MaintenancePipeline(live);
-    case 'ot1-cascade': return runOt1DependencyCascade(live);
-    case 'ot2-routing': return runOt2TaskRouting(live);
-    case 'ot3-state': return runOt3PipelineState(live);
-    case 'ot4-health': return runOt4WorkerHealth(live);
-    case 'it1-sdk': return runIt1Sdk(live);
-    case 'it2-mcp': return runIt2Mcp(live);
-    case 'si1-isolation': return runSi1TenantIsolation(live);
-    default: throw new Error(`Unknown scenario: ${name}`);
+    case 'sdlc-happy':
+      return runSdlcHappyScenario(live);
+    case 'ap2-external-runtime':
+      return runAp2ExternalRuntime(live);
+    case 'ap4-mixed-workers':
+      return runAp4MixedWorkers(live);
+    case 'sdlc-sad':
+      return runSdlcSadScenario(live);
+    case 'maintenance-happy':
+      return runMaintenanceHappyScenario(live);
+    case 'maintenance-sad':
+      return runMaintenanceSadScenario(live);
+    case 'ap5-full':
+      return runAp5MaintenancePipeline(live);
+    case 'ap6-runtime-maintenance':
+      return runAp6RuntimeMaintenance(live);
+    case 'ot1-cascade':
+      return runOt1DependencyCascade(live);
+    case 'ot2-routing':
+      return runOt2TaskRouting(live);
+    case 'ot3-state':
+      return runOt3PipelineState(live);
+    case 'ot4-health':
+      return runOt4WorkerHealth(live);
+    case 'it1-sdk':
+      return runIt1Sdk(live);
+    case 'it2-mcp':
+      return runIt2Mcp(live);
+    case 'si1-isolation':
+      return runSi1TenantIsolation(live);
+    default:
+      throw new Error(`Unknown scenario: ${name}`);
   }
 }
 
 function resolveScenarios(options: ExtendedOptions): ScenarioName[] {
   if (options.scenario) {
-    const found = ALL_SCENARIOS.find((s) => s === options.scenario || s.startsWith(options.scenario!));
-    if (!found) throw new Error(`Unknown scenario: ${options.scenario}. Valid: ${ALL_SCENARIOS.join(', ')}`);
+    const found = ALL_SCENARIOS.find(
+      (s) => s === options.scenario || s.startsWith(options.scenario!),
+    );
+    if (!found)
+      throw new Error(`Unknown scenario: ${options.scenario}. Valid: ${ALL_SCENARIOS.join(', ')}`);
     return [found];
   }
 
@@ -206,9 +264,8 @@ function resolveScenarios(options: ExtendedOptions): ScenarioName[] {
 
   // Template-based selection (backward compat)
   const template = options.template ?? 'sdlc';
-  let names: ScenarioName[] = template === 'sdlc'
-    ? ['sdlc-happy', 'sdlc-sad']
-    : ['maintenance-happy', 'maintenance-sad'];
+  let names: ScenarioName[] =
+    template === 'sdlc' ? ['sdlc-happy', 'sdlc-sad'] : ['maintenance-happy', 'maintenance-sad'];
 
   if (options.happyOnly) names = names.filter((n) => n.endsWith('happy'));
   if (options.sadOnly) names = names.filter((n) => n.endsWith('sad'));
@@ -241,7 +298,9 @@ async function assertAutonomousWorkerReady(
   live: Awaited<ReturnType<typeof setupLiveEnvironment>>,
   scenarios: ScenarioName[],
 ): Promise<void> {
-  const requiredScenarios = scenarios.filter((name) => AP_SCENARIOS_REQUIRING_AUTONOMOUS_WORKER.has(name));
+  const requiredScenarios = scenarios.filter((name) =>
+    AP_SCENARIOS_REQUIRING_AUTONOMOUS_WORKER.has(name),
+  );
   if (requiredScenarios.length === 0) {
     return;
   }
@@ -254,7 +313,9 @@ async function assertAutonomousWorkerReady(
     lastWorkers = await client.listWorkers();
 
     const hasOnlineWebsocketWorker = lastWorkers.some(
-      (worker) => (worker.status === 'online' || worker.status === 'busy') && worker.connection_mode === 'websocket',
+      (worker) =>
+        (worker.status === 'online' || worker.status === 'busy') &&
+        worker.connection_mode === 'websocket',
     );
 
     if (hasOnlineWebsocketWorker) {
@@ -265,9 +326,9 @@ async function assertAutonomousWorkerReady(
   }
 
   throw new Error(
-    `Live harness preflight failed: AP scenarios (${requiredScenarios.join(', ')}) require at least one online websocket worker, but none were found. `
-    + `Observed workers: ${summarizeWorkers(lastWorkers)}. `
-    + 'Ensure docker-compose service "worker" is running and DEFAULT_ADMIN_API_KEY is shared between platform-api and worker.',
+    `Live harness preflight failed: AP scenarios (${requiredScenarios.join(', ')}) require at least one online websocket worker, but none were found. ` +
+      `Observed workers: ${summarizeWorkers(lastWorkers)}. ` +
+      'Ensure docker-compose service "worker" is running and DEFAULT_ADMIN_API_KEY is shared between platform-api and worker.',
   );
 }
 
@@ -308,10 +369,16 @@ async function runCombination(
   if (template === 'dashboard') {
     const scenarioStartedAt = Date.now();
     return {
-      runId, startedAt, finishedAt: new Date().toISOString(),
-      template, provider, repeat: options.repeat,
+      runId,
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      template,
+      provider,
+      repeat: options.repeat,
       scenarios: { dashboard: runDashboardPlaywright(runId, scenarioStartedAt) },
-      containers_leaked: 0, temp_files_leaked: 0, total_cost: '$0.0000',
+      containers_leaked: 0,
+      temp_files_leaked: 0,
+      total_cost: '$0.0000',
     };
   }
 
@@ -339,7 +406,9 @@ async function runCombination(
         console.log(`  ✓ ${scenario} — ${result.validations.length} validations`);
       } catch (error) {
         scenarioResults[scenario] = scenarioResultFromFailure(scenarioStartedAt, error);
-        console.error(`  ✗ ${scenario} — ${error instanceof Error ? error.message : String(error)}`);
+        console.error(
+          `  ✗ ${scenario} — ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
   } finally {
@@ -347,8 +416,12 @@ async function runCombination(
   }
 
   return {
-    runId, startedAt, finishedAt: new Date().toISOString(),
-    template, provider, repeat: options.repeat,
+    runId,
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    template,
+    provider,
+    repeat: options.repeat,
     scenarios: scenarioResults,
     containers_leaked: cleanup.leakedContainers,
     temp_files_leaked: cleanup.leakedTempFiles,
@@ -356,8 +429,11 @@ async function runCombination(
   };
 }
 
-function makeExecutionMatrix(options: ExtendedOptions): Array<{ template: TemplateType; provider: Provider }> {
-  if (options.dashboard) return [{ template: 'dashboard' as TemplateType, provider: options.provider ?? 'openai' }];
+function makeExecutionMatrix(
+  options: ExtendedOptions,
+): Array<{ template: TemplateType; provider: Provider }> {
+  if (options.dashboard)
+    return [{ template: 'dashboard' as TemplateType, provider: options.provider ?? 'openai' }];
 
   if (options.all) {
     return TEMPLATES.flatMap((template) => PROVIDERS.map((provider) => ({ template, provider })));
@@ -396,8 +472,10 @@ async function main(): Promise<void> {
       console.log(`  ${icon} ${name} — ${result.duration} — ${result.validations} validations`);
       if (result.error) console.log(`    Error: ${result.error}`);
     }
-    if (report.containers_leaked > 0) console.log(`  ⚠ Leaked containers: ${report.containers_leaked}`);
-    if (report.temp_files_leaked > 0) console.log(`  ⚠ Leaked temp files: ${report.temp_files_leaked}`);
+    if (report.containers_leaked > 0)
+      console.log(`  ⚠ Leaked containers: ${report.containers_leaked}`);
+    if (report.temp_files_leaked > 0)
+      console.log(`  ⚠ Leaked temp files: ${report.temp_files_leaked}`);
   }
 
   const failed = reports.some((r) => Object.values(r.scenarios).some((s) => s.status === 'fail'));

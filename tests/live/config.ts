@@ -18,6 +18,8 @@ export interface LiveConfig {
   pipelineTimeoutMs: number;
   /** Polling interval when checking state (ms) */
   pollIntervalMs: number;
+  /** Max wait while polling for a claimable task (ms) */
+  claimPollTimeoutMs: number;
   /** Health check wait timeout (ms) */
   healthTimeoutMs: number;
   /** SSE capture duration (ms) */
@@ -47,6 +49,7 @@ export function loadConfig(): LiveConfig {
     taskTimeoutMs: Number(process.env.LIVE_TASK_TIMEOUT_MS ?? 300_000),
     pipelineTimeoutMs: Number(process.env.LIVE_PIPELINE_TIMEOUT_MS ?? 1_800_000),
     pollIntervalMs: Number(process.env.LIVE_POLL_INTERVAL_MS ?? 2_000),
+    claimPollTimeoutMs: Number(process.env.LIVE_CLAIM_POLL_TIMEOUT_MS ?? 60_000),
     healthTimeoutMs: Number(process.env.LIVE_HEALTH_TIMEOUT_MS ?? 300_000),
     sseDurationMs: Number(process.env.LIVE_SSE_DURATION_MS ?? 10_000),
     composeProject: process.env.COMPOSE_PROJECT_NAME ?? 'agentbaton-platform',
