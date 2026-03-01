@@ -101,6 +101,39 @@ export class TenantScopedRepository {
   }
 
   /**
+   * Fetches a paginated list of rows scoped to this tenant, with optional
+   * additional WHERE conditions, ORDER BY clause, LIMIT, and OFFSET.
+   *
+   * @param table      - Unquoted table name
+   * @param columns    - Comma-separated SELECT list
+   * @param conditions - Extra WHERE fragments (using $n, where n starts at 2)
+   * @param values     - Bind values for the extra conditions
+   * @param orderBy    - ORDER BY clause (e.g. "created_at DESC") — no keyword needed
+   * @param limit      - Maximum number of rows to return
+   * @param offset     - Number of rows to skip
+   */
+  async findAllPaginated<T extends TenantRow>(
+    table: string,
+    columns: string,
+    conditions: string[] = [],
+    values: unknown[] = [],
+    orderBy: string,
+    limit: number,
+    offset: number,
+  ): Promise<T[]> {
+    const allConditions = ['tenant_id = $1', ...conditions];
+    const allValues: unknown[] = [this.tenantId, ...values, limit, offset];
+    const where = allConditions.join(' AND ');
+    const limitPlaceholder = allValues.length - 1;
+    const offsetPlaceholder = allValues.length;
+    const result = await this.db.query<T>(
+      `SELECT ${columns} FROM ${table} WHERE ${where} ORDER BY ${orderBy} LIMIT $${limitPlaceholder} OFFSET $${offsetPlaceholder}`,
+      allValues,
+    );
+    return result.rows;
+  }
+
+  /**
    * Returns the `tenantId` this repository is scoped to.
    * Useful for passing downstream to nested service calls.
    */

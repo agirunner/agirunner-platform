@@ -6,6 +6,14 @@ interface ReadyTaskRow {
   capabilities_required: string[];
 }
 
+export interface DispatchWorkerCandidate {
+  id: string;
+  capabilities: string[];
+  runtime_type: string;
+  task_load: number;
+  created_at: Date;
+}
+
 interface ClaimedTaskRow {
   id: string;
   pipeline_id: string | null;
@@ -37,8 +45,26 @@ export async function findDispatchCandidateWorker(
   connectedWorkerIds: string[],
   requiredCapabilities: string[],
 ): Promise<string | null> {
-  const result = await pool.query<{ id: string }>(
+  const candidates = await findDispatchCandidateWorkers(pool, tenantId, connectedWorkerIds, requiredCapabilities);
+  return candidates[0]?.id ?? null;
+}
+
+/**
+ * Returns all dispatch-eligible worker candidates sorted by load (ascending).
+ * Each entry includes the worker's capabilities and runtime_type so the caller
+ * can apply external-worker preference via isBuiltInAgentReplaceable.
+ */
+export async function findDispatchCandidateWorkers(
+  pool: DatabasePool,
+  tenantId: string,
+  connectedWorkerIds: string[],
+  requiredCapabilities: string[],
+): Promise<DispatchWorkerCandidate[]> {
+  const result = await pool.query<DispatchWorkerCandidate>(
     `SELECT w.id,
+            w.capabilities,
+            w.runtime_type,
+            w.created_at,
             COUNT(t.id) FILTER (WHERE t.state IN ('claimed','running')) AS task_load
      FROM workers w
      LEFT JOIN tasks t ON t.assigned_worker_id = w.id
@@ -47,12 +73,11 @@ export async function findDispatchCandidateWorker(
        AND w.status IN ('online','busy')
        AND w.capabilities @> $3::text[]
      GROUP BY w.id
-     ORDER BY task_load ASC, w.created_at ASC
-     LIMIT 1`,
+     ORDER BY task_load ASC, w.created_at ASC`,
     [tenantId, connectedWorkerIds, requiredCapabilities],
   );
 
-  return result.rows[0]?.id ?? null;
+  return result.rows;
 }
 
 export async function claimTaskForWorker(

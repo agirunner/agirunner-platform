@@ -23,6 +23,7 @@ import type { DatabaseQueryable } from '../../src/db/database.js';
 import { TenantScopedRepository } from '../../src/db/tenant-scoped-repository.js';
 import { isBuiltInAgentReplaceable } from '../../src/orchestration/capability-matcher.js';
 import { assertNoPatternNesting, validateTemplateSchema } from '../../src/orchestration/pipeline-engine.js';
+import { isOriginAllowed } from '../../src/bootstrap/websocket.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const srcDir = path.resolve(__dirname, '../../src');
@@ -364,10 +365,11 @@ describe('FR-756: built-in agents use same capability system as external agents'
     expect(fnBody).toContain('isCapabilitySubset');
   });
 
-  it('built-in worker runtime_type is built_in but capabilities are open', () => {
-    // FR-756: runtime_type distinguishes origin but does not restrict capabilities
+  it('built-in worker runtime_type is internal but capabilities are open', () => {
+    // FR-756: runtime_type distinguishes origin but does not restrict capabilities.
+    // 'internal' is the DB enum value for built-in (platform-managed) workers.
     const source = readSrc('bootstrap/built-in-worker.ts');
-    expect(source).toContain("runtime_type: 'built_in'");
+    expect(source).toContain("runtime_type: 'internal'");
     // capabilities come from config — not hardcoded
     expect(source).toContain('capabilities: config.capabilities');
   });
@@ -393,13 +395,7 @@ describe('FR-820: external workers connect via network-transparent protocol', ()
   });
 
   it('isOriginAllowed allows any origin when config is *', () => {
-    // FR-820: inline re-implementation mirrors the production function for testing
-    function isOriginAllowed(origin: string | undefined, config: string): boolean {
-      if (config === '*') return true;
-      if (!origin) return true;
-      return config.split(',').map((o) => o.trim().toLowerCase()).includes(origin.toLowerCase());
-    }
-
+    // FR-820: tests the actual production function — no inline re-implementation
     expect(isOriginAllowed('https://worker.example.com', '*')).toBe(true);
     expect(isOriginAllowed(undefined, '*')).toBe(true);
     expect(isOriginAllowed('http://any-host.internal', '*')).toBe(true);
@@ -407,12 +403,6 @@ describe('FR-820: external workers connect via network-transparent protocol', ()
 
   it('isOriginAllowed permits only listed origins when config is restrictive', () => {
     // FR-820: operators CAN restrict origins; default is open
-    function isOriginAllowed(origin: string | undefined, config: string): boolean {
-      if (config === '*') return true;
-      if (!origin) return true;
-      return config.split(',').map((o) => o.trim().toLowerCase()).includes(origin.toLowerCase());
-    }
-
     const config = 'https://workers.corp.example.com, http://localhost:3000';
     expect(isOriginAllowed('https://workers.corp.example.com', config)).toBe(true);
     expect(isOriginAllowed('https://attacker.example.com', config)).toBe(false);

@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-
 import { describe, expect, it } from 'vitest';
 
 import { assertValidTransition } from '../../src/orchestration/task-state-machine.js';
@@ -7,15 +5,35 @@ import { assertValidWorkerTransition } from '../../src/orchestration/worker-stat
 import { derivePipelineState, validateTemplateSchema } from '../../src/orchestration/pipeline-engine.js';
 import { selectLeastLoadedWorker } from '../../src/services/worker-dispatch-service.js';
 
+// Schema imports for structural behavioral checks
+import { orchestratorGrants } from '../../src/db/schema/orchestrator-grants.js';
+import { tasks } from '../../src/db/schema/tasks.js';
+import { workers } from '../../src/db/schema/workers.js';
+import { events } from '../../src/db/schema/events.js';
+
+// Service / function imports replacing source-string presence checks
+import { applyTaskCompletionSideEffects } from '../../src/services/task-completion-side-effects.js';
+import { claimTaskForWorker, acknowledgeTaskAssignment } from '../../src/services/worker-dispatch-repository.js';
+import { registerWorker } from '../../src/services/worker-registration-service.js';
+import { PipelineCancellationService } from '../../src/services/pipeline-cancellation-service.js';
+import { mapErrorToHttpStatus } from '../../src/errors/http-errors.js';
+import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../../src/api/pagination.js';
+import { NotFoundError, ValidationError, ConflictError, ForbiddenError } from '../../src/errors/domain-errors.js';
+
 describe('requirements structural backfill', () => {
   it('covers FR-023/FR-097/FR-215/FR-216/FR-217/FR-218/FR-219/FR-220/FR-221/FR-222 orchestration and scope primitives exist', () => {
-    const lifecycleSource = fs.readFileSync(new URL('../../src/services/task-lifecycle-service.ts', import.meta.url), 'utf-8');
-    const grantSchema = fs.readFileSync(new URL('../../src/db/schema/orchestrator-grants.ts', import.meta.url), 'utf-8');
-    const creationSource = fs.readFileSync(new URL('../../src/services/pipeline-creation-service.ts', import.meta.url), 'utf-8');
+    // applyTaskCompletionSideEffects is a real exported function (not just a string in source)
+    expect(typeof applyTaskCompletionSideEffects).toBe('function');
 
-    expect(lifecycleSource).toContain('applyTaskCompletionSideEffects');
-    expect(grantSchema).toContain('orchestrator_grants');
-    expect(creationSource).toContain('orchestration');
+    // orchestrator_grants schema exists with agentId and pipelineId columns
+    expect(orchestratorGrants.agentId).toBeDefined();
+    expect(orchestratorGrants.pipelineId).toBeDefined();
+
+    // pipeline-creation-service uses validateTemplateSchema which accepts 'orchestration' task type
+    const schema = validateTemplateSchema({
+      tasks: [{ id: 'orchestrate', title_template: 'Orchestrate', type: 'orchestration' }],
+    });
+    expect(schema.tasks[0].type).toBe('orchestration');
   });
 
   it('covers FR-280/FR-281/FR-282/FR-284/FR-285 worker model and status transition rules', () => {
@@ -23,9 +41,9 @@ describe('requirements structural backfill', () => {
     expect(() => assertValidWorkerTransition('worker-1', 'offline', 'online')).not.toThrow();
     expect(() => assertValidWorkerTransition('worker-1', 'offline', 'busy')).toThrow(/Invalid worker transition/);
 
-    const workersSchema = fs.readFileSync(new URL('../../src/db/schema/workers.ts', import.meta.url), 'utf-8');
-    expect(workersSchema).toContain('runtimeType');
-    expect(workersSchema).toContain('heartbeatIntervalSeconds');
+    // workers schema has runtimeType and heartbeatIntervalSeconds columns (structural assertion)
+    expect(workers.runtimeType).toBeDefined();
+    expect(workers.heartbeatIntervalSeconds).toBeDefined();
   });
 
   it('covers FR-291/FR-292/FR-293 dispatch runtime compatibility through generic capability selection', () => {
@@ -40,52 +58,69 @@ describe('requirements structural backfill', () => {
     expect(selected?.id).toBe('custom');
   });
 
-  it('covers FR-299/FR-420/FR-423/FR-425/FR-426/FR-427/FR-428 API endpoints backing dashboard views are registered', () => {
-    const bootstrapRoutes = fs.readFileSync(new URL('../../src/bootstrap/routes.ts', import.meta.url), 'utf-8');
-    const workersRoutes = fs.readFileSync(new URL('../../src/api/routes/workers.routes.ts', import.meta.url), 'utf-8');
+  it('covers FR-299/FR-420/FR-423/FR-425/FR-426/FR-427/FR-428 API route registrations are live Fastify plugins', async () => {
+    // Verify route handler modules export callable Fastify plugins — not just string presence
+    const { workerRoutes } = await import('../../src/api/routes/workers.routes.js');
+    const { pipelineRoutes } = await import('../../src/api/routes/pipelines.routes.js');
+    const { templateRoutes } = await import('../../src/api/routes/templates.routes.js');
 
-    expect(bootstrapRoutes).toContain('workerRoutes');
-    expect(bootstrapRoutes).toContain('pipelineRoutes');
-    expect(bootstrapRoutes).toContain('templateRoutes');
-    expect(workersRoutes).toContain("'/api/v1/workers'");
+    expect(typeof workerRoutes).toBe('function');
+    expect(typeof pipelineRoutes).toBe('function');
+    expect(typeof templateRoutes).toBe('function');
   });
 
-  it('covers FR-740/FR-741/FR-742/FR-744/FR-752/FR-754/FR-756 built-in worker path and replacement constraints are code-level', () => {
-    const dispatch = fs.readFileSync(new URL('../../src/services/worker-dispatch-service.ts', import.meta.url), 'utf-8');
-    const registration = fs.readFileSync(new URL('../../src/services/worker-registration-service.ts', import.meta.url), 'utf-8');
+  it('covers FR-740/FR-741/FR-742/FR-744/FR-752/FR-754/FR-756 built-in worker dispatch and registration', () => {
+    // worker-dispatch-service sends tasks to workers — selectLeastLoadedWorker picks the right one
+    const workerWithTask = selectLeastLoadedWorker(
+      [
+        { id: 'built-in', status: 'online', capabilities: ['general'], currentLoad: 5 },
+        { id: 'external', status: 'online', capabilities: ['general'], currentLoad: 0 },
+      ],
+      ['general'],
+    );
+    expect(workerWithTask?.id).toBe('external');
 
-    expect(dispatch).toContain("type: 'task.assigned'");
-    expect(dispatch).toContain('sendToWorker');
-    expect(registration).toContain('registerWorker');
+    // registerWorker is a real exported function in worker-registration-service
+    expect(typeof registerWorker).toBe('function');
+
+    // claimTaskForWorker is a real exported function in worker-dispatch-repository
+    expect(typeof claimTaskForWorker).toBe('function');
   });
 
   it('covers FR-760/FR-761/FR-762/FR-763 consistent errors, tenant scope and pagination hooks', () => {
-    const errorHandler = fs.readFileSync(new URL('../../src/errors/error-handler.ts', import.meta.url), 'utf-8');
-    const pagination = fs.readFileSync(new URL('../../src/api/pagination.ts', import.meta.url), 'utf-8');
-    const schema = fs.readFileSync(new URL('../../src/db/schema/tasks.ts', import.meta.url), 'utf-8');
+    // mapErrorToHttpStatus maps domain errors to correct HTTP status codes
+    expect(mapErrorToHttpStatus(new NotFoundError('missing'))).toBe(404);
+    expect(mapErrorToHttpStatus(new ValidationError('bad input'))).toBe(400);
+    expect(mapErrorToHttpStatus(new ConflictError('conflict'))).toBe(409);
+    expect(mapErrorToHttpStatus(new ForbiddenError('denied'))).toBe(403);
+    expect(mapErrorToHttpStatus(new Error('unexpected'))).toBe(500);
 
-    expect(errorHandler).toContain('error');
-    expect(pagination).toContain('DEFAULT_PAGE');
-    expect(schema).toContain('tenantId');
+    // pagination constants have sensible defaults
+    expect(DEFAULT_PAGE).toBe(1);
+    expect(DEFAULT_PER_PAGE).toBeGreaterThan(0);
+    expect(MAX_PER_PAGE).toBeGreaterThan(DEFAULT_PER_PAGE);
+
+    // tasks schema has tenantId column (tenant scoping is structural)
+    expect(tasks.tenantId).toBeDefined();
   });
 
   it('covers FR-818/FR-819/FR-820/FR-821 external execution delivery + metadata tracking', () => {
-    const dispatchRepository = fs.readFileSync(new URL('../../src/services/worker-dispatch-repository.ts', import.meta.url), 'utf-8');
-    const workersSchema = fs.readFileSync(new URL('../../src/db/schema/workers.ts', import.meta.url), 'utf-8');
+    // claimTaskForWorker and acknowledgeTaskAssignment are real exported functions
+    expect(typeof claimTaskForWorker).toBe('function');
+    expect(typeof acknowledgeTaskAssignment).toBe('function');
 
-    expect(dispatchRepository).toContain('claimTaskForWorker');
-    expect(dispatchRepository).toContain('acknowledgeTaskAssignment');
-    expect(workersSchema).toContain('hostInfo');
-    expect(workersSchema).toContain('metadata');
+    // workers schema has hostInfo and metadata columns
+    expect(workers.hostInfo).toBeDefined();
+    expect(workers.metadata).toBeDefined();
   });
 
   it('covers FR-SM-004 and FR-SM-006/FR-SM-007 state-machine + auditability primitives', () => {
     expect(() => assertValidTransition('task-1', 'ready', 'claimed')).not.toThrow();
     expect(() => assertValidTransition('task-1', 'completed', 'running')).toThrow(/Cannot transition/);
 
-    const eventSchema = fs.readFileSync(new URL('../../src/db/schema/events.ts', import.meta.url), 'utf-8');
-    expect(eventSchema).toContain('entityType');
-    expect(eventSchema).toContain('data');
+    // events schema has entityType and data columns
+    expect(events.entityType).toBeDefined();
+    expect(events.data).toBeDefined();
   });
 
   it('covers FR-405/FR-406/FR-705/FR-712/FR-713/FR-714/FR-715 template-workflow behavior remains schema-safe and derivable', () => {
@@ -100,5 +135,8 @@ describe('requirements structural backfill', () => {
     expect(schema.tasks).toHaveLength(2);
     expect(derivePipelineState(['ready', 'pending'])).toBe('pending');
     expect(derivePipelineState(['running', 'pending'])).toBe('active');
+
+    // PipelineCancellationService is a real class (not just a string in source)
+    expect(typeof PipelineCancellationService).toBe('function');
   });
 });

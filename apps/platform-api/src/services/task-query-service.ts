@@ -1,4 +1,5 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
+import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 import { buildTaskContext } from './task-context-service.js';
 import type { ListTaskQuery } from './task-service.types.js';
@@ -8,9 +9,10 @@ export class TaskQueryService {
 
   async loadTaskOrThrow(tenantId: string, taskId: string, client?: DatabaseClient) {
     const db = client ?? this.pool;
-    const result = await db.query('SELECT * FROM tasks WHERE tenant_id = $1 AND id = $2', [tenantId, taskId]);
-    if (!result.rowCount) throw new NotFoundError('Task not found');
-    return result.rows[0] as Record<string, unknown>;
+    const repo = new TenantScopedRepository(db, tenantId);
+    const task = await repo.findById<Record<string, unknown> & { tenant_id: string }>('tasks', '*', taskId);
+    if (!task) throw new NotFoundError('Task not found');
+    return task;
   }
 
   toTaskResponse(task: Record<string, unknown>) {
@@ -19,8 +21,12 @@ export class TaskQueryService {
   }
 
   async listTasks(tenantId: string, query: ListTaskQuery) {
-    const where: string[] = ['tenant_id = $1'];
-    const values: unknown[] = [tenantId];
+    const repo = new TenantScopedRepository(this.pool, tenantId);
+
+    // Extra conditions beyond tenant_id (which the repository always prepends).
+    // Placeholders start at $2 because $1 is always the tenantId.
+    const conditions: string[] = [];
+    const values: unknown[] = [];
 
     const arrayFilters: Array<[string | undefined, string]> = [
       [query.state, 'state = ANY($%s::task_state[])'],
@@ -29,7 +35,7 @@ export class TaskQueryService {
     for (const [filter, template] of arrayFilters) {
       if (!filter) continue;
       values.push(filter.split(','));
-      where.push(template.replace('%s', String(values.length)));
+      conditions.push(template.replace('%s', String(values.length + 1)));
     }
 
     const exactFilters: Array<[string | undefined, string]> = [
@@ -41,24 +47,26 @@ export class TaskQueryService {
     for (const [filter, column] of exactFilters) {
       if (!filter) continue;
       values.push(filter);
-      where.push(`${column} = $${values.length}`);
+      conditions.push(`${column} = $${values.length + 1}`);
     }
 
     const offset = (query.page - 1) * query.per_page;
-    values.push(query.per_page, offset);
-    const whereClause = where.join(' AND ');
 
-    const [totalRes, dataRes] = await Promise.all([
-      this.pool.query(`SELECT COUNT(*)::int AS total FROM tasks WHERE ${whereClause}`, values.slice(0, values.length - 2)),
-      this.pool.query(
-        `SELECT * FROM tasks WHERE ${whereClause} ORDER BY created_at DESC LIMIT $${values.length - 1} OFFSET $${values.length}`,
+    const [total, rows] = await Promise.all([
+      repo.count('tasks', conditions, values),
+      repo.findAllPaginated<Record<string, unknown> & { tenant_id: string }>(
+        'tasks',
+        '*',
+        conditions,
         values,
+        'created_at DESC',
+        query.per_page,
+        offset,
       ),
     ]);
 
-    const total = totalRes.rows[0].total as number;
     return {
-      data: dataRes.rows.map((row) => this.toTaskResponse(row as Record<string, unknown>)),
+      data: rows.map((row) => this.toTaskResponse(row as Record<string, unknown>)),
       meta: { total, page: query.page, per_page: query.per_page, pages: Math.ceil(total / query.per_page) || 1 },
     };
   }

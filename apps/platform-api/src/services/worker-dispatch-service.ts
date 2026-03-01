@@ -1,15 +1,20 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
+import { isBuiltInAgentReplaceable } from '../orchestration/capability-matcher.js';
 import { ConflictError, ForbiddenError } from '../errors/domain-errors.js';
 import {
   acknowledgeTaskAssignment,
   claimTaskForWorker,
-  findDispatchCandidateWorker,
+  findDispatchCandidateWorkers,
   findReadyTasks,
   markWorkerBusy,
   resetExpiredDispatch,
   resetTaskClaim,
+  type DispatchWorkerCandidate,
 } from './worker-dispatch-repository.js';
 import type { WorkerServiceContext } from './worker-service.js';
+
+/** Runtime types that identify a built-in (platform-managed) worker. */
+const BUILT_IN_RUNTIME_TYPES = new Set(['internal', 'built_in']);
 
 interface DispatchCandidate {
   id: string;
@@ -30,6 +35,46 @@ export function selectLeastLoadedWorker(workers: DispatchCandidate[], requiredCa
   return eligible.sort((a, b) => a.currentLoad - b.currentLoad || a.id.localeCompare(b.id))[0];
 }
 
+/**
+ * Selects the best worker for a task from the given candidates.
+ *
+ * Implements FR-752: if any external worker can replace a built-in worker
+ * (i.e. covers all its capabilities), the external worker is preferred.
+ * This ensures that built-in workers are only used as a fallback when no
+ * capable external worker is available.
+ *
+ * Exported to allow direct unit and integration testing of the selection logic.
+ */
+export function selectWorkerForDispatch(candidates: DispatchWorkerCandidate[]): string | null {
+  if (candidates.length === 0) return null;
+
+  const externalCandidates = candidates.filter((c) => !BUILT_IN_RUNTIME_TYPES.has(c.runtime_type));
+  const builtInCandidates = candidates.filter((c) => BUILT_IN_RUNTIME_TYPES.has(c.runtime_type));
+
+  // If there are both external and built-in candidates, check if any external
+  // worker can fully replace the built-in (FR-752).
+  if (externalCandidates.length > 0 && builtInCandidates.length > 0) {
+    for (const builtIn of builtInCandidates) {
+      const replaceable = isBuiltInAgentReplaceable(
+        builtIn.capabilities,
+        externalCandidates.map((c) => ({
+          capabilities: c.capabilities,
+          status: 'online', // external candidates are already filtered to online/busy
+          isBuiltIn: false,
+        })),
+      );
+      if (replaceable) {
+        // At least one built-in can be replaced — prefer external workers only.
+        return externalCandidates[0].id;
+      }
+    }
+  }
+
+  // No replacement possible, or only one type present — use the first candidate
+  // (already sorted by load ascending in the repository query).
+  return candidates[0].id;
+}
+
 export async function dispatchReadyTasks(context: WorkerServiceContext, limit?: number): Promise<number> {
   const readyTasks = await findReadyTasks(context.pool, limit ?? context.config.WORKER_DISPATCH_BATCH_LIMIT);
   let dispatchedTasks = 0;
@@ -40,12 +85,14 @@ export async function dispatchReadyTasks(context: WorkerServiceContext, limit?: 
       continue;
     }
 
-    const workerId = await findDispatchCandidateWorker(
+    const candidates = await findDispatchCandidateWorkers(
       context.pool,
       task.tenant_id,
       connectedWorkerIds,
       task.capabilities_required ?? [],
     );
+
+    const workerId = selectWorkerForDispatch(candidates);
     if (!workerId) {
       continue;
     }

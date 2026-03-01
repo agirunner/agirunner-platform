@@ -14,6 +14,7 @@
  */
 
 import http from 'node:http';
+import https from 'node:https';
 import { WebSocket } from 'ws';
 
 export interface BuiltInWorkerConfig {
@@ -27,6 +28,31 @@ export interface BuiltInWorkerConfig {
   name: string;
   /** Heartbeat interval in seconds */
   heartbeatIntervalSeconds: number;
+  /** Task executor configuration */
+  executor?: TaskExecutorConfig;
+}
+
+/**
+ * Configuration for the built-in task executor.
+ * When an agent API URL is configured, tasks are forwarded to that agent.
+ * Without configuration, the executor completes tasks immediately with a
+ * placeholder output — useful for testing and zero-config bootstrapping.
+ */
+export interface TaskExecutorConfig {
+  /**
+   * URL of the agent or tool API to call for task execution.
+   * When omitted, the built-in executor runs tasks as a no-content pass-through.
+   */
+  agentApiUrl?: string;
+  /**
+   * Bearer token for the agent API (if required).
+   */
+  agentApiKey?: string;
+  /**
+   * Timeout for a single task execution in milliseconds.
+   * Defaults to 5 minutes.
+   */
+  taskTimeoutMs?: number;
 }
 
 export interface WorkerRegistration {
@@ -34,6 +60,181 @@ export interface WorkerRegistration {
   workerApiKey: string;
   websocketUrl: string;
   heartbeatIntervalSeconds: number;
+}
+
+export interface TaskExecutionResult {
+  output: Record<string, unknown>;
+  success: boolean;
+  error?: string;
+}
+
+/**
+ * Executes a task using the configured executor.
+ *
+ * When an `agentApiUrl` is provided, the task payload is forwarded to that URL
+ * via HTTP POST, and the response body is used as the task output.
+ *
+ * Without an agent URL, the executor completes the task immediately with an
+ * empty output — allowing the platform to continue pipeline execution without
+ * any real work being performed.  This is suitable for testing and scaffolding
+ * pipelines before real agent integrations are available.
+ */
+export async function executeTask(
+  task: Record<string, unknown>,
+  config: TaskExecutorConfig,
+): Promise<TaskExecutionResult> {
+  if (!config.agentApiUrl) {
+    return {
+      output: { task_id: task.id, handled_by: 'built-in-worker', status: 'completed' },
+      success: true,
+    };
+  }
+
+  const timeoutMs = config.taskTimeoutMs ?? 5 * 60 * 1000;
+  const body = JSON.stringify({
+    task_id: task.id,
+    title: task.title,
+    type: task.type,
+    input: task.input ?? {},
+    context: task.context ?? {},
+  });
+
+  return new Promise<TaskExecutionResult>((resolve) => {
+    const url = new URL(config.agentApiUrl!);
+    const isHttps = url.protocol === 'https:';
+    const requestModule = isHttps ? https : http;
+    const options: http.RequestOptions = {
+      hostname: url.hostname,
+      port: url.port || (isHttps ? 443 : 80),
+      path: url.pathname + url.search,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+        ...(config.agentApiKey ? { Authorization: `Bearer ${config.agentApiKey}` } : {}),
+      },
+    };
+
+    const timer = setTimeout(() => {
+      req.destroy();
+      resolve({ output: {}, success: false, error: `Agent API call timed out after ${timeoutMs}ms` });
+    }, timeoutMs);
+
+    const req = requestModule.request(options, (res) => {
+      let responseData = '';
+      res.on('data', (chunk: Buffer) => {
+        responseData += chunk.toString();
+      });
+      res.on('end', () => {
+        clearTimeout(timer);
+        if ((res.statusCode ?? 500) >= 400) {
+          resolve({ output: {}, success: false, error: `Agent API returned HTTP ${res.statusCode ?? 'unknown'}: ${responseData}` });
+          return;
+        }
+        try {
+          const parsed = JSON.parse(responseData) as Record<string, unknown>;
+          resolve({ output: parsed, success: true });
+        } catch {
+          // Non-JSON response is fine — wrap in an output envelope
+          resolve({ output: { raw: responseData }, success: true });
+        }
+      });
+    });
+
+    req.on('error', (error) => {
+      clearTimeout(timer);
+      resolve({ output: {}, success: false, error: String(error) });
+    });
+
+    req.write(body);
+    req.end();
+  });
+}
+
+/**
+ * Creates a task handler that uses the Platform API to mark tasks running,
+ * execute them via the configured executor, then mark them complete or failed.
+ *
+ * The returned handler is suitable for passing to `connectBuiltInWorkerWebSocket`.
+ */
+export function createBuiltInTaskHandler(
+  config: BuiltInWorkerConfig,
+  registration: WorkerRegistration,
+): (task: Record<string, unknown>) => Promise<void> {
+  const apiBaseUrl = config.apiBaseUrl;
+  const agentApiKey = registration.workerApiKey;
+  const executorConfig = config.executor ?? {};
+
+  return async (task: Record<string, unknown>): Promise<void> => {
+    const taskId = String(task.id);
+    const agentId = typeof task.assigned_agent_id === 'string' ? task.assigned_agent_id : undefined;
+
+    // Mark the task as running via the Platform API
+    await callPlatformApi(apiBaseUrl, agentApiKey, 'POST', `/api/v1/tasks/${taskId}/start`, {
+      ...(agentId ? { agent_id: agentId } : {}),
+    });
+
+    // Execute the task using the configured executor
+    const result = await executeTask(task, executorConfig);
+
+    if (result.success) {
+      await callPlatformApi(apiBaseUrl, agentApiKey, 'POST', `/api/v1/tasks/${taskId}/complete`, {
+        output: result.output,
+      });
+    } else {
+      await callPlatformApi(apiBaseUrl, agentApiKey, 'POST', `/api/v1/tasks/${taskId}/fail`, {
+        error: { message: result.error ?? 'Unknown execution error', source: 'built-in-worker' },
+      });
+    }
+  };
+}
+
+/**
+ * Makes an authenticated HTTP request to the Platform API.
+ * Uses the agent API key scoped to the built-in worker's agent.
+ */
+async function callPlatformApi(
+  apiBaseUrl: string,
+  apiKey: string,
+  method: string,
+  path: string,
+  body: Record<string, unknown>,
+): Promise<void> {
+  const bodyStr = JSON.stringify(body);
+  const url = new URL(path, apiBaseUrl);
+  const isHttps = url.protocol === 'https:';
+  const requestModule = isHttps ? https : http;
+  const options: http.RequestOptions = {
+    hostname: url.hostname,
+    port: url.port || (isHttps ? 443 : 80),
+    path: url.pathname,
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(bodyStr),
+      Authorization: `Bearer ${apiKey}`,
+    },
+  };
+
+  return new Promise((resolve, reject) => {
+    const req = requestModule.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk: Buffer) => {
+        data += chunk.toString();
+      });
+      res.on('end', () => {
+        if ((res.statusCode ?? 500) >= 400) {
+          reject(new Error(`Platform API ${method} ${path} failed: HTTP ${res.statusCode ?? 'unknown'} — ${data}`));
+          return;
+        }
+        resolve();
+      });
+    });
+
+    req.on('error', reject);
+    req.write(bodyStr);
+    req.end();
+  });
 }
 
 /**
@@ -47,15 +248,17 @@ export async function registerBuiltInWorker(config: BuiltInWorkerConfig): Promis
     capabilities: config.capabilities,
     // FR-752: connection_mode is 'websocket' — identical to external workers.
     connection_mode: 'websocket',
-    runtime_type: 'built_in',
+    runtime_type: 'internal',
     heartbeat_interval_seconds: config.heartbeatIntervalSeconds,
   });
 
   return new Promise((resolve, reject) => {
     const url = new URL('/api/v1/workers/register', config.apiBaseUrl);
+    const isHttps = url.protocol === 'https:';
+    const requestModule = isHttps ? https : http;
     const options: http.RequestOptions = {
       hostname: url.hostname,
-      port: url.port,
+      port: url.port || (isHttps ? 443 : 80),
       path: url.pathname,
       method: 'POST',
       headers: {
@@ -65,7 +268,7 @@ export async function registerBuiltInWorker(config: BuiltInWorkerConfig): Promis
       },
     };
 
-    const req = http.request(options, (res) => {
+    const req = requestModule.request(options, (res) => {
       let data = '';
       res.on('data', (chunk: Buffer) => {
         data += chunk.toString();

@@ -48,8 +48,11 @@ async function authenticateUpgrade(app: FastifyInstance, authorization?: string)
  * Checks whether the Origin header of an upgrade request is allowed by the
  * configured WORKER_ALLOWED_ORIGINS list.  When the value is '*', every
  * origin is permitted so workers can connect from any network location.
+ *
+ * Exported for unit-testing the actual function — tests must not re-implement
+ * this logic inline.
  */
-function isOriginAllowed(origin: string | undefined, allowedOriginsConfig: string): boolean {
+export function isOriginAllowed(origin: string | undefined, allowedOriginsConfig: string): boolean {
   if (allowedOriginsConfig === '*') {
     return true;
   }

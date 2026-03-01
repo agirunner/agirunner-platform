@@ -19,6 +19,13 @@ import type pg from 'pg';
 
 export const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
+/**
+ * Far-future expiry for the default admin API key.
+ * Chosen to be effectively permanent for bootstrapping purposes.
+ * Operators should rotate or replace with a proper expiry after setup.
+ */
+export const DEFAULT_API_KEY_EXPIRY = new Date('2099-12-31T23:59:59Z');
+
 /** Fixed prefix used to detect whether the default key was already created. */
 const DEFAULT_ADMIN_KEY_PREFIX = 'ab_admin_def';
 
@@ -55,7 +62,7 @@ async function seedDefaultAdminKey(pool: pg.Pool): Promise<void> {
   // The prefix is fixed to allow idempotent detection across restarts.
   const apiKey = `${DEFAULT_ADMIN_KEY_PREFIX}${randomSuffix}`;
   const keyHash = await bcrypt.hash(apiKey, 12);
-  const expiresAt = new Date('2099-12-31T23:59:59Z');
+  const expiresAt = DEFAULT_API_KEY_EXPIRY;
 
   await pool.query(
     `INSERT INTO api_keys (tenant_id, key_hash, key_prefix, scope, owner_type, label, expires_at)
