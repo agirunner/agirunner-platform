@@ -1,7 +1,7 @@
 # CONTEXT.md — AgentBaton Platform v1.0
 
 ## Last Updated
-2026-03-01 10:05 UTC
+2026-03-01 10:35 UTC
 
 ## Product
 AgentBaton Platform — coordination engine for agentic software development pipelines. Manages tasks, pipelines, templates, workers, and tenants via REST API + WebSocket + SDK + MCP server + Dashboard.
@@ -21,7 +21,7 @@ AgentBaton Platform — coordination engine for agentic software development pip
 - **Docker:** docker-compose.yml (postgres + platform-api + dashboard) — WORKING
 
 ## Current State
-- **Phase:** Code Complete + QA Audited
+- **Phase:** Code Complete + QA Audited + Test Plan Written
 - **Requirements matrix:** 207 FRs → 207/207 ✅, 0 deferred
 - **Test count:** ~270 tests (unit + integration), build/lint/tsc clean
 - **v1.1 doc:** `docs/requirements/platform-v1.1.md` — 28 deferred FRs
@@ -29,6 +29,7 @@ AgentBaton Platform — coordination engine for agentic software development pip
 - **Dockerfiles:** Fixed and working (PR #50 merged)
 - **Webhook secrets:** Encrypted at rest (AES-256-GCM)
 - **JWT_SECRET:** No default — app fails on missing
+- **Test plan:** `docs/test-plan-v1.0.md` — developer journeys, autonomous runs, config variants (commit 6f05a20)
 
 ## Open Issues
 | # | Priority | Title |
@@ -39,10 +40,24 @@ AgentBaton Platform — coordination engine for agentic software development pip
 | #38 | P3 | 2 source-scraping assertions in test |
 | #39 | P2 | Flaky auth-webhook test (race condition) |
 
+Data is currently fixing all 5 issues (spawn v2 running).
+
+## Key Artifacts
+- `docs/requirements-matrix-v1.0.md` — 207 FRs, all ✅
+- `docs/requirements/platform-v1.1.md` — 28 deferred FRs
+- `docs/test-plan-v1.0.md` — live test plan (7 developer journeys, 4 config variants, 7 capability tests)
+- `tests/live/` — live test harness (4 scenarios, validators, fixtures)
+- `tests/live/fixtures/calc-api/` — Express calculator fixture
+- `tests/live/fixtures/todo-app/` — Node TODO app with 3 planted bugs
+- `docker-compose.yml` — full stack (postgres + api + dashboard)
+- `apps/platform-api/src/built-in/role-config.ts` — built-in worker roles
+- `configs/built-in-roles.json` — 4 curated role configs (developer, reviewer, architect, qa)
+
 ## Remaining for v1.0 Release
-1. Comprehensive test plan (Barclay — in progress)
-2. Live E2E tests execution
-3. Fix open P1 issues (#14, #18)
-4. User-facing docs (Crusher)
-5. Admiral UAT sign-off
-6. Tag v1.0.0
+1. ~~Test plan~~ ✅ Written and merged
+2. Fix 5 open issues (Data — in progress)
+3. Implement test plan scenarios as executable code (Barclay — next)
+4. Execute live E2E tests
+5. User-facing docs (Crusher)
+6. Admiral UAT sign-off
+7. Tag v1.0.0
