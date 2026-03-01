@@ -1,7 +1,7 @@
 # CONTEXT.md — AgentBaton Platform v1.0
 
 ## Last Updated
-2026-03-01 10:35 UTC
+2026-03-01 11:30 UTC
 
 ## Product
 AgentBaton Platform — coordination engine for agentic software development pipelines. Manages tasks, pipelines, templates, workers, and tenants via REST API + WebSocket + SDK + MCP server + Dashboard.
@@ -21,43 +21,44 @@ AgentBaton Platform — coordination engine for agentic software development pip
 - **Docker:** docker-compose.yml (postgres + platform-api + dashboard) — WORKING
 
 ## Current State
-- **Phase:** Code Complete + QA Audited + Test Plan Written
-- **Requirements matrix:** 207 FRs → 207/207 ✅, 0 deferred
-- **Test count:** ~270 tests (unit + integration), build/lint/tsc clean
-- **v1.1 doc:** `docs/requirements/platform-v1.1.md` — 28 deferred FRs
-- **QA audit:** All findings resolved (PR #48 merged, Worf verified)
-- **Dockerfiles:** Fixed and working (PR #50 merged)
-- **Webhook secrets:** Encrypted at rest (AES-256-GCM)
-- **JWT_SECRET:** No default — app fails on missing
-- **Test plan:** `docs/test-plan-v1.0.md` — developer journeys, autonomous runs, config variants (commit 6f05a20)
-
-## Open Issues
-| # | Priority | Title |
-|---|----------|-------|
-| #14 | P1 | Offline worker recovery — no grace period |
-| #18 | P1 | Dashboard stores JWTs in localStorage |
-| #20 | P2 | MCP server robustness (malformed JSON-RPC) |
-| #38 | P3 | 2 source-scraping assertions in test |
-| #39 | P2 | Flaky auth-webhook test (race condition) |
-
-Data is currently fixing all 5 issues (spawn v2 running).
+- **Phase:** Code Complete + QA Audited + Test Harness Merged
+- **Requirements matrix:** 207/207 ✅, 0 deferred
+- **Tests:** ~279 unit/integration, build/lint/tsc clean
+- **Open issues:** ZERO ✅
+- **Live test harness:** `tests/live/` — 12 scenarios, ~75 validations (PR #54 merged)
+- **Test plan:** `docs/test-plan-v1.0.md` v3 — autonomous pipelines, 3 worker modes
 
 ## Key Artifacts
 - `docs/requirements-matrix-v1.0.md` — 207 FRs, all ✅
 - `docs/requirements/platform-v1.1.md` — 28 deferred FRs
-- `docs/test-plan-v1.0.md` — live test plan (7 developer journeys, 4 config variants, 7 capability tests)
-- `tests/live/` — live test harness (4 scenarios, validators, fixtures)
+- `docs/test-plan-v1.0.md` — live test plan v3
+- `tests/live/` — live test harness (12 scenarios)
 - `tests/live/fixtures/calc-api/` — Express calculator fixture
-- `tests/live/fixtures/todo-app/` — Node TODO app with 3 planted bugs
+- `tests/live/fixtures/todo-app/` — Node TODO app, 3 planted bugs
 - `docker-compose.yml` — full stack (postgres + api + dashboard)
 - `apps/platform-api/src/built-in/role-config.ts` — built-in worker roles
-- `configs/built-in-roles.json` — 4 curated role configs (developer, reviewer, architect, qa)
+- `configs/built-in-roles.json` — 4 curated role configs
 
-## Remaining for v1.0 Release
-1. ~~Test plan~~ ✅ Written and merged
-2. Fix 5 open issues (Data — in progress)
-3. Implement test plan scenarios as executable code (Barclay — next)
-4. Execute live E2E tests
-5. User-facing docs (Crusher)
-6. Admiral UAT sign-off
-7. Tag v1.0.0
+## Live Test Scenarios
+| Scenario | Description |
+|----------|-------------|
+| AP-1 | Built-in worker SDLC pipeline (calc-api) |
+| AP-5 | Built-in worker maintenance (todo-app planted bugs) |
+| AP-7 | Failure and autonomous recovery |
+| OT-1 | Dependency cascade (linear, fan-out, diamond) |
+| OT-2 | Task routing and capability matching |
+| OT-3 | Pipeline state derivation |
+| OT-4 | Worker health and grace period |
+| IT-1 | SDK full lifecycle |
+| IT-2 | MCP JSON-RPC |
+| SI-1 | Multi-tenant isolation |
+
+## Remaining for v1.0.0 Tag
+1. ~~Code complete~~ ✅
+2. ~~All issues fixed~~ ✅
+3. ~~Test harness implemented~~ ✅
+4. **Execute live E2E tests** — AP-1/AP-5/AP-7/OT-1–4/IT-1–2/SI-1 (all 3 providers)
+5. **Runtime integration tests** — AP-2/AP-4/AP-6 (runtime as external worker)
+6. **User-facing docs** — Crusher, not started
+7. **Admiral UAT sign-off**
+8. **Tag v1.0.0**
