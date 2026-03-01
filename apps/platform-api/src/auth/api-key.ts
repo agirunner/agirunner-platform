@@ -27,6 +27,7 @@ interface ApiKeyRow {
   key_hash: string;
   expires_at: Date;
   is_revoked: boolean;
+  tenant_is_active: boolean;
 }
 
 export function parseBearerToken(header?: string): string {
@@ -59,9 +60,11 @@ export async function verifyApiKey(pool: DatabaseQueryable, apiKeyRaw: string): 
 
   const keyPrefix = apiKeyRaw.slice(0, 12);
   const result = await pool.query<ApiKeyRow>(
-    `SELECT id, tenant_id, scope, owner_type, owner_id, key_prefix, key_hash, expires_at, is_revoked
-     FROM api_keys
-     WHERE key_prefix = $1`,
+    `SELECT k.id, k.tenant_id, k.scope, k.owner_type, k.owner_id, k.key_prefix, k.key_hash, k.expires_at, k.is_revoked,
+            t.is_active AS tenant_is_active
+     FROM api_keys k
+     JOIN tenants t ON t.id = k.tenant_id
+     WHERE k.key_prefix = $1`,
     [keyPrefix],
   );
 
@@ -74,7 +77,7 @@ export async function verifyApiKey(pool: DatabaseQueryable, apiKeyRaw: string): 
   const prefixMatches = key.key_prefix.length === keyPrefix.length && timingSafeEqual(Buffer.from(key.key_prefix), Buffer.from(keyPrefix));
   const hashMatches = await bcrypt.compare(apiKeyRaw, key.key_hash);
 
-  if (!prefixMatches || !hashMatches || key.is_revoked || isExpired(key.expires_at)) {
+  if (!prefixMatches || !hashMatches || key.is_revoked || isExpired(key.expires_at) || !key.tenant_is_active) {
     throw new UnauthorizedError('Invalid API key');
   }
 
@@ -85,9 +88,11 @@ export async function verifyApiKey(pool: DatabaseQueryable, apiKeyRaw: string): 
 
 export async function verifyApiKeyById(pool: DatabaseQueryable, keyId: string): Promise<ApiKeyIdentity> {
   const result = await pool.query<ApiKeyRow>(
-    `SELECT id, tenant_id, scope, owner_type, owner_id, key_prefix, key_hash, expires_at, is_revoked
-     FROM api_keys
-     WHERE id = $1`,
+    `SELECT k.id, k.tenant_id, k.scope, k.owner_type, k.owner_id, k.key_prefix, k.key_hash, k.expires_at, k.is_revoked,
+            t.is_active AS tenant_is_active
+     FROM api_keys k
+     JOIN tenants t ON t.id = k.tenant_id
+     WHERE k.id = $1`,
     [keyId],
   );
 
@@ -96,7 +101,7 @@ export async function verifyApiKeyById(pool: DatabaseQueryable, keyId: string): 
   }
 
   const key = result.rows[0];
-  if (key.is_revoked || isExpired(key.expires_at)) {
+  if (key.is_revoked || isExpired(key.expires_at) || !key.tenant_is_active) {
     throw new UnauthorizedError('Invalid API key');
   }
 

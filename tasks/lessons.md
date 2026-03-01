@@ -42,3 +42,9 @@
 
 - **What went wrong:** `packages/config` build emitted compiled `.js` into `src/` and polluted git status because no `outDir` was configured.
 - **Preventive rule:** For package builds, always set `compilerOptions.outDir` (e.g., `dist`) to keep generated artifacts out of tracked source directories.
+
+- **What went wrong:** New integration tests mutated `process.env` for app bootstrap and intermittently broke unrelated auth-flow tests when run in suite order.
+- **Preventive rule:** Snapshot and restore all touched env vars in each test file that boots app/config, or avoid env mutation entirely by testing service layers directly.
+
+- **What went wrong:** Webhook delivery assertion read the latest tenant delivery row and occasionally matched a different webhook when multiple hooks existed.
+- **Preventive rule:** Scope delivery assertions by both `tenant_id` and `webhook_id` (or `event_id`) to avoid nondeterministic cross-hook matches.

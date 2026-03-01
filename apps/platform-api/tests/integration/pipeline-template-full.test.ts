@@ -1,0 +1,199 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import { EventService } from '../../src/services/event-service.js';
+import { PipelineService } from '../../src/services/pipeline-service.js';
+import { TemplateService } from '../../src/services/template-service.js';
+import { validateTemplateSchema } from '../../src/orchestration/pipeline-engine.js';
+import { startTestDatabase, stopTestDatabase, type TestDatabase } from '../helpers/postgres.js';
+
+const tenantId = '00000000-0000-0000-0000-000000000001';
+
+const config = {
+  TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+  TASK_DEFAULT_AUTO_RETRY: false,
+  TASK_DEFAULT_MAX_RETRIES: 0,
+};
+
+const admin = { id: 'admin', tenantId, scope: 'admin' as const, ownerType: 'user', ownerId: null, keyPrefix: 'admin' };
+
+describe('pipeline + template full coverage', () => {
+  let db: TestDatabase;
+  let templateService: TemplateService;
+  let pipelineService: PipelineService;
+
+  beforeAll(async () => {
+    db = await startTestDatabase();
+    const eventService = new EventService(db.pool);
+    templateService = new TemplateService(db.pool, eventService);
+    pipelineService = new PipelineService(db.pool, eventService, config);
+  });
+
+  afterAll(async () => {
+    await stopTestDatabase(db);
+  });
+
+  it('covers FR-161/FR-169/FR-170/FR-171/FR-172/FR-177 pipeline instantiation from template with dependencies', async () => {
+    const template = await templateService.createTemplate(admin, {
+      name: 'full-template',
+      slug: 'full-template',
+      schema: {
+        variables: [{ name: 'feature', type: 'string', required: true }],
+        tasks: [
+          { id: 'analysis', title_template: 'Analyze ${feature}', type: 'analysis' },
+          { id: 'code', title_template: 'Implement ${feature}', type: 'code', depends_on: ['analysis'] },
+        ],
+      },
+    });
+
+    const pipeline = await pipelineService.createPipeline(admin, {
+      template_id: template.id as string,
+      name: 'pipeline-full',
+      parameters: { feature: 'auth' },
+    });
+
+    expect(pipeline.id).toBeTypeOf('string');
+    expect(pipeline.template_id).toBe(template.id);
+    expect(pipeline.tasks).toHaveLength(2);
+
+    const [a, b] = pipeline.tasks as Array<Record<string, unknown>>;
+    expect(a.state).toBe('ready');
+    expect(a.title).toBe('Analyze auth');
+    expect(b.state).toBe('pending');
+    expect((b.depends_on as string[])[0]).toBe(a.id);
+  });
+
+  it('covers FR-162/FR-167 pipeline status derivation and emitted events', async () => {
+    const template = await templateService.createTemplate(admin, {
+      name: 'state-template',
+      slug: 'state-template',
+      schema: { tasks: [{ id: 'task', title_template: 'Task', type: 'code' }] },
+    });
+
+    const pipeline = await pipelineService.createPipeline(admin, { template_id: template.id as string, name: 'pipeline-state' });
+    const loaded = await pipelineService.getPipeline(tenantId, pipeline.id as string);
+
+    expect(loaded.state).toBe('pending');
+
+    const eventRows = await db.pool.query(
+      `SELECT type FROM events WHERE tenant_id = $1 AND entity_id = $2 AND entity_type = 'pipeline' ORDER BY created_at ASC`,
+      [tenantId, pipeline.id],
+    );
+    expect(eventRows.rows.some((row) => row.type === 'pipeline.created')).toBe(true);
+  });
+
+  it('covers FR-173/FR-400/FR-404/FR-700/FR-716 template validation rejects invalid dags and accepts metadata blocks', () => {
+    expect(() =>
+      validateTemplateSchema({
+        tasks: [
+          { id: 'a', title_template: 'A', type: 'code', depends_on: ['b'] },
+          { id: 'b', title_template: 'B', type: 'test', depends_on: ['a'] },
+        ],
+      }),
+    ).toThrow(/cycle/i);
+
+    const validated = validateTemplateSchema({
+      metadata: { quality: { lint: 'strict' }, workflow: { phases: [{ id: 'build', gate: 'all_complete' }] } },
+      tasks: [{ id: 'a', title_template: 'A', type: 'code', role_config: { prompt: 'do A' } }],
+    });
+
+    expect(validated.tasks[0].role_config).toEqual({ prompt: 'do A' });
+    expect(validated.metadata).toMatchObject({ quality: { lint: 'strict' } });
+  });
+
+  it('covers FR-174/FR-175/FR-176 built-in template listing, versioning and pagination', async () => {
+    await db.pool.query(
+      `INSERT INTO templates (tenant_id, name, slug, version, is_built_in, is_published, schema)
+       VALUES ($1,'built-in-a','builtin-a',1,true,true,$2::jsonb),
+              ($1,'built-in-b','builtin-b',1,true,true,$2::jsonb)`,
+      [tenantId, JSON.stringify({ tasks: [{ id: 'x', title_template: 'X', type: 'code' }] })],
+    );
+
+    const created = await templateService.createTemplate(admin, {
+      name: 'versioned-template',
+      slug: 'versioned-template',
+      schema: { tasks: [{ id: 'x', title_template: 'X', type: 'code' }] },
+    });
+    const updated = await templateService.updateTemplate(admin, created.id as string, {
+      schema: { tasks: [{ id: 'x', title_template: 'X2', type: 'code' }] },
+    });
+
+    expect(updated.version).toBe(2);
+
+    const builtInPage = await templateService.listTemplates(tenantId, { is_built_in: true, page: 1, per_page: 1 });
+    expect(builtInPage.data).toHaveLength(1);
+    expect(builtInPage.meta.total).toBeGreaterThanOrEqual(2);
+  });
+
+  it('covers FR-401/FR-402/FR-406/FR-409/FR-410/FR-411 template CRUD and role resolution on instantiation', async () => {
+    const template = await templateService.createTemplate(admin, {
+      name: 'roles-template',
+      slug: 'roles-template',
+      schema: {
+        variables: [{ name: 'lang', type: 'string', default: 'ts' }],
+        tasks: [{ id: 'implement', title_template: 'Implement in ${lang}', type: 'code', role: 'engineer' }],
+      },
+    });
+
+    const fetched = (await templateService.getTemplate(tenantId, template.id as string)) as Record<string, unknown>;
+    expect(fetched.slug).toBe('roles-template');
+
+    const pipeline = await pipelineService.createPipeline(admin, { template_id: template.id as string, name: 'roles-pipeline' });
+    const [task] = pipeline.tasks as Array<Record<string, unknown>>;
+
+    expect(task.role).toBe('engineer');
+    expect(task.title).toBe('Implement in ts');
+
+    await expect(templateService.softDeleteTemplate(admin, template.id as string)).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it('covers FR-701/FR-702/FR-703/FR-704/FR-706/FR-707/FR-708/FR-718/FR-720 workflow-related data is accepted and persisted', async () => {
+    const schema = {
+      metadata: {
+        workflow: {
+          phases: [
+            { id: 'p1', gate: 'all_complete', parallel: false },
+            { id: 'p2', gate: 'manual', parallel: true },
+          ],
+          blocked_by_alias: 'depends_on',
+        },
+      },
+      tasks: [
+        { id: 'a', title_template: 'A', type: 'code' },
+        { id: 'b', title_template: 'B', type: 'test', depends_on: ['a'] },
+      ],
+    };
+
+    const template = await templateService.createTemplate(admin, {
+      name: 'workflow-template',
+      slug: 'workflow-template',
+      schema,
+    });
+
+    const loaded = (await templateService.getTemplate(tenantId, template.id as string)) as Record<string, unknown>;
+    expect((loaded.schema as Record<string, unknown>).metadata).toMatchObject(schema.metadata as Record<string, unknown>);
+  });
+
+  it('covers FR-412/FR-822/FR-824 environment and worker instructions are stored on template tasks', async () => {
+    const template = await templateService.createTemplate(admin, {
+      name: 'environment-template',
+      slug: 'environment-template',
+      schema: {
+        tasks: [
+          {
+            id: 'runner',
+            title_template: 'Run',
+            type: 'custom',
+            role_config: { instruction: 'execute script' },
+            environment: { RUNTIME: 'openclaw' },
+          },
+        ],
+      },
+    });
+
+    const pipeline = await pipelineService.createPipeline(admin, { template_id: template.id as string, name: 'env-pipeline' });
+    const [task] = pipeline.tasks as Array<Record<string, unknown>>;
+
+    expect(task.role_config).toEqual({ instruction: 'execute script' });
+    expect(task.environment).toEqual({ RUNTIME: 'openclaw' });
+  });
+});
