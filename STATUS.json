@@ -1,17 +1,18 @@
 {
-  "task": "Update requirements matrix post-QA",
-  "issue": "matrix-update-post-qa",
-  "branch": "docs/matrix-update-post-qa",
+  "task": "Fix Dockerfiles so docker compose starts platform stack cleanly",
+  "issue": "dockerfiles-compose-health",
+  "branch": "fix/dockerfiles",
   "phase": "COMPLETE",
   "completed": [
-    "Verified FR matrix row counts and removed deferred rows from v1.0 matrix scope",
-    "Recomputed and corrected coverage summary counts from audited table rows",
-    "Fixed FR-753 column mapping (integration evidence moved to Integration Tests column)",
-    "Updated webhook-related FR rows to reflect QA audit hardening coverage (encryption + delivery tests)",
-    "Confirmed all 8 built-in worker FRs remain ✅ in Status column",
-    "Ran full monorepo tests via pnpm test"
+    "Reworked apps/platform-api Dockerfile to build TS output and deploy a standalone production bundle via pnpm deploy",
+    "Corrected runtime entrypoint to dist/src/index.js for rootDir=.",
+    "Copied non-TS runtime assets into dist (SQL migrations + built-in roles config) before deploy",
+    "Added .env.example documenting required JWT_SECRET and WEBHOOK_ENCRYPTION_KEY plus optional compose overrides",
+    "Updated docker-compose healthchecks to use 127.0.0.1 and verified postgres/platform-api/dashboard all report healthy",
+    "Validated compose flow end-to-end with docker compose up -d --build, docker compose ps, curl http://localhost:8080/health, docker compose down -v",
+    "Pushed branch fix/dockerfiles and opened PR #50"
   ],
   "remaining": [],
-  "lastCommit": "pending",
-  "updatedAt": "2026-03-01T07:02:34Z"
+  "lastCommit": "3d52372981f872c3000c83b2af321f38868100d1",
+  "updatedAt": "2026-03-01T09:52:20Z"
 }

@@ -1,13 +1,9 @@
-# TODO — QA audit remediation (platform)
+# TODO — Docker compose containerization fixes
 
-- [x] Confirm baseline and identify all files touched by audit findings
-- [x] Remove JWT secret fallback in docker compose and enforce startup failure with clear message when missing
-- [x] Encrypt webhook secrets at rest (config + crypto helper + write/read paths + migration + tests)
-- [x] Remove source-scraping assertion from `worker-dispatch-and-hmac.test.ts`
-- [x] Add `.catch(logger.error)` to all fire-and-forget `void pool.query(...)` calls in the specified files
-- [x] Resolve validation package finding (delete if unused; otherwise implement meaningful exports)
-- [x] Add at least one meaningful test for `config`, `test-utils`, and `shared-types`
-- [x] Run `pnpm -r exec tsc --noEmit` and fix all type errors
-- [x] Run quality gates: `pnpm build && pnpm test && pnpm lint`
-- [x] Evaluate `docs/requirements-matrix-v1.0.md` impact (no FR mapping changes required)
-- [x] Update `STATUS.json`, commit, push branch `fix/qa-audit-platform`, and open PR
+- [x] Review existing Dockerfiles and compose wiring for platform-api/dashboard/postgres
+- [x] Rework `apps/platform-api/Dockerfile` to use `pnpm deploy` standalone output with resolved monorepo deps
+- [x] Ensure platform-api runtime image includes `configs/` and starts from `dist/src/index.js`
+- [x] Verify `apps/dashboard/Dockerfile` build/runtime flow and adjust only if needed for static output
+- [x] Add/update `.env.example` to document required compose environment variables (`JWT_SECRET`, `WEBHOOK_ENCRYPTION_KEY`)
+- [x] Run end-to-end docker validation (`docker compose up -d --build`, `docker compose ps`, `curl /health`, `docker compose down -v`)
+- [x] Update `STATUS.json`, commit, push `fix/dockerfiles`, and open PR

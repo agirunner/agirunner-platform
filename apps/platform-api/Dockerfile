@@ -11,13 +11,18 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS build
 COPY . .
 RUN pnpm --filter @agentbaton/platform-api build
+RUN mkdir -p apps/platform-api/dist/src/db/migrations apps/platform-api/dist/configs \
+  && cp apps/platform-api/src/db/migrations/*.sql apps/platform-api/dist/src/db/migrations/ \
+  && cp apps/platform-api/configs/built-in-roles.json apps/platform-api/dist/configs/
+RUN pnpm --filter @agentbaton/platform-api deploy --legacy /app --prod
 
 FROM node:22-alpine AS runtime
-RUN corepack enable
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=deps /workspace/node_modules ./node_modules
-COPY --from=build /workspace/apps/platform-api/dist ./dist
-COPY --from=build /workspace/apps/platform-api/package.json ./package.json
+ENV PORT=8080
+ENV DATABASE_URL=
+ENV JWT_SECRET=
+ENV WEBHOOK_ENCRYPTION_KEY=
+COPY --from=build /app ./
 EXPOSE 8080
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/src/index.js"]

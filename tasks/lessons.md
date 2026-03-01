@@ -51,3 +51,6 @@
 
 - **What went wrong:** Implemented encrypted webhook secret format with a delimiter in the prefix (`enc:v1`) and then parsed with a fixed 4-part split, causing decryption failures.
 - **Preventive rule:** For serialized cryptographic payloads, define a stable tokenized schema (`marker`, `version`, `iv`, `ciphertext`, `tag`) and test round-trip parsing before integrating with service flows.
+
+- **What went wrong:** Assumed TypeScript build artifacts in `dist/` were sufficient for container runtime, but SQL migration files and config JSON were not copied into runtime paths.
+- **Preventive rule:** For runtime code that loads non-TS assets (SQL/JSON), explicitly copy those assets into the runtime artifact tree during image build and verify with container startup tests.
