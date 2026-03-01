@@ -122,7 +122,7 @@ export async function createTestTenant(label: string): Promise<TenantContext> {
   }
 
   if (!workerReg.worker_api_key) {
-    throw new Error('Worker registration did not return worker_api_key');
+    throw new Error('Worker registration did not return a worker API key');
   }
 
   const scopedWorkerClient = new LiveApiClient(config.apiBaseUrl, workerReg.worker_api_key);
@@ -141,7 +141,7 @@ export async function createTestTenant(label: string): Promise<TenantContext> {
   });
 
   if (!agentReg.api_key) {
-    throw new Error('Agent registration did not return api_key');
+    throw new Error('Agent registration did not return an API key');
   }
 
   const scopedAgentClient = new LiveApiClient(config.apiBaseUrl, agentReg.api_key);
