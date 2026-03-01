@@ -464,16 +464,18 @@ export async function registerBuiltInWorker(config: BuiltInWorkerConfig): Promis
         }
         try {
           const parsed = JSON.parse(data) as {
-            worker_id: string;
-            worker_api_key: string;
-            websocket_url: string;
-            heartbeat_interval_seconds: number;
+            data: {
+              worker_id: string;
+              worker_api_key: string;
+              websocket_url: string;
+              heartbeat_interval_seconds: number;
+            };
           };
           resolve({
-            workerId: parsed.worker_id,
-            workerApiKey: parsed.worker_api_key,
-            websocketUrl: parsed.websocket_url,
-            heartbeatIntervalSeconds: parsed.heartbeat_interval_seconds,
+            workerId: parsed.data.worker_id,
+            workerApiKey: parsed.data.worker_api_key,
+            websocketUrl: parsed.data.websocket_url,
+            heartbeatIntervalSeconds: parsed.data.heartbeat_interval_seconds,
           });
         } catch (parseError) {
           reject(new Error(`Failed to parse registration response: ${String(parseError)}`));
