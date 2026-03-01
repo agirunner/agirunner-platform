@@ -1,18 +1,18 @@
 {
-  "task": "Full Clean Code / Clean Architecture / Clean Tests audit and remediation for platform API",
-  "issue": "N/A",
-  "branch": "chore/clean-code-audit",
+  "task": "Platform Milestone E — PR #17 review findings remediation",
+  "issue": "#5",
+  "branch": "feature/milestone-e",
   "phase": "COMPLETE",
   "completed": [
-    "Ran full source audit over apps/platform-api/src (large files, hardcoded operational values, DIP checks, swallowed-error checks)",
-    "Split oversized multi-responsibility services into focused modules (task/pipeline/template domains); no source file in apps/platform-api/src exceeds 200 LOC",
-    "Introduced DB abstractions in apps/platform-api/src/db/database.ts and removed direct pg imports from services/orchestration",
-    "Extracted pagination defaults and limits into shared constants (apps/platform-api/src/api/pagination.ts)",
-    "Refined tests for clarity and isolation (split scope enforcement assertions into focused tests; improved e2e test behavior naming)",
-    "Validated quality gates: pnpm test && pnpm lint (all passing)",
-    "Pushed branch and opened PR #16 against main"
+    "P1: moved dashboard access token storage to memory-only, removed token localStorage usage, and switched refresh flow to cookie-based refresh",
+    "P1: updated auth API to set rotating refresh token as httpOnly+secure+sameSite=strict cookie on login/token exchange and refresh",
+    "P1: removed SDK realtime token leakage in SSE URL and WS protocol; WS now sends auth frame after connect",
+    "P1: split MCP server by SRP into transport/dispatcher/tools/index and added malformed JSON + invalid tool input handling",
+    "P1: registered Fastify CORS with configurable CORS_ORIGIN and credentials=true",
+    "Added regression tests for no dashboard token localStorage, no realtime token in URL, malformed JSON-RPC parse errors, invalid MCP tool params, and CORS preflight headers",
+    "Validated quality gates: pnpm test && pnpm lint"
   ],
   "remaining": [],
-  "lastCommit": "b142ccf",
-  "updatedAt": "2026-02-28T23:25:50Z"
+  "lastCommit": "de084cc",
+  "updatedAt": "2026-03-01T00:10:10Z"
 }

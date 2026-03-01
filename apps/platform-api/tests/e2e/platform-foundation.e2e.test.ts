@@ -51,12 +51,12 @@ describe('platform foundation e2e', () => {
     });
 
     expect(exchange.statusCode).toBe(200);
-    const refreshToken = exchange.json().data.refresh_token as string;
+    const refreshCookie = (exchange.headers['set-cookie'] as string).split(';')[0];
 
     const refresh = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/refresh',
-      headers: { authorization: `Bearer ${refreshToken}` },
+      headers: { cookie: refreshCookie },
     });
 
     expect(refresh.statusCode).toBe(200);

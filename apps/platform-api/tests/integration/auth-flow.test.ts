@@ -57,7 +57,8 @@ describe('auth token flow', () => {
     expect(response.statusCode).toBe(200);
     const body = response.json();
     expect(body.data.token).toBeTypeOf('string');
-    expect(body.data.refresh_token).toBeTypeOf('string');
+    expect(body.data.refresh_token).toBeUndefined();
+    expect(response.headers['set-cookie']).toContain('agentbaton_refresh_token=');
   });
 
   it('rejects invalid API key', async () => {
@@ -106,13 +107,14 @@ describe('auth token flow', () => {
       payload: { api_key: adminKey },
     });
 
-    const refreshToken = response.json().data.refresh_token as string;
+    const cookieHeader = response.headers['set-cookie'] as string;
+    const refreshCookie = cookieHeader.split(';')[0];
     await db.pool.query('UPDATE api_keys SET is_revoked = true WHERE key_prefix = $1', [adminKey.slice(0, 12)]);
 
     const refresh = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/refresh',
-      headers: { authorization: `Bearer ${refreshToken}` },
+      headers: { cookie: refreshCookie },
     });
 
     expect(refresh.statusCode).toBe(401);

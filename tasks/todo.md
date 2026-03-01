@@ -1,13 +1,9 @@
-# Clean Code/Clean Architecture/Clean Tests Audit — chore/clean-code-audit
+# Milestone E — Review Findings Remediation (PR #17)
 
-- [x] Run source audit commands across `apps/platform-api/src`
-- [x] Inspect flagged files for clean-code / architecture violations
-- [x] Refactor files/functions above thresholds and split responsibilities
-- [x] Extract hardcoded operational values to config/constants where appropriate
-- [x] Resolve DIP violations in `services/` and `orchestration/`
-- [x] Remove swallowed/ignored errors with contextual handling
-- [x] Audit tests in `apps/platform-api/tests` (naming, assertions, shared state)
-- [x] Refactor tests for behavior clarity and isolation
-- [x] Run `pnpm test && pnpm lint` and fix any failures
-- [x] Update STATUS.json and task artifacts
-- [x] Commit, push branch, and open PR to `main`
+- [x] Audit current implementations for the 5 review findings and affected tests
+- [x] Fix dashboard auth token handling: memory-only access token, cookie refresh flow, and regression test for localStorage
+- [x] Fix SDK realtime auth transport: no token in URL/protocol for SSE/WS and add regression tests
+- [x] Refactor MCP server for SRP split and add robust JSON parse + tool input validation
+- [x] Add API CORS plugin/config (`CORS_ORIGIN`, credentials) and preflight header test
+- [x] Run `pnpm test && pnpm lint`, resolve failures, and verify changed files stay within size constraints
+- [x] Update STATUS.json + memory log, commit, and push to `feature/milestone-e`

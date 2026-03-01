@@ -14,6 +14,7 @@ describe('config validation', () => {
 
     expect(env.PORT).toBe(9999);
     expect(env.NODE_ENV).toBe('test');
+    expect(env.CORS_ORIGIN).toBe('http://localhost:5173');
   });
 
   it('rejects invalid configuration', () => {

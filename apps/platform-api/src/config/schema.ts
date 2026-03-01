@@ -9,6 +9,7 @@ export const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('1h'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   RATE_LIMIT_MAX_PER_MINUTE: z.coerce.number().int().min(1).default(100),
+  CORS_ORIGIN: z.string().default('http://localhost:5173'),
   HEARTBEAT_GRACE_PERIOD_MS: z.coerce.number().int().min(0).default(300000),
   AGENT_HEARTBEAT_GRACE_PERIOD_MS: z.coerce.number().int().min(0).default(300000),
   AGENT_DEFAULT_HEARTBEAT_INTERVAL_SECONDS: z.coerce.number().int().min(5).default(60),

@@ -1,3 +1,5 @@
+import fastifyCookie from '@fastify/cookie';
+import fastifyCors from '@fastify/cors';
 import fastifyJwt from '@fastify/jwt';
 import fastifyRateLimit from '@fastify/rate-limit';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
@@ -20,6 +22,11 @@ function rateLimitKeyGenerator(request: FastifyRequest): string {
 }
 
 export async function registerPlugins(app: FastifyInstance): Promise<void> {
+  await app.register(fastifyCookie);
+  await app.register(fastifyCors, {
+    origin: app.config.CORS_ORIGIN,
+    credentials: true,
+  });
   await app.register(fastifyJwt, { secret: app.config.JWT_SECRET });
   await app.register(fastifyRateLimit, {
     global: true,

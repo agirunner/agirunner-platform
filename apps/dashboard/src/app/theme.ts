@@ -1,0 +1,13 @@
+const THEME_KEY = 'agentbaton.theme';
+
+export type ThemeMode = 'light' | 'dark';
+
+export function readTheme(): ThemeMode {
+  const stored = localStorage.getItem(THEME_KEY);
+  return stored === 'dark' ? 'dark' : 'light';
+}
+
+export function applyTheme(theme: ThemeMode): void {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem(THEME_KEY, theme);
+}
