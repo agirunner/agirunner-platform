@@ -1,9 +1,10 @@
-# TODO — Docker compose containerization fixes
+# TODO — PR #54 blocker fixes
 
-- [x] Review existing Dockerfiles and compose wiring for platform-api/dashboard/postgres
-- [x] Rework `apps/platform-api/Dockerfile` to use `pnpm deploy` standalone output with resolved monorepo deps
-- [x] Ensure platform-api runtime image includes `configs/` and starts from `dist/src/index.js`
-- [x] Verify `apps/dashboard/Dockerfile` build/runtime flow and adjust only if needed for static output
-- [x] Add/update `.env.example` to document required compose environment variables (`JWT_SECRET`, `WEBHOOK_ENCRYPTION_KEY`)
-- [x] Run end-to-end docker validation (`docker compose up -d --build`, `docker compose ps`, `curl /health`, `docker compose down -v`)
-- [x] Update `STATUS.json`, commit, push `fix/dockerfiles`, and open PR
+- [ ] Fix runner `--all` matrix expansion logic in `tests/live/harness/runner.ts`
+- [ ] Expand OT-2 routing scenarios (superset match, one-claim-limit, strict no-match failure) in `tests/live/scenarios/ot2-task-routing.ts`
+- [ ] Expand OT-3 pipeline-state scenarios (`any running`, mixed-terminal derivation) in `tests/live/scenarios/ot3-pipeline-state.ts`
+- [ ] Expand IT-2 MCP JSON-RPC coverage and strict error-code assertions in `tests/live/scenarios/it2-mcp.ts`
+- [ ] Expand SI-1 tenant isolation scenarios (cross-tenant 404, deactivated 403, SSE isolation) in `tests/live/scenarios/si1-tenant-isolation.ts`
+- [ ] Tighten AP-5 maintenance pipeline assertions for output content correctness in `tests/live/scenarios/ap5-maintenance-pipeline.ts`
+- [ ] Run `pnpm install && pnpm build && pnpm test`
+- [ ] Commit each blocker fix atomically and push branch

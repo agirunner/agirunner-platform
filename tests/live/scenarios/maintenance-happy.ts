@@ -1,18 +1,16 @@
-import path from 'node:path';
+/**
+ * Maintenance Happy Path — delegates to AP-5 (autonomous maintenance pipeline).
+ *
+ * This is the entry point called by the existing runner for the
+ * "maintenance-happy" scenario name.
+ */
 
 import type { LiveContext, ScenarioExecutionResult } from '../harness/types.js';
-import { executeLiveValidationSet } from './common.js';
+import { runAp5SingleBug } from './ap5-maintenance-pipeline.js';
 
 export async function runMaintenanceHappyScenario(
   live: LiveContext,
 ): Promise<ScenarioExecutionResult> {
-  return executeLiveValidationSet({
-    scenarioName: 'maintenance-happy',
-    live,
-    repoPath: path.join(process.cwd(), 'tests/live/fixtures/todo-app'),
-    expectedTerminal: 'completed',
-    expectedDashboardText: 'AgentBaton',
-    expectedEvents: ['task.created', 'task.state_changed'],
-    simulatedCostUsd: 0.31,
-  });
+  // Run the first planted bug (pagination) as the default happy path
+  return runAp5SingleBug(live, 0);
 }

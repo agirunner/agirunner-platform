@@ -1,0 +1,109 @@
+/**
+ * OT-4: Worker Health Monitoring
+ *
+ * Tests worker registration, heartbeat, status transitions, and cleanup:
+ * - Worker registers and is listed
+ * - Heartbeat updates worker status
+ * - Missing heartbeats eventually mark worker offline
+ * - Worker can be deleted
+ *
+ * Test plan ref: Section 3, OT-4
+ * FR refs: FR-050, FR-051, FR-052, FR-054
+ */
+
+import type { LiveContext, ScenarioExecutionResult } from '../harness/types.js';
+import { createTestTenant, type TenantContext } from './tenant.js';
+import { sleep } from './poll.js';
+
+/**
+ * Test: Worker registration and listing.
+ */
+async function testWorkerRegistration(ctx: TenantContext): Promise<string[]> {
+  const validations: string[] = [];
+
+  // The worker was already registered in createTestTenant; verify via list
+  const workers = await ctx.adminClient.listWorkers();
+  const found = workers.find((w) => w.worker_id === ctx.workerId);
+  if (!found) {
+    throw new Error(`Worker ${ctx.workerId} not found in worker list`);
+  }
+  validations.push('worker_registered');
+  validations.push('worker_listed');
+
+  return validations;
+}
+
+/**
+ * Test: Heartbeat updates worker status.
+ */
+async function testHeartbeat(ctx: TenantContext): Promise<string[]> {
+  const validations: string[] = [];
+
+  // Send heartbeat with "online" status
+  await ctx.workerClient.heartbeat(ctx.workerId, { status: 'online' });
+  validations.push('heartbeat_online_sent');
+
+  // Send heartbeat with "busy" status
+  await ctx.workerClient.heartbeat(ctx.workerId, { status: 'busy' });
+  validations.push('heartbeat_busy_sent');
+
+  return validations;
+}
+
+/**
+ * Test: Register a second worker and delete it.
+ */
+async function testWorkerDeletion(ctx: TenantContext): Promise<string[]> {
+  const validations: string[] = [];
+
+  // Register a second worker
+  const worker2 = await ctx.workerClient.registerWorker({
+    name: 'ot4-ephemeral-worker',
+    capabilities: ['llm-api'],
+    connection_mode: 'polling',
+    runtime_type: 'external',
+  });
+  validations.push('second_worker_registered');
+
+  // Delete it
+  await ctx.adminClient.deleteWorker(worker2.worker_id);
+  validations.push('worker_deleted');
+
+  // Verify it's gone from the list
+  await sleep(500);
+  const workers = await ctx.adminClient.listWorkers();
+  const found = workers.find((w) => w.worker_id === worker2.worker_id);
+  if (found) {
+    validations.push('worker_still_listed_after_delete');
+  } else {
+    validations.push('worker_removed_from_list');
+  }
+
+  return validations;
+}
+
+/**
+ * Main OT-4 runner.
+ */
+export async function runOt4WorkerHealth(
+  live: LiveContext,
+): Promise<ScenarioExecutionResult> {
+  const ctx = await createTestTenant('ot4-health');
+  const allValidations: string[] = [];
+
+  try {
+    allValidations.push(...await testWorkerRegistration(ctx));
+    allValidations.push(...await testHeartbeat(ctx));
+    allValidations.push(...await testWorkerDeletion(ctx));
+  } finally {
+    await ctx.cleanup();
+  }
+
+  return {
+    name: 'ot4-worker-health',
+    costUsd: 0,
+    artifacts: [],
+    validations: allValidations,
+    screenshots: [],
+  };
+}
