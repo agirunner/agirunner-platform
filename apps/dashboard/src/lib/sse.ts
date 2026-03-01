@@ -54,7 +54,7 @@ export function subscribeToEvents(onEvent: (eventType: string, payload: Record<s
   return () => controller.abort();
 }
 
-function processSseBuffer(buffer: string, onEvent: (eventType: string, payload: Record<string, unknown>) => void): string {
+export function processSseBuffer(buffer: string, onEvent: (eventType: string, payload: Record<string, unknown>) => void): string {
   const messages = buffer.split('\n\n');
   const pending = messages.pop() ?? '';
 

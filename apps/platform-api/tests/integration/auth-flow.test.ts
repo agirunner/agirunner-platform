@@ -17,7 +17,7 @@ describe('auth token flow', () => {
     process.env.DATABASE_URL = db.databaseUrl;
     process.env.JWT_SECRET = 'x'.repeat(64);
     process.env.JWT_EXPIRES_IN = '1s';
-    process.env.JWT_REFRESH_EXPIRES_IN = '2s';
+    process.env.JWT_REFRESH_EXPIRES_IN = '30s'; // long enough to avoid timing flakiness from bcrypt overhead
     process.env.LOG_LEVEL = 'error';
     process.env.RATE_LIMIT_MAX_PER_MINUTE = '100';
 
@@ -95,21 +95,27 @@ describe('auth token flow', () => {
   });
 
   it('rejects refresh when refresh token session has expired', async () => {
-    const authResponse = await app.inject({
-      method: 'POST',
-      url: '/api/v1/auth/token',
-      payload: { api_key: adminKey },
-    });
+    // Craft a short-lived refresh token (1s TTL) directly, then wait for it to expire.
+    // This avoids depending on the global JWT_REFRESH_EXPIRES_IN setting.
+    const shortLivedRefreshToken = app.jwt.sign(
+      {
+        keyId: 'test-key-id',
+        tenantId: '00000000-0000-0000-0000-000000000001',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'ab_admin_xxx',
+        tokenType: 'refresh',
+      },
+      { expiresIn: '1s' },
+    );
 
-    const cookieHeader = authResponse.headers['set-cookie'] as string;
-    const refreshCookie = cookieHeader.split(';')[0];
-
-    await new Promise((resolve) => setTimeout(resolve, 2_200));
+    await new Promise((resolve) => setTimeout(resolve, 1_100));
 
     const refresh = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/refresh',
-      headers: { cookie: refreshCookie },
+      headers: { cookie: `agentbaton_refresh_token=${shortLivedRefreshToken}` },
     });
 
     expect(refresh.statusCode).toBe(401);
