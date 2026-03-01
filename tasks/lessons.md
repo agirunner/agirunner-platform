@@ -25,3 +25,11 @@
 
 - **What went wrong:** Added webhook PATCH response fields assuming an `updated_at` column existed on `webhooks`, which caused runtime 500s in integration tests.
 - **Preventive rule:** Verify migration/schema columns before returning new fields from SQL updates; if uncertain, inspect DDL first.
+
+## 2026-03-01
+
+- **What went wrong:** Assumed `rg` was available in this environment and used it in a discovery command.
+- **Preventive rule:** Prefer POSIX-safe fallback commands (`find`, `grep`, `sed`) unless tool availability is confirmed first.
+
+- **What went wrong:** Trusted Zod inference for `z.object({ output: z.unknown() })`, but route payload inferred `output` as optional and failed service contract typing.
+- **Preventive rule:** When a downstream contract requires a required key, construct an explicit payload object at call boundaries (`{ output: body.output }`) instead of relying on inferred optionality.

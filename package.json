@@ -9,16 +9,23 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:live": "tsx tests/live/harness/runner.ts",
+    "test:live:all": "tsx tests/live/harness/runner.ts --all",
+    "test:live:quick": "tsx tests/live/harness/runner.ts --happy-only --provider openai",
     "format": "prettier --check .",
     "format:write": "prettier --write ."
   },
   "devDependencies": {
+    "@playwright/test": "1.50.1",
     "@types/node": "22.13.5",
     "@typescript-eslint/eslint-plugin": "8.24.0",
     "@typescript-eslint/parser": "8.24.0",
+    "bcryptjs": "2.4.3",
     "eslint": "9.20.1",
     "eslint-config-prettier": "10.0.1",
+    "pg": "8.13.3",
     "prettier": "3.5.2",
+    "tsx": "4.19.2",
     "turbo": "2.4.2",
     "typescript": "5.7.3"
   }

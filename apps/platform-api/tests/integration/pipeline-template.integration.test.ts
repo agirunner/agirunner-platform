@@ -243,7 +243,7 @@ describe('pipeline/template integration', () => {
     expect(templateV2.id).not.toBe(templateV1.id);
     expect(templateV2.version).toBe(2);
 
-    const v1Reloaded = await templateService.getTemplate(tenantId, templateV1.id as string);
+    const v1Reloaded = (await templateService.getTemplate(tenantId, templateV1.id as string)) as Record<string, unknown>;
     expect(v1Reloaded.version).toBe(1);
     expect(v1Reloaded.description).toBeNull();
     expect((v1Reloaded.schema as { tasks: Array<{ title_template: string }> }).tasks[0].title_template).toBe('Implement v1');

@@ -1,8 +1,8 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 
 import bcrypt from 'bcryptjs';
-import type pg from 'pg';
 
+import type { DatabaseQueryable } from '../db/database.js';
 import { UnauthorizedError } from '../errors/domain-errors.js';
 import type { ApiKeyScope } from './scope.js';
 
@@ -52,7 +52,7 @@ function isExpired(expiresAt: Date): boolean {
   return new Date(expiresAt) <= new Date();
 }
 
-export async function verifyApiKey(pool: pg.Pool, apiKeyRaw: string): Promise<ApiKeyIdentity> {
+export async function verifyApiKey(pool: DatabaseQueryable, apiKeyRaw: string): Promise<ApiKeyIdentity> {
   if (!apiKeyRaw.startsWith('ab_') || apiKeyRaw.length < 20) {
     throw new UnauthorizedError('Invalid API key format');
   }
@@ -83,7 +83,7 @@ export async function verifyApiKey(pool: pg.Pool, apiKeyRaw: string): Promise<Ap
   return toIdentity(key);
 }
 
-export async function verifyApiKeyById(pool: pg.Pool, keyId: string): Promise<ApiKeyIdentity> {
+export async function verifyApiKeyById(pool: DatabaseQueryable, keyId: string): Promise<ApiKeyIdentity> {
   const result = await pool.query<ApiKeyRow>(
     `SELECT id, tenant_id, scope, owner_type, owner_id, key_prefix, key_hash, expires_at, is_revoked
      FROM api_keys
@@ -104,7 +104,7 @@ export async function verifyApiKeyById(pool: pg.Pool, keyId: string): Promise<Ap
 }
 
 export async function createApiKey(
-  pool: pg.Pool,
+  pool: DatabaseQueryable,
   input: {
     tenantId: string;
     scope: ApiKeyScope;

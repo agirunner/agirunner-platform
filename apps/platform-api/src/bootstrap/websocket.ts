@@ -4,7 +4,7 @@ import { WebSocketServer } from 'ws';
 import { parseBearerToken, type ApiKeyIdentity, verifyApiKey } from '../auth/api-key.js';
 import { verifyJwt } from '../auth/jwt.js';
 
-function writeUnauthorized(socket: import('node:net').Socket): void {
+function writeUnauthorized(socket: import('node:stream').Duplex): void {
   socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
   socket.destroy();
 }

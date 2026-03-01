@@ -55,7 +55,7 @@ const taskControlSchema = z.object({
   worker_id: z.string().uuid().optional(),
 });
 
-const completeSchema = z.object({ output: z.unknown() });
+const completeSchema = z.object({ output: z.any() });
 const failSchema = z.object({ error: z.record(z.unknown()) });
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
@@ -135,7 +135,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   app.post('/api/v1/tasks/:id/complete', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
     const params = request.params as { id: string };
     const body = parseOrThrow(completeSchema.safeParse(request.body));
-    const task = await taskService.completeTask(request.auth!, params.id, body);
+    const task = await taskService.completeTask(request.auth!, params.id, { output: body.output });
     return { data: task };
   });
 

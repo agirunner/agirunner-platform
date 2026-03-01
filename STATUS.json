@@ -1,18 +1,22 @@
 {
-  "task": "Platform Milestone E — PR #17 review findings remediation",
-  "issue": "#5",
-  "branch": "feature/milestone-e",
+  "task": "Fix pre-existing TypeScript build errors from DIP/clean refactor in platform-api",
+  "issue": "N/A",
+  "branch": "feature/live-test-suite",
   "phase": "COMPLETE",
+  "testsRun": 3,
+  "testsPassed": 3,
+  "defectsFound": [],
   "completed": [
-    "P1: moved dashboard access token storage to memory-only, removed token localStorage usage, and switched refresh flow to cookie-based refresh",
-    "P1: updated auth API to set rotating refresh token as httpOnly+secure+sameSite=strict cookie on login/token exchange and refresh",
-    "P1: removed SDK realtime token leakage in SSE URL and WS protocol; WS now sends auth frame after connect",
-    "P1: split MCP server by SRP into transport/dispatcher/tools/index and added malformed JSON + invalid tool input handling",
-    "P1: registered Fastify CORS with configurable CORS_ORIGIN and credentials=true",
-    "Added regression tests for no dashboard token localStorage, no realtime token in URL, malformed JSON-RPC parse errors, invalid MCP tool params, and CORS preflight headers",
-    "Validated quality gates: pnpm test && pnpm lint"
+    "Adjusted API key auth helpers to depend on DatabaseQueryable so DatabasePool is accepted where only query capability is required",
+    "Fixed websocket upgrade unauthorized writer typing to accept Duplex from Node upgrade handler",
+    "Narrowed validated template task type to TemplateTaskDefinition union in pipeline engine",
+    "Resolved complete-task payload optionality mismatch by passing explicit { output: body.output } object",
+    "Added null-safe rowCount handling in worker dispatch repository",
+    "Fixed integration test typing for template reload object access",
+    "Verified full gates: pnpm build, pnpm test, pnpm lint"
   ],
   "remaining": [],
-  "lastCommit": "de084cc",
-  "updatedAt": "2026-03-01T00:10:10Z"
+  "lastCommit": "2fee14c",
+  "pullRequest": "https://github.com/agirunner/agentbaton-platform/pulls/22",
+  "updatedAt": "2026-03-01T01:06:40Z"
 }

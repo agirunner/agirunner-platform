@@ -129,7 +129,7 @@ export function validateTemplateSchema(input: unknown): TemplateSchema {
     return {
       id: rawTask.id,
       title_template: rawTask.title_template,
-      type: rawTask.type,
+      type: rawTask.type as TemplateTaskDefinition['type'],
       role: typeof rawTask.role === 'string' ? rawTask.role : undefined,
       depends_on: (rawTask.depends_on as unknown[] | undefined)?.map((dep) => {
         if (typeof dep !== 'string' || !dep.trim()) {

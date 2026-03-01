@@ -111,7 +111,7 @@ export async function acknowledgeTaskAssignment(
     [tenantId, taskId, workerId, agentId ?? null],
   );
 
-  return result.rowCount > 0;
+  return (result.rowCount ?? 0) > 0;
 }
 
 export async function resetExpiredDispatch(
