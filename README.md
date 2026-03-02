@@ -58,3 +58,5 @@ Optional explicit evaluator config surface:
 - `LIVE_EVALUATION_MODE=deterministic|llm` (default: `deterministic`)
 - `LIVE_EVALUATION_PROVIDER=<openai|anthropic|google>` (required when `LIVE_EVALUATION_MODE=llm`)
 - `LIVE_EVALUATION_MODEL=<model-name>` (required when `LIVE_EVALUATION_MODE=llm`)
+
+Test outputs are written under `tests/reports/` (live harness reports in `tests/reports/live/` as paired machine + human artifacts: `run-*.json` + `run-*.md`).

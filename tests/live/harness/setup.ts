@@ -225,8 +225,8 @@ export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveC
     runId: options.runId,
     provider: options.provider,
     template: options.template,
-    reportDir: `${process.cwd()}/tests/live/reports`,
-    screenshotDir: `${process.cwd()}/tests/live/reports/screenshots`,
+    reportDir: `${process.cwd()}/tests/reports/live`,
+    screenshotDir: `${process.cwd()}/tests/reports/live/screenshots`,
     env: {
       apiBaseUrl: API_BASE_URL,
       dashboardBaseUrl: DASHBOARD_BASE_URL,

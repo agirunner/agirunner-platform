@@ -32,7 +32,7 @@ export function saveRunReport(report: RunReport): {
   jsonPath: string;
   mdPath: string;
 } {
-  const reportDir = path.join(process.cwd(), 'tests/live/reports');
+  const reportDir = path.join(process.cwd(), 'tests/reports/live');
   mkdirSync(reportDir, { recursive: true });
   mkdirSync(path.join(reportDir, 'screenshots'), { recursive: true });
 
