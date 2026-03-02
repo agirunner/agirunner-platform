@@ -10,8 +10,8 @@ Task coordination broker for AI agents. TypeScript/Node/Fastify/PostgreSQL.
 ## Testing Documentation (Canonical in Repo)
 
 - `docs/testing/test-plan-v1.0.md`
-- `tests/reports/live/traceability-matrix.md` (generated)
-- `docs/testing/traceability-matrix.md` (pointer)
+- `tests/reports/test-cases.v1.json` (**single source of truth** for platform test-case definitions)
+- `tests/reports/traceability-matrix.md` (generated)
 - `docs/testing/scenario-requirements-map.md`
 
 ## Quick Start

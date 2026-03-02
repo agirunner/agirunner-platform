@@ -3,8 +3,11 @@
 This folder stores committed human-readable run summaries (`run-*.md`).
 
 Machine-readable JSON artifacts are generated alongside these runs but are not committed by default.
-Canonical machine state source remains:
-- `tests/reports/live/traceability.state.json` (runtime-generated)
+Canonical test-case definition source (single source of truth):
+- `tests/reports/test-cases.v1.json`
+
+Generated machine state source:
+- `tests/reports/traceability.state.json` (runtime-generated)
 
 Current committed run summaries are listed below.
 - run-2026-03-02T19-33-56-643Z-sdlc-openai-r1.md
