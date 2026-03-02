@@ -124,6 +124,13 @@ export async function getWorker(context: WorkerServiceContext, tenantId: string,
 export async function deleteWorker(context: WorkerServiceContext, identity: ApiKeyIdentity, workerId: string): Promise<void> {
   const worker = await getWorker(context, identity.tenantId, workerId);
 
+  // Keep agent identities, but detach them from this worker before deletion
+  // to satisfy FK constraints on agents.worker_id.
+  await context.pool.query('UPDATE agents SET worker_id = NULL WHERE tenant_id = $1 AND worker_id = $2', [
+    identity.tenantId,
+    workerId,
+  ]);
+
   await context.pool.query('DELETE FROM api_keys WHERE tenant_id = $1 AND owner_type = $2 AND owner_id = $3', [
     identity.tenantId,
     'worker',
