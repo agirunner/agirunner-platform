@@ -62,6 +62,7 @@ async function testSdkTaskCrud(ctx: TenantContext): Promise<string[]> {
     title: 'IT1-sdk-task',
     type: 'analysis',
     description: 'SDK integration test task',
+    capabilities_required: ['sdk-crud-only'],
   });
 
   if (!created.id) throw new Error('SDK createTask returned no id');
@@ -117,7 +118,7 @@ async function testSdkClaimComplete(ctx: TenantContext): Promise<string[]> {
   if (claimed.id !== task.id) throw new Error(`SDK claimed wrong task: ${claimed.id}`);
   validations.push('sdk_lifecycle_claimed');
 
-  // Start via raw API (SDK doesn't expose startTask)
+  // Start via API using agent token for lifecycle identity
   const rawClient = new LiveApiClient(config.apiBaseUrl, ctx.agentKey);
   await rawClient.startTask(task.id, { agent_id: ctx.agentId });
   validations.push('task_started_via_api');
