@@ -38,6 +38,7 @@ import { runAp2ExternalRuntime } from '../scenarios/ap2-external-runtime.js';
 import { runAp4MixedWorkers } from '../scenarios/ap4-mixed-workers.js';
 import { runAp5MaintenancePipeline } from '../scenarios/ap5-maintenance-pipeline.js';
 import { runAp6RuntimeMaintenance } from '../scenarios/ap6-runtime-maintenance.js';
+import { runAp7FailureRecovery } from '../scenarios/ap7-failure-recovery.js';
 import { runOt1DependencyCascade } from '../scenarios/ot1-dependency-cascade.js';
 import { runOt2TaskRouting } from '../scenarios/ot2-task-routing.js';
 import { runOt3PipelineState } from '../scenarios/ot3-pipeline-state.js';
@@ -58,6 +59,7 @@ type ScenarioName =
   | 'ap4-mixed-workers'
   | 'ap5-full'
   | 'ap6-runtime-maintenance'
+  | 'ap7-failure-recovery'
   | 'ot1-cascade'
   | 'ot2-routing'
   | 'ot3-state'
@@ -76,6 +78,7 @@ const ALL_SCENARIOS: ScenarioName[] = [
   'maintenance-sad',
   'ap5-full',
   'ap6-runtime-maintenance',
+  'ap7-failure-recovery',
   'ot1-cascade',
   'ot2-routing',
   'ot3-state',
@@ -88,7 +91,7 @@ const ALL_SCENARIOS: ScenarioName[] = [
 const AP_SCENARIOS_REQUIRING_AUTONOMOUS_WORKER = new Set<ScenarioName>([
   'sdlc-happy', // AP-1
   'ap5-full', // AP-5
-  'sdlc-sad', // AP-7
+  'ap7-failure-recovery', // AP-7
 ]);
 
 const WORKER_PREFLIGHT_TIMEOUT_MS = Number(process.env.LIVE_WORKER_PREFLIGHT_TIMEOUT_MS ?? 45_000);
@@ -229,6 +232,8 @@ async function runScenarioByName(
       return runAp5MaintenancePipeline(live);
     case 'ap6-runtime-maintenance':
       return runAp6RuntimeMaintenance(live);
+    case 'ap7-failure-recovery':
+      return runAp7FailureRecovery(live);
     case 'ot1-cascade':
       return runOt1DependencyCascade(live);
     case 'ot2-routing':
