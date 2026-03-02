@@ -54,7 +54,7 @@ const SCENARIOS: ScenarioDef[] = [
 
 const ROOT = process.cwd();
 const REPORTS_DIR = path.join(ROOT, 'tests/live/reports');
-const STATE_PATH = path.join(ROOT, 'docs/live-test-traceability.state.json');
+const STATE_PATH = path.join(ROOT, 'tests/reports/live/traceability.state.json');
 const MARKDOWN_PATH = path.join(ROOT, 'docs/testing/traceability-matrix.md');
 
 function newBaselineState(): TraceabilityState {
