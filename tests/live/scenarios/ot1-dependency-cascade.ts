@@ -33,7 +33,7 @@ async function manuallyCompleteTask(
   taskId: string,
 ): Promise<void> {
   // Claim
-  const claimed = await ctx.agentClient.claimTask({
+  const claimed = await ctx.workerClient.claimTask({
     agent_id: ctx.agentId,
     worker_id: ctx.workerId,
     capabilities: ['llm-api'],
@@ -46,9 +46,8 @@ async function manuallyCompleteTask(
     return manuallyCompleteTask(ctx, taskId);
   }
 
-  // Start
+  // Start/Complete must be authenticated as the registered agent.
   await ctx.agentClient.startTask(taskId, { agent_id: ctx.agentId });
-  // Complete
   await ctx.agentClient.completeTask(taskId, { result: 'test-completed' });
 }
 
@@ -59,11 +58,19 @@ async function manuallyFailTask(
   ctx: TenantContext,
   taskId: string,
 ): Promise<void> {
-  await ctx.agentClient.claimTask({
+  const claimed = await ctx.workerClient.claimTask({
     agent_id: ctx.agentId,
     worker_id: ctx.workerId,
     capabilities: ['llm-api'],
   });
+  if (!claimed) throw new Error(`Could not claim any task (expected ${taskId})`);
+
+  if (claimed.id !== taskId) {
+    await ctx.agentClient.startTask(claimed.id, { agent_id: ctx.agentId });
+    await ctx.agentClient.completeTask(claimed.id, { result: 'auto-completed' });
+    return manuallyFailTask(ctx, taskId);
+  }
+
   await ctx.agentClient.startTask(taskId, { agent_id: ctx.agentId });
   await ctx.agentClient.failTask(taskId, {
     message: 'Intentional test failure',
