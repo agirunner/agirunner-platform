@@ -143,14 +143,33 @@ export async function runHl1ApprovalFlow(live: LiveContext): Promise<ScenarioExe
     const rejectTask = (rejectPaused.tasks ?? []).find((task) => task.role === 'reviewer');
     if (!rejectTask) throw new Error('HL-1 retry path missing reviewer task');
 
-    await tenant.adminClient.cancelTask(rejectTask.id);
-    validations.push('approval_reject_simulated_via_cancel');
+    await tenant.adminClient.approveTask(rejectTask.id);
 
-    const retried = await tenant.adminClient.retryTask(rejectTask.id);
+    const failingReview = await registered.agentClient.claimTask({
+      agent_id: registered.agentId,
+      worker_id: registered.workerId,
+      capabilities: ['llm-api', 'role:reviewer'],
+      pipeline_id: rejectPipeline.id,
+    });
+    if (!failingReview) throw new Error('HL-1 retry path expected reviewer task to become claimable');
+
+    await registered.agentClient.startTask(failingReview.id, { agent_id: registered.agentId });
+    await registered.agentClient.failTask(failingReview.id, {
+      message: 'Reviewer requested changes',
+      error_type: 'validation_error',
+    });
+    validations.push('approval_reject_simulated_via_fail');
+
+    const failedTask = await tenant.adminClient.getTask(failingReview.id);
+    if (failedTask.state !== 'failed') {
+      throw new Error(`HL-1 expected failed reviewer task before retry, got ${failedTask.state}`);
+    }
+
+    const retried = await tenant.adminClient.retryTask(failingReview.id);
     if (retried.state !== 'ready') {
       throw new Error(`HL-1 expected retry to set task ready, got ${retried.state}`);
     }
-    validations.push('retry_from_rejected_path');
+    validations.push('retry_from_failed_path');
   } finally {
     await tenant.cleanup();
   }
