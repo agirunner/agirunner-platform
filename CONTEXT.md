@@ -26,7 +26,7 @@ AgentBaton Platform — coordination engine for agentic software development pip
 - Any LLM usage must be **configurable** for both product execution and test-result interpretation/evaluation.
 - Tests requiring platform dependency belong in the platform repo.
 
-## Authoritative Docs → `enterprise/agentbaton-docs`
+## Requirements/Design Mirror → `enterprise/agentbaton-docs`
 
 Internal documentation has moved to a dedicated repo. Clone:
 ```
@@ -45,7 +45,12 @@ https://github.com/agirunner/agentbaton-docs.git
 - `agentbaton-docs/design/interface-contract-v1.0.md`
 - `agentbaton-docs/design/technology-selections-v1.0.md`
 
-### Test governance
+### Test governance (canonical in this repo)
+- `docs/testing/test-plan-v1.0.md`
+- `docs/testing/traceability-matrix.md`
+- `docs/testing/scenario-requirements-map.md`
+
+Mirror/reference copy (optional):
 - `agentbaton-docs/test-plans/platform-test-plan-v1.0.md`
 - `agentbaton-docs/test-traceability/platform.md`
 

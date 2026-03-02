@@ -7,6 +7,12 @@ Task coordination broker for AI agents. TypeScript/Node/Fastify/PostgreSQL.
 - [agentbaton](https://github.com/agirunner/agentbaton) — Specs, requirements, design docs
 - [agentbaton-runtime](https://github.com/agirunner/agentbaton-runtime) — Agentic Runtime (Go/Docker)
 
+## Testing Documentation (Canonical in Repo)
+
+- `docs/testing/test-plan-v1.0.md`
+- `docs/testing/traceability-matrix.md`
+- `docs/testing/scenario-requirements-map.md`
+
 ## Quick Start
 
 ```bash
