@@ -63,8 +63,7 @@ const ROOT = process.cwd();
 const REPORTS_DIR = path.join(ROOT, 'tests/reports/live');
 const LEGACY_REPORTS_DIR = path.join(ROOT, 'tests/live/reports');
 const STATE_PATH = path.join(ROOT, 'tests/reports/live/traceability.state.json');
-const LEGACY_STATE_PATH = path.join(ROOT, 'docs/live-test-traceability.state.json');
-const MARKDOWN_PATH = path.join(ROOT, 'docs/live-test-traceability.md');
+const MARKDOWN_PATH = path.join(ROOT, 'docs/testing/traceability-matrix.md');
 
 function newBaselineState(): TraceabilityState {
   const cells: TraceabilityState['cells'] = {};
@@ -87,9 +86,6 @@ function newBaselineState(): TraceabilityState {
 function readState(): TraceabilityState {
   if (existsSync(STATE_PATH)) {
     return JSON.parse(readFileSync(STATE_PATH, 'utf8')) as TraceabilityState;
-  }
-  if (existsSync(LEGACY_STATE_PATH)) {
-    return JSON.parse(readFileSync(LEGACY_STATE_PATH, 'utf8')) as TraceabilityState;
   }
   return newBaselineState();
 }
