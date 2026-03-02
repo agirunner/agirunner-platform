@@ -218,7 +218,9 @@ export class LiveApiClient {
   async deleteWorker(id: string): Promise<void> {
     const res = await fetch(`${this.baseUrl}/api/v1/workers/${id}`, {
       method: 'DELETE',
-      headers: this.headers(),
+      headers: {
+        authorization: `Bearer ${this.apiKey}`,
+      },
     });
     if (!res.ok && res.status !== 204) throw await this.apiError(res);
   }
