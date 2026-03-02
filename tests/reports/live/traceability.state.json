@@ -1,0 +1,393 @@
+{
+  "generatedAt": "2026-03-02T21:52:28.633Z",
+  "providers": [
+    "openai",
+    "google",
+    "anthropic"
+  ],
+  "scenarios": [
+    {
+      "key": "sdlc-happy",
+      "id": "AP-1",
+      "title": "Built-in Worker — SDLC Pipeline",
+      "planRef": "§2 AP-1"
+    },
+    {
+      "key": "ap2-external-runtime",
+      "id": "AP-2",
+      "title": "External Runtime — SDLC Pipeline",
+      "planRef": "§2 AP-2"
+    },
+    {
+      "key": "ap3-standalone-worker",
+      "id": "AP-3",
+      "title": "Standalone Worker Runtime — SDLC Pipeline",
+      "planRef": "§2 AP-3"
+    },
+    {
+      "key": "ap4-mixed-workers",
+      "id": "AP-4",
+      "title": "Mixed Workers — SDLC Pipeline",
+      "planRef": "§2 AP-4"
+    },
+    {
+      "key": "maintenance-happy",
+      "id": "AP-5",
+      "title": "Built-in Worker — Maintenance Pipeline",
+      "planRef": "§2 AP-5"
+    },
+    {
+      "key": "ap6-runtime-maintenance",
+      "id": "AP-6",
+      "title": "External Runtime — Maintenance Pipeline",
+      "planRef": "§2 AP-6"
+    },
+    {
+      "key": "ap7-failure-recovery",
+      "id": "AP-7",
+      "title": "Pipeline Failure and Recovery",
+      "planRef": "§2 AP-7"
+    },
+    {
+      "key": "ot1-cascade",
+      "id": "OT-1",
+      "title": "Dependency Cascade",
+      "planRef": "§3 OT-1"
+    },
+    {
+      "key": "ot2-routing",
+      "id": "OT-2",
+      "title": "Task Routing & Capability Matching",
+      "planRef": "§3 OT-2"
+    },
+    {
+      "key": "ot3-state",
+      "id": "OT-3",
+      "title": "Pipeline State Derivation",
+      "planRef": "§3 OT-3"
+    },
+    {
+      "key": "ot4-health",
+      "id": "OT-4",
+      "title": "Worker Health & Recovery",
+      "planRef": "§3 OT-4"
+    },
+    {
+      "key": "hl1-approval-flow",
+      "id": "HL-1",
+      "title": "Approval and Retry Flow",
+      "planRef": "§4 HL-1"
+    },
+    {
+      "key": "hl2-pipeline-controls",
+      "id": "HL-2",
+      "title": "Pipeline/Task Control Plane",
+      "planRef": "§4 HL-2"
+    },
+    {
+      "key": "it1-sdk",
+      "id": "IT-1",
+      "title": "SDK Full Lifecycle",
+      "planRef": "§5 IT-1"
+    },
+    {
+      "key": "it2-mcp",
+      "id": "IT-2",
+      "title": "MCP Server",
+      "planRef": "§5 IT-2"
+    },
+    {
+      "key": "it3-webhooks",
+      "id": "IT-3",
+      "title": "Webhooks Delivery Surface",
+      "planRef": "§5 IT-3"
+    },
+    {
+      "key": "it3-mcp-sse-stream",
+      "id": "IT-4",
+      "title": "MCP SSE Stream",
+      "planRef": "§5 IT-4"
+    },
+    {
+      "key": "si1-isolation",
+      "id": "SI-1",
+      "title": "Multi-Tenant Isolation",
+      "planRef": "§6 SI-1"
+    },
+    {
+      "key": "si2-auth",
+      "id": "SI-2",
+      "title": "Auth and Zero-Config Bootstrap",
+      "planRef": "§6 SI-2"
+    },
+    {
+      "key": "si2-extended-isolation",
+      "id": "SI-3",
+      "title": "Extended Isolation",
+      "planRef": "§6 SI-3"
+    }
+  ],
+  "cells": {
+    "sdlc-happy": {
+      "openai": {
+        "status": "NOT PASS"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    },
+    "ap2-external-runtime": {
+      "openai": {
+        "status": "NOT PASS"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    },
+    "ap3-standalone-worker": {
+      "openai": {
+        "status": "NOT PASS"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    },
+    "ap4-mixed-workers": {
+      "openai": {
+        "status": "NOT PASS"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    },
+    "maintenance-happy": {
+      "openai": {
+        "status": "NOT PASS"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    },
+    "ap6-runtime-maintenance": {
+      "openai": {
+        "status": "NOT PASS"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    },
+    "ap7-failure-recovery": {
+      "openai": {
+        "status": "NOT PASS"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    },
+    "ot1-cascade": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-02T19-33-56-643Z-sdlc-openai-r1",
+        "reportPath": "tests/reports/live/run-2026-03-02T19-33-56-643Z-sdlc-openai-r1.json",
+        "finishedAt": "2026-03-02T19:34:26.067Z",
+        "error": null,
+        "summaryPath": "tests/reports/live/run-2026-03-02T19-33-56-643Z-sdlc-openai-r1.md"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    },
+    "ot2-routing": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-02T19-59-19-077Z-sdlc-openai-r1",
+        "reportPath": "tests/reports/live/run-2026-03-02T19-59-19-077Z-sdlc-openai-r1.json",
+        "summaryPath": "tests/reports/live/run-2026-03-02T19-59-19-077Z-sdlc-openai-r1.md",
+        "finishedAt": "2026-03-02T20:01:47.921Z"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    },
+    "ot3-state": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-02T20-13-14-872Z-sdlc-openai-r1",
+        "reportPath": "tests/reports/live/run-2026-03-02T20-13-14-872Z-sdlc-openai-r1.json",
+        "summaryPath": "tests/reports/live/run-2026-03-02T20-13-14-872Z-sdlc-openai-r1.md",
+        "finishedAt": "2026-03-02T20:15:46.812Z"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    },
+    "ot4-health": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-02T20-18-25-265Z-sdlc-openai-r1",
+        "reportPath": "tests/reports/live/run-2026-03-02T20-18-25-265Z-sdlc-openai-r1.json",
+        "summaryPath": "tests/reports/live/run-2026-03-02T20-18-25-265Z-sdlc-openai-r1.md",
+        "finishedAt": "2026-03-02T20:20:45.497Z"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    },
+    "hl1-approval-flow": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-02T21-13-08-778Z-sdlc-openai-r1",
+        "reportPath": "tests/reports/live/run-2026-03-02T21-13-08-778Z-sdlc-openai-r1.json",
+        "summaryPath": "tests/reports/live/run-2026-03-02T21-13-08-778Z-sdlc-openai-r1.md",
+        "finishedAt": "2026-03-02T21:21:44.461Z"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    },
+    "hl2-pipeline-controls": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-02T21-03-47-881Z-sdlc-openai-r1",
+        "reportPath": "tests/reports/live/run-2026-03-02T21-03-47-881Z-sdlc-openai-r1.json",
+        "summaryPath": "tests/reports/live/run-2026-03-02T21-03-47-881Z-sdlc-openai-r1.md",
+        "finishedAt": "2026-03-02T21:09:26.999Z"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    },
+    "it1-sdk": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-02T21-23-20-418Z-sdlc-openai-r1",
+        "reportPath": "tests/reports/live/run-2026-03-02T21-23-20-418Z-sdlc-openai-r1.json",
+        "summaryPath": "tests/reports/live/run-2026-03-02T21-23-20-418Z-sdlc-openai-r1.md",
+        "finishedAt": "2026-03-02T21:28:30.224Z"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    },
+    "it2-mcp": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-02T21-33-12-707Z-sdlc-openai-r1",
+        "reportPath": "tests/reports/live/run-2026-03-02T21-33-12-707Z-sdlc-openai-r1.json",
+        "summaryPath": "tests/reports/live/run-2026-03-02T21-33-12-707Z-sdlc-openai-r1.md",
+        "finishedAt": "2026-03-02T21:37:30.073Z"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    },
+    "it3-webhooks": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-02T21-43-33-286Z-sdlc-openai-r1",
+        "reportPath": "tests/reports/live/run-2026-03-02T21-43-33-286Z-sdlc-openai-r1.json",
+        "summaryPath": "tests/reports/live/run-2026-03-02T21-43-33-286Z-sdlc-openai-r1.md",
+        "finishedAt": "2026-03-02T21:46:42.639Z"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    },
+    "it3-mcp-sse-stream": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-02T21-48-18-219Z-sdlc-openai-r1",
+        "reportPath": "tests/reports/live/run-2026-03-02T21-48-18-219Z-sdlc-openai-r1.json",
+        "summaryPath": "tests/reports/live/run-2026-03-02T21-48-18-219Z-sdlc-openai-r1.md",
+        "finishedAt": "2026-03-02T21:52:28.598Z"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    },
+    "si1-isolation": {
+      "openai": {
+        "status": "NOT PASS"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    },
+    "si2-auth": {
+      "openai": {
+        "status": "NOT PASS"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    },
+    "si2-extended-isolation": {
+      "openai": {
+        "status": "NOT PASS"
+      },
+      "google": {
+        "status": "NOT PASS"
+      },
+      "anthropic": {
+        "status": "NOT PASS"
+      }
+    }
+  }
+}

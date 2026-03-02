@@ -24,6 +24,7 @@ tests/reports/**/*
 !tests/reports/**/
 !tests/reports/**/.gitkeep
 !tests/reports/**/*.md
+!tests/reports/live/*.json
 
 # Legacy path (read-compat only; do not write new outputs here)
 tests/live/reports/

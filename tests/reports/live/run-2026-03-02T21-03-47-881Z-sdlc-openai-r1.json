@@ -1,0 +1,21 @@
+{
+  "runId": "2026-03-02T21-03-47-881Z-sdlc-openai-r1",
+  "startedAt": "2026-03-02T21:03:47.880Z",
+  "finishedAt": "2026-03-02T21:09:26.999Z",
+  "template": "sdlc",
+  "provider": "openai",
+  "repeat": 1,
+  "scenarios": {
+    "hl2-pipeline-controls": {
+      "status": "pass",
+      "duration": "161.39s",
+      "cost": "$0.0000",
+      "artifacts": 0,
+      "validations": 5,
+      "screenshots": []
+    }
+  },
+  "containers_leaked": 0,
+  "temp_files_leaked": 0,
+  "total_cost": "$0.0000"
+}

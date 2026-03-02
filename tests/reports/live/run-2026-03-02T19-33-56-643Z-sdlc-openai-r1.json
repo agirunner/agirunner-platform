@@ -1,0 +1,21 @@
+{
+  "runId": "2026-03-02T19-33-56-643Z-sdlc-openai-r1",
+  "startedAt": "2026-03-02T19:33:56.643Z",
+  "finishedAt": "2026-03-02T19:34:26.067Z",
+  "template": "sdlc",
+  "provider": "openai",
+  "repeat": 1,
+  "scenarios": {
+    "ot1-cascade": {
+      "status": "pass",
+      "duration": "16.68s",
+      "cost": "$0.0000",
+      "artifacts": 0,
+      "validations": 12,
+      "screenshots": []
+    }
+  },
+  "containers_leaked": 0,
+  "temp_files_leaked": 0,
+  "total_cost": "$0.0000"
+}

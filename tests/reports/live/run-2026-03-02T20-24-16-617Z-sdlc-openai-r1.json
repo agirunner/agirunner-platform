@@ -1,0 +1,22 @@
+{
+  "runId": "2026-03-02T20-24-16-617Z-sdlc-openai-r1",
+  "startedAt": "2026-03-02T20:24:16.617Z",
+  "finishedAt": "2026-03-02T20:26:06.239Z",
+  "template": "sdlc",
+  "provider": "openai",
+  "repeat": 1,
+  "scenarios": {
+    "hl1-approval-flow": {
+      "status": "fail",
+      "duration": "3.22s",
+      "cost": "$0.0000",
+      "artifacts": 0,
+      "validations": 0,
+      "screenshots": [],
+      "error": "API http://127.0.0.1:18080/api/v1/tasks/ef8ea968-e7f5-41ee-8bc9-ea50a13879ea/retry returned 409: {\"statusCode\":409,\"code\":\"CONFLICT\",\"error\":\"Conflict\",\"message\":\"Task is not retryable\"}"
+    }
+  },
+  "containers_leaked": 0,
+  "temp_files_leaked": 0,
+  "total_cost": "$0.0000"
+}
