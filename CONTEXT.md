@@ -1,7 +1,7 @@
 # CONTEXT.md — AgentBaton Platform v1.0
 
 ## Last Updated
-2026-03-02 00:10 UTC
+2026-03-02 04:56 UTC
 
 ## Product
 AgentBaton Platform — coordination engine for agentic software development pipelines.
@@ -10,27 +10,36 @@ AgentBaton Platform — coordination engine for agentic software development pip
 - **FRs:** 207/207 implemented ✅
 - **Unit/integration tests:** ~279 passing ✅
 - **Open issues:** 0 ✅
-- **Live tests:** runtime-first one-test-at-a-time mode (platform progression paused until runtime matrix is green past current step)
+- **Runtime tests:** All v1.0-gating pass ✅
+- **Platform tests:** AP suite re-run in progress (OpenAI first pass)
 
-## Authoritative Docs (`docs/`)
+## Authoritative Docs → `enterprise/agentbaton-docs`
+
+Internal documentation has moved to a dedicated repo. Clone:
+```
+https://github.com/agirunner/agentbaton-docs.git
+```
 
 ### Requirements baseline (v1.0)
-- `docs/requirements/platform-v1.0.md`
-- `docs/requirements/product-brief.md`
-- `docs/requirements-matrix-v1.0.md`
+- `agentbaton-docs/requirements/platform-v1.0.md`
+- `agentbaton-docs/requirements/product-brief.md`
+- `agentbaton-docs/requirements-matrix/platform-v1.0.md`
 
 ### Design baseline (v1.0)
-- `docs/design/platform-design.md`
-- `docs/design/platform-v1.0-detailed.md`
-- `docs/design/system-architecture.md`
-- `docs/design/interface-contract-v1.0.md`
-- `docs/design/technology-selections-v1.0.md`
+- `agentbaton-docs/design/platform-design.md`
+- `agentbaton-docs/design/platform-v1.0-detailed.md`
+- `agentbaton-docs/design/system-architecture.md`
+- `agentbaton-docs/design/interface-contract-v1.0.md`
+- `agentbaton-docs/design/technology-selections-v1.0.md`
 
 ### Test governance
-- `docs/test-plan-v1.0.md`
-- `docs/live-test-traceability.md`
+- `agentbaton-docs/test-plans/platform-test-plan-v1.0.md`
+- `agentbaton-docs/test-traceability/platform.md`
 
-## What is under test (`tests/`)
+### Standards
+- `agentbaton-docs/standards/` — coding standards, quality gates, review protocol, templates
+
+## What is under test (`tests/` — stays in this repo)
 - `tests/live/harness/runner.ts` — primary live-test runner
 - `tests/live/harness/setup.ts` — environment setup/health checks
 - `tests/live/harness/teardown.ts` — teardown/cleanup
@@ -38,6 +47,8 @@ AgentBaton Platform — coordination engine for agentic software development pip
 - `tests/live/scenarios/` — AP/OT/IT/SI scenario implementations
 - `tests/live/dashboard/*.spec.ts` — Playwright dashboard test specs
 - `tests/live/validators/` — post-run validators (events, artifacts, cleanup, dashboard, cost)
+- `tests/live/fixtures/calc-api/` — calculator fixture app
+- `tests/live/fixtures/todo-app/` — TODO app with planted bugs
 
 ## Runtime/Worker Integration References
 - `apps/platform-api/src/bootstrap/built-in-worker.ts` — built-in worker registration + lifecycle
@@ -45,15 +56,10 @@ AgentBaton Platform — coordination engine for agentic software development pip
 - `apps/platform-api/src/services/worker-dispatch-service.ts` — task dispatch logic
 - `docker-compose.yml` — stack topology + worker services
 
-## Active Execution Protocol (Admiral Order)
-1. Run one test at a time from `docs/test-plan-v1.0.md`.
-2. If failed: Data fix → Worf review → retest same test.
-3. After each test: update `docs/live-test-traceability.md`, commit, push.
-4. Report result and next test; pause for instruction.
-
 ## Remaining for v1.0.0 Tag
-- Finish all runtime + platform test-plan scenarios green
-- Run stability gate (`--repeat 25`)
+- Finish all platform test-plan scenarios green (AP suite in progress)
+- AP-2/4/6 integration tests (runtime as external worker)
+- Run stability gate (qualification ×1 frontier models, then ×25 cheap models)
 - User-facing docs
 - Admiral UAT sign-off
 - Tag v1.0.0
