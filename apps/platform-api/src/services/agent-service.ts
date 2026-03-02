@@ -81,7 +81,7 @@ export class AgentService {
     const result = await this.pool.query(
       `UPDATE agents
        SET last_heartbeat_at = now(),
-           status = CASE WHEN current_task_id IS NULL THEN 'active' ELSE 'busy' END
+           status = (CASE WHEN current_task_id IS NULL THEN 'active'::agent_status ELSE 'busy'::agent_status END)
        WHERE tenant_id = $1 AND id = $2
        RETURNING *`,
       [identity.tenantId, agentId],
