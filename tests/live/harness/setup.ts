@@ -14,6 +14,11 @@ interface SetupOptions {
   template: TemplateType;
 }
 
+interface SetupExecutionPlan {
+  shouldRunDockerSetup: boolean;
+  shouldWaitForHealth: boolean;
+}
+
 const liveConfig = loadConfig();
 
 const API_BASE_URL = liveConfig.apiBaseUrl;
@@ -186,18 +191,33 @@ async function seedDatabase(): Promise<void> {
   }
 }
 
-export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveContext> {
-  if (!liveConfig.skipStackSetup) {
-    ensureBootstrapAdminKey();
-    runDocker(`${composeBinary()} up -d --build postgres platform-api worker dashboard`);
-  } else {
-    // When reusing an existing stack across provider runs, restart critical services
-    // so each run starts from a healthy baseline.
-    runDocker(`${composeBinary()} restart platform-api worker`);
+export function createSetupExecutionPlan(skipStackSetup: boolean): SetupExecutionPlan {
+  if (skipStackSetup) {
+    return {
+      shouldRunDockerSetup: false,
+      shouldWaitForHealth: false,
+    };
   }
 
-  await waitForHealth(`${API_BASE_URL}/health`, 'platform-api health');
-  await waitForHealth(`${DASHBOARD_BASE_URL}/`, 'dashboard');
+  return {
+    shouldRunDockerSetup: true,
+    shouldWaitForHealth: true,
+  };
+}
+
+export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveContext> {
+  const setupPlan = createSetupExecutionPlan(liveConfig.skipStackSetup);
+
+  if (setupPlan.shouldRunDockerSetup) {
+    ensureBootstrapAdminKey();
+    runDocker(`${composeBinary()} up -d --build postgres platform-api worker dashboard`);
+  }
+
+  if (setupPlan.shouldWaitForHealth) {
+    await waitForHealth(`${API_BASE_URL}/health`, 'platform-api health');
+    await waitForHealth(`${DASHBOARD_BASE_URL}/`, 'dashboard');
+  }
+
   await seedDatabase();
 
   return {
