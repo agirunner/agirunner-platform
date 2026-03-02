@@ -21,7 +21,9 @@ export { runOt3PipelineState } from './ot3-pipeline-state.js';
 export { runOt4WorkerHealth } from './ot4-worker-health.js';
 export { runIt1Sdk } from './it1-sdk.js';
 export { runIt2Mcp } from './it2-mcp.js';
+export { runIt3McpSseStream } from './it3-mcp-sse-stream.js';
 export { runSi1TenantIsolation } from './si1-tenant-isolation.js';
+export { runSi2ExtendedIsolation } from './si2-extended-isolation.js';
 
 // Backward-compatible re-exports
 export { runSdlcHappyScenario } from './sdlc-happy.js';

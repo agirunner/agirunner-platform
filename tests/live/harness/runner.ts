@@ -45,7 +45,9 @@ import { runOt3PipelineState } from '../scenarios/ot3-pipeline-state.js';
 import { runOt4WorkerHealth } from '../scenarios/ot4-worker-health.js';
 import { runIt1Sdk } from '../scenarios/it1-sdk.js';
 import { runIt2Mcp } from '../scenarios/it2-mcp.js';
+import { runIt3McpSseStream } from '../scenarios/it3-mcp-sse-stream.js';
 import { runSi1TenantIsolation } from '../scenarios/si1-tenant-isolation.js';
+import { runSi2ExtendedIsolation } from '../scenarios/si2-extended-isolation.js';
 import { LiveApiClient, type ApiWorker } from '../api-client.js';
 
 const PROVIDERS: Provider[] = ['openai', 'google', 'anthropic'];
@@ -66,7 +68,9 @@ type ScenarioName =
   | 'ot4-health'
   | 'it1-sdk'
   | 'it2-mcp'
-  | 'si1-isolation';
+  | 'it3-mcp-sse-stream'
+  | 'si1-isolation'
+  | 'si2-extended-isolation';
 
 /** All scenarios in priority order per the test plan. */
 const ALL_SCENARIOS: ScenarioName[] = [
@@ -85,7 +89,9 @@ const ALL_SCENARIOS: ScenarioName[] = [
   'ot4-health',
   'it1-sdk',
   'it2-mcp',
+  'it3-mcp-sse-stream',
   'si1-isolation',
+  'si2-extended-isolation',
 ];
 
 const AP_SCENARIOS_REQUIRING_AUTONOMOUS_WORKER = new Set<ScenarioName>([
@@ -246,8 +252,12 @@ async function runScenarioByName(
       return runIt1Sdk(live);
     case 'it2-mcp':
       return runIt2Mcp(live);
+    case 'it3-mcp-sse-stream':
+      return runIt3McpSseStream(live);
     case 'si1-isolation':
       return runSi1TenantIsolation(live);
+    case 'si2-extended-isolation':
+      return runSi2ExtendedIsolation(live);
     default:
       throw new Error(`Unknown scenario: ${name}`);
   }
@@ -255,8 +265,13 @@ async function runScenarioByName(
 
 function resolveScenarios(options: ExtendedOptions): ScenarioName[] {
   if (options.scenario) {
+    const scenarioAliases: Record<string, ScenarioName> = {
+      'si1-tenant-isolation': 'si1-isolation',
+    };
+    const normalizedScenario = scenarioAliases[options.scenario] ?? options.scenario;
+
     const found = ALL_SCENARIOS.find(
-      (s) => s === options.scenario || s.startsWith(options.scenario!),
+      (s) => s === normalizedScenario || s.startsWith(normalizedScenario),
     );
     if (!found)
       throw new Error(`Unknown scenario: ${options.scenario}. Valid: ${ALL_SCENARIOS.join(', ')}`);
