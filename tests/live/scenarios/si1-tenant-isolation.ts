@@ -6,7 +6,7 @@
  * - Tasks in tenant A cannot be claimed/written from tenant B (404)
  * - Pipelines in tenant A are invisible from tenant B
  * - Workers in tenant A are invisible from tenant B
- * - Deactivated tenant requests are forbidden (403)
+ * - Deactivated tenant requests are unauthorized (401)
  * - SSE stream only emits events for the authenticated tenant
  *
  * Test plan ref: Section 5, SI-1
@@ -248,9 +248,9 @@ async function testWorkerIsolation(
 }
 
 /**
- * Test: Deactivated tenant requests return 403.
+ * Test: Deactivated tenant requests return 401.
  */
-async function testDeactivatedTenant403(ctxA: TenantContext): Promise<string[]> {
+async function testDeactivatedTenant401(ctxA: TenantContext): Promise<string[]> {
   const validations: string[] = [];
 
   const pool = new pg.Pool({ connectionString: config.postgresUrl });
@@ -260,8 +260,8 @@ async function testDeactivatedTenant403(ctxA: TenantContext): Promise<string[]> 
     await pool.end();
   }
 
-  await expectHttpStatus('deactivated tenant listTasks', 403, () => ctxA.agentClient.listTasks());
-  validations.push('deactivated_tenant_403');
+  await expectHttpStatus('deactivated tenant listTasks', 401, () => ctxA.agentClient.listTasks());
+  validations.push('deactivated_tenant_401');
 
   return validations;
 }
@@ -331,7 +331,7 @@ export async function runSi1TenantIsolation(
     allValidations.push(...await testPipelineIsolation(ctxA, ctxB));
     allValidations.push(...await testWorkerIsolation(ctxA, ctxB));
     allValidations.push(...await testSseIsolation(ctxA, ctxB));
-    allValidations.push(...await testDeactivatedTenant403(ctxA));
+    allValidations.push(...await testDeactivatedTenant401(ctxA));
   } finally {
     await ctxA.cleanup();
     await ctxB.cleanup();
