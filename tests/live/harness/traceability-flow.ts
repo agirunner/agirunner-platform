@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import path from 'node:path';
 
 type Provider = 'openai' | 'google' | 'anthropic';
-type CellStatus = 'NOT PASS' | 'PASS' | 'FAIL';
+type CellStatus = 'NOT_PASS' | 'PASS' | 'FAIL';
 
 type ScenarioDef = {
   key: string;
@@ -19,20 +19,20 @@ type CanonicalTestCases = {
   scenarios: ScenarioDef[];
 };
 
-type Cell = {
-  status: CellStatus;
-  runId?: string;
-  reportPath?: string;
-  summaryPath?: string;
-  finishedAt?: string;
-  error?: string;
-};
-
-type TraceabilityState = {
+type LiveResults = {
+  version: '1.0';
   generatedAt: string;
+  lane: 'live';
   providers: Provider[];
   scenarios: ScenarioDef[];
-  cells: Record<string, Record<Provider, Cell>>;
+  cells: Record<string, Record<Provider, {
+    status: CellStatus;
+    runId?: string;
+    artifactJsonPath?: string;
+    artifactMdPath?: string;
+    finishedAt?: string;
+    error?: string;
+  }>>;
 };
 
 type ReportFile = {
@@ -41,7 +41,17 @@ type ReportFile = {
   relativePath: string;
 };
 
-const CANONICAL_DEFINITIONS_PATH = path.join(process.cwd(), 'tests/reports/test-cases.v1.json');
+type RunReport = {
+  runId: string;
+  provider: Provider;
+  finishedAt?: string;
+  scenarios: Record<string, { status: 'pass' | 'fail'; error?: string }>;
+};
+
+const ROOT = process.cwd();
+const CANONICAL_DEFINITIONS_PATH = path.join(ROOT, 'tests/reports/test-cases.v1.json');
+const LIVE_RESULTS_PATH = path.join(ROOT, 'tests/reports/live-results.json');
+const LIVE_ARTIFACTS_DIR = path.join(ROOT, 'tests/artifacts/live');
 
 function loadCanonicalDefinitions(): CanonicalTestCases {
   if (!existsSync(CANONICAL_DEFINITIONS_PATH)) {
@@ -65,146 +75,48 @@ const CANONICAL_DEFINITIONS = loadCanonicalDefinitions();
 const PROVIDERS: Provider[] = [...CANONICAL_DEFINITIONS.providers];
 const SCENARIOS: ScenarioDef[] = [...CANONICAL_DEFINITIONS.scenarios];
 
-const ROOT = process.cwd();
-const REPORTS_DIR = path.join(ROOT, 'tests/reports/live');
-const LEGACY_REPORTS_DIR = path.join(ROOT, 'tests/live/reports');
-const STATE_PATH = path.join(ROOT, 'tests/reports/traceability.state.json');
-const MARKDOWN_PATH = path.join(ROOT, 'tests/reports/traceability-matrix.md');
-
-function newBaselineState(): TraceabilityState {
-  const cells: TraceabilityState['cells'] = {};
+function newBaselineResults(): LiveResults {
+  const cells: LiveResults['cells'] = {};
   for (const scenario of SCENARIOS) {
     cells[scenario.key] = {
-      openai: { status: 'NOT PASS' },
-      google: { status: 'NOT PASS' },
-      anthropic: { status: 'NOT PASS' },
+      openai: { status: 'NOT_PASS' },
+      google: { status: 'NOT_PASS' },
+      anthropic: { status: 'NOT_PASS' },
     };
   }
 
   return {
+    version: '1.0',
     generatedAt: new Date().toISOString(),
+    lane: 'live',
     providers: [...PROVIDERS],
     scenarios: [...SCENARIOS],
     cells,
   };
 }
 
-function readState(): TraceabilityState {
-  if (existsSync(STATE_PATH)) {
-    return JSON.parse(readFileSync(STATE_PATH, 'utf8')) as TraceabilityState;
+function readResults(): LiveResults {
+  if (existsSync(LIVE_RESULTS_PATH)) {
+    return JSON.parse(readFileSync(LIVE_RESULTS_PATH, 'utf8')) as LiveResults;
   }
-  return newBaselineState();
+  return newBaselineResults();
 }
 
-function writeState(state: TraceabilityState): void {
-  state.generatedAt = new Date().toISOString();
-  mkdirSync(path.dirname(STATE_PATH), { recursive: true });
-  writeFileSync(STATE_PATH, JSON.stringify(state, null, 2));
+function writeResults(results: LiveResults): void {
+  results.generatedAt = new Date().toISOString();
+  mkdirSync(path.dirname(LIVE_RESULTS_PATH), { recursive: true });
+  writeFileSync(LIVE_RESULTS_PATH, JSON.stringify(results, null, 2) + '\n');
 }
-
-function renderCell(cell: Cell): string {
-  if (cell.status === 'PASS') {
-    return `✅ PASS (${cell.runId ?? 'evidence'})`;
-  }
-  if (cell.status === 'FAIL') {
-    return `✗ FAIL (${cell.runId ?? 'evidence'})`;
-  }
-  return '❌ NOT PASS';
-}
-
-function renderEvidenceRows(state: TraceabilityState): string {
-  const rows: string[] = [];
-
-  for (const scenario of state.scenarios) {
-    for (const provider of state.providers) {
-      const cell = state.cells[scenario.key][provider];
-      if (cell.status === 'NOT PASS') continue;
-
-      rows.push(
-        `| ${scenario.id} | ${provider} | ${cell.status} | ${cell.reportPath ? `\`${cell.reportPath}\`` : '-' } | ${cell.summaryPath ? `\`${cell.summaryPath}\`` : '-' } | ${cell.finishedAt ?? '-'} |`,
-      );
-    }
-  }
-
-  if (!rows.length) {
-    return '_No evidence records yet. Run `pnpm test:traceability:run` to populate artifacts._';
-  }
-
-  return ['| Scenario | Provider | Status | JSON Evidence | Markdown Summary | Finished At |', '|----------|----------|--------|---------------|------------------|-------------|', ...rows].join('\n');
-}
-
-function renderMarkdown(state: TraceabilityState): string {
-  const rows = state.scenarios
-    .map((scenario) => {
-      const openai = renderCell(state.cells[scenario.key].openai);
-      const google = renderCell(state.cells[scenario.key].google);
-      const anthropic = renderCell(state.cells[scenario.key].anthropic);
-      return `| ${scenario.id} | ${scenario.title} | ${scenario.planRef} | ${openai} | ${google} | ${anthropic} | ${scenario.key} |`;
-    })
-    .join('\n');
-
-  return [
-    '# AgentBaton Platform v1.0 — Live Test Traceability Matrix',
-    '',
-    `**Last Updated:** ${state.generatedAt}`,
-    '**Test Plan Reference:** `docs/testing/test-plan-v1.0.md`',
-    '**Legend:** ✅ PASS (evidence-backed) | ✗ FAIL (evidence-backed) | ❌ NOT PASS (baseline/unverified)',
-    '',
-    'Policy:',
-    '- Baseline is always reset to **NOT PASS** before any re-execution campaign.',
-    '- Cells flip only from parsed `tests/reports/live/run-*.json` evidence generated by scripted runs.',
-    '- Human-readable run summaries are emitted alongside JSON evidence at `tests/reports/live/run-*.md`.',
-    '- Canonical traceability index is generated to `tests/reports/traceability-matrix.md`.',
-    '- No manual/ad-hoc status edits are allowed.',
-    '',
-    '## Scenario/Provider Matrix',
-    '',
-    '| ID | Scenario | Plan Ref | OpenAI | Google | Anthropic | Harness Scenario |',
-    '|----|----------|----------|--------|--------|-----------|------------------|',
-    rows,
-    '',
-    '## Scripted Flow',
-    '',
-    '```bash',
-    '# 1) reset all cells to NOT PASS',
-    'pnpm test:traceability:reset',
-    '',
-    '# 2) run the full provider×scenario matrix one-by-one and auto-update per real evidence',
-    'pnpm test:traceability:run',
-    '',
-    '# optional: run one cell only',
-    'pnpm test:traceability:run -- --provider openai --scenario ot1-cascade',
-    '```',
-    '',
-    '## Evidence Artifacts',
-    '',
-    renderEvidenceRows(state),
-    '',
-  ].join('\n');
-}
-
-function writeMarkdown(state: TraceabilityState): void {
-  writeFileSync(MARKDOWN_PATH, renderMarkdown(state));
-}
-
-type RunReport = {
-  runId: string;
-  provider: string;
-  finishedAt?: string;
-  scenarios: Record<string, { status: 'pass' | 'fail'; error?: string }>;
-};
 
 function listReportFiles(): ReportFile[] {
-  const dirs = [REPORTS_DIR, LEGACY_REPORTS_DIR];
   const entries: ReportFile[] = [];
 
-  for (const dir of dirs) {
-    if (!existsSync(dir)) continue;
-    for (const name of readdirSync(dir).filter((value) => value.startsWith('run-') && value.endsWith('.json')).sort()) {
-      const absolutePath = path.join(dir, name);
-      const relativePath = path.relative(ROOT, absolutePath).replaceAll('\\\\', '/');
-      entries.push({ key: relativePath, absolutePath, relativePath });
-    }
+  if (!existsSync(LIVE_ARTIFACTS_DIR)) return entries;
+
+  for (const name of readdirSync(LIVE_ARTIFACTS_DIR).filter((value) => value.startsWith('run-') && value.endsWith('.json')).sort()) {
+    const absolutePath = path.join(LIVE_ARTIFACTS_DIR, name);
+    const relativePath = path.relative(ROOT, absolutePath).replaceAll('\\', '/');
+    entries.push({ key: relativePath, absolutePath, relativePath });
   }
 
   return entries;
@@ -214,7 +126,7 @@ function parseReportFile(file: ReportFile): RunReport {
   return JSON.parse(readFileSync(file.absolutePath, 'utf8')) as RunReport;
 }
 
-function runOne(state: TraceabilityState, provider: Provider, scenario: string): void {
+function runOne(results: LiveResults, provider: Provider, scenario: string): void {
   const before = new Set(listReportFiles().map((entry) => entry.key));
 
   let commandFailed = false;
@@ -237,14 +149,14 @@ function runOne(state: TraceabilityState, provider: Provider, scenario: string):
     if (report.provider === provider && report.scenarios[scenario]) {
       const summaryAbsolutePath = reportFile.absolutePath.replace(/\.json$/u, '.md');
       const summaryPath = existsSync(summaryAbsolutePath)
-        ? path.relative(ROOT, summaryAbsolutePath).replaceAll('\\\\', '/')
+        ? path.relative(ROOT, summaryAbsolutePath).replaceAll('\\', '/')
         : undefined;
       matched = { report, reportPath: reportFile.relativePath, summaryPath };
       break;
     }
   }
 
-  const cell = state.cells[scenario]?.[provider];
+  const cell = results.cells[scenario]?.[provider];
   if (!cell) {
     throw new Error(`Unknown scenario/provider cell: ${scenario}/${provider}`);
   }
@@ -252,21 +164,19 @@ function runOne(state: TraceabilityState, provider: Provider, scenario: string):
   if (!matched) {
     cell.status = 'FAIL';
     cell.error = 'No matching run report found after execution';
-    writeState(state);
-    writeMarkdown(state);
+    writeResults(results);
     throw new Error(`Missing run evidence for ${scenario}/${provider}`);
   }
 
   const result = matched.report.scenarios[scenario];
   cell.status = result.status === 'pass' && !commandFailed ? 'PASS' : 'FAIL';
   cell.runId = matched.report.runId;
-  cell.reportPath = matched.reportPath;
-  cell.summaryPath = matched.summaryPath;
+  cell.artifactJsonPath = matched.reportPath;
+  cell.artifactMdPath = matched.summaryPath;
   cell.finishedAt = matched.report.finishedAt;
   cell.error = result.error;
 
-  writeState(state);
-  writeMarkdown(state);
+  writeResults(results);
 
   if (commandFailed) {
     throw new Error(`Scenario execution failed for ${scenario}/${provider}`);
@@ -285,15 +195,14 @@ function parseCsvArg(argv: string[], flag: string): string[] | undefined {
 }
 
 function resetBaseline(): void {
-  const state = newBaselineState();
-  mkdirSync(path.dirname(STATE_PATH), { recursive: true });
-  writeState(state);
-  writeMarkdown(state);
-  console.log('Traceability baseline reset: all scenario/provider cells set to NOT PASS.');
+  const results = newBaselineResults();
+  mkdirSync(path.dirname(LIVE_RESULTS_PATH), { recursive: true });
+  writeResults(results);
+  console.log('Live lane baseline reset: all scenario/provider cells set to NOT_PASS.');
 }
 
 function runMatrix(argv: string[]): void {
-  const state = readState();
+  const results = readResults();
 
   const providerArg = parseCsvArg(argv, '--providers');
   const scenarioArg = parseCsvArg(argv, '--scenarios');
@@ -310,7 +219,7 @@ function runMatrix(argv: string[]): void {
   }
 
   for (const scenario of scenarios) {
-    if (!state.scenarios.some((s) => s.key === scenario)) {
+    if (!results.scenarios.some((s) => s.key === scenario)) {
       throw new Error(`Unsupported scenario: ${scenario}`);
     }
   }
@@ -318,7 +227,7 @@ function runMatrix(argv: string[]): void {
   for (const provider of providers) {
     for (const scenario of scenarios) {
       console.log(`\n=== Running ${scenario} on ${provider} ===`);
-      runOne(state, provider, scenario);
+      runOne(results, provider, scenario);
     }
   }
 }
@@ -339,7 +248,7 @@ function main(): void {
   console.log(`Usage:
   pnpm exec tsx tests/live/harness/traceability-flow.ts reset
   pnpm exec tsx tests/live/harness/traceability-flow.ts run [--providers openai,google,anthropic] [--scenarios ot1-cascade,it1-sdk]
-  pnpm exec tsx tests/live/harness/traceability-flow.ts run --provider openai --scenario ot1-cascade\n\nReports: tests/reports/live (run-*.json + run-*.md), matrix: tests/reports/traceability-matrix.md`);
+  pnpm exec tsx tests/live/harness/traceability-flow.ts run --provider openai --scenario ot1-cascade\n\nArtifacts: tests/artifacts/live (run-*.json + run-*.md)\nLane summary: tests/reports/live-results.json`);
 }
 
 main();

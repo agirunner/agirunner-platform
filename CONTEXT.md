@@ -47,7 +47,7 @@ https://github.com/agirunner/agentbaton-docs.git
 
 ### Test governance (canonical in this repo)
 - `docs/testing/test-plan-v1.0.md`
-- `docs/testing/traceability-matrix.md`
+- `tests/reports/live-results.json`
 - `docs/testing/scenario-requirements-map.md`
 
 Mirror/reference copy (optional):

@@ -15,7 +15,7 @@ type Canonical = {
   scenarios: ScenarioDef[];
 };
 
-type TraceabilityState = {
+type LiveResults = {
   scenarios: ScenarioDef[];
 };
 
@@ -61,7 +61,7 @@ function main(): void {
   const canonicalPath = path.join(root, 'tests/reports/test-cases.v1.json');
   const runnerPath = path.join(root, 'tests/live/harness/runner.ts');
   const flowPath = path.join(root, 'tests/live/harness/traceability-flow.ts');
-  const statePath = path.join(root, 'tests/reports/traceability.state.json');
+  const liveResultsPath = path.join(root, 'tests/reports/live-results.json');
 
   if (!existsSync(canonicalPath)) fail(`missing canonical file ${canonicalPath}`);
   const canonical = JSON.parse(readFileSync(canonicalPath, 'utf8')) as Canonical;
@@ -90,12 +90,12 @@ function main(): void {
     fail('traceability-flow.ts must load tests/reports/test-cases.v1.json');
   }
 
-  if (existsSync(statePath)) {
-    const state = JSON.parse(readFileSync(statePath, 'utf8')) as TraceabilityState;
-    const stateDefs = state.scenarios ?? [];
+  if (existsSync(liveResultsPath)) {
+    const liveResults = JSON.parse(readFileSync(liveResultsPath, 'utf8')) as LiveResults;
+    const resultDefs = liveResults.scenarios ?? [];
     const canonicalDigest = canonical.scenarios.map((s) => `${s.key}|${s.id}|${s.title}|${s.planRef}`);
-    const stateDigest = stateDefs.map((s) => `${s.key}|${s.id}|${s.title}|${s.planRef}`);
-    assertSetEqual(canonicalDigest, stateDigest, 'canonical definitions vs tests/reports/traceability.state.json');
+    const resultDigest = resultDefs.map((s) => `${s.key}|${s.id}|${s.title}|${s.planRef}`);
+    assertSetEqual(canonicalDigest, resultDigest, 'canonical definitions vs tests/reports/live-results.json');
   }
 
   console.log(`OK: canonical test-case definitions validated (${canonical.scenarios.length} scenarios).`);

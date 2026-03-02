@@ -18,16 +18,17 @@ coverage/
 Thumbs.db
 
 # Test artifacts
-# Canonical artifacts root: tests/reports/
-# Keep folders + human-readable markdown reports tracked; ignore noisy machine artifacts by default.
+# Canonical report summaries root: tests/reports/ (flat files only)
+# Detailed per-run artifacts live under tests/artifacts/.
 tests/reports/**/*
-!tests/reports/**/
-!tests/reports/**/.gitkeep
-!tests/reports/**/*.md
 !tests/reports/test-cases.v1.json
-!tests/reports/live/*.json
+!tests/reports/core-results.json
+!tests/reports/integration-results.json
+!tests/reports/live-results.json
 
-# Legacy path (read-compat only; do not write new outputs here)
+tests/artifacts/
+
+# Legacy path (do not write new outputs here)
 tests/live/reports/
 
 # Local working scratch

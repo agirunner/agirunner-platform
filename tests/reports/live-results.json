@@ -1,5 +1,7 @@
 {
-  "generatedAt": "2026-03-02T21:52:28.633Z",
+  "version": "1.0",
+  "generatedAt": "2026-03-02T22:49:59.799Z",
+  "lane": "live",
   "providers": [
     "openai",
     "google",
@@ -130,263 +132,222 @@
   "cells": {
     "sdlc-happy": {
       "openai": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     },
     "ap2-external-runtime": {
       "openai": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     },
     "ap3-standalone-worker": {
       "openai": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     },
     "ap4-mixed-workers": {
       "openai": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     },
     "maintenance-happy": {
       "openai": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     },
     "ap6-runtime-maintenance": {
       "openai": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     },
     "ap7-failure-recovery": {
       "openai": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     },
     "ot1-cascade": {
       "openai": {
-        "status": "PASS",
-        "runId": "2026-03-02T19-33-56-643Z-sdlc-openai-r1",
-        "reportPath": "tests/reports/live/run-2026-03-02T19-33-56-643Z-sdlc-openai-r1.json",
-        "finishedAt": "2026-03-02T19:34:26.067Z",
-        "error": null,
-        "summaryPath": "tests/reports/live/run-2026-03-02T19-33-56-643Z-sdlc-openai-r1.md"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     },
     "ot2-routing": {
       "openai": {
-        "status": "PASS",
-        "runId": "2026-03-02T19-59-19-077Z-sdlc-openai-r1",
-        "reportPath": "tests/reports/live/run-2026-03-02T19-59-19-077Z-sdlc-openai-r1.json",
-        "summaryPath": "tests/reports/live/run-2026-03-02T19-59-19-077Z-sdlc-openai-r1.md",
-        "finishedAt": "2026-03-02T20:01:47.921Z"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     },
     "ot3-state": {
       "openai": {
-        "status": "PASS",
-        "runId": "2026-03-02T20-13-14-872Z-sdlc-openai-r1",
-        "reportPath": "tests/reports/live/run-2026-03-02T20-13-14-872Z-sdlc-openai-r1.json",
-        "summaryPath": "tests/reports/live/run-2026-03-02T20-13-14-872Z-sdlc-openai-r1.md",
-        "finishedAt": "2026-03-02T20:15:46.812Z"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     },
     "ot4-health": {
       "openai": {
-        "status": "PASS",
-        "runId": "2026-03-02T20-18-25-265Z-sdlc-openai-r1",
-        "reportPath": "tests/reports/live/run-2026-03-02T20-18-25-265Z-sdlc-openai-r1.json",
-        "summaryPath": "tests/reports/live/run-2026-03-02T20-18-25-265Z-sdlc-openai-r1.md",
-        "finishedAt": "2026-03-02T20:20:45.497Z"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     },
     "hl1-approval-flow": {
       "openai": {
-        "status": "PASS",
-        "runId": "2026-03-02T21-13-08-778Z-sdlc-openai-r1",
-        "reportPath": "tests/reports/live/run-2026-03-02T21-13-08-778Z-sdlc-openai-r1.json",
-        "summaryPath": "tests/reports/live/run-2026-03-02T21-13-08-778Z-sdlc-openai-r1.md",
-        "finishedAt": "2026-03-02T21:21:44.461Z"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     },
     "hl2-pipeline-controls": {
       "openai": {
-        "status": "PASS",
-        "runId": "2026-03-02T21-03-47-881Z-sdlc-openai-r1",
-        "reportPath": "tests/reports/live/run-2026-03-02T21-03-47-881Z-sdlc-openai-r1.json",
-        "summaryPath": "tests/reports/live/run-2026-03-02T21-03-47-881Z-sdlc-openai-r1.md",
-        "finishedAt": "2026-03-02T21:09:26.999Z"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     },
     "it1-sdk": {
       "openai": {
-        "status": "PASS",
-        "runId": "2026-03-02T21-23-20-418Z-sdlc-openai-r1",
-        "reportPath": "tests/reports/live/run-2026-03-02T21-23-20-418Z-sdlc-openai-r1.json",
-        "summaryPath": "tests/reports/live/run-2026-03-02T21-23-20-418Z-sdlc-openai-r1.md",
-        "finishedAt": "2026-03-02T21:28:30.224Z"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     },
     "it2-mcp": {
       "openai": {
-        "status": "PASS",
-        "runId": "2026-03-02T21-33-12-707Z-sdlc-openai-r1",
-        "reportPath": "tests/reports/live/run-2026-03-02T21-33-12-707Z-sdlc-openai-r1.json",
-        "summaryPath": "tests/reports/live/run-2026-03-02T21-33-12-707Z-sdlc-openai-r1.md",
-        "finishedAt": "2026-03-02T21:37:30.073Z"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     },
     "it3-webhooks": {
       "openai": {
-        "status": "PASS",
-        "runId": "2026-03-02T21-43-33-286Z-sdlc-openai-r1",
-        "reportPath": "tests/reports/live/run-2026-03-02T21-43-33-286Z-sdlc-openai-r1.json",
-        "summaryPath": "tests/reports/live/run-2026-03-02T21-43-33-286Z-sdlc-openai-r1.md",
-        "finishedAt": "2026-03-02T21:46:42.639Z"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     },
     "it3-mcp-sse-stream": {
       "openai": {
-        "status": "PASS",
-        "runId": "2026-03-02T21-48-18-219Z-sdlc-openai-r1",
-        "reportPath": "tests/reports/live/run-2026-03-02T21-48-18-219Z-sdlc-openai-r1.json",
-        "summaryPath": "tests/reports/live/run-2026-03-02T21-48-18-219Z-sdlc-openai-r1.md",
-        "finishedAt": "2026-03-02T21:52:28.598Z"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     },
     "si1-isolation": {
       "openai": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     },
     "si2-auth": {
       "openai": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     },
     "si2-extended-isolation": {
       "openai": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "google": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       },
       "anthropic": {
-        "status": "NOT PASS"
+        "status": "NOT_PASS"
       }
     }
   }

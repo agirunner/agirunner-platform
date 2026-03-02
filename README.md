@@ -11,7 +11,7 @@ Task coordination broker for AI agents. TypeScript/Node/Fastify/PostgreSQL.
 
 - `docs/testing/test-plan-v1.0.md`
 - `tests/reports/test-cases.v1.json` (**single source of truth** for platform test-case definitions)
-- `tests/reports/traceability-matrix.md` (generated)
+- `tests/reports/live-results.json` (generated)
 - `docs/testing/scenario-requirements-map.md`
 
 ## Quick Start
@@ -60,4 +60,4 @@ Optional explicit evaluator config surface:
 - `LIVE_EVALUATION_PROVIDER=<openai|anthropic|google>` (required when `LIVE_EVALUATION_MODE=llm`)
 - `LIVE_EVALUATION_MODEL=<model-name>` (required when `LIVE_EVALUATION_MODE=llm`)
 
-Test outputs are written under `tests/reports/` (live harness reports in `tests/reports/live/` as paired machine + human artifacts: `run-*.json` + `run-*.md`).
+Test outputs are written under `tests/reports/` (live harness reports in `tests/artifacts/live/` as paired machine + human artifacts: `run-*.json` + `run-*.md`).

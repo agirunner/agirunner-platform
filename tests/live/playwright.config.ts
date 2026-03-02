@@ -10,5 +10,5 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
   },
-  reporter: [['list'], ['json', { outputFile: 'tests/reports/live/dashboard-playwright.json' }]],
+  reporter: [['list'], ['json', { outputFile: 'tests/artifacts/integration/dashboard-playwright.json' }]],
 });

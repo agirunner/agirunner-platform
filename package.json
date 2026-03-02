@@ -10,7 +10,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test && pnpm test:harness",
     "test:harness": "tsx --test tests/live/harness/*.test.ts",
-    "test:ci": "pnpm test:definitions:validate && pnpm test && pnpm test:core",
+    "test:ci": "pnpm test:reports:enforce && pnpm test:definitions:validate && pnpm test && pnpm test:core",
     "test:core": "tsx tests/live/harness/runner.ts --lane core",
     "test:core:all": "tsx tests/live/harness/runner.ts --lane core --all",
     "test:live": "tsx tests/live/harness/runner.ts --lane live",
@@ -18,7 +18,8 @@
     "test:live:quick": "tsx tests/live/harness/runner.ts --lane live --happy-only --provider openai",
     "test:traceability:reset": "tsx tests/live/harness/traceability-flow.ts reset",
     "test:traceability:run": "tsx tests/live/harness/traceability-flow.ts run",
-    "test:definitions:validate": "tsx tests/live/harness/validate-test-case-definitions.ts",
+    "test:reports:enforce": "tsx tests/live/harness/enforce-report-layout.ts",
+    "test:definitions:validate": "pnpm test:reports:enforce && tsx tests/live/harness/validate-test-case-definitions.ts",
     "format": "prettier --check .",
     "format:write": "prettier --write ."
   },
