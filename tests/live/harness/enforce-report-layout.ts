@@ -18,6 +18,8 @@ function main(): void {
     'live-results.json',
   ]);
 
+  const optionalCanonicalJson = /^traceability.*\.json$/;
+
   const forbiddenLegacy = new Set([
     'traceability-matrix.md',
     'traceability-matrix.json',
@@ -34,6 +36,15 @@ function main(): void {
 
     if (forbiddenLegacy.has(entry)) {
       fail(`legacy matrix/state file is forbidden: tests/reports/${entry}`);
+    }
+
+    if (!entry.endsWith('.json')) {
+      fail(`only canonical JSON files are allowed in tests/reports: ${entry}`);
+    }
+
+    const isAllowed = required.has(entry) || optionalCanonicalJson.test(entry);
+    if (!isAllowed) {
+      fail(`non-canonical report file is forbidden: tests/reports/${entry}`);
     }
   }
 

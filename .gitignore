@@ -25,6 +25,7 @@ tests/reports/**/*
 !tests/reports/core-results.json
 !tests/reports/integration-results.json
 !tests/reports/live-results.json
+!tests/reports/traceability*.json
 
 tests/artifacts/
 

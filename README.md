@@ -60,4 +60,5 @@ Optional explicit evaluator config surface:
 - `LIVE_EVALUATION_PROVIDER=<openai|anthropic|google>` (required when `LIVE_EVALUATION_MODE=llm`)
 - `LIVE_EVALUATION_MODEL=<model-name>` (required when `LIVE_EVALUATION_MODE=llm`)
 
-Test outputs are written under `tests/reports/` (live harness reports in `tests/artifacts/live/` as paired machine + human artifacts: `run-*.json` + `run-*.md`).
+`tests/reports/` is reserved for canonical committed JSON only (`test-cases.v1.json`, `core-results.json`, `integration-results.json`, `live-results.json`, optional `traceability*.json`).
+Per-run/ad-hoc outputs (for example `run-*.json`, `run-*.md`, screenshots, Playwright JSON) are written under `tests/artifacts/` and must not be committed.
