@@ -14,7 +14,9 @@ import pg from 'pg';
 import { LiveApiClient } from '../api-client.js';
 import { loadConfig } from '../config.js';
 
-const config = loadConfig();
+function getConfig() {
+  return loadConfig();
+}
 
 const DEFAULT_WORKER_CAPABILITIES = [
   'llm-api',
@@ -126,7 +128,7 @@ async function insertApiKey(
 
 function createCleanup(tenantId: string): () => Promise<void> {
   return async (): Promise<void> => {
-    const cleanupPool = new pg.Pool({ connectionString: config.postgresUrl });
+    const cleanupPool = new pg.Pool({ connectionString: getConfig().postgresUrl });
     try {
       // Cascade delete all tenant data
       await cleanupPool.query('DELETE FROM events WHERE tenant_id = $1', [tenantId]);
@@ -152,7 +154,7 @@ function createCleanup(tenantId: string): () => Promise<void> {
  * Use registerWorkerAgent(...) for explicit worker/agent provisioning.
  */
 export async function createTenantBootstrap(label: string): Promise<TenantBootstrapContext> {
-  const pool = new pg.Pool({ connectionString: config.postgresUrl });
+  const pool = new pg.Pool({ connectionString: getConfig().postgresUrl });
   const tenantId = randomUUID();
   const adminKey = generateApiKey('admin');
   const workerBootstrapKey = generateApiKey('worker');
@@ -172,14 +174,16 @@ export async function createTenantBootstrap(label: string): Promise<TenantBootst
     await pool.end();
   }
 
+  const cfg = getConfig();
+
   return {
     tenantId,
     adminKey,
     workerBootstrapKey,
     agentBootstrapKey,
-    adminClient: new LiveApiClient(config.apiBaseUrl, adminKey),
-    workerBootstrapClient: new LiveApiClient(config.apiBaseUrl, workerBootstrapKey),
-    agentBootstrapClient: new LiveApiClient(config.apiBaseUrl, agentBootstrapKey),
+    adminClient: new LiveApiClient(cfg.apiBaseUrl, adminKey),
+    workerBootstrapClient: new LiveApiClient(cfg.apiBaseUrl, workerBootstrapKey),
+    agentBootstrapClient: new LiveApiClient(cfg.apiBaseUrl, agentBootstrapKey),
     cleanup: createCleanup(tenantId),
   };
 }
@@ -213,7 +217,8 @@ export async function registerWorkerAgent(
     throw new Error('Worker registration did not return a worker API key');
   }
 
-  const workerClient = new LiveApiClient(config.apiBaseUrl, workerReg.worker_api_key);
+  const cfg = getConfig();
+  const workerClient = new LiveApiClient(cfg.apiBaseUrl, workerReg.worker_api_key);
 
   const agentReg = await tenant.agentBootstrapClient.registerAgent({
     name: input.agentName,
@@ -231,7 +236,7 @@ export async function registerWorkerAgent(
     workerClient,
     agentId: agentReg.id,
     agentKey: agentReg.api_key,
-    agentClient: new LiveApiClient(config.apiBaseUrl, agentReg.api_key),
+    agentClient: new LiveApiClient(cfg.apiBaseUrl, agentReg.api_key),
   };
 }
 

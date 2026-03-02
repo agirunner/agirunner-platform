@@ -78,13 +78,38 @@ export function assertEvaluationConfig(config: LiveConfig): void {
   }
 }
 
+function resolveLiveApiBaseUrl(): string {
+  if (process.env.LIVE_API_BASE_URL) {
+    return process.env.LIVE_API_BASE_URL;
+  }
+
+  const apiPort = process.env.PLATFORM_API_PORT ?? '8080';
+  return `http://127.0.0.1:${apiPort}`;
+}
+
+function resolveLiveDashboardBaseUrl(): string {
+  if (process.env.LIVE_DASHBOARD_BASE_URL) {
+    return process.env.LIVE_DASHBOARD_BASE_URL;
+  }
+
+  const dashboardPort = process.env.DASHBOARD_PORT ?? '3000';
+  return `http://127.0.0.1:${dashboardPort}`;
+}
+
+function resolveLivePostgresUrl(): string {
+  if (process.env.LIVE_POSTGRES_URL) {
+    return process.env.LIVE_POSTGRES_URL;
+  }
+
+  const postgresPort = process.env.POSTGRES_PORT ?? '5432';
+  return `postgresql://agentbaton:agentbaton@127.0.0.1:${postgresPort}/agentbaton`;
+}
+
 export function loadConfig(): LiveConfig {
   return {
-    apiBaseUrl: process.env.LIVE_API_BASE_URL ?? 'http://127.0.0.1:8080',
-    dashboardBaseUrl: process.env.LIVE_DASHBOARD_BASE_URL ?? 'http://127.0.0.1:3000',
-    postgresUrl:
-      process.env.LIVE_POSTGRES_URL ??
-      'postgresql://agentbaton:agentbaton@127.0.0.1:5432/agentbaton',
+    apiBaseUrl: resolveLiveApiBaseUrl(),
+    dashboardBaseUrl: resolveLiveDashboardBaseUrl(),
+    postgresUrl: resolveLivePostgresUrl(),
     taskTimeoutMs: Number(process.env.LIVE_TASK_TIMEOUT_MS ?? 300_000),
     pipelineTimeoutMs: Number(process.env.LIVE_PIPELINE_TIMEOUT_MS ?? 1_800_000),
     pollIntervalMs: Number(process.env.LIVE_POLL_INTERVAL_MS ?? 2_000),

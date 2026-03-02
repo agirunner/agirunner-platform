@@ -19,12 +19,11 @@ interface SetupExecutionPlan {
   shouldWaitForHealth: boolean;
 }
 
-const liveConfig = loadConfig();
-assertEvaluationConfig(liveConfig);
-
-const API_BASE_URL = liveConfig.apiBaseUrl;
-const DASHBOARD_BASE_URL = liveConfig.dashboardBaseUrl;
-const POSTGRES_URL = liveConfig.postgresUrl;
+function getLiveConfig() {
+  const liveConfig = loadConfig();
+  assertEvaluationConfig(liveConfig);
+  return liveConfig;
+}
 
 const DEFAULT_ADMIN_KEY_PREFIX = 'ab_admin_def';
 
@@ -48,11 +47,7 @@ function runDocker(command: string): void {
   execSync(command, { cwd: process.cwd(), stdio: 'inherit' });
 }
 
-async function waitForHealth(
-  url: string,
-  label: string,
-  timeoutMs = liveConfig.healthTimeoutMs,
-): Promise<void> {
+async function waitForHealth(url: string, label: string, timeoutMs: number): Promise<void> {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
     try {
@@ -133,9 +128,9 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   return payload as T;
 }
 
-async function registerWorker(workerKey: string): Promise<string> {
+async function registerWorker(apiBaseUrl: string, workerKey: string): Promise<string> {
   const payload = await requestJson<{ data: { worker_id: string } }>(
-    `${API_BASE_URL}/api/v1/workers/register`,
+    `${apiBaseUrl}/api/v1/workers/register`,
     {
       method: 'POST',
       headers: { authorization: `Bearer ${workerKey}` },
@@ -151,9 +146,9 @@ async function registerWorker(workerKey: string): Promise<string> {
   return payload.data.worker_id;
 }
 
-async function registerAgent(agentKey: string, workerId: string): Promise<string> {
+async function registerAgent(apiBaseUrl: string, agentKey: string, workerId: string): Promise<string> {
   const payload = await requestJson<{ data: { id: string } }>(
-    `${API_BASE_URL}/api/v1/agents/register`,
+    `${apiBaseUrl}/api/v1/agents/register`,
     {
       method: 'POST',
       headers: { authorization: `Bearer ${agentKey}` },
@@ -168,8 +163,8 @@ async function registerAgent(agentKey: string, workerId: string): Promise<string
   return payload.data.id;
 }
 
-async function seedDatabase(): Promise<void> {
-  const pool = new pg.Pool({ connectionString: POSTGRES_URL });
+async function seedDatabase(apiBaseUrl: string, postgresUrl: string): Promise<void> {
+  const pool = new pg.Pool({ connectionString: postgresUrl });
   try {
     const adminKey = generateApiKey('admin');
     const workerKey = generateApiKey('worker');
@@ -179,8 +174,8 @@ async function seedDatabase(): Promise<void> {
     await insertApiKey(pool, workerKey, 'worker', 'worker-bootstrap');
     await insertApiKey(pool, agentKey, 'agent', 'agent-bootstrap');
 
-    const workerId = await registerWorker(workerKey);
-    const agentId = await registerAgent(agentKey, workerId);
+    const workerId = await registerWorker(apiBaseUrl, workerKey);
+    const agentId = await registerAgent(apiBaseUrl, agentKey, workerId);
 
     process.env.LIVE_ADMIN_KEY = adminKey;
     process.env.LIVE_WORKER_KEY = workerKey;
@@ -207,6 +202,11 @@ export function createSetupExecutionPlan(skipStackSetup: boolean): SetupExecutio
 }
 
 export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveContext> {
+  const liveConfig = getLiveConfig();
+  const apiBaseUrl = liveConfig.apiBaseUrl;
+  const dashboardBaseUrl = liveConfig.dashboardBaseUrl;
+  const postgresUrl = liveConfig.postgresUrl;
+
   const setupPlan = createSetupExecutionPlan(liveConfig.skipStackSetup);
 
   if (setupPlan.shouldRunDockerSetup) {
@@ -215,11 +215,11 @@ export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveC
   }
 
   if (setupPlan.shouldWaitForHealth) {
-    await waitForHealth(`${API_BASE_URL}/health`, 'platform-api health');
-    await waitForHealth(`${DASHBOARD_BASE_URL}/`, 'dashboard');
+    await waitForHealth(`${apiBaseUrl}/health`, 'platform-api health', liveConfig.healthTimeoutMs);
+    await waitForHealth(`${dashboardBaseUrl}/`, 'dashboard', liveConfig.healthTimeoutMs);
   }
 
-  await seedDatabase();
+  await seedDatabase(apiBaseUrl, postgresUrl);
 
   return {
     runId: options.runId,
@@ -228,9 +228,9 @@ export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveC
     reportDir: `${process.cwd()}/tests/reports/live`,
     screenshotDir: `${process.cwd()}/tests/reports/live/screenshots`,
     env: {
-      apiBaseUrl: API_BASE_URL,
-      dashboardBaseUrl: DASHBOARD_BASE_URL,
-      postgresUrl: POSTGRES_URL,
+      apiBaseUrl,
+      dashboardBaseUrl,
+      postgresUrl,
     },
     keys: {
       admin: String(process.env.LIVE_ADMIN_KEY),
