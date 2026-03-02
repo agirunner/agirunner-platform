@@ -3,6 +3,8 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { regenerateLaneResults } from './report.js';
+
 type Provider = 'openai' | 'google' | 'anthropic';
 type CellStatus = 'NOT_PASS' | 'PASS' | 'FAIL';
 
@@ -106,6 +108,7 @@ function writeResults(results: LiveResults): void {
   results.generatedAt = new Date().toISOString();
   mkdirSync(path.dirname(LIVE_RESULTS_PATH), { recursive: true });
   writeFileSync(LIVE_RESULTS_PATH, JSON.stringify(results, null, 2) + '\n');
+  regenerateLaneResults(ROOT);
 }
 
 function listReportFiles(): ReportFile[] {

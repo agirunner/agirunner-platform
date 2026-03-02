@@ -2,6 +2,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
+type LaneStatus = 'PASS' | 'FAIL' | 'NOT_PASS';
+
 type ScenarioDef = {
   key: string;
   id: string;
@@ -15,9 +17,29 @@ type Canonical = {
   scenarios: ScenarioDef[];
 };
 
-type LiveResults = {
-  scenarios: ScenarioDef[];
+type LaneCell = {
+  category: string;
+  provider: string;
+  mode: string;
+  gating: boolean;
+  status: LaneStatus;
 };
+
+type LaneRow = {
+  use_case_id: string;
+  cells: LaneCell[];
+};
+
+type LaneResults = {
+  matrix?: LaneRow[];
+  summary?: Partial<Record<LaneStatus, number>> & { row_count?: number };
+};
+
+type LiveResults = {
+  scenarios?: ScenarioDef[];
+};
+
+const STATUS_ENUM: LaneStatus[] = ['PASS', 'FAIL', 'NOT_PASS'];
 
 function fail(message: string): never {
   throw new Error(`test-case-definition drift: ${message}`);
@@ -56,11 +78,82 @@ function assertSetEqual(expected: string[], actual: string[], context: string): 
   }
 }
 
+function countStatuses(matrix: LaneRow[]): Record<LaneStatus, number> {
+  const counts: Record<LaneStatus, number> = { PASS: 0, FAIL: 0, NOT_PASS: 0 };
+  for (const row of matrix) {
+    for (const cell of row.cells) {
+      if (!STATUS_ENUM.includes(cell.status)) {
+        fail(`invalid status in matrix for use_case_id=${row.use_case_id}: ${cell.status}`);
+      }
+      counts[cell.status] += 1;
+    }
+  }
+  return counts;
+}
+
+function validateLane(
+  lane: 'core' | 'integration' | 'live',
+  payload: LaneResults,
+  canonical: Canonical,
+): void {
+  if (!Array.isArray(payload.matrix)) {
+    fail(`${lane}: results must contain matrix[]`);
+  }
+
+  const matrix = payload.matrix;
+  if (!payload.summary) {
+    fail(`${lane}: results must contain summary`);
+  }
+
+  if (payload.summary.row_count !== matrix.length) {
+    fail(`${lane}: summary.row_count=${payload.summary.row_count} must equal matrix length=${matrix.length}`);
+  }
+
+  const canonicalById = new Map(canonical.scenarios.map((s) => [s.id, s]));
+  const seenIds = new Set<string>();
+  for (const row of matrix) {
+    if (!canonicalById.has(row.use_case_id)) {
+      fail(`${lane}: unknown use_case_id in matrix: ${row.use_case_id}`);
+    }
+    if (seenIds.has(row.use_case_id)) {
+      fail(`${lane}: duplicate matrix row for use_case_id=${row.use_case_id}`);
+    }
+    seenIds.add(row.use_case_id);
+  }
+
+  const missingRows = canonical.scenarios.map((s) => s.id).filter((id) => !seenIds.has(id));
+  if (missingRows.length > 0) {
+    fail(`${lane}: missing matrix rows for use_case_id=[${missingRows.join(', ')}]`);
+  }
+
+  for (const row of matrix) {
+    if (!Array.isArray(row.cells) || row.cells.length === 0) {
+      fail(`${lane}: row ${row.use_case_id} must contain cells`);
+    }
+
+    const expectedProviders = lane === 'live' ? canonical.providers : ['none'];
+    const observedProviders = row.cells.map((cell) => cell.provider);
+
+    assertSetEqual(expectedProviders, observedProviders, `${lane}: provider coverage for ${row.use_case_id}`);
+    assertUnique(observedProviders, `${lane}: duplicate providers for ${row.use_case_id}`);
+  }
+
+  const counts = countStatuses(matrix);
+  for (const status of STATUS_ENUM) {
+    const declared = payload.summary[status];
+    if (declared !== counts[status]) {
+      fail(`${lane}: summary.${status}=${declared} must equal actual=${counts[status]}`);
+    }
+  }
+}
+
 function main(): void {
   const root = process.cwd();
   const canonicalPath = path.join(root, 'tests/reports/test-cases.v1.json');
   const runnerPath = path.join(root, 'tests/live/harness/runner.ts');
   const flowPath = path.join(root, 'tests/live/harness/traceability-flow.ts');
+  const coreResultsPath = path.join(root, 'tests/reports/core-results.json');
+  const integrationResultsPath = path.join(root, 'tests/reports/integration-results.json');
   const liveResultsPath = path.join(root, 'tests/reports/live-results.json');
 
   if (!existsSync(canonicalPath)) fail(`missing canonical file ${canonicalPath}`);
@@ -90,13 +183,22 @@ function main(): void {
     fail('traceability-flow.ts must load tests/reports/test-cases.v1.json');
   }
 
-  if (existsSync(liveResultsPath)) {
-    const liveResults = JSON.parse(readFileSync(liveResultsPath, 'utf8')) as LiveResults;
-    const resultDefs = liveResults.scenarios ?? [];
-    const canonicalDigest = canonical.scenarios.map((s) => `${s.key}|${s.id}|${s.title}|${s.planRef}`);
-    const resultDigest = resultDefs.map((s) => `${s.key}|${s.id}|${s.title}|${s.planRef}`);
-    assertSetEqual(canonicalDigest, resultDigest, 'canonical definitions vs tests/reports/live-results.json');
+  if (!existsSync(coreResultsPath) || !existsSync(integrationResultsPath) || !existsSync(liveResultsPath)) {
+    fail('missing one or more lane result files under tests/reports/');
   }
+
+  const core = JSON.parse(readFileSync(coreResultsPath, 'utf8')) as LaneResults;
+  const integration = JSON.parse(readFileSync(integrationResultsPath, 'utf8')) as LaneResults;
+  const live = JSON.parse(readFileSync(liveResultsPath, 'utf8')) as LaneResults & LiveResults;
+
+  validateLane('core', core, canonical);
+  validateLane('integration', integration, canonical);
+  validateLane('live', live, canonical);
+
+  const resultDefs = live.scenarios ?? [];
+  const canonicalDigest = canonical.scenarios.map((s) => `${s.key}|${s.id}|${s.title}|${s.planRef}`);
+  const resultDigest = resultDefs.map((s) => `${s.key}|${s.id}|${s.title}|${s.planRef}`);
+  assertSetEqual(canonicalDigest, resultDigest, 'canonical definitions vs tests/reports/live-results.json');
 
   console.log(`OK: canonical test-case definitions validated (${canonical.scenarios.length} scenarios).`);
 }

@@ -18,8 +18,9 @@
     "test:live:quick": "tsx tests/live/harness/runner.ts --lane live --happy-only --provider openai",
     "test:traceability:reset": "tsx tests/live/harness/traceability-flow.ts reset",
     "test:traceability:run": "tsx tests/live/harness/traceability-flow.ts run",
+    "test:reports:generate": "tsx tests/live/harness/regenerate-reports.ts",
     "test:reports:enforce": "tsx tests/live/harness/enforce-report-layout.ts",
-    "test:definitions:validate": "pnpm test:reports:enforce && tsx tests/live/harness/validate-test-case-definitions.ts",
+    "test:definitions:validate": "pnpm test:reports:enforce && pnpm test:reports:generate && tsx tests/live/harness/validate-test-case-definitions.ts",
     "format": "prettier --check .",
     "format:write": "prettier --write ."
   },
