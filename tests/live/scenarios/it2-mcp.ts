@@ -364,6 +364,11 @@ async function testToolCalls(ctx: TenantContext): Promise<string[]> {
     }
     validations.push('mcp_tools_call:claim_task');
 
+    // Ensure state is running before complete_task; backend transition graph
+    // now requires claimed -> running -> completed.
+    await ctx.agentClient.startTask(createdTaskId, { agent_id: ctx.agentId });
+    validations.push('api_task_start_before_mcp_complete');
+
     agentMcp.send({
       jsonrpc: '2.0',
       id: 13,
