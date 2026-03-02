@@ -92,11 +92,10 @@ export async function runHl2PipelineControls(
     );
     validations.push('invalid_transition_409');
 
-    const retried = await tenant.adminClient.retryTask(firstTask.id);
-    if (retried.state !== 'ready') {
-      throw new Error(`HL-2 expected retry to move task to ready, got ${retried.state}`);
-    }
-    validations.push('retry_from_cancelled');
+    await expectHttpStatus('retry from cancelled task', 409, () =>
+      tenant.adminClient.retryTask(firstTask.id),
+    );
+    validations.push('retry_from_cancelled_rejected');
   } finally {
     await tenant.cleanup();
   }
