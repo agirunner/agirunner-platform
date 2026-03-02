@@ -27,6 +27,7 @@ import { loadConfig } from '../config.js';
 import { pollPipelineUntil } from './poll.js';
 import { maintenanceTemplateSchema } from './templates.js';
 import { createTenantBootstrap, registerWorkerAgent } from './tenant.js';
+import { resolveFixtureRepoPath } from '../harness/repo-factory.js';
 
 const config = loadConfig();
 
@@ -42,7 +43,9 @@ const EXTERNAL_CAPABILITIES = [
   'lang:go',
 ];
 
-const TODO_FIXTURE_REPO = 'tests/live/fixtures/todo-app';
+export function resolveAp6TodoFixtureRepo(): string {
+  return resolveFixtureRepoPath('todo-app');
+}
 
 export async function runAp6RuntimeMaintenance(
   live: LiveContext,
@@ -84,7 +87,7 @@ export async function runAp6RuntimeMaintenance(
       template_id: template.id,
       name: `AP-6 todo-app ${live.runId}`,
       parameters: {
-        repo: TODO_FIXTURE_REPO,
+        repo: resolveAp6TodoFixtureRepo(),
         issue: 'pagination',
         description: 'Page 2 shows same items as page 1 — off-by-one in pagination slice',
       },

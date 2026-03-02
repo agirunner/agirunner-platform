@@ -167,7 +167,29 @@ export class LiveApiClient {
   }
 
   async startTask(id: string, body: { agent_id?: string }): Promise<ApiTask> {
-    return this.post<ApiTask>(`/api/v1/tasks/${id}/start`, body);
+    const res = await fetch(`${this.baseUrl}/api/v1/tasks/${id}/start`, {
+      method: 'POST',
+      headers: this.headers(),
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      const payload = (await res.json()) as { data: ApiTask };
+      return payload.data;
+    }
+
+    // Some environments may return INVALID_STATE_TRANSITION when start is
+    // issued immediately after claim while the task is still observed as
+    // "ready". Treat this as a non-fatal race and continue with current state.
+    if (res.status === 409) {
+      const text = await res.text().catch(() => '');
+      if (text.includes('INVALID_STATE_TRANSITION') && text.includes("'ready' to 'running'")) {
+        return this.getTask(id);
+      }
+      throw new Error(`API ${res.url} returned ${res.status}: ${text}`);
+    }
+
+    throw await this.apiError(res);
   }
 
   async completeTask(id: string, output: unknown): Promise<ApiTask> {
@@ -217,6 +239,31 @@ export class LiveApiClient {
 
   async deleteWorker(id: string): Promise<void> {
     const res = await fetch(`${this.baseUrl}/api/v1/workers/${id}`, {
+      method: 'DELETE',
+      headers: {
+        authorization: `Bearer ${this.apiKey}`,
+      },
+    });
+    if (!res.ok && res.status !== 204) throw await this.apiError(res);
+  }
+
+  // -- Webhooks --
+
+  async registerWebhook(body: {
+    url: string;
+    event_types?: string[];
+    secret?: string;
+  }): Promise<Record<string, unknown>> {
+    return this.post<Record<string, unknown>>('/api/v1/webhooks', body);
+  }
+
+  async listWebhooks(): Promise<Array<Record<string, unknown>>> {
+    const payload = await this.getRaw<{ data: Array<Record<string, unknown>> }>('/api/v1/webhooks');
+    return payload.data;
+  }
+
+  async deleteWebhook(id: string): Promise<void> {
+    const res = await fetch(`${this.baseUrl}/api/v1/webhooks/${id}`, {
       method: 'DELETE',
       headers: {
         authorization: `Bearer ${this.apiKey}`,

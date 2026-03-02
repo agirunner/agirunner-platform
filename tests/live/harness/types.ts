@@ -1,8 +1,10 @@
-export type Provider = 'openai' | 'google' | 'anthropic';
+export type Provider = 'openai' | 'google' | 'anthropic' | 'none';
+export type TestLane = 'core' | 'live';
 export type TemplateType = 'sdlc' | 'maintenance' | 'dashboard';
 
 export interface RunnerOptions {
   all: boolean;
+  lane: TestLane;
   template?: TemplateType;
   provider?: Provider;
   happyOnly: boolean;

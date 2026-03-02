@@ -1,9 +1,10 @@
 import { execSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 
 const ROOT = path.resolve(process.cwd());
-const FIXTURE_ROOT = path.join(ROOT, 'tests/live/fixtures');
+const CANONICAL_FIXTURE_ROOT = path.join(ROOT, 'tests/live/fixtures');
+const LIVE_TMP_PREFIX = '/tmp/agentbaton-live-';
 
 function run(command: string, cwd: string): void {
   execSync(command, { cwd, stdio: 'ignore' });
@@ -19,25 +20,77 @@ function ensureGitBaseline(repoDir: string): void {
   run('git config user.name "QA Automation"', repoDir);
   run('git config user.email "qa@users.noreply.github.com"', repoDir);
   run('git add .', repoDir);
-  run('git commit -m "chore(fixtures): baseline state"', repoDir);
+  run('git commit -m "chore(fixtures): ephemeral baseline state"', repoDir);
 }
 
-export function resetFixtureRepos(): string[] {
-  if (!existsSync(FIXTURE_ROOT)) {
-    mkdirSync(FIXTURE_ROOT, { recursive: true });
+function ensureCanonicalRoot(): void {
+  if (!existsSync(CANONICAL_FIXTURE_ROOT)) {
+    mkdirSync(CANONICAL_FIXTURE_ROOT, { recursive: true });
   }
+}
 
-  const touched: string[] = [];
+function fixtureRunRoot(runId: string): string {
+  return `${LIVE_TMP_PREFIX}${runId}`;
+}
 
-  for (const name of readdirSync(FIXTURE_ROOT)) {
-    const repoDir = path.join(FIXTURE_ROOT, name);
-    if (!existsSync(path.join(repoDir, 'package.json'))) {
+export interface FixtureWorkspace {
+  runRoot: string;
+  fixtureRoot: string;
+  repos: string[];
+}
+
+/**
+ * Prepare per-run ephemeral fixture clones from canonical platform-owned fixtures.
+ * Canonical fixtures under tests/live/fixtures are never mutated by live runs.
+ */
+export function prepareFixtureWorkspace(runId: string): FixtureWorkspace {
+  ensureCanonicalRoot();
+
+  const runRoot = fixtureRunRoot(runId);
+  const fixtureRoot = path.join(runRoot, 'fixtures');
+
+  rmSync(runRoot, { recursive: true, force: true });
+  mkdirSync(fixtureRoot, { recursive: true });
+
+  const repos: string[] = [];
+
+  for (const name of readdirSync(CANONICAL_FIXTURE_ROOT)) {
+    const sourceDir = path.join(CANONICAL_FIXTURE_ROOT, name);
+    const packageJson = path.join(sourceDir, 'package.json');
+    if (!existsSync(packageJson)) {
       continue;
     }
 
-    ensureGitBaseline(repoDir);
-    touched.push(repoDir);
+    const targetDir = path.join(fixtureRoot, name);
+    cpSync(sourceDir, targetDir, {
+      recursive: true,
+      filter: (src) => {
+        const base = path.basename(src);
+        return base !== '.git';
+      },
+    });
+
+    ensureGitBaseline(targetDir);
+    repos.push(targetDir);
   }
 
-  return touched;
+  process.env.LIVE_FIXTURE_ROOT = fixtureRoot;
+
+  return {
+    runRoot,
+    fixtureRoot,
+    repos,
+  };
+}
+
+export function resolveFixtureRepoPath(name: string): string {
+  const fixtureRoot = process.env.LIVE_FIXTURE_ROOT?.trim();
+  if (fixtureRoot) {
+    return path.join(fixtureRoot, name);
+  }
+  return path.join(CANONICAL_FIXTURE_ROOT, name);
+}
+
+export function cleanupFixtureWorkspace(runId: string): void {
+  rmSync(fixtureRunRoot(runId), { recursive: true, force: true });
 }

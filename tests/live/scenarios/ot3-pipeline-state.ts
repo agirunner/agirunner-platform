@@ -20,7 +20,7 @@ import { linearTemplateSchema, fanOutTemplateSchema } from './templates.js';
 
 async function drainRemainingTasks(ctx: TenantContext): Promise<void> {
   for (let i = 0; i < 10; i += 1) {
-    const claimed = await ctx.agentClient.claimTask({
+    const claimed = await ctx.workerClient.claimTask({
       agent_id: ctx.agentId,
       worker_id: ctx.workerId,
       capabilities: ['llm-api'],
@@ -81,7 +81,7 @@ async function testAnyFailed(ctx: TenantContext): Promise<string[]> {
   const firstTask = (pipeline.tasks ?? []).find((t) => t.state === 'ready');
   if (!firstTask) throw new Error('No ready task found');
 
-  await ctx.agentClient.claimTask({
+  await ctx.workerClient.claimTask({
     agent_id: ctx.agentId,
     worker_id: ctx.workerId,
     capabilities: ['llm-api'],
@@ -119,7 +119,7 @@ async function testAnyRunning(ctx: TenantContext): Promise<string[]> {
     name: 'OT3-any-running',
   });
 
-  const claim = await ctx.agentClient.claimTask({
+  const claim = await ctx.workerClient.claimTask({
     agent_id: ctx.agentId,
     worker_id: ctx.workerId,
     capabilities: ['llm-api'],
@@ -158,7 +158,7 @@ async function testMixedTerminalDerivation(ctx: TenantContext): Promise<string[]
     name: 'OT3-mixed-terminal',
   });
 
-  const rootClaim = await ctx.agentClient.claimTask({
+  const rootClaim = await ctx.workerClient.claimTask({
     agent_id: ctx.agentId,
     worker_id: ctx.workerId,
     capabilities: ['llm-api'],
@@ -169,7 +169,7 @@ async function testMixedTerminalDerivation(ctx: TenantContext): Promise<string[]
   await ctx.agentClient.completeTask(rootClaim.id, { result: 'root-complete' });
   await sleep(500);
 
-  const branchClaim = await ctx.agentClient.claimTask({
+  const branchClaim = await ctx.workerClient.claimTask({
     agent_id: ctx.agentId,
     worker_id: ctx.workerId,
     capabilities: ['llm-api'],

@@ -2,21 +2,17 @@
 /**
  * Live Test Harness Runner
  *
- * Entry point for `pnpm test:live`. Orchestrates environment setup,
- * scenario execution, and teardown with structured reporting.
- *
- * Supports:
- *   pnpm test:live                  — run all scenarios
- *   pnpm test:live --scenario ap1   — run a single scenario
- *   pnpm test:live --template sdlc  — backward-compatible template mode
- *   pnpm test:live --dashboard      — Playwright dashboard E2E
+ * Entry point for test lanes:
+ *  - core: deterministic control-plane checks (no live provider calls)
+ *  - live: batch live-environment scenario checks (LLM use allowed via SUT agent/orchestrator flows)
  */
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import { resetFixtureRepos } from './repo-factory.js';
+import { cleanupFixtureWorkspace, prepareFixtureWorkspace } from './repo-factory.js';
 import { saveRunReport } from './report.js';
 import { setupLiveEnvironment } from './setup.js';
 import { teardownLiveEnvironment } from './teardown.js';
@@ -27,6 +23,7 @@ import type {
   ScenarioExecutionResult,
   ScenarioResult,
   TemplateType,
+  TestLane,
 } from './types.js';
 
 // Scenario imports
@@ -35,6 +32,7 @@ import { runSdlcSadScenario } from '../scenarios/sdlc-sad.js';
 import { runMaintenanceHappyScenario } from '../scenarios/maintenance-happy.js';
 import { runMaintenanceSadScenario } from '../scenarios/maintenance-sad.js';
 import { runAp2ExternalRuntime } from '../scenarios/ap2-external-runtime.js';
+import { runAp3StandaloneWorker } from '../scenarios/ap3-standalone-worker.js';
 import { runAp4MixedWorkers } from '../scenarios/ap4-mixed-workers.js';
 import { runAp5MaintenancePipeline } from '../scenarios/ap5-maintenance-pipeline.js';
 import { runAp6RuntimeMaintenance } from '../scenarios/ap6-runtime-maintenance.js';
@@ -43,21 +41,27 @@ import { runOt1DependencyCascade } from '../scenarios/ot1-dependency-cascade.js'
 import { runOt2TaskRouting } from '../scenarios/ot2-task-routing.js';
 import { runOt3PipelineState } from '../scenarios/ot3-pipeline-state.js';
 import { runOt4WorkerHealth } from '../scenarios/ot4-worker-health.js';
+import { runHl1ApprovalFlow } from '../scenarios/hl1-approval-flow.js';
+import { runHl2PipelineControls } from '../scenarios/hl2-pipeline-controls.js';
 import { runIt1Sdk } from '../scenarios/it1-sdk.js';
 import { runIt2Mcp } from '../scenarios/it2-mcp.js';
+import { runIt3Webhooks } from '../scenarios/it3-webhooks.js';
 import { runIt3McpSseStream } from '../scenarios/it3-mcp-sse-stream.js';
 import { runSi1TenantIsolation } from '../scenarios/si1-tenant-isolation.js';
+import { runSi2Auth } from '../scenarios/si2-auth.js';
 import { runSi2ExtendedIsolation } from '../scenarios/si2-extended-isolation.js';
 import { LiveApiClient, type ApiWorker } from '../api-client.js';
 
-const PROVIDERS: Provider[] = ['openai', 'google', 'anthropic'];
+const LIVE_PROVIDERS: Provider[] = ['openai', 'google', 'anthropic'];
 const TEMPLATES: TemplateType[] = ['sdlc', 'maintenance'];
+
 type ScenarioName =
   | 'sdlc-happy'
   | 'sdlc-sad'
   | 'maintenance-happy'
   | 'maintenance-sad'
   | 'ap2-external-runtime'
+  | 'ap3-standalone-worker'
   | 'ap4-mixed-workers'
   | 'ap5-full'
   | 'ap6-runtime-maintenance'
@@ -66,16 +70,20 @@ type ScenarioName =
   | 'ot2-routing'
   | 'ot3-state'
   | 'ot4-health'
+  | 'hl1-approval-flow'
+  | 'hl2-pipeline-controls'
   | 'it1-sdk'
   | 'it2-mcp'
+  | 'it3-webhooks'
   | 'it3-mcp-sse-stream'
   | 'si1-isolation'
+  | 'si2-auth'
   | 'si2-extended-isolation';
 
-/** All scenarios in priority order per the test plan. */
 const ALL_SCENARIOS: ScenarioName[] = [
   'sdlc-happy',
   'ap2-external-runtime',
+  'ap3-standalone-worker',
   'ap4-mixed-workers',
   'sdlc-sad',
   'maintenance-happy',
@@ -87,17 +95,59 @@ const ALL_SCENARIOS: ScenarioName[] = [
   'ot2-routing',
   'ot3-state',
   'ot4-health',
+  'hl1-approval-flow',
+  'hl2-pipeline-controls',
   'it1-sdk',
   'it2-mcp',
+  'it3-webhooks',
   'it3-mcp-sse-stream',
   'si1-isolation',
+  'si2-auth',
   'si2-extended-isolation',
 ];
 
+const CORE_SCENARIOS: ScenarioName[] = [
+  'ap2-external-runtime',
+  'ap3-standalone-worker',
+  'ap4-mixed-workers',
+  'ap6-runtime-maintenance',
+  'ot1-cascade',
+  'ot2-routing',
+  'ot3-state',
+  'ot4-health',
+  'hl1-approval-flow',
+  'hl2-pipeline-controls',
+  'it1-sdk',
+  'it2-mcp',
+  'it3-webhooks',
+  'it3-mcp-sse-stream',
+  'si1-isolation',
+  'si2-auth',
+  'si2-extended-isolation',
+];
+
+const CORE_DEFAULT_SCENARIOS: ScenarioName[] = [
+  'ap2-external-runtime',
+  'ap3-standalone-worker',
+  'ap4-mixed-workers',
+  'ot1-cascade',
+  'ot4-health',
+  'hl1-approval-flow',
+  'it1-sdk',
+  'si1-isolation',
+];
+
+const LIVE_DEFAULT_SCENARIOS: ScenarioName[] = [
+  'sdlc-happy',
+  'maintenance-happy',
+  'ap5-full',
+  'ap7-failure-recovery',
+];
+
 const AP_SCENARIOS_REQUIRING_AUTONOMOUS_WORKER = new Set<ScenarioName>([
-  'sdlc-happy', // AP-1
-  'ap5-full', // AP-5
-  'ap7-failure-recovery', // AP-7
+  'sdlc-happy',
+  'ap5-full',
+  'ap7-failure-recovery',
 ]);
 
 const WORKER_PREFLIGHT_TIMEOUT_MS = Number(process.env.LIVE_WORKER_PREFLIGHT_TIMEOUT_MS ?? 45_000);
@@ -125,7 +175,7 @@ function loadEnvFile(envPath = '/root/.secrets/openai-test.env'): void {
 
 function printUsage(): void {
   console.log(
-    `Usage: pnpm test:live [options]\n\nOptions:\n  --all                       Run both templates across all providers\n  --template <sdlc|maintenance>\n                              Run a single template (default: sdlc)\n  --scenario <name>           Run a specific scenario by name\n  --provider <openai|google|anthropic>\n                              Run a single provider (default: openai)\n  --happy-only                Run happy-path scenarios only\n  --sad-only                  Run sad-path scenarios only\n  --repeat <N>                Repeat the selected matrix N times (default: 1)\n  --dashboard                 Run Playwright dashboard E2E suite\n  -h, --help                  Show this help message\n\nScenarios: ${ALL_SCENARIOS.join(', ')}\n`,
+    `Usage: pnpm test:live [options]\n\nOptions:\n  --lane <core|live>           Select deterministic core lane or batch live scenario lane\n                               (default: core)\n  --all                        Run full lane matrix\n  --template <sdlc|maintenance>\n                               Run a single template (live lane only)\n  --scenario <name>            Run a specific scenario by name\n  --provider <openai|google|anthropic>\n                               Live lane provider selection (default: openai)\n  --happy-only                 Run happy-path scenarios only (template mode only)\n  --sad-only                   Run sad-path scenarios only (template mode only)\n  --repeat <N>                 Repeat selected matrix N times (default: 1)\n  --dashboard                  Run Playwright dashboard E2E suite\n  -h, --help                   Show this help message\n\nCore default scenarios: ${CORE_DEFAULT_SCENARIOS.join(', ')}\nCore full scenarios (--all): ${CORE_SCENARIOS.join(', ')}\nLive default scenarios: ${LIVE_DEFAULT_SCENARIOS.join(', ')}\nAll scenarios: ${ALL_SCENARIOS.join(', ')}\n`,
   );
 }
 
@@ -145,13 +195,19 @@ function parseProvider(value: string): Provider {
   throw new Error(`Invalid --provider value: ${value}. Expected: openai, google, anthropic`);
 }
 
+function parseLane(value: string): TestLane {
+  if (value === 'core' || value === 'live') return value;
+  throw new Error(`Invalid --lane value: ${value}. Expected: core, live`);
+}
+
 interface ExtendedOptions extends RunnerOptions {
   scenario?: string;
 }
 
-function parseArgs(argv: string[]): ExtendedOptions {
+export function parseArgs(argv: string[]): ExtendedOptions {
   const options: ExtendedOptions = {
     all: false,
+    lane: 'core',
     happyOnly: false,
     sadOnly: false,
     repeat: 1,
@@ -160,8 +216,12 @@ function parseArgs(argv: string[]): ExtendedOptions {
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
+    if (arg === '--') continue;
     if (arg === '--all') options.all = true;
-    else if (arg === '--template') {
+    else if (arg === '--lane') {
+      options.lane = parseLane(requireArgValue(argv, i, '--lane'));
+      i += 1;
+    } else if (arg === '--template') {
       options.template = parseTemplate(requireArgValue(argv, i, '--template'));
       i += 1;
     } else if (arg === '--scenario') {
@@ -186,6 +246,15 @@ function parseArgs(argv: string[]): ExtendedOptions {
     throw new Error('Cannot pass both --happy-only and --sad-only');
   if (!Number.isInteger(options.repeat) || options.repeat <= 0)
     throw new Error(`--repeat must be a positive integer; got ${options.repeat}`);
+
+  if (options.lane === 'core' && options.provider) {
+    throw new Error('--provider is not allowed in --lane core (core is deterministic and LLM-free)');
+  }
+
+  if (options.lane === 'core' && options.template) {
+    throw new Error('--template is not supported in --lane core; use --scenario or --all');
+  }
+
   return options;
 }
 
@@ -226,6 +295,8 @@ async function runScenarioByName(
       return runSdlcHappyScenario(live);
     case 'ap2-external-runtime':
       return runAp2ExternalRuntime(live);
+    case 'ap3-standalone-worker':
+      return runAp3StandaloneWorker(live);
     case 'ap4-mixed-workers':
       return runAp4MixedWorkers(live);
     case 'sdlc-sad':
@@ -248,14 +319,22 @@ async function runScenarioByName(
       return runOt3PipelineState(live);
     case 'ot4-health':
       return runOt4WorkerHealth(live);
+    case 'hl1-approval-flow':
+      return runHl1ApprovalFlow(live);
+    case 'hl2-pipeline-controls':
+      return runHl2PipelineControls(live);
     case 'it1-sdk':
       return runIt1Sdk(live);
     case 'it2-mcp':
       return runIt2Mcp(live);
+    case 'it3-webhooks':
+      return runIt3Webhooks(live);
     case 'it3-mcp-sse-stream':
       return runIt3McpSseStream(live);
     case 'si1-isolation':
       return runSi1TenantIsolation(live);
+    case 'si2-auth':
+      return runSi2Auth(live);
     case 'si2-extended-isolation':
       return runSi2ExtendedIsolation(live);
     default:
@@ -263,7 +342,7 @@ async function runScenarioByName(
   }
 }
 
-function resolveScenarios(options: ExtendedOptions): ScenarioName[] {
+export function resolveScenarios(options: ExtendedOptions): ScenarioName[] {
   if (options.scenario) {
     const scenarioAliases: Record<string, ScenarioName> = {
       'si1-tenant-isolation': 'si1-isolation',
@@ -275,20 +354,34 @@ function resolveScenarios(options: ExtendedOptions): ScenarioName[] {
     );
     if (!found)
       throw new Error(`Unknown scenario: ${options.scenario}. Valid: ${ALL_SCENARIOS.join(', ')}`);
+
+    if (options.lane === 'core' && !CORE_SCENARIOS.includes(found)) {
+      throw new Error(
+        `Scenario ${found} is not allowed in core lane. Core lane scenarios: ${CORE_SCENARIOS.join(', ')}`,
+      );
+    }
     return [found];
   }
 
   if (options.dashboard) return [];
 
+  if (options.lane === 'core') {
+    return options.all ? [...CORE_SCENARIOS] : [...CORE_DEFAULT_SCENARIOS];
+  }
+
   if (options.all) return [...ALL_SCENARIOS];
 
-  // Template-based selection (backward compat)
+  // Live template-based selection
   const template = options.template ?? 'sdlc';
   let names: ScenarioName[] =
     template === 'sdlc' ? ['sdlc-happy', 'sdlc-sad'] : ['maintenance-happy', 'maintenance-sad'];
 
   if (options.happyOnly) names = names.filter((n) => n.endsWith('happy'));
   if (options.sadOnly) names = names.filter((n) => n.endsWith('sad'));
+
+  if (!options.template && !options.happyOnly && !options.sadOnly) {
+    return [...LIVE_DEFAULT_SCENARIOS];
+  }
 
   return names;
 }
@@ -376,6 +469,30 @@ function runDashboardPlaywright(runId: string, startedAt: number): ScenarioResul
   }
 }
 
+export function assertLiveApiKey(provider: Provider): void {
+  const requiredEnvByProvider: Record<'openai' | 'google' | 'anthropic', string[]> = {
+    openai: ['OPENAI_API_KEY'],
+    google: ['GOOGLE_API_KEY', 'GEMINI_API_KEY'],
+    anthropic: ['ANTHROPIC_API_KEY'],
+  };
+
+  if (provider === 'none') {
+    throw new Error('Live lane requires a provider, not provider "none"');
+  }
+
+  const acceptedKeys = requiredEnvByProvider[provider];
+  const hasKey = acceptedKeys.some((key) => {
+    const value = process.env[key]?.trim();
+    return Boolean(value);
+  });
+
+  if (!hasKey) {
+    throw new Error(
+      `Live lane requires provider API keys. Missing key for provider ${provider}. Expected one of: ${acceptedKeys.join(', ')}`,
+    );
+  }
+}
+
 async function runCombination(
   template: TemplateType,
   provider: Provider,
@@ -403,7 +520,7 @@ async function runCombination(
   }
 
   const live = await setupLiveEnvironment({ runId, template, provider });
-  resetFixtureRepos();
+  prepareFixtureWorkspace(runId);
 
   const scenarios = resolveScenarios(options);
   const scenarioResults: Record<string, ScenarioResult> = {};
@@ -432,6 +549,7 @@ async function runCombination(
       }
     }
   } finally {
+    cleanupFixtureWorkspace(runId);
     cleanup = teardownLiveEnvironment();
   }
 
@@ -449,28 +567,62 @@ async function runCombination(
   };
 }
 
-function makeExecutionMatrix(
+export function makeExecutionMatrix(
   options: ExtendedOptions,
 ): Array<{ template: TemplateType; provider: Provider }> {
   if (options.dashboard)
-    return [{ template: 'dashboard' as TemplateType, provider: options.provider ?? 'openai' }];
+    return [
+      {
+        template: 'dashboard' as TemplateType,
+        provider: options.lane === 'live' ? (options.provider ?? 'openai') : 'none',
+      },
+    ];
 
-  if (options.all) {
-    return TEMPLATES.flatMap((template) => PROVIDERS.map((provider) => ({ template, provider })));
+  if (options.lane === 'core') {
+    return [{ template: 'sdlc', provider: 'none' }];
   }
 
-  if (options.scenario) {
-    return [{ template: options.template ?? 'sdlc', provider: options.provider ?? 'openai' }];
+  if (options.all) {
+    return TEMPLATES.flatMap((template) => LIVE_PROVIDERS.map((provider) => ({ template, provider })));
   }
 
   return [{ template: options.template ?? 'sdlc', provider: options.provider ?? 'openai' }];
 }
 
-async function main(): Promise<void> {
-  loadEnvFile('/root/.secrets/openai-test.env');
+export function assertLiveApiKeysForMatrix(
+  matrix: Array<{ template: TemplateType; provider: Provider }>,
+): void {
+  const providersToValidate = new Set<Provider>();
 
+  for (const entry of matrix) {
+    if (entry.provider !== 'none') {
+      providersToValidate.add(entry.provider);
+    }
+  }
+
+  for (const provider of providersToValidate) {
+    assertLiveApiKey(provider);
+  }
+}
+
+export function isDirectExecution(metaUrl = import.meta.url): boolean {
+  const scriptPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
+  return fileURLToPath(metaUrl) === scriptPath;
+}
+
+async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
+
+  if (options.lane === 'live') {
+    loadEnvFile('/root/.secrets/openai-test.env');
+  }
+
   const matrix = makeExecutionMatrix(options);
+
+  if (options.lane === 'live') {
+    assertLiveApiKeysForMatrix(matrix);
+  }
+
   const reports: RunReport[] = [];
 
   for (let repeatIndex = 0; repeatIndex < options.repeat; repeatIndex += 1) {
@@ -481,7 +633,6 @@ async function main(): Promise<void> {
     }
   }
 
-  // Summary
   console.log('\n' + '='.repeat(60));
   console.log('LIVE TEST SUMMARY');
   console.log('='.repeat(60));
@@ -502,4 +653,6 @@ async function main(): Promise<void> {
   if (failed) process.exitCode = 1;
 }
 
-void main();
+if (isDirectExecution()) {
+  void main();
+}

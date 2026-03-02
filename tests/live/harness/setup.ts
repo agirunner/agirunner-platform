@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import pg from 'pg';
 
-import { loadConfig } from '../config.js';
+import { assertEvaluationConfig, loadConfig } from '../config.js';
 
 import type { LiveContext, Provider, TemplateType } from './types.js';
 
@@ -20,6 +20,7 @@ interface SetupExecutionPlan {
 }
 
 const liveConfig = loadConfig();
+assertEvaluationConfig(liveConfig);
 
 const API_BASE_URL = liveConfig.apiBaseUrl;
 const DASHBOARD_BASE_URL = liveConfig.dashboardBaseUrl;

@@ -35,7 +35,7 @@ async function testExactMatch(ctx: TenantContext): Promise<string[]> {
     capabilities_required: ['llm-api', 'role:developer'],
   });
 
-  const claimed = await ctx.agentClient.claimTask({
+  const claimed = await ctx.workerClient.claimTask({
     agent_id: ctx.agentId,
     worker_id: ctx.workerId,
     capabilities: ['llm-api', 'role:developer'],
@@ -63,7 +63,7 @@ async function testSupersetMatch(ctx: TenantContext): Promise<string[]> {
     capabilities_required: ['llm-api'],
   });
 
-  const claimed = await ctx.agentClient.claimTask({
+  const claimed = await ctx.workerClient.claimTask({
     agent_id: ctx.agentId,
     worker_id: ctx.workerId,
     capabilities: ['llm-api', 'role:developer', 'lang:typescript'],
@@ -91,7 +91,7 @@ async function testNoMatch(ctx: TenantContext): Promise<string[]> {
     capabilities_required: ['devops', 'kubernetes'],
   });
 
-  const claimed = await ctx.agentClient.claimTask({
+  const claimed = await ctx.workerClient.claimTask({
     agent_id: ctx.agentId,
     worker_id: ctx.workerId,
     capabilities: ['llm-api', 'role:developer'],
@@ -129,7 +129,7 @@ async function testPriorityOrdering(ctx: TenantContext): Promise<string[]> {
     capabilities_required: ['llm-api'],
   });
 
-  const claimed = await ctx.agentClient.claimTask({
+  const claimed = await ctx.workerClient.claimTask({
     agent_id: ctx.agentId,
     worker_id: ctx.workerId,
     capabilities: ['llm-api'],
@@ -142,7 +142,7 @@ async function testPriorityOrdering(ctx: TenantContext): Promise<string[]> {
 
   await completeTask(ctx, claimed.id);
 
-  const second = await ctx.agentClient.claimTask({
+  const second = await ctx.workerClient.claimTask({
     agent_id: ctx.agentId,
     worker_id: ctx.workerId,
     capabilities: ['llm-api'],
@@ -180,7 +180,7 @@ async function testFifoWithinPriority(ctx: TenantContext): Promise<string[]> {
     capabilities_required: ['llm-api'],
   });
 
-  const claimed = await ctx.agentClient.claimTask({
+  const claimed = await ctx.workerClient.claimTask({
     agent_id: ctx.agentId,
     worker_id: ctx.workerId,
     capabilities: ['llm-api'],
@@ -193,7 +193,7 @@ async function testFifoWithinPriority(ctx: TenantContext): Promise<string[]> {
 
   await completeTask(ctx, claimed.id);
 
-  const next = await ctx.agentClient.claimTask({
+  const next = await ctx.workerClient.claimTask({
     agent_id: ctx.agentId,
     worker_id: ctx.workerId,
     capabilities: ['llm-api'],
@@ -225,7 +225,7 @@ async function testOneClaimLimit(ctx: TenantContext): Promise<string[]> {
     capabilities_required: ['llm-api'],
   });
 
-  const claimedFirst = await ctx.agentClient.claimTask({
+  const claimedFirst = await ctx.workerClient.claimTask({
     agent_id: ctx.agentId,
     worker_id: ctx.workerId,
     capabilities: ['llm-api'],
@@ -236,7 +236,7 @@ async function testOneClaimLimit(ctx: TenantContext): Promise<string[]> {
   }
 
   try {
-    await ctx.agentClient.claimTask({
+    await ctx.workerClient.claimTask({
       agent_id: ctx.agentId,
       worker_id: ctx.workerId,
       capabilities: ['llm-api'],
@@ -251,7 +251,7 @@ async function testOneClaimLimit(ctx: TenantContext): Promise<string[]> {
 
   await completeTask(ctx, first.id);
 
-  const claimedSecond = await ctx.agentClient.claimTask({
+  const claimedSecond = await ctx.workerClient.claimTask({
     agent_id: ctx.agentId,
     worker_id: ctx.workerId,
     capabilities: ['llm-api'],

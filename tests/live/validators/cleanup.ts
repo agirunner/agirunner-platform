@@ -9,7 +9,9 @@ function cmd(command: string, cwd = process.cwd()): string {
 export function validateCleanup(): string[] {
   const validations: string[] = [];
 
-  const leakedContainers = cmd('docker ps -a --filter label=com.docker.compose.project=agentbaton-platform --format "{{.ID}}"')
+  const leakedContainers = cmd(
+    'docker ps -a --filter label=com.docker.compose.project=agentbaton-platform --format "{{.ID}}"',
+  )
     .split('\n')
     .filter(Boolean);
   if (leakedContainers.length > 0) {
@@ -27,20 +29,16 @@ export function validateCleanup(): string[] {
   validations.push('temp_files_clean');
 
   const fixtureRoot = path.join(process.cwd(), 'tests/live/fixtures');
-  const dangling = readdirSync(fixtureRoot)
+  const contaminatedCanonicalFixtures = readdirSync(fixtureRoot)
     .map((name) => path.join(fixtureRoot, name))
-    .filter((repoPath) => existsSync(path.join(repoPath, '.git')))
-    .flatMap((repoPath) => {
-      const branches = cmd('git for-each-ref --format="%(refname:short)" refs/heads', repoPath)
-        .split('\n')
-        .filter(Boolean);
-      return branches.filter((branch) => branch !== 'main').map((branch) => `${repoPath}:${branch}`);
-    });
+    .filter((repoPath) => existsSync(path.join(repoPath, '.git')));
 
-  if (dangling.length > 0) {
-    throw new Error(`Dangling fixture branches found: ${dangling.join(', ')}`);
+  if (contaminatedCanonicalFixtures.length > 0) {
+    throw new Error(
+      `Canonical fixtures contaminated with .git state: ${contaminatedCanonicalFixtures.join(', ')}`,
+    );
   }
-  validations.push('branches_clean');
+  validations.push('canonical_fixtures_clean');
 
   return validations;
 }

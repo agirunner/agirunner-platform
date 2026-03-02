@@ -1,7 +1,7 @@
 # CONTEXT.md — AgentBaton Platform v1.0
 
 ## Last Updated
-2026-03-02 04:56 UTC
+2026-03-02 17:26 UTC
 
 ## Product
 AgentBaton Platform — coordination engine for agentic software development pipelines.
@@ -12,6 +12,19 @@ AgentBaton Platform — coordination engine for agentic software development pip
 - **Open issues:** 0 ✅
 - **Runtime tests:** All v1.0-gating pass ✅
 - **Platform tests:** AP suite re-run in progress (OpenAI first pass)
+
+## Admiral Evidence Authenticity Directive (2026-03-02)
+- **No stubs, no placeholder outputs, no harness-simulated execution paths** may be counted as PASS for release gating.
+- For every SDLC scenario, evidence must prove **what was actually built** and validate output schema/content completeness against acceptance criteria.
+- Any row backed only by control-plane/lifecycle checks must be marked **PARTIAL** or **NOT RUN** until real execution evidence exists.
+- Traceability status must be derived from underlying run artifacts, not summary labels.
+
+## Admiral Test Automation & LLM Usage Policy (2026-03-02)
+- All integration and live tests must be **scripted and automated** (no manual/ad-hoc execution as gate evidence).
+- Core/unit lanes should remain deterministic and batch-friendly.
+- Integration/live/SDLC lanes should run real simulation; LLM use via agents/orchestrators is valid and expected when scenario requires it.
+- Any LLM usage must be **configurable** for both product execution and test-result interpretation/evaluation.
+- Tests requiring platform dependency belong in the platform repo.
 
 ## Authoritative Docs → `enterprise/agentbaton-docs`
 

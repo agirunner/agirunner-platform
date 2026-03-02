@@ -5,6 +5,8 @@
  * environment variables with sensible defaults. No hardcoded values.
  */
 
+export type EvaluationMode = 'deterministic' | 'llm';
+
 export interface LiveConfig {
   /** Platform API base URL */
   apiBaseUrl: string;
@@ -28,6 +30,16 @@ export interface LiveConfig {
   composeProject: string;
   /** If true, setup skips docker compose stack startup and validates health only */
   skipStackSetup: boolean;
+  /**
+   * Test-result interpretation mode.
+   * - deterministic: schema/state assertions only (default; no evaluator LLM)
+   * - llm: reserved for explicit evaluator-model wiring (not enabled by default)
+   */
+  evaluationMode: EvaluationMode;
+  /** Optional evaluator model selection for llm mode (e.g. gpt-4o-mini) */
+  evaluationModel: string;
+  /** Optional evaluator provider for llm mode (openai|anthropic|google) */
+  evaluationProvider: string;
 }
 
 function parseBooleanEnv(value: string | undefined): boolean {
@@ -37,6 +49,33 @@ function parseBooleanEnv(value: string | undefined): boolean {
 
   const normalized = value.trim().toLowerCase();
   return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+}
+
+function parseEvaluationMode(value: string | undefined): EvaluationMode {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized || normalized === 'deterministic') {
+    return 'deterministic';
+  }
+  if (normalized === 'llm') {
+    return 'llm';
+  }
+  throw new Error(
+    `Invalid LIVE_EVALUATION_MODE value "${value}". Expected "deterministic" (default) or "llm".`,
+  );
+}
+
+export function assertEvaluationConfig(config: LiveConfig): void {
+  if (config.evaluationMode === 'deterministic') {
+    return;
+  }
+
+  if (config.evaluationMode === 'llm') {
+    if (!config.evaluationProvider || !config.evaluationModel) {
+      throw new Error(
+        'LIVE_EVALUATION_MODE=llm requires LIVE_EVALUATION_PROVIDER and LIVE_EVALUATION_MODEL to be set',
+      );
+    }
+  }
 }
 
 export function loadConfig(): LiveConfig {
@@ -54,5 +93,8 @@ export function loadConfig(): LiveConfig {
     sseDurationMs: Number(process.env.LIVE_SSE_DURATION_MS ?? 10_000),
     composeProject: process.env.COMPOSE_PROJECT_NAME ?? 'agentbaton-platform',
     skipStackSetup: parseBooleanEnv(process.env.LIVE_SKIP_STACK_SETUP),
+    evaluationMode: parseEvaluationMode(process.env.LIVE_EVALUATION_MODE),
+    evaluationProvider: process.env.LIVE_EVALUATION_PROVIDER?.trim() ?? '',
+    evaluationModel: process.env.LIVE_EVALUATION_MODEL?.trim() ?? '',
   };
 }
