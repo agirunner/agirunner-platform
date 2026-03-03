@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-03T19:53:49.076Z",
-  "generated_at_utc": "2026-03-03T19:53:49.076Z",
+  "generatedAt": "2026-03-03T19:57:02.937Z",
+  "generated_at_utc": "2026-03-03T19:57:02.937Z",
   "status_enum": [
     "PASS",
     "FLAKY",
@@ -1847,6 +1847,63 @@
           "si2-auth": "PASS",
           "si2-extended-isolation": "PASS"
         }
+      },
+      {
+        "runId": "2026-03-03T19-50-12-475Z-sdlc-none-r1",
+        "startedAt": "2026-03-03T19:50:12.475Z",
+        "finishedAt": "2026-03-03T19:54:29.490Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-03T19-50-12-475Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-03T19-50-12-475Z-sdlc-none-r1.md",
+        "scenarios": {
+          "ap2-external-runtime": "PASS",
+          "ap3-standalone-worker": "PASS",
+          "ap4-mixed-workers": "PASS",
+          "ap6-runtime-maintenance": "PASS",
+          "ot1-cascade": "PASS",
+          "ot2-routing": "PASS",
+          "ot3-state": "PASS",
+          "ot4-health": "PASS",
+          "hl1-approval-flow": "PASS",
+          "hl2-pipeline-controls": "PASS",
+          "it1-sdk": "PASS",
+          "it2-mcp": "PASS",
+          "it3-webhooks": "PASS",
+          "it3-mcp-sse-stream": "PASS",
+          "si1-isolation": "PASS",
+          "si2-auth": "PASS",
+          "si2-extended-isolation": "PASS"
+        }
+      },
+      {
+        "runId": "2026-03-03T19-56-20-620Z-sdlc-none-r1",
+        "startedAt": "2026-03-03T19:56:20.620Z",
+        "finishedAt": "2026-03-03T19:56:20.620Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-03T19-56-20-620Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-03T19-56-20-620Z-sdlc-none-r1.md",
+        "scenarios": {
+          "sdlc-happy": "FAIL",
+          "ap2-external-runtime": "FAIL",
+          "ap3-standalone-worker": "FAIL",
+          "ap4-mixed-workers": "FAIL",
+          "maintenance-happy": "FAIL",
+          "ap6-runtime-maintenance": "FAIL",
+          "ap7-failure-recovery": "FAIL",
+          "ot1-cascade": "FAIL",
+          "ot2-routing": "FAIL",
+          "ot3-state": "FAIL",
+          "ot4-health": "FAIL",
+          "hl1-approval-flow": "FAIL",
+          "hl2-pipeline-controls": "FAIL",
+          "it1-sdk": "FAIL",
+          "it2-mcp": "FAIL",
+          "it3-webhooks": "FAIL",
+          "it3-mcp-sse-stream": "FAIL",
+          "si1-isolation": "FAIL",
+          "si2-auth": "FAIL",
+          "si2-extended-isolation": "FAIL"
+        }
       }
     ],
     "integration": [
@@ -2080,6 +2137,17 @@
         "scenarios": {
           "dashboard": "FAIL"
         }
+      },
+      {
+        "runId": "2026-03-03T19-55-04-789Z-dashboard-none-r1",
+        "startedAt": "2026-03-03T19:55:04.788Z",
+        "finishedAt": "2026-03-03T19:55:12.556Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T19-55-04-789Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T19-55-04-789Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "FAIL"
+        }
       }
     ],
     "live": []
@@ -2102,12 +2170,11 @@
         "finishedAt": "2026-03-03T19:49:27.105Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z",
-        "error": "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: Deterministic delivery-quality validator returned NOT_PASS. Evidence: tests/artifacts/live/validators/2026-03-03T19-40-18-968Z-sdlc-anthropic-r1/sdlc-happy-authenticity.json"
+        "status": "PASS",
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z"
       }
     },
     "ap2-external-runtime": {
@@ -2127,10 +2194,10 @@
       },
       "anthropic": {
         "status": "PASS",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z"
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z"
       }
     },
     "ap3-standalone-worker": {
@@ -2150,10 +2217,10 @@
       },
       "anthropic": {
         "status": "PASS",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z"
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z"
       }
     },
     "ap4-mixed-workers": {
@@ -2173,10 +2240,10 @@
       },
       "anthropic": {
         "status": "PASS",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z"
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z"
       }
     },
     "maintenance-happy": {
@@ -2197,12 +2264,11 @@
         "error": "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: Deterministic delivery-quality validator returned NOT_PASS. Evidence: tests/artifacts/live/validators/2026-03-03T19-44-06-032Z-sdlc-google-r1/maintenance-happy-authenticity.json"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z",
-        "error": "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: Deterministic delivery-quality validator returned NOT_PASS. Evidence: tests/artifacts/live/validators/2026-03-03T19-40-18-968Z-sdlc-anthropic-r1/maintenance-happy-authenticity.json"
+        "status": "PASS",
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z"
       }
     },
     "ap6-runtime-maintenance": {
@@ -2222,10 +2288,10 @@
       },
       "anthropic": {
         "status": "PASS",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z"
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z"
       }
     },
     "ap7-failure-recovery": {
@@ -2246,10 +2312,10 @@
       },
       "anthropic": {
         "status": "FAIL",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z",
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z",
         "error": "AP-7 expected a failed task, but no failed task was observed before timeout"
       }
     },
@@ -2270,10 +2336,10 @@
       },
       "anthropic": {
         "status": "PASS",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z"
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z"
       }
     },
     "ot2-routing": {
@@ -2293,10 +2359,10 @@
       },
       "anthropic": {
         "status": "PASS",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z"
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z"
       }
     },
     "ot3-state": {
@@ -2316,10 +2382,10 @@
       },
       "anthropic": {
         "status": "PASS",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z"
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z"
       }
     },
     "ot4-health": {
@@ -2339,10 +2405,10 @@
       },
       "anthropic": {
         "status": "PASS",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z"
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z"
       }
     },
     "hl1-approval-flow": {
@@ -2362,10 +2428,10 @@
       },
       "anthropic": {
         "status": "PASS",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z"
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z"
       }
     },
     "hl2-pipeline-controls": {
@@ -2385,10 +2451,10 @@
       },
       "anthropic": {
         "status": "PASS",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z"
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z"
       }
     },
     "it1-sdk": {
@@ -2408,10 +2474,10 @@
       },
       "anthropic": {
         "status": "PASS",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z"
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z"
       }
     },
     "it2-mcp": {
@@ -2431,10 +2497,10 @@
       },
       "anthropic": {
         "status": "PASS",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z"
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z"
       }
     },
     "it3-webhooks": {
@@ -2454,10 +2520,10 @@
       },
       "anthropic": {
         "status": "PASS",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z"
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z"
       }
     },
     "it3-mcp-sse-stream": {
@@ -2477,10 +2543,10 @@
       },
       "anthropic": {
         "status": "PASS",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z"
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z"
       }
     },
     "si1-isolation": {
@@ -2500,10 +2566,10 @@
       },
       "anthropic": {
         "status": "PASS",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z"
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z"
       }
     },
     "si2-auth": {
@@ -2523,10 +2589,10 @@
       },
       "anthropic": {
         "status": "PASS",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z"
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z"
       }
     },
     "si2-extended-isolation": {
@@ -2546,10 +2612,10 @@
       },
       "anthropic": {
         "status": "PASS",
-        "runId": "2026-03-03T19-40-18-968Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-40-18-968Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T19:43:13.297Z"
+        "runId": "2026-03-03T19-49-27-108Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T19-49-27-108Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T19:55:44.056Z"
       }
     }
   }
