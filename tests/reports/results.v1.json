@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-03T05:07:59.949Z",
-  "generated_at_utc": "2026-03-03T05:07:59.949Z",
+  "generatedAt": "2026-03-03T05:40:52.233Z",
+  "generated_at_utc": "2026-03-03T05:40:52.233Z",
   "status_enum": [
     "PASS",
     "FLAKY",
@@ -174,23 +174,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -206,7 +206,7 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -224,7 +224,7 @@
             "retries=1 attempts=2",
             "retry_reason: fetch failed"
           ],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -242,7 +242,7 @@
             "retries=1 attempts=2",
             "retry_reason: fetch failed"
           ],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     },
@@ -256,23 +256,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -286,7 +286,7 @@
             "tests/artifacts/live/run-2026-03-03T03-52-22-261Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -300,7 +300,7 @@
             "tests/artifacts/live/run-2026-03-03T04-02-32-347Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -311,7 +311,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     },
@@ -325,23 +325,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -352,7 +352,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -363,7 +363,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -374,7 +374,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     },
@@ -388,23 +388,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -415,7 +415,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -426,7 +426,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -437,7 +437,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     },
@@ -451,23 +451,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -481,7 +481,7 @@
             "tests/artifacts/live/run-2026-03-03T00-25-24-693Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -495,7 +495,7 @@
             "tests/artifacts/live/run-2026-03-03T00-33-31-127Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -506,7 +506,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     },
@@ -520,23 +520,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -547,7 +547,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -558,7 +558,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -569,7 +569,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     },
@@ -583,23 +583,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -610,7 +610,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -621,7 +621,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -632,7 +632,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     },
@@ -646,23 +646,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -673,7 +673,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -684,7 +684,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -695,7 +695,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     },
@@ -709,23 +709,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -736,7 +736,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -747,7 +747,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -758,7 +758,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     },
@@ -772,23 +772,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -799,7 +799,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -810,7 +810,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -821,7 +821,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     },
@@ -835,23 +835,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -862,7 +862,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -873,7 +873,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -884,7 +884,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     },
@@ -898,23 +898,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -925,7 +925,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -936,7 +936,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -947,7 +947,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     },
@@ -961,23 +961,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -988,7 +988,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -999,7 +999,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1010,7 +1010,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     },
@@ -1024,23 +1024,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1051,7 +1051,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1062,7 +1062,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1073,7 +1073,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     },
@@ -1087,23 +1087,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1114,7 +1114,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1125,7 +1125,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1136,7 +1136,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     },
@@ -1150,23 +1150,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1177,7 +1177,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1188,7 +1188,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1199,7 +1199,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     },
@@ -1213,23 +1213,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1240,7 +1240,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1251,7 +1251,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1262,7 +1262,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     },
@@ -1276,23 +1276,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1303,7 +1303,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1314,7 +1314,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1325,7 +1325,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     },
@@ -1339,23 +1339,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1366,7 +1366,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1377,7 +1377,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1388,7 +1388,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     },
@@ -1402,23 +1402,23 @@
           "lane": "core",
           "category": "core",
           "provider": "none",
-          "mode": "deterministic",
+          "mode": "core",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "integration",
           "category": "integration",
           "provider": "none",
-          "mode": "dashboard",
+          "mode": "integration",
           "gating": true,
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1429,7 +1429,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1440,7 +1440,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         },
         {
           "lane": "live",
@@ -1451,7 +1451,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T05:07:59.949Z"
+          "generated_at_utc": "2026-03-03T05:40:52.233Z"
         }
       ]
     }

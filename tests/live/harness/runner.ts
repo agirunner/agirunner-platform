@@ -632,11 +632,20 @@ async function runCombination(
           result.validations.push(
             `authenticity_route:${authenticity.route}`,
             `authenticity_status:${authenticity.status}`,
+            `delivery_quality_status:${authenticity.deliveryQualityStatus}`,
           );
 
+          if (authenticity.resilience) {
+            result.validations.push(`resilience_status:${authenticity.resilience.status}`);
+          }
+
           if (authenticity.status !== 'PASS') {
+            const resilienceStatus = authenticity.resilience?.status;
             throw new Error(
-              `Output authenticity NOT_PASS (${authenticity.route})${authenticity.reason ? `: ${authenticity.reason}` : ''}. Evidence: ${authenticity.artifactPath}`,
+              `Output authenticity NOT_PASS (${authenticity.route})` +
+                `${resilienceStatus ? ` resilience=${resilienceStatus}` : ''}` +
+                ` delivery_quality=${authenticity.deliveryQualityStatus}` +
+                `${authenticity.reason ? `: ${authenticity.reason}` : ''}. Evidence: ${authenticity.artifactPath}`,
             );
           }
 

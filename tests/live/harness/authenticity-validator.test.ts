@@ -7,6 +7,7 @@ import {
   enforceScenarioAuthenticityGate,
   resolveScenarioAuthenticityRoute,
   runDeterministicAuthenticityValidator,
+  runDeterministicResilienceValidator,
   runLlmAuthenticityValidator,
 } from './authenticity-validator.js';
 import type { ScenarioDeliveryEvidence, ScenarioExecutionResult } from './types.js';
@@ -41,6 +42,29 @@ function makeResult(overrides?: Partial<ScenarioExecutionResult>): ScenarioExecu
     screenshots: [],
     authenticityEvidence: [makeEvidence()],
     ...overrides,
+  };
+}
+
+function makeAp7Evidence(): ScenarioDeliveryEvidence {
+  return {
+    pipelineId: 'pipeline-ap7',
+    pipelineState: 'active',
+    acceptanceCriteria: ['AP-7 resilience + delivery quality split evidence'],
+    requiresGitDiffEvidence: false,
+    tasks: [
+      {
+        id: 'ap7-failed-task',
+        role: 'developer',
+        state: 'failed',
+        output: { error: 'Impossible rewrite request failed as expected' },
+      },
+      {
+        id: 'ap7-retried-task',
+        role: 'developer',
+        state: 'ready',
+        output: { status: 'ready_after_retry' },
+      },
+    ],
   };
 }
 
@@ -106,6 +130,71 @@ test('deterministic validator enforces git/diff linkage where applicable', () =>
       (check) => check.checkId.startsWith('git-diff-linkage') && check.status === 'NOT_PASS',
     ),
   );
+});
+
+test('ap7 deterministic resilience validator rejects forbidden no_failure_within_timeout token', () => {
+  const evidence = makeAp7Evidence();
+  const verdict = runDeterministicResilienceValidator(
+    'ap7-failure-recovery',
+    makeResult({
+      name: 'ap7-failure-recovery',
+      validations: [
+        'template_created',
+        'pipeline_created',
+        'resilience_no_hang_within_timeout',
+        'resilience_failed_task_observed',
+        'resilience_retry_control_invoked',
+        'resilience_retry_transition_ready',
+        'no_failure_within_timeout',
+      ],
+      authenticityEvidence: [evidence],
+    }),
+    [evidence],
+  );
+
+  assert.ok(verdict);
+  assert.equal(verdict?.status, 'NOT_PASS');
+  assert.ok(
+    verdict?.checks.some(
+      (check) =>
+        check.checkId === 'resilience.forbidden-pass-validation-absent' &&
+        check.status === 'NOT_PASS',
+    ),
+  );
+});
+
+test('authenticity gate separates resilience and delivery-quality outcomes for AP-7', async () => {
+  const evidence = makeAp7Evidence();
+
+  const result = await enforceScenarioAuthenticityGate({
+    runId: 'test-run-ap7-split',
+    scenario: 'ap7-failure-recovery',
+    provider: 'openai',
+    template: 'sdlc',
+    result: makeResult({
+      name: 'ap7-failure-recovery',
+      validations: [
+        'template_created',
+        'pipeline_created',
+        'resilience_no_hang_within_timeout',
+        'resilience_failed_task_observed',
+        'resilience_retry_control_invoked',
+        'resilience_retry_transition_ready',
+        'no_failure_within_timeout',
+      ],
+      authenticityEvidence: [evidence],
+    }),
+  });
+
+  assert.equal(result.status, 'NOT_PASS');
+  assert.equal(result.resilience?.status, 'NOT_PASS');
+  assert.equal(result.deliveryQualityStatus, 'PASS');
+  assert.match(result.reason ?? '', /Deterministic resilience validator/);
+
+  rmSync(path.join(process.cwd(), 'tests', 'artifacts', 'live', 'validators', 'test-run-ap7-split'), {
+    recursive: true,
+    force: true,
+  });
 });
 
 test('llm validator fails closed when provider credentials are unavailable', async () => {

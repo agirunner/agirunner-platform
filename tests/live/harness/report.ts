@@ -107,6 +107,12 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+function normalizeModeForLane(lane: Lane, mode: string): string {
+  if (lane === 'core' && mode === 'deterministic') return 'core';
+  if (lane === 'integration' && mode === 'dashboard') return 'integration';
+  return mode;
+}
+
 function renderHumanReport(report: RunReport): string {
   const rows = Object.entries(report.scenarios)
     .map(([name, result]) => {
@@ -288,7 +294,7 @@ function buildConsolidatedPayload(
         lane: 'core',
         category: 'core',
         provider: 'none',
-        mode: 'deterministic',
+        mode: 'core',
         gating: true,
         status: coreStatus,
         evidence_links: [],
@@ -299,7 +305,7 @@ function buildConsolidatedPayload(
         lane: 'integration',
         category: 'integration',
         provider: 'none',
-        mode: 'dashboard',
+        mode: 'integration',
         gating: true,
         status: integrationStatus,
         evidence_links: [],
@@ -397,8 +403,23 @@ function readExistingOrLegacyState(
       const key = byId.get(row.use_case_id);
       if (!key) continue;
       for (const cell of row.cells ?? []) {
-        if (cell.lane === 'core') fallbackCore[key] = cell.status;
-        if (cell.lane === 'integration') fallbackIntegration[key] = cell.status;
+        const normalizedMode = normalizeModeForLane(cell.lane, cell.mode);
+
+        if (
+          cell.lane === 'core' ||
+          (cell.category === 'core' && cell.provider === 'none' && normalizedMode === 'core')
+        ) {
+          fallbackCore[key] = cell.status;
+        }
+
+        if (
+          cell.lane === 'integration' ||
+          (cell.category === 'integration' &&
+            cell.provider === 'none' &&
+            normalizedMode === 'integration')
+        ) {
+          fallbackIntegration[key] = cell.status;
+        }
       }
     }
 

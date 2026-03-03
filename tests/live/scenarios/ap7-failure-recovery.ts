@@ -20,7 +20,7 @@ import type {
 import { LiveApiClient } from '../api-client.js';
 import { loadConfig } from '../config.js';
 import { assertTaskFailed } from './assertions.js';
-import { pollPipelineUntil, pollTaskUntil, sleep } from './poll.js';
+import { pollPipelineUntil, sleep } from './poll.js';
 import { sdlcTemplateSchema } from './templates.js';
 
 const config = loadConfig();
@@ -62,6 +62,7 @@ export async function runAp7FailureRecovery(live: LiveContext): Promise<Scenario
     ['failed', 'active', 'completed'],
     config.pipelineTimeoutMs,
   );
+  validations.push('resilience_no_hang_within_timeout');
 
   let finalSnapshot = result;
 
@@ -86,24 +87,38 @@ export async function runAp7FailureRecovery(live: LiveContext): Promise<Scenario
   }
 
   assertTaskFailed(failedTask);
-  validations.push('task_failure_detected');
+  validations.push('resilience_failed_task_observed');
 
   const retried = await client.retryTask(failedTask.id);
+  validations.push('resilience_retry_control_invoked');
   if (retried.state !== 'ready') {
     throw new Error(`Retried task ${retried.id} expected state "ready", got "${retried.state}"`);
   }
-  validations.push('task_retry_succeeds');
-  validations.push('retried_task_ready');
+  validations.push('resilience_retry_transition_ready');
+
+  const postRetrySnapshot = await client.getPipeline(pipeline.id);
 
   const authenticityEvidence: ScenarioDeliveryEvidence[] = [
     {
+      pipelineId: postRetrySnapshot.id,
+      pipelineState: postRetrySnapshot.state,
+      acceptanceCriteria: [
+        'Deterministic resilience: timeout-bounded poll reaches observable state (no hang/crash)',
+        'Deterministic resilience: impossible input surfaces a failed task and retry control restores ready state',
+        'Delivery quality: outputs avoid synthetic/template placeholders',
+      ],
+      requiresGitDiffEvidence: false,
+      tasks: (postRetrySnapshot.tasks ?? []).map((task) => ({
+        id: task.id,
+        role: task.role ?? task.type,
+        state: task.state,
+        output: task.output ?? null,
+      })),
+    },
+    {
       pipelineId: finalSnapshot.id,
       pipelineState: finalSnapshot.state,
-      acceptanceCriteria: [
-        'Failure behavior is explicit for impossible input (at least one task failed)',
-        'Retry flow transitions failed task back to ready',
-        'No synthetic/template placeholders in produced outputs',
-      ],
+      acceptanceCriteria: ['Pre-retry snapshot preserves failure-path traceability'],
       requiresGitDiffEvidence: false,
       tasks: (finalSnapshot.tasks ?? []).map((task) => ({
         id: task.id,

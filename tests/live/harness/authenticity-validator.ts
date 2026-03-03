@@ -69,6 +69,8 @@ export interface AuthenticityGateResult {
   artifactPath: string;
   deterministic: DeterministicValidatorResult;
   llm?: LlmValidatorResult;
+  resilience?: DeterministicValidatorResult;
+  deliveryQualityStatus: AuthenticityStatus;
   reason?: string;
 }
 
@@ -96,6 +98,9 @@ const PLACEHOLDER_PATTERNS: Array<{ id: string; regex: RegExp }> = [
 
 const CODE_EVIDENCE_PATTERN =
   /(diff\s+--git|^@@|^\+\+\+\s|^---\s|\bgit\s+diff\b|\bchanged\s+files?\b|\b(file|path)\s*:\s*[^\n]+\.(ts|tsx|js|jsx|py|go|java|md))/im;
+
+const RESILIENCE_ONLY_SCENARIOS = new Set(['ap7-failure-recovery', 'sdlc-sad']);
+const FORBIDDEN_PASS_VALIDATIONS = new Set(['no_failure_within_timeout']);
 
 const LLM_VERDICT_SCHEMA = {
   type: 'object',
@@ -199,6 +204,96 @@ function buildEvidenceCatalog(
   }
 
   return catalog;
+}
+
+function isResilienceSplitScenario(scenario: string): boolean {
+  return RESILIENCE_ONLY_SCENARIOS.has(scenario);
+}
+
+export function runDeterministicResilienceValidator(
+  scenario: string,
+  result: ScenarioExecutionResult,
+  evidence: ScenarioDeliveryEvidence[],
+): DeterministicValidatorResult | undefined {
+  if (!isResilienceSplitScenario(scenario)) {
+    return undefined;
+  }
+
+  const checks: DeterministicCheckResult[] = [];
+  const validations = new Set(result.validations);
+
+  const forbiddenValidations = result.validations.filter((validation) =>
+    FORBIDDEN_PASS_VALIDATIONS.has(validation),
+  );
+
+  checks.push({
+    checkId: 'resilience.forbidden-pass-validation-absent',
+    status: forbiddenValidations.length === 0 ? 'PASS' : 'NOT_PASS',
+    rationale:
+      forbiddenValidations.length === 0
+        ? 'No forbidden pass-only timeout bypass validations were reported'
+        : `Forbidden pass-only validation(s) observed: ${forbiddenValidations.join(', ')}`,
+    evidenceRefs: ['scenario:resilience:validations'],
+  });
+
+  const hasNoHangSignal =
+    validations.has('resilience_no_hang_within_timeout') ||
+    validations.has('resilience_poll_completed_within_timeout');
+
+  checks.push({
+    checkId: 'resilience.no-hang-timeout-bound',
+    status: hasNoHangSignal ? 'PASS' : 'NOT_PASS',
+    rationale: hasNoHangSignal
+      ? 'Scenario reported completion of timeout-bounded polling (no hang/crash signal)'
+      : 'Missing timeout-bounded polling signal for resilience verification',
+    evidenceRefs: ['scenario:resilience:validations'],
+  });
+
+  const hasFailedTaskSignal =
+    validations.has('resilience_failed_task_observed') ||
+    validations.has('task_failure_detected') ||
+    evidence.some((pipeline) => pipeline.tasks.some((task) => task.state === 'failed'));
+
+  checks.push({
+    checkId: 'resilience.failure-path-observed',
+    status: hasFailedTaskSignal ? 'PASS' : 'NOT_PASS',
+    rationale: hasFailedTaskSignal
+      ? 'At least one failed task was observed before retry'
+      : 'No failed task evidence found; resilience failure path not demonstrated',
+    evidenceRefs: ['scenario:resilience:validations'],
+  });
+
+  const retryControlInvoked =
+    validations.has('resilience_retry_control_invoked') || validations.has('task_retry_succeeds');
+
+  checks.push({
+    checkId: 'resilience.retry-control-invoked',
+    status: retryControlInvoked ? 'PASS' : 'NOT_PASS',
+    rationale: retryControlInvoked
+      ? 'Retry control action was invoked successfully'
+      : 'Retry control action signal missing',
+    evidenceRefs: ['scenario:resilience:validations'],
+  });
+
+  const retryReadyObserved =
+    validations.has('resilience_retry_transition_ready') ||
+    validations.has('retried_task_ready') ||
+    evidence.some((pipeline) => pipeline.tasks.some((task) => task.state === 'ready'));
+
+  checks.push({
+    checkId: 'resilience.retry-transitions-ready',
+    status: retryReadyObserved ? 'PASS' : 'NOT_PASS',
+    rationale: retryReadyObserved
+      ? 'Retried task transitioned back to ready'
+      : 'No evidence that retried task transitioned to ready',
+    evidenceRefs: ['scenario:resilience:validations'],
+  });
+
+  const status: AuthenticityStatus = checks.every((check) => check.status === 'PASS')
+    ? 'PASS'
+    : 'NOT_PASS';
+
+  return { status, checks };
 }
 
 export function runDeterministicAuthenticityValidator(
@@ -602,6 +697,8 @@ function writeAuthenticityArtifact(
   deterministic: DeterministicValidatorResult,
   llm: LlmValidatorResult | undefined,
   finalStatus: AuthenticityStatus,
+  resilience: DeterministicValidatorResult | undefined,
+  deliveryQualityStatus: AuthenticityStatus,
 ): string {
   const artifactDir = path.join(
     process.cwd(),
@@ -628,11 +725,20 @@ function writeAuthenticityArtifact(
     generatedAt: new Date().toISOString(),
     result: {
       status: finalStatus,
+      resilienceStatus: resilience?.status,
+      deliveryQualityStatus,
     },
     validatorInput: {
       validations: input.result.validations,
       artifacts: input.result.artifacts,
       authenticityEvidence: input.result.authenticityEvidence ?? [],
+    },
+    resilienceValidator: resilience,
+    deliveryQualityGate: {
+      route,
+      status: deliveryQualityStatus,
+      deterministicStatus: deterministic.status,
+      llmStatus: llm?.status,
     },
     deterministicValidator: deterministic,
     llmValidator: llm,
@@ -653,13 +759,23 @@ export async function enforceScenarioAuthenticityGate(
     evidence,
   );
 
+  const resilience = runDeterministicResilienceValidator(input.scenario, input.result, evidence);
+
   let llm: LlmValidatorResult | undefined;
-  let finalStatus: AuthenticityStatus = deterministic.status;
+  let finalStatus: AuthenticityStatus = 'PASS';
+  let deliveryQualityStatus: AuthenticityStatus = deterministic.status;
   let reason: string | undefined;
 
+  if (resilience && resilience.status !== 'PASS') {
+    finalStatus = 'NOT_PASS';
+    reason = 'Deterministic resilience validator returned NOT_PASS';
+  }
+
   if (deterministic.status !== 'PASS') {
-    reason = 'Deterministic authenticity validator returned NOT_PASS';
-  } else if (route === 'hybrid-llm') {
+    deliveryQualityStatus = 'NOT_PASS';
+    finalStatus = 'NOT_PASS';
+    reason ??= 'Deterministic delivery-quality validator returned NOT_PASS';
+  } else if (route === 'hybrid-llm' && (!resilience || resilience.status === 'PASS')) {
     const config = loadConfig();
     const evidenceCatalog = buildEvidenceCatalog(evidence, config.authenticityLlmMaxEvidenceChars);
 
@@ -678,18 +794,32 @@ export async function enforceScenarioAuthenticityGate(
         },
         error: 'No evidence catalog available for LLM validator (fail-closed)',
       };
+      deliveryQualityStatus = 'NOT_PASS';
       finalStatus = 'NOT_PASS';
-      reason = llm.error;
+      reason ??= llm.error;
     } else {
       llm = await runLlmAuthenticityValidator(input.scenario, deterministic, evidenceCatalog);
+      deliveryQualityStatus = llm.status;
       if (llm.status !== 'PASS') {
         finalStatus = 'NOT_PASS';
-        reason = llm.error ?? 'LLM authenticity validator returned NOT_PASS';
+        reason ??= llm.error ?? 'LLM delivery-quality validator returned NOT_PASS';
       }
     }
   }
 
-  const artifactPath = writeAuthenticityArtifact(input, route, deterministic, llm, finalStatus);
+  if (finalStatus !== 'NOT_PASS' && deliveryQualityStatus === 'PASS') {
+    finalStatus = 'PASS';
+  }
+
+  const artifactPath = writeAuthenticityArtifact(
+    input,
+    route,
+    deterministic,
+    llm,
+    finalStatus,
+    resilience,
+    deliveryQualityStatus,
+  );
 
   return {
     status: finalStatus,
@@ -697,6 +827,8 @@ export async function enforceScenarioAuthenticityGate(
     artifactPath,
     deterministic,
     llm,
+    resilience,
+    deliveryQualityStatus,
     reason,
   };
 }

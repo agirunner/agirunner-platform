@@ -181,14 +181,14 @@ function validateConsolidated(payload: ConsolidatedResults, canonical: Canonical
 
       if (
         cell.lane === 'core' &&
-        !(cell.category === 'core' && cell.provider === 'none' && cell.mode === 'deterministic')
+        !(cell.category === 'core' && cell.provider === 'none' && cell.mode === 'core')
       ) {
         fail(`row ${row.use_case_id} has invalid core lane cell shape`);
       }
 
       if (
         cell.lane === 'integration' &&
-        !(cell.category === 'integration' && cell.provider === 'none' && cell.mode === 'dashboard')
+        !(cell.category === 'integration' && cell.provider === 'none' && cell.mode === 'integration')
       ) {
         fail(`row ${row.use_case_id} has invalid integration lane cell shape`);
       }
