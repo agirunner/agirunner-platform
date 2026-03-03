@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-03T03:57:49.352Z",
-  "generated_at_utc": "2026-03-03T03:57:49.352Z",
+  "generatedAt": "2026-03-03T04:07:57.003Z",
+  "generated_at_utc": "2026-03-03T04:07:57.003Z",
   "status_enum": [
     "PASS",
     "FAIL",
@@ -135,8 +135,8 @@
     }
   ],
   "summary": {
-    "PASS": 3,
-    "FAIL": 4,
+    "PASS": 4,
+    "FAIL": 3,
     "NOT_PASS": 93,
     "row_count": 20,
     "cell_count": 100,
@@ -152,8 +152,8 @@
         "NOT_PASS": 20
       },
       "live": {
-        "PASS": 3,
-        "FAIL": 4,
+        "PASS": 4,
+        "FAIL": 3,
         "NOT_PASS": 53
       }
     }
@@ -174,7 +174,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -185,7 +185,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -201,7 +201,7 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -219,7 +219,7 @@
             "retries=1 attempts=2",
             "retry_reason: fetch failed"
           ],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -237,7 +237,7 @@
             "retries=1 attempts=2",
             "retry_reason: fetch failed"
           ],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     },
@@ -256,7 +256,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -267,7 +267,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -281,7 +281,7 @@
             "tests/artifacts/live/run-2026-03-03T03-52-22-261Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -289,17 +289,13 @@
           "provider": "google",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T03-08-53-576Z-sdlc-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T03-08-53-576Z-sdlc-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T04-02-32-347Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T04-02-32-347Z-sdlc-google-r1.md"
           ],
-          "notes": [
-            "fetch failed",
-            "retries=1 attempts=2",
-            "retry_reason: fetch failed"
-          ],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -310,7 +306,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     },
@@ -329,7 +325,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -340,7 +336,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -351,7 +347,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -362,7 +358,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -373,7 +369,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     },
@@ -392,7 +388,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -403,7 +399,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -414,7 +410,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -425,7 +421,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -436,7 +432,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     },
@@ -455,7 +451,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -466,7 +462,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -480,7 +476,7 @@
             "tests/artifacts/live/run-2026-03-03T00-25-24-693Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -494,7 +490,7 @@
             "tests/artifacts/live/run-2026-03-03T00-33-31-127Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -505,7 +501,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     },
@@ -524,7 +520,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -535,7 +531,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -546,7 +542,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -557,7 +553,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -568,7 +564,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     },
@@ -587,7 +583,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -598,7 +594,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -609,7 +605,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -620,7 +616,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -631,7 +627,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     },
@@ -650,7 +646,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -661,7 +657,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -672,7 +668,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -683,7 +679,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -694,7 +690,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     },
@@ -713,7 +709,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -724,7 +720,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -735,7 +731,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -746,7 +742,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -757,7 +753,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     },
@@ -776,7 +772,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -787,7 +783,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -798,7 +794,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -809,7 +805,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -820,7 +816,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     },
@@ -839,7 +835,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -850,7 +846,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -861,7 +857,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -872,7 +868,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -883,7 +879,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     },
@@ -902,7 +898,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -913,7 +909,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -924,7 +920,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -935,7 +931,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -946,7 +942,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     },
@@ -965,7 +961,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -976,7 +972,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -987,7 +983,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -998,7 +994,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1009,7 +1005,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     },
@@ -1028,7 +1024,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -1039,7 +1035,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1050,7 +1046,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1061,7 +1057,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1072,7 +1068,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     },
@@ -1091,7 +1087,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -1102,7 +1098,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1113,7 +1109,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1124,7 +1120,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1135,7 +1131,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     },
@@ -1154,7 +1150,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -1165,7 +1161,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1176,7 +1172,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1187,7 +1183,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1198,7 +1194,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     },
@@ -1217,7 +1213,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -1228,7 +1224,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1239,7 +1235,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1250,7 +1246,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1261,7 +1257,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     },
@@ -1280,7 +1276,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -1291,7 +1287,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1302,7 +1298,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1313,7 +1309,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1324,7 +1320,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     },
@@ -1343,7 +1339,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -1354,7 +1350,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1365,7 +1361,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1376,7 +1372,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1387,7 +1383,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     },
@@ -1406,7 +1402,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "integration",
@@ -1417,7 +1413,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1428,7 +1424,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1439,7 +1435,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         },
         {
           "lane": "live",
@@ -1450,7 +1446,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T03:57:49.352Z"
+          "generated_at_utc": "2026-03-03T04:07:57.003Z"
         }
       ]
     }
@@ -1508,17 +1504,14 @@
         "retryReasons": []
       },
       "google": {
-        "status": "FAIL",
-        "runId": "2026-03-03T03-08-53-576Z-sdlc-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T03-08-53-576Z-sdlc-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T03-08-53-576Z-sdlc-google-r1.md",
-        "finishedAt": "2026-03-03T03:08:53.576Z",
-        "error": "fetch failed",
-        "attempts": 2,
-        "retryCount": 1,
-        "retryReasons": [
-          "fetch failed"
-        ]
+        "status": "PASS",
+        "runId": "2026-03-03T04-02-32-347Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T04-02-32-347Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T04-02-32-347Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T04:07:56.972Z",
+        "attempts": 1,
+        "retryCount": 0,
+        "retryReasons": []
       },
       "anthropic": {
         "status": "NOT_PASS"
