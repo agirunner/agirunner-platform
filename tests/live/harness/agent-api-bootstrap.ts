@@ -9,7 +9,7 @@ export interface AgentApiBootstrap {
   /** Optional AGENT_API_KEY to inject for endpoint auth. */
   agentApiKey?: string;
   /** Human-readable source descriptor for diagnostics. */
-  source: 'provided' | 'harness-openai-live';
+  source: 'provided' | 'harness-live-executor';
   dispose: () => Promise<void>;
 }
 
@@ -170,7 +170,7 @@ async function startHarnessOpenAiExecutor(openAiKey: string): Promise<AgentApiBo
   return {
     agentApiUrl: workerUrl,
     agentApiKey,
-    source: 'harness-openai-live',
+    source: 'harness-live-executor',
     dispose: async () => {
       await new Promise<void>((resolve) => {
         server.close(() => resolve());
@@ -311,7 +311,7 @@ async function executeWithOpenAi(
     task_id: payload.task_id ?? 'unknown-task',
     pipeline_id: derivePipelineId(payload),
     role,
-    handled_by: 'ap-live-openai-executor',
+    handled_by: 'ap-live-harness-executor',
     execution_mode: 'live-agent-api',
     summary: modelOutput.summary,
     implementation: modelOutput.implementation,
