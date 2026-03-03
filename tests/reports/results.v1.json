@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-03T20:22:18.211Z",
-  "generated_at_utc": "2026-03-03T20:22:18.211Z",
+  "generatedAt": "2026-03-03T20:25:40.438Z",
+  "generated_at_utc": "2026-03-03T20:25:40.438Z",
   "status_enum": [
     "PASS",
     "FLAKY",
@@ -1952,6 +1952,33 @@
           "it2-mcp": "PASS",
           "it3-webhooks": "PASS",
           "it3-mcp-sse-stream": "PASS",
+          "si1-isolation": "FAIL",
+          "si2-auth": "PASS",
+          "si2-extended-isolation": "PASS"
+        }
+      },
+      {
+        "runId": "2026-03-03T20-20-58-678Z-sdlc-none-r1",
+        "startedAt": "2026-03-03T20:20:58.678Z",
+        "finishedAt": "2026-03-03T20:25:05.142Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-03T20-20-58-678Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-03T20-20-58-678Z-sdlc-none-r1.md",
+        "scenarios": {
+          "ap2-external-runtime": "FAIL",
+          "ap3-standalone-worker": "PASS",
+          "ap4-mixed-workers": "FAIL",
+          "ap6-runtime-maintenance": "PASS",
+          "ot1-cascade": "PASS",
+          "ot2-routing": "FAIL",
+          "ot3-state": "FAIL",
+          "ot4-health": "FAIL",
+          "hl1-approval-flow": "PASS",
+          "hl2-pipeline-controls": "FAIL",
+          "it1-sdk": "FAIL",
+          "it2-mcp": "FAIL",
+          "it3-webhooks": "PASS",
+          "it3-mcp-sse-stream": "FAIL",
           "si1-isolation": "FAIL",
           "si2-auth": "PASS",
           "si2-extended-isolation": "PASS"
