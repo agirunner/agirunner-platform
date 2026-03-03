@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-03T20:34:04.276Z",
-  "generated_at_utc": "2026-03-03T20:34:04.276Z",
+  "generatedAt": "2026-03-03T20:41:34.489Z",
+  "generated_at_utc": "2026-03-03T20:41:34.489Z",
   "status_enum": [
     "PASS",
     "FLAKY",
@@ -136,17 +136,17 @@
     }
   ],
   "summary": {
-    "PASS": 60,
+    "PASS": 55,
     "FLAKY": 0,
-    "FAIL": 20,
+    "FAIL": 25,
     "NOT_PASS": 20,
     "row_count": 20,
     "cell_count": 100,
     "by_lane": {
       "core": {
-        "PASS": 7,
+        "PASS": 3,
         "FLAKY": 0,
-        "FAIL": 13,
+        "FAIL": 17,
         "NOT_PASS": 0
       },
       "integration": {
@@ -156,9 +156,9 @@
         "NOT_PASS": 20
       },
       "live": {
-        "PASS": 53,
+        "PASS": 52,
         "FLAKY": 0,
-        "FAIL": 7,
+        "FAIL": 8,
         "NOT_PASS": 0
       }
     }
@@ -179,7 +179,7 @@
           "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -190,7 +190,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -200,13 +200,13 @@
           "gating": true,
           "status": "FAIL",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [
-            "Pipeline dbb4537e-ce7b-4041-84b1-024bbfb5fbbc expected state \"completed\", got \"failed\""
+            "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: Deterministic delivery-quality validator returned NOT_PASS. Evidence: tests/artifacts/live/validators/2026-03-03T20-23-02-302Z-sdlc-openai-r1/sdlc-happy-authenticity.json"
           ],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -216,13 +216,13 @@
           "gating": true,
           "status": "FAIL",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-27-48-467Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-27-48-467Z-sdlc-google-r1.md"
           ],
           "notes": [
-            "Pipeline 838fc2b4-c609-4ca1-99f4-c4082b866455 expected state \"completed\", got \"failed\""
+            "Pipeline 6a25f64a-5c8b-4e16-aa0c-45a1aa8a2558 expected state \"completed\", got \"failed\""
           ],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -238,7 +238,7 @@
           "notes": [
             "Pipeline 01656d85-40c2-4ecf-9b46-7909712d0cd0 expected state \"completed\", got \"failed\""
           ],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     },
@@ -254,10 +254,10 @@
           "provider": "none",
           "mode": "core",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -268,7 +268,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -278,11 +278,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -292,11 +292,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -310,7 +310,7 @@
             "tests/artifacts/live/run-2026-03-03T20-20-58-469Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     },
@@ -329,7 +329,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -340,7 +340,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -350,11 +350,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -364,11 +364,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -382,7 +382,7 @@
             "tests/artifacts/live/run-2026-03-03T20-20-58-469Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     },
@@ -398,10 +398,10 @@
           "provider": "none",
           "mode": "core",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -412,7 +412,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -422,11 +422,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -436,11 +436,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -454,7 +454,7 @@
             "tests/artifacts/live/run-2026-03-03T20-20-58-469Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     },
@@ -473,7 +473,7 @@
           "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -484,7 +484,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -494,13 +494,13 @@
           "gating": true,
           "status": "FAIL",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [
-            "Pipeline 3240c034-a5ef-4617-a049-59edba34db20 expected state \"completed\", got \"failed\""
+            "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: Deterministic delivery-quality validator returned NOT_PASS. Evidence: tests/artifacts/live/validators/2026-03-03T20-23-02-302Z-sdlc-openai-r1/maintenance-happy-authenticity.json"
           ],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -510,13 +510,13 @@
           "gating": true,
           "status": "FAIL",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md"
           ],
           "notes": [
-            "Pipeline ec52107a-0d58-4fef-bff2-8e41785c72d4 expected state \"completed\", got \"failed\""
+            "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: Deterministic delivery-quality validator returned NOT_PASS. Evidence: tests/artifacts/live/validators/2026-03-03T20-28-40-996Z-sdlc-google-r1/maintenance-happy-authenticity.json"
           ],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -532,7 +532,7 @@
           "notes": [
             "Pipeline 73c3a526-c1ee-41ae-bcd2-617a4a9d0ff0 expected state \"completed\", got \"failed\""
           ],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     },
@@ -548,10 +548,10 @@
           "provider": "none",
           "mode": "core",
           "gating": true,
-          "status": "PASS",
+          "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -562,7 +562,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -572,11 +572,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -586,11 +586,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -604,7 +604,7 @@
             "tests/artifacts/live/run-2026-03-03T20-20-58-469Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     },
@@ -623,7 +623,7 @@
           "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -634,7 +634,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -644,13 +644,13 @@
           "gating": true,
           "status": "FAIL",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-18-16-708Z-sdlc-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-18-16-708Z-sdlc-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [
             "AP-7 expected a failed task, but no failed task was observed before timeout"
           ],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -658,13 +658,15 @@
           "provider": "google",
           "mode": "e2e",
           "gating": true,
-          "status": "PASS",
+          "status": "FAIL",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md"
           ],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "notes": [
+            "AP-7 expected a failed task, but no failed task was observed before timeout"
+          ],
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -678,7 +680,7 @@
             "tests/artifacts/live/run-2026-03-03T20-20-58-469Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     },
@@ -694,10 +696,10 @@
           "provider": "none",
           "mode": "core",
           "gating": true,
-          "status": "PASS",
+          "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -708,7 +710,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -718,11 +720,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -732,11 +734,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -750,7 +752,7 @@
             "tests/artifacts/live/run-2026-03-03T20-20-58-469Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     },
@@ -769,7 +771,7 @@
           "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -780,7 +782,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -790,11 +792,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -804,11 +806,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -822,7 +824,7 @@
             "tests/artifacts/live/run-2026-03-03T20-20-58-469Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     },
@@ -841,7 +843,7 @@
           "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -852,7 +854,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -862,11 +864,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -876,11 +878,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -894,7 +896,7 @@
             "tests/artifacts/live/run-2026-03-03T20-20-58-469Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     },
@@ -913,7 +915,7 @@
           "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -924,7 +926,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -934,11 +936,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -948,11 +950,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -966,7 +968,7 @@
             "tests/artifacts/live/run-2026-03-03T20-20-58-469Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     },
@@ -982,10 +984,10 @@
           "provider": "none",
           "mode": "core",
           "gating": true,
-          "status": "PASS",
+          "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -996,7 +998,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1006,11 +1008,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1020,11 +1022,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1038,7 +1040,7 @@
             "tests/artifacts/live/run-2026-03-03T20-20-58-469Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     },
@@ -1057,7 +1059,7 @@
           "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -1068,7 +1070,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1078,11 +1080,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1092,11 +1094,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1110,7 +1112,7 @@
             "tests/artifacts/live/run-2026-03-03T20-20-58-469Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     },
@@ -1129,7 +1131,7 @@
           "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -1140,7 +1142,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1150,11 +1152,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1164,11 +1166,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1182,7 +1184,7 @@
             "tests/artifacts/live/run-2026-03-03T20-20-58-469Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     },
@@ -1201,7 +1203,7 @@
           "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -1212,7 +1214,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1222,11 +1224,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1236,11 +1238,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1254,7 +1256,7 @@
             "tests/artifacts/live/run-2026-03-03T20-20-58-469Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     },
@@ -1270,10 +1272,10 @@
           "provider": "none",
           "mode": "core",
           "gating": true,
-          "status": "PASS",
+          "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -1284,7 +1286,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1294,11 +1296,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1308,11 +1310,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1326,7 +1328,7 @@
             "tests/artifacts/live/run-2026-03-03T20-20-58-469Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     },
@@ -1345,7 +1347,7 @@
           "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -1356,7 +1358,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1366,11 +1368,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1380,11 +1382,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1398,7 +1400,7 @@
             "tests/artifacts/live/run-2026-03-03T20-20-58-469Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     },
@@ -1417,7 +1419,7 @@
           "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -1428,7 +1430,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1438,11 +1440,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1452,11 +1454,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1470,7 +1472,7 @@
             "tests/artifacts/live/run-2026-03-03T20-20-58-469Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     },
@@ -1486,10 +1488,10 @@
           "provider": "none",
           "mode": "core",
           "gating": true,
-          "status": "PASS",
+          "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -1500,7 +1502,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1510,11 +1512,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1524,11 +1526,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1542,7 +1544,7 @@
             "tests/artifacts/live/run-2026-03-03T20-20-58-469Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     },
@@ -1558,10 +1560,10 @@
           "provider": "none",
           "mode": "core",
           "gating": true,
-          "status": "PASS",
+          "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "integration",
@@ -1572,7 +1574,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1582,11 +1584,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-08-30-198Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-23-02-302Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1596,11 +1598,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         },
         {
           "lane": "live",
@@ -1614,7 +1616,7 @@
             "tests/artifacts/live/run-2026-03-03T20-20-58-469Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T20:25:43.855Z"
+          "generated_at_utc": "2026-03-03T20:37:37.778Z"
         }
       ]
     }
@@ -2037,6 +2039,33 @@
           "si2-auth": "FAIL",
           "si2-extended-isolation": "FAIL"
         }
+      },
+      {
+        "runId": "2026-03-03T20-35-08-944Z-sdlc-none-r1",
+        "startedAt": "2026-03-03T20:35:01.005Z",
+        "finishedAt": "2026-03-03T20:35:08.944Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-03T20-35-08-944Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-03T20-35-08-944Z-sdlc-none-r1.md",
+        "scenarios": {
+          "ap2-external-runtime": "FAIL",
+          "ap3-standalone-worker": "FAIL",
+          "ap4-mixed-workers": "FAIL",
+          "ap6-runtime-maintenance": "FAIL",
+          "ot1-cascade": "FAIL",
+          "ot2-routing": "FAIL",
+          "ot3-state": "FAIL",
+          "ot4-health": "FAIL",
+          "hl1-approval-flow": "FAIL",
+          "hl2-pipeline-controls": "FAIL",
+          "it1-sdk": "FAIL",
+          "it2-mcp": "FAIL",
+          "it3-webhooks": "FAIL",
+          "it3-mcp-sse-stream": "FAIL",
+          "si1-isolation": "FAIL",
+          "si2-auth": "FAIL",
+          "si2-extended-isolation": "FAIL"
+        }
       }
     ],
     "integration": [
@@ -2391,6 +2420,28 @@
         "scenarios": {
           "dashboard": "PASS"
         }
+      },
+      {
+        "runId": "2026-03-03T20-36-17-312Z-dashboard-none-r1",
+        "startedAt": "2026-03-03T20:36:17.311Z",
+        "finishedAt": "2026-03-03T20:36:21.539Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T20-36-17-312Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T20-36-17-312Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "PASS"
+        }
+      },
+      {
+        "runId": "2026-03-03T20-40-25-543Z-dashboard-none-r1",
+        "startedAt": "2026-03-03T20:40:25.542Z",
+        "finishedAt": "2026-03-03T20:40:30.463Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T20-40-25-543Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T20-40-25-543Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "PASS"
+        }
       }
     ],
     "live": []
@@ -2407,11 +2458,11 @@
       },
       "google": {
         "status": "FAIL",
-        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
-        "finishedAt": "2026-03-03T20:31:59.412Z",
-        "error": "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: Deterministic delivery-quality validator returned NOT_PASS. Evidence: tests/artifacts/live/validators/2026-03-03T20-28-40-996Z-sdlc-google-r1/sdlc-happy-authenticity.json"
+        "runId": "2026-03-03T20-27-48-467Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-27-48-467Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-27-48-467Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:37:37.729Z",
+        "error": "Pipeline 6a25f64a-5c8b-4e16-aa0c-45a1aa8a2558 expected state \"completed\", got \"failed\""
       },
       "anthropic": {
         "status": "FAIL",
