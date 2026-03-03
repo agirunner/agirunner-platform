@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-03T18:55:52.539Z",
-  "generated_at_utc": "2026-03-03T18:55:52.539Z",
+  "generatedAt": "2026-03-03T18:58:10.563Z",
+  "generated_at_utc": "2026-03-03T18:58:10.563Z",
   "status_enum": [
     "PASS",
     "FLAKY",
@@ -1682,12 +1682,12 @@
   "runs": {
     "core": [
       {
-        "runId": "2026-03-03T18-28-01-079Z-sdlc-none-r1",
-        "startedAt": "2026-03-03T18:28:01.079Z",
-        "finishedAt": "2026-03-03T18:30:07.086Z",
+        "runId": "2026-03-03T18-53-08-228Z-sdlc-none-r1",
+        "startedAt": "2026-03-03T18:53:08.228Z",
+        "finishedAt": "2026-03-03T18:56:54.776Z",
         "status": "PASS",
-        "artifactJsonPath": "tests/artifacts/core/run-2026-03-03T18-28-01-079Z-sdlc-none-r1.json",
-        "artifactMdPath": "tests/artifacts/core/run-2026-03-03T18-28-01-079Z-sdlc-none-r1.md",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-03T18-53-08-228Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-03T18-53-08-228Z-sdlc-none-r1.md",
         "scenarios": {
           "ap2-external-runtime": "PASS",
           "ap3-standalone-worker": "PASS",
@@ -1728,6 +1728,28 @@
         "status": "FAIL",
         "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T18-53-34-098Z-dashboard-none-r1.json",
         "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T18-53-34-098Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-03T18-57-10-340Z-dashboard-none-r1",
+        "startedAt": "2026-03-03T18:57:10.340Z",
+        "finishedAt": "2026-03-03T18:57:14.295Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T18-57-10-340Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T18-57-10-340Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-03T18-57-47-752Z-dashboard-none-r1",
+        "startedAt": "2026-03-03T18:57:47.752Z",
+        "finishedAt": "2026-03-03T18:57:55.914Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T18-57-47-752Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T18-57-47-752Z-dashboard-none-r1.md",
         "scenarios": {
           "dashboard": "FAIL"
         }
