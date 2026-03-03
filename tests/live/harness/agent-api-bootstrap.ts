@@ -36,6 +36,7 @@ interface OpenAiTaskResult {
 }
 
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
+const AP7_SCENARIO = 'ap7-failure-recovery';
 
 export async function bootstrapAgentApiEndpoint(params: {
   scenarios: readonly string[];
@@ -47,20 +48,54 @@ export async function bootstrapAgentApiEndpoint(params: {
     return null;
   }
 
+  const config = loadConfig();
+  const ap7FailClosed =
+    config.ap7RequireProvidedAgentApiUrl && params.scenarios.includes(AP7_SCENARIO);
+
+  const openAiKey = process.env.OPENAI_API_KEY?.trim();
   const existingUrl = params.existingUrl?.trim();
   if (existingUrl) {
-    return {
-      agentApiUrl: toWorkerReachableUrl(existingUrl),
-      agentApiKey: params.existingApiKey?.trim() || undefined,
-      source: 'provided',
-      dispose: async () => {},
-    };
+    const workerReachableUrl = toWorkerReachableUrl(existingUrl);
+    const reachable = await canReachAgentApi(workerReachableUrl, config.agentApiProbeTimeoutMs);
+
+    if (reachable) {
+      return {
+        agentApiUrl: workerReachableUrl,
+        agentApiKey: params.existingApiKey?.trim() || undefined,
+        source: 'provided',
+        dispose: async () => {},
+      };
+    }
+
+    if (ap7FailClosed) {
+      throw new Error(
+        `AP-7 fail-closed: provided AGENT_API_URL is unreachable for built-in worker (${workerReachableUrl}). ` +
+          'Harness fallback executor is disabled for AP-7 truth-lane execution-path integrity.',
+      );
+    }
+
+    if (openAiKey) {
+      console.warn(
+        `Provided AGENT_API_URL appears unreachable for built-in worker (${workerReachableUrl}); falling back to harness live executor.`,
+      );
+      return startHarnessOpenAiExecutor(openAiKey);
+    }
+
+    throw new Error(
+      `Provided AGENT_API_URL appears unreachable for built-in worker (${workerReachableUrl}) and OPENAI_API_KEY is unavailable for harness fallback executor.`,
+    );
   }
 
-  // AP built-in scenarios only require a reachable AGENT_API_URL.
-  // The harness-hosted executor is transport-compatible across live providers,
-  // so bootstrap should not be gated on lane provider (openai/google/anthropic).
-  const openAiKey = process.env.OPENAI_API_KEY?.trim();
+  if (ap7FailClosed) {
+    throw new Error(
+      'AP-7 fail-closed: AGENT_API_URL must be explicitly configured for built-in worker execution. ' +
+        'Harness fallback executor is disabled for AP-7 truth-lane execution-path integrity.',
+    );
+  }
+
+  // Built-in scenarios require a worker-reachable AGENT_API_URL.
+  // For non-AP7 lanes, the harness-hosted executor is transport-compatible
+  // across live providers, so bootstrap should not be gated on lane provider.
   if (!openAiKey) {
     return null;
   }
@@ -73,6 +108,7 @@ function usesBuiltInWorker(scenarios: readonly string[]): boolean {
     'ap1-sdlc-pipeline',
     'ap3-standalone-worker',
     'ap5-full',
+    'ap7-failure-recovery',
     'sdlc-happy',
     'sdlc-sad',
     'maintenance-happy',
@@ -99,6 +135,52 @@ function toWorkerReachableUrl(rawUrl: string): string {
   }
 
   return parsed.toString();
+}
+
+async function canReachAgentApi(workerUrl: string, timeoutMs: number): Promise<boolean> {
+  const candidates = new Set<string>();
+  candidates.add(workerUrl);
+
+  try {
+    const parsed = new URL(workerUrl);
+    if (parsed.hostname === 'host.docker.internal') {
+      const localhost = new URL(workerUrl);
+      localhost.hostname = 'localhost';
+      candidates.add(localhost.toString());
+
+      const loopback = new URL(workerUrl);
+      loopback.hostname = '127.0.0.1';
+      candidates.add(loopback.toString());
+    }
+  } catch {
+    // Keep raw candidate only.
+  }
+
+  for (const candidate of candidates) {
+    if (await probeHttpEndpoint(candidate, timeoutMs)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function probeHttpEndpoint(url: string, timeoutMs: number): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+
+    return response.status >= 100;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function startHarnessOpenAiExecutor(openAiKey: string): Promise<AgentApiBootstrap> {
@@ -240,7 +322,15 @@ async function executeWithOpenAi(
           schema: {
             type: 'object',
             additionalProperties: false,
-            required: ['summary', 'implementation', 'changed_files', 'patch', 'tests', 'risks', 'review_notes'],
+            required: [
+              'summary',
+              'implementation',
+              'changed_files',
+              'patch',
+              'tests',
+              'risks',
+              'review_notes',
+            ],
             properties: {
               summary: { type: 'string', minLength: 1 },
               implementation: {

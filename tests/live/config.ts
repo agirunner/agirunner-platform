@@ -26,6 +26,14 @@ export interface LiveConfig {
   healthTimeoutMs: number;
   /** SSE capture duration (ms) */
   sseDurationMs: number;
+  /** Probe timeout when validating AGENT_API_URL reachability (ms) */
+  agentApiProbeTimeoutMs: number;
+  /**
+   * AP-7 truth lane guard.
+   * When true, AP-7 requires an explicit, reachable AGENT_API_URL and cannot
+   * silently fall back to harness executor semantics.
+   */
+  ap7RequireProvidedAgentApiUrl: boolean;
   /** Docker compose project name for leak detection */
   composeProject: string;
   /** If true, setup skips docker compose stack startup and validates health only */
@@ -60,6 +68,13 @@ function parseBooleanEnv(value: string | undefined): boolean {
   return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
 }
 
+function parseBooleanEnvWithDefault(value: string | undefined, defaultValue: boolean): boolean {
+  if (value === undefined) {
+    return defaultValue;
+  }
+  return parseBooleanEnv(value);
+}
+
 function parseEvaluationMode(value: string | undefined): EvaluationMode {
   const normalized = value?.trim().toLowerCase();
   if (!normalized || normalized === 'deterministic') {
@@ -80,6 +95,10 @@ export function assertEvaluationConfig(config: LiveConfig): void {
         'LIVE_EVALUATION_MODE=llm requires LIVE_EVALUATION_PROVIDER and LIVE_EVALUATION_MODEL to be set',
       );
     }
+  }
+
+  if (!Number.isFinite(config.agentApiProbeTimeoutMs) || config.agentApiProbeTimeoutMs <= 0) {
+    throw new Error('LIVE_AGENT_API_PROBE_TIMEOUT_MS must be a positive number');
   }
 
   if (!config.authenticityLlmProvider || !config.authenticityLlmModel) {
@@ -142,6 +161,11 @@ export function loadConfig(): LiveConfig {
     claimPollTimeoutMs: Number(process.env.LIVE_CLAIM_POLL_TIMEOUT_MS ?? 60_000),
     healthTimeoutMs: Number(process.env.LIVE_HEALTH_TIMEOUT_MS ?? 300_000),
     sseDurationMs: Number(process.env.LIVE_SSE_DURATION_MS ?? 10_000),
+    agentApiProbeTimeoutMs: Number(process.env.LIVE_AGENT_API_PROBE_TIMEOUT_MS ?? 1_500),
+    ap7RequireProvidedAgentApiUrl: parseBooleanEnvWithDefault(
+      process.env.LIVE_AP7_REQUIRE_PROVIDED_AGENT_API_URL,
+      true,
+    ),
     composeProject: process.env.COMPOSE_PROJECT_NAME ?? 'agentbaton-platform',
     skipStackSetup: parseBooleanEnv(process.env.LIVE_SKIP_STACK_SETUP),
     evaluationMode: parseEvaluationMode(process.env.LIVE_EVALUATION_MODE),
