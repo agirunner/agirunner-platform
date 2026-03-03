@@ -45,7 +45,10 @@ function getLiveConfig() {
   return liveConfig;
 }
 
+const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 const DEFAULT_ADMIN_KEY_PREFIX = 'ab_admin_def';
+const DEFAULT_ADMIN_API_KEY_ENV = 'DEFAULT_ADMIN_API_KEY';
+const DEFAULT_ADMIN_KEY_EXPIRY = new Date('2099-12-31T23:59:59Z');
 const LIVE_RESET_EXCLUDED_TABLES = ['schema_migrations', 'tenants'] as const;
 const BUILD_CACHE_PATH = path.join(
   process.cwd(),
@@ -55,6 +58,8 @@ const BUILD_CACHE_PATH = path.join(
 );
 
 type TableNameRow = { tablename: string };
+
+type ExistingDefaultAdminKeyRow = { key_hash: string };
 
 function quoteIdentifier(identifier: string): string {
   return `"${identifier.replaceAll('"', '""')}"`;
@@ -330,24 +335,102 @@ async function waitForApiAuthReadiness(apiBaseUrl: string, timeoutMs: number): P
   );
 }
 
+async function restartWarmFastResetServices(
+  apiBaseUrl: string,
+  postgresUrl: string,
+  timeoutMs: number,
+): Promise<void> {
+  const composeCommand = composeBinary();
+
+  runDocker(`${composeCommand} restart platform-api`);
+  await waitForHealth(`${apiBaseUrl}/health`, 'platform-api health', timeoutMs);
+  await waitForPostgresReady(postgresUrl, timeoutMs);
+  await waitForApiAuthReadiness(apiBaseUrl, timeoutMs);
+
+  runDocker(`${composeCommand} restart worker`);
+}
+
 function generateApiKey(scope: 'admin' | 'worker' | 'agent'): string {
   const randomPart = randomBytes(24).toString('base64url');
   return `ab_${scope}_${randomPart}`;
 }
 
-function ensureBootstrapAdminKey(): void {
-  const existing = process.env.DEFAULT_ADMIN_API_KEY?.trim();
-  if (existing && existing.length > 0) {
-    if (!existing.startsWith(DEFAULT_ADMIN_KEY_PREFIX) || existing.length < 20) {
-      throw new Error(
-        `DEFAULT_ADMIN_API_KEY must start with ${DEFAULT_ADMIN_KEY_PREFIX} and be at least 20 chars for live harness bootstrap`,
-      );
-    }
-    return;
+function validateDefaultAdminApiKey(key: string): string {
+  const normalized = key.trim();
+  if (!normalized.startsWith(DEFAULT_ADMIN_KEY_PREFIX) || normalized.length < 20) {
+    throw new Error(
+      `${DEFAULT_ADMIN_API_KEY_ENV} must start with ${DEFAULT_ADMIN_KEY_PREFIX} and be at least 20 chars for live harness bootstrap`,
+    );
+  }
+
+  return normalized;
+}
+
+function getConfiguredDefaultAdminApiKey(source: NodeJS.ProcessEnv = process.env): string | null {
+  const raw = source[DEFAULT_ADMIN_API_KEY_ENV];
+  if (!raw || raw.trim().length === 0) {
+    return null;
+  }
+
+  return validateDefaultAdminApiKey(raw);
+}
+
+function ensureBootstrapAdminKey(options: { allowGenerate?: boolean } = {}): string | null {
+  const existing = getConfiguredDefaultAdminApiKey();
+  if (existing) {
+    return existing;
+  }
+
+  if (!options.allowGenerate) {
+    return null;
   }
 
   const randomSuffix = randomBytes(18).toString('base64url');
-  process.env.DEFAULT_ADMIN_API_KEY = `${DEFAULT_ADMIN_KEY_PREFIX}${randomSuffix}`;
+  const generated = `${DEFAULT_ADMIN_KEY_PREFIX}${randomSuffix}`;
+  process.env.DEFAULT_ADMIN_API_KEY = generated;
+  return generated;
+}
+
+function captureBootstrapAdminKeyFromRunningStack(): string | null {
+  const composeCommand = composeBinary();
+  const lookups: ReadonlyArray<{ service: string; envVar: string }> = [
+    { service: 'platform-api', envVar: DEFAULT_ADMIN_API_KEY_ENV },
+    { service: 'worker', envVar: 'PLATFORM_API_KEY' },
+  ];
+
+  for (const lookup of lookups) {
+    const containerId = runCommandQuiet(`${composeCommand} ps -q ${lookup.service}`);
+    if (!containerId) {
+      continue;
+    }
+
+    const envDump = runCommandQuiet(
+      `docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' ${containerId}`,
+    );
+    if (!envDump) {
+      continue;
+    }
+
+    const line = envDump
+      .split('\n')
+      .map((value) => value.trim())
+      .find((value) => value.startsWith(`${lookup.envVar}=`));
+
+    if (!line) {
+      continue;
+    }
+
+    const [, value = ''] = line.split('=', 2);
+    if (!value) {
+      continue;
+    }
+
+    const key = validateDefaultAdminApiKey(value);
+    process.env.DEFAULT_ADMIN_API_KEY = key;
+    return key;
+  }
+
+  return null;
 }
 
 async function insertApiKey(
@@ -365,7 +448,7 @@ async function insertApiKey(
     `INSERT INTO api_keys (tenant_id, key_hash, key_prefix, scope, owner_type, owner_id, label, expires_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
     [
-      '00000000-0000-0000-0000-000000000001',
+      DEFAULT_TENANT_ID,
       keyHash,
       keyPrefix,
       scope,
@@ -375,6 +458,52 @@ async function insertApiKey(
       expiresAt,
     ],
   );
+}
+
+async function ensureDefaultAdminApiKeyPersisted(pool: pg.Pool): Promise<string | null> {
+  const defaultAdminApiKey = ensureBootstrapAdminKey({ allowGenerate: false });
+  if (!defaultAdminApiKey) {
+    return null;
+  }
+
+  const existing = await pool.query<ExistingDefaultAdminKeyRow>(
+    `SELECT key_hash
+       FROM api_keys
+      WHERE tenant_id = $1 AND key_prefix = $2
+      LIMIT 1`,
+    [DEFAULT_TENANT_ID, DEFAULT_ADMIN_KEY_PREFIX],
+  );
+
+  if (existing.rowCount) {
+    const matches = await bcrypt.compare(defaultAdminApiKey, existing.rows[0].key_hash);
+    if (!matches) {
+      throw new Error(
+        `${DEFAULT_ADMIN_API_KEY_ENV} does not match the existing default admin key in the database. ` +
+          'Use the original key or reset the database volume before changing it.',
+      );
+    }
+
+    return defaultAdminApiKey;
+  }
+
+  const keyHash = await bcrypt.hash(defaultAdminApiKey, 12);
+  await pool.query(
+    `INSERT INTO api_keys (tenant_id, key_hash, key_prefix, scope, owner_type, owner_id, label, expires_at)
+     VALUES ($1, $2, $3, 'admin', 'system', NULL, 'default-admin-key', $4)
+     ON CONFLICT DO NOTHING`,
+    [DEFAULT_TENANT_ID, keyHash, DEFAULT_ADMIN_KEY_PREFIX, DEFAULT_ADMIN_KEY_EXPIRY],
+  );
+
+  return defaultAdminApiKey;
+}
+
+async function persistBootstrapAdminApiKey(postgresUrl: string): Promise<void> {
+  const pool = new pg.Pool({ connectionString: postgresUrl });
+  try {
+    await ensureDefaultAdminApiKeyPersisted(pool);
+  } finally {
+    await pool.end();
+  }
 }
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -461,11 +590,15 @@ async function resetLiveState(postgresUrl: string): Promise<void> {
 async function seedDatabase(apiBaseUrl: string, postgresUrl: string): Promise<void> {
   const pool = new pg.Pool({ connectionString: postgresUrl });
   try {
-    const adminKey = generateApiKey('admin');
+    const persistedDefaultAdminKey = await ensureDefaultAdminApiKeyPersisted(pool);
+    const adminKey = persistedDefaultAdminKey ?? generateApiKey('admin');
     const workerKey = generateApiKey('worker');
     const agentKey = generateApiKey('agent');
 
-    await insertApiKey(pool, adminKey, 'admin', 'user');
+    if (!persistedDefaultAdminKey) {
+      await insertApiKey(pool, adminKey, 'admin', 'user');
+    }
+
     await insertApiKey(pool, workerKey, 'worker', 'worker-bootstrap');
     await insertApiKey(pool, agentKey, 'agent', 'agent-bootstrap');
 
@@ -519,7 +652,7 @@ export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveC
   const setupPlan = createSetupExecutionPlan(liveConfig.skipStackSetup);
 
   if (setupPlan.shouldRunDockerSetup) {
-    ensureBootstrapAdminKey();
+    ensureBootstrapAdminKey({ allowGenerate: true });
     const composeCommand = composeBinary();
     const buildFlag = setupPlan.shouldBuildImages ? '--build ' : '';
     const fingerprintLabel = setupPlan.buildFingerprint?.key ?? 'unknown';
@@ -531,6 +664,8 @@ export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveC
     if (setupPlan.shouldBuildImages && setupPlan.buildFingerprint) {
       writeBuildFingerprintCache(setupPlan.buildFingerprint);
     }
+  } else {
+    captureBootstrapAdminKeyFromRunningStack();
   }
 
   if (setupPlan.shouldWaitForHealth) {
@@ -542,6 +677,11 @@ export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveC
 
   if (options.fastReset) {
     await resetLiveState(postgresUrl);
+    await persistBootstrapAdminApiKey(postgresUrl);
+
+    if (liveConfig.skipStackSetup) {
+      await restartWarmFastResetServices(apiBaseUrl, postgresUrl, liveConfig.healthTimeoutMs);
+    }
   }
 
   await seedDatabase(apiBaseUrl, postgresUrl);
