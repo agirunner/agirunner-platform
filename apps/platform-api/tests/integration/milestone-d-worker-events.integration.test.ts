@@ -265,6 +265,57 @@ describe('milestone d worker/events integration', () => {
     expect(taskAfterGrace.rows[0].assigned_worker_id).toBeNull();
   });
 
+  it('accepts busy heartbeat when a disconnected worker reconnects', async () => {
+    const registration = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workers/register',
+      headers: { authorization: `Bearer ${workerBootstrapKey}` },
+      payload: { name: 'reconnect-worker', capabilities: ['go'] },
+    });
+    expect(registration.statusCode).toBe(201);
+
+    const workerId = registration.json().data.worker_id as string;
+    const workerApiKey = registration.json().data.worker_api_key as string;
+    const staleTaskId = randomUUID();
+
+    await db.pool.query(
+      `INSERT INTO tasks (id, tenant_id, title, type, state, assigned_worker_id, claimed_at)
+       VALUES ($1,$2,'reconnect-stale','code','claimed',$3,now() - INTERVAL '10 minutes')`,
+      [staleTaskId, '00000000-0000-0000-0000-000000000001', workerId],
+    );
+
+    await db.pool.query(
+      `UPDATE workers
+       SET status = 'disconnected',
+           current_task_id = $3,
+           heartbeat_interval_seconds = 30,
+           last_heartbeat_at = now() - INTERVAL '61 seconds'
+       WHERE tenant_id = $1 AND id = $2`,
+      ['00000000-0000-0000-0000-000000000001', workerId, staleTaskId],
+    );
+
+    const reconnectHeartbeat = await app.inject({
+      method: 'POST',
+      url: `/api/v1/workers/${workerId}/heartbeat`,
+      headers: { authorization: `Bearer ${workerApiKey}` },
+      payload: {
+        status: 'busy',
+        current_task_id: staleTaskId,
+      },
+    });
+
+    expect(reconnectHeartbeat.statusCode).toBe(200);
+
+    const workerAfterReconnect = await db.pool.query(
+      'SELECT status, current_task_id, last_heartbeat_at FROM workers WHERE tenant_id = $1 AND id = $2',
+      ['00000000-0000-0000-0000-000000000001', workerId],
+    );
+
+    expect(workerAfterReconnect.rows[0].status).toBe('busy');
+    expect(workerAfterReconnect.rows[0].current_task_id).toBe(staleTaskId);
+    expect(workerAfterReconnect.rows[0].last_heartbeat_at).toBeTruthy();
+  });
+
   it('delivers webhooks with hmac signature', async () => {
     const received: Array<{ headers: http.IncomingHttpHeaders; body: string }> = [];
     const webhookServer = http.createServer((req, res) => {

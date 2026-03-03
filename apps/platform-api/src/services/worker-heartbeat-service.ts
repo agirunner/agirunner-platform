@@ -13,6 +13,18 @@ export function ensureWorkerAccess(identity: ApiKeyIdentity, workerId: string): 
   throw new ForbiddenError('Worker identity mismatch');
 }
 
+function assertValidHeartbeatTransition(workerId: string, from: WorkerState, to: WorkerState): void {
+  if (from === 'disconnected' && to !== 'disconnected' && to !== 'online' && to !== 'offline') {
+    // Reconnecting workers may immediately report their active runtime state (e.g. busy)
+    // rather than sending an intermediate "online" heartbeat first.
+    assertValidWorkerTransition(workerId, from, 'online');
+    assertValidWorkerTransition(workerId, 'online', to);
+    return;
+  }
+
+  assertValidWorkerTransition(workerId, from, to);
+}
+
 export async function heartbeat(
   context: WorkerServiceContext,
   identity: ApiKeyIdentity,
@@ -28,8 +40,9 @@ export async function heartbeat(
     throw new NotFoundError('Worker not found');
   }
 
+  const previousStatus = workerRes.rows[0].status as WorkerState;
   const status = (payload.status ?? 'online') as WorkerState;
-  assertValidWorkerTransition(workerId, workerRes.rows[0].status as WorkerState, status);
+  assertValidHeartbeatTransition(workerId, previousStatus, status);
   const currentTaskId = payload.current_task_id ?? payload.current_tasks?.[0] ?? null;
   await context.pool.query(
     `UPDATE workers
