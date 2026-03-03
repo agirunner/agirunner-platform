@@ -683,6 +683,14 @@ function normalizeCanonicalEvidenceAlias(
   validRefs: Set<string>,
   aliasMap: Map<string, string>,
 ): string | undefined {
+  const pipelineStateMatch = candidate.match(/^pipeline:([^:]+)$/);
+  if (pipelineStateMatch) {
+    const resolved = `pipeline:${pipelineStateMatch[1]}:state`;
+    if (validRefs.has(resolved)) {
+      return resolved;
+    }
+  }
+
   const placeholderWildcardMatch = candidate.match(/^placeholder-rejection\.\*:(.+)$/);
   if (placeholderWildcardMatch) {
     const pipelineId = placeholderWildcardMatch[1];

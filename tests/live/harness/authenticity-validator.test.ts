@@ -344,6 +344,12 @@ test('llm validator normalizes known deterministic evidence-ref aliases before f
       summary: 'Grounded output with concrete evidence.',
       checks: [
         {
+          checkId: 'acceptance-structure.pipeline',
+          status: 'PASS',
+          rationale: 'Pipeline reached completed state.',
+          evidenceRefs: ['pipeline:pipeline-1'],
+        },
+        {
           checkId: 'placeholder-rejection.output-markers',
           status: 'PASS',
           rationale: 'No placeholders detected.',
