@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  assertComposeDiskFloor,
+  assertComposeDiskFloorFromAvailableKilobytes,
   buildLiveResetTruncateSql,
   createSetupExecutionPlan,
   parseDfAvailableKilobytes,
+  resolveComposeMinFreeGiB,
   selectMutableLiveTables,
   shouldBuildDockerImages,
 } from './setup.js';
@@ -105,6 +106,28 @@ test('parseDfAvailableKilobytes returns null on malformed output', () => {
   assert.equal(parseDfAvailableKilobytes('Filesystem Used Avail\n'), null);
 });
 
-test('assertComposeDiskFloor throws when available space is below threshold', () => {
-  assert.throws(() => assertComposeDiskFloor('/tmp', 1000), /below required floor/i);
+test('assertComposeDiskFloorFromAvailableKilobytes throws when available space is below threshold', () => {
+  assert.throws(
+    () => assertComposeDiskFloorFromAvailableKilobytes(2 * 1024 * 1024, '/', 10),
+    /below required floor/i,
+  );
+});
+
+test('assertComposeDiskFloorFromAvailableKilobytes allows available space at/above threshold', () => {
+  assert.doesNotThrow(() => assertComposeDiskFloorFromAvailableKilobytes(10 * 1024 * 1024, '/', 10));
+});
+
+test('resolveComposeMinFreeGiB defaults to 10GiB when env is unset', () => {
+  assert.equal(resolveComposeMinFreeGiB({}), 10);
+});
+
+test('resolveComposeMinFreeGiB parses valid env override', () => {
+  assert.equal(resolveComposeMinFreeGiB({ LIVE_COMPOSE_MIN_FREE_GB: '12.5' }), 12.5);
+});
+
+test('resolveComposeMinFreeGiB fails closed on invalid env override', () => {
+  assert.throws(
+    () => resolveComposeMinFreeGiB({ LIVE_COMPOSE_MIN_FREE_GB: 'NaN' }),
+    /LIVE_COMPOSE_MIN_FREE_GB must be a positive numeric value/i,
+  );
 });

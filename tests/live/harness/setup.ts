@@ -130,6 +130,25 @@ export function parseDfAvailableKilobytes(dfOutput: string): number | null {
   return available;
 }
 
+export function assertComposeDiskFloorFromAvailableKilobytes(
+  availableKilobytes: number,
+  rootPath = '/',
+  minFreeGiB = 10,
+): void {
+  if (!Number.isFinite(availableKilobytes) || availableKilobytes < 0) {
+    throw new Error('Live harness compose preflight failed: unable to parse free disk space from `df -Pk` output.');
+  }
+
+  const minFreeKilobytes = Math.floor(minFreeGiB * 1024 * 1024);
+  if (availableKilobytes < minFreeKilobytes) {
+    const availableGiB = (availableKilobytes / (1024 * 1024)).toFixed(2);
+    throw new Error(
+      `Live harness compose preflight failed: free disk on ${rootPath} is ${availableGiB}GiB, below required floor ${minFreeGiB}GiB. ` +
+        'Free space before running compose build/up.',
+    );
+  }
+}
+
 export function assertComposeDiskFloor(rootPath = '/', minFreeGiB = 10): void {
   const output = execSync(`df -Pk ${rootPath}`, {
     cwd: process.cwd(),
@@ -142,14 +161,28 @@ export function assertComposeDiskFloor(rootPath = '/', minFreeGiB = 10): void {
     throw new Error('Live harness compose preflight failed: unable to parse free disk space from `df -Pk` output.');
   }
 
-  const minFreeKilobytes = Math.floor(minFreeGiB * 1024 * 1024);
-  if (availableKilobytes < minFreeKilobytes) {
-    const availableGiB = (availableKilobytes / (1024 * 1024)).toFixed(2);
+  assertComposeDiskFloorFromAvailableKilobytes(availableKilobytes, rootPath, minFreeGiB);
+}
+
+export function resolveComposeMinFreeGiB(
+  source: NodeJS.ProcessEnv = process.env,
+  defaultMinFreeGiB = 10,
+): number {
+  const raw = source.LIVE_COMPOSE_MIN_FREE_GB;
+  if (!raw || raw.trim().length === 0) {
+    return defaultMinFreeGiB;
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
     throw new Error(
-      `Live harness compose preflight failed: free disk on ${rootPath} is ${availableGiB}GiB, below required floor ${minFreeGiB}GiB. ` +
-        'Free space before running compose build/up.',
+      `Live harness compose preflight failed: LIVE_COMPOSE_MIN_FREE_GB must be a positive numeric value in GiB (received: ${JSON.stringify(
+        raw,
+      )}).`,
     );
   }
+
+  return parsed;
 }
 
 function runCommandQuiet(command: string): string | null {
@@ -735,10 +768,8 @@ export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveC
 
     const buildFlag = setupPlan.shouldBuildImages ? '--build ' : '';
     const fingerprintLabel = setupPlan.buildFingerprint?.key ?? 'unknown';
-    const minFreeGiB = Number(process.env.LIVE_COMPOSE_MIN_FREE_GB ?? '10');
-    if (Number.isFinite(minFreeGiB) && minFreeGiB > 0) {
-      assertComposeDiskFloor('/', minFreeGiB);
-    }
+    const minFreeGiB = resolveComposeMinFreeGiB();
+    assertComposeDiskFloor('/', minFreeGiB);
     console.log(
       `Live harness compose startup: ${setupPlan.shouldBuildImages ? 'rebuild' : 'reuse'} (${fingerprintLabel})`,
     );
