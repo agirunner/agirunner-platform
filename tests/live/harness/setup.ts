@@ -1,5 +1,7 @@
 import { execSync } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 
 import bcrypt from 'bcryptjs';
 import pg from 'pg';
@@ -18,7 +20,24 @@ interface SetupOptions {
 interface SetupExecutionPlan {
   shouldRunDockerSetup: boolean;
   shouldWaitForHealth: boolean;
+  shouldBuildImages: boolean;
+  buildFingerprint?: BuildFingerprint;
 }
+
+interface BuildFingerprint {
+  key: string;
+  source: 'git-commit' | 'workspace-fingerprint';
+  gitCommit?: string;
+}
+
+interface BuildFingerprintCacheRecord {
+  fingerprint: string;
+  source: BuildFingerprint['source'];
+  gitCommit?: string;
+  updatedAt: string;
+}
+
+const FINGERPRINT_EXCLUDED_TRACKED_PATHS = ['tests/reports/results.v1.json'];
 
 function getLiveConfig() {
   const liveConfig = loadConfig();
@@ -28,6 +47,12 @@ function getLiveConfig() {
 
 const DEFAULT_ADMIN_KEY_PREFIX = 'ab_admin_def';
 const LIVE_RESET_EXCLUDED_TABLES = ['schema_migrations', 'tenants'] as const;
+const BUILD_CACHE_PATH = path.join(
+  process.cwd(),
+  '.cache',
+  'live-harness',
+  'compose-build-fingerprint.v1.json',
+);
 
 type TableNameRow = { tablename: string };
 
@@ -69,6 +94,152 @@ function composeBinary(): string {
 
 function runDocker(command: string): void {
   execSync(command, { cwd: process.cwd(), stdio: 'inherit' });
+}
+
+function runCommandQuiet(command: string): string | null {
+  try {
+    return execSync(command, {
+      cwd: process.cwd(),
+      stdio: ['ignore', 'pipe', 'ignore'],
+      encoding: 'utf8',
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+function parseBooleanEnv(value: string | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+}
+
+function hashText(content: string): string {
+  return createHash('sha256').update(content).digest('hex');
+}
+
+function trackedFingerprintPathspecArgs(): string {
+  const exclusions = FINGERPRINT_EXCLUDED_TRACKED_PATHS.map((value) => `':(exclude)${value}'`).join(' ');
+  return exclusions.length > 0 ? `. ${exclusions}` : '.';
+}
+
+function hasTrackedChangesAffectingFingerprint(): boolean {
+  const pathspec = trackedFingerprintPathspecArgs();
+  const trackedDiff = runCommandQuiet(`git diff --name-only HEAD -- ${pathspec}`) ?? '';
+  if (trackedDiff.length > 0) {
+    return true;
+  }
+
+  const stagedDiff = runCommandQuiet(`git diff --cached --name-only -- ${pathspec}`) ?? '';
+  return stagedDiff.length > 0;
+}
+
+function isTransientUntrackedPath(filePath: string): boolean {
+  const normalized = filePath.replaceAll('\\', '/');
+  return (
+    normalized.startsWith('tests/artifacts/') ||
+    normalized.startsWith('.cache/live-harness/') ||
+    normalized.startsWith('.turbo/')
+  );
+}
+
+function resolveWorkspaceFingerprint(): BuildFingerprint {
+  const gitCommit = runCommandQuiet('git rev-parse HEAD') ?? undefined;
+  const trackedDirty = hasTrackedChangesAffectingFingerprint();
+  const untrackedFingerprintInputs = runCommandQuiet('git ls-files --others --exclude-standard')
+    ?.split('\n')
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0 && !isTransientUntrackedPath(value))
+    .sort((left, right) => left.localeCompare(right)) ?? [];
+
+  if (gitCommit && !trackedDirty && untrackedFingerprintInputs.length === 0) {
+    return {
+      key: `commit:${gitCommit}`,
+      source: 'git-commit',
+      gitCommit,
+    };
+  }
+
+  const hash = createHash('sha256');
+  hash.update(`git-commit:${gitCommit ?? 'none'}\n`);
+
+  const diff = runCommandQuiet(
+    `git diff --no-ext-diff --binary HEAD -- ${trackedFingerprintPathspecArgs()}`,
+  ) ?? '';
+  hash.update('git-diff-start\n');
+  hash.update(diff);
+  hash.update('\ngit-diff-end\n');
+
+  for (const filePath of untrackedFingerprintInputs) {
+    hash.update(`untracked:${filePath}\n`);
+    try {
+      const absolutePath = path.join(process.cwd(), filePath);
+      const content = readFileSync(absolutePath);
+      hash.update(content);
+    } catch {
+      hash.update('untracked-read-error\n');
+    }
+    hash.update('\n');
+  }
+
+  const buildArgFingerprint = hashText(JSON.stringify({
+    vitePlatformApiUrl: process.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080',
+  }));
+
+  hash.update(`build-args:${buildArgFingerprint}\n`);
+
+  return {
+    key: `workspace:${hash.digest('hex')}`,
+    source: 'workspace-fingerprint',
+    gitCommit,
+  };
+}
+
+function readBuildFingerprintCache(): BuildFingerprintCacheRecord | null {
+  if (!existsSync(BUILD_CACHE_PATH)) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(BUILD_CACHE_PATH, 'utf8')) as BuildFingerprintCacheRecord;
+    if (!parsed.fingerprint || !parsed.source) {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeBuildFingerprintCache(fingerprint: BuildFingerprint): void {
+  mkdirSync(path.dirname(BUILD_CACHE_PATH), { recursive: true });
+  const record: BuildFingerprintCacheRecord = {
+    fingerprint: fingerprint.key,
+    source: fingerprint.source,
+    gitCommit: fingerprint.gitCommit,
+    updatedAt: new Date().toISOString(),
+  };
+  writeFileSync(BUILD_CACHE_PATH, JSON.stringify(record, null, 2) + '\n');
+}
+
+export function shouldBuildDockerImages(
+  forceBuild: boolean,
+  fingerprint: BuildFingerprint,
+  previous: BuildFingerprintCacheRecord | null,
+): boolean {
+  if (forceBuild) {
+    return true;
+  }
+
+  if (!previous) {
+    return true;
+  }
+
+  return previous.fingerprint !== fingerprint.key;
 }
 
 async function waitForHealth(url: string, label: string, timeoutMs: number): Promise<void> {
@@ -247,12 +418,20 @@ export function createSetupExecutionPlan(skipStackSetup: boolean): SetupExecutio
     return {
       shouldRunDockerSetup: false,
       shouldWaitForHealth: false,
+      shouldBuildImages: false,
     };
   }
+
+  const forceBuild = parseBooleanEnv(process.env.LIVE_FORCE_DOCKER_BUILD);
+  const fingerprint = resolveWorkspaceFingerprint();
+  const cachedFingerprint = readBuildFingerprintCache();
+  const shouldBuild = shouldBuildDockerImages(forceBuild, fingerprint, cachedFingerprint);
 
   return {
     shouldRunDockerSetup: true,
     shouldWaitForHealth: true,
+    shouldBuildImages: shouldBuild,
+    buildFingerprint: fingerprint,
   };
 }
 
@@ -266,7 +445,17 @@ export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveC
 
   if (setupPlan.shouldRunDockerSetup) {
     ensureBootstrapAdminKey();
-    runDocker(`${composeBinary()} up -d --build postgres platform-api worker dashboard`);
+    const composeCommand = composeBinary();
+    const buildFlag = setupPlan.shouldBuildImages ? '--build ' : '';
+    const fingerprintLabel = setupPlan.buildFingerprint?.key ?? 'unknown';
+    console.log(
+      `Live harness compose startup: ${setupPlan.shouldBuildImages ? 'rebuild' : 'reuse'} (${fingerprintLabel})`,
+    );
+    runDocker(`${composeCommand} up -d ${buildFlag}postgres platform-api worker dashboard`);
+
+    if (setupPlan.shouldBuildImages && setupPlan.buildFingerprint) {
+      writeBuildFingerprintCache(setupPlan.buildFingerprint);
+    }
   }
 
   if (setupPlan.shouldWaitForHealth) {

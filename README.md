@@ -50,6 +50,12 @@ pnpm test:live:all   # Full live scenario matrix across providers
   - Requires provider API keys and is never part of default `pnpm test`/`pnpm test:ci` gates.
   - Harness/framework code does not call provider APIs directly; providers are exercised only through SUT execution.
   - Live/integration execution is scripted-only (`pnpm test:live*` / `pnpm test:core`), no manual/ad-hoc gate execution.
+  - Docker image build reuse is enabled by default for harness startup:
+    - If repository image inputs are unchanged, harness runs `docker compose up -d ...` (no forced rebuild).
+    - If inputs changed, harness runs `docker compose up -d --build ...`.
+    - Fingerprint source is current git commit when workspace is clean; otherwise a deterministic workspace fingerprint.
+    - Cache stamp path: `.cache/live-harness/compose-build-fingerprint.v1.json`.
+    - Set `LIVE_FORCE_DOCKER_BUILD=true` to force rebuild and refresh cache.
 
 ### Live test evaluation configuration
 
