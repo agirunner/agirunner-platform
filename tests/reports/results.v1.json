@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-03T20:29:05.613Z",
-  "generated_at_utc": "2026-03-03T20:29:05.613Z",
+  "generatedAt": "2026-03-03T20:34:04.276Z",
+  "generated_at_utc": "2026-03-03T20:34:04.276Z",
   "status_enum": [
     "PASS",
     "FLAKY",
@@ -1983,6 +1983,60 @@
           "si2-auth": "PASS",
           "si2-extended-isolation": "PASS"
         }
+      },
+      {
+        "runId": "2026-03-03T20-33-02-419Z-sdlc-none-r1",
+        "startedAt": "2026-03-03T20:27:39.000Z",
+        "finishedAt": "2026-03-03T20:33:02.419Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-03T20-33-02-419Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-03T20-33-02-419Z-sdlc-none-r1.md",
+        "scenarios": {
+          "ap2-external-runtime": "FAIL",
+          "ap3-standalone-worker": "FAIL",
+          "ap4-mixed-workers": "FAIL",
+          "ap6-runtime-maintenance": "FAIL",
+          "ot1-cascade": "FAIL",
+          "ot2-routing": "FAIL",
+          "ot3-state": "FAIL",
+          "ot4-health": "FAIL",
+          "hl1-approval-flow": "FAIL",
+          "hl2-pipeline-controls": "FAIL",
+          "it1-sdk": "FAIL",
+          "it2-mcp": "FAIL",
+          "it3-webhooks": "FAIL",
+          "it3-mcp-sse-stream": "FAIL",
+          "si1-isolation": "FAIL",
+          "si2-auth": "FAIL",
+          "si2-extended-isolation": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-03T20-27-26-835Z-sdlc-none-r1",
+        "startedAt": "2026-03-03T20:27:26.835Z",
+        "finishedAt": "2026-03-03T20:33:05.312Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-03T20-27-26-835Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-03T20-27-26-835Z-sdlc-none-r1.md",
+        "scenarios": {
+          "ap2-external-runtime": "PASS",
+          "ap3-standalone-worker": "PASS",
+          "ap4-mixed-workers": "PASS",
+          "ap6-runtime-maintenance": "FAIL",
+          "ot1-cascade": "FAIL",
+          "ot2-routing": "FAIL",
+          "ot3-state": "FAIL",
+          "ot4-health": "FAIL",
+          "hl1-approval-flow": "FAIL",
+          "hl2-pipeline-controls": "FAIL",
+          "it1-sdk": "FAIL",
+          "it2-mcp": "FAIL",
+          "it3-webhooks": "FAIL",
+          "it3-mcp-sse-stream": "FAIL",
+          "si1-isolation": "FAIL",
+          "si2-auth": "FAIL",
+          "si2-extended-isolation": "FAIL"
+        }
       }
     ],
     "integration": [
@@ -2251,47 +2305,91 @@
         }
       },
       {
-        "runId": "2026-03-03T20-21-06-426Z-dashboard-none-r1",
-        "startedAt": "2026-03-03T20:21:06.426Z",
-        "finishedAt": "2026-03-03T20:21:14.338Z",
+        "runId": "2026-03-03T20-11-17-269Z-dashboard-none-r1",
+        "startedAt": "2026-03-03T20:11:17.269Z",
+        "finishedAt": "2026-03-03T20:11:26.210Z",
         "status": "FAIL",
-        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T20-21-06-426Z-dashboard-none-r1.json",
-        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T20-21-06-426Z-dashboard-none-r1.md",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T20-11-17-269Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T20-11-17-269Z-dashboard-none-r1.md",
         "scenarios": {
           "dashboard": "FAIL"
         }
       },
       {
-        "runId": "2026-03-03T20-21-53-820Z-dashboard-none-r1",
-        "startedAt": "2026-03-03T20:21:53.819Z",
-        "finishedAt": "2026-03-03T20:22:02.598Z",
+        "runId": "2026-03-03T20-12-36-306Z-dashboard-none-r1",
+        "startedAt": "2026-03-03T20:12:36.306Z",
+        "finishedAt": "2026-03-03T20:12:45.375Z",
         "status": "FAIL",
-        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T20-21-53-820Z-dashboard-none-r1.json",
-        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T20-21-53-820Z-dashboard-none-r1.md",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T20-12-36-306Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T20-12-36-306Z-dashboard-none-r1.md",
         "scenarios": {
           "dashboard": "FAIL"
         }
       },
       {
-        "runId": "2026-03-03T20-27-52-225Z-dashboard-none-r1",
-        "startedAt": "2026-03-03T20:27:52.224Z",
-        "finishedAt": "2026-03-03T20:28:01.078Z",
+        "runId": "2026-03-03T20-15-35-610Z-dashboard-none-r1",
+        "startedAt": "2026-03-03T20:15:35.610Z",
+        "finishedAt": "2026-03-03T20:15:45.087Z",
         "status": "FAIL",
-        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T20-27-52-225Z-dashboard-none-r1.json",
-        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T20-27-52-225Z-dashboard-none-r1.md",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T20-15-35-610Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T20-15-35-610Z-dashboard-none-r1.md",
         "scenarios": {
           "dashboard": "FAIL"
         }
       },
       {
-        "runId": "2026-03-03T20-28-20-121Z-dashboard-none-r1",
-        "startedAt": "2026-03-03T20:28:20.121Z",
-        "finishedAt": "2026-03-03T20:28:28.343Z",
+        "runId": "2026-03-03T20-16-39-084Z-dashboard-none-r1",
+        "startedAt": "2026-03-03T20:16:39.084Z",
+        "finishedAt": "2026-03-03T20:16:47.469Z",
         "status": "FAIL",
-        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T20-28-20-121Z-dashboard-none-r1.json",
-        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T20-28-20-121Z-dashboard-none-r1.md",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T20-16-39-084Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T20-16-39-084Z-dashboard-none-r1.md",
         "scenarios": {
           "dashboard": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-03T20-20-37-146Z-dashboard-none-r1",
+        "startedAt": "2026-03-03T20:20:37.146Z",
+        "finishedAt": "2026-03-03T20:20:44.987Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T20-20-37-146Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T20-20-37-146Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-03T20-25-41-554Z-dashboard-none-r1",
+        "startedAt": "2026-03-03T20:25:41.553Z",
+        "finishedAt": "2026-03-03T20:25:49.300Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T20-25-41-554Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T20-25-41-554Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-03T20-26-51-662Z-dashboard-none-r1",
+        "startedAt": "2026-03-03T20:26:51.661Z",
+        "finishedAt": "2026-03-03T20:26:59.546Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T20-26-51-662Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T20-26-51-662Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-03T20-30-18-103Z-dashboard-none-r1",
+        "startedAt": "2026-03-03T20:30:18.103Z",
+        "finishedAt": "2026-03-03T20:30:21.860Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T20-30-18-103Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T20-30-18-103Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "PASS"
         }
       }
     ],
@@ -2309,11 +2407,11 @@
       },
       "google": {
         "status": "FAIL",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z",
-        "error": "Pipeline 838fc2b4-c609-4ca1-99f4-c4082b866455 expected state \"completed\", got \"failed\""
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z",
+        "error": "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: Deterministic delivery-quality validator returned NOT_PASS. Evidence: tests/artifacts/live/validators/2026-03-03T20-28-40-996Z-sdlc-google-r1/sdlc-happy-authenticity.json"
       },
       "anthropic": {
         "status": "FAIL",
@@ -2334,10 +2432,10 @@
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z"
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z"
       },
       "anthropic": {
         "status": "PASS",
@@ -2357,10 +2455,10 @@
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z"
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z"
       },
       "anthropic": {
         "status": "PASS",
@@ -2380,10 +2478,10 @@
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z"
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z"
       },
       "anthropic": {
         "status": "PASS",
@@ -2404,11 +2502,11 @@
       },
       "google": {
         "status": "FAIL",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z",
-        "error": "Pipeline ec52107a-0d58-4fef-bff2-8e41785c72d4 expected state \"completed\", got \"failed\""
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z",
+        "error": "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: Deterministic delivery-quality validator returned NOT_PASS. Evidence: tests/artifacts/live/validators/2026-03-03T20-28-40-996Z-sdlc-google-r1/maintenance-happy-authenticity.json"
       },
       "anthropic": {
         "status": "FAIL",
@@ -2429,10 +2527,10 @@
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z"
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z"
       },
       "anthropic": {
         "status": "PASS",
@@ -2452,11 +2550,12 @@
         "error": "AP-7 expected a failed task, but no failed task was observed before timeout"
       },
       "google": {
-        "status": "PASS",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z"
+        "status": "FAIL",
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z",
+        "error": "AP-7 expected a failed task, but no failed task was observed before timeout"
       },
       "anthropic": {
         "status": "PASS",
@@ -2476,10 +2575,10 @@
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z"
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z"
       },
       "anthropic": {
         "status": "PASS",
@@ -2499,10 +2598,10 @@
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z"
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z"
       },
       "anthropic": {
         "status": "PASS",
@@ -2522,10 +2621,10 @@
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z"
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z"
       },
       "anthropic": {
         "status": "PASS",
@@ -2545,10 +2644,10 @@
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z"
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z"
       },
       "anthropic": {
         "status": "PASS",
@@ -2568,10 +2667,10 @@
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z"
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z"
       },
       "anthropic": {
         "status": "PASS",
@@ -2591,10 +2690,10 @@
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z"
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z"
       },
       "anthropic": {
         "status": "PASS",
@@ -2614,10 +2713,10 @@
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z"
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z"
       },
       "anthropic": {
         "status": "PASS",
@@ -2637,10 +2736,10 @@
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z"
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z"
       },
       "anthropic": {
         "status": "PASS",
@@ -2660,10 +2759,10 @@
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z"
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z"
       },
       "anthropic": {
         "status": "PASS",
@@ -2683,10 +2782,10 @@
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z"
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z"
       },
       "anthropic": {
         "status": "PASS",
@@ -2706,10 +2805,10 @@
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z"
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z"
       },
       "anthropic": {
         "status": "PASS",
@@ -2729,10 +2828,10 @@
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z"
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z"
       },
       "anthropic": {
         "status": "PASS",
@@ -2752,10 +2851,10 @@
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T20-16-15-817Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-16-15-817Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T20:20:58.467Z"
+        "runId": "2026-03-03T20-28-40-996Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T20-28-40-996Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T20:31:59.412Z"
       },
       "anthropic": {
         "status": "PASS",
