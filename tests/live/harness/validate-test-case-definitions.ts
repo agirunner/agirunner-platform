@@ -171,6 +171,20 @@ function main(): void {
   assertUnique(canonicalKeys, 'canonical scenario keys');
   assertUnique(canonicalIds, 'canonical scenario IDs');
 
+  const requiredRuntimeExternalCoverage: Array<{ key: string; id: string }> = [
+    { key: 'ap2-external-runtime', id: 'AP-2' },
+    { key: 'ap4-mixed-workers', id: 'AP-4' },
+    { key: 'ap6-runtime-maintenance', id: 'AP-6' },
+  ];
+
+  for (const required of requiredRuntimeExternalCoverage) {
+    if (!canonicalKeys.includes(required.key) || !canonicalIds.includes(required.id)) {
+      fail(
+        `canonical runtime-external integration coverage must include ${required.id}/${required.key}`,
+      );
+    }
+  }
+
   const runnerSource = readFileSync(runnerPath, 'utf8');
   const allScenarios = parseSingleQuotedArray(runnerSource, 'ALL_SCENARIOS');
   const switchCases = parseRunScenarioCases(runnerSource);
