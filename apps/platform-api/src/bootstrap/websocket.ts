@@ -3,6 +3,7 @@ import { WebSocketServer } from 'ws';
 
 import { parseBearerToken, type ApiKeyIdentity, verifyApiKey } from '../auth/api-key.js';
 import { verifyJwt } from '../auth/jwt.js';
+import { NotFoundError } from '../errors/domain-errors.js';
 
 function writeUnauthorized(socket: import('node:stream').Duplex): void {
   socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
@@ -64,6 +65,40 @@ export function isOriginAllowed(origin: string | undefined, allowedOriginsConfig
 
   const allowed = allowedOriginsConfig.split(',').map((o) => o.trim().toLowerCase());
   return allowed.includes(origin.toLowerCase());
+}
+
+export function handleWorkerWebsocketMessageError(
+  app: FastifyInstance,
+  identity: ApiKeyIdentity,
+  workerId: string | null,
+  action: 'task.assignment_ack' | 'signal.ack' | 'worker.heartbeat',
+  error: unknown,
+  ws?: { close: () => void },
+): void {
+  if (error instanceof NotFoundError && workerId) {
+    app.log.info(
+      {
+        err: error,
+        tenantId: identity.tenantId,
+        workerId,
+        action,
+      },
+      'worker_websocket_reference_not_found',
+    );
+    app.workerConnectionHub.unregisterWorker(workerId);
+    ws?.close();
+    return;
+  }
+
+  app.log.warn(
+    {
+      err: error,
+      tenantId: identity.tenantId,
+      workerId,
+      action,
+    },
+    'worker_websocket_message_failed',
+  );
 }
 
 export function registerWebsocketGateway(app: FastifyInstance): void {
@@ -128,25 +163,50 @@ export function registerWebsocketGateway(app: FastifyInstance): void {
         }
 
         if (payload.type === 'task.assignment_ack' && typeof payload.task_id === 'string') {
-          void app.workerService.acknowledgeTask(
-            identity,
-            payload.task_id,
-            typeof payload.agent_id === 'string' ? payload.agent_id : undefined,
-          );
+          void app.workerService
+            .acknowledgeTask(
+              identity,
+              payload.task_id,
+              typeof payload.agent_id === 'string' ? payload.agent_id : undefined,
+            )
+            .catch((error) => {
+              handleWorkerWebsocketMessageError(
+                app,
+                identity,
+                workerId,
+                'task.assignment_ack',
+                error,
+              );
+            });
           return;
         }
 
         if (payload.type === 'signal.ack' && workerId && typeof payload.signal_id === 'string') {
-          void app.workerService.acknowledgeSignal(identity, workerId, payload.signal_id);
+          void app.workerService
+            .acknowledgeSignal(identity, workerId, payload.signal_id)
+            .catch((error) => {
+              handleWorkerWebsocketMessageError(app, identity, workerId, 'signal.ack', error);
+            });
           return;
         }
 
         if (payload.type === 'worker.heartbeat' && workerId) {
-          void app.workerService.heartbeat(identity, workerId, {
-            status: payload.status as 'online' | 'busy' | 'draining' | 'disconnected' | 'offline' | undefined,
-            current_task_id: typeof payload.current_task_id === 'string' ? payload.current_task_id : null,
-            metrics: (payload.metrics as Record<string, unknown> | undefined) ?? {},
-          });
+          void app.workerService
+            .heartbeat(identity, workerId, {
+              status: payload.status as 'online' | 'busy' | 'draining' | 'disconnected' | 'offline' | undefined,
+              current_task_id: typeof payload.current_task_id === 'string' ? payload.current_task_id : null,
+              metrics: (payload.metrics as Record<string, unknown> | undefined) ?? {},
+            })
+            .catch((error) => {
+              handleWorkerWebsocketMessageError(
+                app,
+                identity,
+                workerId,
+                'worker.heartbeat',
+                error,
+                ws,
+              );
+            });
         }
       });
 
