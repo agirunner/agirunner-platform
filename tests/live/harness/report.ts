@@ -95,7 +95,21 @@ type LegacyLiveResults = {
 };
 
 const STATUS_ENUM: LaneStatus[] = ['PASS', 'FLAKY', 'FAIL', 'NOT_PASS'];
-const RESULTS_PATH = 'tests/reports/results.v1.json';
+const DEFAULT_RESULTS_PATH = 'tests/reports/results.v1.json';
+const DEFAULT_CANONICAL_PATH = 'tests/reports/test-cases.v1.json';
+const DEFAULT_ARTIFACTS_ROOT = 'tests/artifacts';
+
+function resolveResultsPath(): string {
+  return process.env.LIVE_REPORTS_RESULTS_PATH?.trim() || DEFAULT_RESULTS_PATH;
+}
+
+function resolveCanonicalPath(): string {
+  return process.env.LIVE_CANONICAL_TEST_CASES_PATH?.trim() || DEFAULT_CANONICAL_PATH;
+}
+
+function resolveArtifactsRoot(): string {
+  return process.env.LIVE_ARTIFACTS_ROOT?.trim() || DEFAULT_ARTIFACTS_ROOT;
+}
 
 function resolveLane(report: RunReport): Lane {
   if (report.template === 'dashboard') return 'integration';
@@ -157,7 +171,7 @@ function writeJson(filePath: string, payload: unknown): void {
 }
 
 function loadCanonicalScenarios(root: string): Canonical {
-  const canonicalPath = path.join(root, 'tests/reports/test-cases.v1.json');
+  const canonicalPath = path.join(root, resolveCanonicalPath());
   const canonical = readJsonIfExists<Canonical>(canonicalPath);
   if (!canonical || !Array.isArray(canonical.providers) || !Array.isArray(canonical.scenarios)) {
     throw new Error(`Invalid or missing canonical test-case definitions at ${canonicalPath}`);
@@ -391,7 +405,7 @@ function readExistingOrLegacyState(
   liveCells: Record<string, Record<string, LiveCell>>;
   fallback: { core: Record<string, LaneStatus>; integration: Record<string, LaneStatus> };
 } {
-  const consolidatedPath = path.join(root, RESULTS_PATH);
+  const consolidatedPath = path.join(root, resolveResultsPath());
   const consolidated = readJsonIfExists<ConsolidatedResults>(consolidatedPath);
 
   if (consolidated) {
@@ -465,7 +479,7 @@ function writeConsolidatedResults(
     fallback: { core: Record<string, LaneStatus>; integration: Record<string, LaneStatus> };
   },
 ): void {
-  const resultsPath = path.join(root, RESULTS_PATH);
+  const resultsPath = path.join(root, resolveResultsPath());
   writeJson(
     resultsPath,
     buildConsolidatedPayload(canonical, state.runs, state.liveCells, state.fallback),
@@ -544,7 +558,7 @@ export function saveRunReport(report: RunReport): {
 
   const lane: Lane = resolveLane(report);
 
-  const reportDir = path.join(root, `tests/artifacts/${lane}`);
+  const reportDir = path.join(root, `${resolveArtifactsRoot()}/${lane}`);
   mkdirSync(reportDir, { recursive: true });
   mkdirSync(path.join(reportDir, 'screenshots'), { recursive: true });
 

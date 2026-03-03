@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentbaton.dev/schemas/test-batch/summary-report.v1.json",
+  "title": "AgentBaton Batch Summary Report v1",
+  "type": "object",
+  "required": [
+    "version",
+    "runId",
+    "mode",
+    "failurePolicy",
+    "providers",
+    "startedAt",
+    "finishedAt",
+    "durationMs",
+    "reportDir",
+    "stageTotals",
+    "finalExitCode",
+    "stages"
+  ],
+  "properties": {
+    "version": { "const": "1.0" },
+    "runId": { "type": "string", "minLength": 1 },
+    "mode": { "enum": ["sequential", "parallel"] },
+    "failurePolicy": { "enum": ["fail-fast", "continue-on-error"] },
+    "providers": {
+      "type": "array",
+      "items": { "enum": ["openai", "google", "anthropic"] }
+    },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "finishedAt": { "type": "string", "format": "date-time" },
+    "durationMs": { "type": "integer", "minimum": 0 },
+    "reportDir": { "type": "string", "minLength": 1 },
+    "dryRun": { "type": "boolean" },
+    "stageTotals": {
+      "type": "object",
+      "required": ["total", "pass", "fail", "infraFail", "skipped"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "pass": { "type": "integer", "minimum": 0 },
+        "fail": { "type": "integer", "minimum": 0 },
+        "infraFail": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "finalExitCode": { "enum": [0, 1, 2] },
+    "stages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["stageId", "status", "durationMs", "logs", "artifacts"],
+        "properties": {
+          "stageId": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["pass", "fail", "infra-fail", "skipped"] },
+          "durationMs": { "type": "integer", "minimum": 0 },
+          "exitCode": { "type": "integer", "minimum": 0 },
+          "errorExcerpt": { "type": "string" },
+          "logs": {
+            "type": "object",
+            "required": ["stdout", "stderr"],
+            "properties": {
+              "stdout": { "type": "string", "minLength": 1 },
+              "stderr": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          },
+          "artifacts": {
+            "type": "object",
+            "required": ["laneArtifactsRoot", "laneResultsPath"],
+            "properties": {
+              "laneArtifactsRoot": { "type": "string", "minLength": 1 },
+              "laneResultsPath": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

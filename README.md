@@ -40,7 +40,10 @@ pnpm test:core       # Deterministic control-plane default gate (LLM-free, fast 
 pnpm test:core:all   # Full deterministic core scenario matrix
 pnpm test:live       # Live SDLC scenario lane (LLM use via SUT; requires provider API key)
 pnpm test:live:all   # Full live scenario matrix across providers
+pnpm test:batch      # Single-command batch (unit + core + integration/dashboard + live)
 ```
+
+See `docs/testing/batch-runner.md` for CLI options, isolation model, and report schema.
 
 - **Core lane**: deterministic AP/OT/IT/SI control-plane validations only; no live provider calls.
   - `test:core` runs the default fast subset.
@@ -62,6 +65,7 @@ pnpm test:live:all   # Full live scenario matrix across providers
 Test-result interpretation defaults to deterministic schema/state assertions (no evaluator LLM).
 
 Optional explicit evaluator config surface:
+
 - `LIVE_EVALUATION_MODE=deterministic|llm` (default: `deterministic`)
 - `LIVE_EVALUATION_PROVIDER=<openai|anthropic|google>` (required when `LIVE_EVALUATION_MODE=llm`)
 - `LIVE_EVALUATION_MODEL=<model-name>` (required when `LIVE_EVALUATION_MODE=llm`)

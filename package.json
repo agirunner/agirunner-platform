@@ -13,6 +13,7 @@
     "test:ci": "pnpm test:reports:enforce && pnpm test:definitions:validate && pnpm test && pnpm test:core",
     "test:core": "tsx tests/live/harness/runner.ts --lane core",
     "test:core:all": "tsx tests/live/harness/runner.ts --lane core --all",
+    "test:batch": "./scripts/test-batch.sh",
     "test:live": "tsx tests/live/harness/runner.ts --lane live",
     "test:live:all": "tsx tests/live/harness/runner.ts --lane live --all",
     "test:live:quick": "tsx tests/live/harness/runner.ts --lane live --happy-only --provider openai",

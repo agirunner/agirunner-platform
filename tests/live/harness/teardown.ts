@@ -31,11 +31,23 @@ function composeBinary(): string {
   }
 }
 
+function resolveLiveTmpPrefix(): string {
+  const override = process.env.LIVE_TMP_PREFIX?.trim();
+  return override && override.length > 0 ? override : '/tmp/agentbaton-live-';
+}
+
 function listTempArtifacts(): string[] {
+  const prefix = resolveLiveTmpPrefix();
+  const normalizedPrefix = prefix.startsWith('/tmp/') ? prefix.slice('/tmp/'.length) : null;
+
+  if (!normalizedPrefix) {
+    return [];
+  }
+
   const tmpRoot = '/tmp';
   try {
     return readdirSync(tmpRoot)
-      .filter((entry) => entry.startsWith('agentbaton-live-'))
+      .filter((entry) => entry.startsWith(normalizedPrefix))
       .map((entry) => path.join(tmpRoot, entry));
   } catch {
     return [];
@@ -46,9 +58,7 @@ interface TeardownOptions {
   keepStack?: boolean;
 }
 
-export function teardownLiveEnvironment(
-  options: TeardownOptions = {},
-): {
+export function teardownLiveEnvironment(options: TeardownOptions = {}): {
   leakedContainers: number;
   leakedTempFiles: number;
 } {

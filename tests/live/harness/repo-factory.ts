@@ -4,7 +4,12 @@ import path from 'node:path';
 
 const ROOT = path.resolve(process.cwd());
 const CANONICAL_FIXTURE_ROOT = path.join(ROOT, 'tests/live/fixtures');
-const LIVE_TMP_PREFIX = '/tmp/agentbaton-live-';
+const DEFAULT_LIVE_TMP_PREFIX = '/tmp/agentbaton-live-';
+
+function resolveLiveTmpPrefix(): string {
+  const override = process.env.LIVE_TMP_PREFIX?.trim();
+  return override && override.length > 0 ? override : DEFAULT_LIVE_TMP_PREFIX;
+}
 
 function run(command: string, cwd: string): void {
   execSync(command, { cwd, stdio: 'ignore' });
@@ -30,7 +35,7 @@ function ensureCanonicalRoot(): void {
 }
 
 function fixtureRunRoot(runId: string): string {
-  return `${LIVE_TMP_PREFIX}${runId}`;
+  return `${resolveLiveTmpPrefix()}${runId}`;
 }
 
 export interface FixtureWorkspace {

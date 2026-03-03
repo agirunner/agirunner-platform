@@ -50,16 +50,21 @@ const DEFAULT_ADMIN_KEY_PREFIX = 'ab_admin_def';
 const DEFAULT_ADMIN_API_KEY_ENV = 'DEFAULT_ADMIN_API_KEY';
 const DEFAULT_ADMIN_KEY_EXPIRY = new Date('2099-12-31T23:59:59Z');
 const LIVE_RESET_EXCLUDED_TABLES = ['schema_migrations', 'tenants'] as const;
-const REQUIRED_STARTUP_SECRETS: ReadonlyArray<{ envVar: 'JWT_SECRET' | 'WEBHOOK_ENCRYPTION_KEY'; minLength: number }> = [
+const REQUIRED_STARTUP_SECRETS: ReadonlyArray<{
+  envVar: 'JWT_SECRET' | 'WEBHOOK_ENCRYPTION_KEY';
+  minLength: number;
+}> = [
   { envVar: 'JWT_SECRET', minLength: 32 },
   { envVar: 'WEBHOOK_ENCRYPTION_KEY', minLength: 32 },
 ];
-const BUILD_CACHE_PATH = path.join(
-  process.cwd(),
-  '.cache',
-  'live-harness',
-  'compose-build-fingerprint.v1.json',
-);
+function resolveBuildCachePath(): string {
+  const override = process.env.LIVE_BUILD_CACHE_PATH?.trim();
+  if (override) {
+    return path.isAbsolute(override) ? override : path.join(process.cwd(), override);
+  }
+
+  return path.join(process.cwd(), '.cache', 'live-harness', 'compose-build-fingerprint.v1.json');
+}
 
 type TableNameRow = { tablename: string };
 
@@ -136,7 +141,9 @@ export function assertComposeDiskFloorFromAvailableKilobytes(
   minFreeGiB = 10,
 ): void {
   if (!Number.isFinite(availableKilobytes) || availableKilobytes < 0) {
-    throw new Error('Live harness compose preflight failed: unable to parse free disk space from `df -Pk` output.');
+    throw new Error(
+      'Live harness compose preflight failed: unable to parse free disk space from `df -Pk` output.',
+    );
   }
 
   const minFreeKilobytes = Math.floor(minFreeGiB * 1024 * 1024);
@@ -158,7 +165,9 @@ export function assertComposeDiskFloor(rootPath = '/', minFreeGiB = 10): void {
 
   const availableKilobytes = parseDfAvailableKilobytes(output);
   if (availableKilobytes === null) {
-    throw new Error('Live harness compose preflight failed: unable to parse free disk space from `df -Pk` output.');
+    throw new Error(
+      'Live harness compose preflight failed: unable to parse free disk space from `df -Pk` output.',
+    );
   }
 
   assertComposeDiskFloorFromAvailableKilobytes(availableKilobytes, rootPath, minFreeGiB);
@@ -294,14 +303,13 @@ function resolveWorkspaceFingerprint(): BuildFingerprint {
 }
 
 function readBuildFingerprintCache(): BuildFingerprintCacheRecord | null {
-  if (!existsSync(BUILD_CACHE_PATH)) {
+  const buildCachePath = resolveBuildCachePath();
+  if (!existsSync(buildCachePath)) {
     return null;
   }
 
   try {
-    const parsed = JSON.parse(
-      readFileSync(BUILD_CACHE_PATH, 'utf8'),
-    ) as BuildFingerprintCacheRecord;
+    const parsed = JSON.parse(readFileSync(buildCachePath, 'utf8')) as BuildFingerprintCacheRecord;
     if (!parsed.fingerprint || !parsed.source) {
       return null;
     }
@@ -313,14 +321,15 @@ function readBuildFingerprintCache(): BuildFingerprintCacheRecord | null {
 }
 
 function writeBuildFingerprintCache(fingerprint: BuildFingerprint): void {
-  mkdirSync(path.dirname(BUILD_CACHE_PATH), { recursive: true });
+  const buildCachePath = resolveBuildCachePath();
+  mkdirSync(path.dirname(buildCachePath), { recursive: true });
   const record: BuildFingerprintCacheRecord = {
     fingerprint: fingerprint.key,
     source: fingerprint.source,
     gitCommit: fingerprint.gitCommit,
     updatedAt: new Date().toISOString(),
   };
-  writeFileSync(BUILD_CACHE_PATH, JSON.stringify(record, null, 2) + '\n');
+  writeFileSync(buildCachePath, JSON.stringify(record, null, 2) + '\n');
 }
 
 export function shouldBuildDockerImages(
