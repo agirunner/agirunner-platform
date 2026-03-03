@@ -15,7 +15,11 @@
  *          FR-743, FR-745, FR-747, FR-748
  */
 
-import type { LiveContext, ScenarioExecutionResult } from '../harness/types.js';
+import type {
+  LiveContext,
+  ScenarioDeliveryEvidence,
+  ScenarioExecutionResult,
+} from '../harness/types.js';
 import type { ApiPipeline } from '../api-client.js';
 import { LiveApiClient } from '../api-client.js';
 import { loadConfig } from '../config.js';
@@ -41,9 +45,7 @@ const config = loadConfig();
  * 4. Polls until pipeline completes or times out
  * 5. Asserts all tasks completed with outputs present
  */
-export async function runAp1SdlcPipeline(
-  live: LiveContext,
-): Promise<ScenarioExecutionResult> {
+export async function runAp1SdlcPipeline(live: LiveContext): Promise<ScenarioExecutionResult> {
   const client = new LiveApiClient(live.env.apiBaseUrl, live.keys.admin);
   const validations: string[] = [];
 
@@ -94,11 +96,32 @@ export async function runAp1SdlcPipeline(
   assertDependencyOrder(completed);
   validations.push('dependency_order_respected');
 
+  const authenticityEvidence: ScenarioDeliveryEvidence[] = [
+    {
+      pipelineId: completed.id,
+      pipelineState: completed.state,
+      acceptanceCriteria: [
+        'Pipeline reaches completed terminal state with exactly 4 tasks',
+        'All tasks complete with non-empty structured outputs',
+        'Task dependency order is respected end-to-end',
+        'Delivery includes concrete implementation evidence for requested goal',
+      ],
+      requiresGitDiffEvidence: true,
+      tasks: (completed.tasks ?? []).map((task) => ({
+        id: task.id,
+        role: task.role ?? task.type,
+        state: task.state,
+        output: task.output ?? null,
+      })),
+    },
+  ];
+
   return {
     name: 'ap1-sdlc-pipeline',
     costUsd: 0,
     artifacts: [],
     validations,
     screenshots: [],
+    authenticityEvidence,
   };
 }

@@ -31,15 +31,24 @@ export interface LiveConfig {
   /** If true, setup skips docker compose stack startup and validates health only */
   skipStackSetup: boolean;
   /**
-   * Test-result interpretation mode.
-   * - deterministic: schema/state assertions only (default; no evaluator LLM)
-   * - llm: reserved for explicit evaluator-model wiring (not enabled by default)
+   * Legacy evaluation mode (kept for backwards compatibility).
+   * Hybrid authenticity gate is always enforced in the harness runner.
    */
   evaluationMode: EvaluationMode;
   /** Optional evaluator model selection for llm mode (e.g. gpt-4o-mini) */
   evaluationModel: string;
   /** Optional evaluator provider for llm mode (openai|anthropic|google) */
   evaluationProvider: string;
+  /** Authenticity validator LLM provider (phase 1 default: openai). */
+  authenticityLlmProvider: string;
+  /** Authenticity validator LLM model (default: gpt-4o-mini). */
+  authenticityLlmModel: string;
+  /** Authenticity validator timeout in milliseconds. */
+  authenticityLlmTimeoutMs: number;
+  /** Authenticity validator API base URL (provider endpoint). */
+  authenticityLlmApiBaseUrl: string;
+  /** Max characters per evidence excerpt sent to authenticity LLM validator. */
+  authenticityLlmMaxEvidenceChars: number;
 }
 
 function parseBooleanEnv(value: string | undefined): boolean {
@@ -65,16 +74,33 @@ function parseEvaluationMode(value: string | undefined): EvaluationMode {
 }
 
 export function assertEvaluationConfig(config: LiveConfig): void {
-  if (config.evaluationMode === 'deterministic') {
-    return;
-  }
-
   if (config.evaluationMode === 'llm') {
     if (!config.evaluationProvider || !config.evaluationModel) {
       throw new Error(
         'LIVE_EVALUATION_MODE=llm requires LIVE_EVALUATION_PROVIDER and LIVE_EVALUATION_MODEL to be set',
       );
     }
+  }
+
+  if (!config.authenticityLlmProvider || !config.authenticityLlmModel) {
+    throw new Error(
+      'LIVE_AUTH_LLM_PROVIDER and LIVE_AUTH_LLM_MODEL are required for hybrid authenticity validation',
+    );
+  }
+
+  if (!config.authenticityLlmApiBaseUrl) {
+    throw new Error('LIVE_AUTH_LLM_API_BASE_URL is required for hybrid authenticity validation');
+  }
+
+  if (!Number.isFinite(config.authenticityLlmTimeoutMs) || config.authenticityLlmTimeoutMs <= 0) {
+    throw new Error('LIVE_AUTH_LLM_TIMEOUT_MS must be a positive number');
+  }
+
+  if (
+    !Number.isFinite(config.authenticityLlmMaxEvidenceChars) ||
+    config.authenticityLlmMaxEvidenceChars < 200
+  ) {
+    throw new Error('LIVE_AUTH_LLM_MAX_EVIDENCE_CHARS must be >= 200');
   }
 }
 
@@ -121,5 +147,11 @@ export function loadConfig(): LiveConfig {
     evaluationMode: parseEvaluationMode(process.env.LIVE_EVALUATION_MODE),
     evaluationProvider: process.env.LIVE_EVALUATION_PROVIDER?.trim() ?? '',
     evaluationModel: process.env.LIVE_EVALUATION_MODEL?.trim() ?? '',
+    authenticityLlmProvider: process.env.LIVE_AUTH_LLM_PROVIDER?.trim() ?? 'openai',
+    authenticityLlmModel: process.env.LIVE_AUTH_LLM_MODEL?.trim() ?? 'gpt-4o-mini',
+    authenticityLlmTimeoutMs: Number(process.env.LIVE_AUTH_LLM_TIMEOUT_MS ?? 20_000),
+    authenticityLlmApiBaseUrl:
+      process.env.LIVE_AUTH_LLM_API_BASE_URL?.trim() ?? 'https://api.openai.com/v1',
+    authenticityLlmMaxEvidenceChars: Number(process.env.LIVE_AUTH_LLM_MAX_EVIDENCE_CHARS ?? 1_200),
   };
 }

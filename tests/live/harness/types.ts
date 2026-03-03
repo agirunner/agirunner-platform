@@ -69,12 +69,29 @@ export interface LiveContext {
   };
 }
 
+export interface ScenarioDeliveryEvidenceTask {
+  id: string;
+  role?: string;
+  state: string;
+  output?: Record<string, unknown> | null;
+}
+
+export interface ScenarioDeliveryEvidence {
+  pipelineId: string;
+  pipelineState: string;
+  tasks: ScenarioDeliveryEvidenceTask[];
+  acceptanceCriteria: string[];
+  requiresGitDiffEvidence?: boolean;
+  requiredArtifacts?: string[];
+}
+
 export interface ScenarioExecutionResult {
   name: string;
   costUsd: number;
   artifacts: string[];
   validations: string[];
   screenshots: string[];
+  authenticityEvidence?: ScenarioDeliveryEvidence[];
 }
 
 export interface PipelineSnapshot {

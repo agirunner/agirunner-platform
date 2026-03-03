@@ -16,7 +16,11 @@
  * FR refs: FR-074, FR-075, FR-076–FR-078, FR-191–FR-193, FR-745, FR-748
  */
 
-import type { LiveContext, ScenarioExecutionResult } from '../harness/types.js';
+import type {
+  LiveContext,
+  ScenarioDeliveryEvidence,
+  ScenarioExecutionResult,
+} from '../harness/types.js';
 import { LiveApiClient } from '../api-client.js';
 import { loadConfig } from '../config.js';
 import {
@@ -63,7 +67,7 @@ const PLANTED_BUGS: PlantedBug[] = [
 async function runSingleBug(
   live: LiveContext,
   bug: PlantedBug,
-): Promise<{ validations: string[] }> {
+): Promise<{ validations: string[]; evidence: ScenarioDeliveryEvidence }> {
   const client = new LiveApiClient(live.env.apiBaseUrl, live.keys.admin);
   const validations: string[] = [];
 
@@ -110,7 +114,25 @@ async function runSingleBug(
   validations.push(`output_present:${bug.issue}`);
   validations.push(`pipeline_completed:${bug.issue}`);
 
-  return { validations };
+  return {
+    validations,
+    evidence: {
+      pipelineId: completed.id,
+      pipelineState: completed.state,
+      acceptanceCriteria: [
+        `Maintenance pipeline resolves planted bug: ${bug.issue}`,
+        'Triage/fix/verify/close chain completes with concrete outputs',
+        'Delivery includes concrete file-level or diff-level change evidence',
+      ],
+      requiresGitDiffEvidence: true,
+      tasks: (completed.tasks ?? []).map((task) => ({
+        id: task.id,
+        role: task.role ?? task.type,
+        state: task.state,
+        output: task.output ?? null,
+      })),
+    },
+  };
 }
 
 /**
@@ -120,10 +142,12 @@ export async function runAp5MaintenancePipeline(
   live: LiveContext,
 ): Promise<ScenarioExecutionResult> {
   const allValidations: string[] = [];
+  const authenticityEvidence: ScenarioDeliveryEvidence[] = [];
 
   for (const bug of PLANTED_BUGS) {
     const result = await runSingleBug(live, bug);
     allValidations.push(...result.validations);
+    authenticityEvidence.push(result.evidence);
   }
 
   return {
@@ -132,6 +156,7 @@ export async function runAp5MaintenancePipeline(
     artifacts: [],
     validations: allValidations,
     screenshots: [],
+    authenticityEvidence,
   };
 }
 
@@ -152,5 +177,6 @@ export async function runAp5SingleBug(
     artifacts: [],
     validations: result.validations,
     screenshots: [],
+    authenticityEvidence: [result.evidence],
   };
 }

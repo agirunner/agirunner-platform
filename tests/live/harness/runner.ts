@@ -12,6 +12,7 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { enforceScenarioAuthenticityGate } from './authenticity-validator.js';
 import { cleanupFixtureWorkspace, prepareFixtureWorkspace } from './repo-factory.js';
 import { saveRunReport } from './report.js';
 import { setupLiveEnvironment } from './setup.js';
@@ -80,7 +81,7 @@ type ScenarioName =
   | 'si2-auth'
   | 'si2-extended-isolation';
 
-const ALL_SCENARIOS: ScenarioName[] = [
+export const ALL_SCENARIOS: ScenarioName[] = [
   'sdlc-happy',
   'ap2-external-runtime',
   'ap3-standalone-worker',
@@ -254,7 +255,9 @@ export function parseArgs(argv: string[]): ExtendedOptions {
     throw new Error(`--repeat must be a positive integer; got ${options.repeat}`);
 
   if (options.lane === 'core' && options.provider) {
-    throw new Error('--provider is not allowed in --lane core (core is deterministic and LLM-free)');
+    throw new Error(
+      '--provider is not allowed in --lane core (core is deterministic and LLM-free)',
+    );
   }
 
   if (options.lane === 'core' && options.template) {
@@ -616,6 +619,27 @@ async function runCombination(
         const scenarioStartedAt = Date.now();
         try {
           const result = await runScenarioByName(scenario, live);
+
+          const authenticity = await enforceScenarioAuthenticityGate({
+            runId,
+            scenario,
+            provider,
+            template,
+            result,
+          });
+
+          result.artifacts.push(authenticity.artifactPath);
+          result.validations.push(
+            `authenticity_route:${authenticity.route}`,
+            `authenticity_status:${authenticity.status}`,
+          );
+
+          if (authenticity.status !== 'PASS') {
+            throw new Error(
+              `Output authenticity NOT_PASS (${authenticity.route})${authenticity.reason ? `: ${authenticity.reason}` : ''}. Evidence: ${authenticity.artifactPath}`,
+            );
+          }
+
           scenarioMs[scenario] = Date.now() - scenarioStartedAt;
           scenarioResults[scenario] = scenarioResultFromSuccess(scenarioStartedAt, result);
           totalCost += result.costUsd;
@@ -684,7 +708,9 @@ export function makeExecutionMatrix(
   }
 
   if (options.all) {
-    return TEMPLATES.flatMap((template) => LIVE_PROVIDERS.map((provider) => ({ template, provider })));
+    return TEMPLATES.flatMap((template) =>
+      LIVE_PROVIDERS.map((provider) => ({ template, provider })),
+    );
   }
 
   return [{ template: options.template ?? 'sdlc', provider: options.provider ?? 'openai' }];
@@ -745,7 +771,9 @@ async function main(): Promise<void> {
         console.error(
           `Run failed before scenario completion (${entry.template}/${entry.provider}): ${report.runId}`,
         );
-        console.error(`  Error: ${report.scenarios[Object.keys(report.scenarios)[0]]?.error ?? String(error)}`);
+        console.error(
+          `  Error: ${report.scenarios[Object.keys(report.scenarios)[0]]?.error ?? String(error)}`,
+        );
       }
 
       saveRunReport(report);
