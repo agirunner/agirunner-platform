@@ -57,10 +57,9 @@ export async function bootstrapAgentApiEndpoint(params: {
     };
   }
 
-  if (params.provider !== 'openai') {
-    return null;
-  }
-
+  // AP built-in scenarios only require a reachable AGENT_API_URL.
+  // The harness-hosted executor is transport-compatible across live providers,
+  // so bootstrap should not be gated on lane provider (openai/google/anthropic).
   const openAiKey = process.env.OPENAI_API_KEY?.trim();
   if (!openAiKey) {
     return null;
