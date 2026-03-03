@@ -105,6 +105,53 @@ function runDocker(command: string): void {
   execSync(command, { cwd: process.cwd(), stdio: 'inherit' });
 }
 
+export function parseDfAvailableKilobytes(dfOutput: string): number | null {
+  const lines = dfOutput
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length < 2) {
+    return null;
+  }
+
+  const dataLine = lines[lines.length - 1];
+  const columns = dataLine.split(/\s+/);
+  if (columns.length < 4) {
+    return null;
+  }
+
+  const available = Number(columns[3]);
+  if (!Number.isFinite(available) || available < 0) {
+    return null;
+  }
+
+  return available;
+}
+
+export function assertComposeDiskFloor(rootPath = '/', minFreeGiB = 10): void {
+  const output = execSync(`df -Pk ${rootPath}`, {
+    cwd: process.cwd(),
+    stdio: ['ignore', 'pipe', 'ignore'],
+    encoding: 'utf8',
+  });
+
+  const availableKilobytes = parseDfAvailableKilobytes(output);
+  if (availableKilobytes === null) {
+    throw new Error('Live harness compose preflight failed: unable to parse free disk space from `df -Pk` output.');
+  }
+
+  const minFreeKilobytes = Math.floor(minFreeGiB * 1024 * 1024);
+  if (availableKilobytes < minFreeKilobytes) {
+    const availableGiB = (availableKilobytes / (1024 * 1024)).toFixed(2);
+    throw new Error(
+      `Live harness compose preflight failed: free disk on ${rootPath} is ${availableGiB}GiB, below required floor ${minFreeGiB}GiB. ` +
+        'Free space before running compose build/up.',
+    );
+  }
+}
+
 function runCommandQuiet(command: string): string | null {
   try {
     return execSync(command, {
@@ -688,6 +735,10 @@ export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveC
 
     const buildFlag = setupPlan.shouldBuildImages ? '--build ' : '';
     const fingerprintLabel = setupPlan.buildFingerprint?.key ?? 'unknown';
+    const minFreeGiB = Number(process.env.LIVE_COMPOSE_MIN_FREE_GB ?? '10');
+    if (Number.isFinite(minFreeGiB) && minFreeGiB > 0) {
+      assertComposeDiskFloor('/', minFreeGiB);
+    }
     console.log(
       `Live harness compose startup: ${setupPlan.shouldBuildImages ? 'rebuild' : 'reuse'} (${fingerprintLabel})`,
     );

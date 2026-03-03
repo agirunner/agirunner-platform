@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  assertComposeDiskFloor,
   buildLiveResetTruncateSql,
   createSetupExecutionPlan,
+  parseDfAvailableKilobytes,
   selectMutableLiveTables,
   shouldBuildDockerImages,
 } from './setup.js';
@@ -91,4 +93,18 @@ test('shouldBuildDockerImages rebuilds when fingerprint changes', () => {
   );
 
   assert.equal(shouldBuild, true);
+});
+
+test('parseDfAvailableKilobytes extracts available column from POSIX df output', () => {
+  const sample = `Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/vda1 100000000 27000000 73000000 28% /`;
+  const available = parseDfAvailableKilobytes(sample);
+  assert.equal(available, 73000000);
+});
+
+test('parseDfAvailableKilobytes returns null on malformed output', () => {
+  assert.equal(parseDfAvailableKilobytes('Filesystem Used Avail\n'), null);
+});
+
+test('assertComposeDiskFloor throws when available space is below threshold', () => {
+  assert.throws(() => assertComposeDiskFloor('/tmp', 1000), /below required floor/i);
 });
