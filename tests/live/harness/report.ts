@@ -85,6 +85,12 @@ type Canonical = { providers: string[]; scenarios: ScenarioDef[] };
 
 const STATUS_ENUM: LaneStatus[] = ['PASS', 'FAIL', 'NOT_PASS'];
 
+function resolveLane(report: RunReport): Lane {
+  if (report.template === 'dashboard') return 'integration';
+  if (report.provider === 'none') return 'core';
+  return 'live';
+}
+
 function nowIso(): string {
   return new Date().toISOString();
 }
@@ -353,8 +359,7 @@ export function saveRunReport(report: RunReport): {
 } {
   const root = process.cwd();
 
-  const lane: Lane =
-    report.provider === 'none' ? 'core' : report.template === 'dashboard' ? 'integration' : 'live';
+  const lane: Lane = resolveLane(report);
 
   const reportDir = path.join(root, `tests/artifacts/${lane}`);
   mkdirSync(reportDir, { recursive: true });

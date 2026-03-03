@@ -126,6 +126,8 @@ function validateLane(
     fail(`${lane}: missing matrix rows for use_case_id=[${missingRows.join(', ')}]`);
   }
 
+  const expectedMode = lane === 'core' ? 'deterministic' : lane === 'integration' ? 'dashboard' : 'e2e';
+
   for (const row of matrix) {
     if (!Array.isArray(row.cells) || row.cells.length === 0) {
       fail(`${lane}: row ${row.use_case_id} must contain cells`);
@@ -136,6 +138,18 @@ function validateLane(
 
     assertSetEqual(expectedProviders, observedProviders, `${lane}: provider coverage for ${row.use_case_id}`);
     assertUnique(observedProviders, `${lane}: duplicate providers for ${row.use_case_id}`);
+
+    for (const cell of row.cells) {
+      if (cell.category !== lane) {
+        fail(`${lane}: row ${row.use_case_id} has category=${cell.category}; expected ${lane}`);
+      }
+      if (cell.mode !== expectedMode) {
+        fail(`${lane}: row ${row.use_case_id} has mode=${cell.mode}; expected ${expectedMode}`);
+      }
+      if (cell.gating !== true) {
+        fail(`${lane}: row ${row.use_case_id} has gating=${String(cell.gating)}; expected true`);
+      }
+    }
   }
 
   const counts = countStatuses(matrix);
