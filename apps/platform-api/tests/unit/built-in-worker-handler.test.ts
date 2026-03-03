@@ -40,35 +40,72 @@ const minimalConfig: BuiltInWorkerConfig = {
 };
 
 describe('executeTask', () => {
-  it('returns success output when no agentApiUrl is configured', async () => {
+  it('fails closed when no agentApiUrl is configured (zero-config collapse)', async () => {
     const config: TaskExecutorConfig = {};
     const task = { id: 'task-abc', type: 'code', title: 'Test task' };
 
     const result = await executeTask(task, config);
 
-    expect(result.success).toBe(true);
-    expect(result.output).toMatchObject({ task_id: 'task-abc', handled_by: 'built-in-worker' });
-    expect(result.error).toBeUndefined();
+    expect(result.success).toBe(false);
+    expect(result.output).toEqual({});
+    expect(result.error).toContain('executor.agentApiUrl');
   });
 
-  it('includes the task_id in the output envelope when no agent URL is configured', async () => {
-    const config: TaskExecutorConfig = {};
-    const task = { id: 'task-xyz', type: 'analysis', title: 'Analysis task' };
+  it('returns parsed JSON output when a real executor endpoint is configured', async () => {
+    let receivedAuthHeader: string | undefined;
+    let receivedBody: Record<string, unknown> | undefined;
 
-    const result = await executeTask(task, config);
+    const server = createServer((req, res) => {
+      receivedAuthHeader = req.headers.authorization;
+      let body = '';
+      req.on('data', (chunk) => {
+        body += chunk.toString();
+      });
+      req.on('end', () => {
+        receivedBody = JSON.parse(body) as Record<string, unknown>;
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end('{"result":"ok","evidence":"real-executor"}');
+      });
+    });
 
-    expect(result.success).toBe(true);
-    expect(result.output.task_id).toBe('task-xyz');
-    expect(result.output.status).toBe('completed');
-  });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+      throw new Error('Failed to start mock executor server');
+    }
 
-  it('includes handled_by field to identify built-in worker execution', async () => {
-    const config: TaskExecutorConfig = {};
-    const task = { id: 'task-id-99', type: 'docs', title: 'Docs task' };
+    try {
+      const config: TaskExecutorConfig = {
+        agentApiUrl: `http://127.0.0.1:${address.port}/execute`,
+        agentApiKey: 'executor-token',
+      };
+      const task = {
+        id: 'task-xyz',
+        type: 'analysis',
+        title: 'Analysis task',
+        input: { repo: 'enterprise/example' },
+      };
 
-    const result = await executeTask(task, config);
+      const result = await executeTask(task, config);
 
-    expect(result.output.handled_by).toBe('built-in-worker');
+      expect(result.success).toBe(true);
+      expect(result.output).toMatchObject({ result: 'ok', evidence: 'real-executor' });
+      expect(receivedAuthHeader).toBe('Bearer executor-token');
+      expect(receivedBody).toMatchObject({
+        task_id: 'task-xyz',
+        type: 'analysis',
+        title: 'Analysis task',
+        input: { repo: 'enterprise/example' },
+      });
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      }));
+    }
   });
 
   it('returns a failure result when the agent API call times out', async () => {
