@@ -50,6 +50,10 @@ const DEFAULT_ADMIN_KEY_PREFIX = 'ab_admin_def';
 const DEFAULT_ADMIN_API_KEY_ENV = 'DEFAULT_ADMIN_API_KEY';
 const DEFAULT_ADMIN_KEY_EXPIRY = new Date('2099-12-31T23:59:59Z');
 const LIVE_RESET_EXCLUDED_TABLES = ['schema_migrations', 'tenants'] as const;
+const REQUIRED_STARTUP_SECRETS: ReadonlyArray<{ envVar: 'JWT_SECRET' | 'WEBHOOK_ENCRYPTION_KEY'; minLength: number }> = [
+  { envVar: 'JWT_SECRET', minLength: 32 },
+  { envVar: 'WEBHOOK_ENCRYPTION_KEY', minLength: 32 },
+];
 const BUILD_CACHE_PATH = path.join(
   process.cwd(),
   '.cache',
@@ -391,6 +395,24 @@ function ensureBootstrapAdminKey(options: { allowGenerate?: boolean } = {}): str
   return generated;
 }
 
+function ensureComposeRuntimeSecrets(): void {
+  for (const secret of REQUIRED_STARTUP_SECRETS) {
+    const configured = process.env[secret.envVar]?.trim();
+
+    if (configured && configured.length >= secret.minLength) {
+      continue;
+    }
+
+    if (configured && configured.length > 0 && configured.length < secret.minLength) {
+      throw new Error(
+        `${secret.envVar} must be at least ${secret.minLength} characters when provided to live harness docker setup`,
+      );
+    }
+
+    process.env[secret.envVar] = randomBytes(secret.minLength).toString('hex');
+  }
+}
+
 function captureBootstrapAdminKeyFromRunningStack(): string | null {
   const composeCommand = composeBinary();
   const lookups: ReadonlyArray<{ service: string; envVar: string }> = [
@@ -653,6 +675,7 @@ export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveC
 
   if (setupPlan.shouldRunDockerSetup) {
     ensureBootstrapAdminKey({ allowGenerate: true });
+    ensureComposeRuntimeSecrets();
     const composeCommand = composeBinary();
     const buildFlag = setupPlan.shouldBuildImages ? '--build ' : '';
     const fingerprintLabel = setupPlan.buildFingerprint?.key ?? 'unknown';
