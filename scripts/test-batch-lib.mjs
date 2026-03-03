@@ -73,7 +73,7 @@ Options:
   --continue-on-error             Execute all stages despite failures (default)
   --providers <csv>               Subset: openai,google,anthropic (default: openai)
   --report-dir <path>             Output directory (default: tests/artifacts/batch/run-<timestamp>)
-  --dry-run                       Print plan + write manifest/reports without running tests
+  --dry-run                       Write manifest/reports without running tests
   -h, --help                      Show this help message
 `);
 }

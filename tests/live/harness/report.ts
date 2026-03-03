@@ -99,16 +99,22 @@ const DEFAULT_RESULTS_PATH = 'tests/reports/results.v1.json';
 const DEFAULT_CANONICAL_PATH = 'tests/reports/test-cases.v1.json';
 const DEFAULT_ARTIFACTS_ROOT = 'tests/artifacts';
 
-function resolveResultsPath(): string {
-  return process.env.LIVE_REPORTS_RESULTS_PATH?.trim() || DEFAULT_RESULTS_PATH;
+function resolvePathOverride(root: string, envValue: string | undefined, fallback: string): string {
+  const override = envValue?.trim();
+  const configured = override && override.length > 0 ? override : fallback;
+  return path.isAbsolute(configured) ? configured : path.join(root, configured);
 }
 
-function resolveCanonicalPath(): string {
-  return process.env.LIVE_CANONICAL_TEST_CASES_PATH?.trim() || DEFAULT_CANONICAL_PATH;
+function resolveResultsPath(root: string): string {
+  return resolvePathOverride(root, process.env.LIVE_REPORTS_RESULTS_PATH, DEFAULT_RESULTS_PATH);
 }
 
-function resolveArtifactsRoot(): string {
-  return process.env.LIVE_ARTIFACTS_ROOT?.trim() || DEFAULT_ARTIFACTS_ROOT;
+function resolveCanonicalPath(root: string): string {
+  return resolvePathOverride(root, process.env.LIVE_CANONICAL_TEST_CASES_PATH, DEFAULT_CANONICAL_PATH);
+}
+
+function resolveArtifactsRoot(root: string): string {
+  return resolvePathOverride(root, process.env.LIVE_ARTIFACTS_ROOT, DEFAULT_ARTIFACTS_ROOT);
 }
 
 function resolveLane(report: RunReport): Lane {
@@ -171,7 +177,7 @@ function writeJson(filePath: string, payload: unknown): void {
 }
 
 function loadCanonicalScenarios(root: string): Canonical {
-  const canonicalPath = path.join(root, resolveCanonicalPath());
+  const canonicalPath = resolveCanonicalPath(root);
   const canonical = readJsonIfExists<Canonical>(canonicalPath);
   if (!canonical || !Array.isArray(canonical.providers) || !Array.isArray(canonical.scenarios)) {
     throw new Error(`Invalid or missing canonical test-case definitions at ${canonicalPath}`);
@@ -405,7 +411,7 @@ function readExistingOrLegacyState(
   liveCells: Record<string, Record<string, LiveCell>>;
   fallback: { core: Record<string, LaneStatus>; integration: Record<string, LaneStatus> };
 } {
-  const consolidatedPath = path.join(root, resolveResultsPath());
+  const consolidatedPath = resolveResultsPath(root);
   const consolidated = readJsonIfExists<ConsolidatedResults>(consolidatedPath);
 
   if (consolidated) {
@@ -479,7 +485,7 @@ function writeConsolidatedResults(
     fallback: { core: Record<string, LaneStatus>; integration: Record<string, LaneStatus> };
   },
 ): void {
-  const resultsPath = path.join(root, resolveResultsPath());
+  const resultsPath = resolveResultsPath(root);
   writeJson(
     resultsPath,
     buildConsolidatedPayload(canonical, state.runs, state.liveCells, state.fallback),
@@ -558,7 +564,7 @@ export function saveRunReport(report: RunReport): {
 
   const lane: Lane = resolveLane(report);
 
-  const reportDir = path.join(root, `${resolveArtifactsRoot()}/${lane}`);
+  const reportDir = path.join(resolveArtifactsRoot(root), lane);
   mkdirSync(reportDir, { recursive: true });
   mkdirSync(path.join(reportDir, 'screenshots'), { recursive: true });
 
