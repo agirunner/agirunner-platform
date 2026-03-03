@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { McpStdioServer, createMessageProcessor } from './index.js';
 
@@ -16,6 +16,10 @@ function createClient() {
 }
 
 describe('McpStdioServer', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('lists tools via tools/list', async () => {
     const response = await new McpStdioServer(createClient() as never).handle({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
     expect(response.error).toBeUndefined();
@@ -138,17 +142,21 @@ describe('McpStdioServer', () => {
   });
 
   it('does not crash when onMessage rejects — returns parse error instead', async () => {
+    vi.useFakeTimers();
+
     const malformedSpy = vi.fn();
     const processor = createMessageProcessor(
-      async () => { throw new Error('boom'); },
+      async () => {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        throw new Error('boom');
+      },
       malformedSpy,
     );
     const validBody = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
 
     processor(Buffer.from(`Content-Length: ${validBody.length}\r\n\r\n${validBody}`));
 
-    // Allow the microtask (promise rejection handler) to run
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await vi.advanceTimersByTimeAsync(5);
 
     expect(malformedSpy).toHaveBeenCalledWith(
       expect.objectContaining({

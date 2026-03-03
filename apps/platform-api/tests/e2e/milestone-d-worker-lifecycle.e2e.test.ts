@@ -13,14 +13,48 @@ function wait(ms: number): Promise<void> {
 
 function onceMessage(ws: WebSocket, type: string): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`timeout waiting for ${type}`)), 15_000);
-    ws.on('message', (raw) => {
-      const payload = JSON.parse(raw.toString()) as Record<string, unknown>;
-      if (payload.type === type) {
-        clearTimeout(timer);
-        resolve(payload);
+    const onMessage = (raw: unknown) => {
+      let payload: Record<string, unknown>;
+      try {
+        const rawText = typeof raw === 'string' ? raw : String(raw);
+        payload = JSON.parse(rawText) as Record<string, unknown>;
+      } catch {
+        return;
       }
-    });
+
+      if (payload.type !== type) {
+        return;
+      }
+
+      cleanup();
+      resolve(payload);
+    };
+
+    const onError = (error: unknown) => {
+      cleanup();
+      reject(error instanceof Error ? error : new Error(String(error)));
+    };
+
+    const onClose = () => {
+      cleanup();
+      reject(new Error(`websocket closed while waiting for ${type}`));
+    };
+
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error(`timeout waiting for ${type}`));
+    }, 15_000);
+
+    const cleanup = () => {
+      clearTimeout(timer);
+      ws.off('message', onMessage);
+      ws.off('error', onError);
+      ws.off('close', onClose);
+    };
+
+    ws.on('message', onMessage);
+    ws.on('error', onError);
+    ws.on('close', onClose);
   });
 }
 
@@ -125,7 +159,8 @@ describe('milestone d e2e worker lifecycle + webhook', () => {
     });
     const taskId = createTask.json().data.id as string;
 
-    await onceMessage(ws, 'task.assigned');
+    const assignment = await onceMessage(ws, 'task.assigned');
+    expect((assignment.task as { id?: string } | undefined)?.id).toBe(taskId);
     ws.send(JSON.stringify({ type: 'task.assignment_ack', task_id: taskId, agent_id: agentId }));
 
     const heartbeat = await app.inject({

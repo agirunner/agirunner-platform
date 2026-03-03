@@ -1,24 +1,29 @@
 import { expect, test } from '@playwright/test';
 
-import { expectAnyText, gotoDashboard, tryLogin } from './helpers.js';
+import { expectDashboardShell, expectLoginPage, expectOneOfHeadings, gotoDashboard, tryLogin } from './helpers.js';
 
 test.describe('dashboard auth', () => {
   test('login, logout, session refresh markers', async ({ page }) => {
     await gotoDashboard(page, '/');
     await tryLogin(page);
-    await expectAnyText(page, ['pipeline', 'task', 'dashboard', 'agentbaton']);
+    await expectDashboardShell(page);
+    await expectOneOfHeadings(page, ['Pipelines', 'Pipeline Detail']);
 
     const logoutButton = page.locator('button:has-text("Logout"), button:has-text("Sign out")').first();
     if ((await logoutButton.count()) > 0) {
       await logoutButton.click();
+      await expectLoginPage(page);
+      return;
     }
 
     await page.reload();
-    expect(page.url()).toContain('http');
+    await expectDashboardShell(page);
   });
 
   test('wrong password path is handled', async ({ page }) => {
     await gotoDashboard(page, '/login');
+    await expectLoginPage(page);
+
     const email = page.locator('input[type="email"], input[name="email"]');
     const password = page.locator('input[type="password"], input[name="password"]');
     if ((await email.count()) > 0 && (await password.count()) > 0) {
@@ -30,7 +35,8 @@ test.describe('dashboard auth', () => {
       }
     }
 
-    await expectAnyText(page, ['invalid', 'error', 'login', 'agentbaton']);
+    await expect(page.getByLabel('API Key')).toBeVisible();
+    await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
   });
 
   test('expired token path renders sane fallback', async ({ page, context }) => {
@@ -42,6 +48,13 @@ test.describe('dashboard auth', () => {
       },
     ]);
     await gotoDashboard(page, '/');
-    await expectAnyText(page, ['login', 'dashboard', 'agentbaton']);
+
+    const loginHeading = page.getByRole('heading', { name: 'AgentBaton Dashboard' }).first();
+    if ((await loginHeading.count()) > 0 && (await loginHeading.isVisible())) {
+      await expectLoginPage(page);
+      return;
+    }
+
+    await expectDashboardShell(page);
   });
 });

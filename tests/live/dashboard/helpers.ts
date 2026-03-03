@@ -30,8 +30,36 @@ export async function tryLogin(page: Page): Promise<void> {
   }
 }
 
-export async function expectAnyText(page: Page, candidates: string[]): Promise<void> {
-  const body = (await page.locator('body').textContent()) ?? '';
-  const matched = candidates.some((candidate) => body.toLowerCase().includes(candidate.toLowerCase()));
-  expect(matched).toBeTruthy();
+export async function expectLoginPage(page: Page): Promise<void> {
+  await expect(page.getByRole('heading', { name: 'AgentBaton Dashboard' })).toBeVisible();
+  await expect(page.getByLabel('API Key')).toBeVisible();
+  await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
+}
+
+export async function expectDashboardShell(page: Page): Promise<void> {
+  await expect(page.getByRole('link', { name: 'Pipelines' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Workers' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'System Metrics' })).toBeVisible();
+}
+
+export async function expectOneOfHeadings(page: Page, names: Array<string | RegExp>): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        for (const name of names) {
+          const heading = page.getByRole('heading', { name }).first();
+          if ((await heading.count()) === 0) {
+            continue;
+          }
+
+          if (await heading.isVisible()) {
+            return true;
+          }
+        }
+
+        return false;
+      },
+      { message: `Expected one of headings to be visible: ${names.map(String).join(', ')}` },
+    )
+    .toBe(true);
 }

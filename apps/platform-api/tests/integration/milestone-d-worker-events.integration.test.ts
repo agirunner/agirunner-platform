@@ -15,14 +15,48 @@ function wait(ms: number): Promise<void> {
 
 function waitForMessage(ws: WebSocket, predicate: (payload: Record<string, unknown>) => boolean): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('timeout waiting for websocket message')), 15_000);
-    ws.on('message', (raw) => {
-      const payload = JSON.parse(raw.toString()) as Record<string, unknown>;
-      if (predicate(payload)) {
-        clearTimeout(timer);
-        resolve(payload);
+    const onMessage = (raw: unknown) => {
+      let payload: Record<string, unknown>;
+      try {
+        const rawText = typeof raw === 'string' ? raw : String(raw);
+        payload = JSON.parse(rawText) as Record<string, unknown>;
+      } catch {
+        return;
       }
-    });
+
+      if (!predicate(payload)) {
+        return;
+      }
+
+      cleanup();
+      resolve(payload);
+    };
+
+    const onError = (error: unknown) => {
+      cleanup();
+      reject(error instanceof Error ? error : new Error(String(error)));
+    };
+
+    const onClose = () => {
+      cleanup();
+      reject(new Error('websocket closed while waiting for message'));
+    };
+
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error('timeout waiting for websocket message'));
+    }, 15_000);
+
+    const cleanup = () => {
+      clearTimeout(timer);
+      ws.off('message', onMessage);
+      ws.off('error', onError);
+      ws.off('close', onClose);
+    };
+
+    ws.on('message', onMessage);
+    ws.on('error', onError);
+    ws.on('close', onClose);
   });
 }
 
@@ -137,7 +171,10 @@ describe('milestone d worker/events integration', () => {
     expect(created.statusCode).toBe(201);
     const taskId = created.json().data.id as string;
 
-    const assignment = await waitForMessage(ws, (msg) => msg.type === 'task.assigned');
+    const assignment = await waitForMessage(
+      ws,
+      (msg) => msg.type === 'task.assigned' && (msg.task as { id?: string } | undefined)?.id === taskId,
+    );
     expect((assignment.task as { id: string }).id).toBe(taskId);
 
     ws.send(JSON.stringify({ type: 'task.assignment_ack', task_id: taskId, agent_id: agentId }));
