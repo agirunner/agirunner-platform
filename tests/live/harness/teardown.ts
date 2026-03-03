@@ -42,10 +42,28 @@ function listTempArtifacts(): string[] {
   }
 }
 
-export function teardownLiveEnvironment(): {
+interface TeardownOptions {
+  keepStack?: boolean;
+}
+
+export function teardownLiveEnvironment(
+  options: TeardownOptions = {},
+): {
   leakedContainers: number;
   leakedTempFiles: number;
 } {
+  const tempArtifacts = listTempArtifacts();
+  for (const entry of tempArtifacts) {
+    rmSync(entry, { recursive: true, force: true });
+  }
+
+  if (options.keepStack) {
+    return {
+      leakedContainers: 0,
+      leakedTempFiles: tempArtifacts.length,
+    };
+  }
+
   const compose = composeBinary();
   if (compose) {
     safeExec(`${compose} down -v --remove-orphans`);
@@ -58,11 +76,6 @@ export function teardownLiveEnvironment(): {
   )
     .split('\n')
     .filter(Boolean);
-
-  const tempArtifacts = listTempArtifacts();
-  for (const entry of tempArtifacts) {
-    rmSync(entry, { recursive: true, force: true });
-  }
 
   return {
     leakedContainers: leaked.length,

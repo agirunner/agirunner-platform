@@ -175,7 +175,7 @@ function loadEnvFile(envPath = '/root/.secrets/openai-test.env'): void {
 
 function printUsage(): void {
   console.log(
-    `Usage: pnpm test:live [options]\n\nOptions:\n  --lane <core|live>           Select deterministic core lane or batch live scenario lane\n                               (default: core)\n  --all                        Run full lane matrix\n  --template <sdlc|maintenance>\n                               Run a single template (live lane only)\n  --scenario <name>            Run a specific scenario by name\n  --provider <openai|google|anthropic>\n                               Live lane provider selection (default: openai)\n  --happy-only                 Run happy-path scenarios only (template mode only)\n  --sad-only                   Run sad-path scenarios only (template mode only)\n  --repeat <N>                 Repeat selected matrix N times (default: 1)\n  --dashboard                  Run Playwright dashboard E2E suite\n  -h, --help                   Show this help message\n\nCore default scenarios: ${CORE_DEFAULT_SCENARIOS.join(', ')}\nCore full scenarios (--all): ${CORE_SCENARIOS.join(', ')}\nLive default scenarios: ${LIVE_DEFAULT_SCENARIOS.join(', ')}\nAll scenarios: ${ALL_SCENARIOS.join(', ')}\n\nArtifacts: tests/artifacts/{core,integration,live}/run-*.{json,md}\nConsolidated results: tests/reports/results.v1.json\n`,
+    `Usage: pnpm test:live [options]\n\nOptions:\n  --lane <core|live>           Select deterministic core lane or batch live scenario lane\n                               (default: core)\n  --all                        Run full lane matrix\n  --template <sdlc|maintenance>\n                               Run a single template (live lane only)\n  --scenario <name>            Run a specific scenario by name\n  --provider <openai|google|anthropic>\n                               Live lane provider selection (default: openai)\n  --happy-only                 Run happy-path scenarios only (template mode only)\n  --sad-only                   Run sad-path scenarios only (template mode only)\n  --repeat <N>                 Repeat selected matrix N times (default: 1)\n  --dashboard                  Run Playwright dashboard E2E suite\n  --preflight-only             Strict live preflight (health/config/auth), no scenario execution\n  --keep-stack                 Keep docker stack running after run (warm batch mode)\n  --fast-reset                 Deterministic per-run DB reset (warm batch mode)\n  -h, --help                   Show this help message\n\nCore default scenarios: ${CORE_DEFAULT_SCENARIOS.join(', ')}\nCore full scenarios (--all): ${CORE_SCENARIOS.join(', ')}\nLive default scenarios: ${LIVE_DEFAULT_SCENARIOS.join(', ')}\nAll scenarios: ${ALL_SCENARIOS.join(', ')}\n\nArtifacts: tests/artifacts/{core,integration,live}/run-*.{json,md}\nConsolidated results: tests/reports/results.v1.json\n`,
   );
 }
 
@@ -212,6 +212,9 @@ export function parseArgs(argv: string[]): ExtendedOptions {
     sadOnly: false,
     repeat: 1,
     dashboard: false,
+    keepStack: false,
+    preflightOnly: false,
+    fastReset: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -236,6 +239,9 @@ export function parseArgs(argv: string[]): ExtendedOptions {
       options.repeat = Number(requireArgValue(argv, i, '--repeat'));
       i += 1;
     } else if (arg === '--dashboard') options.dashboard = true;
+    else if (arg === '--keep-stack') options.keepStack = true;
+    else if (arg === '--preflight-only') options.preflightOnly = true;
+    else if (arg === '--fast-reset') options.fastReset = true;
     else if (arg === '--help' || arg === '-h') {
       printUsage();
       process.exit(0);
@@ -253,6 +259,10 @@ export function parseArgs(argv: string[]): ExtendedOptions {
 
   if (options.lane === 'core' && options.template) {
     throw new Error('--template is not supported in --lane core; use --scenario or --all');
+  }
+
+  if (options.lane === 'core' && options.preflightOnly) {
+    throw new Error('--preflight-only is supported only in --lane live');
   }
 
   return options;
@@ -480,8 +490,11 @@ function makeFatalRunReport(
   const runId = makeRunId(template, provider, repeatIndex);
   const duration = `${((Date.now() - startedAtMs) / 1000).toFixed(2)}s`;
   const errorMessage = error instanceof Error ? error.message : String(error);
-  const scenarioNames =
-    template === 'dashboard' ? ['dashboard'] : (resolveScenarios(options) as string[]);
+  const scenarioNames = options.preflightOnly
+    ? ['preflight']
+    : template === 'dashboard'
+      ? ['dashboard']
+      : (resolveScenarios(options) as string[]);
 
   const scenarios = Object.fromEntries(
     scenarioNames.map((scenarioName) => [
@@ -542,71 +555,116 @@ async function runCombination(
   options: ExtendedOptions,
   repeatIndex: number,
 ): Promise<RunReport> {
-  const startedAt = new Date().toISOString();
+  const runStartedAtMs = Date.now();
+  const startedAt = new Date(runStartedAtMs).toISOString();
   const runId = makeRunId(template, provider, repeatIndex);
   mkdirSync(path.join(process.cwd(), 'tests/artifacts/live/screenshots'), { recursive: true });
 
   if (template === 'dashboard') {
     const scenarioStartedAt = Date.now();
+    const result = runDashboardPlaywright(runId, scenarioStartedAt);
+    const finishedAtMs = Date.now();
     return {
       runId,
       startedAt,
-      finishedAt: new Date().toISOString(),
+      finishedAt: new Date(finishedAtMs).toISOString(),
       template,
       provider,
       repeat: options.repeat,
-      scenarios: { dashboard: runDashboardPlaywright(runId, scenarioStartedAt) },
+      scenarios: { dashboard: result },
       containers_leaked: 0,
       temp_files_leaked: 0,
       total_cost: '$0.0000',
+      timing: {
+        setupMs: 0,
+        scenarioMs: { dashboard: finishedAtMs - scenarioStartedAt },
+        teardownMs: 0,
+        totalMs: finishedAtMs - runStartedAtMs,
+      },
     };
   }
 
-  const live = await setupLiveEnvironment({ runId, template, provider });
+  const setupStartedAt = Date.now();
+  const live = await setupLiveEnvironment({
+    runId,
+    template,
+    provider,
+    fastReset: options.fastReset,
+  });
+  const setupMs = Date.now() - setupStartedAt;
+
   prepareFixtureWorkspace(runId);
 
   const scenarios = resolveScenarios(options);
   const scenarioResults: Record<string, ScenarioResult> = {};
+  const scenarioMs: Record<string, number> = {};
   let totalCost = 0;
   let cleanup: ReturnType<typeof teardownLiveEnvironment> = {
     leakedContainers: 0,
     leakedTempFiles: 0,
   };
 
+  let teardownMs = 0;
   try {
     await assertAutonomousWorkerReady(live, scenarios);
 
-    for (const scenario of scenarios) {
-      console.log(`\n▶ Running scenario: ${scenario}`);
-      const scenarioStartedAt = Date.now();
-      try {
-        const result = await runScenarioByName(scenario, live);
-        scenarioResults[scenario] = scenarioResultFromSuccess(scenarioStartedAt, result);
-        totalCost += result.costUsd;
-        console.log(`  ✓ ${scenario} — ${result.validations.length} validations`);
-      } catch (error) {
-        scenarioResults[scenario] = scenarioResultFromFailure(scenarioStartedAt, error);
-        console.error(
-          `  ✗ ${scenario} — ${error instanceof Error ? error.message : String(error)}`,
-        );
+    if (options.preflightOnly) {
+      console.log('✓ Strict preflight passed (health/config/auth).');
+    } else {
+      for (const scenario of scenarios) {
+        console.log(`\n▶ Running scenario: ${scenario}`);
+        const scenarioStartedAt = Date.now();
+        try {
+          const result = await runScenarioByName(scenario, live);
+          scenarioMs[scenario] = Date.now() - scenarioStartedAt;
+          scenarioResults[scenario] = scenarioResultFromSuccess(scenarioStartedAt, result);
+          totalCost += result.costUsd;
+          console.log(`  ✓ ${scenario} — ${result.validations.length} validations`);
+        } catch (error) {
+          scenarioMs[scenario] = Date.now() - scenarioStartedAt;
+          scenarioResults[scenario] = scenarioResultFromFailure(scenarioStartedAt, error);
+          console.error(
+            `  ✗ ${scenario} — ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
       }
     }
   } finally {
     cleanupFixtureWorkspace(runId);
-    cleanup = teardownLiveEnvironment();
+    const teardownStartedAt = Date.now();
+    cleanup = teardownLiveEnvironment({ keepStack: options.keepStack });
+    teardownMs = Date.now() - teardownStartedAt;
   }
 
+  const finishedAtMs = Date.now();
   return {
     runId,
     startedAt,
-    finishedAt: new Date().toISOString(),
+    finishedAt: new Date(finishedAtMs).toISOString(),
     template,
     provider,
     repeat: options.repeat,
-    scenarios: scenarioResults,
+    scenarios: options.preflightOnly
+      ? {
+          preflight: {
+            status: 'pass',
+            duration: `${((finishedAtMs - runStartedAtMs) / 1000).toFixed(2)}s`,
+            cost: '$0.0000',
+            artifacts: 0,
+            validations: 1,
+            screenshots: [],
+          },
+        }
+      : scenarioResults,
     containers_leaked: cleanup.leakedContainers,
     temp_files_leaked: cleanup.leakedTempFiles,
     total_cost: `$${totalCost.toFixed(4)}`,
+    timing: {
+      setupMs,
+      scenarioMs,
+      teardownMs,
+      totalMs: finishedAtMs - runStartedAtMs,
+    },
   };
 }
 
@@ -662,7 +720,7 @@ async function main(): Promise<void> {
 
   const matrix = makeExecutionMatrix(options);
 
-  if (options.lane === 'live') {
+  if (options.lane === 'live' && !options.preflightOnly) {
     assertLiveApiKeysForMatrix(matrix);
   }
 
@@ -705,10 +763,27 @@ async function main(): Promise<void> {
       console.log(`  ${icon} ${name} — ${result.duration} — ${result.validations} validations`);
       if (result.error) console.log(`    Error: ${result.error}`);
     }
+    if (report.timing) {
+      console.log(
+        `  Timing: setup=${(report.timing.setupMs / 1000).toFixed(2)}s | teardown=${(report.timing.teardownMs / 1000).toFixed(2)}s | total=${(report.timing.totalMs / 1000).toFixed(2)}s`,
+      );
+    }
     if (report.containers_leaked > 0)
       console.log(`  ⚠ Leaked containers: ${report.containers_leaked}`);
     if (report.temp_files_leaked > 0)
       console.log(`  ⚠ Leaked temp files: ${report.temp_files_leaked}`);
+  }
+
+  const timingSamples = reports
+    .map((report) => report.timing?.totalMs)
+    .filter((value): value is number => typeof value === 'number')
+    .sort((a, b) => a - b);
+  if (timingSamples.length > 0) {
+    const medianMs = timingSamples[Math.floor(timingSamples.length / 2)];
+    const avgMs = timingSamples.reduce((sum, value) => sum + value, 0) / timingSamples.length;
+    console.log(
+      `\nAggregate timing: runs=${timingSamples.length} | median=${(medianMs / 1000).toFixed(2)}s | avg=${(avgMs / 1000).toFixed(2)}s`,
+    );
   }
 
   const failed = reports.some((r) => Object.values(r.scenarios).some((s) => s.status === 'fail'));

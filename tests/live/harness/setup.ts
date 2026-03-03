@@ -12,6 +12,7 @@ interface SetupOptions {
   runId: string;
   provider: Provider;
   template: TemplateType;
+  fastReset?: boolean;
 }
 
 interface SetupExecutionPlan {
@@ -163,6 +164,32 @@ async function registerAgent(apiBaseUrl: string, agentKey: string, workerId: str
   return payload.data.id;
 }
 
+async function resetLiveState(postgresUrl: string): Promise<void> {
+  const pool = new pg.Pool({ connectionString: postgresUrl });
+  try {
+    await pool.query('BEGIN');
+
+    await pool.query('DELETE FROM worker_signals');
+    await pool.query('DELETE FROM orchestrator_grants');
+    await pool.query('DELETE FROM tasks');
+    await pool.query('DELETE FROM pipelines');
+    await pool.query('DELETE FROM projects');
+    await pool.query('DELETE FROM templates');
+    await pool.query('DELETE FROM events');
+
+    await pool.query("DELETE FROM agents WHERE name = 'live-suite-agent'");
+    await pool.query("DELETE FROM workers WHERE name = 'live-suite-worker'");
+    await pool.query("DELETE FROM api_keys WHERE label IN ('live-admin', 'live-worker', 'live-agent')");
+
+    await pool.query('COMMIT');
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    throw error;
+  } finally {
+    await pool.end();
+  }
+}
+
 async function seedDatabase(apiBaseUrl: string, postgresUrl: string): Promise<void> {
   const pool = new pg.Pool({ connectionString: postgresUrl });
   try {
@@ -185,6 +212,12 @@ async function seedDatabase(apiBaseUrl: string, postgresUrl: string): Promise<vo
   } finally {
     await pool.end();
   }
+}
+
+export async function verifyStrictPreflight(apiBaseUrl: string, adminKey: string): Promise<void> {
+  await requestJson(`${apiBaseUrl}/api/v1/workers`, {
+    headers: { authorization: `Bearer ${adminKey}` },
+  });
 }
 
 export function createSetupExecutionPlan(skipStackSetup: boolean): SetupExecutionPlan {
@@ -219,7 +252,12 @@ export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveC
     await waitForHealth(`${dashboardBaseUrl}/`, 'dashboard', liveConfig.healthTimeoutMs);
   }
 
+  if (options.fastReset) {
+    await resetLiveState(postgresUrl);
+  }
+
   await seedDatabase(apiBaseUrl, postgresUrl);
+  await verifyStrictPreflight(apiBaseUrl, String(process.env.LIVE_ADMIN_KEY));
 
   return {
     runId: options.runId,

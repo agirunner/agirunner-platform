@@ -11,6 +11,9 @@ export interface RunnerOptions {
   sadOnly: boolean;
   repeat: number;
   dashboard: boolean;
+  keepStack: boolean;
+  preflightOnly: boolean;
+  fastReset: boolean;
 }
 
 export interface ScenarioResult {
@@ -21,6 +24,13 @@ export interface ScenarioResult {
   validations: number;
   screenshots: string[];
   error?: string;
+}
+
+export interface RunTiming {
+  setupMs: number;
+  scenarioMs: Record<string, number>;
+  teardownMs: number;
+  totalMs: number;
 }
 
 export interface RunReport {
@@ -34,6 +44,7 @@ export interface RunReport {
   containers_leaked: number;
   temp_files_leaked: number;
   total_cost: string;
+  timing?: RunTiming;
 }
 
 export interface LiveContext {

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { execFileSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -51,10 +51,47 @@ type RunReport = {
   scenarios: Record<string, { status: 'pass' | 'fail'; error?: string }>;
 };
 
+type RunMode = 'cold' | 'warm';
+
+type CellExecution = {
+  report: RunReport;
+  reportPath: string;
+  summaryPath?: string;
+  commandFailed: boolean;
+  durationMs: number;
+  attempts: number;
+};
+
 const ROOT = process.cwd();
 const CANONICAL_DEFINITIONS_PATH = path.join(ROOT, 'tests/reports/test-cases.v1.json');
 const CONSOLIDATED_RESULTS_PATH = path.join(ROOT, 'tests/reports/results.v1.json');
 const LIVE_ARTIFACTS_DIR = path.join(ROOT, 'tests/artifacts/live');
+
+const INFRA_FAILURE_SIGNATURES = [
+  /timed out waiting for/i,
+  /econnrefused/i,
+  /fetch failed/i,
+  /docker compose/i,
+  /live harness preflight failed/i,
+  /network error/i,
+  /socket hang up/i,
+  /service unavailable/i,
+];
+
+function isInfraFailureSignature(message: string): boolean {
+  return INFRA_FAILURE_SIGNATURES.some((pattern) => pattern.test(message));
+}
+
+function formatSeconds(ms: number): string {
+  return `${(ms / 1000).toFixed(2)}s`;
+}
+
+function summarizeDurations(samples: number[]): { medianMs: number; avgMs: number } {
+  const sorted = [...samples].sort((a, b) => a - b);
+  const medianMs = sorted[Math.floor(sorted.length / 2)] ?? 0;
+  const avgMs = sorted.reduce((sum, value) => sum + value, 0) / Math.max(sorted.length, 1);
+  return { medianMs, avgMs };
+}
 
 function loadCanonicalDefinitions(): CanonicalTestCases {
   if (!existsSync(CANONICAL_DEFINITIONS_PATH)) {
@@ -136,18 +173,76 @@ function parseReportFile(file: ReportFile): RunReport {
   return JSON.parse(readFileSync(file.absolutePath, 'utf8')) as RunReport;
 }
 
-function runOne(results: ConsolidatedResults, provider: Provider, scenario: string): void {
+function runStrictPreflight(provider: Provider, keepStack: boolean): void {
+  const args = [
+    'exec',
+    'tsx',
+    'tests/live/harness/runner.ts',
+    '--lane',
+    'live',
+    '--provider',
+    provider,
+    '--preflight-only',
+  ];
+
+  if (keepStack) {
+    args.push('--keep-stack');
+  }
+
+  execFileSync('pnpm', args, { stdio: 'inherit' });
+}
+
+function shutdownComposeStack(): void {
+  try {
+    execSync('docker compose down -v --remove-orphans', { cwd: ROOT, stdio: 'inherit' });
+    return;
+  } catch {
+    // fall through
+  }
+
+  try {
+    execSync('docker-compose down -v --remove-orphans', { cwd: ROOT, stdio: 'inherit' });
+  } catch {
+    // best-effort cleanup only
+  }
+}
+
+function executeScenarioOnce(provider: Provider, scenario: string, mode: RunMode): Omit<CellExecution, 'attempts'> {
+  const startedAt = Date.now();
   const before = new Set(listReportFiles().map((entry) => entry.key));
 
+  const args = [
+    'exec',
+    'tsx',
+    'tests/live/harness/runner.ts',
+    '--lane',
+    'live',
+    '--provider',
+    provider,
+    '--scenario',
+    scenario,
+  ];
+
+  if (mode === 'warm') {
+    args.push('--keep-stack', '--fast-reset');
+  }
+
   let commandFailed = false;
+  let commandErrorText = '';
   try {
-    execFileSync(
-      'pnpm',
-      ['exec', 'tsx', 'tests/live/harness/runner.ts', '--lane', 'live', '--provider', provider, '--scenario', scenario],
-      { stdio: 'inherit' },
-    );
-  } catch {
+    execFileSync('pnpm', args, {
+      stdio: 'inherit',
+      env:
+        mode === 'warm'
+          ? {
+              ...process.env,
+              LIVE_SKIP_STACK_SETUP: '1',
+            }
+          : process.env,
+    });
+  } catch (error) {
     commandFailed = true;
+    commandErrorText = error instanceof Error ? error.message : String(error);
   }
 
   const after = listReportFiles();
@@ -166,31 +261,81 @@ function runOne(results: ConsolidatedResults, provider: Provider, scenario: stri
     }
   }
 
-  const cell = results.live_cells[scenario]?.[provider];
-  if (!cell) {
-    throw new Error(`Unknown scenario/provider cell: ${scenario}/${provider}`);
-  }
-
   if (!matched) {
-    cell.status = 'FAIL';
-    cell.error = 'No matching run report found after execution';
-    writeResults(results);
-    throw new Error(`Missing run evidence for ${scenario}/${provider}`);
+    throw new Error(
+      `Missing run evidence for ${scenario}/${provider}: ${commandErrorText || 'No matching run report found after execution'}`,
+    );
   }
 
-  const result = matched.report.scenarios[scenario];
-  cell.status = result.status === 'pass' && !commandFailed ? 'PASS' : 'FAIL';
-  cell.runId = matched.report.runId;
-  cell.artifactJsonPath = matched.reportPath;
-  cell.artifactMdPath = matched.summaryPath;
-  cell.finishedAt = matched.report.finishedAt;
-  cell.error = result.error;
-
-  writeResults(results);
-
-  if (commandFailed) {
-    throw new Error(`Scenario execution failed for ${scenario}/${provider}`);
+  if (commandFailed && !matched.report.scenarios[scenario]?.error) {
+    matched.report.scenarios[scenario] = {
+      status: 'fail',
+      error: commandErrorText || 'Scenario command failed with no report error detail',
+    };
   }
+
+  return {
+    report: matched.report,
+    reportPath: matched.reportPath,
+    summaryPath: matched.summaryPath,
+    commandFailed,
+    durationMs: Date.now() - startedAt,
+  };
+}
+
+function runOne(results: ConsolidatedResults, provider: Provider, scenario: string, mode: RunMode): CellExecution {
+  const maxAttempts = 2;
+
+  let attempt = 0;
+  let lastError: Error | undefined;
+
+  while (attempt < maxAttempts) {
+    attempt += 1;
+
+    try {
+      const execution = executeScenarioOnce(provider, scenario, mode);
+      const result = execution.report.scenarios[scenario];
+      const cell = results.live_cells[scenario]?.[provider];
+      if (!cell) {
+        throw new Error(`Unknown scenario/provider cell: ${scenario}/${provider}`);
+      }
+
+      cell.status = result.status === 'pass' && !execution.commandFailed ? 'PASS' : 'FAIL';
+      cell.runId = execution.report.runId;
+      cell.artifactJsonPath = execution.reportPath;
+      cell.artifactMdPath = execution.summaryPath;
+      cell.finishedAt = execution.report.finishedAt;
+      cell.error = result.error;
+
+      writeResults(results);
+
+      if (execution.commandFailed) {
+        throw new Error(result.error ?? `Scenario execution failed for ${scenario}/${provider}`);
+      }
+
+      return { ...execution, attempts: attempt };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      lastError = error instanceof Error ? error : new Error(message);
+
+      const canRetry = attempt < maxAttempts && isInfraFailureSignature(message);
+      if (canRetry) {
+        console.log(`  ↻ Infra signature detected; retrying once (${scenario}/${provider})...`);
+        continue;
+      }
+
+      const cell = results.live_cells[scenario]?.[provider];
+      if (cell) {
+        cell.status = 'FAIL';
+        cell.error = message;
+        writeResults(results);
+      }
+
+      break;
+    }
+  }
+
+  throw lastError ?? new Error(`Scenario execution failed for ${scenario}/${provider}`);
 }
 
 function parseCsvArg(argv: string[], flag: string): string[] | undefined {
@@ -214,7 +359,7 @@ function resetBaseline(): void {
   console.log('Live lane baseline reset: all scenario/provider cells set to NOT_PASS.');
 }
 
-function runMatrix(argv: string[]): void {
+function runMatrix(argv: string[], mode: RunMode): void {
   const results = readResults();
 
   const providerArg = parseCsvArg(argv, '--providers');
@@ -237,11 +382,54 @@ function runMatrix(argv: string[]): void {
     }
   }
 
-  for (const provider of providers) {
-    for (const scenario of scenarios) {
-      console.log(`\n=== Running ${scenario} on ${provider} ===`);
-      runOne(results, provider, scenario);
+  const durations: number[] = [];
+
+  if (mode === 'warm') {
+    runStrictPreflight(providers[0], true);
+  }
+
+  try {
+    for (const provider of providers) {
+      for (const scenario of scenarios) {
+        console.log(`\n=== Running ${scenario} on ${provider} (${mode}) ===`);
+        const execution = runOne(results, provider, scenario, mode);
+        durations.push(execution.durationMs);
+
+        const finalStatus = execution.report.scenarios[scenario]?.status ?? 'fail';
+        const attemptsLabel = execution.attempts > 1 ? ` | attempts=${execution.attempts}` : '';
+        console.log(
+          `  ⏱ duration=${formatSeconds(execution.durationMs)} | status=${finalStatus.toUpperCase()}${attemptsLabel}`,
+        );
+      }
     }
+  } finally {
+    if (mode === 'warm') {
+      shutdownComposeStack();
+    }
+  }
+
+  if (durations.length > 0) {
+    const { medianMs, avgMs } = summarizeDurations(durations);
+    console.log(
+      `\nTiming summary (${mode}): runs=${durations.length} | median=${formatSeconds(medianMs)} | avg=${formatSeconds(avgMs)}`,
+    );
+  }
+}
+
+function preflight(argv: string[]): void {
+  const oneProvider = parseCsvArg(argv, '--provider');
+  const providerArg = parseCsvArg(argv, '--providers');
+  const providers = (oneProvider ?? providerArg ?? ['openai']) as Provider[];
+
+  for (const provider of providers) {
+    if (!PROVIDERS.includes(provider)) {
+      throw new Error(`Unsupported provider: ${provider}`);
+    }
+  }
+
+  for (const provider of providers) {
+    console.log(`\n=== Strict preflight (${provider}) ===`);
+    runStrictPreflight(provider, false);
   }
 }
 
@@ -254,14 +442,27 @@ function main(): void {
   }
 
   if (command === 'run') {
-    runMatrix(rest);
+    runMatrix(rest, 'cold');
+    return;
+  }
+
+  if (command === 'run-fast') {
+    runMatrix(rest, 'warm');
+    return;
+  }
+
+  if (command === 'preflight') {
+    preflight(rest);
     return;
   }
 
   console.log(`Usage:
   pnpm exec tsx tests/live/harness/traceability-flow.ts reset
+  pnpm exec tsx tests/live/harness/traceability-flow.ts preflight [--provider openai]
   pnpm exec tsx tests/live/harness/traceability-flow.ts run [--providers openai,google,anthropic] [--scenarios ot1-cascade,it1-sdk]
-  pnpm exec tsx tests/live/harness/traceability-flow.ts run --provider openai --scenario ot1-cascade\n\nArtifacts: tests/artifacts/live (run-*.json + run-*.md)\nConsolidated results: tests/reports/results.v1.json`);
+  pnpm exec tsx tests/live/harness/traceability-flow.ts run-fast [--providers openai,google,anthropic] [--scenarios ot1-cascade,it1-sdk]
+  pnpm exec tsx tests/live/harness/traceability-flow.ts run --provider openai --scenario ot1-cascade
+  pnpm exec tsx tests/live/harness/traceability-flow.ts run-fast --provider openai --scenario ot1-cascade\n\nArtifacts: tests/artifacts/live (run-*.json + run-*.md)\nConsolidated results: tests/reports/results.v1.json`);
 }
 
 main();
