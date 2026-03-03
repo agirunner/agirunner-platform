@@ -469,6 +469,49 @@ function runDashboardPlaywright(runId: string, startedAt: number): ScenarioResul
   }
 }
 
+function makeFatalRunReport(
+  template: TemplateType,
+  provider: Provider,
+  options: ExtendedOptions,
+  repeatIndex: number,
+  startedAtMs: number,
+  error: unknown,
+): RunReport {
+  const runId = makeRunId(template, provider, repeatIndex);
+  const duration = `${((Date.now() - startedAtMs) / 1000).toFixed(2)}s`;
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const scenarioNames =
+    template === 'dashboard' ? ['dashboard'] : (resolveScenarios(options) as string[]);
+
+  const scenarios = Object.fromEntries(
+    scenarioNames.map((scenarioName) => [
+      scenarioName,
+      {
+        status: 'fail',
+        duration,
+        cost: '$0.0000',
+        artifacts: 0,
+        validations: 0,
+        screenshots: [],
+        error: errorMessage,
+      },
+    ]),
+  );
+
+  return {
+    runId,
+    startedAt: new Date(startedAtMs).toISOString(),
+    finishedAt: new Date().toISOString(),
+    template,
+    provider,
+    repeat: options.repeat,
+    scenarios,
+    containers_leaked: 0,
+    temp_files_leaked: 0,
+    total_cost: '$0.0000',
+  };
+}
+
 export function assertLiveApiKey(provider: Provider): void {
   const requiredEnvByProvider: Record<'openai' | 'google' | 'anthropic', string[]> = {
     openai: ['OPENAI_API_KEY'],
@@ -627,7 +670,26 @@ async function main(): Promise<void> {
 
   for (let repeatIndex = 0; repeatIndex < options.repeat; repeatIndex += 1) {
     for (const entry of matrix) {
-      const report = await runCombination(entry.template, entry.provider, options, repeatIndex);
+      const startedAtMs = Date.now();
+      let report: RunReport;
+
+      try {
+        report = await runCombination(entry.template, entry.provider, options, repeatIndex);
+      } catch (error) {
+        report = makeFatalRunReport(
+          entry.template,
+          entry.provider,
+          options,
+          repeatIndex,
+          startedAtMs,
+          error,
+        );
+        console.error(
+          `Run failed before scenario completion (${entry.template}/${entry.provider}): ${report.runId}`,
+        );
+        console.error(`  Error: ${report.scenarios[Object.keys(report.scenarios)[0]]?.error ?? String(error)}`);
+      }
+
       saveRunReport(report);
       reports.push(report);
     }
