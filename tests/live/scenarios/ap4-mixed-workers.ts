@@ -9,7 +9,7 @@
  * Test plan ref: AP-4
  */
 
-import type { LiveContext, ScenarioExecutionResult } from '../harness/types.js';
+import type { LiveContext, ScenarioDeliveryEvidence, ScenarioExecutionResult } from '../harness/types.js';
 import {
   assertAllTasksCompleted,
   assertDependencyOrder,
@@ -45,6 +45,7 @@ export async function runAp4MixedWorkers(live: LiveContext): Promise<ScenarioExe
   const tenant = await createTenantBootstrap('ap4-mixed-workers');
   const validations: string[] = [];
   const workerIdsToCleanup: string[] = [];
+  let authenticityEvidence: ScenarioDeliveryEvidence[] = [];
 
   try {
     const builtIn = await registerWorkerAgent(tenant, {
@@ -166,6 +167,25 @@ export async function runAp4MixedWorkers(live: LiveContext): Promise<ScenarioExe
     assertDependencyOrder(completed);
     validations.push('pipeline_completed');
 
+    authenticityEvidence = [
+      {
+        pipelineId: completed.id,
+        pipelineState: completed.state,
+        acceptanceCriteria: [
+          'Mixed worker routing respects expected role ownership split',
+          'Completed task outputs include deterministic synthetic execution signatures',
+          'Pipeline completes without role crossover between worker groups',
+        ],
+        requiresGitDiffEvidence: false,
+        tasks: (completed.tasks ?? []).map((task) => ({
+          id: task.id,
+          role: task.role ?? task.type,
+          state: task.state,
+          output: task.output ?? null,
+        })),
+      },
+    ];
+
     await tenant.adminClient.deleteWorker(externalHarness.workerId);
     await assertWorkerRemoved(tenant.adminClient, externalHarness.workerId);
     validations.push('external_worker_deregistered');
@@ -190,5 +210,6 @@ export async function runAp4MixedWorkers(live: LiveContext): Promise<ScenarioExe
     artifacts: [],
     validations,
     screenshots: [],
+    authenticityEvidence,
   };
 }

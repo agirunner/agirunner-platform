@@ -68,6 +68,30 @@ function makeAp7Evidence(): ScenarioDeliveryEvidence {
   };
 }
 
+function makeAp2SyntheticEvidence(overrides?: Partial<ScenarioDeliveryEvidence>): ScenarioDeliveryEvidence {
+  return {
+    pipelineId: 'pipeline-ap2',
+    pipelineState: 'completed',
+    acceptanceCriteria: ['Deterministic synthetic signature checks for AP-2'],
+    requiresGitDiffEvidence: false,
+    tasks: [
+      {
+        id: 'ap2-task-1',
+        role: 'architect',
+        state: 'completed',
+        output: {
+          scenario: 'ap2-external-runtime',
+          handled_by: 'ap2-external-worker',
+          role: 'architect',
+          task_id: 'ap2-task-1',
+          pipeline_id: 'pipeline-ap2',
+        },
+      },
+    ],
+    ...overrides,
+  };
+}
+
 test('routes only audited non-deterministic scenarios to hybrid llm validator', () => {
   assert.equal(resolveScenarioAuthenticityRoute('sdlc-happy'), 'hybrid-llm');
   assert.equal(resolveScenarioAuthenticityRoute('maintenance-happy'), 'hybrid-llm');
@@ -128,6 +152,78 @@ test('deterministic validator enforces git/diff linkage where applicable', () =>
   assert.ok(
     verdict.checks.some(
       (check) => check.checkId.startsWith('git-diff-linkage') && check.status === 'NOT_PASS',
+    ),
+  );
+});
+
+test('deterministic validator enforces synthetic signature integrity for AP-2', () => {
+  const evidence = makeAp2SyntheticEvidence();
+  const verdict = runDeterministicAuthenticityValidator(
+    'ap2-external-runtime',
+    makeResult({
+      name: 'ap2-external-runtime',
+      authenticityEvidence: [evidence],
+    }),
+    [evidence],
+  );
+
+  assert.equal(verdict.status, 'PASS');
+  assert.ok(
+    verdict.checks.some(
+      (check) => check.checkId.startsWith('synthetic-signature.integrity') && check.status === 'PASS',
+    ),
+  );
+});
+
+test('deterministic validator rejects AP-2 synthetic signatures when evidence is missing', () => {
+  const verdict = runDeterministicAuthenticityValidator(
+    'ap2-external-runtime',
+    makeResult({
+      name: 'ap2-external-runtime',
+      authenticityEvidence: [],
+    }),
+    [],
+  );
+
+  assert.equal(verdict.status, 'NOT_PASS');
+  assert.ok(
+    verdict.checks.some(
+      (check) => check.checkId === 'synthetic-signature.evidence-present' && check.status === 'NOT_PASS',
+    ),
+  );
+});
+
+test('deterministic validator rejects AP-2 synthetic signatures with mismatched handler', () => {
+  const evidence = makeAp2SyntheticEvidence({
+    tasks: [
+      {
+        id: 'ap2-task-1',
+        role: 'architect',
+        state: 'completed',
+        output: {
+          scenario: 'ap2-external-runtime',
+          handled_by: 'ap2-unexpected-worker',
+          role: 'architect',
+          task_id: 'ap2-task-1',
+          pipeline_id: 'pipeline-ap2',
+        },
+      },
+    ],
+  });
+
+  const verdict = runDeterministicAuthenticityValidator(
+    'ap2-external-runtime',
+    makeResult({
+      name: 'ap2-external-runtime',
+      authenticityEvidence: [evidence],
+    }),
+    [evidence],
+  );
+
+  assert.equal(verdict.status, 'NOT_PASS');
+  assert.ok(
+    verdict.checks.some(
+      (check) => check.checkId.startsWith('synthetic-signature.integrity') && check.status === 'NOT_PASS',
     ),
   );
 });

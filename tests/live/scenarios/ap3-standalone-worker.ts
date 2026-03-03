@@ -1,4 +1,4 @@
-import type { LiveContext, ScenarioExecutionResult } from '../harness/types.js';
+import type { LiveContext, ScenarioDeliveryEvidence, ScenarioExecutionResult } from '../harness/types.js';
 import {
   assertAllTasksCompleted,
   assertDependencyOrder,
@@ -37,6 +37,7 @@ export async function runAp3StandaloneWorker(live: LiveContext): Promise<Scenari
   const tenant = await createTenantBootstrap('ap3-standalone-worker');
   const validations: string[] = [];
   let standaloneWorkerId: string | undefined;
+  let authenticityEvidence: ScenarioDeliveryEvidence[] = [];
 
   try {
     const registered = await registerWorkerAgent(tenant, {
@@ -117,6 +118,25 @@ export async function runAp3StandaloneWorker(live: LiveContext): Promise<Scenari
     assertDependencyOrder(completed);
     validations.push('pipeline_completed');
 
+    authenticityEvidence = [
+      {
+        pipelineId: completed.id,
+        pipelineState: completed.state,
+        acceptanceCriteria: [
+          'Standalone worker completes all SDLC tasks end-to-end',
+          'Completed task outputs include deterministic synthetic execution signature fields',
+          'Role order stays architect → developer → reviewer → qa',
+        ],
+        requiresGitDiffEvidence: false,
+        tasks: (completed.tasks ?? []).map((task) => ({
+          id: task.id,
+          role: task.role ?? task.type,
+          state: task.state,
+          output: task.output ?? null,
+        })),
+      },
+    ];
+
     await tenant.adminClient.deleteWorker(worker.workerId);
     await assertWorkerRemoved(tenant.adminClient, worker.workerId);
     validations.push('standalone_worker_deregistered');
@@ -137,5 +157,6 @@ export async function runAp3StandaloneWorker(live: LiveContext): Promise<Scenari
     artifacts: [],
     validations,
     screenshots: [],
+    authenticityEvidence,
   };
 }

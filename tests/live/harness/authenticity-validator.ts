@@ -102,6 +102,18 @@ const CODE_EVIDENCE_PATTERN =
 const RESILIENCE_ONLY_SCENARIOS = new Set(['ap7-failure-recovery', 'sdlc-sad']);
 const FORBIDDEN_PASS_VALIDATIONS = new Set(['no_failure_within_timeout']);
 
+const SYNTHETIC_SIGNATURE_SCENARIOS = new Set([
+  'ap2-external-runtime',
+  'ap3-standalone-worker',
+  'ap4-mixed-workers',
+]);
+
+const ALLOWED_SYNTHETIC_HANDLERS: Record<string, ReadonlySet<string>> = {
+  'ap2-external-runtime': new Set(['ap2-external-worker']),
+  'ap3-standalone-worker': new Set(['ap3-standalone-worker']),
+  'ap4-mixed-workers': new Set(['ap4-built-in-worker', 'ap4-external-worker']),
+};
+
 const LLM_VERDICT_SCHEMA = {
   type: 'object',
   additionalProperties: false,
@@ -314,6 +326,19 @@ export function runDeterministicAuthenticityValidator(
     evidenceRefs: [`scenario:${scenario}:validations`],
   });
 
+  const requiresSyntheticSignature = SYNTHETIC_SIGNATURE_SCENARIOS.has(scenario);
+  if (requiresSyntheticSignature) {
+    checks.push({
+      checkId: 'synthetic-signature.evidence-present',
+      status: evidence.length > 0 ? 'PASS' : 'NOT_PASS',
+      rationale:
+        evidence.length > 0
+          ? 'Scenario included delivery evidence required for synthetic signature verification'
+          : 'Scenario missing delivery evidence for deterministic synthetic signature verification',
+      evidenceRefs: evidence.length > 0 ? [`scenario:${scenario}:evidence`] : [`scenario:${scenario}:validations`],
+    });
+  }
+
   for (const artifactPath of result.artifacts) {
     const exists = existsSync(artifactPath);
     const isFile = exists ? statSync(artifactPath).isFile() : false;
@@ -361,6 +386,47 @@ export function runDeterministicAuthenticityValidator(
         : 'One or more completed tasks have missing/empty output objects',
       evidenceRefs: completedTasks.map((task) => `task:${task.id}:output`),
     });
+
+    if (requiresSyntheticSignature) {
+      const allowedHandlers = ALLOWED_SYNTHETIC_HANDLERS[scenario] ?? new Set<string>();
+      const invalidSignatureRefs: string[] = [];
+
+      for (const task of completedTasks) {
+        const taskRole = task.role ?? 'unknown-role';
+        const output = task.output;
+
+        if (!output || typeof output !== 'object' || Array.isArray(output)) {
+          invalidSignatureRefs.push(`task:${task.id}:output`);
+          continue;
+        }
+
+        const record = output as Record<string, unknown>;
+        const hasScenario = record.scenario === scenario;
+        const hasTask = record.task_id === task.id;
+        const hasPipeline = record.pipeline_id === pipeline.pipelineId;
+        const hasRole = record.role === taskRole;
+        const handledBy = typeof record.handled_by === 'string' ? record.handled_by : '';
+        const hasAllowedHandler =
+          allowedHandlers.size === 0 ? handledBy.length > 0 : allowedHandlers.has(handledBy);
+
+        if (!(hasScenario && hasTask && hasPipeline && hasRole && hasAllowedHandler)) {
+          invalidSignatureRefs.push(`task:${task.id}:output`);
+        }
+      }
+
+      checks.push({
+        checkId: `synthetic-signature.integrity:${pipeline.pipelineId}`,
+        status: invalidSignatureRefs.length === 0 ? 'PASS' : 'NOT_PASS',
+        rationale:
+          invalidSignatureRefs.length === 0
+            ? 'All completed task outputs carry deterministic synthetic execution signatures'
+            : 'One or more completed task outputs failed deterministic synthetic signature checks',
+        evidenceRefs:
+          invalidSignatureRefs.length > 0
+            ? invalidSignatureRefs
+            : completedTasks.map((task) => `task:${task.id}:output`),
+      });
+    }
 
     const placeholderRefs: string[] = [];
     const fallbackStubRefs: string[] = [];

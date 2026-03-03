@@ -11,7 +11,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import pg from 'pg';
 
-import { LiveApiClient } from '../api-client.js';
+import { LiveApiClient, type ApiAgent, type ApiWorker } from '../api-client.js';
 import { loadConfig } from '../config.js';
 
 function getConfig() {
@@ -188,6 +188,18 @@ export async function createTenantBootstrap(label: string): Promise<TenantBootst
   };
 }
 
+function normalizeCapabilities(capabilities: string[] | undefined): string[] {
+  return [...new Set((capabilities ?? []).map((capability) => capability.trim()).filter(Boolean))].sort();
+}
+
+function findWorkerById(workers: ApiWorker[], workerId: string): ApiWorker | undefined {
+  return workers.find((worker) => worker.id === workerId || worker.worker_id === workerId);
+}
+
+function findAgentById(agents: ApiAgent[], agentId: string): ApiAgent | undefined {
+  return agents.find((agent) => agent.id === agentId);
+}
+
 /**
  * Registers a worker + agent pair under a bootstrap tenant context and
  * returns worker-scoped and agent-scoped clients for task lifecycle calls.
@@ -228,6 +240,55 @@ export async function registerWorkerAgent(
 
   if (!agentReg.api_key) {
     throw new Error('Agent registration did not return an API key');
+  }
+
+  const expectedConnectionMode = input.connectionMode ?? 'polling';
+  const expectedRuntimeType = input.runtimeType ?? 'external';
+
+  const listedWorkers = await tenant.adminClient.listWorkers();
+  const listedWorker = findWorkerById(listedWorkers, workerId);
+  if (!listedWorker) {
+    throw new Error(`Registered worker ${workerId} not found in tenant worker listing`);
+  }
+
+  if (listedWorker.connection_mode !== expectedConnectionMode) {
+    throw new Error(
+      `Worker ${workerId} connection_mode mismatch: expected ${expectedConnectionMode}, got ${String(listedWorker.connection_mode)}`,
+    );
+  }
+
+  if (listedWorker.runtime_type !== expectedRuntimeType) {
+    throw new Error(
+      `Worker ${workerId} runtime_type mismatch: expected ${expectedRuntimeType}, got ${String(listedWorker.runtime_type)}`,
+    );
+  }
+
+  const expectedWorkerCapabilities = normalizeCapabilities(input.workerCapabilities);
+  const actualWorkerCapabilities = normalizeCapabilities(listedWorker.capabilities);
+  if (JSON.stringify(actualWorkerCapabilities) !== JSON.stringify(expectedWorkerCapabilities)) {
+    throw new Error(
+      `Worker ${workerId} capabilities mismatch: expected [${expectedWorkerCapabilities.join(', ')}], got [${actualWorkerCapabilities.join(', ')}]`,
+    );
+  }
+
+  const listedAgents = await tenant.agentBootstrapClient.listAgents();
+  const listedAgent = findAgentById(listedAgents, agentReg.id);
+  if (!listedAgent) {
+    throw new Error(`Registered agent ${agentReg.id} not found in tenant agent listing`);
+  }
+
+  if (listedAgent.worker_id !== workerId) {
+    throw new Error(
+      `Agent ${agentReg.id} worker binding mismatch: expected ${workerId}, got ${String(listedAgent.worker_id)}`,
+    );
+  }
+
+  const expectedAgentCapabilities = normalizeCapabilities(input.agentCapabilities);
+  const actualAgentCapabilities = normalizeCapabilities(listedAgent.capabilities);
+  if (JSON.stringify(actualAgentCapabilities) !== JSON.stringify(expectedAgentCapabilities)) {
+    throw new Error(
+      `Agent ${agentReg.id} capabilities mismatch: expected [${expectedAgentCapabilities.join(', ')}], got [${actualAgentCapabilities.join(', ')}]`,
+    );
   }
 
   return {

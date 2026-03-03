@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  assertBuiltInExecutorConfigured,
   assertLiveApiKey,
   assertLiveApiKeysForMatrix,
   makeExecutionMatrix,
@@ -108,4 +109,23 @@ test('live --all validates provider keys for every matrix provider', () => {
   else process.env.GEMINI_API_KEY = previousGemini;
   if (previousAnthropic === undefined) delete process.env.ANTHROPIC_API_KEY;
   else process.env.ANTHROPIC_API_KEY = previousAnthropic;
+});
+
+test('built-in executor preflight rejects AP scenarios when AGENT_API_URL is unset', () => {
+  assert.throws(
+    () => assertBuiltInExecutorConfigured(['sdlc-happy'], {}),
+    /require AGENT_API_URL to be configured/,
+  );
+});
+
+test('built-in executor preflight allows deterministic core scenarios without AGENT_API_URL', () => {
+  assert.doesNotThrow(() => assertBuiltInExecutorConfigured(['ap2-external-runtime'], {}));
+});
+
+test('built-in executor preflight passes when AGENT_API_URL is set', () => {
+  assert.doesNotThrow(() =>
+    assertBuiltInExecutorConfigured(['ap5-full'], {
+      AGENT_API_URL: 'http://runtime:9000',
+    }),
+  );
 });

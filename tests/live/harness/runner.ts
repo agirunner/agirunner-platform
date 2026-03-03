@@ -151,6 +151,12 @@ const AP_SCENARIOS_REQUIRING_AUTONOMOUS_WORKER = new Set<ScenarioName>([
   'ap7-failure-recovery',
 ]);
 
+const AP_SCENARIOS_REQUIRING_BUILT_IN_EXECUTOR = new Set<ScenarioName>([
+  'sdlc-happy',
+  'ap5-full',
+  'ap7-failure-recovery',
+]);
+
 const WORKER_PREFLIGHT_TIMEOUT_MS = Number(process.env.LIVE_WORKER_PREFLIGHT_TIMEOUT_MS ?? 45_000);
 const WORKER_PREFLIGHT_INTERVAL_MS = Number(process.env.LIVE_WORKER_PREFLIGHT_INTERVAL_MS ?? 1_500);
 
@@ -420,6 +426,29 @@ function summarizeWorkers(workers: ApiWorker[]): string {
     .join(', ');
 }
 
+export function assertBuiltInExecutorConfigured(
+  scenarios: ScenarioName[],
+  env: NodeJS.ProcessEnv = process.env,
+): void {
+  const requiredScenarios = scenarios.filter((name) =>
+    AP_SCENARIOS_REQUIRING_BUILT_IN_EXECUTOR.has(name),
+  );
+
+  if (requiredScenarios.length === 0) {
+    return;
+  }
+
+  const agentApiUrl = env.AGENT_API_URL?.trim();
+  if (agentApiUrl) {
+    return;
+  }
+
+  throw new Error(
+    `Live harness preflight failed: AP scenarios (${requiredScenarios.join(', ')}) require AGENT_API_URL to be configured for built-in worker execution. ` +
+      'Built-in worker task execution is fail-closed when AGENT_API_URL is unset.',
+  );
+}
+
 async function assertAutonomousWorkerReady(
   live: Awaited<ReturnType<typeof setupLiveEnvironment>>,
   scenarios: ScenarioName[],
@@ -587,6 +616,9 @@ async function runCombination(
     };
   }
 
+  const scenarios = resolveScenarios(options);
+  assertBuiltInExecutorConfigured(scenarios);
+
   const setupStartedAt = Date.now();
   const live = await setupLiveEnvironment({
     runId,
@@ -597,8 +629,6 @@ async function runCombination(
   const setupMs = Date.now() - setupStartedAt;
 
   prepareFixtureWorkspace(runId);
-
-  const scenarios = resolveScenarios(options);
   const scenarioResults: Record<string, ScenarioResult> = {};
   const scenarioMs: Record<string, number> = {};
   let totalCost = 0;

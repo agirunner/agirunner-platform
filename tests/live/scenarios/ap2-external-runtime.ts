@@ -10,7 +10,7 @@
  * Test plan ref: AP-2
  */
 
-import type { LiveContext, ScenarioExecutionResult } from '../harness/types.js';
+import type { LiveContext, ScenarioDeliveryEvidence, ScenarioExecutionResult } from '../harness/types.js';
 import {
   assertAllTasksCompleted,
   assertDependencyOrder,
@@ -49,6 +49,7 @@ export async function runAp2ExternalRuntime(live: LiveContext): Promise<Scenario
   const tenant = await createTenantBootstrap('ap2-external-runtime');
   const validations: string[] = [];
   let externalWorkerId: string | undefined;
+  let authenticityEvidence: ScenarioDeliveryEvidence[] = [];
 
   try {
     const registered = await registerWorkerAgent(tenant, {
@@ -142,6 +143,25 @@ export async function runAp2ExternalRuntime(live: LiveContext): Promise<Scenario
     assertDependencyOrder(completed);
     validations.push('pipeline_completed');
 
+    authenticityEvidence = [
+      {
+        pipelineId: completed.id,
+        pipelineState: completed.state,
+        acceptanceCriteria: [
+          'All SDLC roles complete in sequence under external runtime mode',
+          'Each completed task output carries deterministic synthetic signature fields',
+          'No built-in worker participates in isolated AP-2 tenant execution',
+        ],
+        requiresGitDiffEvidence: false,
+        tasks: (completed.tasks ?? []).map((task) => ({
+          id: task.id,
+          role: task.role ?? task.type,
+          state: task.state,
+          output: task.output ?? null,
+        })),
+      },
+    ];
+
     await tenant.adminClient.deleteWorker(externalHarness.workerId);
     await assertWorkerRemoved(tenant.adminClient, externalHarness.workerId);
     validations.push('external_worker_deregistered');
@@ -162,5 +182,6 @@ export async function runAp2ExternalRuntime(live: LiveContext): Promise<Scenario
     artifacts: [],
     validations,
     screenshots: [],
+    authenticityEvidence,
   };
 }

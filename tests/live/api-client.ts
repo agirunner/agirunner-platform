@@ -63,6 +63,10 @@ export interface ApiWorker {
 
 export interface ApiAgent {
   id: string;
+  name?: string;
+  worker_id?: string | null;
+  capabilities?: string[];
+  status?: string;
   api_key?: string;
   [key: string]: unknown;
 }
@@ -287,6 +291,11 @@ export class LiveApiClient {
     worker_id: string;
   }): Promise<ApiAgent> {
     return this.post<ApiAgent>('/api/v1/agents/register', body);
+  }
+
+  async listAgents(): Promise<ApiAgent[]> {
+    const res = await this.getRaw<{ data: ApiAgent[] }>('/api/v1/agents');
+    return res.data;
   }
 
   // -- Events (SSE) --
