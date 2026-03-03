@@ -13,9 +13,7 @@ function main(): void {
 
   const required = new Set([
     'test-cases.v1.json',
-    'core-results.json',
-    'integration-results.json',
-    'live-results.json',
+    'results.v1.json',
   ]);
 
   const optionalCanonicalJson = /^traceability.*\.json$/;

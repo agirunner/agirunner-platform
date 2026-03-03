@@ -22,9 +22,7 @@ Thumbs.db
 # Detailed per-run artifacts live under tests/artifacts/.
 tests/reports/**/*
 !tests/reports/test-cases.v1.json
-!tests/reports/core-results.json
-!tests/reports/integration-results.json
-!tests/reports/live-results.json
+!tests/reports/results.v1.json
 !tests/reports/traceability*.json
 
 tests/artifacts/

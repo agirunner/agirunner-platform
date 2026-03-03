@@ -2,4 +2,4 @@
 import { regenerateLaneResults } from './report.js';
 
 regenerateLaneResults(process.cwd());
-console.log('OK: regenerated tests/reports/{core-results,integration-results,live-results}.json');
+console.log('OK: regenerated tests/reports/results.v1.json');

@@ -11,7 +11,7 @@ Task coordination broker for AI agents. TypeScript/Node/Fastify/PostgreSQL.
 
 - `docs/testing/test-plan-v1.0.md`
 - `tests/reports/test-cases.v1.json` (**single source of truth** for platform test-case definitions)
-- `tests/reports/live-results.json` (generated)
+- `tests/reports/results.v1.json` (generated consolidated status matrix)
 - `docs/testing/scenario-requirements-map.md`
 
 ## Quick Start
@@ -60,5 +60,5 @@ Optional explicit evaluator config surface:
 - `LIVE_EVALUATION_PROVIDER=<openai|anthropic|google>` (required when `LIVE_EVALUATION_MODE=llm`)
 - `LIVE_EVALUATION_MODEL=<model-name>` (required when `LIVE_EVALUATION_MODE=llm`)
 
-`tests/reports/` is reserved for canonical committed JSON only (`test-cases.v1.json`, `core-results.json`, `integration-results.json`, `live-results.json`, optional `traceability*.json`).
+`tests/reports/` is reserved for canonical committed JSON only (`test-cases.v1.json`, `results.v1.json`, optional `traceability*.json`).
 Per-run/ad-hoc outputs (for example `run-*.json`, `run-*.md`, screenshots, Playwright JSON) are written under `tests/artifacts/` and must not be committed.

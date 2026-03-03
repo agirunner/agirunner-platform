@@ -21,20 +21,21 @@ type CanonicalTestCases = {
   scenarios: ScenarioDef[];
 };
 
-type LiveResults = {
+type LiveCell = {
+  status: CellStatus;
+  runId?: string;
+  artifactJsonPath?: string;
+  artifactMdPath?: string;
+  finishedAt?: string;
+  error?: string;
+};
+
+type ConsolidatedResults = {
   version: '1.0';
-  generatedAt: string;
-  lane: 'live';
+  generatedAt?: string;
   providers: Provider[];
   scenarios: ScenarioDef[];
-  cells: Record<string, Record<Provider, {
-    status: CellStatus;
-    runId?: string;
-    artifactJsonPath?: string;
-    artifactMdPath?: string;
-    finishedAt?: string;
-    error?: string;
-  }>>;
+  live_cells: Record<string, Record<Provider, LiveCell>>;
 };
 
 type ReportFile = {
@@ -52,7 +53,7 @@ type RunReport = {
 
 const ROOT = process.cwd();
 const CANONICAL_DEFINITIONS_PATH = path.join(ROOT, 'tests/reports/test-cases.v1.json');
-const LIVE_RESULTS_PATH = path.join(ROOT, 'tests/reports/live-results.json');
+const CONSOLIDATED_RESULTS_PATH = path.join(ROOT, 'tests/reports/results.v1.json');
 const LIVE_ARTIFACTS_DIR = path.join(ROOT, 'tests/artifacts/live');
 
 function loadCanonicalDefinitions(): CanonicalTestCases {
@@ -77,8 +78,8 @@ const CANONICAL_DEFINITIONS = loadCanonicalDefinitions();
 const PROVIDERS: Provider[] = [...CANONICAL_DEFINITIONS.providers];
 const SCENARIOS: ScenarioDef[] = [...CANONICAL_DEFINITIONS.scenarios];
 
-function newBaselineResults(): LiveResults {
-  const cells: LiveResults['cells'] = {};
+function baselineLiveCells(): ConsolidatedResults['live_cells'] {
+  const cells = {} as ConsolidatedResults['live_cells'];
   for (const scenario of SCENARIOS) {
     cells[scenario.key] = {
       openai: { status: 'NOT_PASS' },
@@ -86,28 +87,34 @@ function newBaselineResults(): LiveResults {
       anthropic: { status: 'NOT_PASS' },
     };
   }
+  return cells;
+}
+
+function readResults(): ConsolidatedResults {
+  if (existsSync(CONSOLIDATED_RESULTS_PATH)) {
+    const parsed = JSON.parse(readFileSync(CONSOLIDATED_RESULTS_PATH, 'utf8')) as ConsolidatedResults;
+    return {
+      version: '1.0',
+      providers: Array.isArray(parsed.providers) ? parsed.providers : [...PROVIDERS],
+      scenarios: Array.isArray(parsed.scenarios) ? parsed.scenarios : [...SCENARIOS],
+      live_cells: parsed.live_cells ?? baselineLiveCells(),
+      generatedAt: parsed.generatedAt,
+    };
+  }
 
   return {
     version: '1.0',
     generatedAt: new Date().toISOString(),
-    lane: 'live',
     providers: [...PROVIDERS],
     scenarios: [...SCENARIOS],
-    cells,
+    live_cells: baselineLiveCells(),
   };
 }
 
-function readResults(): LiveResults {
-  if (existsSync(LIVE_RESULTS_PATH)) {
-    return JSON.parse(readFileSync(LIVE_RESULTS_PATH, 'utf8')) as LiveResults;
-  }
-  return newBaselineResults();
-}
-
-function writeResults(results: LiveResults): void {
+function writeResults(results: ConsolidatedResults): void {
   results.generatedAt = new Date().toISOString();
-  mkdirSync(path.dirname(LIVE_RESULTS_PATH), { recursive: true });
-  writeFileSync(LIVE_RESULTS_PATH, JSON.stringify(results, null, 2) + '\n');
+  mkdirSync(path.dirname(CONSOLIDATED_RESULTS_PATH), { recursive: true });
+  writeFileSync(CONSOLIDATED_RESULTS_PATH, JSON.stringify(results, null, 2) + '\n');
   regenerateLaneResults(ROOT);
 }
 
@@ -129,7 +136,7 @@ function parseReportFile(file: ReportFile): RunReport {
   return JSON.parse(readFileSync(file.absolutePath, 'utf8')) as RunReport;
 }
 
-function runOne(results: LiveResults, provider: Provider, scenario: string): void {
+function runOne(results: ConsolidatedResults, provider: Provider, scenario: string): void {
   const before = new Set(listReportFiles().map((entry) => entry.key));
 
   let commandFailed = false;
@@ -159,7 +166,7 @@ function runOne(results: LiveResults, provider: Provider, scenario: string): voi
     }
   }
 
-  const cell = results.cells[scenario]?.[provider];
+  const cell = results.live_cells[scenario]?.[provider];
   if (!cell) {
     throw new Error(`Unknown scenario/provider cell: ${scenario}/${provider}`);
   }
@@ -198,8 +205,11 @@ function parseCsvArg(argv: string[], flag: string): string[] | undefined {
 }
 
 function resetBaseline(): void {
-  const results = newBaselineResults();
-  mkdirSync(path.dirname(LIVE_RESULTS_PATH), { recursive: true });
+  const results = readResults();
+  results.providers = [...PROVIDERS];
+  results.scenarios = [...SCENARIOS];
+  results.live_cells = baselineLiveCells();
+  mkdirSync(path.dirname(CONSOLIDATED_RESULTS_PATH), { recursive: true });
   writeResults(results);
   console.log('Live lane baseline reset: all scenario/provider cells set to NOT_PASS.');
 }
@@ -251,7 +261,7 @@ function main(): void {
   console.log(`Usage:
   pnpm exec tsx tests/live/harness/traceability-flow.ts reset
   pnpm exec tsx tests/live/harness/traceability-flow.ts run [--providers openai,google,anthropic] [--scenarios ot1-cascade,it1-sdk]
-  pnpm exec tsx tests/live/harness/traceability-flow.ts run --provider openai --scenario ot1-cascade\n\nArtifacts: tests/artifacts/live (run-*.json + run-*.md)\nLane summary: tests/reports/live-results.json`);
+  pnpm exec tsx tests/live/harness/traceability-flow.ts run --provider openai --scenario ot1-cascade\n\nArtifacts: tests/artifacts/live (run-*.json + run-*.md)\nConsolidated results: tests/reports/results.v1.json`);
 }
 
 main();

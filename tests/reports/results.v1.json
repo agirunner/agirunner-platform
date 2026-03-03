@@ -1,791 +1,11 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-03T00:40:36.587Z",
-  "generated_at_utc": "2026-03-03T00:40:36.587Z",
-  "lane": "live",
+  "generatedAt": "2026-03-03T00:54:18.869Z",
+  "generated_at_utc": "2026-03-03T00:54:18.869Z",
   "status_enum": [
     "PASS",
     "FAIL",
     "NOT_PASS"
-  ],
-  "summary": {
-    "PASS": 2,
-    "FAIL": 1,
-    "NOT_PASS": 57,
-    "row_count": 20
-  },
-  "matrix": [
-    {
-      "use_case_id": "AP-1",
-      "title": "Built-in Worker — SDLC Pipeline",
-      "plan_section": "§2 AP-1",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "FAIL",
-          "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T00-18-07-094Z-sdlc-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T00-18-07-094Z-sdlc-openai-r1.md"
-          ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    },
-    {
-      "use_case_id": "AP-2",
-      "title": "External Runtime — SDLC Pipeline",
-      "plan_section": "§2 AP-2",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    },
-    {
-      "use_case_id": "AP-3",
-      "title": "Standalone Worker Runtime — SDLC Pipeline",
-      "plan_section": "§2 AP-3",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    },
-    {
-      "use_case_id": "AP-4",
-      "title": "Mixed Workers — SDLC Pipeline",
-      "plan_section": "§2 AP-4",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    },
-    {
-      "use_case_id": "AP-5",
-      "title": "Built-in Worker — Maintenance Pipeline",
-      "plan_section": "§2 AP-5",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "PASS",
-          "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T00-25-24-693Z-sdlc-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T00-25-24-693Z-sdlc-openai-r1.md"
-          ],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "PASS",
-          "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T00-33-31-127Z-sdlc-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T00-33-31-127Z-sdlc-google-r1.md"
-          ],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    },
-    {
-      "use_case_id": "AP-6",
-      "title": "External Runtime — Maintenance Pipeline",
-      "plan_section": "§2 AP-6",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    },
-    {
-      "use_case_id": "AP-7",
-      "title": "Pipeline Failure and Recovery",
-      "plan_section": "§2 AP-7",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    },
-    {
-      "use_case_id": "OT-1",
-      "title": "Dependency Cascade",
-      "plan_section": "§3 OT-1",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    },
-    {
-      "use_case_id": "OT-2",
-      "title": "Task Routing & Capability Matching",
-      "plan_section": "§3 OT-2",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    },
-    {
-      "use_case_id": "OT-3",
-      "title": "Pipeline State Derivation",
-      "plan_section": "§3 OT-3",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    },
-    {
-      "use_case_id": "OT-4",
-      "title": "Worker Health & Recovery",
-      "plan_section": "§3 OT-4",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    },
-    {
-      "use_case_id": "HL-1",
-      "title": "Approval and Retry Flow",
-      "plan_section": "§4 HL-1",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    },
-    {
-      "use_case_id": "HL-2",
-      "title": "Pipeline/Task Control Plane",
-      "plan_section": "§4 HL-2",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    },
-    {
-      "use_case_id": "IT-1",
-      "title": "SDK Full Lifecycle",
-      "plan_section": "§5 IT-1",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    },
-    {
-      "use_case_id": "IT-2",
-      "title": "MCP Server",
-      "plan_section": "§5 IT-2",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    },
-    {
-      "use_case_id": "IT-3",
-      "title": "Webhooks Delivery Surface",
-      "plan_section": "§5 IT-3",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    },
-    {
-      "use_case_id": "IT-4",
-      "title": "MCP SSE Stream",
-      "plan_section": "§5 IT-4",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    },
-    {
-      "use_case_id": "SI-1",
-      "title": "Multi-Tenant Isolation",
-      "plan_section": "§6 SI-1",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    },
-    {
-      "use_case_id": "SI-2",
-      "title": "Auth and Zero-Config Bootstrap",
-      "plan_section": "§6 SI-2",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    },
-    {
-      "use_case_id": "SI-3",
-      "title": "Extended Isolation",
-      "plan_section": "§6 SI-3",
-      "runtime_scope": "platform",
-      "cells": [
-        {
-          "category": "live",
-          "provider": "openai",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "google",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        },
-        {
-          "category": "live",
-          "provider": "anthropic",
-          "mode": "e2e",
-          "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T00:40:36.587Z"
-        }
-      ]
-    }
   ],
   "providers": [
     "openai",
@@ -914,7 +134,1308 @@
       "planRef": "§6 SI-3"
     }
   ],
-  "cells": {
+  "summary": {
+    "PASS": 2,
+    "FAIL": 1,
+    "NOT_PASS": 97,
+    "row_count": 20,
+    "cell_count": 100,
+    "by_lane": {
+      "core": {
+        "PASS": 0,
+        "FAIL": 0,
+        "NOT_PASS": 20
+      },
+      "integration": {
+        "PASS": 0,
+        "FAIL": 0,
+        "NOT_PASS": 20
+      },
+      "live": {
+        "PASS": 2,
+        "FAIL": 1,
+        "NOT_PASS": 57
+      }
+    }
+  },
+  "matrix": [
+    {
+      "use_case_id": "AP-1",
+      "title": "Built-in Worker — SDLC Pipeline",
+      "plan_section": "§2 AP-1",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "FAIL",
+          "evidence_links": [
+            "tests/artifacts/live/run-2026-03-03T00-18-07-094Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T00-18-07-094Z-sdlc-openai-r1.md"
+          ],
+          "notes": [
+            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+          ],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "AP-2",
+      "title": "External Runtime — SDLC Pipeline",
+      "plan_section": "§2 AP-2",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "AP-3",
+      "title": "Standalone Worker Runtime — SDLC Pipeline",
+      "plan_section": "§2 AP-3",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "AP-4",
+      "title": "Mixed Workers — SDLC Pipeline",
+      "plan_section": "§2 AP-4",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "AP-5",
+      "title": "Built-in Worker — Maintenance Pipeline",
+      "plan_section": "§2 AP-5",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/live/run-2026-03-03T00-25-24-693Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T00-25-24-693Z-sdlc-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/live/run-2026-03-03T00-33-31-127Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T00-33-31-127Z-sdlc-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "AP-6",
+      "title": "External Runtime — Maintenance Pipeline",
+      "plan_section": "§2 AP-6",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "AP-7",
+      "title": "Pipeline Failure and Recovery",
+      "plan_section": "§2 AP-7",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "OT-1",
+      "title": "Dependency Cascade",
+      "plan_section": "§3 OT-1",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "OT-2",
+      "title": "Task Routing & Capability Matching",
+      "plan_section": "§3 OT-2",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "OT-3",
+      "title": "Pipeline State Derivation",
+      "plan_section": "§3 OT-3",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "OT-4",
+      "title": "Worker Health & Recovery",
+      "plan_section": "§3 OT-4",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "HL-1",
+      "title": "Approval and Retry Flow",
+      "plan_section": "§4 HL-1",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "HL-2",
+      "title": "Pipeline/Task Control Plane",
+      "plan_section": "§4 HL-2",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "IT-1",
+      "title": "SDK Full Lifecycle",
+      "plan_section": "§5 IT-1",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "IT-2",
+      "title": "MCP Server",
+      "plan_section": "§5 IT-2",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "IT-3",
+      "title": "Webhooks Delivery Surface",
+      "plan_section": "§5 IT-3",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "IT-4",
+      "title": "MCP SSE Stream",
+      "plan_section": "§5 IT-4",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "SI-1",
+      "title": "Multi-Tenant Isolation",
+      "plan_section": "§6 SI-1",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "SI-2",
+      "title": "Auth and Zero-Config Bootstrap",
+      "plan_section": "§6 SI-2",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "SI-3",
+      "title": "Extended Isolation",
+      "plan_section": "§6 SI-3",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "deterministic",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "dashboard",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "NOT_PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-03T00:54:18.869Z"
+        }
+      ]
+    }
+  ],
+  "runs": {
+    "core": [],
+    "integration": []
+  },
+  "live_cells": {
     "sdlc-happy": {
       "openai": {
         "status": "FAIL",
