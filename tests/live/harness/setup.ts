@@ -417,7 +417,7 @@ export function createSetupExecutionPlan(skipStackSetup: boolean): SetupExecutio
   if (skipStackSetup) {
     return {
       shouldRunDockerSetup: false,
-      shouldWaitForHealth: false,
+      shouldWaitForHealth: true,
       shouldBuildImages: false,
     };
   }

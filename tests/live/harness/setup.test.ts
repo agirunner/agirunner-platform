@@ -8,11 +8,11 @@ import {
   shouldBuildDockerImages,
 } from './setup.js';
 
-test('createSetupExecutionPlan disables docker setup + health checks in skip mode', () => {
+test('createSetupExecutionPlan disables docker setup but still waits for health in skip mode', () => {
   const plan = createSetupExecutionPlan(true);
 
   assert.equal(plan.shouldRunDockerSetup, false);
-  assert.equal(plan.shouldWaitForHealth, false);
+  assert.equal(plan.shouldWaitForHealth, true);
   assert.equal(plan.shouldBuildImages, false);
 });
 
