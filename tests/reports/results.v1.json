@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-03T18:22:21.733Z",
-  "generated_at_utc": "2026-03-03T18:22:21.733Z",
+  "generatedAt": "2026-03-03T18:24:07.592Z",
+  "generated_at_utc": "2026-03-03T18:24:07.592Z",
   "status_enum": [
     "PASS",
     "FLAKY",
@@ -138,8 +138,8 @@
   "summary": {
     "PASS": 12,
     "FLAKY": 0,
-    "FAIL": 2,
-    "NOT_PASS": 86,
+    "FAIL": 3,
+    "NOT_PASS": 85,
     "row_count": 20,
     "cell_count": 100,
     "by_lane": {
@@ -158,8 +158,8 @@
       "live": {
         "PASS": 12,
         "FLAKY": 0,
-        "FAIL": 2,
-        "NOT_PASS": 46
+        "FAIL": 3,
+        "NOT_PASS": 45
       }
     }
   },
@@ -206,7 +206,7 @@
           "notes": [
             "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: LLM verdict referenced unknown evidence refs (fail-closed). Evidence: tests/artifacts/live/validators/2026-03-03T18-14-21-006Z-sdlc-openai-r1/sdlc-happy-authenticity.json"
           ],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -220,7 +220,7 @@
             "tests/artifacts/live/run-2026-03-03T18-08-53-305Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -228,13 +228,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "PASS",
+          "status": "FAIL",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T13-40-52-340Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T13-40-52-340Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-03T18-22-27-171Z-sdlc-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-03T18-22-27-171Z-sdlc-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     },
@@ -278,7 +278,7 @@
             "tests/artifacts/live/run-2026-03-03T16-10-08-052Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -292,7 +292,7 @@
             "tests/artifacts/live/run-2026-03-03T14-00-34-891Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -306,7 +306,7 @@
             "tests/artifacts/live/run-2026-03-03T14-10-27-425Z-sdlc-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     },
@@ -350,7 +350,7 @@
             "tests/artifacts/live/run-2026-03-03T14-55-20-816Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -364,7 +364,7 @@
             "tests/artifacts/live/run-2026-03-03T15-15-41-526Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -378,7 +378,7 @@
             "tests/artifacts/live/run-2026-03-03T15-45-23-997Z-sdlc-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     },
@@ -422,7 +422,7 @@
             "tests/artifacts/live/run-2026-03-03T16-29-04-620Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -433,7 +433,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -444,7 +444,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     },
@@ -482,15 +482,15 @@
           "provider": "openai",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T18-14-38-084Z-sdlc-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T18-14-38-084Z-sdlc-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T18-19-35-253Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T18-19-35-253Z-sdlc-openai-r1.md"
           ],
           "notes": [
             "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: Deterministic delivery-quality validator returned NOT_PASS. Evidence: tests/artifacts/live/validators/2026-03-03T18-14-38-084Z-sdlc-openai-r1/maintenance-happy-authenticity.json"
           ],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -500,13 +500,13 @@
           "gating": true,
           "status": "FAIL",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T18-14-08-837Z-sdlc-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T18-14-08-837Z-sdlc-google-r1.md"
+            "tests/artifacts/live/run-2026-03-03T18-19-43-058Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-03T18-19-43-058Z-sdlc-google-r1.md"
           ],
           "notes": [
             "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: Deterministic delivery-quality validator returned NOT_PASS. Evidence: tests/artifacts/live/validators/2026-03-03T18-14-08-837Z-sdlc-google-r1/maintenance-happy-authenticity.json"
           ],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -514,10 +514,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "FAIL",
+          "evidence_links": [
+            "tests/artifacts/live/run-2026-03-03T18-21-37-132Z-sdlc-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-03T18-21-37-132Z-sdlc-anthropic-r1.md"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     },
@@ -561,7 +564,7 @@
             "tests/artifacts/live/run-2026-03-03T16-55-31-084Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -572,7 +575,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -583,7 +586,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     },
@@ -627,7 +630,7 @@
             "tests/artifacts/live/run-2026-03-03T18-16-58-115Z-sdlc-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -638,7 +641,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -649,7 +652,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     },
@@ -690,7 +693,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -701,7 +704,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -712,7 +715,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     },
@@ -753,7 +756,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -764,7 +767,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -775,7 +778,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     },
@@ -816,7 +819,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -827,7 +830,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -838,7 +841,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     },
@@ -879,7 +882,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -890,7 +893,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -901,7 +904,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     },
@@ -942,7 +945,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -953,7 +956,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -964,7 +967,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     },
@@ -1005,7 +1008,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -1016,7 +1019,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -1027,7 +1030,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     },
@@ -1068,7 +1071,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -1079,7 +1082,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -1090,7 +1093,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     },
@@ -1131,7 +1134,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -1142,7 +1145,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -1153,7 +1156,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     },
@@ -1194,7 +1197,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -1205,7 +1208,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -1216,7 +1219,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     },
@@ -1257,7 +1260,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -1268,7 +1271,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -1279,7 +1282,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     },
@@ -1320,7 +1323,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -1331,7 +1334,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -1342,7 +1345,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     },
@@ -1383,7 +1386,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -1394,7 +1397,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -1405,7 +1408,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     },
@@ -1446,7 +1449,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -1457,7 +1460,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         },
         {
           "lane": "live",
@@ -1468,7 +1471,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T18:22:21.733Z"
+          "generated_at_utc": "2026-03-03T18:24:07.592Z"
         }
       ]
     }
@@ -1494,14 +1497,12 @@
         "finishedAt": "2026-03-03T18:13:07.892Z"
       },
       "anthropic": {
-        "status": "PASS",
-        "runId": "2026-03-03T13-40-52-340Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T13-40-52-340Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T13-40-52-340Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T13:48:03.247Z",
-        "attempts": 1,
-        "retryCount": 0,
-        "retryReasons": []
+        "status": "FAIL",
+        "runId": "2026-03-03T18-22-27-171Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T18-22-27-171Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T18-22-27-171Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T18:22:27.171Z",
+        "error": "Command failed: docker compose up -d postgres platform-api worker dashboard"
       }
     },
     "ap2-external-runtime": {
@@ -1570,23 +1571,27 @@
     },
     "maintenance-happy": {
       "openai": {
-        "status": "FAIL",
-        "runId": "2026-03-03T18-14-38-084Z-sdlc-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T18-14-38-084Z-sdlc-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T18-14-38-084Z-sdlc-openai-r1.md",
-        "finishedAt": "2026-03-03T18:17:36.781Z",
-        "error": "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: Deterministic delivery-quality validator returned NOT_PASS. Evidence: tests/artifacts/live/validators/2026-03-03T18-14-38-084Z-sdlc-openai-r1/maintenance-happy-authenticity.json"
+        "status": "PASS",
+        "runId": "2026-03-03T18-19-35-253Z-sdlc-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T18-19-35-253Z-sdlc-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T18-19-35-253Z-sdlc-openai-r1.md",
+        "finishedAt": "2026-03-03T18:22:46.199Z"
       },
       "google": {
         "status": "FAIL",
-        "runId": "2026-03-03T18-14-08-837Z-sdlc-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T18-14-08-837Z-sdlc-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T18-14-08-837Z-sdlc-google-r1.md",
-        "finishedAt": "2026-03-03T18:17:05.008Z",
-        "error": "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: Deterministic delivery-quality validator returned NOT_PASS. Evidence: tests/artifacts/live/validators/2026-03-03T18-14-08-837Z-sdlc-google-r1/maintenance-happy-authenticity.json"
+        "runId": "2026-03-03T18-19-43-058Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T18-19-43-058Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T18-19-43-058Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-03T18:22:39.053Z",
+        "error": "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: Deterministic delivery-quality validator returned NOT_PASS. Evidence: tests/artifacts/live/validators/2026-03-03T18-19-43-058Z-sdlc-google-r1/maintenance-happy-authenticity.json"
       },
       "anthropic": {
-        "status": "NOT_PASS"
+        "status": "FAIL",
+        "runId": "2026-03-03T18-21-37-132Z-sdlc-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T18-21-37-132Z-sdlc-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T18-21-37-132Z-sdlc-anthropic-r1.md",
+        "finishedAt": "2026-03-03T18:22:26.905Z",
+        "error": "fetch failed"
       }
     },
     "ap6-runtime-maintenance": {
