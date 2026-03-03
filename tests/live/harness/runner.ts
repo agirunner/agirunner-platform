@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { enforceScenarioAuthenticityGate } from './authenticity-validator.js';
 import { cleanupFixtureWorkspace, prepareFixtureWorkspace } from './repo-factory.js';
 import { saveRunReport } from './report.js';
+import { bootstrapAgentApiEndpoint } from './agent-api-bootstrap.js';
 import { setupLiveEnvironment } from './setup.js';
 import { teardownLiveEnvironment } from './teardown.js';
 import type {
@@ -617,118 +618,166 @@ async function runCombination(
   }
 
   const scenarios = resolveScenarios(options);
-  assertBuiltInExecutorConfigured(scenarios);
+  const previousAgentApiUrl = process.env.AGENT_API_URL;
+  const previousAgentApiKey = process.env.AGENT_API_KEY;
+  let agentApiBootstrap: Awaited<ReturnType<typeof bootstrapAgentApiEndpoint>> = null;
 
-  const setupStartedAt = Date.now();
-  const live = await setupLiveEnvironment({
-    runId,
-    template,
-    provider,
-    fastReset: options.fastReset,
-  });
-  const setupMs = Date.now() - setupStartedAt;
-
-  prepareFixtureWorkspace(runId);
-  const scenarioResults: Record<string, ScenarioResult> = {};
-  const scenarioMs: Record<string, number> = {};
-  let totalCost = 0;
-  let cleanup: ReturnType<typeof teardownLiveEnvironment> = {
-    leakedContainers: 0,
-    leakedTempFiles: 0,
-  };
-
-  let teardownMs = 0;
   try {
-    await assertAutonomousWorkerReady(live, scenarios);
+    agentApiBootstrap = await bootstrapAgentApiEndpoint({
+      scenarios,
+      provider,
+      existingUrl: previousAgentApiUrl,
+      existingApiKey: previousAgentApiKey,
+    });
 
-    if (options.preflightOnly) {
-      console.log('✓ Strict preflight passed (health/config/auth).');
-    } else {
-      for (const scenario of scenarios) {
-        console.log(`\n▶ Running scenario: ${scenario}`);
-        const scenarioStartedAt = Date.now();
-        try {
-          const result = await runScenarioByName(scenario, live);
+    if (agentApiBootstrap) {
+      process.env.AGENT_API_URL = agentApiBootstrap.agentApiUrl;
+      if (agentApiBootstrap.agentApiKey) {
+        process.env.AGENT_API_KEY = agentApiBootstrap.agentApiKey;
+      } else {
+        delete process.env.AGENT_API_KEY;
+      }
 
-          const authenticity = await enforceScenarioAuthenticityGate({
-            runId,
-            scenario,
-            provider,
-            template,
-            result,
-          });
+      console.log(
+        `Live harness agent API bootstrap: source=${agentApiBootstrap.source} url=${agentApiBootstrap.agentApiUrl}`,
+      );
+    }
 
-          result.artifacts.push(authenticity.artifactPath);
-          result.validations.push(
-            `authenticity_route:${authenticity.route}`,
-            `authenticity_status:${authenticity.status}`,
-            `delivery_quality_status:${authenticity.deliveryQualityStatus}`,
-          );
+    assertBuiltInExecutorConfigured(scenarios);
 
-          if (authenticity.resilience) {
-            result.validations.push(`resilience_status:${authenticity.resilience.status}`);
-          }
+    const setupStartedAt = Date.now();
+    const live = await setupLiveEnvironment({
+      runId,
+      template,
+      provider,
+      fastReset: options.fastReset,
+    });
+    const setupMs = Date.now() - setupStartedAt;
 
-          if (authenticity.status !== 'PASS') {
-            const resilienceStatus = authenticity.resilience?.status;
-            throw new Error(
-              `Output authenticity NOT_PASS (${authenticity.route})` +
-                `${resilienceStatus ? ` resilience=${resilienceStatus}` : ''}` +
-                ` delivery_quality=${authenticity.deliveryQualityStatus}` +
-                `${authenticity.reason ? `: ${authenticity.reason}` : ''}. Evidence: ${authenticity.artifactPath}`,
+    prepareFixtureWorkspace(runId);
+    const scenarioResults: Record<string, ScenarioResult> = {};
+    const scenarioMs: Record<string, number> = {};
+    let totalCost = 0;
+    let cleanup: ReturnType<typeof teardownLiveEnvironment> = {
+      leakedContainers: 0,
+      leakedTempFiles: 0,
+    };
+
+    let teardownMs = 0;
+    try {
+      await assertAutonomousWorkerReady(live, scenarios);
+
+      if (options.preflightOnly) {
+        console.log('✓ Strict preflight passed (health/config/auth).');
+      } else {
+        for (const scenario of scenarios) {
+          console.log(`\n▶ Running scenario: ${scenario}`);
+          const scenarioStartedAt = Date.now();
+          try {
+            const result = await runScenarioByName(scenario, live);
+
+            const authenticity = await enforceScenarioAuthenticityGate({
+              runId,
+              scenario,
+              provider,
+              template,
+              result,
+            });
+
+            result.artifacts.push(authenticity.artifactPath);
+            result.validations.push(
+              `authenticity_route:${authenticity.route}`,
+              `authenticity_status:${authenticity.status}`,
+              `delivery_quality_status:${authenticity.deliveryQualityStatus}`,
+            );
+
+            if (authenticity.resilience) {
+              result.validations.push(`resilience_status:${authenticity.resilience.status}`);
+            }
+
+            if (authenticity.status !== 'PASS') {
+              const resilienceStatus = authenticity.resilience?.status;
+              throw new Error(
+                `Output authenticity NOT_PASS (${authenticity.route})` +
+                  `${resilienceStatus ? ` resilience=${resilienceStatus}` : ''}` +
+                  ` delivery_quality=${authenticity.deliveryQualityStatus}` +
+                  `${authenticity.reason ? `: ${authenticity.reason}` : ''}. Evidence: ${authenticity.artifactPath}`,
+              );
+            }
+
+            scenarioMs[scenario] = Date.now() - scenarioStartedAt;
+            scenarioResults[scenario] = scenarioResultFromSuccess(scenarioStartedAt, result);
+            totalCost += result.costUsd;
+            console.log(`  ✓ ${scenario} — ${result.validations.length} validations`);
+          } catch (error) {
+            scenarioMs[scenario] = Date.now() - scenarioStartedAt;
+            scenarioResults[scenario] = scenarioResultFromFailure(scenarioStartedAt, error);
+            console.error(
+              `  ✗ ${scenario} — ${error instanceof Error ? error.message : String(error)}`,
             );
           }
-
-          scenarioMs[scenario] = Date.now() - scenarioStartedAt;
-          scenarioResults[scenario] = scenarioResultFromSuccess(scenarioStartedAt, result);
-          totalCost += result.costUsd;
-          console.log(`  ✓ ${scenario} — ${result.validations.length} validations`);
-        } catch (error) {
-          scenarioMs[scenario] = Date.now() - scenarioStartedAt;
-          scenarioResults[scenario] = scenarioResultFromFailure(scenarioStartedAt, error);
-          console.error(
-            `  ✗ ${scenario} — ${error instanceof Error ? error.message : String(error)}`,
-          );
         }
       }
+    } finally {
+      cleanupFixtureWorkspace(runId);
+      const teardownStartedAt = Date.now();
+      cleanup = teardownLiveEnvironment({ keepStack: options.keepStack });
+      teardownMs = Date.now() - teardownStartedAt;
     }
-  } finally {
-    cleanupFixtureWorkspace(runId);
-    const teardownStartedAt = Date.now();
-    cleanup = teardownLiveEnvironment({ keepStack: options.keepStack });
-    teardownMs = Date.now() - teardownStartedAt;
-  }
 
-  const finishedAtMs = Date.now();
-  return {
-    runId,
-    startedAt,
-    finishedAt: new Date(finishedAtMs).toISOString(),
-    template,
-    provider,
-    repeat: options.repeat,
-    scenarios: options.preflightOnly
-      ? {
-          preflight: {
-            status: 'pass',
-            duration: `${((finishedAtMs - runStartedAtMs) / 1000).toFixed(2)}s`,
-            cost: '$0.0000',
-            artifacts: 0,
-            validations: 1,
-            screenshots: [],
-          },
-        }
-      : scenarioResults,
-    containers_leaked: cleanup.leakedContainers,
-    temp_files_leaked: cleanup.leakedTempFiles,
-    total_cost: `$${totalCost.toFixed(4)}`,
-    timing: {
-      setupMs,
-      scenarioMs,
-      teardownMs,
-      totalMs: finishedAtMs - runStartedAtMs,
-    },
-  };
+    const finishedAtMs = Date.now();
+    return {
+      runId,
+      startedAt,
+      finishedAt: new Date(finishedAtMs).toISOString(),
+      template,
+      provider,
+      repeat: options.repeat,
+      scenarios: options.preflightOnly
+        ? {
+            preflight: {
+              status: 'pass',
+              duration: `${((finishedAtMs - runStartedAtMs) / 1000).toFixed(2)}s`,
+              cost: '$0.0000',
+              artifacts: 0,
+              validations: 1,
+              screenshots: [],
+            },
+          }
+        : scenarioResults,
+      containers_leaked: cleanup.leakedContainers,
+      temp_files_leaked: cleanup.leakedTempFiles,
+      total_cost: `$${totalCost.toFixed(4)}`,
+      timing: {
+        setupMs,
+        scenarioMs,
+        teardownMs,
+        totalMs: finishedAtMs - runStartedAtMs,
+      },
+    };
+  } finally {
+    if (previousAgentApiUrl === undefined) {
+      delete process.env.AGENT_API_URL;
+    } else {
+      process.env.AGENT_API_URL = previousAgentApiUrl;
+    }
+
+    if (previousAgentApiKey === undefined) {
+      delete process.env.AGENT_API_KEY;
+    } else {
+      process.env.AGENT_API_KEY = previousAgentApiKey;
+    }
+
+    if (agentApiBootstrap) {
+      try {
+        await agentApiBootstrap.dispose();
+      } catch (error) {
+        console.warn(
+          `Live harness agent API bootstrap dispose failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+  }
 }
 
 export function makeExecutionMatrix(

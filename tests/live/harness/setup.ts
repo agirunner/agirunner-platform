@@ -674,9 +674,18 @@ export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveC
   const setupPlan = createSetupExecutionPlan(liveConfig.skipStackSetup);
 
   if (setupPlan.shouldRunDockerSetup) {
+    const hasConfiguredBootstrapKey = getConfiguredDefaultAdminApiKey() !== null;
     ensureBootstrapAdminKey({ allowGenerate: true });
     ensureComposeRuntimeSecrets();
     const composeCommand = composeBinary();
+
+    if (!hasConfiguredBootstrapKey) {
+      console.log(
+        'Live harness compose preflight: DEFAULT_ADMIN_API_KEY not preset; resetting compose state to avoid stale bootstrap-key mismatch.',
+      );
+      runDocker(`${composeCommand} down -v --remove-orphans`);
+    }
+
     const buildFlag = setupPlan.shouldBuildImages ? '--build ' : '';
     const fingerprintLabel = setupPlan.buildFingerprint?.key ?? 'unknown';
     console.log(
