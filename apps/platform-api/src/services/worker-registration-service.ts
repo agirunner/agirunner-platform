@@ -131,6 +131,13 @@ export async function deleteWorker(context: WorkerServiceContext, identity: ApiK
     workerId,
   ]);
 
+  // Tasks keep historical assignment metadata, so we null the live FK before deleting
+  // the worker row to avoid tasks.assigned_worker_id FK violations.
+  await context.pool.query('UPDATE tasks SET assigned_worker_id = NULL WHERE tenant_id = $1 AND assigned_worker_id = $2', [
+    identity.tenantId,
+    workerId,
+  ]);
+
   await context.pool.query('DELETE FROM api_keys WHERE tenant_id = $1 AND owner_type = $2 AND owner_id = $3', [
     identity.tenantId,
     'worker',
