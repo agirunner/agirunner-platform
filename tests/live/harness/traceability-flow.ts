@@ -28,6 +28,9 @@ type LiveCell = {
   artifactMdPath?: string;
   finishedAt?: string;
   error?: string;
+  attempts?: number;
+  retryCount?: number;
+  retryReasons?: string[];
 };
 
 type ConsolidatedResults = {
@@ -60,6 +63,7 @@ type CellExecution = {
   commandFailed: boolean;
   durationMs: number;
   attempts: number;
+  retryReasons: string[];
 };
 
 const ROOT = process.cwd();
@@ -288,6 +292,7 @@ function runOne(results: ConsolidatedResults, provider: Provider, scenario: stri
 
   let attempt = 0;
   let lastError: Error | undefined;
+  const retryReasons: string[] = [];
 
   while (attempt < maxAttempts) {
     attempt += 1;
@@ -306,6 +311,9 @@ function runOne(results: ConsolidatedResults, provider: Provider, scenario: stri
       cell.artifactMdPath = execution.summaryPath;
       cell.finishedAt = execution.report.finishedAt;
       cell.error = result.error;
+      cell.attempts = attempt;
+      cell.retryCount = Math.max(0, attempt - 1);
+      cell.retryReasons = [...retryReasons];
 
       writeResults(results);
 
@@ -313,13 +321,14 @@ function runOne(results: ConsolidatedResults, provider: Provider, scenario: stri
         throw new Error(result.error ?? `Scenario execution failed for ${scenario}/${provider}`);
       }
 
-      return { ...execution, attempts: attempt };
+      return { ...execution, attempts: attempt, retryReasons: [...retryReasons] };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       lastError = error instanceof Error ? error : new Error(message);
 
       const canRetry = attempt < maxAttempts && isInfraFailureSignature(message);
       if (canRetry) {
+        retryReasons.push(message);
         console.log(`  ↻ Infra signature detected; retrying once (${scenario}/${provider})...`);
         continue;
       }
@@ -328,6 +337,9 @@ function runOne(results: ConsolidatedResults, provider: Provider, scenario: stri
       if (cell) {
         cell.status = 'FAIL';
         cell.error = message;
+        cell.attempts = attempt;
+        cell.retryCount = Math.max(0, attempt - 1);
+        cell.retryReasons = [...retryReasons];
         writeResults(results);
       }
 
@@ -385,7 +397,9 @@ function runMatrix(argv: string[], mode: RunMode): void {
   const durations: number[] = [];
 
   if (mode === 'warm') {
-    runStrictPreflight(providers[0], true);
+    for (const provider of providers) {
+      runStrictPreflight(provider, true);
+    }
   }
 
   try {

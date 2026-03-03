@@ -27,6 +27,29 @@ function getLiveConfig() {
 }
 
 const DEFAULT_ADMIN_KEY_PREFIX = 'ab_admin_def';
+const LIVE_RESET_EXCLUDED_TABLES = ['schema_migrations', 'tenants'] as const;
+
+type TableNameRow = { tablename: string };
+
+function quoteIdentifier(identifier: string): string {
+  return `"${identifier.replaceAll('"', '""')}"`;
+}
+
+export function selectMutableLiveTables(tableNames: string[]): string[] {
+  const excluded = new Set<string>(LIVE_RESET_EXCLUDED_TABLES);
+  return tableNames
+    .filter((tableName) => !excluded.has(tableName))
+    .sort((left, right) => left.localeCompare(right));
+}
+
+export function buildLiveResetTruncateSql(tableNames: string[]): string | null {
+  const mutableTables = selectMutableLiveTables(tableNames);
+  if (mutableTables.length === 0) {
+    return null;
+  }
+
+  return `TRUNCATE TABLE ${mutableTables.map(quoteIdentifier).join(', ')} RESTART IDENTITY CASCADE`;
+}
 
 function composeBinary(): string {
   try {
@@ -169,17 +192,16 @@ async function resetLiveState(postgresUrl: string): Promise<void> {
   try {
     await pool.query('BEGIN');
 
-    await pool.query('DELETE FROM worker_signals');
-    await pool.query('DELETE FROM orchestrator_grants');
-    await pool.query('DELETE FROM tasks');
-    await pool.query('DELETE FROM pipelines');
-    await pool.query('DELETE FROM projects');
-    await pool.query('DELETE FROM templates');
-    await pool.query('DELETE FROM events');
+    const tableRows = await pool.query<TableNameRow>(
+      `SELECT tablename
+         FROM pg_tables
+        WHERE schemaname = 'public'`,
+    );
 
-    await pool.query("DELETE FROM agents WHERE name = 'live-suite-agent'");
-    await pool.query("DELETE FROM workers WHERE name = 'live-suite-worker'");
-    await pool.query("DELETE FROM api_keys WHERE label IN ('live-admin', 'live-worker', 'live-agent')");
+    const truncateSql = buildLiveResetTruncateSql(tableRows.rows.map((row) => row.tablename));
+    if (truncateSql) {
+      await pool.query(truncateSql);
+    }
 
     await pool.query('COMMIT');
   } catch (error) {

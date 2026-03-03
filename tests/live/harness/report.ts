@@ -45,6 +45,9 @@ type LiveCell = {
   artifactMdPath?: string;
   finishedAt?: string;
   error?: string;
+  attempts?: number;
+  retryCount?: number;
+  retryReasons?: string[];
 };
 
 type ConsolidatedResults = {
@@ -293,7 +296,17 @@ function buildConsolidatedPayload(
       ...canonical.providers.map((provider) => {
         const state = liveCells[scenario.key]?.[provider] ?? { status: 'NOT_PASS' as LaneStatus };
         const links = [state.artifactJsonPath, state.artifactMdPath].filter(Boolean) as string[];
-        const notes = state.error ? [state.error] : [];
+        const notes: string[] = [];
+        if (state.error) {
+          notes.push(state.error);
+        }
+        const retryCount = state.retryCount ?? 0;
+        if (retryCount > 0) {
+          notes.push(`retries=${retryCount} attempts=${state.attempts ?? retryCount + 1}`);
+          for (const reason of state.retryReasons ?? []) {
+            notes.push(`retry_reason: ${reason}`);
+          }
+        }
 
         return {
           lane: 'live' as const,
