@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-03T21:41:38.486Z",
-  "generated_at_utc": "2026-03-03T21:41:38.486Z",
+  "generatedAt": "2026-03-03T23:20:29.652Z",
+  "generated_at_utc": "2026-03-03T23:20:29.652Z",
   "status_enum": [
     "PASS",
     "FLAKY",
@@ -17,128 +17,128 @@
     {
       "key": "sdlc-happy",
       "id": "AP-1",
-      "title": "Built-in Worker \u2014 SDLC Pipeline",
-      "planRef": "\u00a72 AP-1"
+      "title": "Built-in Worker — SDLC Pipeline",
+      "planRef": "§2 AP-1"
     },
     {
       "key": "ap2-external-runtime",
       "id": "AP-2",
-      "title": "External Runtime \u2014 SDLC Pipeline",
-      "planRef": "\u00a72 AP-2"
+      "title": "External Runtime — SDLC Pipeline",
+      "planRef": "§2 AP-2"
     },
     {
       "key": "ap3-standalone-worker",
       "id": "AP-3",
-      "title": "Standalone Worker Runtime \u2014 SDLC Pipeline",
-      "planRef": "\u00a72 AP-3"
+      "title": "Standalone Worker Runtime — SDLC Pipeline",
+      "planRef": "§2 AP-3"
     },
     {
       "key": "ap4-mixed-workers",
       "id": "AP-4",
-      "title": "Mixed Workers \u2014 SDLC Pipeline",
-      "planRef": "\u00a72 AP-4"
+      "title": "Mixed Workers — SDLC Pipeline",
+      "planRef": "§2 AP-4"
     },
     {
       "key": "maintenance-happy",
       "id": "AP-5",
-      "title": "Built-in Worker \u2014 Maintenance Pipeline",
-      "planRef": "\u00a72 AP-5"
+      "title": "Built-in Worker — Maintenance Pipeline",
+      "planRef": "§2 AP-5"
     },
     {
       "key": "ap6-runtime-maintenance",
       "id": "AP-6",
-      "title": "External Runtime \u2014 Maintenance Pipeline",
-      "planRef": "\u00a72 AP-6"
+      "title": "External Runtime — Maintenance Pipeline",
+      "planRef": "§2 AP-6"
     },
     {
       "key": "ap7-failure-recovery",
       "id": "AP-7",
       "title": "Pipeline Failure and Recovery",
-      "planRef": "\u00a72 AP-7"
+      "planRef": "§2 AP-7"
     },
     {
       "key": "ot1-cascade",
       "id": "OT-1",
       "title": "Dependency Cascade",
-      "planRef": "\u00a73 OT-1"
+      "planRef": "§3 OT-1"
     },
     {
       "key": "ot2-routing",
       "id": "OT-2",
       "title": "Task Routing & Capability Matching",
-      "planRef": "\u00a73 OT-2"
+      "planRef": "§3 OT-2"
     },
     {
       "key": "ot3-state",
       "id": "OT-3",
       "title": "Pipeline State Derivation",
-      "planRef": "\u00a73 OT-3"
+      "planRef": "§3 OT-3"
     },
     {
       "key": "ot4-health",
       "id": "OT-4",
       "title": "Worker Health & Recovery",
-      "planRef": "\u00a73 OT-4"
+      "planRef": "§3 OT-4"
     },
     {
       "key": "hl1-approval-flow",
       "id": "HL-1",
       "title": "Approval and Retry Flow",
-      "planRef": "\u00a74 HL-1"
+      "planRef": "§4 HL-1"
     },
     {
       "key": "hl2-pipeline-controls",
       "id": "HL-2",
       "title": "Pipeline/Task Control Plane",
-      "planRef": "\u00a74 HL-2"
+      "planRef": "§4 HL-2"
     },
     {
       "key": "it1-sdk",
       "id": "IT-1",
       "title": "SDK Full Lifecycle",
-      "planRef": "\u00a75 IT-1"
+      "planRef": "§5 IT-1"
     },
     {
       "key": "it2-mcp",
       "id": "IT-2",
       "title": "MCP Server",
-      "planRef": "\u00a75 IT-2"
+      "planRef": "§5 IT-2"
     },
     {
       "key": "it3-webhooks",
       "id": "IT-3",
       "title": "Webhooks Delivery Surface",
-      "planRef": "\u00a75 IT-3"
+      "planRef": "§5 IT-3"
     },
     {
       "key": "it3-mcp-sse-stream",
       "id": "IT-4",
       "title": "MCP SSE Stream",
-      "planRef": "\u00a75 IT-4"
+      "planRef": "§5 IT-4"
     },
     {
       "key": "si1-isolation",
       "id": "SI-1",
       "title": "Multi-Tenant Isolation",
-      "planRef": "\u00a76 SI-1"
+      "planRef": "§6 SI-1"
     },
     {
       "key": "si2-auth",
       "id": "SI-2",
       "title": "Auth and Zero-Config Bootstrap",
-      "planRef": "\u00a76 SI-2"
+      "planRef": "§6 SI-2"
     },
     {
       "key": "si2-extended-isolation",
       "id": "SI-3",
       "title": "Extended Isolation",
-      "planRef": "\u00a76 SI-3"
+      "planRef": "§6 SI-3"
     }
   ],
   "summary": {
-    "PASS": 53,
+    "PASS": 54,
     "FLAKY": 0,
-    "FAIL": 27,
+    "FAIL": 26,
     "NOT_PASS": 20,
     "row_count": 20,
     "cell_count": 100,
@@ -156,9 +156,9 @@
         "NOT_PASS": 20
       },
       "live": {
-        "PASS": 36,
+        "PASS": 37,
         "FLAKY": 0,
-        "FAIL": 24,
+        "FAIL": 23,
         "NOT_PASS": 0
       }
     }
@@ -166,8 +166,8 @@
   "matrix": [
     {
       "use_case_id": "AP-1",
-      "title": "Built-in Worker \u2014 SDLC Pipeline",
-      "plan_section": "\u00a72 AP-1",
+      "title": "Built-in Worker — SDLC Pipeline",
+      "plan_section": "§2 AP-1",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -179,7 +179,7 @@
           "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -190,7 +190,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -206,7 +206,7 @@
           "notes": [
             "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: Deterministic delivery-quality validator returned NOT_PASS. Evidence: tests/artifacts/live/validators/2026-03-03T21-04-53-939Z-maintenance-openai-r1/sdlc-happy-authenticity.json"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -220,7 +220,7 @@
             "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -236,14 +236,14 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     },
     {
       "use_case_id": "AP-2",
-      "title": "External Runtime \u2014 SDLC Pipeline",
-      "plan_section": "\u00a72 AP-2",
+      "title": "External Runtime — SDLC Pipeline",
+      "plan_section": "§2 AP-2",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -255,7 +255,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -266,7 +266,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -280,7 +280,7 @@
             "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -294,7 +294,7 @@
             "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -310,14 +310,14 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     },
     {
       "use_case_id": "AP-3",
-      "title": "Standalone Worker Runtime \u2014 SDLC Pipeline",
-      "plan_section": "\u00a72 AP-3",
+      "title": "Standalone Worker Runtime — SDLC Pipeline",
+      "plan_section": "§2 AP-3",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -329,7 +329,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -340,7 +340,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -354,7 +354,7 @@
             "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -368,7 +368,7 @@
             "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -384,14 +384,14 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     },
     {
       "use_case_id": "AP-4",
-      "title": "Mixed Workers \u2014 SDLC Pipeline",
-      "plan_section": "\u00a72 AP-4",
+      "title": "Mixed Workers — SDLC Pipeline",
+      "plan_section": "§2 AP-4",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -403,7 +403,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -414,7 +414,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -428,7 +428,7 @@
             "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -442,7 +442,7 @@
             "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -458,14 +458,14 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     },
     {
       "use_case_id": "AP-5",
-      "title": "Built-in Worker \u2014 Maintenance Pipeline",
-      "plan_section": "\u00a72 AP-5",
+      "title": "Built-in Worker — Maintenance Pipeline",
+      "plan_section": "§2 AP-5",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -477,7 +477,7 @@
           "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -488,7 +488,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -502,7 +502,7 @@
             "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -518,7 +518,7 @@
           "notes": [
             "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: LLM validator failure (fail-closed): This operation was aborted. Evidence: tests/artifacts/live/validators/2026-03-03T21-18-35-463Z-maintenance-google-r1/maintenance-happy-authenticity.json"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -534,14 +534,14 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     },
     {
       "use_case_id": "AP-6",
-      "title": "External Runtime \u2014 Maintenance Pipeline",
-      "plan_section": "\u00a72 AP-6",
+      "title": "External Runtime — Maintenance Pipeline",
+      "plan_section": "§2 AP-6",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -553,7 +553,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -564,7 +564,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -578,7 +578,7 @@
             "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -592,7 +592,7 @@
             "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -608,14 +608,14 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     },
     {
       "use_case_id": "AP-7",
       "title": "Pipeline Failure and Recovery",
-      "plan_section": "\u00a72 AP-7",
+      "plan_section": "§2 AP-7",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -627,7 +627,7 @@
           "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -638,7 +638,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -646,15 +646,13 @@
           "provider": "openai",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-27-18-168Z-sdlc-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-27-18-168Z-sdlc-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-03T23-17-06-683Z-sdlc-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-03T23-17-06-683Z-sdlc-openai-r1.md"
           ],
-          "notes": [
-            "Output authenticity NOT_PASS (hybrid-llm) resilience=PASS delivery_quality=NOT_PASS: The evidence provided indicates that while some tasks have completed successfully, there are multiple pending tasks and a failed pipeline, which raises concerns about the overall authenticity of the delivery output. The presence of pending and failed states suggests that the output may not be fully grounded or evidenced.. Evidence: tests/artifacts/live/validators/2026-03-03T21-27-18-168Z-sdlc-openai-r1/ap7-failure-recovery-authenticity.json"
-          ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -670,7 +668,7 @@
           "notes": [
             "AP-7 expected a failed task, but no failed task was observed before timeout"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -686,14 +684,14 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     },
     {
       "use_case_id": "OT-1",
       "title": "Dependency Cascade",
-      "plan_section": "\u00a73 OT-1",
+      "plan_section": "§3 OT-1",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -705,7 +703,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -716,7 +714,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -730,7 +728,7 @@
             "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -744,7 +742,7 @@
             "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -760,14 +758,14 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     },
     {
       "use_case_id": "OT-2",
       "title": "Task Routing & Capability Matching",
-      "plan_section": "\u00a73 OT-2",
+      "plan_section": "§3 OT-2",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -779,7 +777,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -790,7 +788,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -804,7 +802,7 @@
             "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -818,7 +816,7 @@
             "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -834,14 +832,14 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     },
     {
       "use_case_id": "OT-3",
       "title": "Pipeline State Derivation",
-      "plan_section": "\u00a73 OT-3",
+      "plan_section": "§3 OT-3",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -853,7 +851,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -864,7 +862,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -878,7 +876,7 @@
             "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -892,7 +890,7 @@
             "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -908,14 +906,14 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     },
     {
       "use_case_id": "OT-4",
       "title": "Worker Health & Recovery",
-      "plan_section": "\u00a73 OT-4",
+      "plan_section": "§3 OT-4",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -927,7 +925,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -938,7 +936,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -952,7 +950,7 @@
             "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -966,7 +964,7 @@
             "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -982,14 +980,14 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     },
     {
       "use_case_id": "HL-1",
       "title": "Approval and Retry Flow",
-      "plan_section": "\u00a74 HL-1",
+      "plan_section": "§4 HL-1",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -1001,7 +999,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -1012,7 +1010,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1026,7 +1024,7 @@
             "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1040,7 +1038,7 @@
             "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1056,14 +1054,14 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     },
     {
       "use_case_id": "HL-2",
       "title": "Pipeline/Task Control Plane",
-      "plan_section": "\u00a74 HL-2",
+      "plan_section": "§4 HL-2",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -1075,7 +1073,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -1086,7 +1084,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1100,7 +1098,7 @@
             "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1114,7 +1112,7 @@
             "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1130,14 +1128,14 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     },
     {
       "use_case_id": "IT-1",
       "title": "SDK Full Lifecycle",
-      "plan_section": "\u00a75 IT-1",
+      "plan_section": "§5 IT-1",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -1149,7 +1147,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -1160,7 +1158,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1174,7 +1172,7 @@
             "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1188,7 +1186,7 @@
             "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1204,14 +1202,14 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     },
     {
       "use_case_id": "IT-2",
       "title": "MCP Server",
-      "plan_section": "\u00a75 IT-2",
+      "plan_section": "§5 IT-2",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -1223,7 +1221,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -1234,7 +1232,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1248,7 +1246,7 @@
             "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1262,7 +1260,7 @@
             "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1278,14 +1276,14 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     },
     {
       "use_case_id": "IT-3",
       "title": "Webhooks Delivery Surface",
-      "plan_section": "\u00a75 IT-3",
+      "plan_section": "§5 IT-3",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -1297,7 +1295,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -1308,7 +1306,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1322,7 +1320,7 @@
             "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1336,7 +1334,7 @@
             "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1352,14 +1350,14 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     },
     {
       "use_case_id": "IT-4",
       "title": "MCP SSE Stream",
-      "plan_section": "\u00a75 IT-4",
+      "plan_section": "§5 IT-4",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -1371,7 +1369,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -1382,7 +1380,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1396,7 +1394,7 @@
             "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1410,7 +1408,7 @@
             "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1426,14 +1424,14 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     },
     {
       "use_case_id": "SI-1",
       "title": "Multi-Tenant Isolation",
-      "plan_section": "\u00a76 SI-1",
+      "plan_section": "§6 SI-1",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -1445,7 +1443,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -1456,7 +1454,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1470,7 +1468,7 @@
             "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1484,7 +1482,7 @@
             "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1500,14 +1498,14 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     },
     {
       "use_case_id": "SI-2",
       "title": "Auth and Zero-Config Bootstrap",
-      "plan_section": "\u00a76 SI-2",
+      "plan_section": "§6 SI-2",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -1519,7 +1517,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -1530,7 +1528,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1544,7 +1542,7 @@
             "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1558,7 +1556,7 @@
             "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1574,14 +1572,14 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     },
     {
       "use_case_id": "SI-3",
       "title": "Extended Isolation",
-      "plan_section": "\u00a76 SI-3",
+      "plan_section": "§6 SI-3",
       "runtime_scope": "platform",
       "cells": [
         {
@@ -1593,7 +1591,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "integration",
@@ -1604,7 +1602,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1618,7 +1616,7 @@
             "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1632,7 +1630,7 @@
             "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         },
         {
           "lane": "live",
@@ -1648,7 +1646,7 @@
           "notes": [
             "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
           ],
-          "generated_at_utc": "2026-03-03T21:32:44.114Z"
+          "generated_at_utc": "2026-03-03T23:20:29.652Z"
         }
       ]
     }
@@ -2813,8 +2811,7 @@
           "dashboard": "PASS"
         }
       }
-    ],
-    "live": []
+    ]
   },
   "live_cells": {
     "sdlc-happy": {
@@ -2965,12 +2962,11 @@
     },
     "ap7-failure-recovery": {
       "openai": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-27-18-168Z-sdlc-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-27-18-168Z-sdlc-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-27-18-168Z-sdlc-openai-r1.md",
-        "finishedAt": "2026-03-03T21:30:02.702Z",
-        "error": "Output authenticity NOT_PASS (hybrid-llm) resilience=PASS delivery_quality=NOT_PASS: The evidence provided indicates that while some tasks have completed successfully, there are multiple pending tasks and a failed pipeline, which raises concerns about the overall authenticity of the delivery output. The presence of pending and failed states suggests that the output may not be fully grounded or evidenced.. Evidence: tests/artifacts/live/validators/2026-03-03T21-27-18-168Z-sdlc-openai-r1/ap7-failure-recovery-authenticity.json"
+        "status": "PASS",
+        "runId": "2026-03-03T23-17-06-683Z-sdlc-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T23-17-06-683Z-sdlc-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T23-17-06-683Z-sdlc-openai-r1.md",
+        "finishedAt": "2026-03-03T23:20:29.649Z"
       },
       "google": {
         "status": "FAIL",
