@@ -551,6 +551,120 @@ async function callOpenAiStrictJson(
   }
 }
 
+const EVIDENCE_REF_ALIASABLE_CHECK_PREFIXES = [
+  'acceptance-structure.',
+  'placeholder-rejection.',
+  'git-diff-linkage',
+  'resilience.',
+] as const;
+
+function isAliasableCheckId(checkId: string): boolean {
+  return EVIDENCE_REF_ALIASABLE_CHECK_PREFIXES.some((prefix) => checkId.startsWith(prefix));
+}
+
+function buildDeterministicEvidenceAliasMap(
+  deterministic: DeterministicValidatorResult,
+  validRefs: Set<string>,
+): Map<string, string> {
+  const aliasMap = new Map<string, string>();
+  const baseAliases = new Map<string, string>();
+  const ambiguousBaseAliases = new Set<string>();
+
+  for (const check of deterministic.checks) {
+    const canonicalRef = check.evidenceRefs.find((ref) => validRefs.has(ref));
+    if (!canonicalRef) continue;
+
+    aliasMap.set(check.checkId, canonicalRef);
+
+    if (!isAliasableCheckId(check.checkId)) continue;
+
+    const splitIndex = check.checkId.lastIndexOf(':');
+    if (splitIndex <= 0) continue;
+
+    const baseCheckId = check.checkId.slice(0, splitIndex);
+    const existing = baseAliases.get(baseCheckId);
+    if (!existing) {
+      baseAliases.set(baseCheckId, canonicalRef);
+      continue;
+    }
+    if (existing !== canonicalRef) {
+      ambiguousBaseAliases.add(baseCheckId);
+    }
+  }
+
+  for (const [baseCheckId, canonicalRef] of baseAliases.entries()) {
+    if (!ambiguousBaseAliases.has(baseCheckId)) {
+      aliasMap.set(baseCheckId, canonicalRef);
+    }
+  }
+
+  return aliasMap;
+}
+
+function candidateRefForms(ref: string): string[] {
+  const trimmed = ref.trim();
+  if (!trimmed) return [];
+
+  const forms = new Set<string>([trimmed]);
+  forms.add(trimmed.replace(/^["'`]+|["'`]+$/g, ''));
+  forms.add(trimmed.replace(/[.,;]+$/g, ''));
+
+  return Array.from(forms).filter((value) => value.length > 0);
+}
+
+function normalizeEvidenceRef(
+  ref: string,
+  validRefs: Set<string>,
+  aliasMap: Map<string, string>,
+): string | undefined {
+  for (const candidate of candidateRefForms(ref)) {
+    if (validRefs.has(candidate)) return candidate;
+
+    const alias = aliasMap.get(candidate);
+    if (alias && validRefs.has(alias)) {
+      return alias;
+    }
+  }
+
+  return undefined;
+}
+
+function normalizeLlmVerdictEvidenceRefs(
+  verdict: LlmValidatorVerdict,
+  deterministic: DeterministicValidatorResult,
+  validRefs: Set<string>,
+): { normalizedVerdict: LlmValidatorVerdict; unknownRefs: string[] } {
+  const aliasMap = buildDeterministicEvidenceAliasMap(deterministic, validRefs);
+  const unknownRefs: string[] = [];
+
+  const checks = verdict.checks.map((check) => {
+    const normalizedRefs: string[] = [];
+
+    for (const ref of check.evidenceRefs) {
+      const normalized = normalizeEvidenceRef(ref, validRefs, aliasMap);
+      if (!normalized) {
+        unknownRefs.push(ref);
+        continue;
+      }
+      if (!normalizedRefs.includes(normalized)) {
+        normalizedRefs.push(normalized);
+      }
+    }
+
+    return {
+      ...check,
+      evidenceRefs: normalizedRefs,
+    };
+  });
+
+  return {
+    normalizedVerdict: {
+      ...verdict,
+      checks,
+    },
+    unknownRefs,
+  };
+}
 export async function runLlmAuthenticityValidator(
   scenario: string,
   deterministic: DeterministicValidatorResult,
@@ -640,11 +754,15 @@ export async function runLlmAuthenticityValidator(
     }
 
     const verdict = response.parsed;
-    const allEvidenceRefs = verdict.checks.flatMap((check) => check.evidenceRefs);
     const validRefs = new Set(evidenceCatalog.map((entry) => entry.ref));
+    const { normalizedVerdict, unknownRefs } = normalizeLlmVerdictEvidenceRefs(
+      verdict,
+      deterministic,
+      validRefs,
+    );
+    const allEvidenceRefs = normalizedVerdict.checks.flatMap((check) => check.evidenceRefs);
 
-    const hasUnknownRefs = allEvidenceRefs.some((ref) => !validRefs.has(ref));
-    if (allEvidenceRefs.length === 0 || hasUnknownRefs) {
+    if (allEvidenceRefs.length === 0 || unknownRefs.length > 0) {
       return {
         ...baseResult,
         durationMs: Date.now() - startedAt,
@@ -653,19 +771,19 @@ export async function runLlmAuthenticityValidator(
           responseId: response.responseId,
           responseModel: response.responseModel,
           rawText: response.rawText,
-          verdict,
+          verdict: normalizedVerdict,
         },
         error:
-          allEvidenceRefs.length === 0
-            ? 'LLM verdict contained no evidence refs (fail-closed)'
-            : 'LLM verdict referenced unknown evidence refs (fail-closed)',
+          unknownRefs.length > 0
+            ? 'LLM verdict referenced unknown evidence refs (fail-closed)'
+            : 'LLM verdict contained no evidence refs (fail-closed)',
       };
     }
 
     const llmStatus: AuthenticityStatus =
-      verdict.verdict === 'PASS' &&
-      verdict.missingEvidenceRefs.length === 0 &&
-      verdict.checks.every((check) => check.status === 'PASS')
+      normalizedVerdict.verdict === 'PASS' &&
+      normalizedVerdict.missingEvidenceRefs.length === 0 &&
+      normalizedVerdict.checks.every((check) => check.status === 'PASS')
         ? 'PASS'
         : 'NOT_PASS';
 
@@ -677,9 +795,9 @@ export async function runLlmAuthenticityValidator(
         responseId: response.responseId,
         responseModel: response.responseModel,
         rawText: response.rawText,
-        verdict,
+        verdict: normalizedVerdict,
       },
-      error: llmStatus === 'PASS' ? undefined : verdict.summary,
+      error: llmStatus === 'PASS' ? undefined : normalizedVerdict.summary,
     };
   } catch (error) {
     return {
