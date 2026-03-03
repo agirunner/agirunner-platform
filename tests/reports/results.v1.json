@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-03T19:30:37.678Z",
-  "generated_at_utc": "2026-03-03T19:30:37.678Z",
+  "generatedAt": "2026-03-03T19:35:19.975Z",
+  "generated_at_utc": "2026-03-03T19:35:19.975Z",
   "status_enum": [
     "PASS",
     "FLAKY",
@@ -1956,6 +1956,17 @@
         "status": "FAIL",
         "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T19-28-19-638Z-dashboard-none-r1.json",
         "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T19-28-19-638Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-03T19-33-29-418Z-dashboard-none-r1",
+        "startedAt": "2026-03-03T19:33:29.418Z",
+        "finishedAt": "2026-03-03T19:33:33.074Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T19-33-29-418Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T19-33-29-418Z-dashboard-none-r1.md",
         "scenarios": {
           "dashboard": "FAIL"
         }
