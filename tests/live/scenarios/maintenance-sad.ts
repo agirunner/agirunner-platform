@@ -7,11 +7,8 @@
 
 import type { LiveContext, ScenarioExecutionResult } from '../harness/types.js';
 import { LiveApiClient } from '../api-client.js';
-import { loadConfig } from '../config.js';
 import { maintenanceTemplateSchema } from './templates.js';
-import { sleep } from './poll.js';
-
-const config = loadConfig();
+import { pollUntilValue } from './poll.js';
 
 export async function runMaintenanceSadScenario(
   live: LiveContext,
@@ -47,8 +44,16 @@ export async function runMaintenanceSadScenario(
   validations.push('pipeline_cancelled');
 
   // Verify all tasks are cancelled
-  await sleep(1000);
-  const snapshot = await client.getPipeline(pipeline.id);
+  const snapshot = await pollUntilValue(
+    () => client.getPipeline(pipeline.id),
+    (value) => (value.tasks ?? []).every((task) => task.state === 'cancelled'),
+    {
+      timeoutMs: 10_000,
+      intervalMs: 250,
+      label: `maintenance-sad pipeline ${pipeline.id} tasks cancelled`,
+    },
+  );
+
   const tasks = snapshot.tasks ?? [];
   const allCancelled = tasks.every((t) => t.state === 'cancelled');
   if (!allCancelled) {

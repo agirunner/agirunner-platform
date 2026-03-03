@@ -15,11 +15,20 @@
 
 import type { LiveContext, ScenarioExecutionResult } from '../harness/types.js';
 import { createTestTenant, type TenantContext } from './tenant.js';
-import { sleep } from './poll.js';
+import { pollUntilCondition } from './poll.js';
 
 async function completeTask(ctx: TenantContext, taskId: string): Promise<void> {
   await ctx.agentClient.startTask(taskId, { agent_id: ctx.agentId });
   await ctx.agentClient.completeTask(taskId, { result: 'test' });
+}
+
+async function waitForClockAdvance(minAdvanceMs: number): Promise<void> {
+  const target = Date.now() + minAdvanceMs;
+  await pollUntilCondition(async () => Date.now() >= target, {
+    timeoutMs: Math.max(1_000, minAdvanceMs + 250),
+    intervalMs: 20,
+    label: `clock advanced by ${minAdvanceMs}ms`,
+  });
 }
 
 /**
@@ -70,7 +79,8 @@ async function testSupersetMatch(ctx: TenantContext): Promise<string[]> {
   });
 
   if (!claimed) throw new Error('Claim returned null for superset-match task');
-  if (claimed.id !== task.id) throw new Error(`Claimed wrong task for superset match: ${claimed.id} vs ${task.id}`);
+  if (claimed.id !== task.id)
+    throw new Error(`Claimed wrong task for superset match: ${claimed.id} vs ${task.id}`);
 
   await completeTask(ctx, task.id);
   validations.push('superset_match:claimed');
@@ -119,7 +129,7 @@ async function testPriorityOrdering(ctx: TenantContext): Promise<string[]> {
     capabilities_required: ['llm-api'],
   });
 
-  await sleep(100);
+  await waitForClockAdvance(100);
 
   const highPri = await ctx.workerClient.createTask({
     title: 'OT2-high-priority',
@@ -137,7 +147,9 @@ async function testPriorityOrdering(ctx: TenantContext): Promise<string[]> {
 
   if (!claimed) throw new Error('Claim returned null for priority test');
   if (claimed.id !== highPri.id) {
-    throw new Error(`Priority ordering violated: expected ${highPri.id}, got ${claimed.id} (low was ${lowPri.id})`);
+    throw new Error(
+      `Priority ordering violated: expected ${highPri.id}, got ${claimed.id} (low was ${lowPri.id})`,
+    );
   }
 
   await completeTask(ctx, claimed.id);
@@ -148,7 +160,9 @@ async function testPriorityOrdering(ctx: TenantContext): Promise<string[]> {
     capabilities: ['llm-api'],
   });
   if (!second || second.id !== lowPri.id) {
-    throw new Error(`Expected second claim to return low-priority task ${lowPri.id}, got ${second?.id ?? 'null'}`);
+    throw new Error(
+      `Expected second claim to return low-priority task ${lowPri.id}, got ${second?.id ?? 'null'}`,
+    );
   }
   await completeTask(ctx, second.id);
 
@@ -170,7 +184,7 @@ async function testFifoWithinPriority(ctx: TenantContext): Promise<string[]> {
     capabilities_required: ['llm-api'],
   });
 
-  await sleep(1000);
+  await waitForClockAdvance(1000);
 
   const second = await ctx.workerClient.createTask({
     title: 'OT2-fifo-second',
@@ -188,7 +202,9 @@ async function testFifoWithinPriority(ctx: TenantContext): Promise<string[]> {
 
   if (!claimed) throw new Error('Claim returned null for FIFO test');
   if (claimed.id !== first.id) {
-    throw new Error(`FIFO violated: expected first task ${first.id}, got ${claimed.id} (second is ${second.id})`);
+    throw new Error(
+      `FIFO violated: expected first task ${first.id}, got ${claimed.id} (second is ${second.id})`,
+    );
   }
 
   await completeTask(ctx, claimed.id);
@@ -232,7 +248,9 @@ async function testOneClaimLimit(ctx: TenantContext): Promise<string[]> {
   });
 
   if (!claimedFirst || claimedFirst.id !== first.id) {
-    throw new Error(`Expected first claim to return ${first.id}, got ${claimedFirst?.id ?? 'null'}`);
+    throw new Error(
+      `Expected first claim to return ${first.id}, got ${claimedFirst?.id ?? 'null'}`,
+    );
   }
 
   try {
@@ -258,7 +276,9 @@ async function testOneClaimLimit(ctx: TenantContext): Promise<string[]> {
   });
 
   if (!claimedSecond || claimedSecond.id !== second.id) {
-    throw new Error(`Expected second task ${second.id} to be claimable after completion, got ${claimedSecond?.id ?? 'null'}`);
+    throw new Error(
+      `Expected second task ${second.id} to be claimable after completion, got ${claimedSecond?.id ?? 'null'}`,
+    );
   }
 
   await completeTask(ctx, second.id);
@@ -270,19 +290,17 @@ async function testOneClaimLimit(ctx: TenantContext): Promise<string[]> {
 /**
  * Main OT-2 runner: executes all routing sub-tests.
  */
-export async function runOt2TaskRouting(
-  live: LiveContext,
-): Promise<ScenarioExecutionResult> {
+export async function runOt2TaskRouting(live: LiveContext): Promise<ScenarioExecutionResult> {
   const ctx = await createTestTenant('ot2-routing');
   const allValidations: string[] = [];
 
   try {
-    allValidations.push(...await testExactMatch(ctx));
-    allValidations.push(...await testSupersetMatch(ctx));
-    allValidations.push(...await testNoMatch(ctx));
-    allValidations.push(...await testPriorityOrdering(ctx));
-    allValidations.push(...await testFifoWithinPriority(ctx));
-    allValidations.push(...await testOneClaimLimit(ctx));
+    allValidations.push(...(await testExactMatch(ctx)));
+    allValidations.push(...(await testSupersetMatch(ctx)));
+    allValidations.push(...(await testNoMatch(ctx)));
+    allValidations.push(...(await testPriorityOrdering(ctx)));
+    allValidations.push(...(await testFifoWithinPriority(ctx)));
+    allValidations.push(...(await testOneClaimLimit(ctx)));
   } finally {
     await ctx.cleanup();
   }

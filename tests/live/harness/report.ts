@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import type { RunReport } from './types.js';
 
-type LaneStatus = 'PASS' | 'FAIL' | 'NOT_PASS';
+type LaneStatus = 'PASS' | 'FLAKY' | 'FAIL' | 'NOT_PASS';
 type Lane = 'core' | 'integration' | 'live';
 
 type ScenarioDef = { key: string; id: string; title: string; planRef: string };
@@ -48,6 +48,10 @@ type LiveCell = {
   attempts?: number;
   retryCount?: number;
   retryReasons?: string[];
+  firstFailureRunId?: string;
+  firstFailureArtifactJsonPath?: string;
+  firstFailureArtifactMdPath?: string;
+  firstFailureError?: string;
 };
 
 type ConsolidatedResults = {
@@ -80,12 +84,17 @@ type LegacyLaneResults = {
 type LegacyLiveResults = {
   matrix?: Array<{
     use_case_id?: string;
-    cells?: Array<{ provider?: string; status?: LaneStatus; evidence_links?: string[]; notes?: string[] }>;
+    cells?: Array<{
+      provider?: string;
+      status?: LaneStatus;
+      evidence_links?: string[];
+      notes?: string[];
+    }>;
   }>;
   cells?: Record<string, Record<string, LiveCell>>;
 };
 
-const STATUS_ENUM: LaneStatus[] = ['PASS', 'FAIL', 'NOT_PASS'];
+const STATUS_ENUM: LaneStatus[] = ['PASS', 'FLAKY', 'FAIL', 'NOT_PASS'];
 const RESULTS_PATH = 'tests/reports/results.v1.json';
 
 function resolveLane(report: RunReport): Lane {
@@ -198,7 +207,10 @@ function normalizeLiveCells(
   return cells;
 }
 
-function migrateLegacyLiveCells(canonical: Canonical, legacy: LegacyLiveResults | undefined): Record<string, Record<string, LiveCell>> {
+function migrateLegacyLiveCells(
+  canonical: Canonical,
+  legacy: LegacyLiveResults | undefined,
+): Record<string, Record<string, LiveCell>> {
   if (!legacy) return normalizeLiveCells(canonical, undefined);
   if (legacy.cells && typeof legacy.cells === 'object') {
     return normalizeLiveCells(canonical, legacy.cells);
@@ -230,11 +242,11 @@ function migrateLegacyLiveCells(canonical: Canonical, legacy: LegacyLiveResults 
 }
 
 function buildSummary(matrix: ResultRow[]): ConsolidatedResults['summary'] {
-  const totals: Record<LaneStatus, number> = { PASS: 0, FAIL: 0, NOT_PASS: 0 };
+  const totals: Record<LaneStatus, number> = { PASS: 0, FLAKY: 0, FAIL: 0, NOT_PASS: 0 };
   const byLane: Record<Lane, Record<LaneStatus, number>> = {
-    core: { PASS: 0, FAIL: 0, NOT_PASS: 0 },
-    integration: { PASS: 0, FAIL: 0, NOT_PASS: 0 },
-    live: { PASS: 0, FAIL: 0, NOT_PASS: 0 },
+    core: { PASS: 0, FLAKY: 0, FAIL: 0, NOT_PASS: 0 },
+    integration: { PASS: 0, FLAKY: 0, FAIL: 0, NOT_PASS: 0 },
+    live: { PASS: 0, FLAKY: 0, FAIL: 0, NOT_PASS: 0 },
   };
 
   let cellCount = 0;
@@ -268,7 +280,8 @@ function buildConsolidatedPayload(
 
   const matrix: ResultRow[] = canonical.scenarios.map((scenario) => {
     const coreStatus = coreLatest[scenario.key] ?? fallback.core[scenario.key] ?? 'NOT_PASS';
-    const integrationStatus = integrationLatest[scenario.key] ?? fallback.integration[scenario.key] ?? 'NOT_PASS';
+    const integrationStatus =
+      integrationLatest[scenario.key] ?? fallback.integration[scenario.key] ?? 'NOT_PASS';
 
     const cells: ResultCell[] = [
       {
@@ -295,8 +308,18 @@ function buildConsolidatedPayload(
       },
       ...canonical.providers.map((provider) => {
         const state = liveCells[scenario.key]?.[provider] ?? { status: 'NOT_PASS' as LaneStatus };
-        const links = [state.artifactJsonPath, state.artifactMdPath].filter(Boolean) as string[];
+        const links = [
+          state.artifactJsonPath,
+          state.artifactMdPath,
+          state.firstFailureArtifactJsonPath,
+          state.firstFailureArtifactMdPath,
+        ].filter(Boolean) as string[];
+        const uniqueLinks = Array.from(new Set(links));
+
         const notes: string[] = [];
+        if (state.status === 'FLAKY') {
+          notes.push('PASS_WITH_RETRY');
+        }
         if (state.error) {
           notes.push(state.error);
         }
@@ -307,6 +330,12 @@ function buildConsolidatedPayload(
             notes.push(`retry_reason: ${reason}`);
           }
         }
+        if (state.firstFailureRunId) {
+          notes.push(`first_failure_run: ${state.firstFailureRunId}`);
+        }
+        if (state.firstFailureError) {
+          notes.push(`first_failure_error: ${state.firstFailureError}`);
+        }
 
         return {
           lane: 'live' as const,
@@ -315,7 +344,7 @@ function buildConsolidatedPayload(
           mode: 'e2e',
           gating: true,
           status: state.status,
-          evidence_links: links,
+          evidence_links: uniqueLinks,
           notes,
           generated_at_utc: generatedAt,
         };
@@ -348,7 +377,10 @@ function buildConsolidatedPayload(
   };
 }
 
-function readExistingOrLegacyState(root: string, canonical: Canonical): {
+function readExistingOrLegacyState(
+  root: string,
+  canonical: Canonical,
+): {
   runs: { core: CoreIntegrationRunRecord[]; integration: CoreIntegrationRunRecord[] };
   liveCells: Record<string, Record<string, LiveCell>>;
   fallback: { core: Record<string, LaneStatus>; integration: Record<string, LaneStatus> };
@@ -380,9 +412,15 @@ function readExistingOrLegacyState(root: string, canonical: Canonical): {
     };
   }
 
-  const coreLegacy = readJsonIfExists<LegacyLaneResults>(path.join(root, 'tests/reports/core-results.json'));
-  const integrationLegacy = readJsonIfExists<LegacyLaneResults>(path.join(root, 'tests/reports/integration-results.json'));
-  const liveLegacy = readJsonIfExists<LegacyLiveResults>(path.join(root, 'tests/reports/live-results.json'));
+  const coreLegacy = readJsonIfExists<LegacyLaneResults>(
+    path.join(root, 'tests/reports/core-results.json'),
+  );
+  const integrationLegacy = readJsonIfExists<LegacyLaneResults>(
+    path.join(root, 'tests/reports/integration-results.json'),
+  );
+  const liveLegacy = readJsonIfExists<LegacyLiveResults>(
+    path.join(root, 'tests/reports/live-results.json'),
+  );
 
   return {
     runs: {
@@ -407,7 +445,10 @@ function writeConsolidatedResults(
   },
 ): void {
   const resultsPath = path.join(root, RESULTS_PATH);
-  writeJson(resultsPath, buildConsolidatedPayload(canonical, state.runs, state.liveCells, state.fallback));
+  writeJson(
+    resultsPath,
+    buildConsolidatedPayload(canonical, state.runs, state.liveCells, state.fallback),
+  );
 }
 
 function updateCoreOrIntegrationResults(
@@ -443,7 +484,12 @@ function updateCoreOrIntegrationResults(
   writeConsolidatedResults(root, canonical, state);
 }
 
-function updateLiveResults(root: string, report: RunReport, jsonPath: string, mdPath: string): void {
+function updateLiveResults(
+  root: string,
+  report: RunReport,
+  jsonPath: string,
+  mdPath: string,
+): void {
   const canonical = loadCanonicalScenarios(root);
   const state = readExistingOrLegacyState(root, canonical);
   state.liveCells = normalizeLiveCells(canonical, state.liveCells);

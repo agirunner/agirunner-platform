@@ -122,7 +122,9 @@ function hashText(content: string): string {
 }
 
 function trackedFingerprintPathspecArgs(): string {
-  const exclusions = FINGERPRINT_EXCLUDED_TRACKED_PATHS.map((value) => `':(exclude)${value}'`).join(' ');
+  const exclusions = FINGERPRINT_EXCLUDED_TRACKED_PATHS.map((value) => `':(exclude)${value}'`).join(
+    ' ',
+  );
   return exclusions.length > 0 ? `. ${exclusions}` : '.';
 }
 
@@ -149,11 +151,12 @@ function isTransientUntrackedPath(filePath: string): boolean {
 function resolveWorkspaceFingerprint(): BuildFingerprint {
   const gitCommit = runCommandQuiet('git rev-parse HEAD') ?? undefined;
   const trackedDirty = hasTrackedChangesAffectingFingerprint();
-  const untrackedFingerprintInputs = runCommandQuiet('git ls-files --others --exclude-standard')
-    ?.split('\n')
-    .map((value) => value.trim())
-    .filter((value) => value.length > 0 && !isTransientUntrackedPath(value))
-    .sort((left, right) => left.localeCompare(right)) ?? [];
+  const untrackedFingerprintInputs =
+    runCommandQuiet('git ls-files --others --exclude-standard')
+      ?.split('\n')
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0 && !isTransientUntrackedPath(value))
+      .sort((left, right) => left.localeCompare(right)) ?? [];
 
   if (gitCommit && !trackedDirty && untrackedFingerprintInputs.length === 0) {
     return {
@@ -166,9 +169,10 @@ function resolveWorkspaceFingerprint(): BuildFingerprint {
   const hash = createHash('sha256');
   hash.update(`git-commit:${gitCommit ?? 'none'}\n`);
 
-  const diff = runCommandQuiet(
-    `git diff --no-ext-diff --binary HEAD -- ${trackedFingerprintPathspecArgs()}`,
-  ) ?? '';
+  const diff =
+    runCommandQuiet(
+      `git diff --no-ext-diff --binary HEAD -- ${trackedFingerprintPathspecArgs()}`,
+    ) ?? '';
   hash.update('git-diff-start\n');
   hash.update(diff);
   hash.update('\ngit-diff-end\n');
@@ -185,9 +189,11 @@ function resolveWorkspaceFingerprint(): BuildFingerprint {
     hash.update('\n');
   }
 
-  const buildArgFingerprint = hashText(JSON.stringify({
-    vitePlatformApiUrl: process.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080',
-  }));
+  const buildArgFingerprint = hashText(
+    JSON.stringify({
+      vitePlatformApiUrl: process.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080',
+    }),
+  );
 
   hash.update(`build-args:${buildArgFingerprint}\n`);
 
@@ -204,7 +210,9 @@ function readBuildFingerprintCache(): BuildFingerprintCacheRecord | null {
   }
 
   try {
-    const parsed = JSON.parse(readFileSync(BUILD_CACHE_PATH, 'utf8')) as BuildFingerprintCacheRecord;
+    const parsed = JSON.parse(
+      readFileSync(BUILD_CACHE_PATH, 'utf8'),
+    ) as BuildFingerprintCacheRecord;
     if (!parsed.fingerprint || !parsed.source) {
       return null;
     }
@@ -242,6 +250,14 @@ export function shouldBuildDockerImages(
   return previous.fingerprint !== fingerprint.key;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isApiAuthReadinessStatus(status: number): boolean {
+  return status === 401 || status === 403;
+}
+
 async function waitForHealth(url: string, label: string, timeoutMs: number): Promise<void> {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
@@ -253,10 +269,65 @@ async function waitForHealth(url: string, label: string, timeoutMs: number): Pro
     } catch {
       // retry
     }
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await sleep(1500);
   }
 
   throw new Error(`Timed out waiting for ${label} at ${url}`);
+}
+
+async function waitForPostgresReady(postgresUrl: string, timeoutMs: number): Promise<void> {
+  const started = Date.now();
+  let lastError: string | undefined;
+
+  while (Date.now() - started < timeoutMs) {
+    const client = new pg.Client({ connectionString: postgresUrl });
+
+    try {
+      await client.connect();
+      await client.query('SELECT 1');
+      return;
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    } finally {
+      try {
+        await client.end();
+      } catch {
+        // ignore cleanup errors while probing readiness
+      }
+    }
+
+    await sleep(1000);
+  }
+
+  throw new Error(
+    `Timed out waiting for postgres readiness (${timeoutMs}ms)${lastError ? `: ${lastError}` : ''}`,
+  );
+}
+
+async function waitForApiAuthReadiness(apiBaseUrl: string, timeoutMs: number): Promise<void> {
+  const started = Date.now();
+  let lastStatus: number | undefined;
+  let lastError: string | undefined;
+
+  while (Date.now() - started < timeoutMs) {
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/v1/tasks`);
+      lastStatus = response.status;
+      if (isApiAuthReadinessStatus(response.status)) {
+        return;
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+
+    await sleep(1000);
+  }
+
+  throw new Error(
+    `Timed out waiting for API auth readiness at ${apiBaseUrl}/api/v1/tasks` +
+      `${lastStatus !== undefined ? ` (last status=${lastStatus})` : ''}` +
+      `${lastError ? `: ${lastError}` : ''}`,
+  );
 }
 
 function generateApiKey(scope: 'admin' | 'worker' | 'agent'): string {
@@ -341,7 +412,11 @@ async function registerWorker(apiBaseUrl: string, workerKey: string): Promise<st
   return payload.data.worker_id;
 }
 
-async function registerAgent(apiBaseUrl: string, agentKey: string, workerId: string): Promise<string> {
+async function registerAgent(
+  apiBaseUrl: string,
+  agentKey: string,
+  workerId: string,
+): Promise<string> {
   const payload = await requestJson<{ data: { id: string } }>(
     `${apiBaseUrl}/api/v1/agents/register`,
     {
@@ -460,6 +535,8 @@ export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveC
 
   if (setupPlan.shouldWaitForHealth) {
     await waitForHealth(`${apiBaseUrl}/health`, 'platform-api health', liveConfig.healthTimeoutMs);
+    await waitForPostgresReady(postgresUrl, liveConfig.healthTimeoutMs);
+    await waitForApiAuthReadiness(apiBaseUrl, liveConfig.healthTimeoutMs);
     await waitForHealth(`${dashboardBaseUrl}/`, 'dashboard', liveConfig.healthTimeoutMs);
   }
 

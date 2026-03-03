@@ -14,7 +14,7 @@
 import type { LiveContext, ScenarioExecutionResult } from '../harness/types.js';
 import type { ApiWorker } from '../api-client.js';
 import { createTestTenant, type TenantContext } from './tenant.js';
-import { sleep } from './poll.js';
+import { pollUntilCondition, sleep } from './poll.js';
 
 function workerMatches(worker: ApiWorker, workerId: string): boolean {
   return worker.id === workerId || worker.worker_id === workerId;
@@ -107,14 +107,18 @@ async function testWorkerDeletion(ctx: TenantContext): Promise<string[]> {
   validations.push('worker_deleted');
 
   // Verify it's gone from the list
-  await sleep(500);
-  const workers = await ctx.adminClient.listWorkers();
-  const found = workers.find((worker) => workerMatches(worker, worker2Id));
-  if (found) {
-    validations.push('worker_still_listed_after_delete');
-  } else {
-    validations.push('worker_removed_from_list');
-  }
+  await pollUntilCondition(
+    async () => {
+      const workers = await ctx.adminClient.listWorkers();
+      return !workers.some((worker) => workerMatches(worker, worker2Id));
+    },
+    {
+      timeoutMs: 10_000,
+      intervalMs: 250,
+      label: `OT-4 deleted worker ${worker2Id} removed from list`,
+    },
+  );
+  validations.push('worker_removed_from_list');
 
   return validations;
 }
@@ -122,16 +126,14 @@ async function testWorkerDeletion(ctx: TenantContext): Promise<string[]> {
 /**
  * Main OT-4 runner.
  */
-export async function runOt4WorkerHealth(
-  live: LiveContext,
-): Promise<ScenarioExecutionResult> {
+export async function runOt4WorkerHealth(live: LiveContext): Promise<ScenarioExecutionResult> {
   const ctx = await createTestTenant('ot4-health');
   const allValidations: string[] = [];
 
   try {
-    allValidations.push(...await testWorkerRegistration(ctx));
-    allValidations.push(...await testHeartbeat(ctx));
-    allValidations.push(...await testWorkerDeletion(ctx));
+    allValidations.push(...(await testWorkerRegistration(ctx)));
+    allValidations.push(...(await testHeartbeat(ctx)));
+    allValidations.push(...(await testWorkerDeletion(ctx)));
   } finally {
     await ctx.cleanup();
   }

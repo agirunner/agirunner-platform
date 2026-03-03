@@ -15,7 +15,7 @@
 
 import type { LiveContext, ScenarioExecutionResult } from '../harness/types.js';
 import { createTestTenant, type TenantContext } from './tenant.js';
-import { sleep } from './poll.js';
+import { pollPipelineUntil, pollUntilValue } from './poll.js';
 import { linearTemplateSchema, fanOutTemplateSchema } from './templates.js';
 
 async function drainRemainingTasks(ctx: TenantContext): Promise<void> {
@@ -28,7 +28,6 @@ async function drainRemainingTasks(ctx: TenantContext): Promise<void> {
     if (!claimed) break;
     await ctx.agentClient.startTask(claimed.id, { agent_id: ctx.agentId });
     await ctx.agentClient.completeTask(claimed.id, { result: 'test' });
-    await sleep(300);
   }
 }
 
@@ -51,8 +50,12 @@ async function testAllCompleted(ctx: TenantContext): Promise<string[]> {
 
   await drainRemainingTasks(ctx);
 
-  await sleep(1000);
-  const finalPipeline = await ctx.adminClient.getPipeline(pipeline.id);
+  const finalPipeline = await pollPipelineUntil(
+    ctx.adminClient,
+    pipeline.id,
+    ['completed'],
+    10_000,
+  );
   if (finalPipeline.state !== 'completed') {
     throw new Error(`Expected pipeline "completed", got "${finalPipeline.state}"`);
   }
@@ -92,8 +95,7 @@ async function testAnyFailed(ctx: TenantContext): Promise<string[]> {
     source: 'test',
   });
 
-  await sleep(1000);
-  const finalPipeline = await ctx.adminClient.getPipeline(pipeline.id);
+  const finalPipeline = await pollPipelineUntil(ctx.adminClient, pipeline.id, ['failed'], 10_000);
   if (finalPipeline.state !== 'failed') {
     throw new Error(`Expected pipeline "failed", got "${finalPipeline.state}"`);
   }
@@ -128,10 +130,19 @@ async function testAnyRunning(ctx: TenantContext): Promise<string[]> {
   if (!claim) throw new Error('No task claimable for running-state scenario');
   await ctx.agentClient.startTask(claim.id, { agent_id: ctx.agentId });
 
-  await sleep(750);
-  const activePipeline = await ctx.adminClient.getPipeline(pipeline.id);
+  const activePipeline = await pollUntilValue(
+    () => ctx.adminClient.getPipeline(pipeline.id),
+    (value) => value.state === 'active',
+    {
+      timeoutMs: 10_000,
+      intervalMs: 250,
+      label: `OT-3 any-running pipeline ${pipeline.id} active`,
+    },
+  );
   if (activePipeline.state !== 'active') {
-    throw new Error(`Expected pipeline "active" while a task is running, got "${activePipeline.state}"`);
+    throw new Error(
+      `Expected pipeline "active" while a task is running, got "${activePipeline.state}"`,
+    );
   }
 
   await ctx.agentClient.completeTask(claim.id, { result: 'running-state-check-complete' });
@@ -167,29 +178,50 @@ async function testMixedTerminalDerivation(ctx: TenantContext): Promise<string[]
 
   await ctx.agentClient.startTask(rootClaim.id, { agent_id: ctx.agentId });
   await ctx.agentClient.completeTask(rootClaim.id, { result: 'root-complete' });
-  await sleep(500);
 
-  const branchClaim = await ctx.workerClient.claimTask({
-    agent_id: ctx.agentId,
-    worker_id: ctx.workerId,
-    capabilities: ['llm-api'],
-  });
+  const branchClaim = await pollUntilValue(
+    () =>
+      ctx.workerClient.claimTask({
+        agent_id: ctx.agentId,
+        worker_id: ctx.workerId,
+        capabilities: ['llm-api'],
+      }),
+    (value) => value !== null,
+    {
+      timeoutMs: 10_000,
+      intervalMs: 250,
+      label: `OT-3 mixed-terminal branch task claim for pipeline ${pipeline.id}`,
+    },
+  );
   if (!branchClaim) throw new Error('Expected a branch task to be claimable');
 
   await ctx.agentClient.startTask(branchClaim.id, { agent_id: ctx.agentId });
   await ctx.agentClient.completeTask(branchClaim.id, { result: 'branch-complete' });
 
-  await sleep(500);
-  const afterBranch = await ctx.adminClient.getPipeline(pipeline.id);
+  const afterBranch = await pollUntilValue(
+    () => ctx.adminClient.getPipeline(pipeline.id),
+    (value) => (value.tasks ?? []).some((task) => task.state === 'ready'),
+    {
+      timeoutMs: 10_000,
+      intervalMs: 250,
+      label: `OT-3 mixed-terminal ready sibling for pipeline ${pipeline.id}`,
+    },
+  );
   const readySibling = (afterBranch.tasks ?? []).find((task) => task.state === 'ready');
   if (!readySibling) throw new Error('Expected one ready sibling task for mixed terminal scenario');
 
   await ctx.adminClient.cancelTask(readySibling.id);
-  await sleep(1000);
 
-  const terminalPipeline = await ctx.adminClient.getPipeline(pipeline.id);
+  const terminalPipeline = await pollPipelineUntil(
+    ctx.adminClient,
+    pipeline.id,
+    ['failed'],
+    10_000,
+  );
   if (terminalPipeline.state !== 'failed') {
-    throw new Error(`Expected mixed terminal pipeline to derive "failed", got "${terminalPipeline.state}"`);
+    throw new Error(
+      `Expected mixed terminal pipeline to derive "failed", got "${terminalPipeline.state}"`,
+    );
   }
 
   const taskStates = (terminalPipeline.tasks ?? []).map((task) => task.state);
@@ -219,9 +251,13 @@ async function testAllCancelled(ctx: TenantContext): Promise<string[]> {
   });
 
   await ctx.adminClient.cancelPipeline(pipeline.id);
-  await sleep(1000);
 
-  const finalPipeline = await ctx.adminClient.getPipeline(pipeline.id);
+  const finalPipeline = await pollPipelineUntil(
+    ctx.adminClient,
+    pipeline.id,
+    ['cancelled'],
+    10_000,
+  );
   if (finalPipeline.state !== 'cancelled') {
     throw new Error(`Expected pipeline "cancelled", got "${finalPipeline.state}"`);
   }
@@ -239,18 +275,16 @@ async function testAllCancelled(ctx: TenantContext): Promise<string[]> {
 /**
  * Main OT-3 runner.
  */
-export async function runOt3PipelineState(
-  live: LiveContext,
-): Promise<ScenarioExecutionResult> {
+export async function runOt3PipelineState(live: LiveContext): Promise<ScenarioExecutionResult> {
   const ctx = await createTestTenant('ot3-state');
   const allValidations: string[] = [];
 
   try {
-    allValidations.push(...await testAllCompleted(ctx));
-    allValidations.push(...await testAnyFailed(ctx));
-    allValidations.push(...await testAnyRunning(ctx));
-    allValidations.push(...await testMixedTerminalDerivation(ctx));
-    allValidations.push(...await testAllCancelled(ctx));
+    allValidations.push(...(await testAllCompleted(ctx)));
+    allValidations.push(...(await testAnyFailed(ctx)));
+    allValidations.push(...(await testAnyRunning(ctx)));
+    allValidations.push(...(await testMixedTerminalDerivation(ctx)));
+    allValidations.push(...(await testAllCancelled(ctx)));
   } finally {
     await ctx.cleanup();
   }

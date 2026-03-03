@@ -2,7 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-type LaneStatus = 'PASS' | 'FAIL' | 'NOT_PASS';
+type LaneStatus = 'PASS' | 'FLAKY' | 'FAIL' | 'NOT_PASS';
 type Lane = 'core' | 'integration' | 'live';
 
 type ScenarioDef = {
@@ -44,14 +44,17 @@ type ConsolidatedResults = {
   scenarios?: ScenarioDef[];
 };
 
-const STATUS_ENUM: LaneStatus[] = ['PASS', 'FAIL', 'NOT_PASS'];
+const STATUS_ENUM: LaneStatus[] = ['PASS', 'FLAKY', 'FAIL', 'NOT_PASS'];
 
 function fail(message: string): never {
   throw new Error(`test-case-definition drift: ${message}`);
 }
 
 function parseSingleQuotedArray(source: string, variableName: string): string[] {
-  const re = new RegExp(`${variableName}\\s*:\\s*ScenarioName\\[]\\s*=\\s*\\[([\\s\\S]*?)\\];`, 'm');
+  const re = new RegExp(
+    `${variableName}\\s*:\\s*ScenarioName\\[]\\s*=\\s*\\[([\\s\\S]*?)\\];`,
+    'm',
+  );
   const match = source.match(re);
   if (!match) fail(`could not find ${variableName} in tests/live/harness/runner.ts`);
   return Array.from(match[1].matchAll(/'([^']+)'/g), (m) => m[1]);
@@ -84,7 +87,7 @@ function assertSetEqual(expected: string[], actual: string[], context: string): 
 }
 
 function countStatuses(matrix: ResultRow[]): Record<LaneStatus, number> {
-  const counts: Record<LaneStatus, number> = { PASS: 0, FAIL: 0, NOT_PASS: 0 };
+  const counts: Record<LaneStatus, number> = { PASS: 0, FLAKY: 0, FAIL: 0, NOT_PASS: 0 };
   for (const row of matrix) {
     for (const cell of row.cells) {
       if (!STATUS_ENUM.includes(cell.status)) {
@@ -98,9 +101,9 @@ function countStatuses(matrix: ResultRow[]): Record<LaneStatus, number> {
 
 function countStatusesByLane(matrix: ResultRow[]): Record<Lane, Record<LaneStatus, number>> {
   const counts: Record<Lane, Record<LaneStatus, number>> = {
-    core: { PASS: 0, FAIL: 0, NOT_PASS: 0 },
-    integration: { PASS: 0, FAIL: 0, NOT_PASS: 0 },
-    live: { PASS: 0, FAIL: 0, NOT_PASS: 0 },
+    core: { PASS: 0, FLAKY: 0, FAIL: 0, NOT_PASS: 0 },
+    integration: { PASS: 0, FLAKY: 0, FAIL: 0, NOT_PASS: 0 },
+    live: { PASS: 0, FLAKY: 0, FAIL: 0, NOT_PASS: 0 },
   };
 
   for (const row of matrix) {
@@ -123,7 +126,9 @@ function validateConsolidated(payload: ConsolidatedResults, canonical: Canonical
   }
 
   if (payload.summary.row_count !== matrix.length) {
-    fail(`summary.row_count=${payload.summary.row_count} must equal matrix length=${matrix.length}`);
+    fail(
+      `summary.row_count=${payload.summary.row_count} must equal matrix length=${matrix.length}`,
+    );
   }
 
   const expectedCellCount = matrix.reduce((sum, row) => sum + row.cells.length, 0);
@@ -163,14 +168,21 @@ function validateConsolidated(payload: ConsolidatedResults, canonical: Canonical
 
     const expectedLiveProviders = [...canonical.providers].sort();
     const actualLiveProviders = liveCells.map((cell) => cell.provider).sort();
-    assertSetEqual(expectedLiveProviders, actualLiveProviders, `live provider coverage for ${row.use_case_id}`);
+    assertSetEqual(
+      expectedLiveProviders,
+      actualLiveProviders,
+      `live provider coverage for ${row.use_case_id}`,
+    );
 
     for (const cell of row.cells) {
       if (cell.gating !== true) {
         fail(`row ${row.use_case_id} has non-gating cell`);
       }
 
-      if (cell.lane === 'core' && !(cell.category === 'core' && cell.provider === 'none' && cell.mode === 'deterministic')) {
+      if (
+        cell.lane === 'core' &&
+        !(cell.category === 'core' && cell.provider === 'none' && cell.mode === 'deterministic')
+      ) {
         fail(`row ${row.use_case_id} has invalid core lane cell shape`);
       }
 
@@ -247,7 +259,9 @@ function main(): void {
 
   for (const required of requiredRuntimeExternalCoverage) {
     if (!canonicalKeys.includes(required.key) || !canonicalIds.includes(required.id)) {
-      fail(`canonical runtime-external integration coverage must include ${required.id}/${required.key}`);
+      fail(
+        `canonical runtime-external integration coverage must include ${required.id}/${required.key}`,
+      );
     }
   }
 
@@ -255,8 +269,16 @@ function main(): void {
   const allScenarios = parseSingleQuotedArray(runnerSource, 'ALL_SCENARIOS');
   const switchCases = parseRunScenarioCases(runnerSource);
 
-  assertSetEqual(canonicalKeys, allScenarios.filter((name) => canonicalKeys.includes(name)), 'canonical->runner ALL_SCENARIOS');
-  assertSetEqual(canonicalKeys, switchCases.filter((name) => canonicalKeys.includes(name)), 'canonical->runner runScenarioByName cases');
+  assertSetEqual(
+    canonicalKeys,
+    allScenarios.filter((name) => canonicalKeys.includes(name)),
+    'canonical->runner ALL_SCENARIOS',
+  );
+  assertSetEqual(
+    canonicalKeys,
+    switchCases.filter((name) => canonicalKeys.includes(name)),
+    'canonical->runner runScenarioByName cases',
+  );
 
   const flowSource = readFileSync(flowPath, 'utf8');
   if (!flowSource.includes('tests/reports/test-cases.v1.json')) {
@@ -270,15 +292,25 @@ function main(): void {
     fail('missing consolidated results file tests/reports/results.v1.json');
   }
 
-  const consolidated = JSON.parse(readFileSync(consolidatedResultsPath, 'utf8')) as ConsolidatedResults;
+  const consolidated = JSON.parse(
+    readFileSync(consolidatedResultsPath, 'utf8'),
+  ) as ConsolidatedResults;
   validateConsolidated(consolidated, canonical);
 
   const resultDefs = consolidated.scenarios ?? [];
-  const canonicalDigest = canonical.scenarios.map((s) => `${s.key}|${s.id}|${s.title}|${s.planRef}`);
+  const canonicalDigest = canonical.scenarios.map(
+    (s) => `${s.key}|${s.id}|${s.title}|${s.planRef}`,
+  );
   const resultDigest = resultDefs.map((s) => `${s.key}|${s.id}|${s.title}|${s.planRef}`);
-  assertSetEqual(canonicalDigest, resultDigest, 'canonical definitions vs tests/reports/results.v1.json');
+  assertSetEqual(
+    canonicalDigest,
+    resultDigest,
+    'canonical definitions vs tests/reports/results.v1.json',
+  );
 
-  console.log(`OK: canonical test-case definitions validated (${canonical.scenarios.length} scenarios).`);
+  console.log(
+    `OK: canonical test-case definitions validated (${canonical.scenarios.length} scenarios).`,
+  );
 }
 
 main();

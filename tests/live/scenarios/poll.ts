@@ -10,6 +10,48 @@ import { loadConfig } from '../config.js';
 
 const config = loadConfig();
 
+interface PollOptions {
+  timeoutMs?: number;
+  intervalMs?: number;
+  label: string;
+}
+
+function elapsedSeconds(startedAt: number): string {
+  return `${Math.round((Date.now() - startedAt) / 1000)}s`;
+}
+
+export async function pollUntilValue<T>(
+  read: () => Promise<T>,
+  done: (value: T) => boolean,
+  options: PollOptions,
+): Promise<T> {
+  const started = Date.now();
+  const timeoutMs = options.timeoutMs ?? config.taskTimeoutMs;
+  const intervalMs = options.intervalMs ?? config.pollIntervalMs;
+  let lastValue: T | undefined;
+
+  while (Date.now() - started < timeoutMs) {
+    lastValue = await read();
+    if (done(lastValue)) {
+      return lastValue;
+    }
+
+    await sleep(intervalMs);
+  }
+
+  throw new Error(
+    `${options.label} not reached within ${elapsedSeconds(started)} (timeout=${timeoutMs}ms)` +
+      `${lastValue === undefined ? '' : `. Last value: ${JSON.stringify(lastValue)}`}`,
+  );
+}
+
+export async function pollUntilCondition(
+  check: () => Promise<boolean>,
+  options: PollOptions,
+): Promise<void> {
+  await pollUntilValue(check, (value) => value, options);
+}
+
 /**
  * Polls the pipeline endpoint until the pipeline reaches one of the expected
  * terminal states, or the timeout expires.
@@ -23,22 +65,17 @@ export async function pollPipelineUntil(
   expectedStates: string[],
   timeoutMs: number = config.pipelineTimeoutMs,
 ): Promise<ApiPipeline> {
-  const started = Date.now();
-  let last: ApiPipeline | undefined;
-
-  while (Date.now() - started < timeoutMs) {
-    last = await client.getPipeline(pipelineId);
-    if (expectedStates.includes(last.state)) {
-      return last;
-    }
-    await sleep(config.pollIntervalMs);
-  }
-
-  const elapsed = Math.round((Date.now() - started) / 1000);
-  throw new Error(
-    `Pipeline ${pipelineId} did not reach [${expectedStates.join(',')}] within ${elapsed}s. ` +
-      `Last state: ${last?.state ?? 'unknown'}`,
+  const pipeline = await pollUntilValue(
+    () => client.getPipeline(pipelineId),
+    (value) => expectedStates.includes(value.state),
+    {
+      timeoutMs,
+      intervalMs: config.pollIntervalMs,
+      label: `Pipeline ${pipelineId} expected state [${expectedStates.join(', ')}]`,
+    },
   );
+
+  return pipeline;
 }
 
 /**
@@ -50,22 +87,17 @@ export async function pollTaskUntil(
   expectedStates: string[],
   timeoutMs: number = config.taskTimeoutMs,
 ): Promise<ApiTask> {
-  const started = Date.now();
-  let last: ApiTask | undefined;
-
-  while (Date.now() - started < timeoutMs) {
-    last = await client.getTask(taskId);
-    if (expectedStates.includes(last.state)) {
-      return last;
-    }
-    await sleep(config.pollIntervalMs);
-  }
-
-  const elapsed = Math.round((Date.now() - started) / 1000);
-  throw new Error(
-    `Task ${taskId} did not reach [${expectedStates.join(',')}] within ${elapsed}s. ` +
-      `Last state: ${last?.state ?? 'unknown'}`,
+  const task = await pollUntilValue(
+    () => client.getTask(taskId),
+    (value) => expectedStates.includes(value.state),
+    {
+      timeoutMs,
+      intervalMs: config.pollIntervalMs,
+      label: `Task ${taskId} expected state [${expectedStates.join(', ')}]`,
+    },
   );
+
+  return task;
 }
 
 /**

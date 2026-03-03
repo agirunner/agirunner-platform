@@ -6,7 +6,7 @@ import path from 'node:path';
 import { regenerateLaneResults } from './report.js';
 
 type Provider = 'openai' | 'google' | 'anthropic';
-type CellStatus = 'NOT_PASS' | 'PASS' | 'FAIL';
+type CellStatus = 'NOT_PASS' | 'PASS' | 'FLAKY' | 'FAIL';
 
 type ScenarioDef = {
   key: string;
@@ -31,6 +31,10 @@ type LiveCell = {
   attempts?: number;
   retryCount?: number;
   retryReasons?: string[];
+  firstFailureRunId?: string;
+  firstFailureArtifactJsonPath?: string;
+  firstFailureArtifactMdPath?: string;
+  firstFailureError?: string;
 };
 
 type ConsolidatedResults = {
@@ -133,7 +137,9 @@ function baselineLiveCells(): ConsolidatedResults['live_cells'] {
 
 function readResults(): ConsolidatedResults {
   if (existsSync(CONSOLIDATED_RESULTS_PATH)) {
-    const parsed = JSON.parse(readFileSync(CONSOLIDATED_RESULTS_PATH, 'utf8')) as ConsolidatedResults;
+    const parsed = JSON.parse(
+      readFileSync(CONSOLIDATED_RESULTS_PATH, 'utf8'),
+    ) as ConsolidatedResults;
     return {
       version: '1.0',
       providers: Array.isArray(parsed.providers) ? parsed.providers : [...PROVIDERS],
@@ -164,7 +170,9 @@ function listReportFiles(): ReportFile[] {
 
   if (!existsSync(LIVE_ARTIFACTS_DIR)) return entries;
 
-  for (const name of readdirSync(LIVE_ARTIFACTS_DIR).filter((value) => value.startsWith('run-') && value.endsWith('.json')).sort()) {
+  for (const name of readdirSync(LIVE_ARTIFACTS_DIR)
+    .filter((value) => value.startsWith('run-') && value.endsWith('.json'))
+    .sort()) {
     const absolutePath = path.join(LIVE_ARTIFACTS_DIR, name);
     const relativePath = path.relative(ROOT, absolutePath).replaceAll('\\', '/');
     entries.push({ key: relativePath, absolutePath, relativePath });
@@ -211,7 +219,11 @@ function shutdownComposeStack(): void {
   }
 }
 
-function executeScenarioOnce(provider: Provider, scenario: string, mode: RunMode): Omit<CellExecution, 'attempts'> {
+function executeScenarioOnce(
+  provider: Provider,
+  scenario: string,
+  mode: RunMode,
+): Omit<CellExecution, 'attempts'> {
   const startedAt = Date.now();
   const before = new Set(listReportFiles().map((entry) => entry.key));
 
@@ -287,7 +299,25 @@ function executeScenarioOnce(provider: Provider, scenario: string, mode: RunMode
   };
 }
 
-function runOne(results: ConsolidatedResults, provider: Provider, scenario: string, mode: RunMode): CellExecution {
+function captureFirstFailureEvidence(
+  cell: LiveCell,
+  execution: Omit<CellExecution, 'attempts'>,
+  failureMessage: string,
+): void {
+  if (!cell.firstFailureArtifactJsonPath) {
+    cell.firstFailureRunId = execution.report.runId;
+    cell.firstFailureArtifactJsonPath = execution.reportPath;
+    cell.firstFailureArtifactMdPath = execution.summaryPath;
+    cell.firstFailureError = failureMessage;
+  }
+}
+
+function runOne(
+  results: ConsolidatedResults,
+  provider: Provider,
+  scenario: string,
+  mode: RunMode,
+): CellExecution {
   const maxAttempts = 2;
 
   let attempt = 0;
@@ -297,29 +327,73 @@ function runOne(results: ConsolidatedResults, provider: Provider, scenario: stri
   while (attempt < maxAttempts) {
     attempt += 1;
 
+    const cell = results.live_cells[scenario]?.[provider];
+    if (!cell) {
+      throw new Error(`Unknown scenario/provider cell: ${scenario}/${provider}`);
+    }
+
+    if (attempt === 1) {
+      cell.firstFailureRunId = undefined;
+      cell.firstFailureArtifactJsonPath = undefined;
+      cell.firstFailureArtifactMdPath = undefined;
+      cell.firstFailureError = undefined;
+    }
+
     try {
       const execution = executeScenarioOnce(provider, scenario, mode);
       const result = execution.report.scenarios[scenario];
-      const cell = results.live_cells[scenario]?.[provider];
-      if (!cell) {
-        throw new Error(`Unknown scenario/provider cell: ${scenario}/${provider}`);
+      const failed = execution.commandFailed || result.status !== 'pass';
+      const failureMessage =
+        result.error ?? `Scenario execution failed for ${scenario}/${provider}`;
+
+      if (failed) {
+        captureFirstFailureEvidence(cell, execution, failureMessage);
       }
 
-      cell.status = result.status === 'pass' && !execution.commandFailed ? 'PASS' : 'FAIL';
+      const canRetry = failed && attempt < maxAttempts && isInfraFailureSignature(failureMessage);
+      if (canRetry) {
+        retryReasons.push(failureMessage);
+
+        cell.status = 'FAIL';
+        cell.runId = execution.report.runId;
+        cell.artifactJsonPath = execution.reportPath;
+        cell.artifactMdPath = execution.summaryPath;
+        cell.finishedAt = execution.report.finishedAt;
+        cell.error = failureMessage;
+        cell.attempts = attempt;
+        cell.retryCount = Math.max(0, attempt - 1);
+        cell.retryReasons = [...retryReasons];
+        writeResults(results);
+
+        console.log(`  ↻ Infra signature detected; retrying once (${scenario}/${provider})...`);
+        continue;
+      }
+
+      if (failed) {
+        cell.status = 'FAIL';
+        cell.runId = execution.report.runId;
+        cell.artifactJsonPath = execution.reportPath;
+        cell.artifactMdPath = execution.summaryPath;
+        cell.finishedAt = execution.report.finishedAt;
+        cell.error = failureMessage;
+        cell.attempts = attempt;
+        cell.retryCount = Math.max(0, attempt - 1);
+        cell.retryReasons = [...retryReasons];
+        writeResults(results);
+
+        throw new Error(failureMessage);
+      }
+
+      cell.status = attempt > 1 ? 'FLAKY' : 'PASS';
       cell.runId = execution.report.runId;
       cell.artifactJsonPath = execution.reportPath;
       cell.artifactMdPath = execution.summaryPath;
       cell.finishedAt = execution.report.finishedAt;
-      cell.error = result.error;
+      cell.error = undefined;
       cell.attempts = attempt;
       cell.retryCount = Math.max(0, attempt - 1);
       cell.retryReasons = [...retryReasons];
-
       writeResults(results);
-
-      if (execution.commandFailed) {
-        throw new Error(result.error ?? `Scenario execution failed for ${scenario}/${provider}`);
-      }
 
       return { ...execution, attempts: attempt, retryReasons: [...retryReasons] };
     } catch (error) {
@@ -328,21 +402,27 @@ function runOne(results: ConsolidatedResults, provider: Provider, scenario: stri
 
       const canRetry = attempt < maxAttempts && isInfraFailureSignature(message);
       if (canRetry) {
+        if (!cell.firstFailureError) {
+          cell.firstFailureError = message;
+        }
         retryReasons.push(message);
-        console.log(`  ↻ Infra signature detected; retrying once (${scenario}/${provider})...`);
-        continue;
-      }
-
-      const cell = results.live_cells[scenario]?.[provider];
-      if (cell) {
         cell.status = 'FAIL';
         cell.error = message;
         cell.attempts = attempt;
         cell.retryCount = Math.max(0, attempt - 1);
         cell.retryReasons = [...retryReasons];
         writeResults(results);
+
+        console.log(`  ↻ Infra signature detected; retrying once (${scenario}/${provider})...`);
+        continue;
       }
 
+      cell.status = 'FAIL';
+      cell.error = message;
+      cell.attempts = attempt;
+      cell.retryCount = Math.max(0, attempt - 1);
+      cell.retryReasons = [...retryReasons];
+      writeResults(results);
       break;
     }
   }
@@ -409,10 +489,10 @@ function runMatrix(argv: string[], mode: RunMode): void {
         const execution = runOne(results, provider, scenario, mode);
         durations.push(execution.durationMs);
 
-        const finalStatus = execution.report.scenarios[scenario]?.status ?? 'fail';
+        const cellStatus = results.live_cells[scenario]?.[provider]?.status ?? 'FAIL';
         const attemptsLabel = execution.attempts > 1 ? ` | attempts=${execution.attempts}` : '';
         console.log(
-          `  ⏱ duration=${formatSeconds(execution.durationMs)} | status=${finalStatus.toUpperCase()}${attemptsLabel}`,
+          `  ⏱ duration=${formatSeconds(execution.durationMs)} | status=${cellStatus}${attemptsLabel}`,
         );
       }
     }
