@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-03T21:11:18.520Z",
-  "generated_at_utc": "2026-03-03T21:11:18.520Z",
+  "generatedAt": "2026-03-03T21:16:17.190Z",
+  "generated_at_utc": "2026-03-03T21:16:17.190Z",
   "status_enum": [
     "PASS",
     "FLAKY",
@@ -2676,6 +2676,39 @@
         "status": "FAIL",
         "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T21-10-48-247Z-dashboard-none-r1.json",
         "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T21-10-48-247Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-03T21-12-15-359Z-dashboard-none-r1",
+        "startedAt": "2026-03-03T21:12:15.358Z",
+        "finishedAt": "2026-03-03T21:12:23.249Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T21-12-15-359Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T21-12-15-359Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-03T21-13-05-664Z-dashboard-none-r1",
+        "startedAt": "2026-03-03T21:13:05.664Z",
+        "finishedAt": "2026-03-03T21:13:33.549Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T21-13-05-664Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T21-13-05-664Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-03T21-14-14-662Z-dashboard-none-r1",
+        "startedAt": "2026-03-03T21:14:14.662Z",
+        "finishedAt": "2026-03-03T21:14:51.709Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T21-14-14-662Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T21-14-14-662Z-dashboard-none-r1.md",
         "scenarios": {
           "dashboard": "FAIL"
         }
