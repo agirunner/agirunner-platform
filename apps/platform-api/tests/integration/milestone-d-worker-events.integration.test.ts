@@ -316,6 +316,49 @@ describe('milestone d worker/events integration', () => {
     expect(workerAfterReconnect.rows[0].last_heartbeat_at).toBeTruthy();
   });
 
+  it('deletes workers referenced by task assignments without FK violations', async () => {
+    const registration = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workers/register',
+      headers: { authorization: `Bearer ${workerBootstrapKey}` },
+      payload: { name: 'delete-worker', capabilities: ['typescript'] },
+    });
+    expect(registration.statusCode).toBe(201);
+
+    const workerId = registration.json().data.worker_id as string;
+    const taskId = randomUUID();
+
+    await db.pool.query(
+      `INSERT INTO tasks (id, tenant_id, title, type, state, assigned_worker_id, claimed_at)
+       VALUES ($1,$2,'delete-worker-task','code','claimed',$3,now())`,
+      [taskId, '00000000-0000-0000-0000-000000000001', workerId],
+    );
+
+    const deleted = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/workers/${workerId}`,
+      headers: { authorization: `Bearer ${adminKey}` },
+    });
+
+    expect(deleted.statusCode).toBe(204);
+
+    const [worker, task] = await Promise.all([
+      db.pool.query('SELECT id FROM workers WHERE tenant_id = $1 AND id = $2', [
+        '00000000-0000-0000-0000-000000000001',
+        workerId,
+      ]),
+      db.pool.query('SELECT state, assigned_worker_id FROM tasks WHERE tenant_id = $1 AND id = $2', [
+        '00000000-0000-0000-0000-000000000001',
+        taskId,
+      ]),
+    ]);
+
+    expect(worker.rowCount).toBe(0);
+    expect(task.rowCount).toBe(1);
+    expect(task.rows[0].state).toBe('claimed');
+    expect(task.rows[0].assigned_worker_id).toBeNull();
+  });
+
   it('delivers webhooks with hmac signature', async () => {
     const received: Array<{ headers: http.IncomingHttpHeaders; body: string }> = [];
     const webhookServer = http.createServer((req, res) => {
