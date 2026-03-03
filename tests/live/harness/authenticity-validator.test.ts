@@ -251,7 +251,7 @@ test('llm validator normalizes known deterministic evidence-ref aliases before f
           checkId: 'placeholder-rejection.output-markers',
           status: 'PASS',
           rationale: 'No placeholders detected.',
-          evidenceRefs: ['placeholder-rejection.output-markers:pipeline-1'],
+          evidenceRefs: ['placeholder-rejection.*:pipeline-1'],
         },
         {
           checkId: 'git-diff-linkage',

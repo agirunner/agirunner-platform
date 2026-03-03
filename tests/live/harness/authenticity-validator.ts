@@ -612,6 +612,36 @@ function candidateRefForms(ref: string): string[] {
   return Array.from(forms).filter((value) => value.length > 0);
 }
 
+function normalizeCanonicalEvidenceAlias(
+  candidate: string,
+  validRefs: Set<string>,
+  aliasMap: Map<string, string>,
+): string | undefined {
+  const placeholderWildcardMatch = candidate.match(/^placeholder-rejection\.\*:(.+)$/);
+  if (placeholderWildcardMatch) {
+    const pipelineId = placeholderWildcardMatch[1];
+    const resolved =
+      aliasMap.get(`placeholder-rejection.output-markers:${pipelineId}`) ??
+      aliasMap.get(`placeholder-rejection.fallback-stub:${pipelineId}`) ??
+      aliasMap.get('placeholder-rejection.output-markers') ??
+      aliasMap.get('placeholder-rejection.fallback-stub');
+    if (resolved && validRefs.has(resolved)) {
+      return resolved;
+    }
+  }
+
+  const gitDiffLinkageMatch = candidate.match(/^git-diff-linkage:(.+)$/);
+  if (gitDiffLinkageMatch) {
+    const pipelineId = gitDiffLinkageMatch[1];
+    const resolved = aliasMap.get(`git-diff-linkage:${pipelineId}`) ?? aliasMap.get('git-diff-linkage');
+    if (resolved && validRefs.has(resolved)) {
+      return resolved;
+    }
+  }
+
+  return undefined;
+}
+
 function normalizeEvidenceRef(
   ref: string,
   validRefs: Set<string>,
@@ -623,6 +653,11 @@ function normalizeEvidenceRef(
     const alias = aliasMap.get(candidate);
     if (alias && validRefs.has(alias)) {
       return alias;
+    }
+
+    const canonicalAlias = normalizeCanonicalEvidenceAlias(candidate, validRefs, aliasMap);
+    if (canonicalAlias) {
+      return canonicalAlias;
     }
   }
 
