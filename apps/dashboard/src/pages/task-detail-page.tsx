@@ -6,14 +6,15 @@
  * surfaced directly in the task detail view.
  */
 
-import { useParams } from 'react-router-dom';
+import type { Task } from '@agentbaton/sdk';
 import { useQuery } from '@tanstack/react-query';
+import { useParams } from 'react-router-dom';
 
-import { dashboardApi } from '../lib/api.js';
 import {
   BuiltInCapabilityBadge,
   classifyTaskCapability,
 } from '../components/built-in-capability-badge.js';
+import { dashboardApi } from '../lib/api.js';
 
 export function TaskDetailPage(): JSX.Element {
   const params = useParams<{ id: string }>();
@@ -21,16 +22,17 @@ export function TaskDetailPage(): JSX.Element {
 
   const query = useQuery({
     queryKey: ['task', taskId],
-    queryFn: () => dashboardApi.getTask(taskId) as Promise<{ data: Record<string, unknown> }>,
+    queryFn: () => dashboardApi.getTask(taskId) as Promise<Task>,
     enabled: taskId.length > 0,
   });
 
-  const taskData = query.data?.data ?? null;
+  const taskData = query.data ?? null;
 
   return (
     <section className="card">
       <h2>Task Detail</h2>
       {query.isLoading ? <p>Loading task...</p> : null}
+      {query.error ? <p style={{ color: '#dc2626' }}>Failed to load task</p> : null}
       {taskData ? (
         <>
           {/* FR-751: surface capability boundary for this task */}

@@ -34,8 +34,13 @@ const BUILT_IN_PROHIBITED_CAPABILITIES = new Set([
 
 export type CapabilityClassification = 'can-handle' | 'cannot-handle' | 'unknown';
 
+export interface CapabilityTask {
+  capabilities_required?: unknown;
+  capabilities?: unknown;
+}
+
 export interface CapabilityBadgeProps {
-  task: Record<string, unknown>;
+  task: CapabilityTask;
 }
 
 /**
@@ -47,8 +52,8 @@ export interface CapabilityBadgeProps {
  *   'cannot-handle' — at least one capability is prohibited or unsupported.
  *   'unknown'       — no capability information is available.
  */
-export function classifyTaskCapability(task: Record<string, unknown>): CapabilityClassification {
-  const rawCapabilities = task['capabilities_required'] ?? task['capabilities'];
+export function classifyTaskCapability(task: CapabilityTask): CapabilityClassification {
+  const rawCapabilities = task.capabilities_required ?? task.capabilities;
 
   if (!Array.isArray(rawCapabilities) || rawCapabilities.length === 0) {
     return 'unknown';
@@ -85,7 +90,11 @@ export function BuiltInCapabilityBadge({ task }: CapabilityBadgeProps): JSX.Elem
 
   if (classification === 'unknown') {
     return (
-      <div className="capability-badge capability-badge--unknown" role="status" aria-label="Worker capability: unknown">
+      <div
+        className="capability-badge capability-badge--unknown"
+        role="status"
+        aria-label="Worker capability: unknown"
+      >
         <span className="capability-badge__icon">❓</span>
         <span className="capability-badge__label">
           <strong>Worker capability: unknown</strong> — No required capabilities specified.
@@ -96,28 +105,38 @@ export function BuiltInCapabilityBadge({ task }: CapabilityBadgeProps): JSX.Elem
 
   if (classification === 'can-handle') {
     return (
-      <div className="capability-badge capability-badge--supported" role="status" aria-label="Built-in worker can handle this task">
+      <div
+        className="capability-badge capability-badge--supported"
+        role="status"
+        aria-label="Built-in worker can handle this task"
+      >
         <span className="capability-badge__icon">✅</span>
         <span className="capability-badge__label">
-          <strong>Built-in worker eligible</strong> — All required capabilities are within LLM API bounds.
-          An external agent will be preferred if available (FR-753).
+          <strong>Built-in worker eligible</strong> — All required capabilities are within LLM API
+          bounds. An external agent will be preferred if available (FR-753).
         </span>
       </div>
     );
   }
 
   // cannot-handle
-  const prohibited = Array.isArray(task['capabilities_required'])
-    ? (task['capabilities_required'] as string[]).filter((c) => BUILT_IN_PROHIBITED_CAPABILITIES.has(c))
+  const prohibited = Array.isArray(task.capabilities_required)
+    ? task.capabilities_required.filter(
+        (c): c is string => typeof c === 'string' && BUILT_IN_PROHIBITED_CAPABILITIES.has(c),
+      )
     : [];
 
   return (
-    <div className="capability-badge capability-badge--unsupported" role="status" aria-label="Built-in worker cannot handle this task">
+    <div
+      className="capability-badge capability-badge--unsupported"
+      role="status"
+      aria-label="Built-in worker cannot handle this task"
+    >
       <span className="capability-badge__icon">🚫</span>
       <span className="capability-badge__label">
         <strong>Requires external agent</strong> — This task needs capabilities beyond LLM API:{' '}
-        {prohibited.length > 0 ? prohibited.join(', ') : 'unsupported capability detected'}.
-        The built-in worker cannot handle it.
+        {prohibited.length > 0 ? prohibited.join(', ') : 'unsupported capability detected'}. The
+        built-in worker cannot handle it.
       </span>
     </div>
   );
