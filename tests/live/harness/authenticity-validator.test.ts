@@ -409,6 +409,166 @@ test('llm validator normalizes known deterministic evidence-ref aliases before f
   }
 });
 
+test('llm validator normalizes bare task refs to canonical refs when check semantics are deterministic', async () => {
+  const prevOpenAiKey = process.env.OPENAI_API_KEY;
+  const prevProvider = process.env.LIVE_AUTH_LLM_PROVIDER;
+  const prevModel = process.env.LIVE_AUTH_LLM_MODEL;
+  const prevFetch = globalThis.fetch;
+
+  try {
+    process.env.OPENAI_API_KEY = 'test-key';
+    process.env.LIVE_AUTH_LLM_PROVIDER = 'openai';
+    process.env.LIVE_AUTH_LLM_MODEL = 'gpt-4o-mini';
+
+    const deterministic = runDeterministicAuthenticityValidator('sdlc-happy', makeResult(), [
+      makeEvidence(),
+    ]);
+
+    const mockedVerdict = {
+      verdict: 'PASS',
+      summary: 'Bare task refs are normalized to canonical output refs.',
+      checks: [
+        {
+          checkId: 'acceptance-structure.completed-task-output',
+          status: 'PASS',
+          rationale: 'Completed task output exists.',
+          evidenceRefs: ['task:t1'],
+        },
+        {
+          checkId: 'git-diff-linkage',
+          status: 'PASS',
+          rationale: 'Git diff is linked through task output evidence.',
+          evidenceRefs: ['task:t1'],
+        },
+      ],
+      missingEvidenceRefs: [],
+    };
+
+    globalThis.fetch = (async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 'chatcmpl-test',
+        model: 'gpt-4o-mini',
+        choices: [
+          {
+            message: {
+              content: JSON.stringify(mockedVerdict),
+            },
+          },
+        ],
+      }),
+    })) as typeof globalThis.fetch;
+
+    const llm = await runLlmAuthenticityValidator('sdlc-happy', deterministic, [
+      {
+        ref: 'pipeline:pipeline-1:state',
+        location: 'pipeline-1.state',
+        text: 'completed',
+      },
+      {
+        ref: 'task:t1:state',
+        location: 'pipeline-1.tasks.t1.state',
+        text: 'completed',
+      },
+      {
+        ref: 'task:t1:output',
+        location: 'pipeline-1.tasks.t1.output',
+        text: 'diff --git a/src/app.js b/src/app.js',
+      },
+    ]);
+
+    assert.equal(llm.status, 'PASS');
+    const normalizedRefs = llm.output?.verdict.checks.flatMap((check) => check.evidenceRefs) ?? [];
+    assert.ok(normalizedRefs.length > 0);
+    assert.ok(normalizedRefs.every((ref) => ref === 'task:t1:output'));
+  } finally {
+    if (prevOpenAiKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = prevOpenAiKey;
+    if (prevProvider === undefined) delete process.env.LIVE_AUTH_LLM_PROVIDER;
+    else process.env.LIVE_AUTH_LLM_PROVIDER = prevProvider;
+    if (prevModel === undefined) delete process.env.LIVE_AUTH_LLM_MODEL;
+    else process.env.LIVE_AUTH_LLM_MODEL = prevModel;
+    globalThis.fetch = prevFetch;
+  }
+});
+
+test('llm validator keeps fail-closed behavior for ambiguous bare task refs when check semantics are unknown', async () => {
+  const prevOpenAiKey = process.env.OPENAI_API_KEY;
+  const prevProvider = process.env.LIVE_AUTH_LLM_PROVIDER;
+  const prevModel = process.env.LIVE_AUTH_LLM_MODEL;
+  const prevFetch = globalThis.fetch;
+
+  try {
+    process.env.OPENAI_API_KEY = 'test-key';
+    process.env.LIVE_AUTH_LLM_PROVIDER = 'openai';
+    process.env.LIVE_AUTH_LLM_MODEL = 'gpt-4o-mini';
+
+    const deterministic = runDeterministicAuthenticityValidator('sdlc-happy', makeResult(), [
+      makeEvidence(),
+    ]);
+
+    const mockedVerdict = {
+      verdict: 'PASS',
+      summary: 'Ambiguous bare task ref should remain fail-closed for unknown checks.',
+      checks: [
+        {
+          checkId: 'unknown-check',
+          status: 'PASS',
+          rationale: 'Unknown check with ambiguous ref.',
+          evidenceRefs: ['task:t1'],
+        },
+      ],
+      missingEvidenceRefs: [],
+    };
+
+    globalThis.fetch = (async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 'chatcmpl-test',
+        model: 'gpt-4o-mini',
+        choices: [
+          {
+            message: {
+              content: JSON.stringify(mockedVerdict),
+            },
+          },
+        ],
+      }),
+    })) as typeof globalThis.fetch;
+
+    const llm = await runLlmAuthenticityValidator('sdlc-happy', deterministic, [
+      {
+        ref: 'pipeline:pipeline-1:state',
+        location: 'pipeline-1.state',
+        text: 'completed',
+      },
+      {
+        ref: 'task:t1:state',
+        location: 'pipeline-1.tasks.t1.state',
+        text: 'completed',
+      },
+      {
+        ref: 'task:t1:output',
+        location: 'pipeline-1.tasks.t1.output',
+        text: 'diff --git a/src/app.js b/src/app.js',
+      },
+    ]);
+
+    assert.equal(llm.status, 'NOT_PASS');
+    assert.match(llm.error ?? '', /unknown evidence refs/i);
+  } finally {
+    if (prevOpenAiKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = prevOpenAiKey;
+    if (prevProvider === undefined) delete process.env.LIVE_AUTH_LLM_PROVIDER;
+    else process.env.LIVE_AUTH_LLM_PROVIDER = prevProvider;
+    if (prevModel === undefined) delete process.env.LIVE_AUTH_LLM_MODEL;
+    else process.env.LIVE_AUTH_LLM_MODEL = prevModel;
+    globalThis.fetch = prevFetch;
+  }
+});
+
 test('llm validator remains fail-closed for truly unmappable evidence refs', async () => {
   const prevOpenAiKey = process.env.OPENAI_API_KEY;
   const prevProvider = process.env.LIVE_AUTH_LLM_PROVIDER;

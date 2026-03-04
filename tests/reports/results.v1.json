@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-03T23:20:29.652Z",
-  "generated_at_utc": "2026-03-03T23:20:29.652Z",
+  "generatedAt": "2026-03-04T04:44:00.182Z",
+  "generated_at_utc": "2026-03-04T04:44:00.182Z",
   "status_enum": [
     "PASS",
     "FLAKY",
@@ -136,9 +136,9 @@
     }
   ],
   "summary": {
-    "PASS": 54,
+    "PASS": 76,
     "FLAKY": 0,
-    "FAIL": 26,
+    "FAIL": 4,
     "NOT_PASS": 20,
     "row_count": 20,
     "cell_count": 100,
@@ -156,9 +156,9 @@
         "NOT_PASS": 20
       },
       "live": {
-        "PASS": 37,
+        "PASS": 59,
         "FLAKY": 0,
-        "FAIL": 23,
+        "FAIL": 1,
         "NOT_PASS": 0
       }
     }
@@ -179,7 +179,7 @@
           "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -190,7 +190,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -198,15 +198,13 @@
           "provider": "openai",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
-          "notes": [
-            "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: Deterministic delivery-quality validator returned NOT_PASS. Evidence: tests/artifacts/live/validators/2026-03-03T21-04-53-939Z-maintenance-openai-r1/sdlc-happy-authenticity.json"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -216,11 +214,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -228,15 +226,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     },
@@ -255,7 +251,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -266,7 +262,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -276,11 +272,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -290,11 +286,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -302,15 +298,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     },
@@ -329,7 +323,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -340,7 +334,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -350,11 +344,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -364,11 +358,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -376,15 +370,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     },
@@ -403,7 +395,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -414,7 +406,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -424,11 +416,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -438,11 +430,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -450,15 +442,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     },
@@ -477,7 +467,7 @@
           "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -488,7 +478,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -498,11 +488,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -510,15 +500,13 @@
           "provider": "google",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-39-45-269Z-sdlc-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-39-45-269Z-sdlc-google-r1.md"
           ],
-          "notes": [
-            "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: LLM validator failure (fail-closed): This operation was aborted. Evidence: tests/artifacts/live/validators/2026-03-03T21-18-35-463Z-maintenance-google-r1/maintenance-happy-authenticity.json"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -526,15 +514,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     },
@@ -553,7 +539,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -564,7 +550,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -574,11 +560,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -588,11 +574,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -600,15 +586,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     },
@@ -627,7 +611,7 @@
           "status": "FAIL",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -638,7 +622,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -648,11 +632,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T23-17-06-683Z-sdlc-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T23-17-06-683Z-sdlc-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -660,15 +644,13 @@
           "provider": "google",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
-          "notes": [
-            "AP-7 expected a failed task, but no failed task was observed before timeout"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -676,15 +658,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     },
@@ -703,7 +683,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -714,7 +694,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -724,11 +704,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -738,11 +718,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -750,15 +730,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     },
@@ -777,7 +755,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -788,7 +766,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -798,11 +776,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -812,11 +790,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -824,15 +802,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     },
@@ -851,7 +827,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -862,7 +838,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -872,11 +848,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -886,11 +862,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -898,15 +874,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     },
@@ -925,7 +899,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -936,7 +910,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -946,11 +920,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -958,13 +932,15 @@
           "provider": "google",
           "mode": "e2e",
           "gating": true,
-          "status": "PASS",
+          "status": "FAIL",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
-          "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [
+            "API http://127.0.0.1:18242/api/v1/workers/register returned 500: {\"statusCode\":500,\"code\":\"23505\",\"error\":\"Internal Server Error\",\"message\":\"duplicate key value violates unique constraint \\\"idx_api_keys_prefix\\\"\"}"
+          ],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -972,15 +948,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     },
@@ -999,7 +973,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -1010,7 +984,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1020,11 +994,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1034,11 +1008,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1046,15 +1020,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     },
@@ -1073,7 +1045,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -1084,7 +1056,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1094,11 +1066,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1108,11 +1080,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1120,15 +1092,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     },
@@ -1147,7 +1117,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -1158,7 +1128,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1168,11 +1138,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1182,11 +1152,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1194,15 +1164,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     },
@@ -1221,7 +1189,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -1232,7 +1200,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1242,11 +1210,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1256,11 +1224,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1268,15 +1236,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     },
@@ -1295,7 +1261,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -1306,7 +1272,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1316,11 +1282,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1330,11 +1296,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1342,15 +1308,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     },
@@ -1369,7 +1333,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -1380,7 +1344,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1390,11 +1354,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1404,11 +1368,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1416,15 +1380,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     },
@@ -1443,7 +1405,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -1454,7 +1416,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1464,11 +1426,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1478,11 +1440,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1490,15 +1452,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     },
@@ -1517,7 +1477,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -1528,7 +1488,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1538,11 +1498,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1552,11 +1512,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1564,15 +1524,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     },
@@ -1591,7 +1549,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "integration",
@@ -1602,7 +1560,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1612,11 +1570,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1626,11 +1584,11 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         },
         {
           "lane": "live",
@@ -1638,15 +1596,13 @@
           "provider": "anthropic",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-            "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md"
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
-          "notes": [
-            "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
-          ],
-          "generated_at_utc": "2026-03-03T23:20:29.652Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T04:44:00.182Z"
         }
       ]
     }
@@ -2816,485 +2772,463 @@
   "live_cells": {
     "sdlc-happy": {
       "openai": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-939Z-maintenance-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md",
-        "finishedAt": "2026-03-03T21:18:35.459Z",
-        "error": "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: Deterministic delivery-quality validator returned NOT_PASS. Evidence: tests/artifacts/live/validators/2026-03-03T21-04-53-939Z-maintenance-openai-r1/sdlc-happy-authenticity.json"
+        "status": "PASS",
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z"
+        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T04:43:11.990Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     },
     "ap2-external-runtime": {
       "openai": {
         "status": "PASS",
-        "runId": "2026-03-03T21-04-53-939Z-maintenance-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md",
-        "finishedAt": "2026-03-03T21:18:35.459Z"
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z"
+        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T04:43:11.990Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     },
     "ap3-standalone-worker": {
       "openai": {
         "status": "PASS",
-        "runId": "2026-03-03T21-04-53-939Z-maintenance-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md",
-        "finishedAt": "2026-03-03T21:18:35.459Z"
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z"
+        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T04:43:11.990Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     },
     "ap4-mixed-workers": {
       "openai": {
         "status": "PASS",
-        "runId": "2026-03-03T21-04-53-939Z-maintenance-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md",
-        "finishedAt": "2026-03-03T21:18:35.459Z"
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z"
+        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T04:43:11.990Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     },
     "maintenance-happy": {
       "openai": {
         "status": "PASS",
-        "runId": "2026-03-03T21-04-53-939Z-maintenance-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md",
-        "finishedAt": "2026-03-03T21:18:35.459Z"
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z",
-        "error": "Output authenticity NOT_PASS (hybrid-llm) delivery_quality=NOT_PASS: LLM validator failure (fail-closed): This operation was aborted. Evidence: tests/artifacts/live/validators/2026-03-03T21-18-35-463Z-maintenance-google-r1/maintenance-happy-authenticity.json"
+        "status": "PASS",
+        "runId": "2026-03-04T04-39-45-269Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-39-45-269Z-sdlc-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-39-45-269Z-sdlc-google-r1.md",
+        "finishedAt": "2026-03-04T04:44:00.180Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     },
     "ap6-runtime-maintenance": {
       "openai": {
         "status": "PASS",
-        "runId": "2026-03-03T21-04-53-939Z-maintenance-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md",
-        "finishedAt": "2026-03-03T21:18:35.459Z"
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z"
+        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T04:43:11.990Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     },
     "ap7-failure-recovery": {
       "openai": {
         "status": "PASS",
-        "runId": "2026-03-03T23-17-06-683Z-sdlc-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T23-17-06-683Z-sdlc-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T23-17-06-683Z-sdlc-openai-r1.md",
-        "finishedAt": "2026-03-03T23:20:29.649Z"
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z",
-        "error": "AP-7 expected a failed task, but no failed task was observed before timeout"
+        "status": "PASS",
+        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T04:43:11.990Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     },
     "ot1-cascade": {
       "openai": {
         "status": "PASS",
-        "runId": "2026-03-03T21-04-53-939Z-maintenance-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md",
-        "finishedAt": "2026-03-03T21:18:35.459Z"
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z"
+        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T04:43:11.990Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     },
     "ot2-routing": {
       "openai": {
         "status": "PASS",
-        "runId": "2026-03-03T21-04-53-939Z-maintenance-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md",
-        "finishedAt": "2026-03-03T21:18:35.459Z"
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z"
+        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T04:43:11.990Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     },
     "ot3-state": {
       "openai": {
         "status": "PASS",
-        "runId": "2026-03-03T21-04-53-939Z-maintenance-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md",
-        "finishedAt": "2026-03-03T21:18:35.459Z"
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z"
+        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T04:43:11.990Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     },
     "ot4-health": {
       "openai": {
         "status": "PASS",
-        "runId": "2026-03-03T21-04-53-939Z-maintenance-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md",
-        "finishedAt": "2026-03-03T21:18:35.459Z"
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
-        "status": "PASS",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z"
+        "status": "FAIL",
+        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T04:43:11.990Z",
+        "error": "API http://127.0.0.1:18242/api/v1/workers/register returned 500: {\"statusCode\":500,\"code\":\"23505\",\"error\":\"Internal Server Error\",\"message\":\"duplicate key value violates unique constraint \\\"idx_api_keys_prefix\\\"\"}"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     },
     "hl1-approval-flow": {
       "openai": {
         "status": "PASS",
-        "runId": "2026-03-03T21-04-53-939Z-maintenance-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md",
-        "finishedAt": "2026-03-03T21:18:35.459Z"
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z"
+        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T04:43:11.990Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     },
     "hl2-pipeline-controls": {
       "openai": {
         "status": "PASS",
-        "runId": "2026-03-03T21-04-53-939Z-maintenance-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md",
-        "finishedAt": "2026-03-03T21:18:35.459Z"
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z"
+        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T04:43:11.990Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     },
     "it1-sdk": {
       "openai": {
         "status": "PASS",
-        "runId": "2026-03-03T21-04-53-939Z-maintenance-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md",
-        "finishedAt": "2026-03-03T21:18:35.459Z"
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z"
+        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T04:43:11.990Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     },
     "it2-mcp": {
       "openai": {
         "status": "PASS",
-        "runId": "2026-03-03T21-04-53-939Z-maintenance-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md",
-        "finishedAt": "2026-03-03T21:18:35.459Z"
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z"
+        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T04:43:11.990Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     },
     "it3-webhooks": {
       "openai": {
         "status": "PASS",
-        "runId": "2026-03-03T21-04-53-939Z-maintenance-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md",
-        "finishedAt": "2026-03-03T21:18:35.459Z"
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z"
+        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T04:43:11.990Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     },
     "it3-mcp-sse-stream": {
       "openai": {
         "status": "PASS",
-        "runId": "2026-03-03T21-04-53-939Z-maintenance-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md",
-        "finishedAt": "2026-03-03T21:18:35.459Z"
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z"
+        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T04:43:11.990Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     },
     "si1-isolation": {
       "openai": {
         "status": "PASS",
-        "runId": "2026-03-03T21-04-53-939Z-maintenance-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md",
-        "finishedAt": "2026-03-03T21:18:35.459Z"
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z"
+        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T04:43:11.990Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     },
     "si2-auth": {
       "openai": {
         "status": "PASS",
-        "runId": "2026-03-03T21-04-53-939Z-maintenance-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md",
-        "finishedAt": "2026-03-03T21:18:35.459Z"
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z"
+        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T04:43:11.990Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     },
     "si2-extended-isolation": {
       "openai": {
         "status": "PASS",
-        "runId": "2026-03-03T21-04-53-939Z-maintenance-openai-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-939Z-maintenance-openai-r1.md",
-        "finishedAt": "2026-03-03T21:18:35.459Z"
+        "runId": "2026-03-04T04-26-16-704Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
         "status": "PASS",
-        "runId": "2026-03-03T21-18-35-463Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-18-35-463Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-03T21:32:44.112Z"
+        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T04:43:11.990Z"
       },
       "anthropic": {
-        "status": "FAIL",
-        "runId": "2026-03-03T21-04-53-930Z-sdlc-anthropic-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-03T21-04-53-930Z-sdlc-anthropic-r1.md",
-        "finishedAt": "2026-03-03T21:04:53.930Z",
-        "error": "Command failed: docker compose up -d --build postgres platform-api worker dashboard"
+        "status": "PASS",
+        "runId": "2026-03-04T04-28-01-596Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T04:38:08.963Z"
       }
     }
   }

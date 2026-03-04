@@ -716,8 +716,62 @@ function normalizeCanonicalEvidenceAlias(
   return undefined;
 }
 
+function preferredTaskEvidenceSuffixByCheckId(checkId: string): 'output' | 'state' | undefined {
+  if (checkId.startsWith('acceptance-structure.completed-task-output')) {
+    return 'output';
+  }
+
+  if (checkId.startsWith('placeholder-rejection.')) {
+    return 'output';
+  }
+
+  if (checkId.startsWith('git-diff-linkage')) {
+    return 'output';
+  }
+
+  if (checkId.startsWith('resilience.')) {
+    return 'state';
+  }
+
+  return undefined;
+}
+
+function normalizeTaskEvidenceAlias(
+  candidate: string,
+  checkId: string,
+  validRefs: Set<string>,
+): string | undefined {
+  const taskMatch = candidate.match(/^task:([^:]+)$/);
+  if (!taskMatch) {
+    return undefined;
+  }
+
+  const taskId = taskMatch[1];
+  const preferredSuffix = preferredTaskEvidenceSuffixByCheckId(checkId);
+
+  if (preferredSuffix) {
+    const preferredRef = `task:${taskId}:${preferredSuffix}`;
+    if (validRefs.has(preferredRef)) {
+      return preferredRef;
+    }
+  }
+
+  const stateRef = `task:${taskId}:state`;
+  const outputRef = `task:${taskId}:output`;
+  const hasStateRef = validRefs.has(stateRef);
+  const hasOutputRef = validRefs.has(outputRef);
+
+  if (hasStateRef && !hasOutputRef) return stateRef;
+  if (hasOutputRef && !hasStateRef) return outputRef;
+
+  // Ambiguous bare task refs are fail-closed unless a deterministic check-id
+  // preference resolved them above.
+  return undefined;
+}
+
 function normalizeEvidenceRef(
   ref: string,
+  checkId: string,
   validRefs: Set<string>,
   aliasMap: Map<string, string>,
 ): string | undefined {
@@ -732,6 +786,11 @@ function normalizeEvidenceRef(
     const canonicalAlias = normalizeCanonicalEvidenceAlias(candidate, validRefs, aliasMap);
     if (canonicalAlias) {
       return canonicalAlias;
+    }
+
+    const taskAlias = normalizeTaskEvidenceAlias(candidate, checkId, validRefs);
+    if (taskAlias) {
+      return taskAlias;
     }
   }
 
@@ -750,7 +809,7 @@ function normalizeLlmVerdictEvidenceRefs(
     const normalizedRefs: string[] = [];
 
     for (const ref of check.evidenceRefs) {
-      const normalized = normalizeEvidenceRef(ref, validRefs, aliasMap);
+      const normalized = normalizeEvidenceRef(ref, check.checkId, validRefs, aliasMap);
       if (!normalized) {
         unknownRefs.push(ref);
         continue;
