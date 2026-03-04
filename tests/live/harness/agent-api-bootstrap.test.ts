@@ -37,7 +37,7 @@ test('AP-7 fail-closed rejects harness fallback when AGENT_API_URL is missing', 
   else process.env.LIVE_AP7_REQUIRE_PROVIDED_AGENT_API_URL = previousAp7Guard;
 });
 
-test('AP-7 fail-closed rejects fallback when provided AGENT_API_URL is unreachable', async () => {
+test('AP-7 fail-closed rejects unreachable non-local AGENT_API_URL', async () => {
   const previousOpenAi = process.env.OPENAI_API_KEY;
   const previousAp7Guard = process.env.LIVE_AP7_REQUIRE_PROVIDED_AGENT_API_URL;
   const previousFetch = globalThis.fetch;
@@ -54,10 +54,45 @@ test('AP-7 fail-closed rejects fallback when provided AGENT_API_URL is unreachab
       bootstrapAgentApiEndpoint({
         scenarios: ['ap7-failure-recovery', 'sdlc-happy'],
         provider: 'openai',
-        existingUrl: 'http://localhost:19001/execute',
+        existingUrl: 'http://example.invalid:19001/execute',
       }),
     /AP-7 fail-closed: provided AGENT_API_URL is unreachable/,
   );
+
+  globalThis.fetch = previousFetch;
+
+  if (previousOpenAi === undefined) delete process.env.OPENAI_API_KEY;
+  else process.env.OPENAI_API_KEY = previousOpenAi;
+
+  if (previousAp7Guard === undefined) delete process.env.LIVE_AP7_REQUIRE_PROVIDED_AGENT_API_URL;
+  else process.env.LIVE_AP7_REQUIRE_PROVIDED_AGENT_API_URL = previousAp7Guard;
+});
+
+test('AP-7 fail-closed defers local AGENT_API_URL reachability to stack bootstrap', async () => {
+  const previousOpenAi = process.env.OPENAI_API_KEY;
+  const previousAp7Guard = process.env.LIVE_AP7_REQUIRE_PROVIDED_AGENT_API_URL;
+  const previousFetch = globalThis.fetch;
+
+  process.env.OPENAI_API_KEY = 'test-openai-key';
+  process.env.LIVE_AP7_REQUIRE_PROVIDED_AGENT_API_URL = 'true';
+
+  globalThis.fetch = async () => {
+    throw new Error('unreachable');
+  };
+
+  const result = await bootstrapAgentApiEndpoint({
+    scenarios: ['ap7-failure-recovery', 'sdlc-happy'],
+    provider: 'openai',
+    existingUrl: 'http://localhost:19001/execute',
+    existingApiKey: 'provided-key',
+  });
+
+  assert.ok(result);
+  assert.equal(result?.source, 'provided');
+  assert.equal(result?.agentApiUrl, 'http://host.docker.internal:19001/execute');
+  assert.equal(result?.agentApiKey, 'provided-key');
+
+  await result?.dispose();
 
   globalThis.fetch = previousFetch;
 

@@ -10,6 +10,12 @@ export interface AgentApiBootstrap {
   agentApiKey?: string;
   /** Human-readable source descriptor for diagnostics. */
   source: 'provided' | 'harness-live-executor';
+  /**
+   * When true, URL reachability must be re-checked after docker stack startup.
+   * This is used for AP-7 fail-closed lanes where compose setup has not yet
+   * started at bootstrap time.
+   */
+  requiresPostSetupValidation?: boolean;
   dispose: () => Promise<void>;
 }
 
@@ -68,6 +74,18 @@ export async function bootstrapAgentApiEndpoint(params: {
     }
 
     if (ap7FailClosed) {
+      if (isLocalWorkerEndpoint(workerReachableUrl)) {
+        console.warn(
+          `AP-7 fail-closed: deferring AGENT_API_URL reachability check until stack bootstrap (${workerReachableUrl}).`,
+        );
+        return {
+          agentApiUrl: workerReachableUrl,
+          agentApiKey: params.existingApiKey?.trim() || undefined,
+          source: 'provided',
+          dispose: async () => {},
+        };
+      }
+
       throw new Error(
         `AP-7 fail-closed: provided AGENT_API_URL is unreachable for built-in worker (${workerReachableUrl}). ` +
           'Harness fallback executor is disabled for AP-7 truth-lane execution-path integrity.',
@@ -135,6 +153,15 @@ function toWorkerReachableUrl(rawUrl: string): string {
   }
 
   return parsed.toString();
+}
+
+function isLocalWorkerEndpoint(workerUrl: string): boolean {
+  try {
+    const parsed = new URL(workerUrl);
+    return parsed.hostname === 'host.docker.internal' || LOCAL_HOSTNAMES.has(parsed.hostname);
+  } catch {
+    return false;
+  }
 }
 
 async function canReachAgentApi(workerUrl: string, timeoutMs: number): Promise<boolean> {
