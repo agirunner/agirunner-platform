@@ -15,8 +15,9 @@ import { fileURLToPath } from 'node:url';
 import { enforceScenarioAuthenticityGate } from './authenticity-validator.js';
 import { cleanupFixtureWorkspace, prepareFixtureWorkspace } from './repo-factory.js';
 import { saveRunReport } from './report.js';
-import { bootstrapAgentApiEndpoint } from './agent-api-bootstrap.js';
+import { bootstrapAgentApiEndpoint, canReachAgentApi } from './agent-api-bootstrap.js';
 import { setupLiveEnvironment } from './setup.js';
+import { loadConfig } from '../config.js';
 import { teardownLiveEnvironment } from './teardown.js';
 import type {
   Provider,
@@ -160,6 +161,32 @@ const AP_SCENARIOS_REQUIRING_BUILT_IN_EXECUTOR = new Set<ScenarioName>([
 
 const WORKER_PREFLIGHT_TIMEOUT_MS = Number(process.env.LIVE_WORKER_PREFLIGHT_TIMEOUT_MS ?? 45_000);
 const WORKER_PREFLIGHT_INTERVAL_MS = Number(process.env.LIVE_WORKER_PREFLIGHT_INTERVAL_MS ?? 1_500);
+
+type AgentApiBootstrapResult = Awaited<ReturnType<typeof bootstrapAgentApiEndpoint>>;
+
+export async function assertPostSetupAgentApiReachability(
+  params: {
+    agentApiBootstrap: AgentApiBootstrapResult;
+    preflightOnly: boolean;
+    timeoutMs: number;
+  },
+  probe: (workerUrl: string, timeoutMs: number) => Promise<boolean> = canReachAgentApi,
+): Promise<void> {
+  if (!params.agentApiBootstrap?.requiresPostSetupValidation) {
+    return;
+  }
+
+  const isReachable = await probe(params.agentApiBootstrap.agentApiUrl, params.timeoutMs);
+  if (isReachable) {
+    return;
+  }
+
+  const mode = params.preflightOnly ? '--preflight-only' : 'scenario execution';
+  throw new Error(
+    `Live harness preflight failed: AP-7 fail-closed post-setup validation could not reach AGENT_API_URL (${params.agentApiBootstrap.agentApiUrl}) before ${mode}. ` +
+      'Built-in worker task execution remains blocked until AGENT_API_URL is reachable from worker network context.',
+  );
+}
 
 function loadEnvFile(envPath = '/root/.secrets/openai-test.env'): void {
   if (!existsSync(envPath)) return;
@@ -620,7 +647,7 @@ async function runCombination(
   const scenarios = resolveScenarios(options);
   const previousAgentApiUrl = process.env.AGENT_API_URL;
   const previousAgentApiKey = process.env.AGENT_API_KEY;
-  let agentApiBootstrap: Awaited<ReturnType<typeof bootstrapAgentApiEndpoint>> = null;
+  let agentApiBootstrap: AgentApiBootstrapResult = null;
 
   try {
     agentApiBootstrap = await bootstrapAgentApiEndpoint({
@@ -644,6 +671,7 @@ async function runCombination(
     }
 
     assertBuiltInExecutorConfigured(scenarios);
+    const { agentApiProbeTimeoutMs } = loadConfig();
 
     const setupStartedAt = Date.now();
     const live = await setupLiveEnvironment({
@@ -653,6 +681,12 @@ async function runCombination(
       fastReset: options.fastReset,
     });
     const setupMs = Date.now() - setupStartedAt;
+
+    await assertPostSetupAgentApiReachability({
+      agentApiBootstrap,
+      preflightOnly: options.preflightOnly,
+      timeoutMs: agentApiProbeTimeoutMs,
+    });
 
     prepareFixtureWorkspace(runId);
     const scenarioResults: Record<string, ScenarioResult> = {};

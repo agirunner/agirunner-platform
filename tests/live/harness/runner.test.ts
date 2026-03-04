@@ -5,6 +5,7 @@ import {
   assertBuiltInExecutorConfigured,
   assertLiveApiKey,
   assertLiveApiKeysForMatrix,
+  assertPostSetupAgentApiReachability,
   makeExecutionMatrix,
   parseArgs,
   resolveScenarios,
@@ -128,4 +129,49 @@ test('built-in executor preflight passes when AGENT_API_URL is set', () => {
       AGENT_API_URL: 'http://runtime:9000',
     }),
   );
+});
+
+test('AP-7 deferred local URL preflight-only fails when endpoint remains unreachable post-setup', async () => {
+  await assert.rejects(
+    () =>
+      assertPostSetupAgentApiReachability(
+        {
+          agentApiBootstrap: {
+            agentApiUrl: 'http://host.docker.internal:19001/execute',
+            source: 'provided',
+            requiresPostSetupValidation: true,
+            dispose: async () => {},
+          },
+          preflightOnly: true,
+          timeoutMs: 50,
+        },
+        async () => false,
+      ),
+    /before --preflight-only/,
+  );
+});
+
+test('AP-7 deferred local URL passes post-setup validation only when endpoint becomes reachable', async () => {
+  let probeCalls = 0;
+
+  await assert.doesNotReject(() =>
+    assertPostSetupAgentApiReachability(
+      {
+        agentApiBootstrap: {
+          agentApiUrl: 'http://host.docker.internal:19001/execute',
+          source: 'provided',
+          requiresPostSetupValidation: true,
+          dispose: async () => {},
+        },
+        preflightOnly: false,
+        timeoutMs: 50,
+      },
+      async () => {
+        probeCalls += 1;
+        return true;
+      },
+    ),
+  );
+
+  assert.equal(probeCalls, 1);
 });

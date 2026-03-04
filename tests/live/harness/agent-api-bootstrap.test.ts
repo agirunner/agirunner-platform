@@ -91,6 +91,7 @@ test('AP-7 fail-closed defers local AGENT_API_URL reachability to stack bootstra
   assert.equal(result?.source, 'provided');
   assert.equal(result?.agentApiUrl, 'http://host.docker.internal:19001/execute');
   assert.equal(result?.agentApiKey, 'provided-key');
+  assert.equal(result?.requiresPostSetupValidation, true);
 
   await result?.dispose();
 

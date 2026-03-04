@@ -82,6 +82,7 @@ export async function bootstrapAgentApiEndpoint(params: {
           agentApiUrl: workerReachableUrl,
           agentApiKey: params.existingApiKey?.trim() || undefined,
           source: 'provided',
+          requiresPostSetupValidation: true,
           dispose: async () => {},
         };
       }
@@ -164,7 +165,7 @@ function isLocalWorkerEndpoint(workerUrl: string): boolean {
   }
 }
 
-async function canReachAgentApi(workerUrl: string, timeoutMs: number): Promise<boolean> {
+export async function canReachAgentApi(workerUrl: string, timeoutMs: number): Promise<boolean> {
   const candidates = new Set<string>();
   candidates.add(workerUrl);
 
