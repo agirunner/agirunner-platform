@@ -46,6 +46,7 @@ async function main() {
   console.log(`[test-batch] reportDir=${summary.reportDir}`);
   console.log(`[test-batch] summaryJson=${summary.artifacts.summaryJsonPath}`);
   console.log(`[test-batch] summaryMd=${summary.artifacts.summaryMarkdownPath}`);
+  console.log(`[test-batch] batchResults=${summary.artifacts.batchResultsPath}`);
   console.log(`[test-batch] finalExitCode=${summary.finalExitCode}`);
   process.exitCode = summary.finalExitCode;
 }

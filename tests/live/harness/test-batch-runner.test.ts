@@ -1,11 +1,16 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
 import { filterProvidersWithEnv, summaryMarkdown } from '../../../scripts/test-batch-lib.mjs';
-import { buildBootstrapSteps, buildStages, runBatch } from '../../../scripts/test-batch-runner.mjs';
+import {
+  buildBatchResultsReport,
+  buildBootstrapSteps,
+  buildStages,
+  runBatch,
+} from '../../../scripts/test-batch-runner.mjs';
 
 function loadBatchDefaults() {
   const defaultsPath = path.resolve(process.cwd(), 'tests/batch/defaults.json');
@@ -184,6 +189,7 @@ test('runBatch materializes skipped-stage placeholder artifacts for truthful pat
         providers: [],
         requestedProviders: ['openai'],
         skippedProviders: [{ provider: 'openai', keys: ['OPENAI_API_KEY'] }],
+        batchResultsPath: path.join(reportDir, 'batch-results.v1.json'),
       }),
       defaults,
       runId,
@@ -193,6 +199,7 @@ test('runBatch materializes skipped-stage placeholder artifacts for truthful pat
 
     assert.equal(summary.stages[0]?.status, 'skipped');
     assert.equal(summary.stages[0]?.notRunReason, 'missing-provider-credentials');
+    assert.equal(summary.artifacts.batchResultsPath, path.join(reportDir, 'batch-results.v1.json'));
     assert.equal(existsSync(stage.logs.stdout), true);
     assert.equal(existsSync(stage.logs.stderr), true);
     assert.equal(existsSync(stage.artifacts.laneArtifactsRoot), true);
@@ -254,6 +261,177 @@ test('summaryMarkdown renders skipped provider metadata and summary artifact evi
   assert.match(markdown, /Skipped providers \(missing credentials\): openai/);
   assert.match(markdown, /Summary JSON: \/tmp\/summary\.json/);
   assert.match(markdown, /\| live-openai \| skipped \|  \| 0 \| missing-provider-credentials \|/);
+});
+
+test('buildBatchResultsReport aggregates stage scenario statuses and evidence from lane results artifacts', () => {
+  const reportDir = mkdtempSync(path.join(tmpdir(), 'batch-canonical-report-'));
+  const coreLaneResultsPath = path.join(reportDir, 'core-results.v1.json');
+  const liveLaneResultsPath = path.join(reportDir, 'live-results.v1.json');
+
+  try {
+    const scenarioDefinition = {
+      id: 'AP-1',
+      key: 'sdlc-happy',
+      title: 'Built-in Worker — SDLC Pipeline',
+      planRef: '§2 AP-1',
+    };
+
+    writeFileSync(
+      coreLaneResultsPath,
+      JSON.stringify(
+        {
+          version: '1.0',
+          generatedAt: '2026-03-04T17:30:00.000Z',
+          scenarios: [scenarioDefinition],
+          matrix: [
+            {
+              use_case_id: 'AP-1',
+              title: scenarioDefinition.title,
+              plan_section: scenarioDefinition.planRef,
+              cells: [
+                {
+                  lane: 'core',
+                  provider: 'none',
+                  status: 'PASS',
+                  evidence_links: ['tests/artifacts/core-run.json'],
+                  notes: ['core succeeded'],
+                  generated_at_utc: '2026-03-04T17:30:00.000Z',
+                },
+              ],
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+    );
+
+    writeFileSync(
+      liveLaneResultsPath,
+      JSON.stringify(
+        {
+          version: '1.0',
+          generatedAt: '2026-03-04T17:31:00.000Z',
+          scenarios: [scenarioDefinition],
+          matrix: [
+            {
+              use_case_id: 'AP-1',
+              title: scenarioDefinition.title,
+              plan_section: scenarioDefinition.planRef,
+              cells: [
+                {
+                  lane: 'live',
+                  provider: 'openai',
+                  status: 'FAIL',
+                  evidence_links: ['tests/artifacts/live-failure.log'],
+                  notes: ['provider timed out'],
+                  generated_at_utc: '2026-03-04T17:31:00.000Z',
+                },
+              ],
+            },
+          ],
+          live_cells: {
+            'sdlc-happy': {
+              openai: {
+                status: 'FAIL',
+                artifactJsonPath: 'tests/artifacts/live-run.json',
+                artifactMdPath: 'tests/artifacts/live-run.md',
+                runId: 'live-run-1',
+                finishedAt: '2026-03-04T17:31:00.000Z',
+              },
+            },
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    const report = buildBatchResultsReport({
+      runId: 'run-2',
+      mode: 'parallel',
+      failurePolicy: 'continue-on-error',
+      providers: ['openai'],
+      requestedProviders: ['openai'],
+      skippedProviders: [],
+      startedAt: '2026-03-04T17:29:00.000Z',
+      finishedAt: '2026-03-04T17:32:00.000Z',
+      durationMs: 180000,
+      finalExitCode: 0,
+      reportDir,
+      stageTotals: {
+        total: 2,
+        pass: 1,
+        fail: 1,
+        infraFail: 0,
+        skipped: 0,
+      },
+      artifacts: {
+        runManifestPath: path.join(reportDir, 'run-manifest.json'),
+        summaryJsonPath: path.join(reportDir, 'summary.json'),
+        summaryMarkdownPath: path.join(reportDir, 'summary.md'),
+      },
+      stages: [
+        {
+          stageId: 'core',
+          stageLabel: 'core',
+          lane: 'core',
+          provider: 'none',
+          status: 'pass',
+          startedAt: '2026-03-04T17:29:01.000Z',
+          finishedAt: '2026-03-04T17:30:01.000Z',
+          durationMs: 60000,
+          exitCode: 0,
+          logs: { stdout: '/tmp/core.stdout', stderr: '/tmp/core.stderr' },
+          artifacts: {
+            laneArtifactsRoot: '/tmp/core-artifacts',
+            laneResultsPath: coreLaneResultsPath,
+          },
+        },
+        {
+          stageId: 'live-openai',
+          stageLabel: 'live-openai',
+          lane: 'live',
+          provider: 'openai',
+          status: 'fail',
+          startedAt: '2026-03-04T17:30:01.000Z',
+          finishedAt: '2026-03-04T17:31:01.000Z',
+          durationMs: 60000,
+          exitCode: 1,
+          logs: { stdout: '/tmp/live.stdout', stderr: '/tmp/live.stderr' },
+          artifacts: {
+            laneArtifactsRoot: '/tmp/live-artifacts',
+            laneResultsPath: liveLaneResultsPath,
+          },
+        },
+      ],
+    });
+
+    assert.equal(report.metadata.runId, 'run-2');
+    assert.equal(report.stageSummary.infra, 0);
+    assert.equal(report.scenarios.total, 1);
+    assert.equal(report.scenarios.statusCounts.PASS, 1);
+    assert.equal(report.scenarios.statusCounts.FAIL, 1);
+
+    const scenario = report.scenarios.items[0];
+    assert.equal(scenario?.id, 'AP-1');
+    assert.equal(scenario?.key, 'sdlc-happy');
+    assert.equal(scenario?.results.length, 2);
+
+    const liveScenarioResult = scenario?.results.find((entry) => entry.stageId === 'live-openai');
+    assert.ok(liveScenarioResult);
+    assert.equal(liveScenarioResult?.artifactJsonPath, 'tests/artifacts/live-run.json');
+    assert.equal(liveScenarioResult?.artifactMdPath, 'tests/artifacts/live-run.md');
+    assert.equal(liveScenarioResult?.runId, 'live-run-1');
+    assert.equal(liveScenarioResult?.evidenceLinks.includes('tests/artifacts/live-run.md'), true);
+
+    const coreStage = report.stages.find((entry) => entry.stageId === 'core');
+    const liveStage = report.stages.find((entry) => entry.stageId === 'live-openai');
+    assert.equal(coreStage?.scenarioCounts.PASS, 1);
+    assert.equal(liveStage?.scenarioCounts.FAIL, 1);
+  } finally {
+    rmSync(reportDir, { recursive: true, force: true });
+  }
 });
 
 test('filterProvidersWithEnv drops providers without credentials in non-strict mode', () => {

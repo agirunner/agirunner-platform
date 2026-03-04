@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { createWriteStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 
@@ -14,6 +14,7 @@ import {
 } from './test-batch-lib.mjs';
 
 const PLAYWRIGHT_BROWSERS_PATH = path.join(ROOT, '.cache', 'ms-playwright');
+const BATCH_CANONICAL_RESULTS_PATH = path.join(ROOT, 'tests', 'reports', 'batch-results.v1.json');
 
 function needsWorkspaceInstall() {
   if (!existsSync(path.join(ROOT, 'node_modules', '.pnpm'))) {
@@ -411,6 +412,209 @@ async function runStage(stage, options, runId) {
   return report;
 }
 
+function loadJsonIfExists(filePath) {
+  if (typeof filePath !== 'string' || filePath.length === 0) return null;
+  if (!existsSync(filePath)) return null;
+
+  return JSON.parse(readFileSync(filePath, 'utf8'));
+}
+
+function normalizeScenarioStatus(status) {
+  return ['PASS', 'FLAKY', 'FAIL', 'NOT_PASS'].includes(status) ? status : 'UNKNOWN';
+}
+
+function mapStageStatusBucket(status) {
+  if (status === 'infra-fail') return 'infra';
+  if (status === 'pass') return 'pass';
+  if (status === 'fail') return 'fail';
+  if (status === 'skipped') return 'skipped';
+  return 'infra';
+}
+
+function selectScenarioCell(row, stage) {
+  const cells = Array.isArray(row?.cells) ? row.cells : [];
+
+  return (
+    cells.find(
+      (cell) =>
+        cell?.lane === stage.lane &&
+        String(cell?.provider ?? 'none') === String(stage.provider ?? 'none'),
+    ) ?? null
+  );
+}
+
+function scenarioEvidenceForStage(laneResults, scenarioKey, stageProvider) {
+  const fallback = { artifactJsonPath: null, artifactMdPath: null, finishedAt: null, runId: null };
+
+  const liveCell = laneResults?.live_cells?.[scenarioKey]?.[stageProvider];
+  if (!liveCell || typeof liveCell !== 'object') return fallback;
+
+  return {
+    artifactJsonPath:
+      typeof liveCell.artifactJsonPath === 'string' ? liveCell.artifactJsonPath : null,
+    artifactMdPath: typeof liveCell.artifactMdPath === 'string' ? liveCell.artifactMdPath : null,
+    finishedAt: typeof liveCell.finishedAt === 'string' ? liveCell.finishedAt : null,
+    runId: typeof liveCell.runId === 'string' ? liveCell.runId : null,
+  };
+}
+
+export function buildBatchResultsReport(summary) {
+  const scenarioOrder = [];
+  const scenarioByKey = new Map();
+  const scenarioStatusTotals = { PASS: 0, FLAKY: 0, FAIL: 0, NOT_PASS: 0, UNKNOWN: 0 };
+
+  const stageDetails = (summary.stages ?? []).map((stage) => ({
+    stageId: stage.stageId,
+    label: stage.stageLabel,
+    lane: stage.lane,
+    provider: stage.provider,
+    status: stage.status,
+    statusBucket: mapStageStatusBucket(stage.status),
+    startedAt: stage.startedAt,
+    finishedAt: stage.finishedAt,
+    durationMs: stage.durationMs,
+    exitCode: stage.exitCode,
+    notRunReason: stage.notRunReason,
+    logs: stage.logs,
+    artifacts: stage.artifacts,
+    ports: stage.ports,
+    composeProjectName: stage.composeProjectName,
+    scenarioCounts: { PASS: 0, FLAKY: 0, FAIL: 0, NOT_PASS: 0, UNKNOWN: 0, total: 0 },
+  }));
+
+  for (const stageDetail of stageDetails) {
+    if (!['core', 'integration', 'live'].includes(stageDetail.lane)) continue;
+
+    const laneResultsPath = stageDetail.artifacts?.laneResultsPath;
+    const laneResults = loadJsonIfExists(laneResultsPath);
+    if (!laneResults || !Array.isArray(laneResults.matrix)) continue;
+
+    const scenarioDefinitionsById = new Map(
+      (Array.isArray(laneResults.scenarios) ? laneResults.scenarios : [])
+        .filter((entry) => entry && typeof entry.id === 'string')
+        .map((entry) => [entry.id, entry]),
+    );
+
+    for (const row of laneResults.matrix) {
+      const selectedCell = selectScenarioCell(row, stageDetail);
+      if (!selectedCell) continue;
+
+      const scenarioId = typeof row?.use_case_id === 'string' ? row.use_case_id : 'UNKNOWN';
+      const scenarioDefinition = scenarioDefinitionsById.get(scenarioId) ?? null;
+      const scenarioKey =
+        typeof scenarioDefinition?.key === 'string' && scenarioDefinition.key.length > 0
+          ? scenarioDefinition.key
+          : scenarioId;
+      const scenarioStatus = normalizeScenarioStatus(selectedCell.status);
+
+      if (!scenarioByKey.has(scenarioKey)) {
+        scenarioOrder.push(scenarioKey);
+        scenarioByKey.set(scenarioKey, {
+          id: scenarioId,
+          key: scenarioKey,
+          title:
+            typeof scenarioDefinition?.title === 'string'
+              ? scenarioDefinition.title
+              : typeof row?.title === 'string'
+                ? row.title
+                : null,
+          planRef:
+            typeof scenarioDefinition?.planRef === 'string'
+              ? scenarioDefinition.planRef
+              : typeof row?.plan_section === 'string'
+                ? row.plan_section
+                : null,
+          results: [],
+        });
+      }
+
+      const scenario = scenarioByKey.get(scenarioKey);
+      if (!scenario) continue;
+
+      const evidenceLinks = Array.isArray(selectedCell?.evidence_links)
+        ? [...selectedCell.evidence_links]
+        : [];
+      const liveEvidence = scenarioEvidenceForStage(laneResults, scenarioKey, stageDetail.provider);
+      if (liveEvidence.artifactJsonPath && !evidenceLinks.includes(liveEvidence.artifactJsonPath)) {
+        evidenceLinks.push(liveEvidence.artifactJsonPath);
+      }
+      if (liveEvidence.artifactMdPath && !evidenceLinks.includes(liveEvidence.artifactMdPath)) {
+        evidenceLinks.push(liveEvidence.artifactMdPath);
+      }
+
+      scenario.results.push({
+        stageId: stageDetail.stageId,
+        lane: stageDetail.lane,
+        provider: stageDetail.provider,
+        status: scenarioStatus,
+        sourceLaneResultsPath: laneResultsPath,
+        evidenceLinks,
+        notes: Array.isArray(selectedCell?.notes) ? selectedCell.notes : [],
+        generatedAt:
+          typeof selectedCell?.generated_at_utc === 'string'
+            ? selectedCell.generated_at_utc
+            : typeof laneResults?.generatedAt === 'string'
+              ? laneResults.generatedAt
+              : null,
+        artifactJsonPath: liveEvidence.artifactJsonPath,
+        artifactMdPath: liveEvidence.artifactMdPath,
+        runId: liveEvidence.runId,
+        finishedAt: liveEvidence.finishedAt,
+      });
+
+      stageDetail.scenarioCounts[scenarioStatus] += 1;
+      stageDetail.scenarioCounts.total += 1;
+      scenarioStatusTotals[scenarioStatus] += 1;
+    }
+  }
+
+  const scenarios = scenarioOrder.map((key) => scenarioByKey.get(key)).filter(Boolean);
+
+  return {
+    version: '1.0',
+    generatedAt: nowIso(),
+    metadata: {
+      runId: summary.runId,
+      mode: summary.mode,
+      failurePolicy: summary.failurePolicy,
+      providers: summary.providers,
+      requestedProviders: summary.requestedProviders ?? summary.providers,
+      skippedProviders: summary.skippedProviders ?? [],
+      startedAt: summary.startedAt,
+      finishedAt: summary.finishedAt,
+      durationMs: summary.durationMs,
+      finalExitCode: summary.finalExitCode,
+      reportDir: summary.reportDir,
+      sourceSummaryJsonPath: summary.artifacts?.summaryJsonPath,
+      sourceRunManifestPath: summary.artifacts?.runManifestPath,
+      sourceSummaryMarkdownPath: summary.artifacts?.summaryMarkdownPath,
+    },
+    stageSummary: {
+      total: summary.stageTotals?.total ?? stageDetails.length,
+      pass: summary.stageTotals?.pass ?? 0,
+      fail: summary.stageTotals?.fail ?? 0,
+      skipped: summary.stageTotals?.skipped ?? 0,
+      infra: summary.stageTotals?.infraFail ?? 0,
+    },
+    stages: stageDetails,
+    scenarios: {
+      total: scenarios.length,
+      statusCounts: scenarioStatusTotals,
+      items: scenarios,
+    },
+  };
+}
+
+export function writeBatchResultsReport(summary, reportPath = BATCH_CANONICAL_RESULTS_PATH) {
+  const report = buildBatchResultsReport(summary);
+  writeJson(reportPath, report);
+
+  return {
+    report,
+    canonicalPath: reportPath,
+  };
+}
+
 function summarize(options, runId, reportDir, startedAt, startedMs, stages, results) {
   return {
     version: '1.0',
@@ -539,6 +743,12 @@ export async function runBatch(options, defaults, runId, reportDir, stages) {
     summaryMarkdownPath,
   };
 
+  const batchReportArtifact = writeBatchResultsReport(
+    summary,
+    options.batchResultsPath ?? BATCH_CANONICAL_RESULTS_PATH,
+  );
+  summary.artifacts.batchResultsPath = batchReportArtifact.canonicalPath;
+
   writeJson(summaryJsonPath, summary);
   writeFileSync(summaryMarkdownPath, summaryMarkdown(summary));
 
@@ -549,7 +759,12 @@ export async function runBatch(options, defaults, runId, reportDir, stages) {
     assertClaimedPathsExist(stage, `Summary stage ${stage.stageId}`);
   }
 
-  for (const requiredPath of [runManifestPath, summaryJsonPath, summaryMarkdownPath]) {
+  for (const requiredPath of [
+    runManifestPath,
+    summaryJsonPath,
+    summaryMarkdownPath,
+    batchReportArtifact.canonicalPath,
+  ]) {
     if (!existsSync(requiredPath)) {
       throw new Error(`Batch evidence artifact missing after write: ${requiredPath}`);
     }

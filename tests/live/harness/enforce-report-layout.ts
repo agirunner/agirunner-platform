@@ -11,10 +11,7 @@ function main(): void {
   const reportsDir = path.join(root, 'tests/reports');
   const entries = readdirSync(reportsDir);
 
-  const required = new Set([
-    'test-cases.v1.json',
-    'results.v1.json',
-  ]);
+  const required = new Set(['test-cases.v1.json', 'results.v1.json', 'batch-results.v1.json']);
 
   const optionalCanonicalJson = /^traceability.*\.json$/;
 

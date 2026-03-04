@@ -23,6 +23,7 @@ Thumbs.db
 tests/reports/**/*
 !tests/reports/test-cases.v1.json
 !tests/reports/results.v1.json
+!tests/reports/batch-results.v1.json
 !tests/reports/traceability*.json
 
 tests/artifacts/

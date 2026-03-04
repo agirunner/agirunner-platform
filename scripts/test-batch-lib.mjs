@@ -242,6 +242,9 @@ export function summaryMarkdown(summary) {
     summary.artifacts?.summaryMarkdownPath
       ? `- Summary Markdown: ${summary.artifacts.summaryMarkdownPath}`
       : '',
+    summary.artifacts?.batchResultsPath
+      ? `- Canonical batch results JSON: ${summary.artifacts.batchResultsPath}`
+      : '',
     '',
     '| Stage | Status | Exit | Duration(ms) | Not run reason |',
     '|---|---:|---:|---:|---|',
