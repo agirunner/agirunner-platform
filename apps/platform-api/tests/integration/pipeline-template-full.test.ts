@@ -14,7 +14,14 @@ const config = {
   TASK_DEFAULT_MAX_RETRIES: 0,
 };
 
-const admin = { id: 'admin', tenantId, scope: 'admin' as const, ownerType: 'user', ownerId: null, keyPrefix: 'admin' };
+const admin = {
+  id: 'admin',
+  tenantId,
+  scope: 'admin' as const,
+  ownerType: 'user',
+  ownerId: null,
+  keyPrefix: 'admin',
+};
 
 describe('pipeline + template full coverage', () => {
   let db: TestDatabase;
@@ -40,7 +47,12 @@ describe('pipeline + template full coverage', () => {
         variables: [{ name: 'feature', type: 'string', required: true }],
         tasks: [
           { id: 'analysis', title_template: 'Analyze ${feature}', type: 'analysis' },
-          { id: 'code', title_template: 'Implement ${feature}', type: 'code', depends_on: ['analysis'] },
+          {
+            id: 'code',
+            title_template: 'Implement ${feature}',
+            type: 'code',
+            depends_on: ['analysis'],
+          },
         ],
       },
     });
@@ -62,6 +74,39 @@ describe('pipeline + template full coverage', () => {
     expect((b.depends_on as string[])[0]).toBe(a.id);
   });
 
+  it('persists task context_template into task context for execution-path contracts', async () => {
+    const template = await templateService.createTemplate(admin, {
+      name: 'context-contract-template',
+      slug: 'context-contract-template',
+      schema: {
+        variables: [{ name: 'failure_mode', type: 'string', required: true }],
+        tasks: [
+          {
+            id: 'developer',
+            title_template: 'Developer task',
+            type: 'code',
+            context_template: {
+              failure_mode: '${failure_mode}',
+              gate: 'ap7',
+            },
+          },
+        ],
+      },
+    });
+
+    const pipeline = await pipelineService.createPipeline(admin, {
+      template_id: template.id as string,
+      name: 'context-contract-pipeline',
+      parameters: { failure_mode: 'deterministic_impossible' },
+    });
+
+    const [task] = pipeline.tasks as Array<Record<string, unknown>>;
+    expect(task.context).toEqual({
+      failure_mode: 'deterministic_impossible',
+      gate: 'ap7',
+    });
+  });
+
   it('covers FR-162/FR-167 pipeline status derivation and emitted events', async () => {
     const template = await templateService.createTemplate(admin, {
       name: 'state-template',
@@ -69,7 +114,10 @@ describe('pipeline + template full coverage', () => {
       schema: { tasks: [{ id: 'task', title_template: 'Task', type: 'code' }] },
     });
 
-    const pipeline = await pipelineService.createPipeline(admin, { template_id: template.id as string, name: 'pipeline-state' });
+    const pipeline = await pipelineService.createPipeline(admin, {
+      template_id: template.id as string,
+      name: 'pipeline-state',
+    });
     const loaded = await pipelineService.getPipeline(tenantId, pipeline.id as string);
 
     expect(loaded.state).toBe('pending');
@@ -92,7 +140,10 @@ describe('pipeline + template full coverage', () => {
     ).toThrow(/cycle/i);
 
     const validated = validateTemplateSchema({
-      metadata: { quality: { lint: 'strict' }, workflow: { phases: [{ id: 'build', gate: 'all_complete' }] } },
+      metadata: {
+        quality: { lint: 'strict' },
+        workflow: { phases: [{ id: 'build', gate: 'all_complete' }] },
+      },
       tasks: [{ id: 'a', title_template: 'A', type: 'code', role_config: { prompt: 'do A' } }],
     });
 
@@ -119,7 +170,11 @@ describe('pipeline + template full coverage', () => {
 
     expect(updated.version).toBe(2);
 
-    const builtInPage = await templateService.listTemplates(tenantId, { is_built_in: true, page: 1, per_page: 1 });
+    const builtInPage = await templateService.listTemplates(tenantId, {
+      is_built_in: true,
+      page: 1,
+      per_page: 1,
+    });
     expect(builtInPage.data).toHaveLength(1);
     expect(builtInPage.meta.total).toBeGreaterThanOrEqual(2);
   });
@@ -130,20 +185,35 @@ describe('pipeline + template full coverage', () => {
       slug: 'roles-template',
       schema: {
         variables: [{ name: 'lang', type: 'string', default: 'ts' }],
-        tasks: [{ id: 'implement', title_template: 'Implement in ${lang}', type: 'code', role: 'engineer' }],
+        tasks: [
+          {
+            id: 'implement',
+            title_template: 'Implement in ${lang}',
+            type: 'code',
+            role: 'engineer',
+          },
+        ],
       },
     });
 
-    const fetched = (await templateService.getTemplate(tenantId, template.id as string)) as Record<string, unknown>;
+    const fetched = (await templateService.getTemplate(tenantId, template.id as string)) as Record<
+      string,
+      unknown
+    >;
     expect(fetched.slug).toBe('roles-template');
 
-    const pipeline = await pipelineService.createPipeline(admin, { template_id: template.id as string, name: 'roles-pipeline' });
+    const pipeline = await pipelineService.createPipeline(admin, {
+      template_id: template.id as string,
+      name: 'roles-pipeline',
+    });
     const [task] = pipeline.tasks as Array<Record<string, unknown>>;
 
     expect(task.role).toBe('engineer');
     expect(task.title).toBe('Implement in ts');
 
-    await expect(templateService.softDeleteTemplate(admin, template.id as string)).rejects.toMatchObject({ statusCode: 409 });
+    await expect(
+      templateService.softDeleteTemplate(admin, template.id as string),
+    ).rejects.toMatchObject({ statusCode: 409 });
   });
 
   it('covers FR-701/FR-702/FR-703/FR-704/FR-706/FR-707/FR-708/FR-718/FR-720 workflow-related data is accepted and persisted', async () => {
@@ -169,8 +239,13 @@ describe('pipeline + template full coverage', () => {
       schema,
     });
 
-    const loaded = (await templateService.getTemplate(tenantId, template.id as string)) as Record<string, unknown>;
-    expect((loaded.schema as Record<string, unknown>).metadata).toMatchObject(schema.metadata as Record<string, unknown>);
+    const loaded = (await templateService.getTemplate(tenantId, template.id as string)) as Record<
+      string,
+      unknown
+    >;
+    expect((loaded.schema as Record<string, unknown>).metadata).toMatchObject(
+      schema.metadata as Record<string, unknown>,
+    );
   });
 
   it('covers FR-412/FR-822/FR-824 environment and worker instructions are stored on template tasks', async () => {
@@ -190,7 +265,10 @@ describe('pipeline + template full coverage', () => {
       },
     });
 
-    const pipeline = await pipelineService.createPipeline(admin, { template_id: template.id as string, name: 'env-pipeline' });
+    const pipeline = await pipelineService.createPipeline(admin, {
+      template_id: template.id as string,
+      name: 'env-pipeline',
+    });
     const [task] = pipeline.tasks as Array<Record<string, unknown>>;
 
     expect(task.role_config).toEqual({ instruction: 'execute script' });

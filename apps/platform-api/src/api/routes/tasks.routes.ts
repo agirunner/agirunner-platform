@@ -17,6 +17,7 @@ const taskCreateSchema = z.object({
   parent_id: z.string().uuid().optional(),
   role: z.string().max(120).optional(),
   input: z.record(z.unknown()).optional(),
+  context: z.record(z.unknown()).optional(),
   depends_on: z.array(z.string().uuid()).optional(),
   requires_approval: z.boolean().optional(),
   capabilities_required: z.array(z.string().min(1)).max(20).optional(),
@@ -68,105 +69,169 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 export const taskRoutes: FastifyPluginAsync = async (app) => {
   const taskService = new TaskService(app.pgPool, new EventService(app.pgPool), app.config);
 
-  app.post('/api/v1/tasks', { preHandler: [authenticateApiKey, withScope('worker')] }, async (request, reply) => {
-    const body = parseOrThrow(taskCreateSchema.safeParse(request.body));
-    const task = await taskService.createTask(request.auth!, body);
-    return reply.status(201).send({ data: task });
-  });
+  app.post(
+    '/api/v1/tasks',
+    { preHandler: [authenticateApiKey, withScope('worker')] },
+    async (request, reply) => {
+      const body = parseOrThrow(taskCreateSchema.safeParse(request.body));
+      const task = await taskService.createTask(request.auth!, body);
+      return reply.status(201).send({ data: task });
+    },
+  );
 
-  app.get('/api/v1/tasks', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
-    const query = request.query as Record<string, string | undefined>;
-    const page = Number(query.page ?? DEFAULT_PAGE);
-    const perPage = Number(query.per_page ?? DEFAULT_PER_PAGE);
-    if (!Number.isFinite(page) || page <= 0 || !Number.isFinite(perPage) || perPage <= 0 || perPage > MAX_PER_PAGE) {
-      throw new ValidationError('Invalid pagination values');
-    }
+  app.get(
+    '/api/v1/tasks',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const query = request.query as Record<string, string | undefined>;
+      const page = Number(query.page ?? DEFAULT_PAGE);
+      const perPage = Number(query.per_page ?? DEFAULT_PER_PAGE);
+      if (
+        !Number.isFinite(page) ||
+        page <= 0 ||
+        !Number.isFinite(perPage) ||
+        perPage <= 0 ||
+        perPage > MAX_PER_PAGE
+      ) {
+        throw new ValidationError('Invalid pagination values');
+      }
 
-    const result = await taskService.listTasks(request.auth!.tenantId, {
-      state: query.state,
-      type: query.type,
-      project_id: query.project_id,
-      assigned_agent_id: query.assigned_agent_id,
-      parent_id: query.parent_id,
-      pipeline_id: query.pipeline_id,
-      page,
-      per_page: perPage,
-    });
+      const result = await taskService.listTasks(request.auth!.tenantId, {
+        state: query.state,
+        type: query.type,
+        project_id: query.project_id,
+        assigned_agent_id: query.assigned_agent_id,
+        parent_id: query.parent_id,
+        pipeline_id: query.pipeline_id,
+        page,
+        per_page: perPage,
+      });
 
-    return result;
-  });
+      return result;
+    },
+  );
 
-  app.get('/api/v1/tasks/:id', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
-    const params = request.params as { id: string };
-    const task = await taskService.getTask(request.auth!.tenantId, params.id);
-    return { data: task };
-  });
+  app.get(
+    '/api/v1/tasks/:id',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const task = await taskService.getTask(request.auth!.tenantId, params.id);
+      return { data: task };
+    },
+  );
 
-  app.patch('/api/v1/tasks/:id', { preHandler: [authenticateApiKey, withScope('worker')] }, async (request) => {
-    const params = request.params as { id: string };
-    const body = parseOrThrow(taskPatchSchema.safeParse(request.body));
-    const task = await taskService.updateTask(request.auth!.tenantId, params.id, body);
-    return { data: task };
-  });
+  app.patch(
+    '/api/v1/tasks/:id',
+    { preHandler: [authenticateApiKey, withScope('worker')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(taskPatchSchema.safeParse(request.body));
+      const task = await taskService.updateTask(request.auth!.tenantId, params.id, body);
+      return { data: task };
+    },
+  );
 
-  app.get('/api/v1/tasks/:id/context', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
-    const params = request.params as { id: string };
-    const query = request.query as { agent_id?: string };
-    const context = await taskService.getTaskContext(request.auth!.tenantId, params.id, query.agent_id);
-    return { data: context };
-  });
+  app.get(
+    '/api/v1/tasks/:id/context',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const query = request.query as { agent_id?: string };
+      const context = await taskService.getTaskContext(
+        request.auth!.tenantId,
+        params.id,
+        query.agent_id,
+      );
+      return { data: context };
+    },
+  );
 
-  app.get('/api/v1/tasks/:id/git', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
-    const params = request.params as { id: string };
-    const git = await taskService.getTaskGitActivity(request.auth!.tenantId, params.id);
-    return { data: git };
-  });
+  app.get(
+    '/api/v1/tasks/:id/git',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const git = await taskService.getTaskGitActivity(request.auth!.tenantId, params.id);
+      return { data: git };
+    },
+  );
 
-  app.post('/api/v1/tasks/claim', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request, reply) => {
-    const body = parseOrThrow(claimSchema.safeParse(request.body));
-    const task = await taskService.claimTask(request.auth!, body);
-    if (!task) {
-      return reply.status(204).send();
-    }
-    return reply.status(200).send({ data: task });
-  });
+  app.post(
+    '/api/v1/tasks/claim',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request, reply) => {
+      const body = parseOrThrow(claimSchema.safeParse(request.body));
+      const task = await taskService.claimTask(request.auth!, body);
+      if (!task) {
+        return reply.status(204).send();
+      }
+      return reply.status(200).send({ data: task });
+    },
+  );
 
-  app.post('/api/v1/tasks/:id/start', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
-    const params = request.params as { id: string };
-    const body = parseOrThrow(taskControlSchema.safeParse(request.body));
-    const task = await taskService.startTask(request.auth!, params.id, body);
-    return { data: task };
-  });
+  app.post(
+    '/api/v1/tasks/:id/start',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(taskControlSchema.safeParse(request.body));
+      const task = await taskService.startTask(request.auth!, params.id, body);
+      return { data: task };
+    },
+  );
 
-  app.post('/api/v1/tasks/:id/complete', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
-    const params = request.params as { id: string };
-    const body = parseOrThrow(completeSchema.safeParse(request.body));
-    const task = await taskService.completeTask(request.auth!, params.id, { output: body.output });
-    return { data: task };
-  });
+  app.post(
+    '/api/v1/tasks/:id/complete',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(completeSchema.safeParse(request.body));
+      const task = await taskService.completeTask(request.auth!, params.id, {
+        output: body.output,
+      });
+      return { data: task };
+    },
+  );
 
-  app.post('/api/v1/tasks/:id/fail', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
-    const params = request.params as { id: string };
-    const body = parseOrThrow(failSchema.safeParse(request.body));
-    const task = await taskService.failTask(request.auth!, params.id, body);
-    return { data: task };
-  });
+  app.post(
+    '/api/v1/tasks/:id/fail',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(failSchema.safeParse(request.body));
+      const task = await taskService.failTask(request.auth!, params.id, body);
+      return { data: task };
+    },
+  );
 
-  app.post('/api/v1/tasks/:id/approve', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
-    const params = request.params as { id: string };
-    const task = await taskService.approveTask(request.auth!, params.id);
-    return { data: task };
-  });
+  app.post(
+    '/api/v1/tasks/:id/approve',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const task = await taskService.approveTask(request.auth!, params.id);
+      return { data: task };
+    },
+  );
 
-  app.post('/api/v1/tasks/:id/retry', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
-    const params = request.params as { id: string };
-    const task = await taskService.retryTask(request.auth!, params.id);
-    return { data: task };
-  });
+  app.post(
+    '/api/v1/tasks/:id/retry',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const task = await taskService.retryTask(request.auth!, params.id);
+      return { data: task };
+    },
+  );
 
-  app.post('/api/v1/tasks/:id/cancel', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
-    const params = request.params as { id: string };
-    const task = await taskService.cancelTask(request.auth!, params.id);
-    return { data: task };
-  });
+  app.post(
+    '/api/v1/tasks/:id/cancel',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const task = await taskService.cancelTask(request.auth!, params.id);
+      return { data: task };
+    },
+  );
 };

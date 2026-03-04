@@ -1,5 +1,16 @@
 import { sql } from 'drizzle-orm';
-import { boolean, index, integer, jsonb, numeric, pgTable, text, timestamp, uuid, type AnyPgColumn } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  numeric,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+  type AnyPgColumn,
+} from 'drizzle-orm/pg-core';
 
 import { agents } from './agents.js';
 import { taskPriorityEnum, taskStateEnum, taskTypeEnum } from './enums.js';
@@ -30,6 +41,7 @@ export const tasks = pgTable(
     dependsOn: uuid('depends_on').array().notNull().default([]),
     requiresApproval: boolean('requires_approval').notNull().default(false),
     input: jsonb('input').notNull().default({}),
+    context: jsonb('context').notNull().default({}),
     output: jsonb('output'),
     error: jsonb('error'),
     capabilitiesRequired: text('capabilities_required').array().notNull().default([]),
@@ -57,8 +69,12 @@ export const tasks = pgTable(
       .on(table.tenantId, table.priority, table.createdAt)
       .where(sql`${table.state} = 'ready'`),
     index('idx_tasks_state').on(table.tenantId, table.state),
-    index('idx_tasks_agent').on(table.assignedAgentId).where(sql`${table.assignedAgentId} IS NOT NULL`),
+    index('idx_tasks_agent')
+      .on(table.assignedAgentId)
+      .where(sql`${table.assignedAgentId} IS NOT NULL`),
     index('idx_tasks_depends_on').using('gin', table.dependsOn),
-    index('idx_tasks_running_timeout').on(table.startedAt).where(sql`${table.state} = 'running'`),
+    index('idx_tasks_running_timeout')
+      .on(table.startedAt)
+      .where(sql`${table.state} = 'running'`),
   ],
 );

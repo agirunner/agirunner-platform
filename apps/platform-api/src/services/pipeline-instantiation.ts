@@ -14,11 +14,15 @@ export function buildTemplateTaskIdMap(tasks: TemplateTaskDefinition[]): Map<str
   return map;
 }
 
-export async function loadTemplateOrThrow(tenantId: string, templateId: string, client: DatabaseClient) {
-  const requestedTemplate = await client.query(`SELECT * FROM templates WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL`, [
-    tenantId,
-    templateId,
-  ]);
+export async function loadTemplateOrThrow(
+  tenantId: string,
+  templateId: string,
+  client: DatabaseClient,
+) {
+  const requestedTemplate = await client.query(
+    `SELECT * FROM templates WHERE tenant_id = $1 AND id = $2 AND deleted_at IS NULL`,
+    [tenantId, templateId],
+  );
 
   if (!requestedTemplate.rowCount) {
     throw new NotFoundError('Template not found');
@@ -55,30 +59,38 @@ export async function insertTaskFromTemplate(params: {
 
   const taskId = taskIdMap.get(task.id);
   if (!taskId) {
-    throw new SchemaValidationFailedError(`Template task '${task.id}' missing generated identifier`);
+    throw new SchemaValidationFailedError(
+      `Template task '${task.id}' missing generated identifier`,
+    );
   }
 
   const dependsOn = (task.depends_on ?? []).map((dependencyTaskId) => {
     const mapped = taskIdMap.get(dependencyTaskId);
     if (!mapped) {
-      throw new SchemaValidationFailedError(`Template task '${task.id}' depends on unknown task '${dependencyTaskId}'`);
+      throw new SchemaValidationFailedError(
+        `Template task '${task.id}' depends on unknown task '${dependencyTaskId}'`,
+      );
     }
     return mapped;
   });
 
-  const initialState = dependsOn.length > 0 ? 'pending' : task.requires_approval ? 'awaiting_approval' : 'ready';
+  const initialState =
+    dependsOn.length > 0 ? 'pending' : task.requires_approval ? 'awaiting_approval' : 'ready';
   const title = substituteTemplateVariables(task.title_template, parameters);
   const input = substituteTemplateVariables(task.input_template ?? {}, parameters);
-  const roleConfig = task.role_config ? substituteTemplateVariables(task.role_config, parameters) : null;
+  const context = substituteTemplateVariables(task.context_template ?? {}, parameters);
+  const roleConfig = task.role_config
+    ? substituteTemplateVariables(task.role_config, parameters)
+    : null;
   const metadata = task.metadata ? substituteTemplateVariables(task.metadata, parameters) : {};
 
   const created = await client.query(
     `INSERT INTO tasks (
       id, tenant_id, pipeline_id, project_id, title, type, role, state, depends_on,
-      requires_approval, input, capabilities_required, role_config, environment,
+      requires_approval, input, context, capabilities_required, role_config, environment,
       timeout_minutes, auto_retry, max_retries, metadata
     ) VALUES (
-      $1,$2,$3,$4,$5,$6,$7,$8,$9::uuid[],$10,$11,$12,$13,$14,$15,$16,$17,$18
+      $1,$2,$3,$4,$5,$6,$7,$8,$9::uuid[],$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
     ) RETURNING *`,
     [
       taskId,
@@ -92,6 +104,7 @@ export async function insertTaskFromTemplate(params: {
       dependsOn,
       task.requires_approval ?? false,
       input,
+      context,
       task.capabilities_required ?? [],
       roleConfig,
       task.environment ?? null,

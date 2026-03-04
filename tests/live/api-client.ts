@@ -26,6 +26,7 @@ export interface ApiTask {
   pipeline_id?: string;
   output?: Record<string, unknown>;
   error?: Record<string, unknown>;
+  context?: Record<string, unknown>;
   depends_on?: string[];
   retry_count?: number;
   capabilities_required?: string[];
@@ -138,6 +139,7 @@ export class LiveApiClient {
     capabilities_required?: string[];
     role?: string;
     input?: Record<string, unknown>;
+    context?: Record<string, unknown>;
     requires_approval?: boolean;
     priority?: string;
   }): Promise<ApiTask> {

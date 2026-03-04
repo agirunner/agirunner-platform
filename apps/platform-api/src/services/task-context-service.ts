@@ -8,7 +8,10 @@ export async function buildTaskContext(
 ) {
   let agent = null;
   if (agentId) {
-    const agentRes = await db.query('SELECT id, name, capabilities, metadata FROM agents WHERE tenant_id = $1 AND id = $2', [tenantId, agentId]);
+    const agentRes = await db.query(
+      'SELECT id, name, capabilities, metadata FROM agents WHERE tenant_id = $1 AND id = $2',
+      [tenantId, agentId],
+    );
     agent = agentRes.rows[0] ?? null;
   } else if (task.assigned_agent_id) {
     const assignedAgentRes = await db.query(
@@ -20,7 +23,10 @@ export async function buildTaskContext(
 
   const [projectRes, pipelineRes, depsRes] = await Promise.all([
     task.project_id
-      ? db.query('SELECT id, name, description, memory FROM projects WHERE tenant_id = $1 AND id = $2', [tenantId, task.project_id])
+      ? db.query(
+          'SELECT id, name, description, memory FROM projects WHERE tenant_id = $1 AND id = $2',
+          [tenantId, task.project_id],
+        )
       : Promise.resolve({ rows: [] }),
     task.pipeline_id
       ? db.query(
@@ -41,10 +47,13 @@ export async function buildTaskContext(
       : Promise.resolve({ rows: [] }),
   ]);
 
-  const upstreamOutputs = Object.fromEntries(depsRes.rows.map((row) => [row.role ?? row.type ?? row.id, row.output ?? {}]));
+  const upstreamOutputs = Object.fromEntries(
+    depsRes.rows.map((row) => [row.role ?? row.type ?? row.id, row.output ?? {}]),
+  );
 
   const pipelineRow = pipelineRes.rows[0] as Record<string, unknown> | undefined;
-  const templateSchema = (pipelineRow?.template_schema as Record<string, unknown> | undefined) ?? {};
+  const templateSchema =
+    (pipelineRow?.template_schema as Record<string, unknown> | undefined) ?? {};
   const pipelineContext = pipelineRow
     ? {
         id: pipelineRow.id,
@@ -69,6 +78,11 @@ export async function buildTaskContext(
     task: {
       id: task.id,
       input: task.input,
+      context: task.context,
+      failure_mode:
+        task.context && typeof task.context === 'object' && !Array.isArray(task.context)
+          ? ((task.context as Record<string, unknown>).failure_mode ?? null)
+          : null,
       role_config: task.role_config,
       upstream_outputs: upstreamOutputs,
     },

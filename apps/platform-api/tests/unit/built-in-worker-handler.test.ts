@@ -98,13 +98,15 @@ describe('executeTask', () => {
         input: { repo: 'enterprise/example' },
       });
     } finally {
-      await new Promise<void>((resolve, reject) => server.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve();
-      }));
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        }),
+      );
     }
   });
 
@@ -171,7 +173,10 @@ describe('checkProhibitedOperations', () => {
   });
 
   it('returns undefined when requirements contain only allowed operations', () => {
-    const result = checkProhibitedOperations(['llm-api-call', 'text-processing'], ['docker-exec', 'bare-metal-exec']);
+    const result = checkProhibitedOperations(
+      ['llm-api-call', 'text-processing'],
+      ['docker-exec', 'bare-metal-exec'],
+    );
     expect(result).toBeUndefined();
   });
 
@@ -181,7 +186,10 @@ describe('checkProhibitedOperations', () => {
   });
 
   it('returns the prohibited operation when task requires bare-metal-exec', () => {
-    const result = checkProhibitedOperations(['bare-metal-exec'], ['docker-exec', 'bare-metal-exec']);
+    const result = checkProhibitedOperations(
+      ['bare-metal-exec'],
+      ['docker-exec', 'bare-metal-exec'],
+    );
     expect(result).toBe('bare-metal-exec');
   });
 
@@ -209,6 +217,78 @@ describe('checkProhibitedOperations', () => {
 // FR-750 — handler rejects prohibited operations before execution
 // ---------------------------------------------------------------------------
 
+describe('createBuiltInTaskHandler deterministic failure mode contract', () => {
+  it('fails immediately when task context requests deterministic_impossible mode', async () => {
+    const observedPaths: string[] = [];
+    let failPayload: Record<string, unknown> | undefined;
+
+    const server = createServer((req, res) => {
+      observedPaths.push(req.url ?? '');
+      let body = '';
+      req.on('data', (chunk) => {
+        body += chunk.toString();
+      });
+      req.on('end', () => {
+        if ((req.url ?? '').endsWith('/fail')) {
+          failPayload = JSON.parse(body) as Record<string, unknown>;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end('{}');
+      });
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+      throw new Error('Failed to start mock Platform API server');
+    }
+
+    try {
+      const executorSpy = vi
+        .fn<(_: Record<string, unknown>, __: TaskExecutorConfig) => Promise<TaskExecutionResult>>()
+        .mockResolvedValue({ output: { unexpected: true }, success: true });
+
+      const handler = createBuiltInTaskHandler(
+        {
+          ...minimalConfig,
+          apiBaseUrl: `http://127.0.0.1:${address.port}`,
+        },
+        mockRegistration,
+        { executeTaskFn: executorSpy },
+      );
+
+      await handler({
+        id: 'task-ap7',
+        type: 'code',
+        title: 'AP-7 deterministic impossible task',
+        context: {
+          failure_mode: 'deterministic_impossible',
+        },
+      });
+
+      expect(executorSpy).not.toHaveBeenCalled();
+      expect(observedPaths).toEqual(['/api/v1/tasks/task-ap7/fail']);
+      expect(failPayload).toMatchObject({
+        error: {
+          code: 'deterministic_impossible_scope',
+          failure_mode: 'deterministic_impossible',
+          deterministic: true,
+        },
+      });
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        }),
+      );
+    }
+  });
+});
+
 describe('createBuiltInTaskHandler with prohibitedOperations', () => {
   it('does not invoke the task executor when a prohibited operation is required', async () => {
     const configWithProhibitions: BuiltInWorkerConfig = {
@@ -216,7 +296,8 @@ describe('createBuiltInTaskHandler with prohibitedOperations', () => {
       prohibitedOperations: ['docker-exec', 'bare-metal-exec'],
     };
 
-    const executorSpy = vi.fn<(_: Record<string, unknown>, __: TaskExecutorConfig) => Promise<TaskExecutionResult>>();
+    const executorSpy =
+      vi.fn<(_: Record<string, unknown>, __: TaskExecutorConfig) => Promise<TaskExecutionResult>>();
 
     const handler = createBuiltInTaskHandler(configWithProhibitions, mockRegistration, {
       executeTaskFn: executorSpy,
@@ -256,7 +337,8 @@ describe('createBuiltInTaskHandler with prohibitedOperations', () => {
         prohibitedOperations: ['docker-exec', 'bare-metal-exec'],
       };
 
-      const executorSpy = vi.fn<(_: Record<string, unknown>, __: TaskExecutorConfig) => Promise<TaskExecutionResult>>()
+      const executorSpy = vi
+        .fn<(_: Record<string, unknown>, __: TaskExecutorConfig) => Promise<TaskExecutionResult>>()
         .mockResolvedValue({ output: { result: 'done' }, success: true });
 
       const handler = createBuiltInTaskHandler(configWithProhibitions, mockRegistration, {
@@ -274,13 +356,15 @@ describe('createBuiltInTaskHandler with prohibitedOperations', () => {
 
       expect(executorSpy).toHaveBeenCalledOnce();
     } finally {
-      await new Promise<void>((resolve, reject) => server.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve();
-      }));
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        }),
+      );
     }
   });
 
@@ -303,7 +387,8 @@ describe('createBuiltInTaskHandler with prohibitedOperations', () => {
         prohibitedOperations: ['docker-exec'],
       };
 
-      const executorSpy = vi.fn<(_: Record<string, unknown>, __: TaskExecutorConfig) => Promise<TaskExecutionResult>>()
+      const executorSpy = vi
+        .fn<(_: Record<string, unknown>, __: TaskExecutorConfig) => Promise<TaskExecutionResult>>()
         .mockResolvedValue({ output: {}, success: true });
 
       const handler = createBuiltInTaskHandler(configWithProhibitions, mockRegistration, {
@@ -314,13 +399,15 @@ describe('createBuiltInTaskHandler with prohibitedOperations', () => {
 
       expect(executorSpy).toHaveBeenCalledOnce();
     } finally {
-      await new Promise<void>((resolve, reject) => server.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
-        resolve();
-      }));
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        }),
+      );
     }
   });
 });

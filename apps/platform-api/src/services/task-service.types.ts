@@ -10,6 +10,7 @@ export interface CreateTaskInput {
   parent_id?: string;
   role?: string;
   input?: Record<string, unknown>;
+  context?: Record<string, unknown>;
   depends_on?: string[];
   requires_approval?: boolean;
   capabilities_required?: string[];
@@ -35,4 +36,7 @@ export interface ListTaskQuery {
   per_page: number;
 }
 
-export type TaskServiceConfig = Pick<AppEnv, 'TASK_DEFAULT_TIMEOUT_MINUTES' | 'TASK_DEFAULT_AUTO_RETRY' | 'TASK_DEFAULT_MAX_RETRIES'>;
+export type TaskServiceConfig = Pick<
+  AppEnv,
+  'TASK_DEFAULT_TIMEOUT_MINUTES' | 'TASK_DEFAULT_AUTO_RETRY' | 'TASK_DEFAULT_MAX_RETRIES'
+>;

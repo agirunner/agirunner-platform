@@ -2,8 +2,8 @@
  * AP-7: Pipeline Failure and Autonomous Recovery
  *
  * Tests failure handling and manual retry:
- * 1. Creates an SDLC pipeline with an impossible constraint ("Rewrite in Rust")
- * 2. The developer task should fail (can't rewrite Express in Rust)
+ * 1. Creates an SDLC pipeline with explicit deterministic failure_mode contract
+ * 2. The task should fail deterministically via execution-path contract enforcement
  * 3. Built-in worker's rework attempts should be exhausted
  * 4. Test harness retries with modified input
  * 5. Verifies the task can be retried
@@ -47,15 +47,29 @@ export async function runAp7FailureRecovery(live: LiveContext): Promise<Scenario
   const client = new LiveApiClient(live.env.apiBaseUrl, live.keys.admin);
   const validations: string[] = [];
 
-  // Create SDLC template
+  // Create SDLC template with explicit retry policy overrides so AP-7 does not
+  // depend on stack-level TASK_DEFAULT_AUTO_RETRY/MAX_RETRIES environment values.
+  const baseSchema = sdlcTemplateSchema();
+  const hardenedSchema = {
+    ...baseSchema,
+    tasks: (baseSchema.tasks as Array<Record<string, unknown>>).map((task) => ({
+      ...task,
+      auto_retry: false,
+      max_retries: 0,
+      context_template: {
+        failure_mode: 'deterministic_impossible',
+      },
+    })),
+  };
+
   const template = await client.createTemplate({
     name: `AP-7 Failure ${live.runId}`,
     slug: `ap7-fail-${live.runId}`,
-    schema: sdlcTemplateSchema(),
+    schema: hardenedSchema,
   });
   validations.push('template_created');
 
-  // Create pipeline with impossible constraint
+  // Create pipeline with AP-7 deterministic failure contract in task context
   const pipeline = await client.createPipeline({
     template_id: template.id,
     name: `AP-7 impossible ${live.runId}`,
@@ -89,6 +103,31 @@ export async function runAp7FailureRecovery(live: LiveContext): Promise<Scenario
 
   assertTaskFailed(failedTask);
   validations.push('resilience_failed_task_observed');
+
+  const failedTaskContext =
+    failedTask.context &&
+    typeof failedTask.context === 'object' &&
+    !Array.isArray(failedTask.context)
+      ? (failedTask.context as Record<string, unknown>)
+      : {};
+  const failureMode = String(failedTaskContext.failure_mode ?? '');
+  if (failureMode !== 'deterministic_impossible') {
+    throw new Error(
+      `AP-7 expected failed task to carry failure_mode=deterministic_impossible, got ${failureMode || '<missing>'}`,
+    );
+  }
+
+  const failedTaskError =
+    failedTask.error && typeof failedTask.error === 'object' && !Array.isArray(failedTask.error)
+      ? (failedTask.error as Record<string, unknown>)
+      : {};
+
+  if (String(failedTaskError.failure_mode ?? '') !== 'deterministic_impossible') {
+    throw new Error(
+      `AP-7 expected failed task error payload to include failure_mode=deterministic_impossible, got ${String(failedTaskError.failure_mode ?? '<missing>')}`,
+    );
+  }
+  validations.push('resilience_deterministic_failure_mode_contract');
 
   const preRetrySnapshot = finalSnapshot;
   const preRetrySnapshotTasks = preRetrySnapshot.tasks ?? [];
@@ -219,7 +258,7 @@ export async function runAp7FailureRecovery(live: LiveContext): Promise<Scenario
       pipelineState: postRetrySnapshot.state,
       acceptanceCriteria: [
         'Deterministic resilience: timeout-bounded poll reaches observable state (no hang/crash)',
-        'Deterministic resilience: impossible input surfaces a failed task and retry control restores ready state',
+        'Deterministic resilience: explicit failure_mode contract surfaces deterministic failed task and retry control restores ready state',
         'Failure+recovery trace proven from persisted snapshots using canonical task IDs only',
         'Snapshot integrity evidence covers all task states to prevent defect masking',
         'Scenario captures recovery checkpoint: retry endpoint returns ready and persisted snapshot confirms incremented retry_count',
@@ -243,6 +282,8 @@ export async function runAp7FailureRecovery(live: LiveContext): Promise<Scenario
 
         if (taskId === failedTask.id) {
           output.preRetryFailureOutput = preTask?.output ?? failedTask.output ?? null;
+          output.failureMode = failureMode;
+          output.failureError = failedTask.error ?? null;
         }
 
         if (taskId === retried.id) {

@@ -32,10 +32,12 @@ import {
   type RoleName,
 } from '../built-in/role-config.js';
 import { validateOutputSchema, type OutputSchema } from '../built-in/output-validator.js';
+import { decideRework, extractReworkAttemptCount } from '../built-in/rework-controller.js';
 import {
-  decideRework,
-  extractReworkAttemptCount,
-} from '../built-in/rework-controller.js';
+  DETERMINISTIC_IMPOSSIBLE_FAILURE_MODE,
+  hasDeterministicImpossibleFailureMode,
+  shouldRejectImpossibleScopeTask,
+} from '../built-in/impossible-scope.js';
 
 // Re-export role config types for consumers of this module.
 export type { BuiltInRolesConfig, RoleName };
@@ -223,7 +225,11 @@ export async function executeTask(
 
     const timer = setTimeout(() => {
       req.destroy();
-      resolve({ output: {}, success: false, error: `Agent API call timed out after ${timeoutMs}ms` });
+      resolve({
+        output: {},
+        success: false,
+        error: `Agent API call timed out after ${timeoutMs}ms`,
+      });
     }, timeoutMs);
 
     const req = requestModule.request(options, (res) => {
@@ -234,7 +240,11 @@ export async function executeTask(
       res.on('end', () => {
         clearTimeout(timer);
         if ((res.statusCode ?? 500) >= 400) {
-          resolve({ output: {}, success: false, error: `Agent API returned HTTP ${res.statusCode ?? 'unknown'}: ${responseData}` });
+          resolve({
+            output: {},
+            success: false,
+            error: `Agent API returned HTTP ${res.statusCode ?? 'unknown'}: ${responseData}`,
+          });
           return;
         }
         try {
@@ -297,7 +307,8 @@ export function createBuiltInTaskHandler(
 
   return async (task: Record<string, unknown>): Promise<void> => {
     const taskId = String(task.id);
-    const taskAssignedAgentId = typeof task.assigned_agent_id === 'string' ? task.assigned_agent_id : undefined;
+    const taskAssignedAgentId =
+      typeof task.assigned_agent_id === 'string' ? task.assigned_agent_id : undefined;
     if (taskAssignedAgentId && taskAssignedAgentId !== registeredAgentId) {
       throw new Error(
         `Task ${taskId} is assigned to agent ${taskAssignedAgentId}, but this worker is authenticated as agent ${registeredAgentId}.`,
@@ -308,6 +319,20 @@ export function createBuiltInTaskHandler(
     const outputSchema = (task.output_schema ?? undefined) as OutputSchema | undefined;
     const taskContext = (task.context ?? {}) as Record<string, unknown>;
 
+    if (hasDeterministicImpossibleFailureMode(task)) {
+      await callPlatformApi(apiBaseUrl, agentApiKey, 'POST', `/api/v1/tasks/${taskId}/fail`, {
+        error: {
+          message:
+            'Execution rejected by deterministic task failure mode. This task is contractually impossible under AP-7 constraints.',
+          source: 'built-in-worker',
+          code: 'deterministic_impossible_scope',
+          failure_mode: DETERMINISTIC_IMPOSSIBLE_FAILURE_MODE,
+          deterministic: true,
+        },
+      });
+      return;
+    }
+
     // FR-750: reject tasks that require a prohibited operation before doing any work.
     const violation = checkProhibitedOperations(task['requirements'], prohibitedOps);
     if (violation !== undefined) {
@@ -316,6 +341,18 @@ export function createBuiltInTaskHandler(
           message: `Task requires prohibited operation "${violation}". The built-in worker is restricted to LLM API calls only.`,
           source: 'built-in-worker',
           prohibited_operation: violation,
+        },
+      });
+      return;
+    }
+
+    if (shouldRejectImpossibleScopeTask(task)) {
+      await callPlatformApi(apiBaseUrl, agentApiKey, 'POST', `/api/v1/tasks/${taskId}/fail`, {
+        error: {
+          message:
+            'Execution rejected: rewrite-to-rust objective exceeds live-lane scope under current constraints.',
+          source: 'built-in-worker',
+          code: 'impossible_scope',
         },
       });
       return;
@@ -429,7 +466,11 @@ async function callPlatformApi(
       });
       res.on('end', () => {
         if ((res.statusCode ?? 500) >= 400) {
-          reject(new Error(`Platform API ${method} ${path} failed: HTTP ${res.statusCode ?? 'unknown'} — ${data}`));
+          reject(
+            new Error(
+              `Platform API ${method} ${path} failed: HTTP ${res.statusCode ?? 'unknown'} — ${data}`,
+            ),
+          );
           return;
         }
         resolve();
@@ -477,13 +518,20 @@ async function postPlatformApiData<T>(
       });
       res.on('end', () => {
         if ((res.statusCode ?? 500) >= 400) {
-          reject(new Error(`${operationName} failed: HTTP ${res.statusCode ?? 'unknown'} — ${data}`));
+          reject(
+            new Error(`${operationName} failed: HTTP ${res.statusCode ?? 'unknown'} — ${data}`),
+          );
           return;
         }
 
         try {
           const parsed = JSON.parse(data) as { data?: T };
-          if (!parsed || typeof parsed !== 'object' || !('data' in parsed) || parsed.data === undefined) {
+          if (
+            !parsed ||
+            typeof parsed !== 'object' ||
+            !('data' in parsed) ||
+            parsed.data === undefined
+          ) {
             throw new Error('Missing "data" envelope');
           }
           resolve(parsed.data);
@@ -539,7 +587,9 @@ export async function registerBuiltInAgent(
  * Registers the built-in worker with the platform API and then provisions a
  * dedicated built-in agent identity linked to that worker.
  */
-export async function registerBuiltInWorker(config: BuiltInWorkerConfig): Promise<WorkerRegistration> {
+export async function registerBuiltInWorker(
+  config: BuiltInWorkerConfig,
+): Promise<WorkerRegistration> {
   const worker = await postPlatformApiData<{
     worker_id: string;
     worker_api_key: string;
@@ -608,7 +658,13 @@ export function connectBuiltInWorkerWebSocket(
       if (payload.type === 'task.assigned' && payload.task) {
         const task = payload.task as Record<string, unknown>;
         // Acknowledge receipt before processing.
-        ws.send(JSON.stringify({ type: 'task.assignment_ack', task_id: task.id, agent_id: registration.agent.agentId }));
+        ws.send(
+          JSON.stringify({
+            type: 'task.assignment_ack',
+            task_id: task.id,
+            agent_id: registration.agent.agentId,
+          }),
+        );
         void onTask(task).catch((error: unknown) => {
           console.error('[built-in-worker] Task handler error:', error);
         });

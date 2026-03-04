@@ -11,6 +11,7 @@ export interface TemplateTaskDefinition {
   depends_on?: string[];
   requires_approval?: boolean;
   input_template?: Record<string, unknown>;
+  context_template?: Record<string, unknown>;
   capabilities_required?: string[];
   role_config?: Record<string, unknown>;
   environment?: Record<string, unknown>;
@@ -78,7 +79,15 @@ export function assertNoPatternNesting(patterns: Record<string, unknown>): void 
   }
 }
 
-const allowedTaskTypes = new Set(['analysis', 'code', 'review', 'test', 'docs', 'orchestration', 'custom']);
+const allowedTaskTypes = new Set([
+  'analysis',
+  'code',
+  'review',
+  'test',
+  'docs',
+  'orchestration',
+  'custom',
+]);
 
 export function derivePipelineState(taskStates: string[]): PipelineState {
   if (taskStates.length === 0) {
@@ -99,16 +108,24 @@ export function derivePipelineState(taskStates: string[]): PipelineState {
   }
 
   if (taskStates.some((state) => state === 'running' || state === 'claimed')) return 'active';
-  if (taskStates.some((state) => state === 'awaiting_approval' || state === 'output_pending_review')) return 'paused';
+  if (
+    taskStates.some((state) => state === 'awaiting_approval' || state === 'output_pending_review')
+  )
+    return 'paused';
   return 'pending';
 }
 
-export function detectDependencyCycle(tasks: Pick<TemplateTaskDefinition, 'id' | 'depends_on'>[]): string[] | null {
+export function detectDependencyCycle(
+  tasks: Pick<TemplateTaskDefinition, 'id' | 'depends_on'>[],
+): string[] | null {
   const taskIds = new Set(tasks.map((task) => task.id));
   const adjacency = new Map<string, string[]>();
 
   for (const task of tasks) {
-    adjacency.set(task.id, (task.depends_on ?? []).filter((dep) => taskIds.has(dep)));
+    adjacency.set(
+      task.id,
+      (task.depends_on ?? []).filter((dep) => taskIds.has(dep)),
+    );
   }
 
   const visited = new Set<string>();
@@ -166,16 +183,24 @@ export function validateTemplateSchema(input: unknown): TemplateSchema {
   const tasks: TemplateTaskDefinition[] = tasksValue.map((rawTask, index) => {
     assertObject(rawTask, `Task at index ${index} must be an object`);
     if (typeof rawTask.id !== 'string' || !rawTask.id.trim()) {
-      throw new SchemaValidationFailedError(`Task at index ${index} is missing required string field 'id'`);
+      throw new SchemaValidationFailedError(
+        `Task at index ${index} is missing required string field 'id'`,
+      );
     }
     if (typeof rawTask.title_template !== 'string' || !rawTask.title_template.trim()) {
-      throw new SchemaValidationFailedError(`Task '${rawTask.id}' is missing required string field 'title_template'`);
+      throw new SchemaValidationFailedError(
+        `Task '${rawTask.id}' is missing required string field 'title_template'`,
+      );
     }
     if (typeof rawTask.type !== 'string' || !allowedTaskTypes.has(rawTask.type)) {
-      throw new SchemaValidationFailedError(`Task '${rawTask.id}' has invalid type '${String(rawTask.type)}'`);
+      throw new SchemaValidationFailedError(
+        `Task '${rawTask.id}' has invalid type '${String(rawTask.type)}'`,
+      );
     }
     if (rawTask.depends_on !== undefined && !Array.isArray(rawTask.depends_on)) {
-      throw new SchemaValidationFailedError(`Task '${rawTask.id}' field 'depends_on' must be an array`);
+      throw new SchemaValidationFailedError(
+        `Task '${rawTask.id}' field 'depends_on' must be an array`,
+      );
     }
 
     return {
@@ -191,12 +216,14 @@ export function validateTemplateSchema(input: unknown): TemplateSchema {
       }),
       requires_approval: rawTask.requires_approval === true,
       input_template: isObject(rawTask.input_template) ? rawTask.input_template : undefined,
+      context_template: isObject(rawTask.context_template) ? rawTask.context_template : undefined,
       capabilities_required: Array.isArray(rawTask.capabilities_required)
         ? rawTask.capabilities_required.map((capability) => String(capability))
         : undefined,
       role_config: isObject(rawTask.role_config) ? rawTask.role_config : undefined,
       environment: isObject(rawTask.environment) ? rawTask.environment : undefined,
-      timeout_minutes: typeof rawTask.timeout_minutes === 'number' ? rawTask.timeout_minutes : undefined,
+      timeout_minutes:
+        typeof rawTask.timeout_minutes === 'number' ? rawTask.timeout_minutes : undefined,
       auto_retry: rawTask.auto_retry === true,
       max_retries: typeof rawTask.max_retries === 'number' ? rawTask.max_retries : undefined,
       metadata: isObject(rawTask.metadata) ? rawTask.metadata : undefined,
@@ -205,14 +232,17 @@ export function validateTemplateSchema(input: unknown): TemplateSchema {
 
   const idSet = new Set<string>();
   for (const task of tasks) {
-    if (idSet.has(task.id)) throw new ConflictError(`Duplicate task id '${task.id}' in template schema`);
+    if (idSet.has(task.id))
+      throw new ConflictError(`Duplicate task id '${task.id}' in template schema`);
     idSet.add(task.id);
   }
 
   for (const task of tasks) {
     for (const dep of task.depends_on ?? []) {
-      if (!idSet.has(dep)) throw new SchemaValidationFailedError(`Task '${task.id}' depends_on unknown task '${dep}'`);
-      if (dep === task.id) throw new SchemaValidationFailedError(`Task '${task.id}' cannot depend on itself`);
+      if (!idSet.has(dep))
+        throw new SchemaValidationFailedError(`Task '${task.id}' depends_on unknown task '${dep}'`);
+      if (dep === task.id)
+        throw new SchemaValidationFailedError(`Task '${task.id}' cannot depend on itself`);
     }
   }
 

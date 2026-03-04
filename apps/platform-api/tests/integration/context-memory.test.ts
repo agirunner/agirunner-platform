@@ -14,7 +14,14 @@ const config = {
   TASK_DEFAULT_AUTO_RETRY: false,
   TASK_DEFAULT_MAX_RETRIES: 0,
 };
-const admin = { id: 'admin', tenantId, scope: 'admin' as const, ownerType: 'user', ownerId: null, keyPrefix: 'admin' };
+const admin = {
+  id: 'admin',
+  tenantId,
+  scope: 'admin' as const,
+  ownerType: 'user',
+  ownerId: null,
+  keyPrefix: 'admin',
+};
 
 describe('context and memory coverage', () => {
   let db: TestDatabase;
@@ -48,10 +55,22 @@ describe('context and memory coverage', () => {
       schema: { tasks: [{ id: 'a', title_template: 'A', type: 'code' }] },
     });
 
-    const p1 = await pipelineService.createPipeline(admin, { template_id: template.id as string, name: 'p1', project_id: projectId });
-    const p2 = await pipelineService.createPipeline(admin, { template_id: template.id as string, name: 'p2', project_id: projectId });
+    const p1 = await pipelineService.createPipeline(admin, {
+      template_id: template.id as string,
+      name: 'p1',
+      project_id: projectId,
+    });
+    const p2 = await pipelineService.createPipeline(admin, {
+      template_id: template.id as string,
+      name: 'p2',
+      project_id: projectId,
+    });
 
-    const listed = await pipelineService.listPipelines(tenantId, { page: 1, per_page: 10, project_id: projectId });
+    const listed = await pipelineService.listPipelines(tenantId, {
+      page: 1,
+      per_page: 10,
+      project_id: projectId,
+    });
     expect(listed.data.map((row) => row.id)).toEqual(expect.arrayContaining([p1.id, p2.id]));
   });
 
@@ -69,7 +88,12 @@ describe('context and memory coverage', () => {
       schema: {
         tasks: [
           { id: 'upstream', title_template: 'upstream', type: 'analysis' },
-          { id: 'downstream', title_template: 'downstream', type: 'code', depends_on: ['upstream'] },
+          {
+            id: 'downstream',
+            title_template: 'downstream',
+            type: 'code',
+            depends_on: ['upstream'],
+          },
         ],
       },
     });
@@ -82,11 +106,24 @@ describe('context and memory coverage', () => {
       metadata: { context_version: 2 },
     });
 
-    await db.pool.query(`UPDATE pipelines SET context = $3::jsonb WHERE tenant_id = $1 AND id = $2`, [tenantId, pipeline.id, JSON.stringify({ notes: 'pipeline' })]);
+    await db.pool.query(
+      `UPDATE pipelines SET context = $3::jsonb WHERE tenant_id = $1 AND id = $2`,
+      [tenantId, pipeline.id, JSON.stringify({ notes: 'pipeline' })],
+    );
 
     const tasks = pipeline.tasks as Array<Record<string, unknown>>;
     const upstream = tasks[0].id as string;
     const downstream = tasks[1].id as string;
+
+    await db.pool.query(
+      `UPDATE tasks SET context = $4::jsonb WHERE tenant_id = $1 AND pipeline_id = $2 AND id = $3`,
+      [
+        tenantId,
+        pipeline.id,
+        downstream,
+        JSON.stringify({ failure_mode: 'deterministic_impossible' }),
+      ],
+    );
 
     const agentId = randomUUID();
     await db.pool.query(
@@ -105,10 +142,21 @@ describe('context and memory coverage', () => {
     const context = await taskService.getTaskContext(tenantId, downstream, agentId);
 
     expect((context.project as { id: string }).id).toBe(projectId);
-    expect((context.project as { memory: Record<string, unknown> }).memory).toEqual({ handbook: 'v1' });
-    expect((context.pipeline as { context: Record<string, unknown> }).context).toEqual({ notes: 'pipeline' });
-    expect((context.agent as { metadata: Record<string, unknown> }).metadata).toEqual({ role: 'engineer' });
-    expect((context.task as { upstream_outputs: Record<string, unknown> }).upstream_outputs.upstream).toEqual({ result: 'ok' });
+    expect((context.project as { memory: Record<string, unknown> }).memory).toEqual({
+      handbook: 'v1',
+    });
+    expect((context.pipeline as { context: Record<string, unknown> }).context).toEqual({
+      notes: 'pipeline',
+    });
+    expect((context.agent as { metadata: Record<string, unknown> }).metadata).toEqual({
+      role: 'engineer',
+    });
+    expect(
+      (context.task as { upstream_outputs: Record<string, unknown> }).upstream_outputs.upstream,
+    ).toEqual({ result: 'ok' });
+    expect((context.task as { failure_mode: string | null }).failure_mode).toBe(
+      'deterministic_impossible',
+    );
   });
 
   it('covers FR-186/FR-187/FR-188/FR-189/FR-190/FR-191/FR-192/FR-193 memory persistence, context append, scoping and version metadata', async () => {
@@ -134,16 +182,39 @@ describe('context and memory coverage', () => {
       schema: { tasks: [{ id: 'a', title_template: 'A', type: 'code' }] },
     });
 
-    const p1 = await pipelineService.createPipeline(admin, { template_id: template.id as string, name: 'm1', project_id: projectId });
-    const p2 = await pipelineService.createPipeline(admin, { template_id: template.id as string, name: 'm2', project_id: projectId });
+    const p1 = await pipelineService.createPipeline(admin, {
+      template_id: template.id as string,
+      name: 'm1',
+      project_id: projectId,
+    });
+    const p2 = await pipelineService.createPipeline(admin, {
+      template_id: template.id as string,
+      name: 'm2',
+      project_id: projectId,
+    });
 
-    await db.pool.query(`UPDATE pipelines SET context = $3::jsonb WHERE tenant_id = $1 AND id = $2`, [tenantId, p1.id, JSON.stringify({ log: ['entry-1'], version: 1 })]);
-    await db.pool.query(`UPDATE pipelines SET context = $3::jsonb WHERE tenant_id = $1 AND id = $2`, [tenantId, p2.id, JSON.stringify({ log: ['entry-2'], version: 2 })]);
+    await db.pool.query(
+      `UPDATE pipelines SET context = $3::jsonb WHERE tenant_id = $1 AND id = $2`,
+      [tenantId, p1.id, JSON.stringify({ log: ['entry-1'], version: 1 })],
+    );
+    await db.pool.query(
+      `UPDATE pipelines SET context = $3::jsonb WHERE tenant_id = $1 AND id = $2`,
+      [tenantId, p2.id, JSON.stringify({ log: ['entry-2'], version: 2 })],
+    );
 
     const [projectRow, p1Row, p2Row] = await Promise.all([
-      db.pool.query('SELECT memory, memory_max_bytes FROM projects WHERE tenant_id = $1 AND id = $2', [tenantId, projectId]),
-      db.pool.query('SELECT context FROM pipelines WHERE tenant_id = $1 AND id = $2', [tenantId, p1.id]),
-      db.pool.query('SELECT context FROM pipelines WHERE tenant_id = $1 AND id = $2', [tenantId, p2.id]),
+      db.pool.query(
+        'SELECT memory, memory_max_bytes FROM projects WHERE tenant_id = $1 AND id = $2',
+        [tenantId, projectId],
+      ),
+      db.pool.query('SELECT context FROM pipelines WHERE tenant_id = $1 AND id = $2', [
+        tenantId,
+        p1.id,
+      ]),
+      db.pool.query('SELECT context FROM pipelines WHERE tenant_id = $1 AND id = $2', [
+        tenantId,
+        p2.id,
+      ]),
     ]);
 
     expect(projectRow.rows[0].memory.notes).toEqual(['init', 'updated']);
@@ -172,7 +243,14 @@ describe('context and memory coverage', () => {
     });
 
     const parent = await taskService.createTask(
-      { id: 'worker', tenantId, scope: 'worker', ownerType: 'worker', ownerId: null, keyPrefix: 'wk' },
+      {
+        id: 'worker',
+        tenantId,
+        scope: 'worker',
+        ownerType: 'worker',
+        ownerId: null,
+        keyPrefix: 'wk',
+      },
       {
         title: 'parent-task',
         type: 'code',
@@ -182,7 +260,14 @@ describe('context and memory coverage', () => {
     );
 
     const child = await taskService.createTask(
-      { id: 'worker', tenantId, scope: 'worker', ownerType: 'worker', ownerId: null, keyPrefix: 'wk2' },
+      {
+        id: 'worker',
+        tenantId,
+        scope: 'worker',
+        ownerType: 'worker',
+        ownerId: null,
+        keyPrefix: 'wk2',
+      },
       {
         title: 'child-task',
         type: 'test',
@@ -196,7 +281,13 @@ describe('context and memory coverage', () => {
     expect(child.pipeline_id).toBe(parent.pipeline_id);
     expect(child.project_id).toBe(parent.project_id);
 
-    const tasks = await taskService.listTasks(tenantId, { page: 1, per_page: 10, parent_id: parent.id as string });
-    expect((tasks.data as Array<Record<string, unknown>>).map((task) => task.id)).toContain(child.id);
+    const tasks = await taskService.listTasks(tenantId, {
+      page: 1,
+      per_page: 10,
+      parent_id: parent.id as string,
+    });
+    expect((tasks.data as Array<Record<string, unknown>>).map((task) => task.id)).toContain(
+      child.id,
+    );
   });
 });
