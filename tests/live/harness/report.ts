@@ -36,6 +36,10 @@ type CoreIntegrationRunRecord = {
   artifactJsonPath: string;
   artifactMdPath: string;
   scenarios: Record<string, LaneStatus>;
+  scenarioEvidenceSource?: string;
+  auditManifestPath?: string;
+  playwrightReportPath?: string;
+  integrationEvidenceLinks?: string[];
 };
 
 type LiveCell = {
@@ -173,18 +177,30 @@ function canonicalScenarioKeys(canonical: Canonical): Set<string> {
 function sanitizeIntegrationScenarioStatuses(
   canonical: Canonical,
   scenarioStatuses: Record<string, LaneStatus>,
+  scenarioEvidenceSource?: string,
 ): Record<string, LaneStatus> {
-  if (!scenarioStatuses.dashboard) {
-    return scenarioStatuses;
-  }
-
   const canonicalKeys = canonicalScenarioKeys(canonical);
+  const hasDashboardAggregate = Boolean(scenarioStatuses.dashboard);
+  const allowTaggedDashboardScenarioKeys =
+    scenarioEvidenceSource === 'dashboard-playwright-tags-v1';
+  const stripCanonicalLegacyFanout = hasDashboardAggregate && !allowTaggedDashboardScenarioKeys;
   const sanitized: Record<string, LaneStatus> = {};
 
   for (const [scenarioKey, status] of Object.entries(scenarioStatuses)) {
-    if (scenarioKey === 'dashboard' || !canonicalKeys.has(scenarioKey)) {
+    if (scenarioKey === 'dashboard') {
       sanitized[scenarioKey] = status;
+      continue;
     }
+
+    if (!canonicalKeys.has(scenarioKey)) {
+      continue;
+    }
+
+    if (stripCanonicalLegacyFanout) {
+      continue;
+    }
+
+    sanitized[scenarioKey] = status;
   }
 
   return sanitized;
@@ -196,7 +212,11 @@ function sanitizeIntegrationRuns(
 ): CoreIntegrationRunRecord[] {
   return runs.map((run) => ({
     ...run,
-    scenarios: sanitizeIntegrationScenarioStatuses(canonical, run.scenarios ?? {}),
+    scenarios: sanitizeIntegrationScenarioStatuses(
+      canonical,
+      run.scenarios ?? {},
+      run.scenarioEvidenceSource,
+    ),
   }));
 }
 
@@ -246,6 +266,69 @@ function latestScenarioStatusByKey(runs: CoreIntegrationRunRecord[]): Record<str
     }
   }
   return out;
+}
+
+function latestIntegrationRunByScenario(
+  runs: CoreIntegrationRunRecord[],
+): Record<string, CoreIntegrationRunRecord> {
+  const sorted = [...runs].sort((a, b) => {
+    const left = `${a.finishedAt}|${a.runId}`;
+    const right = `${b.finishedAt}|${b.runId}`;
+    return left.localeCompare(right);
+  });
+
+  const byScenario: Record<string, CoreIntegrationRunRecord> = {};
+  for (const run of sorted) {
+    for (const [scenarioKey, status] of Object.entries(run.scenarios ?? {})) {
+      if (status !== 'PASS') {
+        continue;
+      }
+      byScenario[scenarioKey] = run;
+    }
+  }
+
+  return byScenario;
+}
+
+function isAuditableIntegrationEvidenceLink(link: string): boolean {
+  const normalized = link.trim().replaceAll('\\', '/');
+  if (normalized.length === 0) {
+    return false;
+  }
+
+  const [pathWithoutFragment] = normalized.split('#');
+  if (!pathWithoutFragment || pathWithoutFragment.length === 0) {
+    return false;
+  }
+
+  if (pathWithoutFragment.startsWith('tests/artifacts/')) {
+    return false;
+  }
+
+  if (pathWithoutFragment.startsWith('/') || pathWithoutFragment.includes('://')) {
+    return false;
+  }
+
+  return true;
+}
+
+function integrationEvidenceLinksForScenario(
+  run: CoreIntegrationRunRecord,
+  scenarioKey: string,
+): string[] {
+  const links = [
+    run.auditManifestPath ? `${run.auditManifestPath}#scenario=${scenarioKey}` : undefined,
+    ...(run.integrationEvidenceLinks ?? []),
+    run.auditManifestPath,
+    run.artifactJsonPath,
+    run.artifactMdPath,
+    run.playwrightReportPath,
+  ]
+    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    .map((value) => value.trim())
+    .filter(isAuditableIntegrationEvidenceLink);
+
+  return Array.from(new Set(links));
 }
 
 function scenarioStatusesFromMatrix(
@@ -349,6 +432,7 @@ function buildConsolidatedPayload(
   const generatedAt = nowIso();
   const coreLatest = latestScenarioStatusByKey(runs.core);
   const integrationLatest = latestScenarioStatusByKey(runs.integration);
+  const integrationLatestRunForScenario = latestIntegrationRunByScenario(runs.integration);
   const hasCoreRuns = runs.core.length > 0;
   const hasIntegrationRuns = runs.integration.length > 0;
   const liveCells = normalizeLiveCells(canonical, liveCellsInput);
@@ -356,10 +440,18 @@ function buildConsolidatedPayload(
   const matrix: ResultRow[] = canonical.scenarios.map((scenario) => {
     const coreStatus =
       coreLatest[scenario.key] ?? (!hasCoreRuns ? fallback.core[scenario.key] : undefined) ?? 'NOT_PASS';
-    const integrationStatus =
+    const reportedIntegrationStatus =
       integrationLatest[scenario.key] ??
       (!hasIntegrationRuns ? fallback.integration[scenario.key] : undefined) ??
       'NOT_PASS';
+    const integrationRun = integrationLatestRunForScenario[scenario.key];
+    const integrationEvidenceLinks = integrationRun
+      ? integrationEvidenceLinksForScenario(integrationRun, scenario.key)
+      : [];
+    const integrationStatus: LaneStatus =
+      reportedIntegrationStatus === 'PASS' && integrationEvidenceLinks.length === 0
+        ? 'NOT_PASS'
+        : reportedIntegrationStatus;
 
     const cells: ResultCell[] = [
       {
@@ -380,7 +472,7 @@ function buildConsolidatedPayload(
         mode: 'integration',
         gating: true,
         status: integrationStatus,
-        evidence_links: [],
+        evidence_links: integrationEvidenceLinks,
         notes: [],
         generated_at_utc: generatedAt,
       },
@@ -560,7 +652,11 @@ function updateCoreOrIntegrationResults(
 
   const scenarios =
     lane === 'integration'
-      ? sanitizeIntegrationScenarioStatuses(canonical, reportedScenarioStatuses)
+      ? sanitizeIntegrationScenarioStatuses(
+          canonical,
+          reportedScenarioStatuses,
+          report.integrationEvidenceSource,
+        )
       : reportedScenarioStatuses;
 
   const runRecord: CoreIntegrationRunRecord = {
@@ -571,6 +667,7 @@ function updateCoreOrIntegrationResults(
     artifactJsonPath: path.relative(root, jsonPath).replaceAll('\\', '/'),
     artifactMdPath: path.relative(root, mdPath).replaceAll('\\', '/'),
     scenarios,
+    scenarioEvidenceSource: lane === 'integration' ? report.integrationEvidenceSource : undefined,
   };
 
   if (lane === 'core') {

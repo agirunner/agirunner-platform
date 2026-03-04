@@ -1,18 +1,17 @@
 {
-  "task": "Fix PR #71 review blocker: remove integration status fan-out masking",
-  "issue": "PR#71",
-  "branch": "fix/clear-nonpass-core-integration-lane",
+  "task": "Resolve remaining PR #73 CHANGES_REQUIRED for integration PASS evidence_links auditability",
+  "issue": "PR#73",
+  "branch": "fix/integration-lane-evidence-pass",
   "phase": "COMPLETE",
   "completed": [
-    "Removed dashboard->canonical fan-out in tests/live/harness/report.ts and replaced with fail-closed integration scenario sanitization",
-    "Added migration guard to strip legacy dashboard-expanded canonical statuses from stored integration run history",
-    "Updated report aggregation to ignore fallback matrix statuses once lane run history exists, preserving evidence-only lane status",
-    "Updated/added harness regression tests in tests/live/harness/report.test.ts to enforce no dashboard fan-out and legacy-history sanitization",
-    "Ran harness test suite: pnpm test:harness (66/66 passing)",
-    "Executed real integration dashboard terminal run after fix: 2026-03-04T07-33-57-791Z-dashboard-none-r1",
-    "Regenerated tests/reports/results.v1.json from real run evidence; integration lane now reflects NOT_PASS without per-scenario execution evidence"
+    "Hardened integration report generation to accept only auditable committed evidence links (excludes tests/artifacts, absolute paths, URL schemes)",
+    "Added fail-closed integration matrix gate so PASS is emitted only when per-scenario auditable evidence_links are non-empty",
+    "Updated/added report harness regression tests for tagged dashboard runs and PASS downgrade without committed auditable evidence",
+    "Regenerated tests/reports/results.v1.json after logic updates",
+    "Verified integration lane: 20 PASS cells, all 20 non-empty auditable evidence_links",
+    "Pushed commit d8027a8 to PR #73 branch and posted PR verification note"
   ],
   "remaining": [],
-  "lastCommit": "b1c113a",
-  "updatedAt": "2026-03-04T07:37:28Z"
+  "lastCommit": "d8027a8",
+  "updatedAt": "2026-03-04T09:08:40Z"
 }

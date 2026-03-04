@@ -41,6 +41,7 @@ export interface RunReport {
   provider: Provider;
   repeat: number;
   scenarios: Record<string, ScenarioResult>;
+  integrationEvidenceSource?: string;
   containers_leaked: number;
   temp_files_leaked: number;
   total_cost: string;

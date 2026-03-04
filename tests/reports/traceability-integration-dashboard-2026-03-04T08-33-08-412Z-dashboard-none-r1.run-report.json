@@ -1,0 +1,190 @@
+{
+  "runId": "2026-03-04T08-33-08-412Z-dashboard-none-r1",
+  "startedAt": "2026-03-04T08:33:08.411Z",
+  "finishedAt": "2026-03-04T08:35:52.374Z",
+  "template": "dashboard",
+  "provider": "none",
+  "repeat": 1,
+  "scenarios": {
+    "dashboard": {
+      "status": "pass",
+      "duration": "21.52s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "sdlc-happy": {
+      "status": "pass",
+      "duration": "0.75s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "ap2-external-runtime": {
+      "status": "pass",
+      "duration": "0.70s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "ap3-standalone-worker": {
+      "status": "pass",
+      "duration": "0.82s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "ap4-mixed-workers": {
+      "status": "pass",
+      "duration": "0.71s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "maintenance-happy": {
+      "status": "pass",
+      "duration": "0.76s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "ap6-runtime-maintenance": {
+      "status": "pass",
+      "duration": "0.76s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "ap7-failure-recovery": {
+      "status": "pass",
+      "duration": "0.71s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "ot1-cascade": {
+      "status": "pass",
+      "duration": "0.76s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "ot2-routing": {
+      "status": "pass",
+      "duration": "0.77s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "ot3-state": {
+      "status": "pass",
+      "duration": "0.77s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "ot4-health": {
+      "status": "pass",
+      "duration": "0.73s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "hl1-approval-flow": {
+      "status": "pass",
+      "duration": "0.81s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "hl2-pipeline-controls": {
+      "status": "pass",
+      "duration": "0.81s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "it1-sdk": {
+      "status": "pass",
+      "duration": "0.75s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "it2-mcp": {
+      "status": "pass",
+      "duration": "0.77s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "it3-webhooks": {
+      "status": "pass",
+      "duration": "0.79s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "it3-mcp-sse-stream": {
+      "status": "pass",
+      "duration": "0.78s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "si1-isolation": {
+      "status": "pass",
+      "duration": "0.73s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "si2-auth": {
+      "status": "pass",
+      "duration": "0.80s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    },
+    "si2-extended-isolation": {
+      "status": "pass",
+      "duration": "0.70s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 1,
+      "screenshots": []
+    }
+  },
+  "integrationEvidenceSource": "dashboard-playwright-tags-v1",
+  "containers_leaked": 0,
+  "temp_files_leaked": 0,
+  "total_cost": "$0.0000",
+  "timing": {
+    "setupMs": 131160,
+    "scenarioMs": {
+      "dashboard": 21525
+    },
+    "teardownMs": 11277,
+    "totalMs": 163963
+  }
+}

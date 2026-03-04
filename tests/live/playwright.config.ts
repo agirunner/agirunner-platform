@@ -1,5 +1,9 @@
 import { defineConfig } from '@playwright/test';
 
+const dashboardReportOutputFile =
+  process.env.LIVE_DASHBOARD_PLAYWRIGHT_REPORT_PATH ??
+  'tests/artifacts/integration/dashboard-playwright.json';
+
 export default defineConfig({
   testDir: './dashboard',
   timeout: 60_000,
@@ -11,5 +15,5 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
   },
-  reporter: [['list'], ['json', { outputFile: 'tests/artifacts/integration/dashboard-playwright.json' }]],
+  reporter: [['list'], ['json', { outputFile: dashboardReportOutputFile }]],
 });

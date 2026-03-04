@@ -167,8 +167,47 @@ const AP_SCENARIOS_REQUIRING_BUILT_IN_EXECUTOR = new Set<ScenarioName>([
 
 const WORKER_PREFLIGHT_TIMEOUT_MS = Number(process.env.LIVE_WORKER_PREFLIGHT_TIMEOUT_MS ?? 45_000);
 const WORKER_PREFLIGHT_INTERVAL_MS = Number(process.env.LIVE_WORKER_PREFLIGHT_INTERVAL_MS ?? 1_500);
+const DASHBOARD_SCENARIO_TAG_RE = /\[scenario:([a-z0-9-]+)\]/giu;
 
 type AgentApiBootstrapResult = Awaited<ReturnType<typeof bootstrapAgentApiEndpoint>>;
+
+type DashboardPlaywrightResult = {
+  status?: string;
+  duration?: number;
+  error?: { message?: string } | string;
+};
+
+type DashboardPlaywrightTest = {
+  title?: string;
+  results?: DashboardPlaywrightResult[];
+};
+
+type DashboardPlaywrightSpec = {
+  title?: string;
+  tests?: DashboardPlaywrightTest[];
+};
+
+type DashboardPlaywrightSuite = {
+  title?: string;
+  suites?: DashboardPlaywrightSuite[];
+  specs?: DashboardPlaywrightSpec[];
+};
+
+type DashboardPlaywrightReport = {
+  suites?: DashboardPlaywrightSuite[];
+};
+
+type DashboardTaggedTestOutcome = {
+  scenarioKey: string;
+  status: 'pass' | 'fail';
+  durationMs: number;
+  errorMessage?: string;
+};
+
+type DashboardScenarioReport = {
+  scenarioResults: Record<string, ScenarioResult>;
+  dashboardResult: ScenarioResult;
+};
 
 export async function assertPostSetupAgentApiReachability(
   params: {
@@ -526,32 +565,258 @@ function makeRunId(template: TemplateType, provider: Provider, repeatIndex: numb
   return `${date}-${template}-${provider}-r${repeatIndex + 1}`;
 }
 
+function formatDurationMs(durationMs: number): string {
+  return `${(Math.max(0, durationMs) / 1000).toFixed(2)}s`;
+}
+
+function makeDashboardScenarioResult(params: {
+  status: 'pass' | 'fail';
+  durationMs: number;
+  artifacts: number;
+  validations: number;
+  error?: string;
+}): ScenarioResult {
+  return {
+    status: params.status,
+    duration: formatDurationMs(params.durationMs),
+    cost: '$0.0000',
+    artifacts: params.artifacts,
+    validations: params.validations,
+    screenshots: [],
+    error: params.error,
+  };
+}
+
+function readCanonicalScenarioKeys(): string[] {
+  const canonicalPath = path.join(process.cwd(), 'tests/reports/test-cases.v1.json');
+  const canonicalRaw = readFileSync(canonicalPath, 'utf8');
+  const parsed = JSON.parse(canonicalRaw) as { scenarios?: Array<{ key?: string }> };
+  const keys = (parsed.scenarios ?? []).map((scenario) => String(scenario.key ?? ''));
+
+  if (keys.length === 0 || keys.some((key) => key.length === 0)) {
+    throw new Error(
+      `Dashboard integration evidence gate: canonical scenarios missing/invalid at ${canonicalPath}`,
+    );
+  }
+
+  return Array.from(new Set(keys));
+}
+
+function extractScenarioTags(title: string): string[] {
+  DASHBOARD_SCENARIO_TAG_RE.lastIndex = 0;
+  const tags = Array.from(title.matchAll(DASHBOARD_SCENARIO_TAG_RE), (match) =>
+    String(match[1]).toLowerCase(),
+  );
+  return Array.from(new Set(tags));
+}
+
+function readDashboardPlaywrightReport(reportPath: string): DashboardPlaywrightReport {
+  if (!existsSync(reportPath)) {
+    throw new Error(
+      `Dashboard integration evidence gate: Playwright JSON report missing at ${reportPath}`,
+    );
+  }
+
+  const raw = readFileSync(reportPath, 'utf8');
+  if (raw.trim().length === 0) {
+    throw new Error(
+      `Dashboard integration evidence gate: Playwright JSON report is empty at ${reportPath}`,
+    );
+  }
+
+  return JSON.parse(raw) as DashboardPlaywrightReport;
+}
+
+function collectDashboardTaggedOutcomes(report: DashboardPlaywrightReport): DashboardTaggedTestOutcome[] {
+  const outcomes: DashboardTaggedTestOutcome[] = [];
+
+  const recordSpec = (titlePath: string[], spec: DashboardPlaywrightSpec): void => {
+    const titleSegments = [...titlePath, String(spec.title ?? '').trim()].filter((segment) =>
+      Boolean(segment),
+    );
+    const fullTitle = titleSegments.join(' › ');
+    const scenarioTags = extractScenarioTags(fullTitle);
+    if (scenarioTags.length === 0) {
+      return;
+    }
+
+    const tests = spec.tests ?? [];
+    if (tests.length === 0) {
+      for (const scenarioKey of scenarioTags) {
+        outcomes.push({
+          scenarioKey,
+          status: 'fail',
+          durationMs: 0,
+          errorMessage: `No Playwright test entries found for tagged scenario in spec "${fullTitle}"`,
+        });
+      }
+      return;
+    }
+
+    let status: 'pass' | 'fail' = 'pass';
+    let durationMs = 0;
+    let errorMessage: string | undefined;
+
+    for (const testEntry of tests) {
+      const results = testEntry.results ?? [];
+      if (results.length === 0) {
+        status = 'fail';
+        if (!errorMessage) {
+          errorMessage = `No Playwright result entries found for spec "${fullTitle}"`;
+        }
+        continue;
+      }
+
+      for (const result of results) {
+        durationMs += Number(result.duration ?? 0);
+        const resultStatus = String(result.status ?? 'unknown');
+        if (resultStatus !== 'passed') {
+          status = 'fail';
+          if (!errorMessage) {
+            const fromObject =
+              typeof result.error === 'object' && result.error && 'message' in result.error
+                ? String(result.error.message ?? '')
+                : '';
+            const fromValue =
+              typeof result.error === 'string' ? result.error : fromObject || resultStatus;
+            errorMessage = `Playwright status=${resultStatus} in "${fullTitle}": ${fromValue}`;
+          }
+        }
+      }
+    }
+
+    for (const scenarioKey of scenarioTags) {
+      outcomes.push({ scenarioKey, status, durationMs, errorMessage });
+    }
+  };
+
+  const walkSuite = (suite: DashboardPlaywrightSuite, parentTitles: string[]): void => {
+    const suiteTitle = String(suite.title ?? '').trim();
+    const nextPath = suiteTitle ? [...parentTitles, suiteTitle] : [...parentTitles];
+
+    for (const spec of suite.specs ?? []) {
+      recordSpec(nextPath, spec);
+    }
+
+    for (const child of suite.suites ?? []) {
+      walkSuite(child, nextPath);
+    }
+  };
+
+  for (const suite of report.suites ?? []) {
+    walkSuite(suite, []);
+  }
+
+  return outcomes;
+}
+
+export function deriveDashboardScenarioResults(
+  report: DashboardPlaywrightReport,
+  canonicalScenarioKeys: string[],
+): Record<string, ScenarioResult> {
+  const outcomeMap = new Map<string, DashboardTaggedTestOutcome[]>();
+  for (const outcome of collectDashboardTaggedOutcomes(report)) {
+    if (!outcomeMap.has(outcome.scenarioKey)) {
+      outcomeMap.set(outcome.scenarioKey, []);
+    }
+    outcomeMap.get(outcome.scenarioKey)?.push(outcome);
+  }
+
+  const scenarioResults: Record<string, ScenarioResult> = {};
+  for (const scenarioKey of canonicalScenarioKeys) {
+    const taggedOutcomes = outcomeMap.get(scenarioKey) ?? [];
+    if (taggedOutcomes.length === 0) {
+      scenarioResults[scenarioKey] = makeDashboardScenarioResult({
+        status: 'fail',
+        durationMs: 0,
+        artifacts: 0,
+        validations: 0,
+        error: `No dashboard integration evidence tagged with [scenario:${scenarioKey}]`,
+      });
+      continue;
+    }
+
+    const failed = taggedOutcomes.find((entry) => entry.status === 'fail');
+    const durationMs = taggedOutcomes.reduce((sum, entry) => sum + entry.durationMs, 0);
+
+    if (failed) {
+      scenarioResults[scenarioKey] = makeDashboardScenarioResult({
+        status: 'fail',
+        durationMs,
+        artifacts: taggedOutcomes.length,
+        validations: taggedOutcomes.length,
+        error: failed.errorMessage,
+      });
+      continue;
+    }
+
+    scenarioResults[scenarioKey] = makeDashboardScenarioResult({
+      status: 'pass',
+      durationMs,
+      artifacts: taggedOutcomes.length,
+      validations: taggedOutcomes.length,
+    });
+  }
+
+  return scenarioResults;
+}
+
 function runDashboardPlaywright(
   runId: string,
   startedAt: number,
   options: { dashboardApiKey?: string; dashboardBaseUrl?: string } = {},
-): ScenarioResult {
+): DashboardScenarioReport {
+  const canonicalScenarioKeys = readCanonicalScenarioKeys();
+  const reportFileStamp = runId.replace(/[^a-zA-Z0-9_-]/g, '-');
+  const reportPath = path.join(
+    process.cwd(),
+    'tests/artifacts/integration',
+    `dashboard-playwright-${reportFileStamp}.json`,
+  );
+
+  let commandError: unknown;
   try {
     execFileSync('pnpm', ['exec', 'playwright', 'test', '-c', 'tests/live/playwright.config.ts'], {
       stdio: 'inherit',
       env: {
         ...process.env,
         LIVE_RUN_ID: runId,
+        LIVE_DASHBOARD_PLAYWRIGHT_REPORT_PATH: reportPath,
         ...(options.dashboardApiKey ? { LIVE_DASHBOARD_API_KEY: options.dashboardApiKey } : {}),
         ...(options.dashboardBaseUrl ? { LIVE_DASHBOARD_BASE_URL: options.dashboardBaseUrl } : {}),
       },
     });
+  } catch (error) {
+    commandError = error;
+  }
+
+  const parsedReport = readDashboardPlaywrightReport(reportPath);
+  const scenarioResults = deriveDashboardScenarioResults(parsedReport, canonicalScenarioKeys);
+  const totalDurationMs = Date.now() - startedAt;
+
+  if (!commandError) {
     return {
-      status: 'pass',
-      duration: `${((Date.now() - startedAt) / 1000).toFixed(2)}s`,
-      cost: '$0.0000',
+      scenarioResults,
+      dashboardResult: makeDashboardScenarioResult({
+        status: 'pass',
+        durationMs: totalDurationMs,
+        artifacts: 1,
+        validations: 1,
+      }),
+    };
+  }
+
+  const commandMessage = commandError instanceof Error ? commandError.message : String(commandError);
+  return {
+    scenarioResults,
+    dashboardResult: makeDashboardScenarioResult({
+      status: 'fail',
+      durationMs: totalDurationMs,
       artifacts: 1,
       validations: 1,
-      screenshots: [],
-    };
-  } catch (error) {
-    return scenarioResultFromFailure(startedAt, error);
-  }
+      error: commandMessage,
+    }),
+  };
 }
 
 function makeFatalRunReport(
@@ -651,11 +916,11 @@ async function runCombination(
     };
     let teardownMs = 0;
     const scenarioStartedAt = Date.now();
-    let result: ScenarioResult;
+    let dashboardReport: DashboardScenarioReport | undefined;
     let scenarioMs = 0;
 
     try {
-      result = runDashboardPlaywright(runId, scenarioStartedAt, {
+      dashboardReport = runDashboardPlaywright(runId, scenarioStartedAt, {
         dashboardApiKey: live.keys.admin,
         dashboardBaseUrl: live.env.dashboardBaseUrl,
       });
@@ -667,6 +932,10 @@ async function runCombination(
     }
 
     const finishedAtMs = Date.now();
+    if (!dashboardReport) {
+      throw new Error('Dashboard integration run did not produce a scenario report');
+    }
+
     return {
       runId,
       startedAt,
@@ -674,7 +943,11 @@ async function runCombination(
       template,
       provider,
       repeat: options.repeat,
-      scenarios: { dashboard: result },
+      scenarios: {
+        dashboard: dashboardReport.dashboardResult,
+        ...dashboardReport.scenarioResults,
+      },
+      integrationEvidenceSource: 'dashboard-playwright-tags-v1',
       containers_leaked: cleanup.leakedContainers,
       temp_files_leaked: cleanup.leakedTempFiles,
       total_cost: '$0.0000',

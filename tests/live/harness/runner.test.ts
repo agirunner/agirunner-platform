@@ -6,6 +6,7 @@ import {
   assertLiveApiKey,
   assertLiveApiKeysForMatrix,
   assertPostSetupAgentApiReachability,
+  deriveDashboardScenarioResults,
   makeExecutionMatrix,
   parseArgs,
   resolveScenarios,
@@ -179,4 +180,51 @@ test('AP-7 deferred local URL passes post-setup validation only when endpoint be
   );
 
   assert.equal(probeCalls, 1);
+});
+
+test('deriveDashboardScenarioResults returns PASS for tagged canonical scenarios with passing tests', () => {
+  const scenarioResults = deriveDashboardScenarioResults(
+    {
+      suites: [
+        {
+          title: 'dashboard integration traceability',
+          specs: [
+            {
+              title: '[scenario:sdlc-happy] pipeline shell',
+              tests: [{ results: [{ status: 'passed', duration: 1250 }] }],
+            },
+          ],
+        },
+      ],
+    },
+    ['sdlc-happy'],
+  );
+
+  assert.equal(scenarioResults['sdlc-happy']?.status, 'pass');
+  assert.equal(scenarioResults['sdlc-happy']?.artifacts, 1);
+});
+
+test('deriveDashboardScenarioResults fails closed when canonical tag evidence is missing', () => {
+  const scenarioResults = deriveDashboardScenarioResults(
+    {
+      suites: [
+        {
+          title: 'dashboard integration traceability',
+          specs: [
+            {
+              title: 'untagged smoke test',
+              tests: [{ results: [{ status: 'passed', duration: 250 }] }],
+            },
+          ],
+        },
+      ],
+    },
+    ['sdlc-happy'],
+  );
+
+  assert.equal(scenarioResults['sdlc-happy']?.status, 'fail');
+  assert.match(
+    scenarioResults['sdlc-happy']?.error ?? '',
+    /No dashboard integration evidence tagged with \[scenario:sdlc-happy\]/,
+  );
 });

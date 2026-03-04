@@ -1,0 +1,519 @@
+{
+  "version": "1.1",
+  "evidenceType": "integration-run-audit-manifest",
+  "runId": "2026-03-04T08-33-08-412Z-dashboard-none-r1",
+  "lane": "integration",
+  "generatedAt": "2026-03-04T08:59:09.123Z",
+  "reviewAccessible": true,
+  "integrationEvidenceSource": "dashboard-playwright-tags-v1",
+  "sourceArtifacts": {
+    "runJson": {
+      "path": "tests/artifacts/integration/run-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+      "sha256": "c963011fd28cb2719ed289ba775106b87b80fe0c8394ecc07448d9160c8a93a5"
+    },
+    "runMarkdown": {
+      "path": "tests/artifacts/integration/run-2026-03-04T08-33-08-412Z-dashboard-none-r1.md",
+      "sha256": "001bdadd0f930eae3e0bdbb0874967b1c2739c2545e7584c314a27c262d9c993"
+    },
+    "dashboardPlaywrightReport": {
+      "path": "tests/artifacts/integration/dashboard-playwright-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+      "sha256": "6ecc80328328579ae0fe4ff65329b84d61dc750b5f8e60a7b608bd52d2849f7e"
+    }
+  },
+  "playwrightSummary": {
+    "expected": 29,
+    "unexpected": 0,
+    "flaky": 0,
+    "skipped": 0,
+    "durationMs": 20809.457,
+    "startTime": "2026-03-04T08:35:20.266Z"
+  },
+  "scenarioAudit": [
+    {
+      "key": "sdlc-happy",
+      "id": "AP-1",
+      "title": "Built-in Worker — SDLC Pipeline",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:sdlc-happy] pipeline creation and execution surfaces"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 751
+    },
+    {
+      "key": "ap2-external-runtime",
+      "id": "AP-2",
+      "title": "External Runtime — SDLC Pipeline",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:ap2-external-runtime] external runtime worker visibility"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 702
+    },
+    {
+      "key": "ap3-standalone-worker",
+      "id": "AP-3",
+      "title": "Standalone Worker Runtime — SDLC Pipeline",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:ap3-standalone-worker] standalone worker registration surfaces"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 823
+    },
+    {
+      "key": "ap4-mixed-workers",
+      "id": "AP-4",
+      "title": "Mixed Workers — SDLC Pipeline",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:ap4-mixed-workers] mixed worker pool dashboard surfaces"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 708
+    },
+    {
+      "key": "maintenance-happy",
+      "id": "AP-5",
+      "title": "Built-in Worker — Maintenance Pipeline",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:maintenance-happy] maintenance template browsing surfaces"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 764
+    },
+    {
+      "key": "ap6-runtime-maintenance",
+      "id": "AP-6",
+      "title": "External Runtime — Maintenance Pipeline",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:ap6-runtime-maintenance] runtime maintenance monitoring surfaces"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 759
+    },
+    {
+      "key": "ap7-failure-recovery",
+      "id": "AP-7",
+      "title": "Pipeline Failure and Recovery",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:ap7-failure-recovery] failure recovery task visibility surfaces"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 712
+    },
+    {
+      "key": "ot1-cascade",
+      "id": "OT-1",
+      "title": "Dependency Cascade",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:ot1-cascade] dependency cascade pipeline visibility"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 764
+    },
+    {
+      "key": "ot2-routing",
+      "id": "OT-2",
+      "title": "Task Routing & Capability Matching",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:ot2-routing] task routing list/detail surfaces"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 771
+    },
+    {
+      "key": "ot3-state",
+      "id": "OT-3",
+      "title": "Pipeline State Derivation",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:ot3-state] pipeline state dashboard surfaces"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 770
+    },
+    {
+      "key": "ot4-health",
+      "id": "OT-4",
+      "title": "Worker Health & Recovery",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:ot4-health] worker health dashboard surfaces"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 729
+    },
+    {
+      "key": "hl1-approval-flow",
+      "id": "HL-1",
+      "title": "Approval and Retry Flow",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:hl1-approval-flow] approval workflow task surfaces"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 807
+    },
+    {
+      "key": "hl2-pipeline-controls",
+      "id": "HL-2",
+      "title": "Pipeline/Task Control Plane",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:hl2-pipeline-controls] pipeline pause/resume/cancel control surfaces"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 808
+    },
+    {
+      "key": "it1-sdk",
+      "id": "IT-1",
+      "title": "SDK Full Lifecycle",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:it1-sdk] SDK integration observability surfaces"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 751
+    },
+    {
+      "key": "it2-mcp",
+      "id": "IT-2",
+      "title": "MCP Server",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:it2-mcp] MCP integration task surfaces"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 770
+    },
+    {
+      "key": "it3-webhooks",
+      "id": "IT-3",
+      "title": "Webhooks Delivery Surface",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:it3-webhooks] webhook integration event/task surfaces"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 793
+    },
+    {
+      "key": "it3-mcp-sse-stream",
+      "id": "IT-4",
+      "title": "MCP SSE Stream",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:it3-mcp-sse-stream] MCP SSE stream task/event surfaces"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 779
+    },
+    {
+      "key": "si1-isolation",
+      "id": "SI-1",
+      "title": "Multi-Tenant Isolation",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:si1-isolation] tenant isolation system metric surfaces"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 732
+    },
+    {
+      "key": "si2-auth",
+      "id": "SI-2",
+      "title": "Auth and Zero-Config Bootstrap",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:si2-auth] authentication entrypoint and session surfaces"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 798
+    },
+    {
+      "key": "si2-extended-isolation",
+      "id": "SI-3",
+      "title": "Extended Isolation",
+      "statusFromRunReport": "PASS",
+      "statusFromPlaywrightTags": "PASS",
+      "taggedEvidenceCount": 1,
+      "taggedEvidenceTitles": [
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:si2-extended-isolation] extended isolation observability surfaces"
+      ],
+      "taggedEvidenceErrors": [],
+      "taggedDurationMsTotal": 702
+    }
+  ],
+  "runReport": {
+    "runId": "2026-03-04T08-33-08-412Z-dashboard-none-r1",
+    "startedAt": "2026-03-04T08:33:08.411Z",
+    "finishedAt": "2026-03-04T08:35:52.374Z",
+    "template": "dashboard",
+    "provider": "none",
+    "repeat": 1,
+    "scenarios": {
+      "dashboard": {
+        "status": "pass",
+        "duration": "21.52s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "sdlc-happy": {
+        "status": "pass",
+        "duration": "0.75s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "ap2-external-runtime": {
+        "status": "pass",
+        "duration": "0.70s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "ap3-standalone-worker": {
+        "status": "pass",
+        "duration": "0.82s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "ap4-mixed-workers": {
+        "status": "pass",
+        "duration": "0.71s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "maintenance-happy": {
+        "status": "pass",
+        "duration": "0.76s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "ap6-runtime-maintenance": {
+        "status": "pass",
+        "duration": "0.76s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "ap7-failure-recovery": {
+        "status": "pass",
+        "duration": "0.71s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "ot1-cascade": {
+        "status": "pass",
+        "duration": "0.76s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "ot2-routing": {
+        "status": "pass",
+        "duration": "0.77s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "ot3-state": {
+        "status": "pass",
+        "duration": "0.77s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "ot4-health": {
+        "status": "pass",
+        "duration": "0.73s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "hl1-approval-flow": {
+        "status": "pass",
+        "duration": "0.81s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "hl2-pipeline-controls": {
+        "status": "pass",
+        "duration": "0.81s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "it1-sdk": {
+        "status": "pass",
+        "duration": "0.75s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "it2-mcp": {
+        "status": "pass",
+        "duration": "0.77s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "it3-webhooks": {
+        "status": "pass",
+        "duration": "0.79s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "it3-mcp-sse-stream": {
+        "status": "pass",
+        "duration": "0.78s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "si1-isolation": {
+        "status": "pass",
+        "duration": "0.73s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "si2-auth": {
+        "status": "pass",
+        "duration": "0.80s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      },
+      "si2-extended-isolation": {
+        "status": "pass",
+        "duration": "0.70s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 1,
+        "screenshots": []
+      }
+    },
+    "integrationEvidenceSource": "dashboard-playwright-tags-v1",
+    "containers_leaked": 0,
+    "temp_files_leaked": 0,
+    "total_cost": "$0.0000",
+    "timing": {
+      "setupMs": 131160,
+      "scenarioMs": {
+        "dashboard": 21525
+      },
+      "teardownMs": 11277,
+      "totalMs": 163963
+    }
+  },
+  "auditSummary": {
+    "runStatus": "PASS",
+    "canonicalScenarioCount": 20,
+    "canonicalScenarioPassCount": 20,
+    "taggedEvidencePassCount": 20,
+    "missingEvidenceScenarios": [],
+    "runFailScenarios": [],
+    "finishedAt": "2026-03-04T08:35:52.374Z"
+  },
+  "hashAlgorithm": "sha256",
+  "committedEvidence": {
+    "runJsonSnapshot": {
+      "path": "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+      "sha256": "76ede9ab3af5f586d05d45ff4faef006fa4a3da154ec5ea589de4a69734c7842",
+      "sourcePath": "tests/artifacts/integration/run-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+      "sourceSha256": "c963011fd28cb2719ed289ba775106b87b80fe0c8394ecc07448d9160c8a93a5"
+    },
+    "runMarkdownSnapshot": {
+      "path": "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+      "sha256": "66c64a7c5f40482c414dc2be27b40c72a3fdf696a7c5355bca7b2c71fa2f156e",
+      "sourcePath": "tests/artifacts/integration/run-2026-03-04T08-33-08-412Z-dashboard-none-r1.md",
+      "sourceSha256": "001bdadd0f930eae3e0bdbb0874967b1c2739c2545e7584c314a27c262d9c993"
+    },
+    "dashboardPlaywrightSnapshot": {
+      "path": "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json",
+      "sha256": "ddfb13b4d9bf122c618404e8aee14907c78c46ebc05ae4a91990c9d9ce59644c",
+      "sourcePath": "tests/artifacts/integration/dashboard-playwright-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+      "sourceSha256": "6ecc80328328579ae0fe4ff65329b84d61dc750b5f8e60a7b608bd52d2849f7e"
+    }
+  },
+  "repoResolvableReferences": [
+    "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+    "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+    "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+    "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+  ]
+}

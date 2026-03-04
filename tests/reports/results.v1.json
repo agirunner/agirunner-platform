@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-04T08:07:22.654Z",
-  "generated_at_utc": "2026-03-04T08:07:22.654Z",
+  "generatedAt": "2026-03-04T09:07:32.764Z",
+  "generated_at_utc": "2026-03-04T09:07:32.764Z",
   "status_enum": [
     "PASS",
     "FLAKY",
@@ -136,10 +136,10 @@
     }
   ],
   "summary": {
-    "PASS": 80,
+    "PASS": 100,
     "FLAKY": 0,
     "FAIL": 0,
-    "NOT_PASS": 20,
+    "NOT_PASS": 0,
     "row_count": 20,
     "cell_count": 100,
     "by_lane": {
@@ -150,10 +150,10 @@
         "NOT_PASS": 0
       },
       "integration": {
-        "PASS": 0,
+        "PASS": 20,
         "FLAKY": 0,
         "FAIL": 0,
-        "NOT_PASS": 20
+        "NOT_PASS": 0
       },
       "live": {
         "PASS": 60,
@@ -179,7 +179,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -187,10 +187,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=sdlc-happy",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -204,7 +210,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -218,7 +224,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -232,7 +238,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     },
@@ -251,7 +257,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -259,10 +265,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=ap2-external-runtime",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -276,7 +288,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -290,7 +302,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -304,7 +316,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     },
@@ -323,7 +335,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -331,10 +343,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=ap3-standalone-worker",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -348,7 +366,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -362,7 +380,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -376,7 +394,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     },
@@ -395,7 +413,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -403,10 +421,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=ap4-mixed-workers",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -420,7 +444,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -434,7 +458,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -448,7 +472,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     },
@@ -467,7 +491,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -475,10 +499,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=maintenance-happy",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -492,7 +522,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -506,7 +536,7 @@
             "tests/artifacts/live/run-2026-03-04T04-39-45-269Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -520,7 +550,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     },
@@ -539,7 +569,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -547,10 +577,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=ap6-runtime-maintenance",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -564,7 +600,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -578,7 +614,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -592,7 +628,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     },
@@ -611,7 +647,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -619,10 +655,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=ap7-failure-recovery",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -636,7 +678,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -650,7 +692,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -664,7 +706,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     },
@@ -683,7 +725,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -691,10 +733,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=ot1-cascade",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -708,7 +756,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -722,7 +770,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -736,7 +784,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     },
@@ -755,7 +803,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -763,10 +811,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=ot2-routing",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -780,7 +834,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -794,7 +848,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -808,7 +862,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     },
@@ -827,7 +881,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -835,10 +889,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=ot3-state",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -852,7 +912,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -866,7 +926,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -880,7 +940,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     },
@@ -899,7 +959,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -907,10 +967,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=ot4-health",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -924,7 +990,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -936,10 +1002,8 @@
           "evidence_links": [
             "tests/reports/traceability-ot4-google-2026-03-04T07-51-44-181Z.json"
           ],
-          "notes": [
-            "auditable_evidence_manifest"
-          ],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "notes": [],
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -953,7 +1017,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     },
@@ -972,7 +1036,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -980,10 +1044,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=hl1-approval-flow",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -997,7 +1067,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1011,7 +1081,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1025,7 +1095,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     },
@@ -1044,7 +1114,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -1052,10 +1122,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=hl2-pipeline-controls",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1069,7 +1145,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1083,7 +1159,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1097,7 +1173,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     },
@@ -1116,7 +1192,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -1124,10 +1200,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=it1-sdk",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1141,7 +1223,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1155,7 +1237,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1169,7 +1251,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     },
@@ -1188,7 +1270,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -1196,10 +1278,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=it2-mcp",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1213,7 +1301,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1227,7 +1315,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1241,7 +1329,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     },
@@ -1260,7 +1348,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -1268,10 +1356,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=it3-webhooks",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1285,7 +1379,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1299,7 +1393,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1313,7 +1407,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     },
@@ -1332,7 +1426,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -1340,10 +1434,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=it3-mcp-sse-stream",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1357,7 +1457,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1371,7 +1471,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1385,7 +1485,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     },
@@ -1404,7 +1504,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -1412,10 +1512,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=si1-isolation",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1429,7 +1535,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1443,7 +1549,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1457,7 +1563,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     },
@@ -1476,7 +1582,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -1484,10 +1590,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=si2-auth",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1501,7 +1613,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1515,7 +1627,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1529,7 +1641,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     },
@@ -1548,7 +1660,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "integration",
@@ -1556,10 +1668,16 @@
           "provider": "none",
           "mode": "integration",
           "gating": true,
-          "status": "NOT_PASS",
-          "evidence_links": [],
+          "status": "PASS",
+          "evidence_links": [
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json#scenario=si2-extended-isolation",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+            "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+          ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1573,7 +1691,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1587,7 +1705,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         },
         {
           "lane": "live",
@@ -1601,7 +1719,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:55:03.401Z"
+          "generated_at_utc": "2026-03-04T09:07:32.764Z"
         }
       ]
     }
@@ -2435,17 +2553,6 @@
     ],
     "integration": [
       {
-        "runId": "2026-03-03T19-24-24-222Z-dashboard-none-r1",
-        "startedAt": "2026-03-03T19:24:24.222Z",
-        "finishedAt": "2026-03-03T19:24:27.709Z",
-        "status": "PASS",
-        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T19-24-24-222Z-dashboard-none-r1.json",
-        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T19-24-24-222Z-dashboard-none-r1.md",
-        "scenarios": {
-          "dashboard": "PASS"
-        }
-      },
-      {
         "runId": "2026-03-03T19-27-42-288Z-dashboard-none-r1",
         "startedAt": "2026-03-03T19:27:42.288Z",
         "finishedAt": "2026-03-03T19:27:45.048Z",
@@ -2983,6 +3090,46 @@
         "scenarios": {
           "dashboard": "PASS"
         }
+      },
+      {
+        "runId": "2026-03-04T08-33-08-412Z-dashboard-none-r1",
+        "startedAt": "2026-03-04T08:33:08.411Z",
+        "finishedAt": "2026-03-04T08:35:52.374Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+        "artifactMdPath": "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+        "scenarios": {
+          "dashboard": "PASS",
+          "sdlc-happy": "PASS",
+          "ap2-external-runtime": "PASS",
+          "ap3-standalone-worker": "PASS",
+          "ap4-mixed-workers": "PASS",
+          "maintenance-happy": "PASS",
+          "ap6-runtime-maintenance": "PASS",
+          "ap7-failure-recovery": "PASS",
+          "ot1-cascade": "PASS",
+          "ot2-routing": "PASS",
+          "ot3-state": "PASS",
+          "ot4-health": "PASS",
+          "hl1-approval-flow": "PASS",
+          "hl2-pipeline-controls": "PASS",
+          "it1-sdk": "PASS",
+          "it2-mcp": "PASS",
+          "it3-webhooks": "PASS",
+          "it3-mcp-sse-stream": "PASS",
+          "si1-isolation": "PASS",
+          "si2-auth": "PASS",
+          "si2-extended-isolation": "PASS"
+        },
+        "scenarioEvidenceSource": "dashboard-playwright-tags-v1",
+        "auditManifestPath": "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+        "playwrightReportPath": "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json",
+        "integrationEvidenceLinks": [
+          "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.json",
+          "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-report.json",
+          "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.run-markdown.json",
+          "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
+        ]
       }
     ]
   },
