@@ -1,18 +1,21 @@
 {
-  "task": "Admiral directive — emit canonical batch-results.v1.json from scripts/test-batch.sh --mode parallel",
+  "task": "README complete quick-start overhaul",
   "issue": "N/A",
-  "branch": "fix/batch-script-green-20260304",
+  "branch": "docs/readme-complete-quickstart",
   "phase": "COMPLETE",
   "completed": [
-    "Implemented canonical batch report generation in batch runner: tests/reports/batch-results.v1.json",
-    "Added per-stage scenario aggregation from lane results.v1.json artifacts (core/integration/live) with evidence links",
-    "Extended batch artifacts summary metadata to include canonical batch results path",
-    "Updated report layout enforcement and docs to include batch-results.v1.json as canonical output",
-    "Executed exact command scripts/test-batch.sh --mode parallel with latest code",
-    "Captured latest run metadata: tests/artifacts/batch/run-2026-03-04T17-43-20-274Z (pass=3 fail=0 infraFail=0 skipped=1, finalExitCode=0, openai skipped due missing OPENAI_API_KEY)",
-    "Verified canonical report exists and reflects latest run metadata at tests/reports/batch-results.v1.json"
+    "Refreshed plan in tasks/todo.md before drafting",
+    "Rewrote README.md with complete quick-start structure",
+    "Added from-scratch prerequisites and environment setup",
+    "Added build/run guidance with migration behavior and service startup",
+    "Added required test command guide: test, test:ci, test:core, test:core:all, test:live, test:live:all, test:batch",
+    "Added Docker Compose quick start with up/down/logs/health/troubleshooting",
+    "Added runtime+platform integration quick start and minimal verification path",
+    "Added canonical reports/artifacts section with interpretation guidance",
+    "Added first-15-minutes fast path section",
+    "Committed README overhaul"
   ],
   "remaining": [],
-  "lastCommit": "PENDING",
-  "updatedAt": "2026-03-04T17:47:00Z"
+  "lastCommit": "f2fc8c7",
+  "updatedAt": "2026-03-04T18:58:50Z"
 }
