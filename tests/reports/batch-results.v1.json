@@ -1,900 +1,2203 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-04T18:00:57.828Z",
-  "metadata": {
-    "runId": "2026-03-04T17-58-32-645Z",
-    "mode": "parallel",
-    "failurePolicy": "continue-on-error",
-    "providers": [],
-    "requestedProviders": [
-      "openai"
-    ],
-    "skippedProviders": [
-      {
-        "provider": "openai",
-        "keys": [
-          "OPENAI_API_KEY"
-        ]
-      }
-    ],
-    "startedAt": "2026-03-04T17:58:33.523Z",
-    "finishedAt": "2026-03-04T18:00:57.827Z",
-    "durationMs": 144304,
-    "finalExitCode": 0,
-    "reportDir": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z",
-    "sourceSummaryJsonPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/summary.json",
-    "sourceRunManifestPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/run-manifest.json",
-    "sourceSummaryMarkdownPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/summary.md"
-  },
-  "stageSummary": {
-    "total": 4,
-    "pass": 3,
-    "fail": 0,
-    "skipped": 1,
-    "infra": 0
-  },
-  "stages": [
+  "generatedAt": "2026-03-04T20:44:48.871Z",
+  "generated_at_utc": "2026-03-04T20:44:48.871Z",
+  "status_enum": [
+    "PASS",
+    "FLAKY",
+    "FAIL",
+    "NOT_PASS"
+  ],
+  "providers": [
+    "openai",
+    "google",
+    "anthropic"
+  ],
+  "scenarios": [
     {
-      "stageId": "unit",
-      "label": "Unit + harness guard tests",
-      "lane": "unit",
-      "provider": "none",
-      "status": "pass",
-      "statusBucket": "pass",
-      "startedAt": "2026-03-04T17:58:33.524Z",
-      "finishedAt": "2026-03-04T17:58:35.174Z",
-      "durationMs": 1650,
-      "exitCode": 0,
-      "logs": {
-        "stdout": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/stages/unit/stdout.log",
-        "stderr": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/stages/unit/stderr.log"
-      },
-      "artifacts": {
-        "laneArtifactsRoot": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/unit/artifacts",
-        "laneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/unit/results.v1.json"
-      },
-      "scenarioCounts": {
-        "PASS": 0,
-        "FLAKY": 0,
-        "FAIL": 0,
-        "NOT_PASS": 0,
-        "UNKNOWN": 0,
-        "total": 0
-      }
+      "key": "sdlc-happy",
+      "id": "AP-1",
+      "title": "Built-in Worker — SDLC Pipeline",
+      "planRef": "§2 AP-1"
     },
     {
-      "stageId": "core",
-      "label": "E2E core lane",
-      "lane": "core",
-      "provider": "none",
-      "status": "pass",
-      "statusBucket": "pass",
-      "startedAt": "2026-03-04T17:58:33.527Z",
-      "finishedAt": "2026-03-04T18:00:57.827Z",
-      "durationMs": 144300,
-      "exitCode": 0,
-      "logs": {
-        "stdout": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/stages/core/stdout.log",
-        "stderr": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/stages/core/stderr.log"
-      },
-      "artifacts": {
-        "laneArtifactsRoot": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/artifacts",
-        "laneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json"
-      },
-      "ports": {
-        "postgres": 5540,
-        "platformApi": 8140,
-        "dashboard": 3140
-      },
-      "composeProjectName": "agentbaton-batch-2026-03-04t17-58-32-645z-core",
-      "scenarioCounts": {
-        "PASS": 11,
-        "FLAKY": 0,
-        "FAIL": 0,
-        "NOT_PASS": 9,
-        "UNKNOWN": 0,
-        "total": 20
-      }
+      "key": "ap2-external-runtime",
+      "id": "AP-2",
+      "title": "External Runtime — SDLC Pipeline",
+      "planRef": "§2 AP-2"
     },
     {
-      "stageId": "integration-dashboard",
-      "label": "E2E integration/dashboard lane",
-      "lane": "integration",
-      "provider": "none",
-      "status": "pass",
-      "statusBucket": "pass",
-      "startedAt": "2026-03-04T17:58:33.529Z",
-      "finishedAt": "2026-03-04T18:00:44.084Z",
-      "durationMs": 130555,
-      "exitCode": 0,
-      "logs": {
-        "stdout": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/stages/integration-dashboard/stdout.log",
-        "stderr": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/stages/integration-dashboard/stderr.log"
-      },
-      "artifacts": {
-        "laneArtifactsRoot": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/artifacts",
-        "laneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json"
-      },
-      "ports": {
-        "postgres": 5541,
-        "platformApi": 8141,
-        "dashboard": 3141
-      },
-      "composeProjectName": "agentbaton-batch-2026-03-04t17-58-32-645z-integration-dashboard",
-      "scenarioCounts": {
-        "PASS": 0,
-        "FLAKY": 0,
-        "FAIL": 0,
-        "NOT_PASS": 20,
-        "UNKNOWN": 0,
-        "total": 20
-      }
+      "key": "ap3-standalone-worker",
+      "id": "AP-3",
+      "title": "Standalone Worker Runtime — SDLC Pipeline",
+      "planRef": "§2 AP-3"
     },
     {
-      "stageId": "live-openai",
-      "label": "E2E live lane",
-      "lane": "live",
-      "provider": "openai",
-      "status": "skipped",
-      "statusBucket": "skipped",
-      "startedAt": "2026-03-04T17:58:35.175Z",
-      "finishedAt": "2026-03-04T17:58:35.175Z",
-      "durationMs": 0,
-      "notRunReason": "missing-provider-credentials",
-      "logs": {
-        "stdout": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/stages/live-openai/stdout.log",
-        "stderr": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/stages/live-openai/stderr.log"
-      },
-      "artifacts": {
-        "laneArtifactsRoot": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/live-openai/artifacts",
-        "laneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/live-openai/results.v1.json"
-      },
-      "ports": {
-        "postgres": 5543,
-        "platformApi": 8142,
-        "dashboard": 3142
-      },
-      "composeProjectName": "agentbaton-batch-2026-03-04t17-58-32-645z-live-openai",
-      "scenarioCounts": {
-        "PASS": 0,
-        "FLAKY": 0,
-        "FAIL": 0,
-        "NOT_PASS": 0,
-        "UNKNOWN": 0,
-        "total": 0
-      }
+      "key": "ap4-mixed-workers",
+      "id": "AP-4",
+      "title": "Mixed Workers — SDLC Pipeline",
+      "planRef": "§2 AP-4"
+    },
+    {
+      "key": "maintenance-happy",
+      "id": "AP-5",
+      "title": "Built-in Worker — Maintenance Pipeline",
+      "planRef": "§2 AP-5"
+    },
+    {
+      "key": "ap6-runtime-maintenance",
+      "id": "AP-6",
+      "title": "External Runtime — Maintenance Pipeline",
+      "planRef": "§2 AP-6"
+    },
+    {
+      "key": "ap7-failure-recovery",
+      "id": "AP-7",
+      "title": "Pipeline Failure and Recovery",
+      "planRef": "§2 AP-7"
+    },
+    {
+      "key": "ot1-cascade",
+      "id": "OT-1",
+      "title": "Dependency Cascade",
+      "planRef": "§3 OT-1"
+    },
+    {
+      "key": "ot2-routing",
+      "id": "OT-2",
+      "title": "Task Routing & Capability Matching",
+      "planRef": "§3 OT-2"
+    },
+    {
+      "key": "ot3-state",
+      "id": "OT-3",
+      "title": "Pipeline State Derivation",
+      "planRef": "§3 OT-3"
+    },
+    {
+      "key": "ot4-health",
+      "id": "OT-4",
+      "title": "Worker Health & Recovery",
+      "planRef": "§3 OT-4"
+    },
+    {
+      "key": "hl1-approval-flow",
+      "id": "HL-1",
+      "title": "Approval and Retry Flow",
+      "planRef": "§4 HL-1"
+    },
+    {
+      "key": "hl2-pipeline-controls",
+      "id": "HL-2",
+      "title": "Pipeline/Task Control Plane",
+      "planRef": "§4 HL-2"
+    },
+    {
+      "key": "it1-sdk",
+      "id": "IT-1",
+      "title": "SDK Full Lifecycle",
+      "planRef": "§5 IT-1"
+    },
+    {
+      "key": "it2-mcp",
+      "id": "IT-2",
+      "title": "MCP Server",
+      "planRef": "§5 IT-2"
+    },
+    {
+      "key": "it3-webhooks",
+      "id": "IT-3",
+      "title": "Webhooks Delivery Surface",
+      "planRef": "§5 IT-3"
+    },
+    {
+      "key": "it3-mcp-sse-stream",
+      "id": "IT-4",
+      "title": "MCP SSE Stream",
+      "planRef": "§5 IT-4"
+    },
+    {
+      "key": "si1-isolation",
+      "id": "SI-1",
+      "title": "Multi-Tenant Isolation",
+      "planRef": "§6 SI-1"
+    },
+    {
+      "key": "si2-auth",
+      "id": "SI-2",
+      "title": "Auth and Zero-Config Bootstrap",
+      "planRef": "§6 SI-2"
+    },
+    {
+      "key": "si2-extended-isolation",
+      "id": "SI-3",
+      "title": "Extended Isolation",
+      "planRef": "§6 SI-3"
     }
   ],
-  "scenarios": {
-    "total": 20,
-    "statusCounts": {
-      "PASS": 11,
-      "FLAKY": 0,
-      "FAIL": 0,
-      "NOT_PASS": 29,
-      "UNKNOWN": 0
+  "summary": {
+    "PASS": 100,
+    "FLAKY": 0,
+    "FAIL": 0,
+    "NOT_PASS": 0,
+    "row_count": 20,
+    "cell_count": 100,
+    "by_lane": {
+      "core": {
+        "PASS": 20,
+        "FLAKY": 0,
+        "FAIL": 0,
+        "NOT_PASS": 0
+      },
+      "integration": {
+        "PASS": 20,
+        "FLAKY": 0,
+        "FAIL": 0,
+        "NOT_PASS": 0
+      },
+      "live": {
+        "PASS": 60,
+        "FLAKY": 0,
+        "FAIL": 0,
+        "NOT_PASS": 0
+      }
+    }
+  },
+  "matrix": [
+    {
+      "use_case_id": "AP-1",
+      "title": "Built-in Worker — SDLC Pipeline",
+      "plan_section": "§2 AP-1",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
     },
-    "items": [
+    {
+      "use_case_id": "AP-2",
+      "title": "External Runtime — SDLC Pipeline",
+      "plan_section": "§2 AP-2",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "AP-3",
+      "title": "Standalone Worker Runtime — SDLC Pipeline",
+      "plan_section": "§2 AP-3",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "AP-4",
+      "title": "Mixed Workers — SDLC Pipeline",
+      "plan_section": "§2 AP-4",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "AP-5",
+      "title": "Built-in Worker — Maintenance Pipeline",
+      "plan_section": "§2 AP-5",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "AP-6",
+      "title": "External Runtime — Maintenance Pipeline",
+      "plan_section": "§2 AP-6",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "AP-7",
+      "title": "Pipeline Failure and Recovery",
+      "plan_section": "§2 AP-7",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "OT-1",
+      "title": "Dependency Cascade",
+      "plan_section": "§3 OT-1",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "OT-2",
+      "title": "Task Routing & Capability Matching",
+      "plan_section": "§3 OT-2",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "OT-3",
+      "title": "Pipeline State Derivation",
+      "plan_section": "§3 OT-3",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "OT-4",
+      "title": "Worker Health & Recovery",
+      "plan_section": "§3 OT-4",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "HL-1",
+      "title": "Approval and Retry Flow",
+      "plan_section": "§4 HL-1",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "HL-2",
+      "title": "Pipeline/Task Control Plane",
+      "plan_section": "§4 HL-2",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "IT-1",
+      "title": "SDK Full Lifecycle",
+      "plan_section": "§5 IT-1",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "IT-2",
+      "title": "MCP Server",
+      "plan_section": "§5 IT-2",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "IT-3",
+      "title": "Webhooks Delivery Surface",
+      "plan_section": "§5 IT-3",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "IT-4",
+      "title": "MCP SSE Stream",
+      "plan_section": "§5 IT-4",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "SI-1",
+      "title": "Multi-Tenant Isolation",
+      "plan_section": "§6 SI-1",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "SI-2",
+      "title": "Auth and Zero-Config Bootstrap",
+      "plan_section": "§6 SI-2",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
+    },
+    {
+      "use_case_id": "SI-3",
+      "title": "Extended Isolation",
+      "plan_section": "§6 SI-3",
+      "runtime_scope": "platform",
+      "cells": [
+        {
+          "lane": "core",
+          "category": "core",
+          "provider": "none",
+          "mode": "core",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "integration",
+          "category": "integration",
+          "provider": "none",
+          "mode": "integration",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "openai",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "google",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        },
+        {
+          "lane": "live",
+          "category": "live",
+          "provider": "anthropic",
+          "mode": "e2e",
+          "gating": true,
+          "status": "PASS",
+          "evidence_links": [
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+            "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md"
+          ],
+          "notes": [],
+          "generated_at_utc": "2026-03-04T20:44:48.871Z"
+        }
+      ]
+    }
+  ],
+  "runs": {
+    "core": [
       {
-        "id": "AP-1",
-        "key": "sdlc-happy",
-        "title": "Built-in Worker — SDLC Pipeline",
-        "planRef": "§2 AP-1",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
-        ]
-      },
+        "runId": "2026-03-04T20-18-45-777Z-sdlc-none-r1",
+        "startedAt": "2026-03-04T20:18:45.777Z",
+        "finishedAt": "2026-03-04T20:22:42.471Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/core/artifacts/core/run-2026-03-04T20-18-45-777Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/core/artifacts/core/run-2026-03-04T20-18-45-777Z-sdlc-none-r1.md",
+        "scenarios": {
+          "sdlc-happy": "PASS",
+          "ap2-external-runtime": "PASS",
+          "ap3-standalone-worker": "PASS",
+          "ap4-mixed-workers": "PASS",
+          "maintenance-happy": "PASS",
+          "ap6-runtime-maintenance": "PASS",
+          "ap7-failure-recovery": "PASS",
+          "ot1-cascade": "PASS",
+          "ot2-routing": "PASS",
+          "ot3-state": "PASS",
+          "ot4-health": "PASS",
+          "hl1-approval-flow": "PASS",
+          "hl2-pipeline-controls": "PASS",
+          "it1-sdk": "PASS",
+          "it2-mcp": "PASS",
+          "it3-webhooks": "PASS",
+          "it3-mcp-sse-stream": "PASS",
+          "si1-isolation": "PASS",
+          "si2-auth": "PASS",
+          "si2-extended-isolation": "PASS"
+        }
+      }
+    ],
+    "integration": [
       {
-        "id": "AP-2",
-        "key": "ap2-external-runtime",
-        "title": "External Runtime — SDLC Pipeline",
-        "planRef": "§2 AP-2",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
-        ]
-      },
-      {
-        "id": "AP-3",
-        "key": "ap3-standalone-worker",
-        "title": "Standalone Worker Runtime — SDLC Pipeline",
-        "planRef": "§2 AP-3",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
-        ]
-      },
-      {
-        "id": "AP-4",
-        "key": "ap4-mixed-workers",
-        "title": "Mixed Workers — SDLC Pipeline",
-        "planRef": "§2 AP-4",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
-        ]
-      },
-      {
-        "id": "AP-5",
-        "key": "maintenance-happy",
-        "title": "Built-in Worker — Maintenance Pipeline",
-        "planRef": "§2 AP-5",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
-        ]
-      },
-      {
-        "id": "AP-6",
-        "key": "ap6-runtime-maintenance",
-        "title": "External Runtime — Maintenance Pipeline",
-        "planRef": "§2 AP-6",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
-        ]
-      },
-      {
-        "id": "AP-7",
-        "key": "ap7-failure-recovery",
-        "title": "Pipeline Failure and Recovery",
-        "planRef": "§2 AP-7",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
-        ]
-      },
-      {
-        "id": "OT-1",
-        "key": "ot1-cascade",
-        "title": "Dependency Cascade",
-        "planRef": "§3 OT-1",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
-        ]
-      },
-      {
-        "id": "OT-2",
-        "key": "ot2-routing",
-        "title": "Task Routing & Capability Matching",
-        "planRef": "§3 OT-2",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
-        ]
-      },
-      {
-        "id": "OT-3",
-        "key": "ot3-state",
-        "title": "Pipeline State Derivation",
-        "planRef": "§3 OT-3",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
-        ]
-      },
-      {
-        "id": "OT-4",
-        "key": "ot4-health",
-        "title": "Worker Health & Recovery",
-        "planRef": "§3 OT-4",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
-        ]
-      },
-      {
-        "id": "HL-1",
-        "key": "hl1-approval-flow",
-        "title": "Approval and Retry Flow",
-        "planRef": "§4 HL-1",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
-        ]
-      },
-      {
-        "id": "HL-2",
-        "key": "hl2-pipeline-controls",
-        "title": "Pipeline/Task Control Plane",
-        "planRef": "§4 HL-2",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
-        ]
-      },
-      {
-        "id": "IT-1",
-        "key": "it1-sdk",
-        "title": "SDK Full Lifecycle",
-        "planRef": "§5 IT-1",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
-        ]
-      },
-      {
-        "id": "IT-2",
-        "key": "it2-mcp",
-        "title": "MCP Server",
-        "planRef": "§5 IT-2",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
-        ]
-      },
-      {
-        "id": "IT-3",
-        "key": "it3-webhooks",
-        "title": "Webhooks Delivery Surface",
-        "planRef": "§5 IT-3",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
-        ]
-      },
-      {
-        "id": "IT-4",
-        "key": "it3-mcp-sse-stream",
-        "title": "MCP SSE Stream",
-        "planRef": "§5 IT-4",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
-        ]
-      },
-      {
-        "id": "SI-1",
-        "key": "si1-isolation",
-        "title": "Multi-Tenant Isolation",
-        "planRef": "§6 SI-1",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
-        ]
-      },
-      {
-        "id": "SI-2",
-        "key": "si2-auth",
-        "title": "Auth and Zero-Config Bootstrap",
-        "planRef": "§6 SI-2",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
-        ]
-      },
-      {
-        "id": "SI-3",
-        "key": "si2-extended-isolation",
-        "title": "Extended Isolation",
-        "planRef": "§6 SI-3",
-        "results": [
-          {
-            "stageId": "core",
-            "lane": "core",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/core/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:57.797Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          },
-          {
-            "stageId": "integration-dashboard",
-            "lane": "integration",
-            "provider": "none",
-            "status": "NOT_PASS",
-            "sourceLaneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/run-2026-03-04T17-58-32-645Z/lanes/integration-dashboard/results.v1.json",
-            "evidenceLinks": [],
-            "notes": [],
-            "generatedAt": "2026-03-04T18:00:44.038Z",
-            "artifactJsonPath": null,
-            "artifactMdPath": null,
-            "runId": null,
-            "finishedAt": null
-          }
+        "runId": "2026-03-04T20-18-45-837Z-dashboard-none-r1",
+        "startedAt": "2026-03-04T20:18:45.837Z",
+        "finishedAt": "2026-03-04T20:21:58.824Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "PASS",
+          "sdlc-happy": "PASS",
+          "ap2-external-runtime": "PASS",
+          "ap3-standalone-worker": "PASS",
+          "ap4-mixed-workers": "PASS",
+          "maintenance-happy": "PASS",
+          "ap6-runtime-maintenance": "PASS",
+          "ap7-failure-recovery": "PASS",
+          "ot1-cascade": "PASS",
+          "ot2-routing": "PASS",
+          "ot3-state": "PASS",
+          "ot4-health": "PASS",
+          "hl1-approval-flow": "PASS",
+          "hl2-pipeline-controls": "PASS",
+          "it1-sdk": "PASS",
+          "it2-mcp": "PASS",
+          "it3-webhooks": "PASS",
+          "it3-mcp-sse-stream": "PASS",
+          "si1-isolation": "PASS",
+          "si2-auth": "PASS",
+          "si2-extended-isolation": "PASS"
+        },
+        "scenarioEvidenceSource": "dashboard-playwright-tags-v1",
+        "auditManifestPath": "",
+        "playwrightReportPath": "",
+        "integrationEvidenceLinks": [
+          "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.json",
+          "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-04T20-18-45-837Z-dashboard-none-r1.md"
         ]
       }
     ]
+  },
+  "live_cells": {
+    "sdlc-happy": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    },
+    "ap2-external-runtime": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    },
+    "ap3-standalone-worker": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    },
+    "ap4-mixed-workers": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    },
+    "maintenance-happy": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    },
+    "ap6-runtime-maintenance": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    },
+    "ap7-failure-recovery": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    },
+    "ot1-cascade": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    },
+    "ot2-routing": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    },
+    "ot3-state": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    },
+    "ot4-health": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    },
+    "hl1-approval-flow": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    },
+    "hl2-pipeline-controls": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    },
+    "it1-sdk": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    },
+    "it2-mcp": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    },
+    "it3-webhooks": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    },
+    "it3-mcp-sse-stream": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    },
+    "si1-isolation": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    },
+    "si2-auth": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    },
+    "si2-extended-isolation": {
+      "openai": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-31-18-917Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-openai/artifacts/live/run-2026-03-04T20-31-18-917Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-04T20:34:37.162Z"
+      },
+      "google": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-36-42-381Z-maintenance-google-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-google/artifacts/live/run-2026-03-04T20-36-42-381Z-maintenance-google-r1.md",
+        "finishedAt": "2026-03-04T20:40:49.137Z"
+      },
+      "anthropic": {
+        "status": "PASS",
+        "runId": "2026-03-04T20-41-08-290Z-maintenance-anthropic-r1",
+        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/run-2026-03-04T20-18-44-593Z/lanes/live-anthropic/artifacts/live/run-2026-03-04T20-41-08-290Z-maintenance-anthropic-r1.md",
+        "finishedAt": "2026-03-04T20:44:48.821Z"
+      }
+    }
   }
 }

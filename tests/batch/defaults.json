@@ -23,7 +23,7 @@
     },
     "core": {
       "label": "E2E core lane",
-      "command": ["pnpm", "test:core"],
+      "command": ["pnpm", "test:core:all"],
       "docker": true
     },
     "integrationDashboard": {
@@ -41,7 +41,8 @@
         "--lane",
         "live",
         "--provider",
-        "__PROVIDER__"
+        "__PROVIDER__",
+        "--all"
       ],
       "docker": true
     }

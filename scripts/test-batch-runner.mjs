@@ -15,6 +15,7 @@ import {
 
 const PLAYWRIGHT_BROWSERS_PATH = path.join(ROOT, '.cache', 'ms-playwright');
 const BATCH_CANONICAL_RESULTS_PATH = path.join(ROOT, 'tests', 'reports', 'batch-results.v1.json');
+const BATCH_CANONICAL_TEST_CASES_PATH = path.join(ROOT, 'tests', 'reports', 'test-cases.v1.json');
 
 function needsWorkspaceInstall() {
   if (!existsSync(path.join(ROOT, 'node_modules', '.pnpm'))) {
@@ -419,8 +420,22 @@ function loadJsonIfExists(filePath) {
   return JSON.parse(readFileSync(filePath, 'utf8'));
 }
 
-function normalizeScenarioStatus(status) {
+function normalizeExecutedScenarioStatus(status) {
   return ['PASS', 'FLAKY', 'FAIL', 'NOT_PASS'].includes(status) ? status : 'UNKNOWN';
+}
+
+function newScenarioCounts() {
+  return {
+    PASS: 0,
+    FLAKY: 0,
+    FAIL: 0,
+    NOT_PASS: 0,
+    UNKNOWN: 0,
+    NA: 0,
+    applicable: 0,
+    nonApplicable: 0,
+    total: 0,
+  };
 }
 
 function mapStageStatusBucket(status) {
@@ -443,165 +458,439 @@ function selectScenarioCell(row, stage) {
   );
 }
 
-function scenarioEvidenceForStage(laneResults, scenarioKey, stageProvider) {
-  const fallback = { artifactJsonPath: null, artifactMdPath: null, finishedAt: null, runId: null };
-
-  const liveCell = laneResults?.live_cells?.[scenarioKey]?.[stageProvider];
-  if (!liveCell || typeof liveCell !== 'object') return fallback;
-
-  return {
-    artifactJsonPath:
-      typeof liveCell.artifactJsonPath === 'string' ? liveCell.artifactJsonPath : null,
-    artifactMdPath: typeof liveCell.artifactMdPath === 'string' ? liveCell.artifactMdPath : null,
-    finishedAt: typeof liveCell.finishedAt === 'string' ? liveCell.finishedAt : null,
-    runId: typeof liveCell.runId === 'string' ? liveCell.runId : null,
-  };
+function isNonEmptyString(value) {
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
-export function buildBatchResultsReport(summary) {
-  const scenarioOrder = [];
-  const scenarioByKey = new Map();
-  const scenarioStatusTotals = { PASS: 0, FLAKY: 0, FAIL: 0, NOT_PASS: 0, UNKNOWN: 0 };
+function dedupeScenarioDefinitions(entries) {
+  const byKey = new Map();
 
-  const stageDetails = (summary.stages ?? []).map((stage) => ({
-    stageId: stage.stageId,
-    label: stage.stageLabel,
-    lane: stage.lane,
-    provider: stage.provider,
-    status: stage.status,
-    statusBucket: mapStageStatusBucket(stage.status),
-    startedAt: stage.startedAt,
-    finishedAt: stage.finishedAt,
-    durationMs: stage.durationMs,
-    exitCode: stage.exitCode,
-    notRunReason: stage.notRunReason,
-    logs: stage.logs,
-    artifacts: stage.artifacts,
-    ports: stage.ports,
-    composeProjectName: stage.composeProjectName,
-    scenarioCounts: { PASS: 0, FLAKY: 0, FAIL: 0, NOT_PASS: 0, UNKNOWN: 0, total: 0 },
-  }));
+  for (const entry of entries) {
+    if (!entry || typeof entry !== 'object') continue;
+    const key = isNonEmptyString(entry.key)
+      ? entry.key.trim()
+      : isNonEmptyString(entry.id)
+        ? entry.id.trim()
+        : null;
+    if (!key || byKey.has(key)) continue;
 
-  for (const stageDetail of stageDetails) {
-    if (!['core', 'integration', 'live'].includes(stageDetail.lane)) continue;
+    byKey.set(key, {
+      id: isNonEmptyString(entry.id) ? entry.id.trim() : key,
+      key,
+      title: isNonEmptyString(entry.title) ? entry.title.trim() : null,
+      planRef: isNonEmptyString(entry.planRef) ? entry.planRef.trim() : null,
+    });
+  }
 
-    const laneResultsPath = stageDetail.artifacts?.laneResultsPath;
-    const laneResults = loadJsonIfExists(laneResultsPath);
-    if (!laneResults || !Array.isArray(laneResults.matrix)) continue;
+  return [...byKey.values()];
+}
 
+function scenarioDefinitionsFromLaneResults(laneResultsByStage) {
+  const definitions = [];
+
+  for (const laneResults of laneResultsByStage.values()) {
     const scenarioDefinitionsById = new Map(
-      (Array.isArray(laneResults.scenarios) ? laneResults.scenarios : [])
+      (Array.isArray(laneResults?.scenarios) ? laneResults.scenarios : [])
         .filter((entry) => entry && typeof entry.id === 'string')
         .map((entry) => [entry.id, entry]),
     );
 
-    for (const row of laneResults.matrix) {
-      const selectedCell = selectScenarioCell(row, stageDetail);
-      if (!selectedCell) continue;
-
-      const scenarioId = typeof row?.use_case_id === 'string' ? row.use_case_id : 'UNKNOWN';
-      const scenarioDefinition = scenarioDefinitionsById.get(scenarioId) ?? null;
-      const scenarioKey =
-        typeof scenarioDefinition?.key === 'string' && scenarioDefinition.key.length > 0
+    for (const row of Array.isArray(laneResults?.matrix) ? laneResults.matrix : []) {
+      const scenarioId = isNonEmptyString(row?.use_case_id) ? row.use_case_id : null;
+      const scenarioDefinition = scenarioId ? scenarioDefinitionsById.get(scenarioId) : null;
+      definitions.push({
+        id: scenarioId ?? (isNonEmptyString(scenarioDefinition?.id) ? scenarioDefinition.id : null),
+        key: isNonEmptyString(scenarioDefinition?.key)
           ? scenarioDefinition.key
-          : scenarioId;
-      const scenarioStatus = normalizeScenarioStatus(selectedCell.status);
-
-      if (!scenarioByKey.has(scenarioKey)) {
-        scenarioOrder.push(scenarioKey);
-        scenarioByKey.set(scenarioKey, {
-          id: scenarioId,
-          key: scenarioKey,
-          title:
-            typeof scenarioDefinition?.title === 'string'
-              ? scenarioDefinition.title
-              : typeof row?.title === 'string'
-                ? row.title
-                : null,
-          planRef:
-            typeof scenarioDefinition?.planRef === 'string'
-              ? scenarioDefinition.planRef
-              : typeof row?.plan_section === 'string'
-                ? row.plan_section
-                : null,
-          results: [],
-        });
-      }
-
-      const scenario = scenarioByKey.get(scenarioKey);
-      if (!scenario) continue;
-
-      const evidenceLinks = Array.isArray(selectedCell?.evidence_links)
-        ? [...selectedCell.evidence_links]
-        : [];
-      const liveEvidence = scenarioEvidenceForStage(laneResults, scenarioKey, stageDetail.provider);
-      if (liveEvidence.artifactJsonPath && !evidenceLinks.includes(liveEvidence.artifactJsonPath)) {
-        evidenceLinks.push(liveEvidence.artifactJsonPath);
-      }
-      if (liveEvidence.artifactMdPath && !evidenceLinks.includes(liveEvidence.artifactMdPath)) {
-        evidenceLinks.push(liveEvidence.artifactMdPath);
-      }
-
-      scenario.results.push({
-        stageId: stageDetail.stageId,
-        lane: stageDetail.lane,
-        provider: stageDetail.provider,
-        status: scenarioStatus,
-        sourceLaneResultsPath: laneResultsPath,
-        evidenceLinks,
-        notes: Array.isArray(selectedCell?.notes) ? selectedCell.notes : [],
-        generatedAt:
-          typeof selectedCell?.generated_at_utc === 'string'
-            ? selectedCell.generated_at_utc
-            : typeof laneResults?.generatedAt === 'string'
-              ? laneResults.generatedAt
-              : null,
-        artifactJsonPath: liveEvidence.artifactJsonPath,
-        artifactMdPath: liveEvidence.artifactMdPath,
-        runId: liveEvidence.runId,
-        finishedAt: liveEvidence.finishedAt,
+          : scenarioId ?? 'UNKNOWN',
+        title: isNonEmptyString(scenarioDefinition?.title)
+          ? scenarioDefinition.title
+          : isNonEmptyString(row?.title)
+            ? row.title
+            : null,
+        planRef: isNonEmptyString(scenarioDefinition?.planRef)
+          ? scenarioDefinition.planRef
+          : isNonEmptyString(row?.plan_section)
+            ? row.plan_section
+            : null,
       });
-
-      stageDetail.scenarioCounts[scenarioStatus] += 1;
-      stageDetail.scenarioCounts.total += 1;
-      scenarioStatusTotals[scenarioStatus] += 1;
     }
   }
 
-  const scenarios = scenarioOrder.map((key) => scenarioByKey.get(key)).filter(Boolean);
+  return dedupeScenarioDefinitions(definitions);
+}
+
+function loadCanonicalBatchScenarios(summary, laneResultsByStage) {
+  if (Array.isArray(summary?.canonicalScenarios) && summary.canonicalScenarios.length > 0) {
+    return dedupeScenarioDefinitions(summary.canonicalScenarios);
+  }
+
+  const canonicalPath =
+    summary?.canonicalTestCasesPath && path.isAbsolute(summary.canonicalTestCasesPath)
+      ? summary.canonicalTestCasesPath
+      : BATCH_CANONICAL_TEST_CASES_PATH;
+  const canonical = loadJsonIfExists(canonicalPath);
+
+  if (Array.isArray(canonical?.scenarios) && canonical.scenarios.length > 0) {
+    return dedupeScenarioDefinitions(canonical.scenarios);
+  }
+
+  return scenarioDefinitionsFromLaneResults(laneResultsByStage);
+}
+
+function latestRunScenarioStatus(laneResults, lane, scenarioKey) {
+  const runs = laneResults?.runs?.[lane];
+  if (!Array.isArray(runs) || runs.length === 0) return null;
+
+  const sorted = [...runs].sort((left, right) => {
+    const leftKey = `${left?.finishedAt ?? ''}|${left?.runId ?? ''}`;
+    const rightKey = `${right?.finishedAt ?? ''}|${right?.runId ?? ''}`;
+    return leftKey.localeCompare(rightKey);
+  });
+
+  let selected = null;
+  for (const run of sorted) {
+    if (!run || typeof run !== 'object') continue;
+    if (!run.scenarios || typeof run.scenarios !== 'object') continue;
+    if (!(scenarioKey in run.scenarios)) continue;
+
+    selected = {
+      status: normalizeExecutedScenarioStatus(run.scenarios[scenarioKey]),
+      runId: isNonEmptyString(run.runId) ? run.runId : null,
+      finishedAt: isNonEmptyString(run.finishedAt) ? run.finishedAt : null,
+      artifactJsonPath: isNonEmptyString(run.artifactJsonPath) ? run.artifactJsonPath : null,
+      artifactMdPath: isNonEmptyString(run.artifactMdPath) ? run.artifactMdPath : null,
+    };
+  }
+
+  return selected;
+}
+
+function latestRunByScenario(runs, scenarioKey) {
+  if (!Array.isArray(runs) || runs.length === 0) return null;
+
+  const sorted = [...runs].sort((left, right) => {
+    const leftKey = `${left?.finishedAt ?? ''}|${left?.runId ?? ''}`;
+    const rightKey = `${right?.finishedAt ?? ''}|${right?.runId ?? ''}`;
+    return leftKey.localeCompare(rightKey);
+  });
+
+  let selected = null;
+  for (const run of sorted) {
+    if (!run || typeof run !== 'object') continue;
+    if (!run.scenarios || typeof run.scenarios !== 'object') continue;
+    if (!(scenarioKey in run.scenarios)) continue;
+    selected = run;
+  }
+
+  return selected;
+}
+
+function normalizeLaneStatus(status) {
+  return ['PASS', 'FLAKY', 'FAIL', 'NOT_PASS'].includes(status) ? status : 'NOT_PASS';
+}
+
+function readCanonicalBatchDefinitions() {
+  const canonical = loadJsonIfExists(BATCH_CANONICAL_TEST_CASES_PATH);
+  if (!canonical || !Array.isArray(canonical.scenarios) || !Array.isArray(canonical.providers)) {
+    throw new Error(
+      `Batch canonical test-case definitions missing or invalid at ${BATCH_CANONICAL_TEST_CASES_PATH}`,
+    );
+  }
+
+  return {
+    providers: canonical.providers.filter((provider) => isNonEmptyString(provider)),
+    scenarios: canonical.scenarios
+      .filter((scenario) => scenario && isNonEmptyString(scenario.key) && isNonEmptyString(scenario.id))
+      .map((scenario) => ({
+        key: scenario.key.trim(),
+        id: scenario.id.trim(),
+        title: isNonEmptyString(scenario.title) ? scenario.title.trim() : '',
+        planRef: isNonEmptyString(scenario.planRef) ? scenario.planRef.trim() : '',
+      })),
+  };
+}
+
+function integrationEvidenceLinks(run, scenarioKey) {
+  if (!run || typeof run !== 'object') return [];
+
+  const auditManifestPath = isNonEmptyString(run.auditManifestPath) ? run.auditManifestPath : null;
+  return evidenceLinksFromValues([
+    auditManifestPath ? `${auditManifestPath}#scenario=${scenarioKey}` : null,
+    ...(Array.isArray(run.integrationEvidenceLinks) ? run.integrationEvidenceLinks : []),
+    auditManifestPath,
+    isNonEmptyString(run.artifactJsonPath) ? run.artifactJsonPath : null,
+    isNonEmptyString(run.artifactMdPath) ? run.artifactMdPath : null,
+    isNonEmptyString(run.playwrightReportPath) ? run.playwrightReportPath : null,
+  ]);
+}
+
+function normalizeLiveCell(liveCell) {
+  if (!liveCell || typeof liveCell !== 'object') return { status: 'NOT_PASS' };
+
+  const normalized = { status: normalizeLaneStatus(liveCell.status) };
+  for (const key of [
+    'runId',
+    'artifactJsonPath',
+    'artifactMdPath',
+    'finishedAt',
+    'error',
+    'attempts',
+    'retryCount',
+    'retryReasons',
+    'firstFailureRunId',
+    'firstFailureArtifactJsonPath',
+    'firstFailureArtifactMdPath',
+    'firstFailureError',
+  ]) {
+    if (key in liveCell) {
+      normalized[key] = liveCell[key];
+    }
+  }
+
+  return normalized;
+}
+
+function buildResultsSummary(matrix) {
+  const totals = { PASS: 0, FLAKY: 0, FAIL: 0, NOT_PASS: 0 };
+  const byLane = {
+    core: { PASS: 0, FLAKY: 0, FAIL: 0, NOT_PASS: 0 },
+    integration: { PASS: 0, FLAKY: 0, FAIL: 0, NOT_PASS: 0 },
+    live: { PASS: 0, FLAKY: 0, FAIL: 0, NOT_PASS: 0 },
+  };
+
+  let cellCount = 0;
+  for (const row of matrix) {
+    for (const cell of row.cells) {
+      const status = normalizeLaneStatus(cell.status);
+      totals[status] += 1;
+      byLane[cell.lane][status] += 1;
+      cellCount += 1;
+    }
+  }
+
+  return {
+    ...totals,
+    row_count: matrix.length,
+    cell_count: cellCount,
+    by_lane: byLane,
+  };
+}
+
+function evidenceNotesFromLiveCell(liveCell) {
+  const notes = [];
+
+  if (liveCell.status === 'FLAKY') {
+    notes.push('PASS_WITH_RETRY');
+  }
+  if (isNonEmptyString(liveCell.error)) {
+    notes.push(liveCell.error);
+  }
+  if (typeof liveCell.retryCount === 'number' && liveCell.retryCount > 0) {
+    notes.push(`retries=${liveCell.retryCount} attempts=${liveCell.attempts ?? liveCell.retryCount + 1}`);
+    for (const reason of Array.isArray(liveCell.retryReasons) ? liveCell.retryReasons : []) {
+      notes.push(`retry_reason: ${reason}`);
+    }
+  }
+  if (isNonEmptyString(liveCell.firstFailureRunId)) {
+    notes.push(`first_failure_run: ${liveCell.firstFailureRunId}`);
+  }
+  if (isNonEmptyString(liveCell.firstFailureError)) {
+    notes.push(`first_failure_error: ${liveCell.firstFailureError}`);
+  }
+
+  return notes;
+}
+
+function evidenceLinksFromValues(values) {
+  return Array.from(
+    new Set(values.filter((value) => isNonEmptyString(value)).map((value) => value.trim())),
+  );
+}
+
+function cellHasExecutionEvidence(cell) {
+  if (!cell || typeof cell !== 'object') return false;
+
+  return (
+    (Array.isArray(cell.evidence_links) && cell.evidence_links.some((link) => isNonEmptyString(link))) ||
+    (Array.isArray(cell.notes) && cell.notes.some((note) => isNonEmptyString(note)))
+  );
+}
+
+function liveScenarioEvidence(laneResults, scenarioKey, provider) {
+  const liveCell = laneResults?.live_cells?.[scenarioKey]?.[provider];
+  if (!liveCell || typeof liveCell !== 'object') {
+    return {
+      applicable: false,
+      status: 'NA',
+      artifactJsonPath: null,
+      artifactMdPath: null,
+      runId: null,
+      finishedAt: null,
+      evidenceLinks: [],
+    };
+  }
+
+  const artifactJsonPath = isNonEmptyString(liveCell.artifactJsonPath)
+    ? liveCell.artifactJsonPath
+    : null;
+  const artifactMdPath = isNonEmptyString(liveCell.artifactMdPath) ? liveCell.artifactMdPath : null;
+  const runId = isNonEmptyString(liveCell.runId) ? liveCell.runId : null;
+  const finishedAt = isNonEmptyString(liveCell.finishedAt) ? liveCell.finishedAt : null;
+  const applicable = Boolean(runId || artifactJsonPath || artifactMdPath || finishedAt);
+
+  return {
+    applicable,
+    status: applicable ? normalizeExecutedScenarioStatus(liveCell.status) : 'NA',
+    artifactJsonPath,
+    artifactMdPath,
+    runId,
+    finishedAt,
+    evidenceLinks: evidenceLinksFromValues([artifactJsonPath, artifactMdPath]),
+  };
+}
+
+export function buildBatchResultsReport(summary) {
+  const generatedAt = nowIso();
+  const canonical = readCanonicalBatchDefinitions();
+
+  const requestedProviders = Array.from(
+    new Set(
+      (summary?.requestedProviders ?? summary?.providers ?? canonical.providers)
+        .map((provider) => String(provider))
+        .filter((provider) => provider.length > 0),
+    ),
+  );
+  const providers = canonical.providers.filter((provider) => requestedProviders.includes(provider));
+
+  const stages = Array.isArray(summary?.stages) ? summary.stages : [];
+  const coreStage =
+    stages.find((stage) => stage?.lane === 'core' && String(stage?.provider ?? 'none') === 'none') ??
+    null;
+  const integrationStage =
+    stages.find(
+      (stage) => stage?.lane === 'integration' && String(stage?.provider ?? 'none') === 'none',
+    ) ?? null;
+
+  const coreLaneResults = loadJsonIfExists(coreStage?.artifacts?.laneResultsPath);
+  const integrationLaneResults = loadJsonIfExists(integrationStage?.artifacts?.laneResultsPath);
+  const liveLaneResultsByProvider = new Map(
+    providers.map((provider) => {
+      const stage =
+        stages.find(
+          (entry) =>
+            entry?.lane === 'live' && String(entry?.provider ?? 'none') === String(provider),
+        ) ?? null;
+      return [provider, loadJsonIfExists(stage?.artifacts?.laneResultsPath)];
+    }),
+  );
+
+  const coreRuns = Array.isArray(coreLaneResults?.runs?.core) ? coreLaneResults.runs.core : [];
+  const integrationRuns = Array.isArray(integrationLaneResults?.runs?.integration)
+    ? integrationLaneResults.runs.integration
+    : [];
+
+  const liveCells = {};
+
+  const matrix = canonical.scenarios.map((scenario) => {
+    const coreRun = latestRunByScenario(coreRuns, scenario.key);
+    const coreStatus = coreRun ? normalizeLaneStatus(coreRun?.scenarios?.[scenario.key]) : 'NOT_PASS';
+
+    const integrationRun = latestRunByScenario(integrationRuns, scenario.key);
+    const integrationReportedStatus = integrationRun
+      ? normalizeLaneStatus(integrationRun?.scenarios?.[scenario.key])
+      : 'NOT_PASS';
+    const integrationLinks = integrationEvidenceLinks(integrationRun, scenario.key);
+    const integrationStatus =
+      integrationReportedStatus === 'PASS' && integrationLinks.length === 0
+        ? 'NOT_PASS'
+        : integrationReportedStatus;
+
+    liveCells[scenario.key] = {};
+
+    const providerCells = providers.map((provider) => {
+      const liveLaneResults = liveLaneResultsByProvider.get(provider);
+      const rawLiveCell = liveLaneResults?.live_cells?.[scenario.key]?.[provider];
+      const liveCell = normalizeLiveCell(rawLiveCell);
+      liveCells[scenario.key][provider] = liveCell;
+
+      const evidenceLinks = evidenceLinksFromValues([
+        liveCell.artifactJsonPath,
+        liveCell.artifactMdPath,
+        liveCell.firstFailureArtifactJsonPath,
+        liveCell.firstFailureArtifactMdPath,
+      ]);
+
+      return {
+        lane: 'live',
+        category: 'live',
+        provider,
+        mode: 'e2e',
+        gating: true,
+        status: liveCell.status,
+        evidence_links: evidenceLinks,
+        notes: evidenceNotesFromLiveCell(liveCell),
+        generated_at_utc: generatedAt,
+      };
+    });
+
+    return {
+      use_case_id: scenario.id,
+      title: scenario.title,
+      plan_section: scenario.planRef,
+      runtime_scope: 'platform',
+      cells: [
+        {
+          lane: 'core',
+          category: 'core',
+          provider: 'none',
+          mode: 'core',
+          gating: true,
+          status: coreStatus,
+          evidence_links: [],
+          notes: [],
+          generated_at_utc: generatedAt,
+        },
+        {
+          lane: 'integration',
+          category: 'integration',
+          provider: 'none',
+          mode: 'integration',
+          gating: true,
+          status: integrationStatus,
+          evidence_links: integrationLinks,
+          notes: [],
+          generated_at_utc: generatedAt,
+        },
+        ...providerCells,
+      ],
+    };
+  });
 
   return {
     version: '1.0',
-    generatedAt: nowIso(),
-    metadata: {
-      runId: summary.runId,
-      mode: summary.mode,
-      failurePolicy: summary.failurePolicy,
-      providers: summary.providers,
-      requestedProviders: summary.requestedProviders ?? summary.providers,
-      skippedProviders: summary.skippedProviders ?? [],
-      startedAt: summary.startedAt,
-      finishedAt: summary.finishedAt,
-      durationMs: summary.durationMs,
-      finalExitCode: summary.finalExitCode,
-      reportDir: summary.reportDir,
-      sourceSummaryJsonPath: summary.artifacts?.summaryJsonPath,
-      sourceRunManifestPath: summary.artifacts?.runManifestPath,
-      sourceSummaryMarkdownPath: summary.artifacts?.summaryMarkdownPath,
+    generatedAt,
+    generated_at_utc: generatedAt,
+    status_enum: ['PASS', 'FLAKY', 'FAIL', 'NOT_PASS'],
+    providers,
+    scenarios: canonical.scenarios,
+    summary: buildResultsSummary(matrix),
+    matrix,
+    runs: {
+      core: [...coreRuns].slice(-50),
+      integration: [...integrationRuns]
+        .slice(-50)
+        .map((run) => ({
+          ...run,
+          scenarioEvidenceSource: run?.scenarioEvidenceSource ?? null,
+          auditManifestPath: run?.auditManifestPath ?? null,
+          playwrightReportPath: run?.playwrightReportPath ?? null,
+          integrationEvidenceLinks: Array.isArray(run?.integrationEvidenceLinks)
+            ? run.integrationEvidenceLinks
+            : [],
+        })),
     },
-    stageSummary: {
-      total: summary.stageTotals?.total ?? stageDetails.length,
-      pass: summary.stageTotals?.pass ?? 0,
-      fail: summary.stageTotals?.fail ?? 0,
-      skipped: summary.stageTotals?.skipped ?? 0,
-      infra: summary.stageTotals?.infraFail ?? 0,
-    },
-    stages: stageDetails,
-    scenarios: {
-      total: scenarios.length,
-      statusCounts: scenarioStatusTotals,
-      items: scenarios,
-    },
+    live_cells: liveCells,
   };
 }
 

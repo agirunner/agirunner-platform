@@ -263,9 +263,10 @@ test('summaryMarkdown renders skipped provider metadata and summary artifact evi
   assert.match(markdown, /\| live-openai \| skipped \|  \| 0 \| missing-provider-credentials \|/);
 });
 
-test('buildBatchResultsReport aggregates stage scenario statuses and evidence from lane results artifacts', () => {
+test('buildBatchResultsReport emits results.v1-compatible shape without batch-only metadata', () => {
   const reportDir = mkdtempSync(path.join(tmpdir(), 'batch-canonical-report-'));
   const coreLaneResultsPath = path.join(reportDir, 'core-results.v1.json');
+  const integrationLaneResultsPath = path.join(reportDir, 'integration-results.v1.json');
   const liveLaneResultsPath = path.join(reportDir, 'live-results.v1.json');
 
   try {
@@ -283,23 +284,52 @@ test('buildBatchResultsReport aggregates stage scenario statuses and evidence fr
           version: '1.0',
           generatedAt: '2026-03-04T17:30:00.000Z',
           scenarios: [scenarioDefinition],
-          matrix: [
-            {
-              use_case_id: 'AP-1',
-              title: scenarioDefinition.title,
-              plan_section: scenarioDefinition.planRef,
-              cells: [
-                {
-                  lane: 'core',
-                  provider: 'none',
-                  status: 'PASS',
-                  evidence_links: ['tests/artifacts/core-run.json'],
-                  notes: ['core succeeded'],
-                  generated_at_utc: '2026-03-04T17:30:00.000Z',
+          runs: {
+            core: [
+              {
+                runId: 'core-run-1',
+                startedAt: '2026-03-04T17:29:00.000Z',
+                finishedAt: '2026-03-04T17:30:00.000Z',
+                status: 'PASS',
+                artifactJsonPath: 'tests/artifacts/core-run.json',
+                artifactMdPath: 'tests/artifacts/core-run.md',
+                scenarios: {
+                  'sdlc-happy': 'PASS',
                 },
-              ],
-            },
-          ],
+              },
+            ],
+            integration: [],
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    writeFileSync(
+      integrationLaneResultsPath,
+      JSON.stringify(
+        {
+          version: '1.0',
+          generatedAt: '2026-03-04T17:31:00.000Z',
+          scenarios: [scenarioDefinition],
+          runs: {
+            core: [],
+            integration: [
+              {
+                runId: 'integration-run-1',
+                startedAt: '2026-03-04T17:30:00.000Z',
+                finishedAt: '2026-03-04T17:31:00.000Z',
+                status: 'PASS',
+                artifactJsonPath: 'tests/artifacts/integration-run.json',
+                artifactMdPath: 'tests/artifacts/integration-run.md',
+                auditManifestPath: 'tests/reports/traceability-integration.json',
+                scenarios: {
+                  'sdlc-happy': 'PASS',
+                },
+              },
+            ],
+          },
         },
         null,
         2,
@@ -313,23 +343,6 @@ test('buildBatchResultsReport aggregates stage scenario statuses and evidence fr
           version: '1.0',
           generatedAt: '2026-03-04T17:31:00.000Z',
           scenarios: [scenarioDefinition],
-          matrix: [
-            {
-              use_case_id: 'AP-1',
-              title: scenarioDefinition.title,
-              plan_section: scenarioDefinition.planRef,
-              cells: [
-                {
-                  lane: 'live',
-                  provider: 'openai',
-                  status: 'FAIL',
-                  evidence_links: ['tests/artifacts/live-failure.log'],
-                  notes: ['provider timed out'],
-                  generated_at_utc: '2026-03-04T17:31:00.000Z',
-                },
-              ],
-            },
-          ],
           live_cells: {
             'sdlc-happy': {
               openai: {
@@ -348,44 +361,25 @@ test('buildBatchResultsReport aggregates stage scenario statuses and evidence fr
     );
 
     const report = buildBatchResultsReport({
-      runId: 'run-2',
-      mode: 'parallel',
-      failurePolicy: 'continue-on-error',
       providers: ['openai'],
       requestedProviders: ['openai'],
-      skippedProviders: [],
-      startedAt: '2026-03-04T17:29:00.000Z',
-      finishedAt: '2026-03-04T17:32:00.000Z',
-      durationMs: 180000,
-      finalExitCode: 0,
-      reportDir,
-      stageTotals: {
-        total: 2,
-        pass: 1,
-        fail: 1,
-        infraFail: 0,
-        skipped: 0,
-      },
-      artifacts: {
-        runManifestPath: path.join(reportDir, 'run-manifest.json'),
-        summaryJsonPath: path.join(reportDir, 'summary.json'),
-        summaryMarkdownPath: path.join(reportDir, 'summary.md'),
-      },
       stages: [
         {
           stageId: 'core',
           stageLabel: 'core',
           lane: 'core',
           provider: 'none',
-          status: 'pass',
-          startedAt: '2026-03-04T17:29:01.000Z',
-          finishedAt: '2026-03-04T17:30:01.000Z',
-          durationMs: 60000,
-          exitCode: 0,
-          logs: { stdout: '/tmp/core.stdout', stderr: '/tmp/core.stderr' },
           artifacts: {
-            laneArtifactsRoot: '/tmp/core-artifacts',
             laneResultsPath: coreLaneResultsPath,
+          },
+        },
+        {
+          stageId: 'integration-dashboard',
+          stageLabel: 'integration-dashboard',
+          lane: 'integration',
+          provider: 'none',
+          artifacts: {
+            laneResultsPath: integrationLaneResultsPath,
           },
         },
         {
@@ -393,42 +387,42 @@ test('buildBatchResultsReport aggregates stage scenario statuses and evidence fr
           stageLabel: 'live-openai',
           lane: 'live',
           provider: 'openai',
-          status: 'fail',
-          startedAt: '2026-03-04T17:30:01.000Z',
-          finishedAt: '2026-03-04T17:31:01.000Z',
-          durationMs: 60000,
-          exitCode: 1,
-          logs: { stdout: '/tmp/live.stdout', stderr: '/tmp/live.stderr' },
           artifacts: {
-            laneArtifactsRoot: '/tmp/live-artifacts',
             laneResultsPath: liveLaneResultsPath,
           },
         },
       ],
     });
 
-    assert.equal(report.metadata.runId, 'run-2');
-    assert.equal(report.stageSummary.infra, 0);
-    assert.equal(report.scenarios.total, 1);
-    assert.equal(report.scenarios.statusCounts.PASS, 1);
-    assert.equal(report.scenarios.statusCounts.FAIL, 1);
+    assert.deepEqual(Object.keys(report).sort(), [
+      'generatedAt',
+      'generated_at_utc',
+      'live_cells',
+      'matrix',
+      'providers',
+      'runs',
+      'scenarios',
+      'status_enum',
+      'summary',
+      'version',
+    ]);
 
-    const scenario = report.scenarios.items[0];
-    assert.equal(scenario?.id, 'AP-1');
-    assert.equal(scenario?.key, 'sdlc-happy');
-    assert.equal(scenario?.results.length, 2);
+    assert.equal('metadata' in report, false);
+    assert.equal(report.providers.length, 1);
+    assert.equal(report.providers[0], 'openai');
 
-    const liveScenarioResult = scenario?.results.find((entry) => entry.stageId === 'live-openai');
-    assert.ok(liveScenarioResult);
-    assert.equal(liveScenarioResult?.artifactJsonPath, 'tests/artifacts/live-run.json');
-    assert.equal(liveScenarioResult?.artifactMdPath, 'tests/artifacts/live-run.md');
-    assert.equal(liveScenarioResult?.runId, 'live-run-1');
-    assert.equal(liveScenarioResult?.evidenceLinks.includes('tests/artifacts/live-run.md'), true);
+    const row = report.matrix.find((entry) => entry.use_case_id === 'AP-1');
+    assert.ok(row);
+    assert.equal(row?.cells.find((cell) => cell.lane === 'core')?.status, 'PASS');
+    assert.equal(row?.cells.find((cell) => cell.lane === 'integration')?.status, 'PASS');
+    assert.equal(
+      row?.cells.find((cell) => cell.lane === 'live' && cell.provider === 'openai')?.status,
+      'FAIL',
+    );
 
-    const coreStage = report.stages.find((entry) => entry.stageId === 'core');
-    const liveStage = report.stages.find((entry) => entry.stageId === 'live-openai');
-    assert.equal(coreStage?.scenarioCounts.PASS, 1);
-    assert.equal(liveStage?.scenarioCounts.FAIL, 1);
+    assert.equal(report.live_cells['sdlc-happy']?.openai?.status, 'FAIL');
+    assert.equal(report.summary.row_count, report.scenarios.length);
+    assert.equal(report.summary.cell_count, report.matrix.reduce((sum, item) => sum + item.cells.length, 0));
   } finally {
     rmSync(reportDir, { recursive: true, force: true });
   }
