@@ -168,7 +168,20 @@ function statusFromScenarios(scenarios: Record<string, { status: 'pass' | 'fail'
 
 function readJsonIfExists<T>(filePath: string): T | undefined {
   if (!existsSync(filePath)) return undefined;
-  return JSON.parse(readFileSync(filePath, 'utf8')) as T;
+
+  const raw = readFileSync(filePath, 'utf8');
+  if (raw.trim().length === 0) {
+    return undefined;
+  }
+
+  try {
+    return JSON.parse(raw) as T;
+  } catch (error) {
+    console.warn(
+      `Ignoring unreadable JSON at ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return undefined;
+  }
 }
 
 function writeJson(filePath: string, payload: unknown): void {

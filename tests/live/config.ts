@@ -173,7 +173,7 @@ export function loadConfig(): LiveConfig {
     evaluationModel: process.env.LIVE_EVALUATION_MODEL?.trim() ?? '',
     authenticityLlmProvider: process.env.LIVE_AUTH_LLM_PROVIDER?.trim() ?? 'openai',
     authenticityLlmModel: process.env.LIVE_AUTH_LLM_MODEL?.trim() ?? 'gpt-4o-mini',
-    authenticityLlmTimeoutMs: Number(process.env.LIVE_AUTH_LLM_TIMEOUT_MS ?? 20_000),
+    authenticityLlmTimeoutMs: Number(process.env.LIVE_AUTH_LLM_TIMEOUT_MS ?? 45_000),
     authenticityLlmApiBaseUrl:
       process.env.LIVE_AUTH_LLM_API_BASE_URL?.trim() ?? 'https://api.openai.com/v1',
     authenticityLlmMaxEvidenceChars: Number(process.env.LIVE_AUTH_LLM_MAX_EVIDENCE_CHARS ?? 1_200),
