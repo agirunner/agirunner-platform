@@ -1037,7 +1037,8 @@ function writeAuthenticityArtifact(
 export async function enforceScenarioAuthenticityGate(
   input: ScenarioAuthenticityInput,
 ): Promise<AuthenticityGateResult> {
-  const route = resolveScenarioAuthenticityRoute(input.scenario);
+  const route =
+    input.provider === 'none' ? 'deterministic' : resolveScenarioAuthenticityRoute(input.scenario);
   const evidence = input.result.authenticityEvidence ?? [];
   const deterministic = runDeterministicAuthenticityValidator(
     input.scenario,

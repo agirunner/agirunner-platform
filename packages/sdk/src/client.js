@@ -15,7 +15,7 @@ export class PlatformApiClient {
     constructor(options) {
         this.baseUrl = options.baseUrl.replace(/\/$/, '');
         this.accessToken = options.accessToken;
-        this.fetcher = options.fetcher ?? fetch;
+        this.fetcher = options.fetcher ?? ((input, init) => globalThis.fetch(input, init));
     }
     setAccessToken(token) {
         this.accessToken = token;

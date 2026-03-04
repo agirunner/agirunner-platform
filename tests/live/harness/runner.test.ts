@@ -25,8 +25,8 @@ test('core lane rejects provider argument', () => {
 });
 
 test('core lane only allows deterministic scenario set', () => {
-  const options = parseArgs(['--lane', 'core', '--scenario', 'sdlc-happy']);
-  assert.throws(() => resolveScenarios(options), /Scenario sdlc-happy is not allowed in core lane/);
+  const options = parseArgs(['--lane', 'core', '--scenario', 'sdlc-sad']);
+  assert.throws(() => resolveScenarios(options), /Scenario sdlc-sad is not allowed in core lane/);
 });
 
 test('core lane matrix always uses provider=none', () => {
@@ -39,19 +39,24 @@ test('core lane default scenarios include AP/OT/IT/SI control-plane coverage', (
   const options = parseArgs(['--lane', 'core']);
   const scenarios = resolveScenarios(options);
 
+  assert.ok(scenarios.includes('sdlc-happy'));
   assert.ok(scenarios.includes('ap2-external-runtime'));
   assert.ok(scenarios.includes('ap4-mixed-workers'));
+  assert.ok(scenarios.includes('maintenance-happy'));
+  assert.ok(scenarios.includes('ap7-failure-recovery'));
   assert.ok(scenarios.includes('ot1-cascade'));
   assert.ok(scenarios.includes('it1-sdk'));
   assert.ok(scenarios.includes('si1-isolation'));
   assert.equal(scenarios.includes('ap6-runtime-maintenance'), false);
-  assert.equal(scenarios.includes('sdlc-happy'), false);
 });
 
 test('core --all expands to full deterministic scenario set', () => {
   const options = parseArgs(['--lane', 'core', '--all']);
   const scenarios = resolveScenarios(options);
 
+  assert.ok(scenarios.includes('sdlc-happy'));
+  assert.ok(scenarios.includes('maintenance-happy'));
+  assert.ok(scenarios.includes('ap7-failure-recovery'));
   assert.ok(scenarios.includes('ap6-runtime-maintenance'));
   assert.ok(scenarios.includes('ot2-routing'));
   assert.ok(scenarios.includes('ot3-state'));

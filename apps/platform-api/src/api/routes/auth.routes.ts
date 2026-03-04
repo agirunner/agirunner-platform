@@ -10,23 +10,30 @@ const ACCESS_COOKIE_NAME = 'agentbaton_access_token';
 const REFRESH_COOKIE_NAME = 'agentbaton_refresh_token';
 
 /** Cookie options for the httpOnly access token cookie. */
-function accessCookieOptions() {
+function accessCookieOptions(useSecureCookie: boolean) {
   return {
     httpOnly: true,
-    secure: true,
+    secure: useSecureCookie,
     sameSite: 'strict' as const,
     path: '/api/v1',
   };
 }
 
 /** Cookie options for the httpOnly refresh token cookie. */
-function refreshCookieOptions() {
+function refreshCookieOptions(useSecureCookie: boolean) {
   return {
     httpOnly: true,
-    secure: true,
+    secure: useSecureCookie,
     sameSite: 'strict' as const,
     path: '/api/v1/auth/refresh',
   };
+}
+
+function shouldUseSecureCookie(request: FastifyRequest): boolean {
+  const forwarded = request.headers['x-forwarded-proto'];
+  const protocolHeader = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+  const protocol = (protocolHeader ?? request.protocol ?? '').toLowerCase();
+  return protocol === 'https';
 }
 
 export const authRoutes: FastifyPluginAsync = async (app) => {
@@ -52,8 +59,9 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       keyPrefix: identity.keyPrefix,
     });
 
-    reply.setCookie(ACCESS_COOKIE_NAME, token, accessCookieOptions());
-    reply.setCookie(REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions());
+    const useSecureCookie = shouldUseSecureCookie(request);
+    reply.setCookie(ACCESS_COOKIE_NAME, token, accessCookieOptions(useSecureCookie));
+    reply.setCookie(REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions(useSecureCookie));
     return {
       data: {
         token,
@@ -168,8 +176,9 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       keyPrefix: keyIdentity.keyPrefix,
     });
 
-    reply.setCookie(ACCESS_COOKIE_NAME, nextToken, accessCookieOptions());
-    reply.setCookie(REFRESH_COOKIE_NAME, nextRefreshToken, refreshCookieOptions());
+    const useSecureCookie = shouldUseSecureCookie(request);
+    reply.setCookie(ACCESS_COOKIE_NAME, nextToken, accessCookieOptions(useSecureCookie));
+    reply.setCookie(REFRESH_COOKIE_NAME, nextRefreshToken, refreshCookieOptions(useSecureCookie));
     return {
       data: {
         token: nextToken,

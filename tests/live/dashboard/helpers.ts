@@ -9,25 +9,47 @@ export async function gotoDashboard(page: Page, path = '/'): Promise<void> {
 }
 
 export async function tryLogin(page: Page): Promise<void> {
-  const username = process.env.LIVE_DASHBOARD_USERNAME ?? 'admin@agentbaton.local';
-  const password = process.env.LIVE_DASHBOARD_PASSWORD ?? 'agentbaton';
+  const apiKey =
+    process.env.LIVE_DASHBOARD_API_KEY ??
+    process.env.DEFAULT_ADMIN_API_KEY ??
+    process.env.LIVE_DASHBOARD_PASSWORD ??
+    '';
 
-  const emailInput = page.locator('input[type="email"], input[name="email"]');
-  if ((await emailInput.count()) > 0) {
-    await emailInput.first().fill(username);
+  const pipelinesLink = page.getByRole('link', { name: 'Pipelines' }).first();
+  if ((await pipelinesLink.count()) > 0 && (await pipelinesLink.isVisible())) {
+    return;
   }
 
-  const passwordInput = page.locator('input[type="password"], input[name="password"]');
-  if ((await passwordInput.count()) > 0) {
-    await passwordInput.first().fill(password);
+  const apiKeyInput = page.getByLabel('API Key').first();
+  await apiKeyInput.waitFor({ state: 'visible', timeout: 10_000 });
+
+  if (!apiKey) {
+    throw new Error('Missing dashboard API key (set LIVE_DASHBOARD_API_KEY or DEFAULT_ADMIN_API_KEY)');
   }
+
+  await apiKeyInput.fill(apiKey);
 
   const submit = page
     .locator('button[type="submit"], button:has-text("Login"), button:has-text("Sign in")')
     .first();
-  if ((await submit.count()) > 0) {
-    await submit.click();
-  }
+  await submit.waitFor({ state: 'visible', timeout: 10_000 });
+  await submit.click();
+
+  const loginError = page.getByText('Invalid API key or server unavailable').first();
+  await expect
+    .poll(
+      async () => {
+        if ((await pipelinesLink.count()) > 0 && (await pipelinesLink.isVisible())) {
+          return 'authenticated';
+        }
+        if ((await loginError.count()) > 0 && (await loginError.isVisible())) {
+          return 'invalid-api-key';
+        }
+        return 'pending';
+      },
+      { timeout: 20_000 },
+    )
+    .toBe('authenticated');
 }
 
 export async function expectLoginPage(page: Page): Promise<void> {
@@ -37,9 +59,9 @@ export async function expectLoginPage(page: Page): Promise<void> {
 }
 
 export async function expectDashboardShell(page: Page): Promise<void> {
-  await expect(page.getByRole('link', { name: 'Pipelines' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Workers' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'System Metrics' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Pipelines' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('link', { name: 'Workers' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('link', { name: 'System Metrics' })).toBeVisible({ timeout: 15_000 });
 }
 
 export async function expectOneOfHeadings(page: Page, names: Array<string | RegExp>): Promise<void> {

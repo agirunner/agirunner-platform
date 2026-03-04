@@ -74,6 +74,25 @@ describe('dashboard api auth/session behavior', () => {
     expect(readSession()).toBeNull();
   });
 
+  it('persists access token across reload-style reads after login', async () => {
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listPipelines: vi.fn(),
+      exchangeApiKey: vi.fn().mockResolvedValue({ token: 'persisted-token', tenant_id: 'tenant-1' }),
+      getPipeline: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({ client: client as never });
+    await api.login('ab_admin_test_key');
+
+    expect(readSession()).toEqual({ accessToken: 'persisted-token', tenantId: 'tenant-1' });
+  });
+
   it('sends bearer token when loading metrics', async () => {
     writeSession({ accessToken: 'metrics-token', tenantId: 'tenant-1' });
 

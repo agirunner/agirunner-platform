@@ -9,6 +9,7 @@ import {
   resolveComposeMinFreeGiB,
   selectMutableLiveTables,
   shouldBuildDockerImages,
+  ensureDashboardCorsOrigin,
 } from './setup.js';
 
 test('createSetupExecutionPlan disables docker setup but still waits for health in skip mode', () => {
@@ -130,4 +131,20 @@ test('resolveComposeMinFreeGiB fails closed on invalid env override', () => {
     () => resolveComposeMinFreeGiB({ LIVE_COMPOSE_MIN_FREE_GB: 'NaN' }),
     /LIVE_COMPOSE_MIN_FREE_GB must be a positive numeric value/i,
   );
+});
+
+test('ensureDashboardCorsOrigin derives CORS_ORIGIN from dashboard URL when unset', () => {
+  const env: NodeJS.ProcessEnv = {};
+  const origin = ensureDashboardCorsOrigin('http://127.0.0.1:3000/login', env);
+
+  assert.equal(origin, 'http://127.0.0.1:3000');
+  assert.equal(env.CORS_ORIGIN, 'http://127.0.0.1:3000');
+});
+
+test('ensureDashboardCorsOrigin keeps explicit CORS_ORIGIN unchanged', () => {
+  const env: NodeJS.ProcessEnv = { CORS_ORIGIN: 'https://dashboard.example.com' };
+  const origin = ensureDashboardCorsOrigin('http://127.0.0.1:3000/login', env);
+
+  assert.equal(origin, 'https://dashboard.example.com');
+  assert.equal(env.CORS_ORIGIN, 'https://dashboard.example.com');
 });

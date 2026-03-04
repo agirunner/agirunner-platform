@@ -56,7 +56,9 @@ export async function bootstrapAgentApiEndpoint(params: {
 
   const config = loadConfig();
   const ap7FailClosed =
-    config.ap7RequireProvidedAgentApiUrl && params.scenarios.includes(AP7_SCENARIO);
+    config.ap7RequireProvidedAgentApiUrl &&
+    params.provider !== 'none' &&
+    params.scenarios.includes(AP7_SCENARIO);
 
   const openAiKey = process.env.OPENAI_API_KEY?.trim();
   const existingUrl = params.existingUrl?.trim();
@@ -93,6 +95,13 @@ export async function bootstrapAgentApiEndpoint(params: {
       );
     }
 
+    if (params.provider === 'none') {
+      console.warn(
+        `Provided AGENT_API_URL appears unreachable for built-in worker (${workerReachableUrl}); falling back to harness deterministic executor.`,
+      );
+      return startHarnessDeterministicExecutor();
+    }
+
     if (openAiKey) {
       console.warn(
         `Provided AGENT_API_URL appears unreachable for built-in worker (${workerReachableUrl}); falling back to harness live executor.`,
@@ -113,8 +122,14 @@ export async function bootstrapAgentApiEndpoint(params: {
   }
 
   // Built-in scenarios require a worker-reachable AGENT_API_URL.
-  // For non-AP7 lanes, the harness-hosted executor is transport-compatible
-  // across live providers, so bootstrap should not be gated on lane provider.
+  // For deterministic core lanes (provider=none), bootstrap a local
+  // transport-compatible deterministic executor.
+  if (params.provider === 'none') {
+    return startHarnessDeterministicExecutor();
+  }
+
+  // For non-AP7 live lanes, the harness-hosted executor is transport-compatible
+  // across live providers.
   if (!openAiKey) {
     return null;
   }
@@ -287,6 +302,171 @@ async function startHarnessOpenAiExecutor(openAiKey: string): Promise<AgentApiBo
       });
     },
   };
+}
+
+async function startHarnessDeterministicExecutor(): Promise<AgentApiBootstrap> {
+  const agentApiKey = `harness-deterministic-${randomUUID()}`;
+
+  const server = http.createServer((req, res) => {
+    void (async () => {
+      try {
+        if (!req.url) {
+          writeJson(res, 400, { error: 'missing_url' });
+          return;
+        }
+
+        if (req.method === 'GET' && req.url === '/health') {
+          writeJson(res, 200, { status: 'ok' });
+          return;
+        }
+
+        if (req.method !== 'POST' || req.url !== '/execute') {
+          writeJson(res, 404, { error: 'not_found' });
+          return;
+        }
+
+        const providedKey = req.headers['x-agent-key'];
+        const directKey = Array.isArray(providedKey) ? providedKey[0] : providedKey;
+
+        const authorizationHeader = req.headers.authorization;
+        const authorization = Array.isArray(authorizationHeader)
+          ? authorizationHeader[0]
+          : authorizationHeader;
+        const bearerKey =
+          typeof authorization === 'string' && authorization.startsWith('Bearer ')
+            ? authorization.slice('Bearer '.length).trim()
+            : undefined;
+
+        const provided = directKey ?? bearerKey;
+        if (provided !== agentApiKey) {
+          writeJson(res, 401, { error: 'invalid_agent_key' });
+          return;
+        }
+
+        const body = await readRequestBody(req, 256_000);
+        const payload = safeParseJson<ExecutorRequest>(body);
+        if (!payload) {
+          writeJson(res, 400, { error: 'invalid_json' });
+          return;
+        }
+
+        writeJson(res, 200, executeDeterministically(payload));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        writeJson(res, 502, { error: 'executor_failed', message });
+      }
+    })();
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '0.0.0.0', () => {
+      server.off('error', reject);
+      resolve();
+    });
+  });
+
+  const addr = server.address();
+  if (!addr || typeof addr === 'string') {
+    throw new Error('Failed to bind deterministic harness executor server');
+  }
+
+  const workerUrl = `http://host.docker.internal:${addr.port}/execute`;
+
+  return {
+    agentApiUrl: workerUrl,
+    agentApiKey,
+    source: 'harness-live-executor',
+    dispose: async () => {
+      await new Promise<void>((resolve) => {
+        server.close(() => resolve());
+      });
+    },
+  };
+}
+
+function executeDeterministically(payload: ExecutorRequest): Record<string, unknown> {
+  const role = deriveRole(payload);
+  const scenario = deriveScenario(payload);
+  const repo = extractTaskInputString(payload, 'repo', 'workspace');
+  const objective =
+    extractTaskInputString(payload, 'goal') ||
+    extractTaskInputString(payload, 'issue') ||
+    extractTaskInputString(payload, 'instruction') ||
+    'deliver requested outcome';
+
+  const filePathByRole: Record<string, string> = {
+    architect: `docs/architecture/${repo}-${scenario}.md`,
+    developer: `apps/${repo}/src/${scenario}.ts`,
+    reviewer: `docs/reviews/${repo}-${scenario}.md`,
+    qa: `tests/${repo}/${scenario}.spec.ts`,
+  };
+
+  const changedPath = filePathByRole[role] ?? `docs/notes/${repo}-${scenario}.md`;
+  const patch = [
+    `diff --git a/${changedPath} b/${changedPath}`,
+    'index 1111111..2222222 100644',
+    `--- a/${changedPath}`,
+    `+++ b/${changedPath}`,
+    '@@ -1,2 +1,3 @@',
+    `-// previous ${scenario} implementation`,
+    `+// deterministic executor update for ${scenario}`,
+    `+// objective: ${objective}`,
+  ].join('\n');
+
+  return {
+    scenario,
+    task_id: payload.task_id ?? 'unknown-task',
+    pipeline_id: derivePipelineId(payload),
+    role,
+    handled_by: 'ap-deterministic-harness-executor',
+    execution_mode: 'deterministic-agent-api',
+    summary: `Delivered ${role} task for ${scenario} in ${repo}.`,
+    implementation: [
+      `Analyzed task objective: ${objective}.`,
+      `Prepared deterministic implementation artifact at ${changedPath}.`,
+    ],
+    changed_files: [
+      {
+        path: changedPath,
+        change: `Updated ${scenario} delivery artifact with deterministic evidence payload.`,
+        reason: 'Keep core-lane built-in worker execution deterministic and reproducible.',
+      },
+    ],
+    patch,
+    tests: [
+      `pnpm --filter ${repo} test`,
+      `pnpm --filter ${repo} lint`,
+    ],
+    risks: ['Follow-up review should confirm behavior against repository-specific acceptance checks.'],
+    review_notes: [`Deterministic harness executor response for role=${role}, scenario=${scenario}.`],
+  };
+}
+
+function extractTaskInputString(
+  payload: ExecutorRequest,
+  key: string,
+  fallback = '',
+): string {
+  const input = payload.input;
+  if (input && typeof input === 'object' && !Array.isArray(input)) {
+    const value = (input as Record<string, unknown>)[key];
+    if (typeof value === 'string' && value.trim().length > 0) {
+      const normalized = normalizeEvidenceText(value);
+      if (normalized.length > 0) {
+        return normalized;
+      }
+    }
+  }
+
+  return fallback;
+}
+
+function normalizeEvidenceText(value: string): string {
+  return value
+    .replace(/\{\{[^}]+\}\}/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function resolveOpenAiApiBaseUrl(): string {

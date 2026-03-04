@@ -97,4 +97,40 @@ describe('PlatformApiClient', () => {
     expect(fetchPage).toHaveBeenNthCalledWith(2, { page: 2, per_page: 2 });
     expect(rows).toEqual([{ id: 'a' }, { id: 'b' }, { id: 'c' }]);
   });
+
+  it('default fetcher remains callable when global fetch requires receiver binding', async () => {
+    const originalFetch = globalThis.fetch;
+
+    let fetchCallCount = 0;
+    const boundFetch = function (this: typeof globalThis, _input: RequestInfo | URL, _init?: RequestInit) {
+      fetchCallCount += 1;
+      if (this !== globalThis) {
+        throw new TypeError('Illegal invocation');
+      }
+
+      return Promise.resolve(
+        new Response(JSON.stringify({ data: { token: 'token', tenant_id: 'tenant', scope: 'admin' } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    };
+
+    globalThis.fetch = boundFetch as unknown as typeof fetch;
+
+    try {
+      const client = new PlatformApiClient({
+        baseUrl: 'http://localhost:8080',
+      });
+
+      await expect(client.exchangeApiKey('ab_admin_defintegrationlane0000000000001')).resolves.toEqual({
+        token: 'token',
+        tenant_id: 'tenant',
+        scope: 'admin',
+      });
+      expect(fetchCallCount).toBe(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

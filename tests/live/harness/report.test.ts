@@ -126,3 +126,153 @@ test('relative overrides resolve from cwd repo root for saveRunReport', { concur
   assert.equal(existsSync(path.join(root, resultsRelative)), true);
   assert.equal(existsSync(path.join(root, artifactsRelative, 'integration', 'run-run-relative-1.json')), true);
 });
+
+test('dashboard-only integration report does not fan out status to canonical scenario cells', {
+  concurrency: false,
+}, () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'report-dashboard-'));
+  const canonicalPath = path.join(root, 'tests/reports/test-cases.v1.json');
+  writeCanonical(canonicalPath);
+
+  const previousCwd = process.cwd();
+  process.chdir(root);
+
+  try {
+    saveRunReport({
+      runId: 'run-dashboard-1',
+      startedAt: '2026-03-03T00:00:00.000Z',
+      finishedAt: '2026-03-03T00:00:01.000Z',
+      template: 'dashboard',
+      provider: 'none',
+      repeat: 1,
+      scenarios: {
+        dashboard: {
+          status: 'pass',
+          duration: '1s',
+          cost: '0',
+          artifacts: 0,
+          validations: 1,
+          screenshots: [],
+        },
+      },
+      containers_leaked: 0,
+      temp_files_leaked: 0,
+      total_cost: '0',
+    });
+  } finally {
+    process.chdir(previousCwd);
+  }
+
+  const payload = JSON.parse(
+    readFileSync(path.join(root, 'tests/reports/results.v1.json'), 'utf8'),
+  ) as {
+    matrix: Array<{ cells: Array<{ lane: string; status: string }> }>;
+    runs: { integration: Array<{ scenarios: Record<string, string> }> };
+  };
+
+  const integrationCell = payload.matrix[0]?.cells.find((cell) => cell.lane === 'integration');
+  assert.equal(integrationCell?.status, 'NOT_PASS');
+  assert.equal(payload.runs.integration[0]?.scenarios['dashboard'], 'PASS');
+  assert.equal(payload.runs.integration[0]?.scenarios['sdlc-happy'], undefined);
+});
+
+test('regenerateLaneResults strips legacy dashboard fan-out from integration history', {
+  concurrency: false,
+}, () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'report-fanout-migrate-'));
+  const canonicalPath = path.join(root, 'tests/reports/test-cases.v1.json');
+  const resultsPath = path.join(root, 'tests/reports/results.v1.json');
+  writeCanonical(canonicalPath);
+
+  mkdirSync(path.dirname(resultsPath), { recursive: true });
+  writeFileSync(
+    resultsPath,
+    JSON.stringify(
+      {
+        version: '1.0',
+        generatedAt: '2026-03-03T00:00:00.000Z',
+        generated_at_utc: '2026-03-03T00:00:00.000Z',
+        status_enum: ['PASS', 'FLAKY', 'FAIL', 'NOT_PASS'],
+        providers: ['openai'],
+        scenarios: [
+          {
+            key: 'sdlc-happy',
+            id: 'UC-001',
+            title: 'SDLC happy path',
+            planRef: 'PLAN-001',
+          },
+        ],
+        summary: {
+          PASS: 2,
+          FLAKY: 0,
+          FAIL: 0,
+          NOT_PASS: 1,
+          row_count: 1,
+          cell_count: 3,
+          by_lane: {
+            core: { PASS: 1, FLAKY: 0, FAIL: 0, NOT_PASS: 0 },
+            integration: { PASS: 1, FLAKY: 0, FAIL: 0, NOT_PASS: 0 },
+            live: { PASS: 0, FLAKY: 0, FAIL: 0, NOT_PASS: 1 },
+          },
+        },
+        matrix: [
+          {
+            use_case_id: 'UC-001',
+            title: 'SDLC happy path',
+            plan_section: 'PLAN-001',
+            runtime_scope: 'platform',
+            cells: [
+              { lane: 'core', category: 'core', provider: 'none', mode: 'core', status: 'PASS' },
+              {
+                lane: 'integration',
+                category: 'integration',
+                provider: 'none',
+                mode: 'integration',
+                status: 'PASS',
+              },
+              { lane: 'live', category: 'live', provider: 'openai', mode: 'e2e', status: 'NOT_PASS' },
+            ],
+          },
+        ],
+        runs: {
+          core: [],
+          integration: [
+            {
+              runId: 'legacy-dashboard-1',
+              startedAt: '2026-03-03T00:00:00.000Z',
+              finishedAt: '2026-03-03T00:00:01.000Z',
+              status: 'PASS',
+              artifactJsonPath: 'tests/artifacts/integration/run-legacy-dashboard-1.json',
+              artifactMdPath: 'tests/artifacts/integration/run-legacy-dashboard-1.md',
+              scenarios: {
+                dashboard: 'PASS',
+                'sdlc-happy': 'PASS',
+              },
+            },
+          ],
+        },
+        live_cells: {
+          'sdlc-happy': {
+            openai: {
+              status: 'NOT_PASS',
+            },
+          },
+        },
+      },
+      null,
+      2,
+    ) + '\n',
+  );
+
+  regenerateLaneResults(root);
+
+  const payload = JSON.parse(readFileSync(resultsPath, 'utf8')) as {
+    matrix: Array<{ cells: Array<{ lane: string; status: string }> }>;
+    runs: { integration: Array<{ scenarios: Record<string, string> }> };
+  };
+
+  const integrationCell = payload.matrix[0]?.cells.find((cell) => cell.lane === 'integration');
+  assert.equal(integrationCell?.status, 'NOT_PASS');
+  assert.equal(payload.runs.integration[0]?.scenarios['dashboard'], 'PASS');
+  assert.equal(payload.runs.integration[0]?.scenarios['sdlc-happy'], undefined);
+});

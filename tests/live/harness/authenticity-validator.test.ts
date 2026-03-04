@@ -324,6 +324,34 @@ test('llm validator fails closed when provider credentials are unavailable', asy
   else process.env.LIVE_AUTH_LLM_MODEL = prevModel;
 });
 
+test('provider=none enforces deterministic authenticity route for hybrid-mapped scenarios', async () => {
+  const prevOpenAiKey = process.env.OPENAI_API_KEY;
+  delete process.env.OPENAI_API_KEY;
+
+  const result = await enforceScenarioAuthenticityGate({
+    runId: 'test-run-provider-none-route',
+    scenario: 'sdlc-happy',
+    provider: 'none',
+    template: 'sdlc',
+    result: makeResult(),
+  });
+
+  assert.equal(result.status, 'PASS');
+  assert.equal(result.route, 'deterministic');
+  assert.equal(result.llm, undefined);
+
+  if (prevOpenAiKey === undefined) delete process.env.OPENAI_API_KEY;
+  else process.env.OPENAI_API_KEY = prevOpenAiKey;
+
+  rmSync(
+    path.join(process.cwd(), 'tests', 'artifacts', 'live', 'validators', 'test-run-provider-none-route'),
+    {
+      recursive: true,
+      force: true,
+    },
+  );
+});
+
 test('llm validator normalizes known deterministic evidence-ref aliases before fail-closed checks', async () => {
   const prevOpenAiKey = process.env.OPENAI_API_KEY;
   const prevProvider = process.env.LIVE_AUTH_LLM_PROVIDER;

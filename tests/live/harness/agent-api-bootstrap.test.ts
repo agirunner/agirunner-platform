@@ -157,3 +157,64 @@ test('reachable provided AGENT_API_URL is used directly for AP-7', async () => {
   await result?.dispose();
   globalThis.fetch = previousFetch;
 });
+
+test('provider=none built-in scenarios bootstrap deterministic executor even when AP-7 guard is enabled', async () => {
+  const previousAp7Guard = process.env.LIVE_AP7_REQUIRE_PROVIDED_AGENT_API_URL;
+
+  process.env.LIVE_AP7_REQUIRE_PROVIDED_AGENT_API_URL = 'true';
+
+  const result = await bootstrapAgentApiEndpoint({
+    scenarios: ['sdlc-happy', 'ap7-failure-recovery'],
+    provider: 'none',
+  });
+
+  assert.ok(result);
+  assert.equal(result?.source, 'harness-live-executor');
+  assert.equal(result?.agentApiUrl.startsWith('http://host.docker.internal:'), true);
+  assert.equal(result?.agentApiKey?.startsWith('harness-deterministic-'), true);
+
+  await result?.dispose();
+
+  if (previousAp7Guard === undefined) delete process.env.LIVE_AP7_REQUIRE_PROVIDED_AGENT_API_URL;
+  else process.env.LIVE_AP7_REQUIRE_PROVIDED_AGENT_API_URL = previousAp7Guard;
+});
+
+test('deterministic executor returns concrete delivery evidence payload', async () => {
+  const result = await bootstrapAgentApiEndpoint({
+    scenarios: ['sdlc-happy'],
+    provider: 'none',
+  });
+
+  assert.ok(result);
+
+  const hostAccessibleUrl = new URL(result!.agentApiUrl);
+  if (hostAccessibleUrl.hostname === 'host.docker.internal') {
+    hostAccessibleUrl.hostname = '127.0.0.1';
+  }
+
+  const response = await fetch(hostAccessibleUrl, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${result?.agentApiKey}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      task_id: 'task-1',
+      type: 'code',
+      context: { scenario: 'sdlc-happy' },
+      input: { repo: 'calc-api', goal: 'Add multiply endpoint' },
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  const payload = (await response.json()) as {
+    handled_by: string;
+    patch: string;
+    changed_files: Array<{ path: string }>;
+  };
+  assert.equal(payload.handled_by, 'ap-deterministic-harness-executor');
+  assert.equal(payload.patch.includes('diff --git'), true);
+  assert.equal(Array.isArray(payload.changed_files) && payload.changed_files.length > 0, true);
+
+  await result?.dispose();
+});

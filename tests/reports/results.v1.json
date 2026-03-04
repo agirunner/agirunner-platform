@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-04T04:44:00.182Z",
-  "generated_at_utc": "2026-03-04T04:44:00.182Z",
+  "generatedAt": "2026-03-04T07:36:27.661Z",
+  "generated_at_utc": "2026-03-04T07:36:27.661Z",
   "status_enum": [
     "PASS",
     "FLAKY",
@@ -136,17 +136,17 @@
     }
   ],
   "summary": {
-    "PASS": 76,
+    "PASS": 79,
     "FLAKY": 0,
-    "FAIL": 4,
+    "FAIL": 1,
     "NOT_PASS": 20,
     "row_count": 20,
     "cell_count": 100,
     "by_lane": {
       "core": {
-        "PASS": 17,
+        "PASS": 20,
         "FLAKY": 0,
-        "FAIL": 3,
+        "FAIL": 0,
         "NOT_PASS": 0
       },
       "integration": {
@@ -176,10 +176,10 @@
           "provider": "none",
           "mode": "core",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -190,7 +190,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -204,7 +204,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -218,7 +218,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -232,7 +232,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     },
@@ -251,7 +251,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -262,7 +262,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -276,7 +276,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -290,7 +290,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -304,7 +304,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     },
@@ -323,7 +323,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -334,7 +334,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -348,7 +348,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -362,7 +362,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -376,7 +376,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     },
@@ -395,7 +395,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -406,7 +406,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -420,7 +420,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -434,7 +434,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -448,7 +448,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     },
@@ -464,10 +464,10 @@
           "provider": "none",
           "mode": "core",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -478,7 +478,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -492,7 +492,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -506,7 +506,7 @@
             "tests/artifacts/live/run-2026-03-04T04-39-45-269Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -520,7 +520,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     },
@@ -539,7 +539,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -550,7 +550,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -564,7 +564,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -578,7 +578,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -592,7 +592,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     },
@@ -608,10 +608,10 @@
           "provider": "none",
           "mode": "core",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -622,7 +622,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -636,7 +636,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -650,7 +650,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -664,7 +664,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     },
@@ -683,7 +683,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -694,7 +694,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -708,7 +708,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -722,7 +722,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -736,7 +736,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     },
@@ -755,7 +755,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -766,7 +766,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -780,7 +780,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -794,7 +794,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -808,7 +808,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     },
@@ -827,7 +827,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -838,7 +838,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -852,7 +852,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -866,7 +866,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -880,7 +880,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     },
@@ -899,7 +899,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -910,7 +910,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -924,7 +924,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -940,7 +940,7 @@
           "notes": [
             "API http://127.0.0.1:18242/api/v1/workers/register returned 500: {\"statusCode\":500,\"code\":\"23505\",\"error\":\"Internal Server Error\",\"message\":\"duplicate key value violates unique constraint \\\"idx_api_keys_prefix\\\"\"}"
           ],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -954,7 +954,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     },
@@ -973,7 +973,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -984,7 +984,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -998,7 +998,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1012,7 +1012,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1026,7 +1026,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     },
@@ -1045,7 +1045,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -1056,7 +1056,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1070,7 +1070,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1084,7 +1084,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1098,7 +1098,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     },
@@ -1117,7 +1117,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -1128,7 +1128,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1142,7 +1142,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1156,7 +1156,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1170,7 +1170,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     },
@@ -1189,7 +1189,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -1200,7 +1200,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1214,7 +1214,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1228,7 +1228,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1242,7 +1242,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     },
@@ -1261,7 +1261,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -1272,7 +1272,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1286,7 +1286,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1300,7 +1300,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1314,7 +1314,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     },
@@ -1333,7 +1333,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -1344,7 +1344,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1358,7 +1358,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1372,7 +1372,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1386,7 +1386,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     },
@@ -1405,7 +1405,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -1416,7 +1416,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1430,7 +1430,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1444,7 +1444,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1458,7 +1458,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     },
@@ -1477,7 +1477,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -1488,7 +1488,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1502,7 +1502,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1516,7 +1516,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1530,7 +1530,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     },
@@ -1549,7 +1549,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "integration",
@@ -1560,7 +1560,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1574,7 +1574,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1588,7 +1588,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         },
         {
           "lane": "live",
@@ -1602,7 +1602,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T04:44:00.182Z"
+          "generated_at_utc": "2026-03-04T07:36:27.661Z"
         }
       ]
     }
@@ -2214,119 +2214,227 @@
           "si2-auth": "PASS",
           "si2-extended-isolation": "PASS"
         }
+      },
+      {
+        "runId": "2026-03-04T05-26-37-982Z-sdlc-none-r1",
+        "startedAt": "2026-03-04T05:26:37.982Z",
+        "finishedAt": "2026-03-04T05:30:37.734Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-04T05-26-37-982Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-04T05-26-37-982Z-sdlc-none-r1.md",
+        "scenarios": {
+          "ap2-external-runtime": "PASS",
+          "ap3-standalone-worker": "PASS",
+          "ap4-mixed-workers": "PASS",
+          "ap6-runtime-maintenance": "PASS",
+          "ot1-cascade": "PASS",
+          "ot2-routing": "PASS",
+          "ot3-state": "PASS",
+          "ot4-health": "PASS",
+          "hl1-approval-flow": "PASS",
+          "hl2-pipeline-controls": "PASS",
+          "it1-sdk": "PASS",
+          "it2-mcp": "PASS",
+          "it3-webhooks": "PASS",
+          "it3-mcp-sse-stream": "PASS",
+          "si1-isolation": "PASS",
+          "si2-auth": "PASS",
+          "si2-extended-isolation": "PASS"
+        }
+      },
+      {
+        "runId": "2026-03-04T05-34-18-586Z-sdlc-none-r1",
+        "startedAt": "2026-03-04T05:34:18.585Z",
+        "finishedAt": "2026-03-04T05:34:18.587Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-04T05-34-18-586Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-04T05-34-18-586Z-sdlc-none-r1.md",
+        "scenarios": {
+          "sdlc-happy": "FAIL",
+          "ap2-external-runtime": "FAIL",
+          "ap3-standalone-worker": "FAIL",
+          "ap4-mixed-workers": "FAIL",
+          "maintenance-happy": "FAIL",
+          "ap6-runtime-maintenance": "FAIL",
+          "ap7-failure-recovery": "FAIL",
+          "ot1-cascade": "FAIL",
+          "ot2-routing": "FAIL",
+          "ot3-state": "FAIL",
+          "ot4-health": "FAIL",
+          "hl1-approval-flow": "FAIL",
+          "hl2-pipeline-controls": "FAIL",
+          "it1-sdk": "FAIL",
+          "it2-mcp": "FAIL",
+          "it3-webhooks": "FAIL",
+          "it3-mcp-sse-stream": "FAIL",
+          "si1-isolation": "FAIL",
+          "si2-auth": "FAIL",
+          "si2-extended-isolation": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-04T05-38-11-468Z-sdlc-none-r1",
+        "startedAt": "2026-03-04T05:38:11.468Z",
+        "finishedAt": "2026-03-04T05:42:59.375Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-04T05-38-11-468Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-04T05-38-11-468Z-sdlc-none-r1.md",
+        "scenarios": {
+          "sdlc-happy": "FAIL",
+          "ap2-external-runtime": "PASS",
+          "ap3-standalone-worker": "PASS",
+          "ap4-mixed-workers": "PASS",
+          "maintenance-happy": "FAIL",
+          "ap6-runtime-maintenance": "PASS",
+          "ap7-failure-recovery": "PASS",
+          "ot1-cascade": "PASS",
+          "ot2-routing": "PASS",
+          "ot3-state": "PASS",
+          "ot4-health": "PASS",
+          "hl1-approval-flow": "PASS",
+          "hl2-pipeline-controls": "PASS",
+          "it1-sdk": "PASS",
+          "it2-mcp": "PASS",
+          "it3-webhooks": "PASS",
+          "it3-mcp-sse-stream": "PASS",
+          "si1-isolation": "PASS",
+          "si2-auth": "PASS",
+          "si2-extended-isolation": "PASS"
+        }
+      },
+      {
+        "runId": "2026-03-04T05-43-27-527Z-sdlc-none-r1",
+        "startedAt": "2026-03-04T05:43:27.527Z",
+        "finishedAt": "2026-03-04T05:47:22.521Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-04T05-43-27-527Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-04T05-43-27-527Z-sdlc-none-r1.md",
+        "scenarios": {
+          "sdlc-happy": "FAIL",
+          "ap2-external-runtime": "PASS",
+          "ap3-standalone-worker": "PASS",
+          "ap4-mixed-workers": "PASS",
+          "maintenance-happy": "FAIL",
+          "ap6-runtime-maintenance": "PASS",
+          "ap7-failure-recovery": "PASS",
+          "ot1-cascade": "PASS",
+          "ot2-routing": "PASS",
+          "ot3-state": "PASS",
+          "ot4-health": "PASS",
+          "hl1-approval-flow": "PASS",
+          "hl2-pipeline-controls": "PASS",
+          "it1-sdk": "PASS",
+          "it2-mcp": "PASS",
+          "it3-webhooks": "PASS",
+          "it3-mcp-sse-stream": "PASS",
+          "si1-isolation": "PASS",
+          "si2-auth": "PASS",
+          "si2-extended-isolation": "PASS"
+        }
+      },
+      {
+        "runId": "2026-03-04T05-48-35-406Z-sdlc-none-r1",
+        "startedAt": "2026-03-04T05:48:35.406Z",
+        "finishedAt": "2026-03-04T05:51:12.550Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-04T05-48-35-406Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-04T05-48-35-406Z-sdlc-none-r1.md",
+        "scenarios": {
+          "maintenance-happy": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-04T05-52-18-023Z-sdlc-none-r1",
+        "startedAt": "2026-03-04T05:52:18.023Z",
+        "finishedAt": "2026-03-04T05:56:13.286Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-04T05-52-18-023Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-04T05-52-18-023Z-sdlc-none-r1.md",
+        "scenarios": {
+          "sdlc-happy": "PASS",
+          "ap2-external-runtime": "PASS",
+          "ap3-standalone-worker": "PASS",
+          "ap4-mixed-workers": "PASS",
+          "maintenance-happy": "PASS",
+          "ap6-runtime-maintenance": "PASS",
+          "ap7-failure-recovery": "PASS",
+          "ot1-cascade": "PASS",
+          "ot2-routing": "PASS",
+          "ot3-state": "PASS",
+          "ot4-health": "PASS",
+          "hl1-approval-flow": "PASS",
+          "hl2-pipeline-controls": "PASS",
+          "it1-sdk": "PASS",
+          "it2-mcp": "PASS",
+          "it3-webhooks": "PASS",
+          "it3-mcp-sse-stream": "PASS",
+          "si1-isolation": "PASS",
+          "si2-auth": "PASS",
+          "si2-extended-isolation": "PASS"
+        }
+      },
+      {
+        "runId": "2026-03-04T06-45-15-240Z-sdlc-none-r1",
+        "startedAt": "2026-03-04T06:43:34.020Z",
+        "finishedAt": "2026-03-04T06:45:15.240Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-04T06-45-15-240Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-04T06-45-15-240Z-sdlc-none-r1.md",
+        "scenarios": {
+          "sdlc-happy": "FAIL",
+          "ap2-external-runtime": "FAIL",
+          "ap3-standalone-worker": "FAIL",
+          "ap4-mixed-workers": "FAIL",
+          "maintenance-happy": "FAIL",
+          "ap6-runtime-maintenance": "FAIL",
+          "ap7-failure-recovery": "FAIL",
+          "ot1-cascade": "FAIL",
+          "ot2-routing": "FAIL",
+          "ot3-state": "FAIL",
+          "ot4-health": "FAIL",
+          "hl1-approval-flow": "FAIL",
+          "hl2-pipeline-controls": "FAIL",
+          "it1-sdk": "FAIL",
+          "it2-mcp": "FAIL",
+          "it3-webhooks": "FAIL",
+          "it3-mcp-sse-stream": "FAIL",
+          "si1-isolation": "FAIL",
+          "si2-auth": "FAIL",
+          "si2-extended-isolation": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-04T07-06-44-169Z-sdlc-none-r1",
+        "startedAt": "2026-03-04T07:06:44.169Z",
+        "finishedAt": "2026-03-04T07:11:40.781Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-04T07-06-44-169Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-04T07-06-44-169Z-sdlc-none-r1.md",
+        "scenarios": {
+          "sdlc-happy": "PASS",
+          "ap2-external-runtime": "PASS",
+          "ap3-standalone-worker": "PASS",
+          "ap4-mixed-workers": "PASS",
+          "maintenance-happy": "PASS",
+          "ap6-runtime-maintenance": "PASS",
+          "ap7-failure-recovery": "PASS",
+          "ot1-cascade": "PASS",
+          "ot2-routing": "PASS",
+          "ot3-state": "PASS",
+          "ot4-health": "PASS",
+          "hl1-approval-flow": "PASS",
+          "hl2-pipeline-controls": "PASS",
+          "it1-sdk": "PASS",
+          "it2-mcp": "PASS",
+          "it3-webhooks": "PASS",
+          "it3-mcp-sse-stream": "PASS",
+          "si1-isolation": "PASS",
+          "si2-auth": "PASS",
+          "si2-extended-isolation": "PASS"
+        }
       }
     ],
     "integration": [
-      {
-        "runId": "2026-03-03T18-57-47-752Z-dashboard-none-r1",
-        "startedAt": "2026-03-03T18:57:47.752Z",
-        "finishedAt": "2026-03-03T18:57:55.914Z",
-        "status": "FAIL",
-        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T18-57-47-752Z-dashboard-none-r1.json",
-        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T18-57-47-752Z-dashboard-none-r1.md",
-        "scenarios": {
-          "dashboard": "FAIL"
-        }
-      },
-      {
-        "runId": "2026-03-03T18-58-37-390Z-dashboard-none-r1",
-        "startedAt": "2026-03-03T18:58:37.390Z",
-        "finishedAt": "2026-03-03T18:58:45.223Z",
-        "status": "FAIL",
-        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T18-58-37-390Z-dashboard-none-r1.json",
-        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T18-58-37-390Z-dashboard-none-r1.md",
-        "scenarios": {
-          "dashboard": "FAIL"
-        }
-      },
-      {
-        "runId": "2026-03-03T18-59-07-541Z-dashboard-none-r1",
-        "startedAt": "2026-03-03T18:59:07.541Z",
-        "finishedAt": "2026-03-03T18:59:16.266Z",
-        "status": "FAIL",
-        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T18-59-07-541Z-dashboard-none-r1.json",
-        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T18-59-07-541Z-dashboard-none-r1.md",
-        "scenarios": {
-          "dashboard": "FAIL"
-        }
-      },
-      {
-        "runId": "2026-03-03T19-02-08-974Z-dashboard-none-r1",
-        "startedAt": "2026-03-03T19:02:08.973Z",
-        "finishedAt": "2026-03-03T19:02:17.230Z",
-        "status": "FAIL",
-        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T19-02-08-974Z-dashboard-none-r1.json",
-        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T19-02-08-974Z-dashboard-none-r1.md",
-        "scenarios": {
-          "dashboard": "FAIL"
-        }
-      },
-      {
-        "runId": "2026-03-03T19-03-12-239Z-dashboard-none-r1",
-        "startedAt": "2026-03-03T19:03:12.238Z",
-        "finishedAt": "2026-03-03T19:03:20.791Z",
-        "status": "FAIL",
-        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T19-03-12-239Z-dashboard-none-r1.json",
-        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T19-03-12-239Z-dashboard-none-r1.md",
-        "scenarios": {
-          "dashboard": "FAIL"
-        }
-      },
-      {
-        "runId": "2026-03-03T19-05-21-504Z-dashboard-none-r1",
-        "startedAt": "2026-03-03T19:05:21.504Z",
-        "finishedAt": "2026-03-03T19:05:29.555Z",
-        "status": "FAIL",
-        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T19-05-21-504Z-dashboard-none-r1.json",
-        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T19-05-21-504Z-dashboard-none-r1.md",
-        "scenarios": {
-          "dashboard": "FAIL"
-        }
-      },
-      {
-        "runId": "2026-03-03T19-14-49-152Z-dashboard-none-r1",
-        "startedAt": "2026-03-03T19:14:49.152Z",
-        "finishedAt": "2026-03-03T19:14:56.626Z",
-        "status": "FAIL",
-        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T19-14-49-152Z-dashboard-none-r1.json",
-        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T19-14-49-152Z-dashboard-none-r1.md",
-        "scenarios": {
-          "dashboard": "FAIL"
-        }
-      },
-      {
-        "runId": "2026-03-03T19-15-49-672Z-dashboard-none-r1",
-        "startedAt": "2026-03-03T19:15:49.672Z",
-        "finishedAt": "2026-03-03T19:16:57.530Z",
-        "status": "FAIL",
-        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T19-15-49-672Z-dashboard-none-r1.json",
-        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T19-15-49-672Z-dashboard-none-r1.md",
-        "scenarios": {
-          "dashboard": "FAIL"
-        }
-      },
-      {
-        "runId": "2026-03-03T19-20-04-662Z-dashboard-none-r1",
-        "startedAt": "2026-03-03T19:20:04.661Z",
-        "finishedAt": "2026-03-03T19:20:12.385Z",
-        "status": "FAIL",
-        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T19-20-04-662Z-dashboard-none-r1.json",
-        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T19-20-04-662Z-dashboard-none-r1.md",
-        "scenarios": {
-          "dashboard": "FAIL"
-        }
-      },
-      {
-        "runId": "2026-03-03T19-23-55-476Z-dashboard-none-r1",
-        "startedAt": "2026-03-03T19:23:55.476Z",
-        "finishedAt": "2026-03-03T19:24:03.642Z",
-        "status": "FAIL",
-        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T19-23-55-476Z-dashboard-none-r1.json",
-        "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T19-23-55-476Z-dashboard-none-r1.md",
-        "scenarios": {
-          "dashboard": "FAIL"
-        }
-      },
       {
         "runId": "2026-03-03T19-24-24-222Z-dashboard-none-r1",
         "startedAt": "2026-03-03T19:24:24.222Z",
@@ -2763,6 +2871,116 @@
         "status": "PASS",
         "artifactJsonPath": "tests/artifacts/integration/run-2026-03-03T21-40-22-912Z-dashboard-none-r1.json",
         "artifactMdPath": "tests/artifacts/integration/run-2026-03-03T21-40-22-912Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "PASS"
+        }
+      },
+      {
+        "runId": "2026-03-04T05-30-46-210Z-dashboard-none-r1",
+        "startedAt": "2026-03-04T05:30:46.210Z",
+        "finishedAt": "2026-03-04T05:30:50.297Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-04T05-30-46-210Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-04T05-30-46-210Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-04T05-56-18-248Z-dashboard-none-r1",
+        "startedAt": "2026-03-04T05:56:18.248Z",
+        "finishedAt": "2026-03-04T05:57:03.277Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-04T05-56-18-248Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-04T05-56-18-248Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-04T05-58-07-715Z-dashboard-none-r1",
+        "startedAt": "2026-03-04T05:58:07.715Z",
+        "finishedAt": "2026-03-04T06:00:37.159Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-04T05-58-07-715Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-04T05-58-07-715Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-04T06-03-46-902Z-dashboard-none-r1",
+        "startedAt": "2026-03-04T06:01:23.472Z",
+        "finishedAt": "2026-03-04T06:03:46.902Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-04T06-03-46-902Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-04T06-03-46-902Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-04T06-04-07-662Z-dashboard-none-r1",
+        "startedAt": "2026-03-04T06:04:07.662Z",
+        "finishedAt": "2026-03-04T06:06:37.752Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-04T06-04-07-662Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-04T06-04-07-662Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-04T06-10-29-092Z-dashboard-none-r1",
+        "startedAt": "2026-03-04T06:09:05.742Z",
+        "finishedAt": "2026-03-04T06:10:29.092Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-04T06-10-29-092Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-04T06-10-29-092Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-04T06-53-04-853Z-dashboard-none-r1",
+        "startedAt": "2026-03-04T06:53:04.853Z",
+        "finishedAt": "2026-03-04T06:57:07.341Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-04T06-53-04-853Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-04T06-53-04-853Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-04T07-00-01-997Z-dashboard-none-r1",
+        "startedAt": "2026-03-04T07:00:01.997Z",
+        "finishedAt": "2026-03-04T07:02:49.337Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-04T07-00-01-997Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-04T07-00-01-997Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-04T07-04-06-000Z-dashboard-none-r1",
+        "startedAt": "2026-03-04T07:04:06.000Z",
+        "finishedAt": "2026-03-04T07:06:37.995Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-04T07-04-06-000Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-04T07-04-06-000Z-dashboard-none-r1.md",
+        "scenarios": {
+          "dashboard": "PASS"
+        }
+      },
+      {
+        "runId": "2026-03-04T07-33-57-791Z-dashboard-none-r1",
+        "startedAt": "2026-03-04T07:33:57.790Z",
+        "finishedAt": "2026-03-04T07:36:27.658Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/integration/run-2026-03-04T07-33-57-791Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/integration/run-2026-03-04T07-33-57-791Z-dashboard-none-r1.md",
         "scenarios": {
           "dashboard": "PASS"
         }

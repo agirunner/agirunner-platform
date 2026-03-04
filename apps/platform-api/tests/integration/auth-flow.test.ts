@@ -50,7 +50,50 @@ describe('auth token flow', () => {
     await stopTestDatabase(db);
   });
 
-  it('exchanges valid API key for JWT and sets secure refresh cookie flags', async () => {
+  it('exchanges valid API key for JWT and applies secure cookies only for HTTPS', async () => {
+    const httpResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/token',
+      payload: { api_key: adminKey },
+    });
+
+    expect(httpResponse.statusCode).toBe(200);
+    const body = httpResponse.json();
+    expect(body.data.token).toBeTypeOf('string');
+    expect(body.data.refresh_token).toBeUndefined();
+
+    const httpCookies = Array.isArray(httpResponse.headers['set-cookie'])
+      ? httpResponse.headers['set-cookie']
+      : [httpResponse.headers['set-cookie'] as string];
+    const httpRefreshCookie = httpCookies.find((c) => c.startsWith('agentbaton_refresh_token='))!;
+    expect(httpRefreshCookie).toContain('agentbaton_refresh_token=');
+    expect(httpRefreshCookie).toContain('HttpOnly');
+    expect(httpRefreshCookie).not.toContain('Secure');
+    expect(httpRefreshCookie).toContain('SameSite=Strict');
+    expect(httpRefreshCookie).toContain('Path=/api/v1/auth/refresh');
+
+    const httpAccessCookie = httpCookies.find((c) => c.startsWith('agentbaton_access_token='))!;
+    expect(httpAccessCookie).toContain('HttpOnly');
+    expect(httpAccessCookie).not.toContain('Secure');
+
+    const httpsResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/token',
+      headers: { 'x-forwarded-proto': 'https' },
+      payload: { api_key: adminKey },
+    });
+
+    expect(httpsResponse.statusCode).toBe(200);
+    const httpsCookies = Array.isArray(httpsResponse.headers['set-cookie'])
+      ? httpsResponse.headers['set-cookie']
+      : [httpsResponse.headers['set-cookie'] as string];
+    const httpsRefreshCookie = httpsCookies.find((c) => c.startsWith('agentbaton_refresh_token='))!;
+    const httpsAccessCookie = httpsCookies.find((c) => c.startsWith('agentbaton_access_token='))!;
+    expect(httpsRefreshCookie).toContain('Secure');
+    expect(httpsAccessCookie).toContain('Secure');
+  });
+
+  it('allows JWT access token from /auth/token on protected API routes', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/token',
@@ -58,23 +101,15 @@ describe('auth token flow', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    const body = response.json();
-    expect(body.data.token).toBeTypeOf('string');
-    expect(body.data.refresh_token).toBeUndefined();
+    const token = response.json().data.token as string;
 
-    const cookies = Array.isArray(response.headers['set-cookie'])
-      ? response.headers['set-cookie']
-      : [response.headers['set-cookie'] as string];
-    const refreshCookieHeader = cookies.find((c) => c.startsWith('agentbaton_refresh_token='))!;
-    expect(refreshCookieHeader).toContain('agentbaton_refresh_token=');
-    expect(refreshCookieHeader).toContain('HttpOnly');
-    expect(refreshCookieHeader).toContain('Secure');
-    expect(refreshCookieHeader).toContain('SameSite=Strict');
-    expect(refreshCookieHeader).toContain('Path=/api/v1/auth/refresh');
+    const pipelines = await app.inject({
+      method: 'GET',
+      url: '/api/v1/pipelines?page=1&per_page=10',
+      headers: { authorization: `Bearer ${token}` },
+    });
 
-    const accessCookieHeader = cookies.find((c) => c.startsWith('agentbaton_access_token='))!;
-    expect(accessCookieHeader).toContain('HttpOnly');
-    expect(accessCookieHeader).toContain('Secure');
+    expect(pipelines.statusCode).toBe(200);
   });
 
   it('refreshes access token when short-lived token expires', async () => {

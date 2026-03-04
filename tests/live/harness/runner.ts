@@ -110,10 +110,13 @@ export const ALL_SCENARIOS: ScenarioName[] = [
 ];
 
 const CORE_SCENARIOS: ScenarioName[] = [
+  'sdlc-happy',
   'ap2-external-runtime',
   'ap3-standalone-worker',
   'ap4-mixed-workers',
+  'maintenance-happy',
   'ap6-runtime-maintenance',
+  'ap7-failure-recovery',
   'ot1-cascade',
   'ot2-routing',
   'ot3-state',
@@ -130,9 +133,12 @@ const CORE_SCENARIOS: ScenarioName[] = [
 ];
 
 const CORE_DEFAULT_SCENARIOS: ScenarioName[] = [
+  'sdlc-happy',
   'ap2-external-runtime',
   'ap3-standalone-worker',
   'ap4-mixed-workers',
+  'maintenance-happy',
+  'ap7-failure-recovery',
   'ot1-cascade',
   'ot4-health',
   'hl1-approval-flow',
@@ -520,11 +526,20 @@ function makeRunId(template: TemplateType, provider: Provider, repeatIndex: numb
   return `${date}-${template}-${provider}-r${repeatIndex + 1}`;
 }
 
-function runDashboardPlaywright(runId: string, startedAt: number): ScenarioResult {
+function runDashboardPlaywright(
+  runId: string,
+  startedAt: number,
+  options: { dashboardApiKey?: string; dashboardBaseUrl?: string } = {},
+): ScenarioResult {
   try {
     execFileSync('pnpm', ['exec', 'playwright', 'test', '-c', 'tests/live/playwright.config.ts'], {
       stdio: 'inherit',
-      env: { ...process.env, LIVE_RUN_ID: runId },
+      env: {
+        ...process.env,
+        LIVE_RUN_ID: runId,
+        ...(options.dashboardApiKey ? { LIVE_DASHBOARD_API_KEY: options.dashboardApiKey } : {}),
+        ...(options.dashboardBaseUrl ? { LIVE_DASHBOARD_BASE_URL: options.dashboardBaseUrl } : {}),
+      },
     });
     return {
       status: 'pass',
@@ -621,8 +636,36 @@ async function runCombination(
   mkdirSync(path.join(process.cwd(), 'tests/artifacts/live/screenshots'), { recursive: true });
 
   if (template === 'dashboard') {
+    const setupStartedAt = Date.now();
+    const live = await setupLiveEnvironment({
+      runId,
+      template,
+      provider,
+      fastReset: options.fastReset,
+    });
+    const setupMs = Date.now() - setupStartedAt;
+
+    let cleanup: ReturnType<typeof teardownLiveEnvironment> = {
+      leakedContainers: 0,
+      leakedTempFiles: 0,
+    };
+    let teardownMs = 0;
     const scenarioStartedAt = Date.now();
-    const result = runDashboardPlaywright(runId, scenarioStartedAt);
+    let result: ScenarioResult;
+    let scenarioMs = 0;
+
+    try {
+      result = runDashboardPlaywright(runId, scenarioStartedAt, {
+        dashboardApiKey: live.keys.admin,
+        dashboardBaseUrl: live.env.dashboardBaseUrl,
+      });
+      scenarioMs = Date.now() - scenarioStartedAt;
+    } finally {
+      const teardownStartedAt = Date.now();
+      cleanup = teardownLiveEnvironment({ keepStack: options.keepStack });
+      teardownMs = Date.now() - teardownStartedAt;
+    }
+
     const finishedAtMs = Date.now();
     return {
       runId,
@@ -632,13 +675,13 @@ async function runCombination(
       provider,
       repeat: options.repeat,
       scenarios: { dashboard: result },
-      containers_leaked: 0,
-      temp_files_leaked: 0,
+      containers_leaked: cleanup.leakedContainers,
+      temp_files_leaked: cleanup.leakedTempFiles,
       total_cost: '$0.0000',
       timing: {
-        setupMs: 0,
-        scenarioMs: { dashboard: finishedAtMs - scenarioStartedAt },
-        teardownMs: 0,
+        setupMs,
+        scenarioMs: { dashboard: scenarioMs },
+        teardownMs,
         totalMs: finishedAtMs - runStartedAtMs,
       },
     };

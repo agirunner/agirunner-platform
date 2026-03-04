@@ -502,6 +502,26 @@ function ensureComposeRuntimeSecrets(): void {
   }
 }
 
+export function ensureDashboardCorsOrigin(
+  dashboardBaseUrl: string,
+  source: NodeJS.ProcessEnv = process.env,
+): string {
+  const configured = source.CORS_ORIGIN?.trim();
+  if (configured) {
+    return configured;
+  }
+
+  let origin: string;
+  try {
+    origin = new URL(dashboardBaseUrl).origin;
+  } catch {
+    throw new Error(`Invalid LIVE_DASHBOARD_BASE_URL for CORS origin derivation: ${dashboardBaseUrl}`);
+  }
+
+  source.CORS_ORIGIN = origin;
+  return origin;
+}
+
 function captureBootstrapAdminKeyFromRunningStack(): string | null {
   const composeCommand = composeBinary();
   const lookups: ReadonlyArray<{ service: string; envVar: string }> = [
@@ -766,6 +786,7 @@ export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveC
     const hasConfiguredBootstrapKey = getConfiguredDefaultAdminApiKey() !== null;
     ensureBootstrapAdminKey({ allowGenerate: true });
     ensureComposeRuntimeSecrets();
+    ensureDashboardCorsOrigin(dashboardBaseUrl);
     const composeCommand = composeBinary();
 
     if (!hasConfiguredBootstrapKey) {

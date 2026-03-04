@@ -166,6 +166,40 @@ function statusFromScenarios(scenarios: Record<string, { status: 'pass' | 'fail'
   return Object.values(scenarios).some((scenario) => scenario.status === 'fail') ? 'FAIL' : 'PASS';
 }
 
+function canonicalScenarioKeys(canonical: Canonical): Set<string> {
+  return new Set(canonical.scenarios.map((scenario) => scenario.key));
+}
+
+function sanitizeIntegrationScenarioStatuses(
+  canonical: Canonical,
+  scenarioStatuses: Record<string, LaneStatus>,
+): Record<string, LaneStatus> {
+  if (!scenarioStatuses.dashboard) {
+    return scenarioStatuses;
+  }
+
+  const canonicalKeys = canonicalScenarioKeys(canonical);
+  const sanitized: Record<string, LaneStatus> = {};
+
+  for (const [scenarioKey, status] of Object.entries(scenarioStatuses)) {
+    if (scenarioKey === 'dashboard' || !canonicalKeys.has(scenarioKey)) {
+      sanitized[scenarioKey] = status;
+    }
+  }
+
+  return sanitized;
+}
+
+function sanitizeIntegrationRuns(
+  canonical: Canonical,
+  runs: CoreIntegrationRunRecord[],
+): CoreIntegrationRunRecord[] {
+  return runs.map((run) => ({
+    ...run,
+    scenarios: sanitizeIntegrationScenarioStatuses(canonical, run.scenarios ?? {}),
+  }));
+}
+
 function readJsonIfExists<T>(filePath: string): T | undefined {
   if (!existsSync(filePath)) return undefined;
 
@@ -315,12 +349,17 @@ function buildConsolidatedPayload(
   const generatedAt = nowIso();
   const coreLatest = latestScenarioStatusByKey(runs.core);
   const integrationLatest = latestScenarioStatusByKey(runs.integration);
+  const hasCoreRuns = runs.core.length > 0;
+  const hasIntegrationRuns = runs.integration.length > 0;
   const liveCells = normalizeLiveCells(canonical, liveCellsInput);
 
   const matrix: ResultRow[] = canonical.scenarios.map((scenario) => {
-    const coreStatus = coreLatest[scenario.key] ?? fallback.core[scenario.key] ?? 'NOT_PASS';
+    const coreStatus =
+      coreLatest[scenario.key] ?? (!hasCoreRuns ? fallback.core[scenario.key] : undefined) ?? 'NOT_PASS';
     const integrationStatus =
-      integrationLatest[scenario.key] ?? fallback.integration[scenario.key] ?? 'NOT_PASS';
+      integrationLatest[scenario.key] ??
+      (!hasIntegrationRuns ? fallback.integration[scenario.key] : undefined) ??
+      'NOT_PASS';
 
     const cells: ResultCell[] = [
       {
@@ -459,7 +498,7 @@ function readExistingOrLegacyState(
     return {
       runs: {
         core: [...(consolidated.runs?.core ?? [])],
-        integration: [...(consolidated.runs?.integration ?? [])],
+        integration: sanitizeIntegrationRuns(canonical, [...(consolidated.runs?.integration ?? [])]),
       },
       liveCells: normalizeLiveCells(canonical, consolidated.live_cells),
       fallback: { core: fallbackCore, integration: fallbackIntegration },
@@ -479,7 +518,7 @@ function readExistingOrLegacyState(
   return {
     runs: {
       core: [...(coreLegacy?.runs ?? [])],
-      integration: [...(integrationLegacy?.runs ?? [])],
+      integration: sanitizeIntegrationRuns(canonical, [...(integrationLegacy?.runs ?? [])]),
     },
     liveCells: migrateLegacyLiveCells(canonical, liveLegacy),
     fallback: {
@@ -515,9 +554,14 @@ function updateCoreOrIntegrationResults(
   const canonical = loadCanonicalScenarios(root);
   const state = readExistingOrLegacyState(root, canonical);
 
-  const scenarios = Object.fromEntries(
+  const reportedScenarioStatuses = Object.fromEntries(
     Object.entries(report.scenarios).map(([name, result]) => [name, toLaneStatus(result.status)]),
   );
+
+  const scenarios =
+    lane === 'integration'
+      ? sanitizeIntegrationScenarioStatuses(canonical, reportedScenarioStatuses)
+      : reportedScenarioStatuses;
 
   const runRecord: CoreIntegrationRunRecord = {
     runId: report.runId,

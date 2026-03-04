@@ -112,6 +112,29 @@ export async function verifyApiKeyById(pool: DatabaseQueryable, keyId: string): 
   return toIdentity(key);
 }
 
+const API_KEY_INSERT_RETRY_LIMIT = 8;
+
+function generateApiKeyValue(scope: ApiKeyScope): string {
+  const prefixEntropy = randomBytes(6).toString('base64url');
+  const bodyEntropy = randomBytes(24).toString('base64url');
+  return `ab_${prefixEntropy}_${scope}_${bodyEntropy}`;
+}
+
+function isApiKeyPrefixConflict(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const code = 'code' in error ? String((error as { code?: unknown }).code ?? '') : '';
+  if (code !== '23505') {
+    return false;
+  }
+
+  const constraint =
+    'constraint' in error ? String((error as { constraint?: unknown }).constraint ?? '') : '';
+  return constraint === 'idx_api_keys_prefix';
+}
+
 export async function createApiKey(
   pool: DatabaseQueryable,
   input: {
@@ -123,25 +146,34 @@ export async function createApiKey(
     expiresAt: Date;
   },
 ): Promise<{ apiKey: string; keyPrefix: string }> {
-  const randomPart = randomBytes(24).toString('base64url');
-  const apiKey = `ab_${input.scope}_${randomPart}`;
-  const keyPrefix = apiKey.slice(0, 12);
-  const keyHash = await bcrypt.hash(apiKey, 12);
+  for (let attempt = 1; attempt <= API_KEY_INSERT_RETRY_LIMIT; attempt += 1) {
+    const apiKey = generateApiKeyValue(input.scope);
+    const keyPrefix = apiKey.slice(0, 12);
+    const keyHash = await bcrypt.hash(apiKey, 12);
 
-  await pool.query(
-    `INSERT INTO api_keys (tenant_id, key_hash, key_prefix, scope, owner_type, owner_id, label, expires_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-    [
-      input.tenantId,
-      keyHash,
-      keyPrefix,
-      input.scope,
-      input.ownerType,
-      input.ownerId ?? null,
-      input.label ?? null,
-      input.expiresAt,
-    ],
-  );
+    try {
+      await pool.query(
+        `INSERT INTO api_keys (tenant_id, key_hash, key_prefix, scope, owner_type, owner_id, label, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          input.tenantId,
+          keyHash,
+          keyPrefix,
+          input.scope,
+          input.ownerType,
+          input.ownerId ?? null,
+          input.label ?? null,
+          input.expiresAt,
+        ],
+      );
 
-  return { apiKey, keyPrefix };
+      return { apiKey, keyPrefix };
+    } catch (error) {
+      if (!isApiKeyPrefixConflict(error) || attempt === API_KEY_INSERT_RETRY_LIMIT) {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error('createApiKey exhausted prefix collision retries');
 }

@@ -2,35 +2,31 @@ import { useQuery } from '@tanstack/react-query';
 
 import { dashboardApi } from '../lib/api.js';
 
-interface WorkersResult {
-  data: Array<{
-    id: string;
-    name: string;
-    runtime_type: string;
-    connection_mode: string;
-    status: string;
-    last_heartbeat_at: string;
-  }>;
+interface WorkerItem {
+  id: string;
+  name: string;
+  runtime_type: string;
+  connection_mode: string;
+  status: string;
+  last_heartbeat_at: string;
 }
 
-interface AgentsResult {
-  data: Array<{
-    id: string;
-    name: string;
-    status: string;
-    current_task_id: string | null;
-  }>;
+interface AgentItem {
+  id: string;
+  name: string;
+  status: string;
+  current_task_id: string | null;
 }
 
 export function WorkerStatusPage(): JSX.Element {
   const workers = useQuery({
     queryKey: ['workers'],
-    queryFn: () => dashboardApi.listWorkers() as Promise<WorkersResult>,
+    queryFn: () => dashboardApi.listWorkers() as Promise<WorkerItem[]>,
   });
 
   const agents = useQuery({
     queryKey: ['agents'],
-    queryFn: () => dashboardApi.listAgents() as Promise<AgentsResult>,
+    queryFn: () => dashboardApi.listAgents() as Promise<AgentItem[]>,
   });
 
   return (
@@ -47,7 +43,7 @@ export function WorkerStatusPage(): JSX.Element {
             </tr>
           </thead>
           <tbody>
-            {workers.data?.data.map((worker) => (
+            {workers.data?.map((worker) => (
               <tr key={worker.id}>
                 <td>{worker.name}</td>
                 <td>{worker.status}</td>
@@ -69,7 +65,7 @@ export function WorkerStatusPage(): JSX.Element {
             </tr>
           </thead>
           <tbody>
-            {agents.data?.data.map((agent) => (
+            {agents.data?.map((agent) => (
               <tr key={agent.id}>
                 <td>{agent.name}</td>
                 <td>{agent.status}</td>

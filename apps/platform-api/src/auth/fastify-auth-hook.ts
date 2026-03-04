@@ -1,7 +1,8 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { UnauthorizedError } from '../errors/domain-errors.js';
-import { parseBearerToken, verifyApiKey } from './api-key.js';
+import { parseBearerToken, verifyApiKey, type ApiKeyIdentity } from './api-key.js';
+import { verifyJwt } from './jwt.js';
 import { enforceScope, type ApiKeyScope } from './scope.js';
 
 const ACCESS_COOKIE_NAME = 'agentbaton_access_token';
@@ -21,8 +22,36 @@ export async function authenticateApiKey(request: FastifyRequest): Promise<void>
     throw new UnauthorizedError('Missing authorization');
   }
 
-  const identity = await verifyApiKey(request.server.pgPool, token);
+  const identity = isJwtToken(token)
+    ? await verifyJwtIdentity(request, token)
+    : await verifyApiKey(request.server.pgPool, token);
   request.auth = identity;
+}
+
+function isJwtToken(token: string): boolean {
+  return token.split('.').length === 3;
+}
+
+async function verifyJwtIdentity(request: FastifyRequest, token: string): Promise<ApiKeyIdentity> {
+  const claims = await verifyJwt<
+    Omit<ApiKeyIdentity, 'id'> & {
+      keyId: string;
+      tokenType?: string;
+    }
+  >(request.server, token);
+
+  if (claims.tokenType === 'refresh') {
+    throw new UnauthorizedError('Access token required');
+  }
+
+  return {
+    id: claims.keyId,
+    tenantId: claims.tenantId,
+    scope: claims.scope,
+    ownerType: claims.ownerType,
+    ownerId: claims.ownerId,
+    keyPrefix: claims.keyPrefix,
+  };
 }
 
 export function withScope(requiredScope: ApiKeyScope) {
