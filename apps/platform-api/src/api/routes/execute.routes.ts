@@ -1,5 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 
+import { shouldRejectImpossibleScopeTask } from '../../built-in/impossible-scope.js';
+
 interface ExecuteRequestBody {
   task_id?: unknown;
   title?: unknown;
@@ -125,31 +127,7 @@ function buildPatch(filePath: string, role: string, objective: string): string {
 }
 
 function shouldFailAsImpossible(payload: ExecuteRequestBody): boolean {
-  const context = asRecord(payload.context);
-  const scenario = safeValue(readString(context.scenario), '').toLowerCase();
-  const role = deriveRole(payload);
-
-  if ((scenario === 'ap7-failure-recovery' || scenario === 'sdlc-sad') && role !== 'reviewer') {
-    return true;
-  }
-
-  const serialized = JSON.stringify(payload).toLowerCase();
-  const hasAp7Signal = /\bap[- ]?7\b/.test(serialized) || serialized.includes('impossible');
-  if (hasAp7Signal && role !== 'reviewer') {
-    return true;
-  }
-
-  const input = asRecord(payload.input);
-  const goal = safeValue(readString(input.goal), '').toLowerCase();
-  const instruction = safeValue(readString(input.instruction), '').toLowerCase();
-  const title = safeValue(readString(payload.title), '').toLowerCase();
-  const haystack = `${goal} ${instruction} ${title}`;
-
-  if (/\brust\b/.test(haystack)) {
-    return true;
-  }
-
-  return /rewrite/.test(haystack) && /rust/.test(haystack) && /(no javascript|remove all javascript)/.test(haystack);
+  return shouldRejectImpossibleScopeTask(payload as Record<string, unknown>);
 }
 
 function buildExecutionOutput(payload: ExecuteRequestBody): Record<string, unknown> {

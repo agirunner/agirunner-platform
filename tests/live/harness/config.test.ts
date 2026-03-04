@@ -30,7 +30,7 @@ test('evaluation mode defaults to deterministic with hybrid authenticity default
   assert.equal(config.evaluationMode, 'deterministic');
   assert.equal(config.authenticityLlmProvider, 'openai');
   assert.equal(config.authenticityLlmModel, 'gpt-4o-mini');
-  assert.equal(config.authenticityLlmTimeoutMs, 20_000);
+  assert.equal(config.authenticityLlmTimeoutMs, 60_000);
   assert.equal(config.authenticityLlmApiBaseUrl.startsWith('https://'), true);
   assert.equal(config.authenticityLlmApiBaseUrl.endsWith('/v1'), true);
   assert.equal(config.authenticityLlmMaxEvidenceChars, 1_200);
