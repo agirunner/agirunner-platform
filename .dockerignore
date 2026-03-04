@@ -1,0 +1,11 @@
+.git
+.gitignore
+.cache
+.turbo
+tests/artifacts
+coverage
+node_modules
+**/node_modules
+**/test-results
+**/playwright-report
+**/.DS_Store

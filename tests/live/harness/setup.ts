@@ -289,7 +289,7 @@ function resolveWorkspaceFingerprint(): BuildFingerprint {
 
   const buildArgFingerprint = hashText(
     JSON.stringify({
-      vitePlatformApiUrl: process.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080',
+      vitePlatformApiUrl: process.env.VITE_PLATFORM_API_URL ?? 'http://127.0.0.1:8080',
     }),
   );
 

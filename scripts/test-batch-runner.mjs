@@ -1,5 +1,6 @@
-import { spawn } from 'node:child_process';
-import { createWriteStream, mkdirSync, writeFileSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import { createWriteStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import net from 'node:net';
 import path from 'node:path';
 
 import {
@@ -12,9 +13,152 @@ import {
   writeJson,
 } from './test-batch-lib.mjs';
 
-export function buildStages(defaults, options, runId, reportDir) {
+const PLAYWRIGHT_BROWSERS_PATH = path.join(ROOT, '.cache', 'ms-playwright');
+
+function needsWorkspaceInstall() {
+  if (!existsSync(path.join(ROOT, 'node_modules', '.pnpm'))) {
+    return true;
+  }
+
+  const probe = spawnSync(
+    'pnpm',
+    ['--filter', '@agentbaton/test-utils', 'exec', 'vitest', '--version'],
+    {
+      cwd: ROOT,
+      stdio: 'ignore',
+    },
+  );
+
+  return probe.status !== 0;
+}
+
+function runBootstrapStep(step, reportDir) {
+  const logRoot = path.join(reportDir, 'bootstrap');
+  mkdirSync(logRoot, { recursive: true });
+
+  const result = spawnSync(step.command[0], step.command.slice(1), {
+    cwd: ROOT,
+    env: { ...process.env, ...step.env },
+    encoding: 'utf8',
+    maxBuffer: 20 * 1024 * 1024,
+  });
+
+  const stdoutPath = path.join(logRoot, `${step.id}.stdout.log`);
+  const stderrPath = path.join(logRoot, `${step.id}.stderr.log`);
+  writeFileSync(stdoutPath, result.stdout ?? '');
+  writeFileSync(stderrPath, result.stderr ?? '');
+
+  if (result.status === 0) {
+    return;
+  }
+
+  const detail = (result.stderr ?? result.stdout ?? '').trim();
+  throw new Error(
+    `Batch bootstrap step "${step.id}" failed (exit=${result.status ?? 'null'}). ` +
+      `Command: ${step.command.join(' ')}. ` +
+      `Logs: ${stdoutPath}, ${stderrPath}. ` +
+      (detail ? `Detail: ${detail}` : ''),
+  );
+}
+
+export function buildBootstrapSteps(stages, probes = {}) {
+  const steps = [];
+
+  const workspaceInstallRequired =
+    probes.workspaceInstallRequired === undefined
+      ? needsWorkspaceInstall()
+      : probes.workspaceInstallRequired;
+
+  if (workspaceInstallRequired) {
+    steps.push({
+      id: 'workspace-install',
+      command: ['pnpm', 'install', '--frozen-lockfile'],
+      env: {},
+    });
+  }
+
+  const requiresPlaywright =
+    probes.requiresPlaywright === undefined
+      ? stages.some((stage) => stage.stageId === 'integration-dashboard')
+      : probes.requiresPlaywright;
+
+  if (requiresPlaywright) {
+    steps.push({
+      id: 'playwright-install-chromium',
+      command: ['pnpm', 'exec', 'playwright', 'install', 'chromium'],
+      env: { PLAYWRIGHT_BROWSERS_PATH },
+    });
+  }
+
+  return steps;
+}
+
+function ensureBatchPrerequisites(options, reportDir, stages) {
+  if (options.dryRun) return;
+
+  const steps = buildBootstrapSteps(stages);
+  for (const step of steps) {
+    runBootstrapStep(step, reportDir);
+  }
+}
+
+async function isPortAvailable(port) {
+  return await new Promise((resolve) => {
+    const server = net.createServer();
+    server.unref();
+
+    server.once('error', () => resolve(false));
+    server.listen({ host: '0.0.0.0', port }, () => {
+      server.close(() => resolve(true));
+    });
+  });
+}
+
+async function allocateAvailablePort(preferredPort, reservedPorts, portAvailabilityProbe) {
+  for (let port = preferredPort; port <= 65_535; port += 1) {
+    if (reservedPorts.has(port)) continue;
+    if (!(await portAvailabilityProbe(port))) continue;
+
+    reservedPorts.add(port);
+    return port;
+  }
+
+  throw new Error(`Unable to allocate available port from base ${preferredPort}`);
+}
+
+async function allocateStagePorts(defaults, offset, reservedPorts, portAvailabilityProbe) {
+  return {
+    postgres: await allocateAvailablePort(
+      Number(defaults.ports.postgresBase) + offset,
+      reservedPorts,
+      portAvailabilityProbe,
+    ),
+    platformApi: await allocateAvailablePort(
+      Number(defaults.ports.platformApiBase) + offset,
+      reservedPorts,
+      portAvailabilityProbe,
+    ),
+    dashboard: await allocateAvailablePort(
+      Number(defaults.ports.dashboardBase) + offset,
+      reservedPorts,
+      portAvailabilityProbe,
+    ),
+  };
+}
+
+function missingProviderSkip(providerRecord) {
+  const keys = providerRecord.keys ?? [];
+  return {
+    reason: 'missing-provider-credentials',
+    missingCredentialKeys: keys,
+    detail: `Missing provider credentials: ${providerRecord.provider}(${keys.join('|')})`,
+  };
+}
+
+export async function buildStages(defaults, options, runId, reportDir, probes = {}) {
   const stages = [];
   const stageDefs = defaults.stages;
+  const portAvailabilityProbe = probes.portAvailabilityProbe ?? isPortAvailable;
 
   stages.push({ stageId: 'unit', lane: 'unit', provider: 'none', ...stageDefs.unit });
   stages.push({ stageId: 'core', lane: 'core', provider: 'none', ...stageDefs.core });
@@ -35,7 +179,22 @@ export function buildStages(defaults, options, runId, reportDir) {
     });
   }
 
-  let dockerIndex = 0;
+  for (const providerRecord of options.skippedProviders ?? []) {
+    const provider = providerRecord.provider;
+    stages.push({
+      stageId: `live-${provider}`,
+      lane: 'live',
+      provider,
+      ...stageDefs.live,
+      command: stageDefs.live.command.map((part) => (part === '__PROVIDER__' ? provider : part)),
+      skip: missingProviderSkip(providerRecord),
+    });
+  }
+
+  const shouldIsolateParallelPorts = options.mode === 'parallel';
+  const sharedParallelPorts = new Set();
+  let dockerStageIndex = 0;
+
   for (const stage of stages) {
     const safeStageId = slug(stage.stageId);
     const laneRoot = path.join(reportDir, 'lanes', safeStageId);
@@ -49,22 +208,34 @@ export function buildStages(defaults, options, runId, reportDir) {
       laneResultsPath: path.join(laneRoot, 'results.v1.json'),
     };
 
-    stage.env = {
-      LIVE_ARTIFACTS_ROOT: stage.artifacts.laneArtifactsRoot,
-      LIVE_REPORTS_RESULTS_PATH: stage.artifacts.laneResultsPath,
-      LIVE_BUILD_CACHE_PATH: path.join(laneRoot, 'compose-build-fingerprint.v1.json'),
-      LIVE_TMP_PREFIX: `/tmp/agentbaton-live-${slug(runId)}-${safeStageId}-`,
-    };
+    stage.env = {};
+
+    if (stage.lane !== 'unit') {
+      Object.assign(stage.env, {
+        LIVE_ARTIFACTS_ROOT: stage.artifacts.laneArtifactsRoot,
+        LIVE_REPORTS_RESULTS_PATH: stage.artifacts.laneResultsPath,
+        LIVE_BUILD_CACHE_PATH: path.join(reportDir, 'compose-build-fingerprint.v1.json'),
+        LIVE_TMP_PREFIX: `/tmp/agentbaton-live-${slug(runId)}-${safeStageId}-`,
+      });
+    }
+
+    if (stage.stageId === 'integration-dashboard') {
+      stage.env.PLAYWRIGHT_BROWSERS_PATH = PLAYWRIGHT_BROWSERS_PATH;
+    }
 
     if (stage.docker) {
-      const offset = dockerIndex;
-      dockerIndex += 1;
+      const offset = shouldIsolateParallelPorts ? dockerStageIndex : 0;
+      const reservedPorts = shouldIsolateParallelPorts ? sharedParallelPorts : new Set();
+      const ports = await allocateStagePorts(
+        defaults,
+        offset,
+        reservedPorts,
+        portAvailabilityProbe,
+      );
+      dockerStageIndex += 1;
 
-      const ports = {
-        postgres: Number(defaults.ports.postgresBase) + offset,
-        platformApi: Number(defaults.ports.platformApiBase) + offset,
-        dashboard: Number(defaults.ports.dashboardBase) + offset,
-      };
+      const explicitAgentApiUrl = process.env.AGENT_API_URL?.trim();
+      const defaultAgentApiUrl = `http://127.0.0.1:${ports.platformApi}/execute`;
 
       stage.ports = ports;
       stage.composeProjectName = `${slug(defaults.compose.projectPrefix)}-${slug(runId)}-${safeStageId}`;
@@ -77,7 +248,10 @@ export function buildStages(defaults, options, runId, reportDir) {
         LIVE_API_BASE_URL: `http://127.0.0.1:${ports.platformApi}`,
         LIVE_DASHBOARD_BASE_URL: `http://127.0.0.1:${ports.dashboard}`,
         LIVE_POSTGRES_URL: `postgresql://agentbaton:agentbaton@127.0.0.1:${ports.postgres}/agentbaton`,
-        VITE_PLATFORM_API_URL: `http://localhost:${ports.platformApi}`,
+        VITE_PLATFORM_API_URL: `http://127.0.0.1:${ports.platformApi}`,
+        AGENT_API_URL: explicitAgentApiUrl || defaultAgentApiUrl,
+        RATE_LIMIT_MAX_PER_MINUTE: process.env.RATE_LIMIT_MAX_PER_MINUTE || '1000',
+        LIVE_COMPOSE_MIN_FREE_GB: process.env.LIVE_COMPOSE_MIN_FREE_GB || '3',
       });
     }
   }
@@ -85,7 +259,64 @@ export function buildStages(defaults, options, runId, reportDir) {
   return stages;
 }
 
+function stageClaimedPaths(entry) {
+  return [
+    { label: 'stdout log', filePath: entry.logs?.stdout },
+    { label: 'stderr log', filePath: entry.logs?.stderr },
+    { label: 'lane artifacts root', filePath: entry.artifacts?.laneArtifactsRoot },
+    { label: 'lane results path', filePath: entry.artifacts?.laneResultsPath },
+  ].filter(({ filePath }) => typeof filePath === 'string' && filePath.length > 0);
+}
+
+function assertClaimedPathsExist(entry, contextLabel) {
+  for (const { label, filePath } of stageClaimedPaths(entry)) {
+    if (!existsSync(filePath)) {
+      throw new Error(`${contextLabel} claims ${label} that does not exist: ${filePath}`);
+    }
+  }
+}
+
+function materializeClaimedPathPlaceholders(report) {
+  const reason = report.notRunReason ?? report.skip?.reason ?? report.status;
+  const baseMessage = `[${report.status}] stage=${report.stageId} reason=${reason}`;
+
+  if (report.logs?.stdout) {
+    mkdirSync(path.dirname(report.logs.stdout), { recursive: true });
+    if (!existsSync(report.logs.stdout)) {
+      writeFileSync(report.logs.stdout, `${baseMessage}\n`);
+    }
+  }
+
+  if (report.logs?.stderr) {
+    mkdirSync(path.dirname(report.logs.stderr), { recursive: true });
+    if (!existsSync(report.logs.stderr)) {
+      writeFileSync(report.logs.stderr, `${baseMessage}\n`);
+    }
+  }
+
+  if (report.artifacts?.laneArtifactsRoot) {
+    mkdirSync(report.artifacts.laneArtifactsRoot, { recursive: true });
+  }
+
+  if (report.artifacts?.laneResultsPath) {
+    mkdirSync(path.dirname(report.artifacts.laneResultsPath), { recursive: true });
+    if (!existsSync(report.artifacts.laneResultsPath)) {
+      writeJson(report.artifacts.laneResultsPath, {
+        version: '1.0',
+        stageId: report.stageId,
+        status: report.status,
+        notRunReason: report.notRunReason,
+        generatedAt: nowIso(),
+        placeholder: true,
+      });
+    }
+  }
+}
+
 function writeStageReport(stage, report) {
+  materializeClaimedPathPlaceholders(report);
+  assertClaimedPathsExist(report, `Stage report ${report.stageId}`);
+
   const base = path.join(path.dirname(stage.logs.stdout), 'stage');
   writeJson(`${base}.json`, report);
   writeFileSync(`${base}.md`, stageMarkdown(report));
@@ -111,6 +342,7 @@ function skippedStageReport(stage, options, runId, notRunReason) {
     ports: stage.ports,
     composeProjectName: stage.composeProjectName,
     notRunReason,
+    skip: stage.skip,
   };
 }
 
@@ -176,7 +408,6 @@ async function runStage(stage, options, runId) {
         : stderrTail.text().trim() || stdoutTail.text().trim() || String(stageStatus.error ?? ''),
   };
 
-  writeStageReport(stage, report);
   return report;
 }
 
@@ -187,6 +418,8 @@ function summarize(options, runId, reportDir, startedAt, startedMs, stages, resu
     mode: options.mode,
     failurePolicy: options.failurePolicy,
     providers: options.providers,
+    requestedProviders: options.requestedProviders ?? options.providers,
+    skippedProviders: options.skippedProviders ?? [],
     dryRun: options.dryRun,
     startedAt,
     finishedAt: nowIso(),
@@ -214,7 +447,8 @@ function summarize(options, runId, reportDir, startedAt, startedMs, stages, resu
 
 export async function runBatch(options, defaults, runId, reportDir, stages) {
   mkdirSync(reportDir, { recursive: true });
-  writeJson(path.join(reportDir, 'run-manifest.json'), {
+  const runManifestPath = path.join(reportDir, 'run-manifest.json');
+  writeJson(runManifestPath, {
     version: '1.0',
     runId,
     createdAt: nowIso(),
@@ -222,21 +456,33 @@ export async function runBatch(options, defaults, runId, reportDir, stages) {
     stages,
   });
 
-  if (options.dryRun) {
-    for (const stage of stages) {
-      writeStageReport(stage, skippedStageReport(stage, options, runId, 'dry-run'));
-    }
-  }
+  ensureBatchPrerequisites(options, reportDir, stages);
 
   const results = [];
+
+  if (options.dryRun) {
+    for (const stage of stages) {
+      const report = skippedStageReport(stage, options, runId, 'dry-run');
+      writeStageReport(stage, report);
+      results.push(report);
+    }
+  }
   const startedAt = nowIso();
   const startedMs = Date.now();
 
   if (!options.dryRun && options.mode === 'sequential') {
     for (const stage of stages) {
-      const report = await runStage(stage, options, runId);
+      const report = stage.skip
+        ? skippedStageReport(stage, options, runId, stage.skip.reason)
+        : await runStage(stage, options, runId);
+      writeStageReport(stage, report);
       results.push(report);
-      if (options.failurePolicy === 'fail-fast' && report.status !== 'pass') break;
+      if (
+        options.failurePolicy === 'fail-fast' &&
+        (report.status === 'fail' || report.status === 'infra-fail')
+      ) {
+        break;
+      }
     }
   }
 
@@ -252,10 +498,16 @@ export async function runBatch(options, defaults, runId, reportDir, stages) {
         const stage = queue.shift();
         if (!stage) return;
 
-        const report = await runStage(stage, options, runId);
+        const report = stage.skip
+          ? skippedStageReport(stage, options, runId, stage.skip.reason)
+          : await runStage(stage, options, runId);
+        writeStageReport(stage, report);
         results.push(report);
 
-        if (options.failurePolicy === 'fail-fast' && report.status !== 'pass') {
+        if (
+          options.failurePolicy === 'fail-fast' &&
+          (report.status === 'fail' || report.status === 'infra-fail')
+        ) {
           stopState.stop = true;
         }
       }
@@ -271,14 +523,37 @@ export async function runBatch(options, defaults, runId, reportDir, stages) {
       stage,
       options,
       runId,
-      options.dryRun ? 'dry-run' : 'fail-fast-stop',
+      stage.skip?.reason ?? (options.dryRun ? 'dry-run' : 'fail-fast-stop'),
     );
     writeStageReport(stage, skipped);
     results.push(skipped);
   }
 
   const summary = summarize(options, runId, reportDir, startedAt, startedMs, stages, results);
-  writeJson(path.join(reportDir, 'summary.json'), summary);
-  writeFileSync(path.join(reportDir, 'summary.md'), summaryMarkdown(summary));
+  const summaryJsonPath = path.join(reportDir, 'summary.json');
+  const summaryMarkdownPath = path.join(reportDir, 'summary.md');
+
+  summary.artifacts = {
+    runManifestPath,
+    summaryJsonPath,
+    summaryMarkdownPath,
+  };
+
+  writeJson(summaryJsonPath, summary);
+  writeFileSync(summaryMarkdownPath, summaryMarkdown(summary));
+
+  for (const stage of stages) {
+    assertClaimedPathsExist(stage, `Run manifest stage ${stage.stageId}`);
+  }
+  for (const stage of summary.stages) {
+    assertClaimedPathsExist(stage, `Summary stage ${stage.stageId}`);
+  }
+
+  for (const requiredPath of [runManifestPath, summaryJsonPath, summaryMarkdownPath]) {
+    if (!existsSync(requiredPath)) {
+      throw new Error(`Batch evidence artifact missing after write: ${requiredPath}`);
+    }
+  }
+
   return summary;
 }

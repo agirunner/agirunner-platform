@@ -1,23 +1,22 @@
 {
-  "task": "Campaign: Human Dashboard requirements closure audit + gap fixes",
-  "issue": "PR#77",
-  "branch": "fix/human-dashboard-requirements-closure",
+  "task": "Issue #78 — batch hardening from clean environment (PR #80 final blocker: skipped-stage artifact-path integrity)",
+  "issue": "#78",
+  "branch": "fix/78-batch-hardening-from-clean-env",
   "phase": "COMPLETE",
   "completed": [
-    "Pulled latest main and created branch fix/human-dashboard-requirements-closure",
-    "Audited all Human Dashboard requirements from docs baseline (§4.6 + §4.35 + dashboard NFRs)",
-    "Created complete traceability matrix at docs/testing/dashboard-requirements-audit.md with requirement->code->test->status->evidence mapping",
-    "Fixed dashboard pipeline detail render regression by aligning with SDK unwrapped getPipeline response",
-    "Added Playwright regression test apps/dashboard/tests/e2e/pipeline-detail-render.spec.ts",
-    "Hardened dashboard auth/session handling: no persistent localStorage access token, refresh-failure login redirect, cookie-first SSE/metrics auth path",
-    "Widened API access-token cookie path to '/' and added integration assertion",
-    "Executed modified-area validation suites and typechecks (dashboard + platform-api)",
-    "Opened PR #77 against main with requirement coverage summary"
+    "Restored deterministic unique docker port allocation per stage when mode=parallel",
+    "Added explicit skipped live-stage emission for providers missing credentials",
+    "Extended stage/summary markdown and JSON payloads with provider skip metadata and notRunReason visibility",
+    "Added summary artifact path reporting + existence verification before process exit",
+    "Materialized placeholder evidence for any claimed stage paths (stdout/stderr/lane artifacts/lane results) to keep reported references truthful",
+    "Added fail-closed claimed-path assertions across stage reports, run manifest stages, and summary stages",
+    "Updated skipped stage markdown to annotate placeholder-evidence generation",
+    "Added harness regression test proving skipped-stage claimed paths are present on disk",
+    "Validated pnpm test:batch --mode parallel (exit 0; run-2026-03-04T15-44-32-148Z)",
+    "Validated ./scripts/test-batch.sh (exit 0; run-2026-03-04T15-48-35-903Z)",
+    "Ran post-run integrity checks confirming no missing claimed log/artifact paths in stage.json, summary.json, or run-manifest.json"
   ],
-  "remaining": [
-    "Reviewer pass on PR #77",
-    "Future implementation waves for requirements still marked PARTIAL/MISSING in dashboard-requirements-audit.md"
-  ],
-  "lastCommit": "b3ffef93d856c614730f087dcb317a9f0ae02047",
-  "updatedAt": "2026-03-04T11:31:00Z"
+  "remaining": [],
+  "lastCommit": "ae31e307c2fe75d7b02639ca546f48589ef5df06",
+  "updatedAt": "2026-03-04T15:52:53Z"
 }

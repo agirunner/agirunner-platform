@@ -83,6 +83,7 @@ export function parseArgs(argv, defaults) {
     mode: defaults.defaultMode ?? 'sequential',
     failurePolicy: defaults.defaultFailurePolicy ?? 'continue-on-error',
     providers: [...(defaults.defaultProviders ?? ['openai'])],
+    providersExplicit: false,
     reportDir: null,
     dryRun: false,
     parallelMax: Number(process.env.BATCH_PARALLEL_MAX ?? defaults.parallel?.maxConcurrency ?? 3),
@@ -99,6 +100,7 @@ export function parseArgs(argv, defaults) {
       options.failurePolicy = 'continue-on-error';
     } else if (arg === '--providers') {
       const raw = String(argv[++i] ?? '');
+      options.providersExplicit = true;
       options.providers = raw
         .split(',')
         .map((value) => value.trim())
@@ -132,27 +134,38 @@ export function parseArgs(argv, defaults) {
   return options;
 }
 
-export function assertProviderEnv(providers, dryRun) {
-  if (dryRun) return;
+const PROVIDER_ENV_REQUIREMENTS = {
+  openai: ['OPENAI_API_KEY'],
+  google: ['GOOGLE_API_KEY', 'GEMINI_API_KEY'],
+  anthropic: ['ANTHROPIC_API_KEY'],
+};
 
-  const requirements = {
-    openai: ['OPENAI_API_KEY'],
-    google: ['GOOGLE_API_KEY', 'GEMINI_API_KEY'],
-    anthropic: ['ANTHROPIC_API_KEY'],
-  };
+export function filterProvidersWithEnv(providers, dryRun) {
+  if (dryRun) {
+    return { selected: [...providers], missing: [] };
+  }
 
+  const selected = [];
   const missing = [];
+
   for (const provider of providers) {
-    const keys = requirements[provider] ?? [];
+    const keys = PROVIDER_ENV_REQUIREMENTS[provider] ?? [];
     const hasAny = keys.some((key) => (process.env[key] ?? '').trim().length > 0);
-    if (!hasAny) missing.push(`${provider}(${keys.join('|')})`);
+
+    if (hasAny) selected.push(provider);
+    else missing.push({ provider, keys });
   }
 
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing provider credentials for: ${missing.join(', ')}. See .env.test-batch.example.`,
-    );
-  }
+  return { selected, missing };
+}
+
+export function assertProviderEnv(providers, dryRun) {
+  const { missing } = filterProvidersWithEnv(providers, dryRun);
+  if (missing.length === 0) return;
+
+  throw new Error(
+    `Missing provider credentials for: ${missing.map(({ provider, keys }) => `${provider}(${keys.join('|')})`).join(', ')}. See .env.test-batch.example.`,
+  );
 }
 
 export function tailCollector(maxLines = Number(process.env.BATCH_LOG_TAIL_LINES ?? 40)) {
@@ -189,6 +202,13 @@ export function stageMarkdown(report) {
     `- Lane results path: ${report.artifacts.laneResultsPath}`,
     report.errorExcerpt ? `- Error excerpt: ${report.errorExcerpt}` : '',
     report.notRunReason ? `- Not run reason: ${report.notRunReason}` : '',
+    report.status === 'skipped'
+      ? '- Evidence placeholders: generated for claimed log/artifact paths.'
+      : '',
+    report.skip?.detail ? `- Skip detail: ${report.skip.detail}` : '',
+    report.skip?.missingCredentialKeys?.length
+      ? `- Missing credential keys: ${report.skip.missingCredentialKeys.join(', ')}`
+      : '',
     '',
   ]
     .filter(Boolean)
@@ -196,24 +216,40 @@ export function stageMarkdown(report) {
 }
 
 export function summaryMarkdown(summary) {
+  const skippedProviders = summary.skippedProviders ?? [];
+  const skippedProviderList = skippedProviders.map(({ provider }) => provider);
+
   const lines = [
     `# Batch Test Summary — ${summary.runId}`,
     '',
     `- Mode: ${summary.mode}`,
     `- Failure policy: ${summary.failurePolicy}`,
-    `- Providers: ${summary.providers.join(', ')}`,
+    `- Requested providers: ${(summary.requestedProviders ?? []).join(', ') || 'none'}`,
+    `- Active providers: ${(summary.providers ?? []).join(', ') || 'none'}`,
+    skippedProviders.length > 0
+      ? `- Skipped providers (missing credentials): ${skippedProviderList.join(', ')}`
+      : '- Skipped providers (missing credentials): none',
     `- Dry run: ${summary.dryRun}`,
     `- Final exit code: ${summary.finalExitCode}`,
     `- Duration: ${summary.durationMs}ms`,
     `- Totals: pass=${summary.stageTotals.pass}, fail=${summary.stageTotals.fail}, infraFail=${summary.stageTotals.infraFail}, skipped=${summary.stageTotals.skipped}`,
+    summary.artifacts?.runManifestPath
+      ? `- Run manifest: ${summary.artifacts.runManifestPath}`
+      : '',
+    summary.artifacts?.summaryJsonPath
+      ? `- Summary JSON: ${summary.artifacts.summaryJsonPath}`
+      : '',
+    summary.artifacts?.summaryMarkdownPath
+      ? `- Summary Markdown: ${summary.artifacts.summaryMarkdownPath}`
+      : '',
     '',
-    '| Stage | Status | Exit | Duration(ms) |',
-    '|---|---:|---:|---:|',
+    '| Stage | Status | Exit | Duration(ms) | Not run reason |',
+    '|---|---:|---:|---:|---|',
   ];
 
   for (const stage of summary.stages) {
     lines.push(
-      `| ${stage.stageId} | ${stage.status} | ${stage.exitCode ?? ''} | ${stage.durationMs} |`,
+      `| ${stage.stageId} | ${stage.status} | ${stage.exitCode ?? ''} | ${stage.durationMs} | ${stage.notRunReason ?? ''} |`,
     );
   }
 
