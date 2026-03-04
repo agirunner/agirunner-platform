@@ -57,6 +57,9 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         return handler();
       } catch (refreshError) {
         clearSession();
+        if (typeof window !== 'undefined') {
+          window.location.assign('/login');
+        }
         throw refreshError;
       }
     }
@@ -83,14 +86,14 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     getMetrics: () =>
       withRefresh(async () => {
         const activeSession = readSession();
-        if (!activeSession?.accessToken) {
-          throw new Error('HTTP 401: missing access token');
-        }
+        const headers = activeSession?.accessToken
+          ? {
+              Authorization: `Bearer ${activeSession.accessToken}`,
+            }
+          : undefined;
 
         const response = await requestFetch(`${baseUrl}/metrics`, {
-          headers: {
-            Authorization: `Bearer ${activeSession.accessToken}`,
-          },
+          headers,
           credentials: 'include',
         });
 

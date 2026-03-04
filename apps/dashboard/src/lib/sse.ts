@@ -13,15 +13,14 @@ export function subscribeToEvents(onEvent: (eventType: string, payload: Record<s
         if (!session) {
           return;
         }
-        if (!session.accessToken) {
-          await sleep(500);
-          continue;
-        }
+        const headers = session.accessToken
+          ? {
+              Authorization: `Bearer ${session.accessToken}`,
+            }
+          : undefined;
 
         const response = await fetch(`${API_BASE_URL}${EVENTS_PATH}`, {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-          },
+          headers,
           credentials: 'include',
           signal: controller.signal,
         });

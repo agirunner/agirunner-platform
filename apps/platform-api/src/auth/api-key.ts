@@ -19,6 +19,15 @@ export interface ApiKeyIdentity {
   keyPrefix: string;
 }
 
+export interface JwtApiKeyClaims {
+  keyId: string;
+  tenantId: string;
+  scope: ApiKeyScope;
+  ownerType: string;
+  ownerId: string | null;
+  keyPrefix: string;
+}
+
 interface ApiKeyRow {
   id: string;
   tenant_id: string;
@@ -110,6 +119,21 @@ export async function verifyApiKeyById(pool: DatabaseQueryable, keyId: string): 
   }
 
   return toIdentity(key);
+}
+
+export async function verifyJwtApiKeyIdentity(pool: DatabaseQueryable, claims: JwtApiKeyClaims): Promise<ApiKeyIdentity> {
+  const keyIdentity = await verifyApiKeyById(pool, claims.keyId);
+  if (
+    keyIdentity.tenantId !== claims.tenantId ||
+    keyIdentity.scope !== claims.scope ||
+    keyIdentity.ownerType !== claims.ownerType ||
+    keyIdentity.ownerId !== claims.ownerId ||
+    keyIdentity.keyPrefix !== claims.keyPrefix
+  ) {
+    throw new UnauthorizedError('Invalid API key');
+  }
+
+  return keyIdentity;
 }
 
 const API_KEY_INSERT_RETRY_LIMIT = 8;

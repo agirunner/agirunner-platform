@@ -75,6 +75,7 @@ describe('auth token flow', () => {
     const httpAccessCookie = httpCookies.find((c) => c.startsWith('agentbaton_access_token='))!;
     expect(httpAccessCookie).toContain('HttpOnly');
     expect(httpAccessCookie).not.toContain('Secure');
+    expect(httpAccessCookie).toContain('Path=/');
 
     const httpsResponse = await app.inject({
       method: 'POST',
@@ -110,6 +111,42 @@ describe('auth token flow', () => {
     });
 
     expect(pipelines.statusCode).toBe(200);
+  });
+
+  it('rejects previously issued access token after key revocation', async () => {
+    const revocableKey = (
+      await createApiKey(db.pool, {
+        tenantId: '00000000-0000-0000-0000-000000000001',
+        scope: 'admin',
+        ownerType: 'user',
+        expiresAt: new Date(Date.now() + 86_400_000),
+      })
+    ).apiKey;
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/token',
+      payload: { api_key: revocableKey },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const token = response.json().data.token as string;
+
+    const beforeRevocation = await app.inject({
+      method: 'GET',
+      url: '/api/v1/pipelines?page=1&per_page=10',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(beforeRevocation.statusCode).toBe(200);
+
+    await db.pool.query('UPDATE api_keys SET is_revoked = true WHERE key_prefix = $1', [revocableKey.slice(0, 12)]);
+
+    const afterRevocation = await app.inject({
+      method: 'GET',
+      url: '/api/v1/pipelines?page=1&per_page=10',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(afterRevocation.statusCode).toBe(401);
   });
 
   it('refreshes access token when short-lived token expires', async () => {

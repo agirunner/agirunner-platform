@@ -1,7 +1,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { UnauthorizedError } from '../errors/domain-errors.js';
-import { parseBearerToken, verifyApiKey, type ApiKeyIdentity } from './api-key.js';
+import { parseBearerToken, verifyApiKey, verifyJwtApiKeyIdentity, type ApiKeyIdentity } from './api-key.js';
 import { verifyJwt } from './jwt.js';
 import { enforceScope, type ApiKeyScope } from './scope.js';
 
@@ -44,14 +44,14 @@ async function verifyJwtIdentity(request: FastifyRequest, token: string): Promis
     throw new UnauthorizedError('Access token required');
   }
 
-  return {
-    id: claims.keyId,
+  return verifyJwtApiKeyIdentity(request.server.pgPool, {
+    keyId: claims.keyId,
     tenantId: claims.tenantId,
     scope: claims.scope,
     ownerType: claims.ownerType,
     ownerId: claims.ownerId,
     keyPrefix: claims.keyPrefix,
-  };
+  });
 }
 
 export function withScope(requiredScope: ApiKeyScope) {

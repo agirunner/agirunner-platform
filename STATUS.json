@@ -1,19 +1,23 @@
 {
-  "task": "Fix dashboard blank pipeline detail page render",
-  "issue": "#74",
-  "branch": "fix/74-dashboard-pipeline-detail-blank",
+  "task": "Campaign: Human Dashboard requirements closure audit + gap fixes",
+  "issue": "PR#77",
+  "branch": "fix/human-dashboard-requirements-closure",
   "phase": "COMPLETE",
   "completed": [
-    "Reproduced /pipelines/:id detail regression with Playwright using a valid active pipeline fixture",
-    "Identified root cause: PipelineDetailPage assumed getPipeline returned { data: Pipeline } while dashboard SDK client already unwraps ApiDataResponse",
-    "Updated pipeline detail page to consume Pipeline shape directly and render explicit loading/error states",
-    "Added regression spec apps/dashboard/tests/e2e/pipeline-detail-render.spec.ts covering valid active pipeline detail render",
-    "Captured screenshot evidence at tests/artifacts/integration/screenshots/issue-74-pipeline-detail-post-fix.png",
-    "Validated dashboard e2e, unit tests, and typecheck",
-    "Pushed branch and opened PR #75",
-    "Posted status update on issue #74"
+    "Pulled latest main and created branch fix/human-dashboard-requirements-closure",
+    "Audited all Human Dashboard requirements from docs baseline (§4.6 + §4.35 + dashboard NFRs)",
+    "Created complete traceability matrix at docs/testing/dashboard-requirements-audit.md with requirement->code->test->status->evidence mapping",
+    "Fixed dashboard pipeline detail render regression by aligning with SDK unwrapped getPipeline response",
+    "Added Playwright regression test apps/dashboard/tests/e2e/pipeline-detail-render.spec.ts",
+    "Hardened dashboard auth/session handling: no persistent localStorage access token, refresh-failure login redirect, cookie-first SSE/metrics auth path",
+    "Widened API access-token cookie path to '/' and added integration assertion",
+    "Executed modified-area validation suites and typechecks (dashboard + platform-api)",
+    "Opened PR #77 against main with requirement coverage summary"
   ],
-  "remaining": [],
-  "lastCommit": "4e1bceb",
-  "updatedAt": "2026-03-04T10:58:40Z"
+  "remaining": [
+    "Reviewer pass on PR #77",
+    "Future implementation waves for requirements still marked PARTIAL/MISSING in dashboard-requirements-audit.md"
+  ],
+  "lastCommit": "b3ffef93d856c614730f087dcb317a9f0ae02047",
+  "updatedAt": "2026-03-04T11:31:00Z"
 }

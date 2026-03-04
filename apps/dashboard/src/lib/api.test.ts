@@ -19,6 +19,7 @@ function mockLocalStorage() {
 describe('dashboard api auth/session behavior', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     mockLocalStorage();
     clearSession();
   });
@@ -53,8 +54,15 @@ describe('dashboard api auth/session behavior', () => {
     expect(readSession()).toEqual({ accessToken: 'fresh-token', tenantId: 'tenant-1' });
   });
 
-  it('clears session when refresh token is expired', async () => {
+  it('clears session and redirects to login when refresh token is expired', async () => {
     writeSession({ accessToken: 'expired-token', tenantId: 'tenant-1' });
+
+    const locationAssign = vi.fn();
+    vi.stubGlobal('window', {
+      location: {
+        assign: locationAssign,
+      },
+    });
 
     const client = {
       refreshSession: vi.fn().mockRejectedValue(new Error('HTTP 401: refresh expired')),
@@ -72,14 +80,15 @@ describe('dashboard api auth/session behavior', () => {
 
     await expect(api.listPipelines()).rejects.toThrow('HTTP 401: refresh expired');
     expect(readSession()).toBeNull();
+    expect(locationAssign).toHaveBeenCalledWith('/login');
   });
 
-  it('persists access token across reload-style reads after login', async () => {
+  it('persists tenant id but not access token after login', async () => {
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
       listPipelines: vi.fn(),
-      exchangeApiKey: vi.fn().mockResolvedValue({ token: 'persisted-token', tenant_id: 'tenant-1' }),
+      exchangeApiKey: vi.fn().mockResolvedValue({ token: 'ephemeral-token', tenant_id: 'tenant-1' }),
       getPipeline: vi.fn(),
       listTasks: vi.fn(),
       getTask: vi.fn(),
@@ -90,10 +99,12 @@ describe('dashboard api auth/session behavior', () => {
     const api = createDashboardApi({ client: client as never });
     await api.login('ab_admin_test_key');
 
-    expect(readSession()).toEqual({ accessToken: 'persisted-token', tenantId: 'tenant-1' });
+    expect(readSession()).toEqual({ accessToken: 'ephemeral-token', tenantId: 'tenant-1' });
+    expect(localStorage.getItem('agentbaton.tenantId')).toBe('tenant-1');
+    expect(localStorage.getItem('agentbaton.accessToken')).toBeNull();
   });
 
-  it('sends bearer token when loading metrics', async () => {
+  it('sends bearer token when loading metrics if an in-memory access token exists', async () => {
     writeSession({ accessToken: 'metrics-token', tenantId: 'tenant-1' });
 
     const fetcher = vi.fn().mockResolvedValue(new Response('ok', { status: 200 })) as unknown as typeof fetch;
@@ -116,5 +127,30 @@ describe('dashboard api auth/session behavior', () => {
     const [, options] = vi.mocked(fetcher).mock.calls[0];
     const headers = options?.headers as Record<string, string>;
     expect(headers.Authorization).toBe('Bearer metrics-token');
+  });
+
+  it('loads metrics using cookie-only auth when no in-memory access token exists', async () => {
+    writeSession({ accessToken: null, tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn().mockResolvedValue(new Response('ok', { status: 200 })) as unknown as typeof fetch;
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listPipelines: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getPipeline: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({ client: client as never, fetcher, baseUrl: 'http://localhost:8080' });
+    const body = await api.getMetrics();
+
+    expect(body).toBe('ok');
+    const [, options] = vi.mocked(fetcher).mock.calls[0];
+    expect(options?.headers).toBeUndefined();
+    expect(options?.credentials).toBe('include');
   });
 });

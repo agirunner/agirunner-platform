@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
-import { parseBearerToken, verifyApiKey, verifyApiKeyById } from '../../auth/api-key.js';
+import { parseBearerToken, verifyApiKey, verifyJwtApiKeyIdentity } from '../../auth/api-key.js';
 import { issueAccessToken, issueRefreshToken, verifyJwt } from '../../auth/jwt.js';
 import { UnauthorizedError } from '../../errors/domain-errors.js';
 
@@ -15,7 +15,7 @@ function accessCookieOptions(useSecureCookie: boolean) {
     httpOnly: true,
     secure: useSecureCookie,
     sameSite: 'strict' as const,
-    path: '/api/v1',
+    path: '/',
   };
 }
 
@@ -99,13 +99,22 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       keyPrefix: string;
     }>(app, token);
 
+    const keyIdentity = await verifyJwtApiKeyIdentity(app.pgPool, {
+      keyId: claims.keyId,
+      tenantId: claims.tenantId,
+      scope: claims.scope,
+      ownerType: claims.ownerType,
+      ownerId: claims.ownerId,
+      keyPrefix: claims.keyPrefix,
+    });
+
     return {
       data: {
         authenticated: true,
-        scope: claims.scope,
-        tenant_id: claims.tenantId,
-        owner_type: claims.ownerType,
-        owner_id: claims.ownerId,
+        scope: keyIdentity.scope,
+        tenant_id: keyIdentity.tenantId,
+        owner_type: keyIdentity.ownerType,
+        owner_id: keyIdentity.ownerId,
       },
     };
   });
@@ -147,16 +156,14 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       throw new UnauthorizedError('Refresh token required');
     }
 
-    const keyIdentity = await verifyApiKeyById(app.pgPool, claims.keyId);
-    if (
-      keyIdentity.tenantId !== claims.tenantId ||
-      keyIdentity.scope !== claims.scope ||
-      keyIdentity.ownerType !== claims.ownerType ||
-      keyIdentity.ownerId !== claims.ownerId ||
-      keyIdentity.keyPrefix !== claims.keyPrefix
-    ) {
-      throw new UnauthorizedError('Invalid API key');
-    }
+    const keyIdentity = await verifyJwtApiKeyIdentity(app.pgPool, {
+      keyId: claims.keyId,
+      tenantId: claims.tenantId,
+      scope: claims.scope,
+      ownerType: claims.ownerType,
+      ownerId: claims.ownerId,
+      keyPrefix: claims.keyPrefix,
+    });
 
     const nextToken = await issueAccessToken(app, {
       keyId: keyIdentity.id,
