@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-04T07:36:27.661Z",
-  "generated_at_utc": "2026-03-04T07:36:27.661Z",
+  "generatedAt": "2026-03-04T08:07:22.654Z",
+  "generated_at_utc": "2026-03-04T08:07:22.654Z",
   "status_enum": [
     "PASS",
     "FLAKY",
@@ -136,9 +136,9 @@
     }
   ],
   "summary": {
-    "PASS": 79,
+    "PASS": 80,
     "FLAKY": 0,
-    "FAIL": 1,
+    "FAIL": 0,
     "NOT_PASS": 20,
     "row_count": 20,
     "cell_count": 100,
@@ -156,9 +156,9 @@
         "NOT_PASS": 20
       },
       "live": {
-        "PASS": 59,
+        "PASS": 60,
         "FLAKY": 0,
-        "FAIL": 1,
+        "FAIL": 0,
         "NOT_PASS": 0
       }
     }
@@ -179,7 +179,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -190,7 +190,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -204,7 +204,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -218,7 +218,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -232,7 +232,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     },
@@ -251,7 +251,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -262,7 +262,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -276,7 +276,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -290,7 +290,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -304,7 +304,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     },
@@ -323,7 +323,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -334,7 +334,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -348,7 +348,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -362,7 +362,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -376,7 +376,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     },
@@ -395,7 +395,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -406,7 +406,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -420,7 +420,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -434,7 +434,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -448,7 +448,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     },
@@ -467,7 +467,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -478,7 +478,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -492,7 +492,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -506,7 +506,7 @@
             "tests/artifacts/live/run-2026-03-04T04-39-45-269Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -520,7 +520,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     },
@@ -539,7 +539,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -550,7 +550,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -564,7 +564,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -578,7 +578,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -592,7 +592,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     },
@@ -611,7 +611,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -622,7 +622,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -636,7 +636,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -650,7 +650,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -664,7 +664,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     },
@@ -683,7 +683,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -694,7 +694,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -708,7 +708,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -722,7 +722,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -736,7 +736,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     },
@@ -755,7 +755,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -766,7 +766,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -780,7 +780,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -794,7 +794,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -808,7 +808,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     },
@@ -827,7 +827,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -838,7 +838,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -852,7 +852,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -866,7 +866,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -880,7 +880,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     },
@@ -899,7 +899,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -910,7 +910,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -924,7 +924,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -932,15 +932,14 @@
           "provider": "google",
           "mode": "e2e",
           "gating": true,
-          "status": "FAIL",
+          "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
-            "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
+            "tests/reports/traceability-ot4-google-2026-03-04T07-51-44-181Z.json"
           ],
           "notes": [
-            "API http://127.0.0.1:18242/api/v1/workers/register returned 500: {\"statusCode\":500,\"code\":\"23505\",\"error\":\"Internal Server Error\",\"message\":\"duplicate key value violates unique constraint \\\"idx_api_keys_prefix\\\"\"}"
+            "auditable_evidence_manifest"
           ],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -954,7 +953,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     },
@@ -973,7 +972,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -984,7 +983,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -998,7 +997,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1012,7 +1011,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1026,7 +1025,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     },
@@ -1045,7 +1044,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -1056,7 +1055,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1070,7 +1069,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1084,7 +1083,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1098,7 +1097,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     },
@@ -1117,7 +1116,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -1128,7 +1127,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1142,7 +1141,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1156,7 +1155,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1170,7 +1169,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     },
@@ -1189,7 +1188,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -1200,7 +1199,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1214,7 +1213,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1228,7 +1227,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1242,7 +1241,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     },
@@ -1261,7 +1260,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -1272,7 +1271,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1286,7 +1285,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1300,7 +1299,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1314,7 +1313,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     },
@@ -1333,7 +1332,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -1344,7 +1343,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1358,7 +1357,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1372,7 +1371,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1386,7 +1385,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     },
@@ -1405,7 +1404,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -1416,7 +1415,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1430,7 +1429,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1444,7 +1443,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1458,7 +1457,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     },
@@ -1477,7 +1476,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -1488,7 +1487,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1502,7 +1501,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1516,7 +1515,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1530,7 +1529,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     },
@@ -1549,7 +1548,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "integration",
@@ -1560,7 +1559,7 @@
           "status": "NOT_PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1574,7 +1573,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1588,7 +1587,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         },
         {
           "lane": "live",
@@ -1602,7 +1601,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T07:36:27.661Z"
+          "generated_at_utc": "2026-03-04T07:55:03.401Z"
         }
       ]
     }
@@ -3227,12 +3226,10 @@
         "finishedAt": "2026-03-04T04:36:42.319Z"
       },
       "google": {
-        "status": "FAIL",
-        "runId": "2026-03-04T04-33-52-873Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-04T04:43:11.990Z",
-        "error": "API http://127.0.0.1:18242/api/v1/workers/register returned 500: {\"statusCode\":500,\"code\":\"23505\",\"error\":\"Internal Server Error\",\"message\":\"duplicate key value violates unique constraint \\\"idx_api_keys_prefix\\\"\"}"
+        "status": "PASS",
+        "runId": "2026-03-04T07-51-44-181Z-sdlc-google-r1",
+        "artifactJsonPath": "tests/reports/traceability-ot4-google-2026-03-04T07-51-44-181Z.json",
+        "finishedAt": "2026-03-04T07:55:03.399Z"
       },
       "anthropic": {
         "status": "PASS",

@@ -1,0 +1,112 @@
+{
+  "version": "1.0",
+  "evidenceType": "live-run-audit-manifest",
+  "runId": "2026-03-04T07-51-44-181Z-sdlc-google-r1",
+  "scenario": "ot4-health",
+  "provider": "google",
+  "generatedAt": "2026-03-04T08:07:12.682Z",
+  "reviewAccessible": true,
+  "sourceArtifacts": {
+    "runJson": {
+      "path": "tests/artifacts/live/run-2026-03-04T07-51-44-181Z-sdlc-google-r1.json",
+      "sha256": "2efa3dc4083c094edb7e6f7caf5050eeda110c3c4e2e1a5524f09e777703340d"
+    },
+    "runMarkdown": {
+      "path": "tests/artifacts/live/run-2026-03-04T07-51-44-181Z-sdlc-google-r1.md",
+      "sha256": "2373e4fbc9977bdab38cb09cb800e512c95ca3c751a7c7d5cfd162058446df5d"
+    },
+    "authenticityValidator": {
+      "path": "tests/artifacts/live/validators/2026-03-04T07-51-44-181Z-sdlc-google-r1/ot4-health-authenticity.json",
+      "sha256": "451acb5a094a6a50cea92d4a053cc0b040f16d8a5a05aab3800a47597032b759"
+    }
+  },
+  "runReport": {
+    "runId": "2026-03-04T07-51-44-181Z-sdlc-google-r1",
+    "startedAt": "2026-03-04T07:51:44.181Z",
+    "finishedAt": "2026-03-04T07:55:03.399Z",
+    "template": "sdlc",
+    "provider": "google",
+    "repeat": 1,
+    "scenarios": {
+      "ot4-health": {
+        "status": "pass",
+        "duration": "1.91s",
+        "cost": "$0.0000",
+        "artifacts": 1,
+        "validations": 10,
+        "screenshots": []
+      }
+    },
+    "containers_leaked": 0,
+    "temp_files_leaked": 0,
+    "total_cost": "$0.0000",
+    "timing": {
+      "setupMs": 185921,
+      "scenarioMs": {
+        "ot4-health": 1906
+      },
+      "teardownMs": 11311,
+      "totalMs": 199218
+    }
+  },
+  "authenticityValidator": {
+    "version": "1.0",
+    "runId": "2026-03-04T07-51-44-181Z-sdlc-google-r1",
+    "scenario": "ot4-health",
+    "providerUnderTest": "google",
+    "template": "sdlc",
+    "route": "deterministic",
+    "generatedAt": "2026-03-04T07:54:52.085Z",
+    "result": {
+      "status": "PASS",
+      "deliveryQualityStatus": "PASS"
+    },
+    "validatorInput": {
+      "validations": [
+        "worker_registered",
+        "worker_listed",
+        "heartbeat_online_sent",
+        "heartbeat_busy_sent",
+        "second_worker_registered",
+        "worker_deleted",
+        "worker_removed_from_list"
+      ],
+      "artifacts": [],
+      "authenticityEvidence": []
+    },
+    "deliveryQualityGate": {
+      "route": "deterministic",
+      "status": "PASS",
+      "deterministicStatus": "PASS"
+    },
+    "deterministicValidator": {
+      "status": "PASS",
+      "checks": [
+        {
+          "checkId": "acceptance-structure.validations-present",
+          "status": "PASS",
+          "rationale": "Scenario produced 7 validation assertions",
+          "evidenceRefs": [
+            "scenario:ot4-health:validations"
+          ]
+        }
+      ]
+    }
+  },
+  "auditSummary": {
+    "liveStatus": "PASS",
+    "deliveryQualityStatus": "PASS",
+    "deterministicValidatorStatus": "PASS",
+    "keyChecks": [
+      {
+        "checkId": "acceptance-structure.validations-present",
+        "status": "PASS",
+        "rationale": "Scenario produced 7 validation assertions",
+        "evidenceRefs": [
+          "scenario:ot4-health:validations"
+        ]
+      }
+    ],
+    "finishedAt": "2026-03-04T07:55:03.399Z"
+  }
+}
