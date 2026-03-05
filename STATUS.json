@@ -1,21 +1,24 @@
 {
-  "task": "Address Worf CHANGES_REQUESTED on PR #91 for Platform v1.05 Stage S0",
+  "task": "Implement Platform v1.05 Stage S1 runtime API contract alignment + security foundation",
   "issue": "#90",
-  "branch": "feature/90-v105-s0",
-  "phase": "IN_PROGRESS",
+  "branch": "feature/90-v105-s1",
+  "phase": "COMPLETE",
   "completed": [
-    "Read Worf review comments (#1248/#1249) and re-validated S0 requirements in platform-v1.05 design",
-    "Fixed built-in worker executeTask auth routing so selected endpoint determines credential source (agentApiUrl->AGENT_API_KEY, runtimeUrl->RUNTIME_API_KEY)",
-    "Added regression tests proving endpoint-specific credential selection when both keys are present",
-    "Repaired S0 evidence provenance by committing canonical source summary + manifest under docs/testing/evidence and retargeting summary references",
-    "Updated CONTEXT.md evidence links to committed canonical paths",
-    "Ran targeted platform-api unit tests for executeTask and worker-runtime contract"
+    "Pulled latest main including merged PR #91 and created feature/90-v105-s1 from main",
+    "Read canonical S1 design sections, project CONTEXT, workspace/coding standards, and platform decisions",
+    "Added RuntimeApiClient production module with submit/cancel/logs/health contract methods plus legacy cancel alias fallback",
+    "Added platform runtime contract unit tests for submission payload, cancel behavior, logs endpoint, and health endpoint",
+    "Hardened startup fail-closed secret checks to require JWT_SECRET + WEBHOOK_ENCRYPTION_KEY with 32-char minimum",
+    "Added startup secret regression tests for missing/short secret failure modes",
+    "Ran stage-relevant tests (targeted vitest, pnpm test, pnpm test:core)",
+    "Executed exactly one random-provider batch run using crypto-random selection (provider=google)",
+    "Committed S1 evidence artifacts under docs/testing/evidence with explicit out-of-scope labeling for non-selected providers",
+    "Updated CONTEXT.md and created S1 stage testing summary document",
+    "Pushed branch feature/90-v105-s1",
+    "Opened PR #92 against main",
+    "Posted Issue #90 progress comment with test/evidence status"
   ],
-  "remaining": [
-    "Commit and push fixes to feature/90-v105-s0",
-    "Post PR #91 update comment with concise changelog + corrected evidence paths",
-    "Request re-review"
-  ],
-  "lastCommit": "ddcf1d0",
-  "updatedAt": "2026-03-05T00:24:00Z"
+  "remaining": [],
+  "lastCommit": "ecda608",
+  "updatedAt": "2026-03-05T01:17:00Z"
 }

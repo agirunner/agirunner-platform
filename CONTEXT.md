@@ -1,32 +1,39 @@
 # CONTEXT.md — AgentBaton Platform v1.0
 
 ## Last Updated
-2026-03-05 00:23 UTC
+2026-03-05 01:16 UTC
 
 ## Product
 AgentBaton Platform — coordination engine for agentic software development pipelines.
 
 ## Current State
 - **FRs:** 207/207 implemented ✅
-- **Unit/integration tests:** ~279 passing ✅
+- **Unit/integration tests:** platform-api suite green locally (`316 passed`, `1 skipped`) ✅
 - **Open issues:** 0 ✅
 - **Runtime tests:** All v1.0-gating pass ✅
-- **Platform tests:** AP suite re-run in progress (OpenAI first pass)
+- **Platform tests:** S1 platform-owned contract/security suites green; single-provider S1 batch run captured with known OT-1 live failure evidence
 
 ## Platform v1.05 Campaign Status (Issue #90)
-- **Active stage:** S0 — Baseline freeze + traceability harness prep
-- **Baseline freeze snapshot:** `docs/testing/v1.05-s0-baseline-freeze.md`
-- **Baseline JSON artifact:** `docs/testing/evidence/s0-baseline-freeze.json`
+- **Active stage:** S1 — Runtime API contract alignment + security foundation
+- **S0 baseline freeze snapshot:** `docs/testing/v1.05-s0-baseline-freeze.md`
+- **S1 stage summary:** `docs/testing/v1.05-s1-runtime-contract-security.md`
 - **Migration flags introduced:** `INTERNAL_WORKER_BACKEND`, `RUNTIME_URL`, `RUNTIME_API_KEY`
-- **Worker↔Runtime contract harness:**
+- **S1 platform contract/security implementation:**
+  - `apps/platform-api/src/built-in/runtime-api-client.ts`
   - `apps/platform-api/src/built-in/worker-runtime-contract.ts`
+  - `apps/platform-api/src/bootstrap/app.ts`
+  - `apps/platform-api/tests/unit/runtime-api-client.test.ts`
   - `apps/platform-api/tests/unit/worker-runtime-contract.test.ts`
-  - `docs/testing/evidence/s0-worker-runtime-contract-vitest.log`
-- **Random-provider batch evidence (S0 requirement):**
-  - Selection (committed): `docs/testing/evidence/s0-random-provider-selection.json`
-  - Run summary (committed): `docs/testing/evidence/s0-random-provider-batch-summary.json` (`finalExitCode=1`, live-lane NOT_PASS evidence-reference regression)
-  - Source summary (committed canonical copy): `docs/testing/evidence/s0-random-provider-batch-source-summary.json`
-  - Source manifest (committed canonical copy): `docs/testing/evidence/s0-random-provider-batch-source-manifest.json`
+  - `apps/platform-api/tests/unit/startup-secrets.test.ts`
+- **S1 evidence artifacts (committed):**
+  - Contract/security vitest log: `docs/testing/evidence/s1-platform-runtime-contract-vitest.log`
+  - Full unit/integration/harness run: `docs/testing/evidence/s1-pnpm-test.log`
+  - Core lane run: `docs/testing/evidence/s1-pnpm-test-core.log`
+  - Random-provider selection: `docs/testing/evidence/s1-random-provider-selection.json` (selected `google`; `openai`/`anthropic` out-of-scope for this single-provider S1 run)
+  - Random-provider batch summary: `docs/testing/evidence/s1-random-provider-batch-summary.json`
+  - Source summary copy: `docs/testing/evidence/s1-random-provider-batch-source-summary.json`
+  - Source manifest copy: `docs/testing/evidence/s1-random-provider-batch-source-manifest.json`
+  - Batch command log: `docs/testing/evidence/s1-random-provider-batch.log`
 
 ## Admiral Evidence Authenticity Directive (2026-03-02)
 - **No stubs, no placeholder outputs, no harness-simulated execution paths** may be counted as PASS for release gating.
