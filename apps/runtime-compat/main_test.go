@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -170,5 +171,75 @@ func TestSubmitTaskHandlerAllowsDeterministicFallbackOnlyWhenExplicitlyEnabled(t
 	}
 	if output["mode"] != "deterministic-fallback" {
 		t.Fatalf("expected deterministic-fallback mode, got %#v", output)
+	}
+}
+
+func TestResolveHostGatewayFallbackURLRewritesHostDockerInternal(t *testing.T) {
+	originalResolver := bridgeGatewayResolver
+	bridgeGatewayResolver = func() (string, error) {
+		return "192.168.80.1", nil
+	}
+	t.Cleanup(func() {
+		bridgeGatewayResolver = originalResolver
+	})
+
+	rewritten, err := resolveHostGatewayFallbackURL("http://host.docker.internal:39000/execute")
+	if err != nil {
+		t.Fatalf("expected fallback rewrite to succeed: %v", err)
+	}
+
+	if rewritten != "http://192.168.80.1:39000/execute" {
+		t.Fatalf("unexpected rewritten fallback url: %s", rewritten)
+	}
+}
+
+func TestForwardToAgentAPIRetriesWithGatewayFallback(t *testing.T) {
+	originalResolver := bridgeGatewayResolver
+	originalExecutor := agentRequestExecutor
+	bridgeGatewayResolver = func() (string, error) {
+		return "192.168.80.1", nil
+	}
+	attemptedURLs := make([]string, 0, 2)
+	agentRequestExecutor = func(agentURL, _ string, _ []byte) (int, []byte, error) {
+		attemptedURLs = append(attemptedURLs, agentURL)
+		switch len(attemptedURLs) {
+		case 1:
+			return 0, nil, fmt.Errorf("dial tcp: connect: network is unreachable")
+		case 2:
+			return http.StatusOK, []byte(`{"output":{"status":"ok"}}`), nil
+		default:
+			return 0, nil, fmt.Errorf("unexpected call")
+		}
+	}
+	t.Cleanup(func() {
+		bridgeGatewayResolver = originalResolver
+		agentRequestExecutor = originalExecutor
+	})
+
+	response, err := forwardToAgentAPI(
+		serverConfig{AgentAPIURL: "http://host.docker.internal:39000/execute"},
+		runtimeTaskSubmission{TaskID: "task-123", Role: "architect", Input: map[string]any{}},
+	)
+	if err != nil {
+		t.Fatalf("expected fallback request to succeed: %v", err)
+	}
+
+	if len(attemptedURLs) != 2 {
+		t.Fatalf("expected two attempts (primary + fallback), got %d", len(attemptedURLs))
+	}
+
+	if attemptedURLs[0] != "http://host.docker.internal:39000/execute" {
+		t.Fatalf("unexpected primary url: %s", attemptedURLs[0])
+	}
+	if attemptedURLs[1] != "http://192.168.80.1:39000/execute" {
+		t.Fatalf("unexpected fallback url: %s", attemptedURLs[1])
+	}
+
+	output, ok := response["output"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected output payload from fallback response, got %#v", response)
+	}
+	if output["status"] != "ok" {
+		t.Fatalf("unexpected fallback response payload: %#v", response)
 	}
 }

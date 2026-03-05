@@ -1,16 +1,22 @@
 {
-  "task": "Resolve PR #95 review blockers by restoring S3.5 network least-privilege boundaries and adding deterministic network evidence",
+  "task": "Fix post-merge S3.5 regression on main: restore runtime bridge reachability for locked-case sdlc-happy and affected live-google path",
   "issue": "#90",
-  "branch": "fix/s3-5-runtime-bridge-network",
-  "phase": "COMPLETE",
+  "branch": "fix/s3.5-post-merge-sdlc-happy",
+  "phase": "IN_PROGRESS",
   "completed": [
-    "Removed `platform_net` from `internal-runtime` service networks in `docker-compose.yml` so runtime is single-homed on `runtime_internal`",
-    "Hardened topology regression test in `tests/live/harness/setup.test.ts` to assert `internal-runtime` block does not include `platform_net`",
-    "Captured deterministic PR-specific network evidence set under `docs/testing/evidence/s3-pr95-network-20260305T084933Z-*` (compose config, network inspect, container network attachments, and allow/deny reachability probes)",
-    "Captured targeted harness validation log: `docs/testing/evidence/s3-pr95-topology-test-20260305T084536Z.log`",
-    "Wrote blocker-to-fix cycle summaries: `docs/testing/evidence/s3-pr95-blocker-closeout-20260305T084933Z.md` and `.json`"
+    "Reproduced locked-case failure on isolated stack: core lane sdlc-happy failed with pipeline terminal state failed",
+    "Identified root cause: runtime-compat bridge could not reach host.docker.internal from runtime_internal-only topology",
+    "Implemented runtime-compat fallback retry that rewrites host.docker.internal to detected bridge gateway IP",
+    "Added deterministic regression tests for host rewrite and fallback retry path",
+    "Validated fix with go runtime-compat unit tests and reran locked case to PASS",
+    "Validated affected S3.5 path: full core lane PASS plus live/google sdlc-happy, maintenance-happy, and ap5-full PASS",
+    "Captured evidence under docs/testing/evidence/s3.5-post-merge-fix-*"
   ],
-  "remaining": [],
-  "lastCommit": "bae19c5",
-  "updatedAt": "2026-03-05T08:55:40Z"
+  "remaining": [
+    "Commit and push fix branch",
+    "Open PR against main",
+    "Publish final AGENT_REPORT with commit SHA + PR URL"
+  ],
+  "lastCommit": "pending",
+  "updatedAt": "2026-03-05T09:59:30Z"
 }

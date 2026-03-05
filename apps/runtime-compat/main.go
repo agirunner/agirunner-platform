@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -17,6 +19,11 @@ const (
 	runtimeProfileTest = "test"
 
 	runtimeAPIKeyMinLength = 20
+)
+
+var (
+	bridgeGatewayResolver = discoverBridgeGatewayIPv4
+	agentRequestExecutor  = performAgentRequest
 )
 
 type runtimeTaskSubmission struct {
@@ -294,30 +301,22 @@ func forwardToAgentAPI(cfg serverConfig, submission runtimeTaskSubmission) (map[
 		return nil, fmt.Errorf("marshal agent payload: %w", err)
 	}
 
-	request, err := http.NewRequest(http.MethodPost, cfg.AgentAPIURL, bytes.NewReader(bodyBytes))
+	statusCode, responseBytes, err := agentRequestExecutor(cfg.AgentAPIURL, cfg.AgentAPIKey, bodyBytes)
 	if err != nil {
-		return nil, fmt.Errorf("create agent request: %w", err)
+		fallbackURL, fallbackErr := resolveHostGatewayFallbackURL(cfg.AgentAPIURL)
+		if fallbackErr == nil && fallbackURL != "" {
+			statusCode, responseBytes, err = agentRequestExecutor(fallbackURL, cfg.AgentAPIKey, bodyBytes)
+			if err == nil {
+				log.Printf("agent-api bridge fallback succeeded via %s", fallbackURL)
+			}
+		}
 	}
-
-	request.Header.Set("Content-Type", "application/json")
-	if cfg.AgentAPIKey != "" {
-		request.Header.Set("Authorization", "Bearer "+cfg.AgentAPIKey)
-	}
-
-	client := &http.Client{Timeout: 90 * time.Second}
-	response, err := client.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("agent request failed: %w", err)
 	}
-	defer response.Body.Close()
 
-	responseBytes, err := io.ReadAll(response.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read agent response: %w", err)
-	}
-
-	if response.StatusCode >= 400 {
-		return nil, fmt.Errorf("agent endpoint returned HTTP %d: %s", response.StatusCode, truncateForError(string(responseBytes), 400))
+	if statusCode >= 400 {
+		return nil, fmt.Errorf("agent endpoint returned HTTP %d: %s", statusCode, truncateForError(string(responseBytes), 400))
 	}
 
 	var parsed map[string]any
@@ -330,6 +329,153 @@ func forwardToAgentAPI(cfg serverConfig, submission runtimeTaskSubmission) (map[
 	}
 
 	return parsed, nil
+}
+
+func performAgentRequest(agentURL, agentAPIKey string, bodyBytes []byte) (int, []byte, error) {
+	request, err := http.NewRequest(http.MethodPost, agentURL, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return 0, nil, fmt.Errorf("create agent request: %w", err)
+	}
+
+	request.Header.Set("Content-Type", "application/json")
+	if agentAPIKey != "" {
+		request.Header.Set("Authorization", "Bearer "+agentAPIKey)
+	}
+
+	client := &http.Client{Timeout: 90 * time.Second}
+	response, err := client.Do(request)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer response.Body.Close()
+
+	responseBytes, err := io.ReadAll(response.Body)
+	if err != nil {
+		return 0, nil, fmt.Errorf("read agent response: %w", err)
+	}
+
+	return response.StatusCode, responseBytes, nil
+}
+
+func resolveHostGatewayFallbackURL(rawURL string) (string, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "", fmt.Errorf("parse agent api url: %w", err)
+	}
+
+	if !strings.EqualFold(parsed.Hostname(), "host.docker.internal") {
+		return "", nil
+	}
+
+	gatewayIP, err := bridgeGatewayResolver()
+	if err != nil {
+		return "", err
+	}
+
+	if parsed.Port() != "" {
+		parsed.Host = net.JoinHostPort(gatewayIP, parsed.Port())
+	} else {
+		parsed.Host = gatewayIP
+	}
+
+	return parsed.String(), nil
+}
+
+func discoverBridgeGatewayIPv4() (string, error) {
+	if interfaceGateway, err := gatewayFromInterface("eth0"); err == nil {
+		return interfaceGateway, nil
+	}
+
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return "", fmt.Errorf("list interfaces: %w", err)
+	}
+
+	for _, iface := range interfaces {
+		if (iface.Flags&net.FlagLoopback) != 0 || (iface.Flags&net.FlagUp) == 0 {
+			continue
+		}
+
+		gatewayIP, err := deriveGatewayFromAddrs(iface.Addrs)
+		if err == nil {
+			return gatewayIP, nil
+		}
+	}
+
+	return "", fmt.Errorf("no bridge gateway address discovered")
+}
+
+func gatewayFromInterface(interfaceName string) (string, error) {
+	iface, err := net.InterfaceByName(interfaceName)
+	if err != nil {
+		return "", err
+	}
+
+	return deriveGatewayFromAddrs(iface.Addrs)
+}
+
+func deriveGatewayFromAddrs(loadAddrs func() ([]net.Addr, error)) (string, error) {
+	addrs, err := loadAddrs()
+	if err != nil {
+		return "", err
+	}
+
+	for _, address := range addrs {
+		ipNet, ok := address.(*net.IPNet)
+		if !ok {
+			continue
+		}
+
+		gateway := deriveGatewayFromIPNet(ipNet)
+		if gateway != "" {
+			return gateway, nil
+		}
+	}
+
+	return "", fmt.Errorf("no ipv4 gateway candidate found")
+}
+
+func deriveGatewayFromIPNet(ipNet *net.IPNet) string {
+	if ipNet == nil || ipNet.Mask == nil {
+		return ""
+	}
+
+	ipv4 := ipNet.IP.To4()
+	if ipv4 == nil || len(ipNet.Mask) != 4 {
+		return ""
+	}
+
+	ones, bits := ipNet.Mask.Size()
+	if bits != 32 || ones >= 31 {
+		return ""
+	}
+
+	networkBase := ipv4.Mask(ipNet.Mask)
+	gateway := incrementIPv4(networkBase)
+	if gateway == nil || gateway.Equal(ipv4) {
+		return ""
+	}
+
+	return gateway.String()
+}
+
+func incrementIPv4(ip net.IP) net.IP {
+	ipv4 := ip.To4()
+	if ipv4 == nil {
+		return nil
+	}
+
+	incremented := make(net.IP, len(ipv4))
+	copy(incremented, ipv4)
+
+	for index := len(incremented) - 1; index >= 0; index-- {
+		incremented[index]++
+		if incremented[index] != 0 {
+			break
+		}
+	}
+
+	return incremented
 }
 
 func deterministicFallbackOutput(submission runtimeTaskSubmission) map[string]any {
