@@ -1,18 +1,21 @@
 {
-  "task": "Platform v1.05 requirements+design doc for Go runtime internal worker migration",
-  "issue": "#87",
-  "branch": "docs/87-platform-v1-05-go-runtime-design",
-  "phase": "COMPLETE",
+  "task": "Address Worf CHANGES_REQUESTED on PR #91 for Platform v1.05 Stage S0",
+  "issue": "#90",
+  "branch": "feature/90-v105-s0",
+  "phase": "IN_PROGRESS",
   "completed": [
-    "Pulled latest main and created branch docs/87-platform-v1-05-go-runtime-design",
-    "Ensured agentbaton-docs repo is available locally",
-    "Read required architecture/design/audit/decision/protocol inputs",
-    "Created standalone deliverable docs/design/platform-v1.05-requirements-and-design.md",
-    "Committed and pushed design blueprint commit b317e03",
-    "Opened PR #88 against main",
-    "Posted issue #87 status update with deliverable and PR reference"
+    "Read Worf review comments (#1248/#1249) and re-validated S0 requirements in platform-v1.05 design",
+    "Fixed built-in worker executeTask auth routing so selected endpoint determines credential source (agentApiUrl->AGENT_API_KEY, runtimeUrl->RUNTIME_API_KEY)",
+    "Added regression tests proving endpoint-specific credential selection when both keys are present",
+    "Repaired S0 evidence provenance by committing canonical source summary + manifest under docs/testing/evidence and retargeting summary references",
+    "Updated CONTEXT.md evidence links to committed canonical paths",
+    "Ran targeted platform-api unit tests for executeTask and worker-runtime contract"
   ],
-  "remaining": [],
-  "lastCommit": "b317e03",
-  "updatedAt": "2026-03-04T22:09:06Z"
+  "remaining": [
+    "Commit and push fixes to feature/90-v105-s0",
+    "Post PR #91 update comment with concise changelog + corrected evidence paths",
+    "Request re-review"
+  ],
+  "lastCommit": "ddcf1d0",
+  "updatedAt": "2026-03-05T00:24:00Z"
 }

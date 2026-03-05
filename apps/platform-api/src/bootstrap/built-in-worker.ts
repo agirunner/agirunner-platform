@@ -38,6 +38,11 @@ import {
   hasDeterministicImpossibleFailureMode,
   shouldRejectImpossibleScopeTask,
 } from '../built-in/impossible-scope.js';
+import {
+  buildLegacyWorkerRuntimePayload,
+  internalWorkerBackendSchema,
+  type InternalWorkerBackend,
+} from '../built-in/worker-runtime-contract.js';
 
 // Re-export role config types for consumers of this module.
 export type { BuiltInRolesConfig, RoleName };
@@ -114,15 +119,31 @@ export function buildWorkerConfigFromRoles(
  */
 export interface TaskExecutorConfig {
   /**
-   * URL of the agent or tool API to call for task execution.
+   * Migration backend selector for S0+ rollout.
    *
-   * When omitted, execution fails closed with a configuration error.
+   * `legacy-node` keeps current executor behavior.
+   * `go-runtime` is feature-flagged for staged migration work.
+   */
+  internalWorkerBackend?: InternalWorkerBackend;
+  /**
+   * URL of the legacy agent/tool API to call for task execution.
+   *
+   * When omitted, execution can optionally fall back to `runtimeUrl`.
    */
   agentApiUrl?: string;
+  /**
+   * Runtime endpoint for migration path (`RUNTIME_URL`).
+   * In S0 this serves as an endpoint configuration fallback.
+   */
+  runtimeUrl?: string;
   /**
    * Bearer token for the agent API (if required).
    */
   agentApiKey?: string;
+  /**
+   * Bearer token for runtime endpoint calls (if required).
+   */
+  runtimeApiKey?: string;
   /**
    * Timeout for a single task execution in milliseconds.
    * Defaults to 5 minutes.
@@ -175,22 +196,36 @@ export function checkProhibitedOperations(
 }
 
 const MISSING_EXECUTOR_CONFIG_ERROR =
-  'Missing built-in worker executor configuration: set executor.agentApiUrl to run tasks.';
+  'Missing built-in worker executor configuration: set executor.agentApiUrl or executor.runtimeUrl to run tasks.';
+
+const GO_RUNTIME_BACKEND_NOT_ENABLED_ERROR =
+  'INTERNAL_WORKER_BACKEND=go-runtime is feature-flagged for staged migration and is not enabled in this execution path yet.';
 
 /**
  * Executes a task using the configured executor.
  *
- * When an `agentApiUrl` is provided, the task payload is forwarded to that URL
- * via HTTP POST, and the response body is used as the task output.
+ * When an endpoint URL is provided (`agentApiUrl` or `runtimeUrl`), the task
+ * payload is forwarded via HTTP POST and the response body is used as task output.
  *
- * Without an agent URL, execution fails closed with a deterministic
+ * Without an endpoint URL, execution fails closed with a deterministic
  * configuration error.
  */
 export async function executeTask(
   task: Record<string, unknown>,
   config: TaskExecutorConfig,
 ): Promise<TaskExecutionResult> {
-  if (!config.agentApiUrl) {
+  const backend = internalWorkerBackendSchema.parse(config.internalWorkerBackend ?? 'legacy-node');
+  if (backend === 'go-runtime') {
+    return {
+      output: {},
+      success: false,
+      error: GO_RUNTIME_BACKEND_NOT_ENABLED_ERROR,
+    };
+  }
+
+  const usesAgentApiEndpoint = Boolean(config.agentApiUrl);
+  const endpointUrl = usesAgentApiEndpoint ? config.agentApiUrl : config.runtimeUrl;
+  if (!endpointUrl) {
     return {
       output: {},
       success: false,
@@ -199,16 +234,12 @@ export async function executeTask(
   }
 
   const timeoutMs = config.taskTimeoutMs ?? 5 * 60 * 1000;
-  const body = JSON.stringify({
-    task_id: task.id,
-    title: task.title,
-    type: task.type,
-    input: task.input ?? {},
-    context: task.context ?? {},
-  });
+  const body = JSON.stringify(buildLegacyWorkerRuntimePayload(task));
+  const authToken = usesAgentApiEndpoint ? config.agentApiKey : config.runtimeApiKey;
+  const endpointLabel = usesAgentApiEndpoint ? 'Agent API' : 'Runtime';
 
   return new Promise<TaskExecutionResult>((resolve) => {
-    const url = new URL(config.agentApiUrl!);
+    const url = new URL(endpointUrl);
     const isHttps = url.protocol === 'https:';
     const requestModule = isHttps ? https : http;
     const options: http.RequestOptions = {
@@ -219,7 +250,7 @@ export async function executeTask(
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(body),
-        ...(config.agentApiKey ? { Authorization: `Bearer ${config.agentApiKey}` } : {}),
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       },
     };
 
@@ -228,7 +259,7 @@ export async function executeTask(
       resolve({
         output: {},
         success: false,
-        error: `Agent API call timed out after ${timeoutMs}ms`,
+        error: `${endpointLabel} call timed out after ${timeoutMs}ms`,
       });
     }, timeoutMs);
 
@@ -243,7 +274,7 @@ export async function executeTask(
           resolve({
             output: {},
             success: false,
-            error: `Agent API returned HTTP ${res.statusCode ?? 'unknown'}: ${responseData}`,
+            error: `${endpointLabel} endpoint returned HTTP ${res.statusCode ?? 'unknown'}: ${responseData}`,
           });
           return;
         }

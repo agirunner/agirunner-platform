@@ -1,7 +1,7 @@
 # CONTEXT.md — AgentBaton Platform v1.0
 
 ## Last Updated
-2026-03-02 17:26 UTC
+2026-03-05 00:23 UTC
 
 ## Product
 AgentBaton Platform — coordination engine for agentic software development pipelines.
@@ -12,6 +12,21 @@ AgentBaton Platform — coordination engine for agentic software development pip
 - **Open issues:** 0 ✅
 - **Runtime tests:** All v1.0-gating pass ✅
 - **Platform tests:** AP suite re-run in progress (OpenAI first pass)
+
+## Platform v1.05 Campaign Status (Issue #90)
+- **Active stage:** S0 — Baseline freeze + traceability harness prep
+- **Baseline freeze snapshot:** `docs/testing/v1.05-s0-baseline-freeze.md`
+- **Baseline JSON artifact:** `docs/testing/evidence/s0-baseline-freeze.json`
+- **Migration flags introduced:** `INTERNAL_WORKER_BACKEND`, `RUNTIME_URL`, `RUNTIME_API_KEY`
+- **Worker↔Runtime contract harness:**
+  - `apps/platform-api/src/built-in/worker-runtime-contract.ts`
+  - `apps/platform-api/tests/unit/worker-runtime-contract.test.ts`
+  - `docs/testing/evidence/s0-worker-runtime-contract-vitest.log`
+- **Random-provider batch evidence (S0 requirement):**
+  - Selection (committed): `docs/testing/evidence/s0-random-provider-selection.json`
+  - Run summary (committed): `docs/testing/evidence/s0-random-provider-batch-summary.json` (`finalExitCode=1`, live-lane NOT_PASS evidence-reference regression)
+  - Source summary (committed canonical copy): `docs/testing/evidence/s0-random-provider-batch-source-summary.json`
+  - Source manifest (committed canonical copy): `docs/testing/evidence/s0-random-provider-batch-source-manifest.json`
 
 ## Admiral Evidence Authenticity Directive (2026-03-02)
 - **No stubs, no placeholder outputs, no harness-simulated execution paths** may be counted as PASS for release gating.
