@@ -1,15 +1,16 @@
 {
-  "task": "Close final PR #94 blocker by enforcing required runtime auth secret in compose startup path",
+  "task": "Resolve PR #95 review blockers by restoring S3.5 network least-privilege boundaries and adding deterministic network evidence",
   "issue": "#90",
-  "branch": "feature/90-v105-s3",
+  "branch": "fix/s3-5-runtime-bridge-network",
   "phase": "COMPLETE",
   "completed": [
-    "Removed fallback defaults for `RUNTIME_API_KEY` in compose runtime + worker env using required interpolation (`${RUNTIME_API_KEY:?RUNTIME_API_KEY must be set}`)",
-    "Updated `.env.example` runtime key to instruction-only placeholder (`RUNTIME_API_KEY=replace-with-at-least-20-characters`)",
-    "Added harness regression assertion in `tests/live/harness/setup.test.ts` proving compose runtime/worker path is fail-fast for unset `RUNTIME_API_KEY` and does not permit legacy fallback pattern",
-    "Captured final blocker evidence under `docs/testing/evidence/s3-pr94-final-*` including negative compose-config proof (unset key fails), positive compose-config proof (set key succeeds), harness test pass log, and runtime-compat go test pass log"
+    "Removed `platform_net` from `internal-runtime` service networks in `docker-compose.yml` so runtime is single-homed on `runtime_internal`",
+    "Hardened topology regression test in `tests/live/harness/setup.test.ts` to assert `internal-runtime` block does not include `platform_net`",
+    "Captured deterministic PR-specific network evidence set under `docs/testing/evidence/s3-pr95-network-20260305T084933Z-*` (compose config, network inspect, container network attachments, and allow/deny reachability probes)",
+    "Captured targeted harness validation log: `docs/testing/evidence/s3-pr95-topology-test-20260305T084536Z.log`",
+    "Wrote blocker-to-fix cycle summaries: `docs/testing/evidence/s3-pr95-blocker-closeout-20260305T084933Z.md` and `.json`"
   ],
   "remaining": [],
-  "lastCommit": "6dfafb6",
-  "updatedAt": "2026-03-05T07:16:00Z"
+  "lastCommit": "bae19c5",
+  "updatedAt": "2026-03-05T08:55:40Z"
 }

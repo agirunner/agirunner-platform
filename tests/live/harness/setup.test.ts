@@ -33,7 +33,14 @@ test('compose topology enforces runtime internal network isolation and worker le
 
   assert.match(compose, /runtime_internal:\n\s+driver: bridge\n\s+internal: true/);
   assert.match(compose, /socket-proxy:[\s\S]*?networks:\n\s+- runtime_internal/);
-  assert.match(compose, /internal-runtime:[\s\S]*?networks:\n\s+- runtime_internal/);
+
+  const runtimeBlockMatch = compose.match(/internal-runtime:[\s\S]*?\n\n  worker:/);
+  assert.ok(runtimeBlockMatch, 'internal-runtime service block should exist');
+  const runtimeBlock = runtimeBlockMatch[0];
+
+  assert.match(runtimeBlock, /networks:\n\s+- runtime_internal/);
+  assert.doesNotMatch(runtimeBlock, /platform_net/);
+
   assert.match(
     compose,
     /worker:[\s\S]*?read_only: true[\s\S]*?security_opt:\n\s+- no-new-privileges:true[\s\S]*?cap_drop:\n\s+- ALL/,
