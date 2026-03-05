@@ -1,27 +1,20 @@
 {
-  "task": "Execute Stage S4 for platform v1.05: API contract closure + go-runtime-only built-in worker deprecation",
-  "issue": "#90",
-  "branch": "feature/90-v105-s4",
+  "task": "Apply Admiral v1.1-v1.2 network policy (external network allowed) to unblock S4.5 runtime reachability",
+  "issue": "#unknown",
+  "branch": "fix/s45-openai-hardgate",
   "phase": "IN_PROGRESS",
   "completed": [
-    "Implemented Projects API (create/list/get/update/delete + /projects/:id/memory merge patch) and registered routes",
-    "Implemented pipeline delete endpoint with terminal-state guard and event emission",
-    "Implemented task retry options (override_input + force) and worker-next alias route",
-    "Added inbound git webhook receiver (/api/v1/webhooks/git) with provider signature validation + task mapping",
-    "Normalized success envelope meta (request_id/timestamp) and standardized error-code mapping (RATE_LIMITED, SERVICE_UNAVAILABLE, CYCLE_DETECTED)",
-    "Hardened auth flow: token expires_at fields, refresh-session rotation/invalidation, CSRF-protected cookie refresh/logout",
-    "Aligned API key format to ab_{scope}_{random} with legacy-format compatibility verification",
-    "Aligned MCP tool catalog to baton_* canonical names with backward-compatible aliases",
-    "Implemented event websocket subscribe/filter compatibility endpoint (/api/v1/events/ws)",
-    "Applied Admiral directive: built-in worker go-runtime only; deprecated/disabled legacy-node path across runtime contract/config/tests/docs",
-    "Added deterministic S4 integration/unit coverage and captured S4 evidence logs",
-    "Closed PR #97 blocker #98 with canonical api-key prefix entropy fix + migration-compatible lookup",
-    "Closed PR #97 blocker #99 with raw-byte webhook signature verification and tamper regressions",
-    "Captured blocker evidence logs under docs/testing/evidence/s4-pr97-fix-* and pushed commit 040e670"
+    "Updated docker-compose runtime network topology: runtime_internal remains dedicated bridge but is no longer internal-only",
+    "Updated harness topology regression assertions for non-internal runtime bridge while preserving worker least-privilege checks",
+    "Updated README + S3/S4.5 topology docs to reflect v1.1-v1.2 policy decision",
+    "Proved root-cause closure: internal-runtime reaches host-bound AGENT_API_URL from container (captured in s4.5-policy evidence bundle)",
+    "Ran warm-mode core locked-case (sdlc-happy) to PASS with host.docker.internal executor path",
+    "Ran one-provider batch rerun to terminal result (exit 0); live-openai skipped due missing OPENAI_API_KEY in workspace"
   ],
   "remaining": [
-    "Await PR #97 review/merge"
+    "Execute full live-openai S4.5 provider stage once OPENAI_API_KEY is available in environment",
+    "Commit/push policy-change branch and open PR with evidence + residual-risk note"
   ],
-  "lastCommit": "040e67069045091cf4718f666202435daeba6685",
-  "updatedAt": "2026-03-05T11:35:38Z"
+  "lastCommit": "692f88fd0eaf7db6fdd84dcb72645d66b11dd9ca",
+  "updatedAt": "2026-03-05T15:23:00Z"
 }

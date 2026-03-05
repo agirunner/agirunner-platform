@@ -1,7 +1,7 @@
 # CONTEXT.md — AgentBaton Platform v1.0
 
 ## Last Updated
-2026-03-05 11:08 UTC
+2026-03-05 15:20 UTC
 
 ## Product
 AgentBaton Platform — coordination engine for agentic software development pipelines.
@@ -28,6 +28,10 @@ AgentBaton Platform — coordination engine for agentic software development pip
 - **S4 evidence artifacts (committed):**
   - Gate tests: `docs/testing/evidence/s4-pnpm-test.log`, `docs/testing/evidence/s4-pnpm-test-ci.log`
   - Go-only deprecation trace: `docs/testing/evidence/s4-go-only-deprecation.log`
+- **S4.5 policy update (2026-03-05):**
+  - Applied Admiral v1.1–v1.2 network decision: runtime segment no longer uses Docker internal-only isolation (`runtime_internal` no longer `internal: true`).
+  - Verified runtime can reach host-bound executor URL from container and captured network evidence in `docs/testing/evidence/s4.5-policy-network-decision-20260305T150959Z.md`.
+  - One-provider batch rerun reached terminal result with live-openai explicitly skipped in this workspace due missing `OPENAI_API_KEY` (see same evidence bundle).
 - **Gate policy interpretation (Admiral, 2026-03-05):**
   - Inside phase gates: deterministic/unit evidence required; full live-provider matrix is out-of-scope.
   - Between gates: exactly one provider batch run is a hard gate.

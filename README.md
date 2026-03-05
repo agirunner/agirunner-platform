@@ -38,7 +38,8 @@ pnpm dev
 - `dashboard`
 
 Runtime and worker are not host-port exposed in the default topology.
-`socket-proxy` + `internal-runtime` communicate over a dedicated internal-only network segment (`runtime_internal`), and `worker` joins both `platform_net` and `runtime_internal` to bridge API↔runtime traffic.
+`socket-proxy` + `internal-runtime` communicate over a dedicated bridge network segment (`runtime_internal`), and `worker` joins both `platform_net` and `runtime_internal` to bridge API↔runtime traffic.
+For v1.1–v1.2 scope, `runtime_internal` is not marked `internal: true`, so runtime-side containers can reach host/external execution endpoints (for example `AGENT_API_URL`) while keeping socket access constrained to `socket-proxy`.
 
 Security defaults in compose/runtime profile:
 - `RUNTIME_COMPAT_PROFILE=prod` (fail-closed)

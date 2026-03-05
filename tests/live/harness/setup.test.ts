@@ -27,11 +27,12 @@ test('default compose startup services include runtime sidecar topology for S3',
   ]);
 });
 
-test('compose topology enforces runtime internal network isolation and worker least-privilege flags', () => {
+test('compose topology keeps runtime on dedicated bridge network with worker least-privilege flags', () => {
   const composePath = path.join(process.cwd(), 'docker-compose.yml');
   const compose = readFileSync(composePath, 'utf8');
 
-  assert.match(compose, /runtime_internal:\n\s+driver: bridge\n\s+internal: true/);
+  assert.match(compose, /runtime_internal:\n\s+driver: bridge/);
+  assert.doesNotMatch(compose, /runtime_internal:\n\s+driver: bridge\n\s+internal: true/);
   assert.match(compose, /socket-proxy:[\s\S]*?networks:\n\s+- runtime_internal/);
 
   const runtimeBlockMatch = compose.match(/internal-runtime:[\s\S]*?\n\n  worker:/);
