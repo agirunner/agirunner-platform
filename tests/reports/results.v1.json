@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-04T09:07:32.764Z",
-  "generated_at_utc": "2026-03-04T09:07:32.764Z",
+  "generatedAt": "2026-03-05T16:37:50.804Z",
+  "generated_at_utc": "2026-03-05T16:37:50.804Z",
   "status_enum": [
     "PASS",
     "FLAKY",
@@ -179,7 +179,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -196,7 +196,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -210,7 +210,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -224,7 +224,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -238,7 +238,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     },
@@ -257,7 +257,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -274,7 +274,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -288,7 +288,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -302,7 +302,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -316,7 +316,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     },
@@ -335,7 +335,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -352,7 +352,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -366,7 +366,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -380,7 +380,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -394,7 +394,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     },
@@ -413,7 +413,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -430,7 +430,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -444,7 +444,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -458,7 +458,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -472,7 +472,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     },
@@ -491,7 +491,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -508,7 +508,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -522,7 +522,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -536,7 +536,7 @@
             "tests/artifacts/live/run-2026-03-04T04-39-45-269Z-sdlc-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -550,7 +550,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     },
@@ -569,7 +569,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -586,7 +586,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -600,7 +600,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -614,7 +614,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -628,7 +628,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     },
@@ -647,7 +647,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -664,7 +664,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -678,7 +678,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -692,7 +692,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -706,7 +706,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     },
@@ -725,7 +725,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -742,7 +742,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -756,7 +756,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -770,7 +770,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -784,7 +784,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     },
@@ -803,7 +803,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -820,7 +820,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -834,7 +834,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -848,7 +848,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -862,7 +862,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     },
@@ -881,7 +881,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -898,7 +898,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -912,7 +912,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -926,7 +926,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -940,7 +940,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     },
@@ -959,7 +959,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -976,7 +976,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -990,7 +990,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1003,7 +1003,7 @@
             "tests/reports/traceability-ot4-google-2026-03-04T07-51-44-181Z.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1017,7 +1017,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     },
@@ -1036,7 +1036,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -1053,7 +1053,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1067,7 +1067,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1081,7 +1081,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1095,7 +1095,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     },
@@ -1114,7 +1114,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -1131,7 +1131,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1145,7 +1145,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1159,7 +1159,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1173,7 +1173,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     },
@@ -1192,7 +1192,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -1209,7 +1209,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1223,7 +1223,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1237,7 +1237,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1251,7 +1251,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     },
@@ -1270,7 +1270,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -1287,7 +1287,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1301,7 +1301,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1315,7 +1315,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1329,7 +1329,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     },
@@ -1348,7 +1348,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -1365,7 +1365,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1379,7 +1379,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1393,7 +1393,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1407,7 +1407,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     },
@@ -1426,7 +1426,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -1443,7 +1443,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1457,7 +1457,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1471,7 +1471,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1485,7 +1485,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     },
@@ -1504,7 +1504,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -1521,7 +1521,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1535,7 +1535,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1549,7 +1549,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1563,7 +1563,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     },
@@ -1582,7 +1582,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -1599,7 +1599,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1613,7 +1613,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1627,7 +1627,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1641,7 +1641,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     },
@@ -1660,7 +1660,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "integration",
@@ -1677,7 +1677,7 @@
             "tests/reports/traceability-integration-dashboard-2026-03-04T08-33-08-412Z-dashboard-none-r1.playwright-report.json"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1691,7 +1691,7 @@
             "tests/artifacts/live/run-2026-03-04T04-26-16-704Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1705,7 +1705,7 @@
             "tests/artifacts/live/run-2026-03-04T04-33-52-873Z-maintenance-google-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         },
         {
           "lane": "live",
@@ -1719,7 +1719,7 @@
             "tests/artifacts/live/run-2026-03-04T04-28-01-596Z-maintenance-anthropic-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-04T09:07:32.764Z"
+          "generated_at_utc": "2026-03-05T16:37:50.804Z"
         }
       ]
     }
@@ -2548,6 +2548,138 @@
           "si1-isolation": "PASS",
           "si2-auth": "PASS",
           "si2-extended-isolation": "PASS"
+        }
+      },
+      {
+        "runId": "2026-03-05T15-45-09-132Z-sdlc-none-r1",
+        "startedAt": "2026-03-05T15:45:09.019Z",
+        "finishedAt": "2026-03-05T15:45:09.132Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-05T15-45-09-132Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-05T15-45-09-132Z-sdlc-none-r1.md",
+        "scenarios": {
+          "ot1-cascade": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-05T15-45-15-115Z-sdlc-none-r1",
+        "startedAt": "2026-03-05T15:45:15.098Z",
+        "finishedAt": "2026-03-05T15:45:15.115Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-05T15-45-15-115Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-05T15-45-15-115Z-sdlc-none-r1.md",
+        "scenarios": {
+          "ot1-cascade": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-05T15-46-05-937Z-sdlc-none-r1",
+        "startedAt": "2026-03-05T15:45:18.467Z",
+        "finishedAt": "2026-03-05T15:46:05.937Z",
+        "status": "FAIL",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-05T15-46-05-937Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-05T15-46-05-937Z-sdlc-none-r1.md",
+        "scenarios": {
+          "ot1-cascade": "FAIL"
+        }
+      },
+      {
+        "runId": "2026-03-05T15-46-18-061Z-sdlc-none-r1",
+        "startedAt": "2026-03-05T15:46:18.061Z",
+        "finishedAt": "2026-03-05T15:47:38.199Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-05T15-46-18-061Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-05T15-46-18-061Z-sdlc-none-r1.md",
+        "scenarios": {
+          "ot1-cascade": "PASS"
+        }
+      },
+      {
+        "runId": "2026-03-05T15-49-37-622Z-sdlc-none-r1",
+        "startedAt": "2026-03-05T15:49:37.622Z",
+        "finishedAt": "2026-03-05T15:50:58.775Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-05T15-49-37-622Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-05T15-49-37-622Z-sdlc-none-r1.md",
+        "scenarios": {
+          "ot1-cascade": "PASS"
+        }
+      },
+      {
+        "runId": "2026-03-05T15-50-58-783Z-sdlc-none-r2",
+        "startedAt": "2026-03-05T15:50:58.783Z",
+        "finishedAt": "2026-03-05T15:51:23.060Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-05T15-50-58-783Z-sdlc-none-r2.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-05T15-50-58-783Z-sdlc-none-r2.md",
+        "scenarios": {
+          "ot1-cascade": "PASS"
+        }
+      },
+      {
+        "runId": "2026-03-05T15-51-23-063Z-sdlc-none-r3",
+        "startedAt": "2026-03-05T15:51:23.063Z",
+        "finishedAt": "2026-03-05T15:51:47.345Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-05T15-51-23-063Z-sdlc-none-r3.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-05T15-51-23-063Z-sdlc-none-r3.md",
+        "scenarios": {
+          "ot1-cascade": "PASS"
+        }
+      },
+      {
+        "runId": "2026-03-05T15-51-47-350Z-sdlc-none-r4",
+        "startedAt": "2026-03-05T15:51:47.350Z",
+        "finishedAt": "2026-03-05T15:52:11.550Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-05T15-51-47-350Z-sdlc-none-r4.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-05T15-51-47-350Z-sdlc-none-r4.md",
+        "scenarios": {
+          "ot1-cascade": "PASS"
+        }
+      },
+      {
+        "runId": "2026-03-05T15-52-11-553Z-sdlc-none-r5",
+        "startedAt": "2026-03-05T15:52:11.553Z",
+        "finishedAt": "2026-03-05T15:52:35.776Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-05T15-52-11-553Z-sdlc-none-r5.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-05T15-52-11-553Z-sdlc-none-r5.md",
+        "scenarios": {
+          "ot1-cascade": "PASS"
+        }
+      },
+      {
+        "runId": "2026-03-05T16-32-15-511Z-sdlc-none-r1",
+        "startedAt": "2026-03-05T16:32:15.511Z",
+        "finishedAt": "2026-03-05T16:34:06.398Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-05T16-32-15-511Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-05T16-32-15-511Z-sdlc-none-r1.md",
+        "scenarios": {
+          "ot1-cascade": "PASS"
+        }
+      },
+      {
+        "runId": "2026-03-05T16-34-06-405Z-sdlc-none-r2",
+        "startedAt": "2026-03-05T16:34:06.405Z",
+        "finishedAt": "2026-03-05T16:35:59.168Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-05T16-34-06-405Z-sdlc-none-r2.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-05T16-34-06-405Z-sdlc-none-r2.md",
+        "scenarios": {
+          "ot1-cascade": "PASS"
+        }
+      },
+      {
+        "runId": "2026-03-05T16-35-59-170Z-sdlc-none-r3",
+        "startedAt": "2026-03-05T16:35:59.170Z",
+        "finishedAt": "2026-03-05T16:37:50.803Z",
+        "status": "PASS",
+        "artifactJsonPath": "tests/artifacts/core/run-2026-03-05T16-35-59-170Z-sdlc-none-r3.json",
+        "artifactMdPath": "tests/artifacts/core/run-2026-03-05T16-35-59-170Z-sdlc-none-r3.md",
+        "scenarios": {
+          "ot1-cascade": "PASS"
         }
       }
     ],

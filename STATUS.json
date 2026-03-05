@@ -1,20 +1,20 @@
 {
-  "task": "Apply Admiral v1.1-v1.2 network policy (external network allowed) to unblock S4.5 runtime reachability",
+  "task": "Fix S4.5 credentialed OT-1 cascade false-negative and drive one-provider batch to green",
   "issue": "#unknown",
-  "branch": "fix/s45-openai-hardgate",
+  "branch": "fix/s45-ot1-cascade-ready-gate",
   "phase": "IN_PROGRESS",
   "completed": [
-    "Updated docker-compose runtime network topology: runtime_internal remains dedicated bridge but is no longer internal-only",
-    "Updated harness topology regression assertions for non-internal runtime bridge while preserving worker least-privilege checks",
-    "Updated README + S3/S4.5 topology docs to reflect v1.1-v1.2 policy decision",
-    "Proved root-cause closure: internal-runtime reaches host-bound AGENT_API_URL from container (captured in s4.5-policy evidence bundle)",
-    "Ran warm-mode core locked-case (sdlc-happy) to PASS with host.docker.internal executor path",
-    "Ran one-provider batch rerun to terminal result (exit 0); live-openai skipped due missing OPENAI_API_KEY in workspace"
+    "Branched from latest origin/main to fix/s45-ot1-cascade-ready-gate",
+    "Implemented OT-1 cascade helper hardening to prevent non-target auto-completion side effects",
+    "Refactored diamond assertion flow to be order-agnostic (first branch pending check, second branch fan-in ready check)",
+    "Ran locked-case ot1-cascade repeatedly to PASS (repeat=3)",
+    "Ran credentialed one-provider S4.5 batch (openai) to terminal green (exit 0)",
+    "Captured evidence bundle under docs/testing/evidence/s4.5-fix-ot1-20260305T162006Z-*"
   ],
   "remaining": [
-    "Execute full live-openai S4.5 provider stage once OPENAI_API_KEY is available in environment",
-    "Commit/push policy-change branch and open PR with evidence + residual-risk note"
+    "Push branch and open PR",
+    "Send final AGENT_REPORT"
   ],
-  "lastCommit": "692f88fd0eaf7db6fdd84dcb72645d66b11dd9ca",
-  "updatedAt": "2026-03-05T15:23:00Z"
+  "lastCommit": "d0133c733ce89ad83ff641d62cadf4ca2822f651",
+  "updatedAt": "2026-03-05T16:41:40Z"
 }

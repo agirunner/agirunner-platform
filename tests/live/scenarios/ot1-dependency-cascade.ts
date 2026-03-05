@@ -18,47 +18,58 @@ import { pollPipelineUntil, pollTaskUntil } from './poll.js';
 import { diamondTemplateSchema, fanOutTemplateSchema, linearTemplateSchema } from './templates.js';
 
 /**
- * Helper: manually complete a task via claim → start → complete.
+ * Helper: claim one of the expected tasks without mutating non-target tasks.
  */
-async function manuallyCompleteTask(ctx: TenantContext, taskId: string): Promise<void> {
-  // Claim
+async function claimExpectedTask(
+  ctx: TenantContext,
+  expectedTaskIds: string[],
+  pipelineId: string,
+): Promise<ApiTask> {
   const claimed = await ctx.workerClient.claimTask({
     agent_id: ctx.agentId,
     worker_id: ctx.workerId,
     capabilities: ['llm-api'],
+    pipeline_id: pipelineId,
   });
-  if (!claimed) throw new Error(`Could not claim any task (expected ${taskId})`);
-  if (claimed.id !== taskId) {
-    // We claimed a different task — complete it and try again
-    await ctx.agentClient.startTask(claimed.id, { agent_id: ctx.agentId });
-    await ctx.agentClient.completeTask(claimed.id, { result: 'auto-completed' });
-    return manuallyCompleteTask(ctx, taskId);
+
+  if (!claimed) {
+    throw new Error(`Could not claim any task (expected one of: ${expectedTaskIds.join(', ')})`);
   }
 
-  // Start/Complete must be authenticated as the registered agent.
-  await ctx.agentClient.startTask(taskId, { agent_id: ctx.agentId });
-  await ctx.agentClient.completeTask(taskId, { result: 'test-completed' });
+  if (!expectedTaskIds.includes(claimed.id)) {
+    throw new Error(
+      `Claimed unexpected task ${claimed.id}; expected one of: ${expectedTaskIds.join(', ')}`,
+    );
+  }
+
+  return claimed;
 }
 
 /**
- * Helper: manually fail a task via claim → start → fail.
+ * Helper: manually complete one expected task via claim → start → complete.
  */
-async function manuallyFailTask(ctx: TenantContext, taskId: string): Promise<void> {
-  const claimed = await ctx.workerClient.claimTask({
-    agent_id: ctx.agentId,
-    worker_id: ctx.workerId,
-    capabilities: ['llm-api'],
-  });
-  if (!claimed) throw new Error(`Could not claim any task (expected ${taskId})`);
+async function manuallyCompleteTask(
+  ctx: TenantContext,
+  expectedTaskIds: string | string[],
+  pipelineId: string,
+): Promise<string> {
+  const expected = Array.isArray(expectedTaskIds) ? expectedTaskIds : [expectedTaskIds];
+  const claimed = await claimExpectedTask(ctx, expected, pipelineId);
 
-  if (claimed.id !== taskId) {
-    await ctx.agentClient.startTask(claimed.id, { agent_id: ctx.agentId });
-    await ctx.agentClient.completeTask(claimed.id, { result: 'auto-completed' });
-    return manuallyFailTask(ctx, taskId);
-  }
+  // Start/Complete must be authenticated as the registered agent.
+  await ctx.agentClient.startTask(claimed.id, { agent_id: ctx.agentId });
+  await ctx.agentClient.completeTask(claimed.id, { result: 'test-completed' });
+  return claimed.id;
+}
 
-  await ctx.agentClient.startTask(taskId, { agent_id: ctx.agentId });
-  await ctx.agentClient.failTask(taskId, {
+/**
+ * Helper: manually fail an expected task via claim → start → fail.
+ */
+async function manuallyFailTask(ctx: TenantContext, taskId: string, pipelineId: string): Promise<void> {
+  const claimed = await claimExpectedTask(ctx, [taskId], pipelineId);
+
+  await ctx.agentClient.startTask(claimed.id, { agent_id: ctx.agentId });
+  await ctx.agentClient.failTask(claimed.id, {
     message: 'Intentional test failure',
     source: 'test-harness',
   });
@@ -109,21 +120,21 @@ async function testLinearChain(ctx: TenantContext): Promise<string[]> {
   validations.push('linear:initial_states_correct');
 
   // Complete A → B should become ready
-  await manuallyCompleteTask(ctx, taskA.id);
+  await manuallyCompleteTask(ctx, taskA.id, pipeline.id);
   const afterA = await pollTaskUntil(ctx.adminClient, taskB.id, ['ready'], 10_000);
   if (afterA.state !== 'ready')
     throw new Error(`B after A complete: expected ready, got ${afterA.state}`);
   validations.push('linear:A_complete_cascades_B');
 
   // Complete B → C should become ready
-  await manuallyCompleteTask(ctx, taskB.id);
+  await manuallyCompleteTask(ctx, taskB.id, pipeline.id);
   const afterB = await pollTaskUntil(ctx.adminClient, taskC.id, ['ready'], 10_000);
   if (afterB.state !== 'ready')
     throw new Error(`C after B complete: expected ready, got ${afterB.state}`);
   validations.push('linear:B_complete_cascades_C');
 
   // Complete C → pipeline should be completed
-  await manuallyCompleteTask(ctx, taskC.id);
+  await manuallyCompleteTask(ctx, taskC.id, pipeline.id);
   const finalPipeline = await pollPipelineUntil(
     ctx.adminClient,
     pipeline.id,
@@ -166,7 +177,7 @@ async function testFanOut(ctx: TenantContext): Promise<string[]> {
   validations.push('fanout:initial_states_correct');
 
   // Complete A → both B and C should be ready
-  await manuallyCompleteTask(ctx, taskA.id);
+  await manuallyCompleteTask(ctx, taskA.id, pipeline.id);
   const bAfter = await pollTaskUntil(ctx.adminClient, taskB.id, ['ready'], 10_000);
   const cAfter = await pollTaskUntil(ctx.adminClient, taskC.id, ['ready'], 10_000);
   if (bAfter.state !== 'ready')
@@ -208,7 +219,7 @@ async function testDiamond(ctx: TenantContext): Promise<string[]> {
   validations.push('diamond:initial_states_correct');
 
   // Complete A → B and C ready, D still pending
-  await manuallyCompleteTask(ctx, taskA.id);
+  await manuallyCompleteTask(ctx, taskA.id, pipeline.id);
   const bAfterA = await pollTaskUntil(ctx.adminClient, taskB.id, ['ready'], 10_000);
   const cAfterA = await pollTaskUntil(ctx.adminClient, taskC.id, ['ready'], 10_000);
   const dAfterA = await ctx.adminClient.getTask(taskD.id);
@@ -218,18 +229,23 @@ async function testDiamond(ctx: TenantContext): Promise<string[]> {
     throw new Error(`D after A only: expected pending, got ${dAfterA.state}`);
   validations.push('diamond:A_unblocks_B_C_not_D');
 
-  // Complete B → D still pending (C not done)
-  await manuallyCompleteTask(ctx, taskB.id);
-  const dAfterB = await ctx.adminClient.getTask(taskD.id);
-  if (dAfterB.state !== 'pending')
-    throw new Error(`D after B only: expected pending, got ${dAfterB.state}`);
-  validations.push('diamond:B_complete_D_still_pending');
+  // Complete one branch (B or C) → D still pending (fan-in not satisfied yet)
+  const firstCompletedBranch = await manuallyCompleteTask(ctx, [taskB.id, taskC.id], pipeline.id);
+  const dAfterFirstBranch = await ctx.adminClient.getTask(taskD.id);
+  if (dAfterFirstBranch.state !== 'pending') {
+    throw new Error(
+      `D after first branch (${firstCompletedBranch}) only: expected pending, got ${dAfterFirstBranch.state}`,
+    );
+  }
+  validations.push('diamond:first_branch_complete_D_still_pending');
 
-  // Complete C → D ready (fan-in satisfied)
-  await manuallyCompleteTask(ctx, taskC.id);
-  const dAfterC = await pollTaskUntil(ctx.adminClient, taskD.id, ['ready'], 10_000);
-  if (dAfterC.state !== 'ready')
-    throw new Error(`D after B+C: expected ready, got ${dAfterC.state}`);
+  // Complete remaining branch → D ready (fan-in satisfied)
+  const remainingBranchId = firstCompletedBranch === taskB.id ? taskC.id : taskB.id;
+  await manuallyCompleteTask(ctx, remainingBranchId, pipeline.id);
+  const dAfterBothBranches = await pollTaskUntil(ctx.adminClient, taskD.id, ['ready'], 10_000);
+  if (dAfterBothBranches.state !== 'ready') {
+    throw new Error(`D after both branches: expected ready, got ${dAfterBothBranches.state}`);
+  }
   validations.push('diamond:fan_in_unblocks_D');
 
   return validations;
@@ -256,7 +272,7 @@ async function testFailedDependency(ctx: TenantContext): Promise<string[]> {
   const taskB = findTask(pipeline, 'Task B');
 
   // Fail A
-  await manuallyFailTask(ctx, taskA.id);
+  await manuallyFailTask(ctx, taskA.id, pipeline.id);
 
   // Pipeline should be failed
   const p = await pollPipelineUntil(ctx.adminClient, pipeline.id, ['failed'], 10_000);

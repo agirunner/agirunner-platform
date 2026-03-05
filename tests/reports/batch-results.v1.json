@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-03-05T02:41:56.171Z",
-  "generated_at_utc": "2026-03-05T02:41:56.171Z",
+  "generatedAt": "2026-03-05T16:31:42.634Z",
+  "generated_at_utc": "2026-03-05T16:31:42.634Z",
   "status_enum": [
     "PASS",
     "FLAKY",
@@ -9,7 +9,7 @@
     "NOT_PASS"
   ],
   "providers": [
-    "google"
+    "openai"
   ],
   "scenarios": [
     {
@@ -177,7 +177,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -187,25 +187,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     },
@@ -224,7 +224,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -234,25 +234,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     },
@@ -271,7 +271,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -281,25 +281,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     },
@@ -318,7 +318,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -328,25 +328,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     },
@@ -365,7 +365,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -375,25 +375,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     },
@@ -412,7 +412,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -422,25 +422,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     },
@@ -459,7 +459,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -469,25 +469,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     },
@@ -506,7 +506,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -516,25 +516,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     },
@@ -553,7 +553,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -563,25 +563,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     },
@@ -600,7 +600,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -610,25 +610,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     },
@@ -647,7 +647,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -657,25 +657,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     },
@@ -694,7 +694,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -704,25 +704,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     },
@@ -741,7 +741,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -751,25 +751,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     },
@@ -788,7 +788,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -798,25 +798,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     },
@@ -835,7 +835,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -845,25 +845,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     },
@@ -882,7 +882,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -892,25 +892,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     },
@@ -929,7 +929,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -939,25 +939,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     },
@@ -976,7 +976,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -986,25 +986,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     },
@@ -1023,7 +1023,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -1033,25 +1033,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     },
@@ -1070,7 +1070,7 @@
           "status": "PASS",
           "evidence_links": [],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "integration",
@@ -1080,25 +1080,25 @@
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         },
         {
           "lane": "live",
           "category": "live",
-          "provider": "google",
+          "provider": "openai",
           "mode": "e2e",
           "gating": true,
           "status": "PASS",
           "evidence_links": [
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-            "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md"
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+            "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md"
           ],
           "notes": [],
-          "generated_at_utc": "2026-03-05T02:41:56.171Z"
+          "generated_at_utc": "2026-03-05T16:31:42.634Z"
         }
       ]
     }
@@ -1106,12 +1106,12 @@
   "runs": {
     "core": [
       {
-        "runId": "2026-03-05T02-16-50-958Z-sdlc-none-r1",
-        "startedAt": "2026-03-05T02:16:50.957Z",
-        "finishedAt": "2026-03-05T02:19:33.418Z",
+        "runId": "2026-03-05T16-20-09-719Z-sdlc-none-r1",
+        "startedAt": "2026-03-05T16:20:09.719Z",
+        "finishedAt": "2026-03-05T16:22:52.837Z",
         "status": "PASS",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/core/artifacts/core/run-2026-03-05T02-16-50-958Z-sdlc-none-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/core/artifacts/core/run-2026-03-05T02-16-50-958Z-sdlc-none-r1.md",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/core/artifacts/core/run-2026-03-05T16-20-09-719Z-sdlc-none-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/core/artifacts/core/run-2026-03-05T16-20-09-719Z-sdlc-none-r1.md",
         "scenarios": {
           "sdlc-happy": "PASS",
           "ap2-external-runtime": "PASS",
@@ -1138,12 +1138,12 @@
     ],
     "integration": [
       {
-        "runId": "2026-03-05T02-19-33-866Z-dashboard-none-r1",
-        "startedAt": "2026-03-05T02:19:33.866Z",
-        "finishedAt": "2026-03-05T02:20:56.775Z",
+        "runId": "2026-03-05T16-22-53-291Z-dashboard-none-r1",
+        "startedAt": "2026-03-05T16:22:53.291Z",
+        "finishedAt": "2026-03-05T16:24:18.022Z",
         "status": "PASS",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T02-19-33-866Z-dashboard-none-r1.md",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/integration-dashboard/artifacts/integration/run-2026-03-05T16-22-53-291Z-dashboard-none-r1.md",
         "scenarios": {
           "dashboard": "PASS",
           "sdlc-happy": "PASS",
@@ -1176,183 +1176,183 @@
   },
   "live_cells": {
     "sdlc-happy": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     },
     "ap2-external-runtime": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     },
     "ap3-standalone-worker": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     },
     "ap4-mixed-workers": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     },
     "maintenance-happy": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     },
     "ap6-runtime-maintenance": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     },
     "ap7-failure-recovery": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     },
     "ot1-cascade": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     },
     "ot2-routing": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     },
     "ot3-state": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     },
     "ot4-health": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     },
     "hl1-approval-flow": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     },
     "hl2-pipeline-controls": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     },
     "it1-sdk": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     },
     "it2-mcp": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     },
     "it3-webhooks": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     },
     "it3-mcp-sse-stream": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     },
     "si1-isolation": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     },
     "si2-auth": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     },
     "si2-extended-isolation": {
-      "google": {
+      "openai": {
         "status": "PASS",
-        "runId": "2026-03-05T02-34-56-310Z-maintenance-google-r1",
-        "artifactJsonPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.json",
-        "artifactMdPath": "tests/artifacts/batch/run-2026-03-05T02-16-48-267Z/lanes/live-google/artifacts/live/run-2026-03-05T02-34-56-310Z-maintenance-google-r1.md",
-        "finishedAt": "2026-03-05T02:38:21.427Z"
+        "runId": "2026-03-05T16-28-02-024Z-maintenance-openai-r1",
+        "artifactJsonPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.json",
+        "artifactMdPath": "tests/artifacts/batch/s4.5-fix-ot1-20260305T162006Z/lanes/live-openai/artifacts/live/run-2026-03-05T16-28-02-024Z-maintenance-openai-r1.md",
+        "finishedAt": "2026-03-05T16:31:42.603Z"
       }
     }
   }
