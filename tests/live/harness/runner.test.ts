@@ -118,6 +118,16 @@ test('live --all validates provider keys for every matrix provider', () => {
   else process.env.ANTHROPIC_API_KEY = previousAnthropic;
 });
 
+test('live --all with explicit --provider scopes matrix to that provider only', () => {
+  const matrix = makeExecutionMatrix(parseArgs(['--lane', 'live', '--all', '--provider', 'google']));
+
+  assert.equal(matrix.length, 2);
+  assert.deepEqual(matrix, [
+    { template: 'sdlc', provider: 'google' },
+    { template: 'maintenance', provider: 'google' },
+  ]);
+});
+
 test('built-in executor preflight rejects AP scenarios when AGENT_API_URL is unset', () => {
   assert.throws(
     () => assertBuiltInExecutorConfigured(['sdlc-happy'], {}),

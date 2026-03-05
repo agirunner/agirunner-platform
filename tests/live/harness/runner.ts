@@ -1146,8 +1146,9 @@ export function makeExecutionMatrix(
   }
 
   if (options.all) {
+    const providers = options.provider ? [options.provider] : LIVE_PROVIDERS;
     return TEMPLATES.flatMap((template) =>
-      LIVE_PROVIDERS.map((provider) => ({ template, provider })),
+      providers.map((provider) => ({ template, provider })),
     );
   }
 

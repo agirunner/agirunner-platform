@@ -822,10 +822,7 @@ export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveC
   if (options.fastReset) {
     await resetLiveState(postgresUrl);
     await persistBootstrapAdminApiKey(postgresUrl);
-
-    if (liveConfig.skipStackSetup) {
-      await restartWarmFastResetServices(apiBaseUrl, postgresUrl, liveConfig.healthTimeoutMs);
-    }
+    await restartWarmFastResetServices(apiBaseUrl, postgresUrl, liveConfig.healthTimeoutMs);
   }
 
   await seedDatabase(apiBaseUrl, postgresUrl);
