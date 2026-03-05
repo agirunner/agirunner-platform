@@ -66,7 +66,7 @@ describe('task git endpoint integration (FR-055)', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
+    expect(response.json()).toMatchObject({
       data: {
         linked_prs: [{ id: 42, provider: 'gitea' }],
         branches: ['feature/fr-055'],
@@ -78,6 +78,10 @@ describe('task git endpoint integration (FR-055)', () => {
           ci_status: { state: 'pending' },
           merge_history: [{ sha: 'abc123' }],
         },
+      },
+      meta: {
+        request_id: expect.any(String),
+        timestamp: expect.any(String),
       },
     });
   });

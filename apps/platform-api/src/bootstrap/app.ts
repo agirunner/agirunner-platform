@@ -81,10 +81,10 @@ export async function buildApp() {
   }
 
   registerRequestContext(app);
+  registerErrorHandler(app);
   await registerPlugins(app);
   await registerRoutes(app);
   registerWebsocketGateway(app);
-  registerErrorHandler(app);
 
   eventStreamService.subscribeAll({}, (event) => {
     void webhookService.deliverEvent(event).catch((error) => {

@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
@@ -86,7 +86,7 @@ export const workerRoutes: FastifyPluginAsync = async (app) => {
     return { data };
   });
 
-  app.post('/api/v1/workers/:id/next', { preHandler: [authenticateApiKey, withScope('worker')] }, async (request, reply) => {
+  const handleNextTask = async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     ensureWorkerAccess(request.auth!, params.id);
 
@@ -143,7 +143,10 @@ export const workerRoutes: FastifyPluginAsync = async (app) => {
     }
 
     return { data: claimed };
-  });
+  };
+
+  app.post('/api/v1/workers/:id/next', { preHandler: [authenticateApiKey, withScope('worker')] }, handleNextTask);
+  app.post('/api/v1/workers/:id/tasks/next', { preHandler: [authenticateApiKey, withScope('worker')] }, handleNextTask);
 
   app.post('/api/v1/workers/:id/signal', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
     const params = request.params as { id: string };

@@ -1,6 +1,7 @@
+import bcrypt from 'bcryptjs';
 import { describe, expect, it, vi } from 'vitest';
 
-import { createApiKey } from '../../src/auth/api-key.js';
+import { createApiKey, verifyApiKey } from '../../src/auth/api-key.js';
 
 function makePool(queryImpl: ReturnType<typeof vi.fn>) {
   return {
@@ -9,7 +10,7 @@ function makePool(queryImpl: ReturnType<typeof vi.fn>) {
 }
 
 describe('createApiKey', () => {
-  it('generates API keys with high-entropy prefixes while preserving scope marker', async () => {
+  it('generates API keys in canonical ab_{scope}_{random} format with entropy-preserving key_prefix', async () => {
     const query = vi.fn().mockResolvedValue({ rowCount: 1, rows: [] });
     const pool = makePool(query);
 
@@ -22,10 +23,11 @@ describe('createApiKey', () => {
       expiresAt: new Date(Date.now() + 60_000),
     });
 
-    expect(apiKey.startsWith('ab_')).toBe(true);
-    expect(apiKey).toContain('_worker_');
+    expect(apiKey.startsWith('ab_worker_')).toBe(true);
     expect(apiKey.length).toBeGreaterThan(20);
-    expect(keyPrefix).toBe(apiKey.slice(0, 12));
+    expect(keyPrefix).toHaveLength(12);
+    expect(keyPrefix).toMatch(/^k[A-Za-z0-9_-]{11}$/);
+    expect(keyPrefix).not.toBe(apiKey.slice(0, 12));
     expect(query).toHaveBeenCalledTimes(1);
   });
 
@@ -51,6 +53,7 @@ describe('createApiKey', () => {
     });
 
     expect(result.apiKey).toContain('_agent_');
+    expect(result.keyPrefix).toHaveLength(12);
     expect(query).toHaveBeenCalledTimes(2);
   });
 
@@ -68,5 +71,118 @@ describe('createApiKey', () => {
     ).rejects.toThrow('database unavailable');
 
     expect(query).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('verifyApiKey', () => {
+  it('accepts canonical keys with new prefix canonicalization and legacy compatibility fallback', async () => {
+    const canonical = 'ab_admin_ABCDEFGHIJKLMNOPQRSTUV';
+    const canonicalHash = await bcrypt.hash(canonical, 4);
+
+    const queryNewPrefix = vi.fn().mockImplementation(async (_sql: string, params: unknown[]) => {
+      const prefixes = params[0] as string[];
+      return {
+        rowCount: 1,
+        rows: [
+          {
+            id: 'key-id-new',
+            tenant_id: 'tenant-id',
+            scope: 'admin',
+            owner_type: 'user',
+            owner_id: null,
+            key_prefix: prefixes[0],
+            key_hash: canonicalHash,
+            is_revoked: false,
+            expires_at: new Date(Date.now() + 60_000),
+            tenant_is_active: true,
+          },
+        ],
+      };
+    });
+
+    await expect(verifyApiKey(makePool(queryNewPrefix) as never, canonical)).resolves.toMatchObject({
+      keyPrefix: expect.any(String),
+    });
+
+    const queryLegacyPrefix = vi.fn().mockImplementation(async (_sql: string, params: unknown[]) => {
+      const prefixes = params[0] as string[];
+      return {
+        rowCount: 1,
+        rows: [
+          {
+            id: 'key-id-legacy',
+            tenant_id: 'tenant-id',
+            scope: 'admin',
+            owner_type: 'user',
+            owner_id: null,
+            key_prefix: prefixes[1],
+            key_hash: canonicalHash,
+            is_revoked: false,
+            expires_at: new Date(Date.now() + 60_000),
+            tenant_is_active: true,
+          },
+        ],
+      };
+    });
+
+    await expect(verifyApiKey(makePool(queryLegacyPrefix) as never, canonical)).resolves.toMatchObject({
+      keyPrefix: canonical.slice(0, 12),
+    });
+  });
+
+  it('accepts legacy API key format', async () => {
+    const legacy = 'ab_prefixxx_worker_ABCDEFGHIJKLMNOPQRSTUV';
+    const legacyHash = await bcrypt.hash(legacy, 4);
+
+    const query = vi.fn().mockImplementation(async (_sql: string, params: unknown[]) => {
+      const prefixes = params[0] as string[];
+
+      return {
+        rowCount: 1,
+        rows: [
+          {
+            id: 'legacy-id',
+            tenant_id: 'tenant-id',
+            scope: 'worker',
+            owner_type: 'worker',
+            owner_id: null,
+            key_prefix: prefixes[0],
+            key_hash: legacyHash,
+            is_revoked: false,
+            expires_at: new Date(Date.now() + 60_000),
+            tenant_is_active: true,
+          },
+        ],
+      };
+    });
+
+    await expect(verifyApiKey(makePool(query) as never, legacy)).resolves.toMatchObject({
+      keyPrefix: legacy.slice(0, 12),
+    });
+  });
+
+  it('derives distinct canonical lookup prefixes even when legacy first-12 prefix collides', async () => {
+    const keyA = 'ab_worker_AA1234567890abcdefghijkl';
+    const keyB = 'ab_worker_AAabcdefghij1234567890';
+
+    const queryA = vi.fn().mockResolvedValue({ rowCount: 0, rows: [] });
+    const queryB = vi.fn().mockResolvedValue({ rowCount: 0, rows: [] });
+
+    await expect(verifyApiKey(makePool(queryA) as never, keyA)).rejects.toThrow('Invalid API key');
+    await expect(verifyApiKey(makePool(queryB) as never, keyB)).rejects.toThrow('Invalid API key');
+
+    const prefixesA = queryA.mock.calls[0][1][0] as string[];
+    const prefixesB = queryB.mock.calls[0][1][0] as string[];
+
+    expect(prefixesA[1]).toBe(keyA.slice(0, 12));
+    expect(prefixesB[1]).toBe(keyB.slice(0, 12));
+    expect(prefixesA[1]).toBe(prefixesB[1]);
+    expect(prefixesA[0]).not.toBe(prefixesB[0]);
+  });
+
+  it('rejects invalid API key format', async () => {
+    const query = vi.fn();
+    await expect(verifyApiKey(makePool(query) as never, 'ab_invalid')).rejects.toThrow('Invalid API key format');
+    expect(query).not.toHaveBeenCalled();
   });
 });

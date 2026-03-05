@@ -203,8 +203,12 @@ export class TaskService {
     return this.lifecycleService.approveTask(identity, taskId);
   }
 
-  retryTask(identity: ApiKeyIdentity, taskId: string) {
-    return this.lifecycleService.retryTask(identity, taskId);
+  retryTask(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: { override_input?: Record<string, unknown>; force?: boolean } = {},
+  ) {
+    return this.lifecycleService.retryTask(identity, taskId, payload);
   }
 
   cancelTask(identity: ApiKeyIdentity, taskId: string) {

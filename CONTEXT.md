@@ -1,48 +1,37 @@
 # CONTEXT.md — AgentBaton Platform v1.0
 
 ## Last Updated
-2026-03-05 07:20 UTC
+2026-03-05 11:08 UTC
 
 ## Product
 AgentBaton Platform — coordination engine for agentic software development pipelines.
 
 ## Current State
 - **FRs:** 207/207 implemented ✅
-- **Unit/integration tests:** platform-api suite green locally (`316 passed`, `1 skipped`) ✅
+- **Unit/integration tests:** platform-api suite green locally (`340 passed`, `1 skipped`) ✅
 - **Open issues:** 0 ✅
 - **Runtime tests:** All v1.0-gating pass ✅
 - **Platform tests:** S2 platform-owned worker lifecycle/control-plane suites green; single-provider S2 batch run captured (`google`) with full PASS summary
 
 ## Platform v1.05 Campaign Status (Issue #90)
-- **Active stage:** S3 — Compose default runtime topology + image strategy hooks (implemented on `feature/90-v105-s3`)
+- **Active stage:** S4 — API surface/design contract closure (implemented on `feature/90-v105-s4`)
 - **S0 baseline freeze snapshot:** `docs/testing/v1.05-s0-baseline-freeze.md`
 - **S1 stage summary:** `docs/testing/v1.05-s1-runtime-contract-security.md`
 - **S2 stage summary:** `docs/testing/v1.05-s2-go-worker-lifecycle.md`
 - **S3 stage summary:** `docs/testing/v1.05-s3-compose-runtime-image-strategy.md`
-- **Migration/runtime flags in scope:** `INTERNAL_WORKER_BACKEND`, `RUNTIME_URL`, `RUNTIME_API_KEY`, `TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS`, `AGENTBATON_RUNTIME_IMAGE`, `RUNTIME_DOCKER_HOST`, `RUNTIME_ENFORCE_SOCKET_PROXY`
-- **S3 implementation highlights:**
-  - `docker-compose.yml` (runtime sidecar + socket-proxy + go-runtime default backend + internal runtime-only network + worker least-privilege hardening)
-  - `apps/runtime-compat/` (fail-closed prod profile + explicit test-only deterministic fallback controls)
-  - `apps/platform-api/src/bootstrap/built-in-worker.ts` (go-runtime execution path enabled)
-  - `apps/platform-api/src/built-in/runtime-api-client.ts` (runtime URL normalization)
-  - `apps/platform-api/Dockerfile` (runtime stage now non-root for API/worker containers)
-  - `tests/live/harness/setup.ts` + `tests/live/harness/setup.test.ts` (S3 startup topology + deterministic dashboard rate-limit budget + compose hardening assertions)
-  - `scripts/runtime-image-publish.sh` + `scripts/README.md` (private registry + tar fallback hooks)
-- **S3 evidence artifacts (committed):**
-  - Core lane gate log: `docs/testing/evidence/s3-pnpm-test-core.log`
-  - Dashboard lane gate log: `docs/testing/evidence/s3-dashboard-lane.log`
-  - Default compose startup log: `docs/testing/evidence/s3-compose-default-up.log`
-  - Default compose service status: `docs/testing/evidence/s3-compose-default-ps.log`
-  - Runtime health check: `docs/testing/evidence/s3-runtime-health.json`
-  - Internal worker online proof: `docs/testing/evidence/s3-workers-online.json`
-  - Worker registration/runtime backend log: `docs/testing/evidence/s3-worker-service.log`
-  - PR #94 blocker-fix runtime tests: `docs/testing/evidence/s3-pr94-fix-runtime-go-test.log`
-  - PR #94 blocker-fix harness tests: `docs/testing/evidence/s3-pr94-fix-harness-tests.log`
-  - PR #94 blocker-fix compose startup + hardening evidence: `docs/testing/evidence/s3-pr94-fix-compose-*.log`, `docs/testing/evidence/s3-pr94-fix-runtime-health-auth.json`, `docs/testing/evidence/s3-pr94-fix-worker-security-inspect.json`
+- **S4 implementation highlights:**
+  - Added Projects API contract surface (`/api/v1/projects` CRUD + `/api/v1/projects/:id/memory` merge patch)
+  - Added missing API contract closures: pipeline delete, task retry `override_input`/`force`, worker-next alias, inbound git webhook receiver (`/api/v1/webhooks/git`), websocket subscribe/filter compatibility endpoint (`/api/v1/events/ws`)
+  - Normalized envelopes/auth details: success `meta.request_id`/`meta.timestamp`, error-code normalization (`CYCLE_DETECTED`, `RATE_LIMITED`, `SERVICE_UNAVAILABLE`), auth token `expires_at`, refresh rotation + logout invalidation + CSRF hardening
+  - Enforced Admiral S4 directive: built-in worker go-runtime only; legacy-node mode deprecated/disabled in active/default operation with migration note `docs/decisions/DECISION-003-built-in-worker-go-runtime-only.md`
+  - Aligned API key canonical format to `ab_{scope}_{random}` with legacy verification compatibility and MCP tool namespace to `baton_*` with aliases
+- **S4 evidence artifacts (committed):**
+  - Gate tests: `docs/testing/evidence/s4-pnpm-test.log`, `docs/testing/evidence/s4-pnpm-test-ci.log`
+  - Go-only deprecation trace: `docs/testing/evidence/s4-go-only-deprecation.log`
 - **Gate policy interpretation (Admiral, 2026-03-05):**
   - Inside phase gates: deterministic/unit evidence required; full live-provider matrix is out-of-scope.
   - Between gates: exactly one provider batch run is a hard gate.
-  - S3 closeout follows this model and labels in-phase deterministic gates explicitly.
+  - S4 closeout follows this model and labels in-phase deterministic gates explicitly.
 
 ## Admiral Evidence Authenticity Directive (2026-03-02)
 - **No stubs, no placeholder outputs, no harness-simulated execution paths** may be counted as PASS for release gating.

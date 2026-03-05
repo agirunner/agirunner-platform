@@ -1,22 +1,27 @@
 {
-  "task": "Fix post-merge S3.5 regression on main: restore runtime bridge reachability for locked-case sdlc-happy and affected live-google path",
+  "task": "Execute Stage S4 for platform v1.05: API contract closure + go-runtime-only built-in worker deprecation",
   "issue": "#90",
-  "branch": "fix/s3.5-post-merge-sdlc-happy",
+  "branch": "feature/90-v105-s4",
   "phase": "IN_PROGRESS",
   "completed": [
-    "Reproduced locked-case failure on isolated stack: core lane sdlc-happy failed with pipeline terminal state failed",
-    "Identified root cause: runtime-compat bridge could not reach host.docker.internal from runtime_internal-only topology",
-    "Implemented runtime-compat fallback retry that rewrites host.docker.internal to detected bridge gateway IP",
-    "Added deterministic regression tests for host rewrite and fallback retry path",
-    "Validated fix with go runtime-compat unit tests and reran locked case to PASS",
-    "Validated affected S3.5 path: full core lane PASS plus live/google sdlc-happy, maintenance-happy, and ap5-full PASS",
-    "Captured evidence under docs/testing/evidence/s3.5-post-merge-fix-*"
+    "Implemented Projects API (create/list/get/update/delete + /projects/:id/memory merge patch) and registered routes",
+    "Implemented pipeline delete endpoint with terminal-state guard and event emission",
+    "Implemented task retry options (override_input + force) and worker-next alias route",
+    "Added inbound git webhook receiver (/api/v1/webhooks/git) with provider signature validation + task mapping",
+    "Normalized success envelope meta (request_id/timestamp) and standardized error-code mapping (RATE_LIMITED, SERVICE_UNAVAILABLE, CYCLE_DETECTED)",
+    "Hardened auth flow: token expires_at fields, refresh-session rotation/invalidation, CSRF-protected cookie refresh/logout",
+    "Aligned API key format to ab_{scope}_{random} with legacy-format compatibility verification",
+    "Aligned MCP tool catalog to baton_* canonical names with backward-compatible aliases",
+    "Implemented event websocket subscribe/filter compatibility endpoint (/api/v1/events/ws)",
+    "Applied Admiral directive: built-in worker go-runtime only; deprecated/disabled legacy-node path across runtime contract/config/tests/docs",
+    "Added deterministic S4 integration/unit coverage and captured S4 evidence logs",
+    "Closed PR #97 blocker #98 with canonical api-key prefix entropy fix + migration-compatible lookup",
+    "Closed PR #97 blocker #99 with raw-byte webhook signature verification and tamper regressions",
+    "Captured blocker evidence logs under docs/testing/evidence/s4-pr97-fix-* and pushed commit 040e670"
   ],
   "remaining": [
-    "Commit and push fix branch",
-    "Open PR against main",
-    "Publish final AGENT_REPORT with commit SHA + PR URL"
+    "Await PR #97 review/merge"
   ],
-  "lastCommit": "pending",
-  "updatedAt": "2026-03-05T09:59:30Z"
+  "lastCommit": "040e67069045091cf4718f666202435daeba6685",
+  "updatedAt": "2026-03-05T11:35:38Z"
 }

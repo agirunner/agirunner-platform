@@ -1,4 +1,4 @@
-import { ConflictError, SchemaValidationFailedError } from '../errors/domain-errors.js';
+import { ConflictError, CycleDetectedError, SchemaValidationFailedError } from '../errors/domain-errors.js';
 import { parseTemplateVariables, type TemplateVariableDefinition } from './template-variables.js';
 
 export type PipelineState = 'pending' | 'active' | 'completed' | 'failed' | 'cancelled' | 'paused';
@@ -248,9 +248,8 @@ export function validateTemplateSchema(input: unknown): TemplateSchema {
 
   const cyclePath = detectDependencyCycle(tasks);
   if (cyclePath) {
-    throw new ConflictError('Template dependency graph contains a cycle', {
+    throw new CycleDetectedError('Template dependency graph contains a cycle', {
       cycle_path: cyclePath,
-      code: 'CYCLE_DETECTED',
     });
   }
 

@@ -21,6 +21,7 @@ interface TransitionOptions {
   clearExecutionData?: boolean;
   clearLifecycleControlMetadata?: boolean;
   startedAt?: Date;
+  overrideInput?: Record<string, unknown>;
 }
 
 interface TaskLifecycleDependencies {
@@ -160,6 +161,11 @@ export class TaskLifecycleService {
       if (options.output !== undefined) {
         values.push(options.output);
         updateFragments.push(`output = $${values.length}`);
+      }
+
+      if (options.overrideInput !== undefined) {
+        values.push(options.overrideInput);
+        updateFragments.push(`input = $${values.length}`);
       }
 
       if (nextState === 'failed') {
@@ -384,16 +390,28 @@ export class TaskLifecycleService {
     });
   }
 
-  async retryTask(identity: ApiKeyIdentity, taskId: string) {
+  async retryTask(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: { override_input?: Record<string, unknown>; force?: boolean } = {},
+  ) {
     const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
-    if (task.state !== 'failed') throw new ConflictError('Task is not retryable');
+    const expectedStates: TaskState[] = payload.force
+      ? ['failed', 'cancelled', 'completed', 'ready', 'pending', 'awaiting_approval', 'output_pending_review']
+      : ['failed'];
+
+    if (!expectedStates.includes(task.state as TaskState)) {
+      throw new ConflictError('Task is not retryable');
+    }
+
     return this.applyStateTransition(identity, taskId, 'ready', {
-      expectedStates: ['failed'],
+      expectedStates,
       retryIncrement: true,
       clearAssignment: true,
       clearExecutionData: true,
       clearLifecycleControlMetadata: true,
-      reason: 'manual_retry',
+      overrideInput: payload.override_input,
+      reason: payload.force ? 'manual_retry_forced' : 'manual_retry',
     });
   }
 

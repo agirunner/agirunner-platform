@@ -40,7 +40,7 @@ const minimalConfig: BuiltInWorkerConfig = {
 };
 
 describe('executeTask', () => {
-  it('fails closed when no agentApiUrl is configured (zero-config collapse)', async () => {
+  it('fails closed when runtimeUrl is missing in go-only mode', async () => {
     const config: TaskExecutorConfig = {};
     const task = { id: 'task-abc', type: 'code', title: 'Test task' };
 
@@ -48,10 +48,10 @@ describe('executeTask', () => {
 
     expect(result.success).toBe(false);
     expect(result.output).toEqual({});
-    expect(result.error).toContain('executor.agentApiUrl');
+    expect(result.error).toContain('executor.runtimeUrl');
   });
 
-  it('returns parsed JSON output when a real executor endpoint is configured', async () => {
+  it('returns parsed runtime output when a go-runtime endpoint is configured', async () => {
     let receivedAuthHeader: string | undefined;
     let receivedBody: Record<string, unknown> | undefined;
 
@@ -64,7 +64,7 @@ describe('executeTask', () => {
       req.on('end', () => {
         receivedBody = JSON.parse(body) as Record<string, unknown>;
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end('{"result":"ok","evidence":"real-executor"}');
+        res.end('{"output":{"result":"ok","evidence":"go-runtime"}}');
       });
     });
 
@@ -76,11 +76,14 @@ describe('executeTask', () => {
 
     try {
       const config: TaskExecutorConfig = {
-        agentApiUrl: `http://127.0.0.1:${address.port}/execute`,
+        internalWorkerBackend: 'go-runtime',
+        runtimeUrl: `http://127.0.0.1:${address.port}/api/v1/tasks`,
+        runtimeApiKey: 'runtime-token',
         agentApiKey: 'executor-token',
       };
       const task = {
         id: 'task-xyz',
+        role: 'developer',
         type: 'analysis',
         title: 'Analysis task',
         input: { repo: 'enterprise/example' },
@@ -89,12 +92,11 @@ describe('executeTask', () => {
       const result = await executeTask(task, config);
 
       expect(result.success).toBe(true);
-      expect(result.output).toMatchObject({ result: 'ok', evidence: 'real-executor' });
-      expect(receivedAuthHeader).toBe('Bearer executor-token');
+      expect(result.output).toMatchObject({ result: 'ok', evidence: 'go-runtime' });
+      expect(receivedAuthHeader).toBe('Bearer runtime-token');
       expect(receivedBody).toMatchObject({
         task_id: 'task-xyz',
-        type: 'analysis',
-        title: 'Analysis task',
+        role: 'developer',
         input: { repo: 'enterprise/example' },
       });
     } finally {
@@ -110,10 +112,11 @@ describe('executeTask', () => {
     }
   });
 
-  it('returns a failure result when the agent API call times out', async () => {
+  it('returns a failure result when the runtime call times out', async () => {
     const config: TaskExecutorConfig = {
-      agentApiUrl: 'http://192.0.2.1:9999/execute', // non-routable IP — will time out fast
-      taskTimeoutMs: 50, // very short timeout to fail fast in tests
+      internalWorkerBackend: 'go-runtime',
+      runtimeUrl: 'http://192.0.2.1:9999/api/v1/tasks',
+      taskTimeoutMs: 50,
     };
     const task = { id: 'task-timeout', type: 'code', title: 'Timeout task' };
 

@@ -59,4 +59,10 @@ export const pipelineRoutes: FastifyPluginAsync = async (app) => {
     const pipeline = await pipelineService.cancelPipeline(request.auth!, params.id);
     return { data: pipeline };
   });
+
+  app.delete('/api/v1/pipelines/:id', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
+    const params = request.params as { id: string };
+    const result = await pipelineService.deletePipeline(request.auth!, params.id);
+    return { data: result };
+  });
 };

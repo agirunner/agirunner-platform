@@ -56,11 +56,16 @@ describe('platform foundation e2e', () => {
       ? exchange.headers['set-cookie']
       : [exchange.headers['set-cookie'] as string];
     const refreshCookie = setCookies.find((c) => c.startsWith('agentbaton_refresh_token='))!.split(';')[0];
+    const csrfCookie = setCookies.find((c) => c.startsWith('agentbaton_csrf_token='))!.split(';')[0];
+    const csrfToken = csrfCookie.split('=')[1];
 
     const refresh = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/refresh',
-      headers: { cookie: refreshCookie },
+      headers: {
+        cookie: `${refreshCookie}; ${csrfCookie}`,
+        'x-csrf-token': csrfToken,
+      },
     });
 
     expect(refresh.statusCode).toBe(200);

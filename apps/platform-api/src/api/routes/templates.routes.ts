@@ -41,7 +41,7 @@ export const templateRoutes: FastifyPluginAsync = async (app) => {
     return reply.status(201).send({ data: template });
   });
 
-  app.get('/api/v1/templates', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
+  app.get('/api/v1/templates', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
     const query = request.query as Record<string, string | undefined>;
     const page = Number(query.page ?? DEFAULT_PAGE);
     const perPage = Number(query.per_page ?? DEFAULT_PER_PAGE);
@@ -60,7 +60,7 @@ export const templateRoutes: FastifyPluginAsync = async (app) => {
     return result;
   });
 
-  app.get('/api/v1/templates/:id', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
+  app.get('/api/v1/templates/:id', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
     const params = request.params as { id: string };
     const template = await templateService.getTemplate(request.auth!.tenantId, params.id);
     return { data: template };

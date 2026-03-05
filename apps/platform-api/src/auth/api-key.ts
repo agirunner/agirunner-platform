@@ -1,4 +1,4 @@
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
 import bcrypt from 'bcryptjs';
 
@@ -64,19 +64,49 @@ function isExpired(expiresAt: Date): boolean {
   return new Date(expiresAt) <= new Date();
 }
 
+const CANONICAL_API_KEY_PATTERN = /^ab_(admin|agent|worker)_[A-Za-z0-9_-]{16,}$/;
+const LEGACY_API_KEY_PATTERN = /^ab_[A-Za-z0-9_-]{6,}_(admin|agent|worker)_[A-Za-z0-9_-]{16,}$/;
+
+function isCanonicalApiKeyFormat(apiKeyRaw: string): boolean {
+  return CANONICAL_API_KEY_PATTERN.test(apiKeyRaw);
+}
+
+function isLegacyApiKeyFormat(apiKeyRaw: string): boolean {
+  return LEGACY_API_KEY_PATTERN.test(apiKeyRaw);
+}
+
+function isSupportedApiKeyFormat(apiKeyRaw: string): boolean {
+  return isCanonicalApiKeyFormat(apiKeyRaw) || isLegacyApiKeyFormat(apiKeyRaw);
+}
+
+function deriveCanonicalKeyPrefix(apiKeyRaw: string): string {
+  const digest = createHash('sha256').update(apiKeyRaw).digest('base64url');
+  return `k${digest.slice(0, 11)}`;
+}
+
+function deriveApiKeyLookupPrefixes(apiKeyRaw: string): string[] {
+  const legacyPrefix = apiKeyRaw.slice(0, 12);
+
+  if (isCanonicalApiKeyFormat(apiKeyRaw)) {
+    return [deriveCanonicalKeyPrefix(apiKeyRaw), legacyPrefix];
+  }
+
+  return [legacyPrefix];
+}
+
 export async function verifyApiKey(pool: DatabaseQueryable, apiKeyRaw: string): Promise<ApiKeyIdentity> {
-  if (!apiKeyRaw.startsWith('ab_') || apiKeyRaw.length < 20) {
+  if (!isSupportedApiKeyFormat(apiKeyRaw)) {
     throw new UnauthorizedError('Invalid API key format');
   }
 
-  const keyPrefix = apiKeyRaw.slice(0, 12);
+  const keyPrefixes = deriveApiKeyLookupPrefixes(apiKeyRaw);
   const result = await pool.query<ApiKeyRow>(
     `SELECT k.id, k.tenant_id, k.scope, k.owner_type, k.owner_id, k.key_prefix, k.key_hash, k.expires_at, k.is_revoked,
             t.is_active AS tenant_is_active
      FROM api_keys k
      JOIN tenants t ON t.id = k.tenant_id
-     WHERE k.key_prefix = $1`,
-    [keyPrefix],
+     WHERE k.key_prefix = ANY($1::varchar[])`,
+    [keyPrefixes],
   );
 
   if (!result.rowCount) {
@@ -84,19 +114,30 @@ export async function verifyApiKey(pool: DatabaseQueryable, apiKeyRaw: string): 
     throw new UnauthorizedError('Invalid API key');
   }
 
-  const key = result.rows[0];
-  const prefixMatches = key.key_prefix.length === keyPrefix.length && timingSafeEqual(Buffer.from(key.key_prefix), Buffer.from(keyPrefix));
-  const hashMatches = await bcrypt.compare(apiKeyRaw, key.key_hash);
+  for (const key of result.rows) {
+    const prefixMatches = keyPrefixes.some(
+      (prefix) =>
+        key.key_prefix.length === prefix.length && timingSafeEqual(Buffer.from(key.key_prefix), Buffer.from(prefix)),
+    );
 
-  if (!prefixMatches || !hashMatches || key.is_revoked || isExpired(key.expires_at) || !key.tenant_is_active) {
-    throw new UnauthorizedError('Invalid API key');
+    if (!prefixMatches) {
+      continue;
+    }
+
+    const hashMatches = await bcrypt.compare(apiKeyRaw, key.key_hash);
+
+    if (!hashMatches || key.is_revoked || isExpired(key.expires_at) || !key.tenant_is_active) {
+      continue;
+    }
+
+    void pool
+      .query('UPDATE api_keys SET last_used_at = now() WHERE id = $1', [key.id])
+      .catch((error) => logger.error({ err: error, keyId: key.id }, 'api_key_last_used_at_update_failed'));
+
+    return toIdentity(key);
   }
 
-  void pool
-    .query('UPDATE api_keys SET last_used_at = now() WHERE id = $1', [key.id])
-    .catch((error) => logger.error({ err: error, keyId: key.id }, 'api_key_last_used_at_update_failed'));
-
-  return toIdentity(key);
+  throw new UnauthorizedError('Invalid API key');
 }
 
 export async function verifyApiKeyById(pool: DatabaseQueryable, keyId: string): Promise<ApiKeyIdentity> {
@@ -139,9 +180,8 @@ export async function verifyJwtApiKeyIdentity(pool: DatabaseQueryable, claims: J
 const API_KEY_INSERT_RETRY_LIMIT = 8;
 
 function generateApiKeyValue(scope: ApiKeyScope): string {
-  const prefixEntropy = randomBytes(6).toString('base64url');
   const bodyEntropy = randomBytes(24).toString('base64url');
-  return `ab_${prefixEntropy}_${scope}_${bodyEntropy}`;
+  return `ab_${scope}_${bodyEntropy}`;
 }
 
 function isApiKeyPrefixConflict(error: unknown): boolean {
@@ -172,7 +212,7 @@ export async function createApiKey(
 ): Promise<{ apiKey: string; keyPrefix: string }> {
   for (let attempt = 1; attempt <= API_KEY_INSERT_RETRY_LIMIT; attempt += 1) {
     const apiKey = generateApiKeyValue(input.scope);
-    const keyPrefix = apiKey.slice(0, 12);
+    const keyPrefix = deriveCanonicalKeyPrefix(apiKey);
     const keyHash = await bcrypt.hash(apiKey, 12);
 
     try {

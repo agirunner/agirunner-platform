@@ -73,6 +73,11 @@ const failSchema = z.object({
   worker_id: z.string().uuid().optional(),
 });
 
+const retrySchema = z.object({
+  override_input: z.record(z.unknown()).optional(),
+  force: z.boolean().optional(),
+});
+
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
     return result.data;
@@ -85,7 +90,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     '/api/v1/tasks',
-    { preHandler: [authenticateApiKey, withScope('worker')] },
+    { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request, reply) => {
       const body = parseOrThrow(taskCreateSchema.safeParse(request.body));
       const task = await taskService.createTask(request.auth!, body);
@@ -239,7 +244,8 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request) => {
       const params = request.params as { id: string };
-      const task = await taskService.retryTask(request.auth!, params.id);
+      const body = parseOrThrow(retrySchema.safeParse(request.body ?? {}));
+      const task = await taskService.retryTask(request.auth!, params.id, body);
       return { data: task };
     },
   );

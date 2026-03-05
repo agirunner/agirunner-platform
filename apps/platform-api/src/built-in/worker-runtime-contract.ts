@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const recordSchema = z.record(z.unknown());
 
-export const internalWorkerBackendSchema = z.enum(['legacy-node', 'go-runtime']);
+export const internalWorkerBackendSchema = z.enum(['go-runtime']);
 export type InternalWorkerBackend = z.infer<typeof internalWorkerBackendSchema>;
 
 export const legacyWorkerRuntimePayloadSchema = z.object({
@@ -84,18 +84,16 @@ function extractGitToken(resourceBindings: Record<string, unknown>[]): string | 
   return undefined;
 }
 
+/**
+ * @deprecated Stage S4: legacy-node built-in worker path is decommissioned.
+ *             Built-in worker execution is Go runtime only.
+ */
 export function buildLegacyWorkerRuntimePayload(
-  task: Record<string, unknown>,
+  _task: Record<string, unknown>,
 ): LegacyWorkerRuntimePayload {
-  const payload = {
-    task_id: String(task.id ?? task.task_id ?? ''),
-    title: String(task.title ?? 'Untitled task'),
-    type: String(task.type ?? 'generic'),
-    input: asRecord(task.input),
-    context: asRecord(task.context),
-  };
-
-  return legacyWorkerRuntimePayloadSchema.parse(payload);
+  throw new Error(
+    'legacy-node built-in worker mode has been deprecated and disabled. Use INTERNAL_WORKER_BACKEND=go-runtime.',
+  );
 }
 
 export interface RuntimeTaskSubmissionOptions {

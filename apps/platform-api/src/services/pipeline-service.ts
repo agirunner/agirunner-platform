@@ -1,7 +1,7 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
-import { NotFoundError } from '../errors/domain-errors.js';
+import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 import { PipelineCancellationService } from './pipeline-cancellation-service.js';
 import { PipelineCreationService } from './pipeline-creation-service.js';
 import { EventService } from './event-service.js';
@@ -14,7 +14,7 @@ export class PipelineService {
 
   constructor(
     private readonly pool: DatabasePool,
-    eventService: EventService,
+    private readonly eventService: EventService,
     config: PipelineServiceConfig,
   ) {
     const stateService = new PipelineStateService(pool, eventService);
@@ -97,6 +97,57 @@ export class PipelineService {
     );
 
     return { ...pipeline, tasks } as Record<string, unknown>;
+  }
+
+  async deletePipeline(identity: ApiKeyIdentity, pipelineId: string) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const pipelineResult = await client.query<{ state: string }>(
+        'SELECT state FROM pipelines WHERE tenant_id = $1 AND id = $2 FOR UPDATE',
+        [identity.tenantId, pipelineId],
+      );
+
+      if (!pipelineResult.rowCount) {
+        throw new NotFoundError('Pipeline not found');
+      }
+
+      const state = pipelineResult.rows[0].state;
+      const terminalStates = new Set(['completed', 'failed', 'cancelled']);
+      if (!terminalStates.has(state)) {
+        throw new ConflictError('Only terminal pipelines can be deleted');
+      }
+
+      await client.query('DELETE FROM tasks WHERE tenant_id = $1 AND pipeline_id = $2', [
+        identity.tenantId,
+        pipelineId,
+      ]);
+      await client.query('DELETE FROM pipelines WHERE tenant_id = $1 AND id = $2', [
+        identity.tenantId,
+        pipelineId,
+      ]);
+
+      await this.eventService.emit(
+        {
+          tenantId: identity.tenantId,
+          type: 'pipeline.deleted',
+          entityType: 'pipeline',
+          entityId: pipelineId,
+          actorType: identity.scope,
+          actorId: identity.keyPrefix,
+          data: { previous_state: state },
+        },
+        client,
+      );
+
+      await client.query('COMMIT');
+      return { id: pipelineId, deleted: true };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   cancelPipeline(identity: ApiKeyIdentity, pipelineId: string) {

@@ -124,13 +124,13 @@ describe('milestone b lifecycle e2e', () => {
     const missing = await app.inject({ method: 'POST', url: '/api/v1/tasks/claim', payload: {} });
     expect(missing.statusCode).toBe(401);
 
-    const forbidden = await app.inject({
+    const allowed = await app.inject({
       method: 'POST',
       url: '/api/v1/tasks',
       headers: { authorization: `Bearer ${agentKey}` },
       payload: { title: 'x', type: 'code' },
     });
-    expect(forbidden.statusCode).toBe(403);
+    expect(allowed.statusCode).toBe(201);
 
     const notFound = await app.inject({
       method: 'POST',

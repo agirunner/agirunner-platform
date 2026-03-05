@@ -107,12 +107,12 @@ describe('dashboard api contracts', () => {
   });
 
   it('covers FR-420/FR-424 template browser and pipeline launch form API backing', async () => {
-    const listTemplates = await app.inject({ method: 'GET', url: '/api/v1/templates?page=1&per_page=5', headers: { authorization: `Bearer ${agentKey}` } });
+    const listTemplates = await app.inject({ method: 'GET', url: '/api/v1/templates?page=1&per_page=5', headers: { authorization: `Bearer ${adminKey}` } });
     expect(listTemplates.statusCode).toBe(200);
     expect(listTemplates.json().meta.page).toBe(1);
 
     const firstTemplate = listTemplates.json().data[0];
-    const detail = await app.inject({ method: 'GET', url: `/api/v1/templates/${firstTemplate.id}`, headers: { authorization: `Bearer ${agentKey}` } });
+    const detail = await app.inject({ method: 'GET', url: `/api/v1/templates/${firstTemplate.id}`, headers: { authorization: `Bearer ${adminKey}` } });
     expect(detail.statusCode).toBe(200);
     expect(detail.json().data.id).toBe(firstTemplate.id);
   });

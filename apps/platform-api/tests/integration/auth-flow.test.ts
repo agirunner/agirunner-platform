@@ -7,6 +7,7 @@ import { startTestDatabase, stopTestDatabase, type TestDatabase } from '../helpe
 describe('auth token flow', () => {
   let db: TestDatabase;
   let adminKey: string;
+  let adminKeyPrefix: string;
   let agentKey: string;
   let app: Awaited<ReturnType<typeof buildApp>>;
 
@@ -22,14 +23,14 @@ describe('auth token flow', () => {
     process.env.LOG_LEVEL = 'error';
     process.env.RATE_LIMIT_MAX_PER_MINUTE = '100';
 
-    adminKey = (
-      await createApiKey(db.pool, {
-        tenantId: '00000000-0000-0000-0000-000000000001',
-        scope: 'admin',
-        ownerType: 'user',
-        expiresAt: new Date(Date.now() + 86_400_000),
-      })
-    ).apiKey;
+    const adminKeyResult = await createApiKey(db.pool, {
+      tenantId: '00000000-0000-0000-0000-000000000001',
+      scope: 'admin',
+      ownerType: 'user',
+      expiresAt: new Date(Date.now() + 86_400_000),
+    });
+    adminKey = adminKeyResult.apiKey;
+    adminKeyPrefix = adminKeyResult.keyPrefix;
 
     agentKey = (
       await createApiKey(db.pool, {
@@ -60,6 +61,8 @@ describe('auth token flow', () => {
     expect(httpResponse.statusCode).toBe(200);
     const body = httpResponse.json();
     expect(body.data.token).toBeTypeOf('string');
+    expect(body.data.expires_at).toBeTypeOf('string');
+    expect(body.data.refresh_expires_at).toBeTypeOf('string');
     expect(body.data.refresh_token).toBeUndefined();
 
     const httpCookies = Array.isArray(httpResponse.headers['set-cookie'])
@@ -114,14 +117,13 @@ describe('auth token flow', () => {
   });
 
   it('rejects previously issued access token after key revocation', async () => {
-    const revocableKey = (
-      await createApiKey(db.pool, {
-        tenantId: '00000000-0000-0000-0000-000000000001',
-        scope: 'admin',
-        ownerType: 'user',
-        expiresAt: new Date(Date.now() + 86_400_000),
-      })
-    ).apiKey;
+    const revocableKeyResult = await createApiKey(db.pool, {
+      tenantId: '00000000-0000-0000-0000-000000000001',
+      scope: 'admin',
+      ownerType: 'user',
+      expiresAt: new Date(Date.now() + 86_400_000),
+    });
+    const revocableKey = revocableKeyResult.apiKey;
 
     const response = await app.inject({
       method: 'POST',
@@ -139,7 +141,7 @@ describe('auth token flow', () => {
     });
     expect(beforeRevocation.statusCode).toBe(200);
 
-    await db.pool.query('UPDATE api_keys SET is_revoked = true WHERE key_prefix = $1', [revocableKey.slice(0, 12)]);
+    await db.pool.query('UPDATE api_keys SET is_revoked = true WHERE key_prefix = $1', [revocableKeyResult.keyPrefix]);
 
     const afterRevocation = await app.inject({
       method: 'GET',
@@ -161,13 +163,18 @@ describe('auth token flow', () => {
       ? authResponse.headers['set-cookie']
       : [authResponse.headers['set-cookie'] as string];
     const refreshCookie = authCookies.find((c) => c.startsWith('agentbaton_refresh_token='))!.split(';')[0];
+    const csrfCookie = authCookies.find((c) => c.startsWith('agentbaton_csrf_token='))!.split(';')[0];
+    const csrfToken = csrfCookie.split('=')[1];
 
     await new Promise((resolve) => setTimeout(resolve, 1_200));
 
     const refreshResponse = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/refresh',
-      headers: { cookie: refreshCookie },
+      headers: {
+        cookie: `${refreshCookie}; ${csrfCookie}`,
+        'x-csrf-token': csrfToken,
+      },
     });
     expect(refreshResponse.statusCode).toBe(200);
 
@@ -253,12 +260,17 @@ describe('auth token flow', () => {
       ? response.headers['set-cookie']
       : [response.headers['set-cookie'] as string];
     const refreshCookie = bindCookies.find((c) => c.startsWith('agentbaton_refresh_token='))!.split(';')[0];
-    await db.pool.query('UPDATE api_keys SET is_revoked = true WHERE key_prefix = $1', [adminKey.slice(0, 12)]);
+    const csrfCookie = bindCookies.find((c) => c.startsWith('agentbaton_csrf_token='))!.split(';')[0];
+    const csrfToken = csrfCookie.split('=')[1];
+    await db.pool.query('UPDATE api_keys SET is_revoked = true WHERE key_prefix = $1', [adminKeyPrefix]);
 
     const refresh = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/refresh',
-      headers: { cookie: refreshCookie },
+      headers: {
+        cookie: `${refreshCookie}; ${csrfCookie}`,
+        'x-csrf-token': csrfToken,
+      },
     });
 
     expect(refresh.statusCode).toBe(401);

@@ -96,10 +96,15 @@ describe('auth and webhook coverage', () => {
     expect(forbidden.statusCode).toBe(403);
 
     const refreshCookieValue = refreshCookie!.split(';')[0];
+    const csrfCookieValue = cookies.find((c) => c.startsWith('agentbaton_csrf_token='))!.split(';')[0];
+    const csrfToken = csrfCookieValue.split('=')[1];
     const refresh = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/refresh',
-      headers: { cookie: refreshCookieValue },
+      headers: {
+        cookie: `${refreshCookieValue}; ${csrfCookieValue}`,
+        'x-csrf-token': csrfToken,
+      },
     });
     expect(refresh.statusCode).toBe(200);
     expect(refresh.json().data.token).toBeTypeOf('string');

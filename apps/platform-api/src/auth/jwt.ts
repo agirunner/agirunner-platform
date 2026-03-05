@@ -15,8 +15,14 @@ export async function issueAccessToken(app: FastifyInstance, claims: JwtClaims):
   return app.jwt.sign(claims, { expiresIn: app.config.JWT_EXPIRES_IN });
 }
 
-export async function issueRefreshToken(app: FastifyInstance, claims: JwtClaims): Promise<string> {
-  return app.jwt.sign({ ...claims, tokenType: 'refresh' }, { expiresIn: app.config.JWT_REFRESH_EXPIRES_IN });
+export async function issueRefreshToken(
+  app: FastifyInstance,
+  claims: JwtClaims & { tokenId: string },
+): Promise<string> {
+  return app.jwt.sign(
+    { ...claims, tokenType: 'refresh' },
+    { expiresIn: app.config.JWT_REFRESH_EXPIRES_IN },
+  );
 }
 
 export async function verifyJwt<T extends object>(app: FastifyInstance, token: string): Promise<T> {

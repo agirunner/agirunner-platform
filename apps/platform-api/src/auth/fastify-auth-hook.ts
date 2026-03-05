@@ -1,6 +1,6 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-import { UnauthorizedError } from '../errors/domain-errors.js';
+import { ForbiddenError, UnauthorizedError } from '../errors/domain-errors.js';
 import { parseBearerToken, verifyApiKey, verifyJwtApiKeyIdentity, type ApiKeyIdentity } from './api-key.js';
 import { verifyJwt } from './jwt.js';
 import { enforceScope, type ApiKeyScope } from './scope.js';
@@ -61,5 +61,17 @@ export function withScope(requiredScope: ApiKeyScope) {
     }
 
     enforceScope(request.auth.scope, requiredScope);
+  };
+}
+
+export function withAllowedScopes(allowedScopes: ApiKeyScope[]) {
+  return async (request: FastifyRequest, _reply: FastifyReply): Promise<void> => {
+    if (!request.auth) {
+      throw new UnauthorizedError();
+    }
+
+    if (!allowedScopes.includes(request.auth.scope)) {
+      throw new ForbiddenError('Insufficient scope');
+    }
   };
 }

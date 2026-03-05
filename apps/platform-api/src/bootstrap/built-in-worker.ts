@@ -39,7 +39,6 @@ import {
   shouldRejectImpossibleScopeTask,
 } from '../built-in/impossible-scope.js';
 import {
-  buildLegacyWorkerRuntimePayload,
   internalWorkerBackendSchema,
   type InternalWorkerBackend,
 } from '../built-in/worker-runtime-contract.js';
@@ -120,21 +119,13 @@ export function buildWorkerConfigFromRoles(
  */
 export interface TaskExecutorConfig {
   /**
-   * Migration backend selector for S0+ rollout.
+   * Built-in worker backend selector.
    *
-   * `legacy-node` keeps current executor behavior.
-   * `go-runtime` submits work to the runtime sidecar API contract.
+   * Stage S4 deprecates legacy-node mode; only `go-runtime` is accepted.
    */
   internalWorkerBackend?: InternalWorkerBackend;
   /**
-   * URL of the legacy agent/tool API to call for task execution.
-   *
-   * When omitted, execution can optionally fall back to `runtimeUrl`.
-   */
-  agentApiUrl?: string;
-  /**
-   * Runtime endpoint for migration path (`RUNTIME_URL`).
-   * In S0 this serves as an endpoint configuration fallback.
+   * Runtime endpoint for built-in task execution (`RUNTIME_URL`).
    */
   runtimeUrl?: string;
   /**
@@ -196,9 +187,6 @@ export function checkProhibitedOperations(
   );
 }
 
-const MISSING_EXECUTOR_CONFIG_ERROR =
-  'Missing built-in worker executor configuration: set executor.agentApiUrl or executor.runtimeUrl to run tasks.';
-
 const MISSING_RUNTIME_URL_FOR_GO_BACKEND_ERROR =
   'Missing built-in worker executor configuration: INTERNAL_WORKER_BACKEND=go-runtime requires executor.runtimeUrl.';
 
@@ -210,127 +198,50 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
 }
 
 /**
- * Executes a task using the configured executor.
+ * Executes a task using the Go runtime contract.
  *
- * `legacy-node` backend keeps direct HTTP endpoint behavior for the legacy
- * Agent API/runtime fallback path.
- *
- * `go-runtime` backend submits via Runtime API contract (`POST /api/v1/tasks`)
- * and accepts either `{ output: {...} }` envelopes or raw object payloads.
+ * Stage S4 deprecates and disables legacy-node built-in worker execution.
  */
 export async function executeTask(
   task: Record<string, unknown>,
   config: TaskExecutorConfig,
 ): Promise<TaskExecutionResult> {
-  const backend = internalWorkerBackendSchema.parse(config.internalWorkerBackend ?? 'legacy-node');
+  internalWorkerBackendSchema.parse(config.internalWorkerBackend ?? 'go-runtime');
+
   const timeoutMs = config.taskTimeoutMs ?? 5 * 60 * 1000;
 
-  if (backend === 'go-runtime') {
-    if (!config.runtimeUrl) {
-      return {
-        output: {},
-        success: false,
-        error: MISSING_RUNTIME_URL_FOR_GO_BACKEND_ERROR,
-      };
-    }
-
-    try {
-      const runtimeClient = new RuntimeApiClient({
-        runtimeUrl: config.runtimeUrl,
-        runtimeApiKey: config.runtimeApiKey,
-        requestTimeoutMs: timeoutMs,
-        allowLegacyCancelAlias: true,
-      });
-
-      const runtimeResponse = await runtimeClient.submitTask(task, {
-        llmApiKey: config.agentApiKey,
-      });
-
-      const outputFromEnvelope = asRecord(runtimeResponse['output']);
-      return {
-        output: outputFromEnvelope ?? runtimeResponse,
-        success: true,
-      };
-    } catch (error) {
-      return {
-        output: {},
-        success: false,
-        error: `Runtime endpoint call failed: ${String(error)}`,
-      };
-    }
-  }
-
-  const usesAgentApiEndpoint = Boolean(config.agentApiUrl);
-  const endpointUrl = usesAgentApiEndpoint ? config.agentApiUrl : config.runtimeUrl;
-  if (!endpointUrl) {
+  if (!config.runtimeUrl) {
     return {
       output: {},
       success: false,
-      error: MISSING_EXECUTOR_CONFIG_ERROR,
+      error: MISSING_RUNTIME_URL_FOR_GO_BACKEND_ERROR,
     };
   }
 
-  const body = JSON.stringify(buildLegacyWorkerRuntimePayload(task));
-  const authToken = usesAgentApiEndpoint ? config.agentApiKey : config.runtimeApiKey;
-  const endpointLabel = usesAgentApiEndpoint ? 'Agent API' : 'Runtime';
+  try {
+    const runtimeClient = new RuntimeApiClient({
+      runtimeUrl: config.runtimeUrl,
+      runtimeApiKey: config.runtimeApiKey,
+      requestTimeoutMs: timeoutMs,
+      allowLegacyCancelAlias: true,
+    });
 
-  return new Promise<TaskExecutionResult>((resolve) => {
-    const url = new URL(endpointUrl);
-    const isHttps = url.protocol === 'https:';
-    const requestModule = isHttps ? https : http;
-    const options: http.RequestOptions = {
-      hostname: url.hostname,
-      port: url.port || (isHttps ? 443 : 80),
-      path: url.pathname + url.search,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body),
-        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-      },
+    const runtimeResponse = await runtimeClient.submitTask(task, {
+      llmApiKey: config.agentApiKey,
+    });
+
+    const outputFromEnvelope = asRecord(runtimeResponse['output']);
+    return {
+      output: outputFromEnvelope ?? runtimeResponse,
+      success: true,
     };
-
-    const timer = setTimeout(() => {
-      req.destroy();
-      resolve({
-        output: {},
-        success: false,
-        error: `${endpointLabel} call timed out after ${timeoutMs}ms`,
-      });
-    }, timeoutMs);
-
-    const req = requestModule.request(options, (res) => {
-      let responseData = '';
-      res.on('data', (chunk: Buffer) => {
-        responseData += chunk.toString();
-      });
-      res.on('end', () => {
-        clearTimeout(timer);
-        if ((res.statusCode ?? 500) >= 400) {
-          resolve({
-            output: {},
-            success: false,
-            error: `${endpointLabel} endpoint returned HTTP ${res.statusCode ?? 'unknown'}: ${responseData}`,
-          });
-          return;
-        }
-        try {
-          const parsed = JSON.parse(responseData) as Record<string, unknown>;
-          resolve({ output: parsed, success: true });
-        } catch {
-          resolve({ output: { raw: responseData }, success: true });
-        }
-      });
-    });
-
-    req.on('error', (error) => {
-      clearTimeout(timer);
-      resolve({ output: {}, success: false, error: String(error) });
-    });
-
-    req.write(body);
-    req.end();
-  });
+  } catch (error) {
+    return {
+      output: {},
+      success: false,
+      error: `Runtime endpoint call failed: ${String(error)}`,
+    };
+  }
 }
 
 /**

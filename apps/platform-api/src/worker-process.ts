@@ -15,12 +15,13 @@
  *   WORKER_NAME        — display name (default: "built-in-worker")
  *   WORKER_CAPS        — comma-separated capabilities list
  *   WORKER_HB_SECS     — heartbeat interval in seconds (default: 30)
- *   INTERNAL_WORKER_BACKEND — legacy-node|go-runtime (default: go-runtime)
- *   RUNTIME_URL        — runtime endpoint for migration path
+ *   INTERNAL_WORKER_BACKEND — go-runtime only (default: go-runtime)
+ *   RUNTIME_URL        — runtime endpoint for built-in execution (required)
  *   RUNTIME_API_KEY    — bearer token for runtime endpoint
- *   AGENT_API_URL      — URL of the legacy agent/LLM API executor
- *   AGENT_API_KEY      — bearer token for the legacy agent API executor
+ *   AGENT_API_KEY      — optional LLM API key forwarded to runtime credentials
  *   TASK_TIMEOUT_MS    — task execution timeout in milliseconds (default: 300000)
+ *
+ * Stage S4 deprecates and disables legacy-node built-in worker mode.
  */
 
 import { connectBuiltInWorkerWebSocket, createBuiltInTaskHandler, registerBuiltInWorker } from './bootstrap/built-in-worker.js';
@@ -34,7 +35,6 @@ const HEARTBEAT_SECS = Number(process.env.WORKER_HB_SECS ?? 30);
 const INTERNAL_WORKER_BACKEND = internalWorkerBackendSchema.parse(
   process.env.INTERNAL_WORKER_BACKEND ?? 'go-runtime',
 );
-const AGENT_API_URL = process.env.AGENT_API_URL;
 const AGENT_API_KEY = process.env.AGENT_API_KEY;
 const RUNTIME_URL = process.env.RUNTIME_URL;
 const RUNTIME_API_KEY = process.env.RUNTIME_API_KEY;
@@ -45,13 +45,18 @@ if (!API_KEY) {
   process.exit(1);
 }
 
+if (!RUNTIME_URL) {
+  console.error('[built-in-worker] RUNTIME_URL is required (go-runtime only mode).');
+  process.exit(1);
+}
+
 async function run(): Promise<void> {
   console.info(
     `[built-in-worker] Registering with ${API_URL} as "${WORKER_NAME}" (backend=${INTERNAL_WORKER_BACKEND})…`,
   );
 
   console.info(
-    `[built-in-worker] Executor endpoints: agentApiUrl=${AGENT_API_URL ?? 'unset'} runtimeUrl=${RUNTIME_URL ?? 'unset'}`,
+    `[built-in-worker] Executor endpoint: runtimeUrl=${RUNTIME_URL} (legacy-node deprecated and disabled)`,
   );
 
   const workerConfig = {
@@ -62,7 +67,6 @@ async function run(): Promise<void> {
     heartbeatIntervalSeconds: HEARTBEAT_SECS,
     executor: {
       internalWorkerBackend: INTERNAL_WORKER_BACKEND,
-      agentApiUrl: AGENT_API_URL,
       agentApiKey: AGENT_API_KEY,
       runtimeUrl: RUNTIME_URL,
       runtimeApiKey: RUNTIME_API_KEY,

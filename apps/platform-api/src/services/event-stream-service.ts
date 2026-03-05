@@ -2,6 +2,7 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 
 interface EventFilters {
   types?: string[];
+  entityTypes?: string[];
   projectId?: string;
   pipelineId?: string;
 }
@@ -101,6 +102,10 @@ export class EventStreamService {
 
   private matches(filters: EventFilters, event: StreamEvent): boolean {
     if (filters.types && filters.types.length > 0 && !filters.types.includes(event.type)) {
+      return false;
+    }
+
+    if (filters.entityTypes && filters.entityTypes.length > 0 && !filters.entityTypes.includes(event.entity_type)) {
       return false;
     }
 

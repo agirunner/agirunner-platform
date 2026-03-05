@@ -15,6 +15,12 @@ export class ValidationError extends DomainError {
   }
 }
 
+export class CycleDetectedError extends DomainError {
+  constructor(message: string, details?: Record<string, unknown>) {
+    super('CYCLE_DETECTED', 400, message, details);
+  }
+}
+
 export class UnauthorizedError extends DomainError {
   constructor(message = 'Unauthorized') {
     super('UNAUTHORIZED', 401, message);
@@ -54,5 +60,17 @@ export class InvalidStateTransitionError extends DomainError {
 export class SchemaValidationFailedError extends DomainError {
   constructor(message: string, details?: Record<string, unknown>) {
     super('SCHEMA_VALIDATION_FAILED', 422, message, details);
+  }
+}
+
+export class RateLimitedError extends DomainError {
+  constructor(message = 'Too many requests', details?: Record<string, unknown>) {
+    super('RATE_LIMITED', 429, message, details);
+  }
+}
+
+export class ServiceUnavailableError extends DomainError {
+  constructor(message = 'Service unavailable', details?: Record<string, unknown>) {
+    super('SERVICE_UNAVAILABLE', 503, message, details);
   }
 }

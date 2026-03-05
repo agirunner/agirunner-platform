@@ -21,5 +21,6 @@ declare module 'fastify' {
 
   interface FastifyRequest {
     auth?: ApiKeyIdentity;
+    rawBody?: Buffer;
   }
 }

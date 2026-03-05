@@ -2,12 +2,12 @@ import type { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest 
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 
-function parseEventTypes(raw?: string): string[] | undefined {
+function parseCsv(raw?: string): string[] | undefined {
   return raw?.split(',').map((value) => value.trim()).filter(Boolean);
 }
 
 async function streamEvents(app: FastifyInstance, request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-  const query = request.query as { event_type?: string; project_id?: string; pipeline_id?: string };
+  const query = request.query as { event_type?: string; entity_type?: string; project_id?: string; pipeline_id?: string };
 
   reply.raw.setHeader('Content-Type', 'text/event-stream');
   reply.raw.setHeader('Cache-Control', 'no-cache');
@@ -19,7 +19,8 @@ async function streamEvents(app: FastifyInstance, request: FastifyRequest, reply
   const unsubscribe = app.eventStreamService.subscribe(
     authenticatedRequest.auth!.tenantId,
     {
-      types: parseEventTypes(query.event_type),
+      types: parseCsv(query.event_type),
+      entityTypes: parseCsv(query.entity_type),
       projectId: query.project_id,
       pipelineId: query.pipeline_id,
     },

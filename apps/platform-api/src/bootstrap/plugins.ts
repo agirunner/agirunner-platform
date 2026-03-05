@@ -21,6 +21,37 @@ function rateLimitKeyGenerator(request: FastifyRequest): string {
   }
 }
 
+function normalizeEnvelope(
+  request: FastifyRequest,
+  payload: unknown,
+): unknown {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return payload;
+  }
+
+  const responseObject = payload as Record<string, unknown>;
+  if (!('data' in responseObject) && !('error' in responseObject)) {
+    return payload;
+  }
+
+  const existingMeta =
+    responseObject.meta && typeof responseObject.meta === 'object' && !Array.isArray(responseObject.meta)
+      ? (responseObject.meta as Record<string, unknown>)
+      : {};
+
+  return {
+    ...responseObject,
+    meta: {
+      ...existingMeta,
+      request_id: existingMeta.request_id ?? request.id,
+      timestamp:
+        typeof existingMeta.timestamp === 'string'
+          ? existingMeta.timestamp
+          : new Date().toISOString(),
+    },
+  };
+}
+
 export async function registerPlugins(app: FastifyInstance): Promise<void> {
   await app.register(fastifyCookie);
   await app.register(fastifyCors, {
@@ -33,6 +64,10 @@ export async function registerPlugins(app: FastifyInstance): Promise<void> {
     max: app.config.RATE_LIMIT_MAX_PER_MINUTE,
     timeWindow: '1 minute',
     keyGenerator: rateLimitKeyGenerator,
+  });
+
+  app.addHook('preSerialization', (request, _reply, payload, done) => {
+    done(null, normalizeEnvelope(request, payload));
   });
 
   app.addHook('onResponse', (request, reply, done) => {

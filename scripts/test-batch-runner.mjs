@@ -254,6 +254,9 @@ export async function buildStages(defaults, options, runId, reportDir, probes = 
         AGENT_API_URL: explicitAgentApiUrl || defaultAgentApiUrl,
         RATE_LIMIT_MAX_PER_MINUTE: process.env.RATE_LIMIT_MAX_PER_MINUTE || '1000',
         LIVE_COMPOSE_MIN_FREE_GB: process.env.LIVE_COMPOSE_MIN_FREE_GB || '3',
+        ...(process.env.RUNTIME_API_KEY
+          ? { RUNTIME_API_KEY: process.env.RUNTIME_API_KEY }
+          : {}),
       });
     }
   }

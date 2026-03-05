@@ -242,7 +242,8 @@ describe('milestone c pipeline/template e2e', () => {
         },
       },
     });
-    expect(conflict.statusCode).toBe(409);
+    expect(conflict.statusCode).toBe(400);
+    expect(conflict.json().error.code).toBe('CYCLE_DETECTED');
 
     const unprocessable = await app.inject({
       method: 'POST',
