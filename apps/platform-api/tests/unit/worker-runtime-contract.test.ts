@@ -208,20 +208,86 @@ describe('executeTask migration endpoint behavior', () => {
     }
   });
 
-  it('fails closed when go-runtime backend flag is enabled', async () => {
+  it('submits runtime-contract payload when go-runtime backend is enabled', async () => {
+    let observedAuthHeader: string | undefined;
+    let observedPath: string | undefined;
+    let observedBody: Record<string, unknown> | undefined;
+
+    const server = createServer((req, res) => {
+      observedAuthHeader = req.headers.authorization;
+      observedPath = req.url;
+
+      let body = '';
+      req.on('data', (chunk) => {
+        body += chunk.toString();
+      });
+      req.on('end', () => {
+        observedBody = JSON.parse(body) as Record<string, unknown>;
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ output: { accepted: true, via: 'runtime-contract' } }));
+      });
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+      throw new Error('Failed to start go-runtime endpoint test server');
+    }
+
+    try {
+      const result = await executeTask(
+        {
+          id: 'task-go-runtime-flag',
+          role: 'developer',
+          input: { objective: 's3 migration' },
+          context: { stage: 's3' },
+        },
+        {
+          internalWorkerBackend: 'go-runtime',
+          runtimeUrl: `http://127.0.0.1:${address.port}/api/v1/tasks`,
+          runtimeApiKey: 'runtime_token',
+          agentApiKey: 'llm_key',
+        },
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.output).toEqual({ accepted: true, via: 'runtime-contract' });
+      expect(observedAuthHeader).toBe('Bearer runtime_token');
+      expect(observedPath).toBe('/api/v1/tasks');
+      expect(observedBody).toMatchObject({
+        task_id: 'task-go-runtime-flag',
+        role: 'developer',
+        input: { objective: 's3 migration' },
+        context_stack: { stage: 's3' },
+        credentials: {
+          llm_api_key: 'llm_key',
+        },
+      });
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          resolve();
+        }),
+      );
+    }
+  });
+
+  it('fails closed when go-runtime backend is selected without runtimeUrl', async () => {
     const result = await executeTask(
       {
-        id: 'task-go-runtime-flag',
-        title: 'Go runtime staged migration',
-        type: 'analysis',
+        id: 'task-go-runtime-missing-url',
+        role: 'developer',
       },
       {
         internalWorkerBackend: 'go-runtime',
-        runtimeUrl: 'http://127.0.0.1:8081/api/v1/tasks',
       },
     );
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain('feature-flagged');
+    expect(result.error).toContain('requires executor.runtimeUrl');
   });
 });

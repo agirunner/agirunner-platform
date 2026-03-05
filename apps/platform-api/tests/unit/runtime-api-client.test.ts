@@ -113,6 +113,35 @@ describe('RuntimeApiClient', () => {
     });
   });
 
+  it('normalizes runtimeUrl values that include /api/v1/tasks endpoint path', async () => {
+    let observedPath = '';
+
+    await withHttpServer(
+      (request) => {
+        observedPath = String(request.url ?? '');
+        return {
+          status: 200,
+          json: {
+            task_id: 'task-runtime-normalized',
+            status: 'accepted',
+          },
+        };
+      },
+      async (port) => {
+        const client = new RuntimeApiClient({
+          runtimeUrl: `http://127.0.0.1:${port}/api/v1/tasks`,
+        });
+
+        await client.submitTask({
+          id: 'task-runtime-normalized',
+          role: 'developer',
+        });
+      },
+    );
+
+    expect(observedPath).toBe('/api/v1/tasks');
+  });
+
   it('uses contract-aligned POST cancel endpoint by default', async () => {
     const observedCalls: Array<{ method: string; url: string }> = [];
 

@@ -18,12 +18,44 @@ Task coordination broker for AI agents. TypeScript/Node/Fastify/PostgreSQL.
 ## Quick Start
 
 ```bash
-cd platform
 pnpm install
-docker-compose up -d postgres  # Start PostgreSQL
+cp .env.example .env
+
+docker compose up -d
 pnpm db:migrate
 pnpm dev
 ```
+
+### Compose default topology (v1.05 S3)
+
+`docker compose up -d` now starts:
+
+- `postgres`
+- `platform-api`
+- `socket-proxy`
+- `internal-runtime` (runtime sidecar)
+- `worker` (internal worker bridge, default `INTERNAL_WORKER_BACKEND=go-runtime`)
+- `dashboard`
+
+Runtime and worker are not host-port exposed in the default topology.
+`socket-proxy` + `internal-runtime` communicate over a dedicated internal-only network segment (`runtime_internal`), and `worker` joins both `platform_net` and `runtime_internal` to bridge API↔runtime traffic.
+
+Security defaults in compose/runtime profile:
+- `RUNTIME_COMPAT_PROFILE=prod` (fail-closed)
+- `RUNTIME_API_KEY` required (runtime startup fails when missing/too short)
+- `AGENT_API_URL` required for runtime task forwarding in prod profile
+- deterministic runtime fallback is disabled by default and only available with explicit test profile + flag (`RUNTIME_COMPAT_PROFILE=test`, `RUNTIME_COMPAT_ENABLE_DETERMINISTIC_FALLBACK=true`)
+
+### Runtime image strategy hooks (S3)
+
+- Local default: `AGENTBATON_RUNTIME_IMAGE=agentbaton-runtime:local` built from `apps/runtime-compat`.
+- Staging/release: set `AGENTBATON_RUNTIME_IMAGE` to a digest-pinned runtime image.
+- Publication helper: `scripts/runtime-image-publish.sh`
+  - Builds/tag runtime image from `agentbaton-runtime` repo
+  - Optionally pushes to private registry
+  - Writes tarball fallback artifact under `dist/images/`
+
+See `docs/testing/v1.05-s3-compose-runtime-image-strategy.md` for stage-specific details and evidence conventions.
 
 ## Development
 

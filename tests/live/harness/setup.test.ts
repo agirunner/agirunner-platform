@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import test from 'node:test';
 
 import {
@@ -10,7 +12,54 @@ import {
   selectMutableLiveTables,
   shouldBuildDockerImages,
   ensureDashboardCorsOrigin,
+  ensureDashboardRateLimitBudget,
+  DEFAULT_COMPOSE_STARTUP_SERVICES,
 } from './setup.js';
+
+test('default compose startup services include runtime sidecar topology for S3', () => {
+  assert.deepEqual(DEFAULT_COMPOSE_STARTUP_SERVICES, [
+    'postgres',
+    'platform-api',
+    'socket-proxy',
+    'internal-runtime',
+    'worker',
+    'dashboard',
+  ]);
+});
+
+test('compose topology enforces runtime internal network isolation and worker least-privilege flags', () => {
+  const composePath = path.join(process.cwd(), 'docker-compose.yml');
+  const compose = readFileSync(composePath, 'utf8');
+
+  assert.match(compose, /runtime_internal:\n\s+driver: bridge\n\s+internal: true/);
+  assert.match(compose, /socket-proxy:[\s\S]*?networks:\n\s+- runtime_internal/);
+  assert.match(compose, /internal-runtime:[\s\S]*?networks:\n\s+- runtime_internal/);
+  assert.match(
+    compose,
+    /worker:[\s\S]*?read_only: true[\s\S]*?security_opt:\n\s+- no-new-privileges:true[\s\S]*?cap_drop:\n\s+- ALL/,
+  );
+  assert.match(compose, /worker:[\s\S]*?networks:\n\s+- platform_net\n\s+- runtime_internal/);
+});
+
+test('compose runtime + worker fail fast when RUNTIME_API_KEY is unset', () => {
+  const composePath = path.join(process.cwd(), 'docker-compose.yml');
+  const compose = readFileSync(composePath, 'utf8');
+
+  assert.match(
+    compose,
+    /internal-runtime:[\s\S]*?RUNTIME_API_KEY:\s+\$\{RUNTIME_API_KEY:\?RUNTIME_API_KEY is required\}/,
+  );
+  assert.doesNotMatch(
+    compose,
+    /internal-runtime:[\s\S]*?RUNTIME_API_KEY:\s+\$\{RUNTIME_API_KEY:-/,
+  );
+
+  assert.match(
+    compose,
+    /worker:[\s\S]*?RUNTIME_API_KEY:\s+\$\{RUNTIME_API_KEY:\?RUNTIME_API_KEY is required\}/,
+  );
+  assert.doesNotMatch(compose, /worker:[\s\S]*?RUNTIME_API_KEY:\s+\$\{RUNTIME_API_KEY:-/);
+});
 
 test('createSetupExecutionPlan disables docker setup but still waits for health in skip mode', () => {
   const plan = createSetupExecutionPlan(true);
@@ -115,7 +164,9 @@ test('assertComposeDiskFloorFromAvailableKilobytes throws when available space i
 });
 
 test('assertComposeDiskFloorFromAvailableKilobytes allows available space at/above threshold', () => {
-  assert.doesNotThrow(() => assertComposeDiskFloorFromAvailableKilobytes(10 * 1024 * 1024, '/', 10));
+  assert.doesNotThrow(() =>
+    assertComposeDiskFloorFromAvailableKilobytes(10 * 1024 * 1024, '/', 10),
+  );
 });
 
 test('resolveComposeMinFreeGiB defaults to 10GiB when env is unset', () => {
@@ -130,6 +181,21 @@ test('resolveComposeMinFreeGiB fails closed on invalid env override', () => {
   assert.throws(
     () => resolveComposeMinFreeGiB({ LIVE_COMPOSE_MIN_FREE_GB: 'NaN' }),
     /LIVE_COMPOSE_MIN_FREE_GB must be a positive numeric value/i,
+  );
+});
+
+test('ensureDashboardRateLimitBudget applies deterministic default when unset', () => {
+  const env: NodeJS.ProcessEnv = {};
+  const value = ensureDashboardRateLimitBudget(env, 1200);
+
+  assert.equal(value, 1200);
+  assert.equal(env.RATE_LIMIT_MAX_PER_MINUTE, '1200');
+});
+
+test('ensureDashboardRateLimitBudget rejects invalid configured value', () => {
+  assert.throws(
+    () => ensureDashboardRateLimitBudget({ RATE_LIMIT_MAX_PER_MINUTE: '0' }),
+    /RATE_LIMIT_MAX_PER_MINUTE must be a positive integer/i,
   );
 });
 

@@ -1,4 +1,6 @@
-# Batch Test Runner (`scripts/test-batch.sh`)
+# Scripts
+
+## Batch Test Runner (`scripts/test-batch.sh`)
 
 This runner executes the platform verification suites and writes consolidated reports.
 
@@ -75,3 +77,26 @@ pnpm test:batch --mode parallel --fail-fast --providers openai,google,anthropic
 
 - Shell wrapper: `scripts/test-batch.sh`
 - Package command: `pnpm test:batch`
+
+---
+
+## Runtime image strategy helper (`scripts/runtime-image-publish.sh`)
+
+Used in v1.05 S3 to support private-registry publish + tarball fallback flow.
+
+### What it does
+
+- Builds runtime image from a local runtime repository checkout (`../agentbaton-runtime` by default)
+- Tags runtime image for private registry (`registry.github.com/enterprise-private/agentbaton-runtime:<tag>`)
+- Exports OCI tarball fallback under `dist/images/`
+- Writes JSON manifest with image/tar metadata
+
+### Example
+
+```bash
+# Build + tar fallback only (no push)
+./scripts/runtime-image-publish.sh
+
+# Build + push + tar fallback
+PUSH_IMAGE=true ./scripts/runtime-image-publish.sh
+```

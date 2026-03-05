@@ -57,6 +57,15 @@ const REQUIRED_STARTUP_SECRETS: ReadonlyArray<{
   { envVar: 'JWT_SECRET', minLength: 32 },
   { envVar: 'WEBHOOK_ENCRYPTION_KEY', minLength: 32 },
 ];
+
+export const DEFAULT_COMPOSE_STARTUP_SERVICES = [
+  'postgres',
+  'platform-api',
+  'socket-proxy',
+  'internal-runtime',
+  'worker',
+  'dashboard',
+] as const;
 function resolveBuildCachePath(): string {
   const override = process.env.LIVE_BUILD_CACHE_PATH?.trim();
   if (override) {
@@ -502,6 +511,23 @@ function ensureComposeRuntimeSecrets(): void {
   }
 }
 
+export function ensureDashboardRateLimitBudget(
+  source: NodeJS.ProcessEnv = process.env,
+  defaultMaxPerMinute = 1000,
+): number {
+  const configured = source.RATE_LIMIT_MAX_PER_MINUTE?.trim();
+  if (configured) {
+    const parsed = Number(configured);
+    if (!Number.isFinite(parsed) || parsed < 1) {
+      throw new Error('RATE_LIMIT_MAX_PER_MINUTE must be a positive integer when configured');
+    }
+    return Math.floor(parsed);
+  }
+
+  source.RATE_LIMIT_MAX_PER_MINUTE = String(defaultMaxPerMinute);
+  return defaultMaxPerMinute;
+}
+
 export function ensureDashboardCorsOrigin(
   dashboardBaseUrl: string,
   source: NodeJS.ProcessEnv = process.env,
@@ -752,6 +778,50 @@ export async function verifyStrictPreflight(apiBaseUrl: string, adminKey: string
   });
 }
 
+type WorkerListResponse = {
+  data?: Array<{
+    name?: string;
+    runtime_type?: string;
+    status?: string;
+  }>;
+};
+
+async function waitForInternalWorkerOnline(
+  apiBaseUrl: string,
+  adminKey: string,
+  timeoutMs: number,
+): Promise<void> {
+  const startedAt = Date.now();
+  let lastWorkers: WorkerListResponse['data'] = [];
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const payload = await requestJson<WorkerListResponse>(`${apiBaseUrl}/api/v1/workers`, {
+      headers: { authorization: `Bearer ${adminKey}` },
+    });
+
+    lastWorkers = payload.data ?? [];
+    const hasOnlineInternalWorker = lastWorkers.some(
+      (worker) =>
+        worker.runtime_type === 'internal' &&
+        (worker.status === 'online' || worker.status === 'busy'),
+    );
+
+    if (hasOnlineInternalWorker) {
+      return;
+    }
+
+    await sleep(1000);
+  }
+
+  const summary = (lastWorkers ?? [])
+    .map((worker) => `${worker.name ?? 'unnamed'}:${worker.runtime_type ?? 'unknown'}/${worker.status ?? 'unknown'}`)
+    .join(', ');
+
+  throw new Error(
+    `Timed out waiting for internal worker to become online (observed: ${summary || 'none'})`,
+  );
+}
+
 export function createSetupExecutionPlan(skipStackSetup: boolean): SetupExecutionPlan {
   if (skipStackSetup) {
     return {
@@ -786,6 +856,7 @@ export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveC
     const hasConfiguredBootstrapKey = getConfiguredDefaultAdminApiKey() !== null;
     ensureBootstrapAdminKey({ allowGenerate: true });
     ensureComposeRuntimeSecrets();
+    ensureDashboardRateLimitBudget();
     ensureDashboardCorsOrigin(dashboardBaseUrl);
     const composeCommand = composeBinary();
 
@@ -803,7 +874,9 @@ export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveC
     console.log(
       `Live harness compose startup: ${setupPlan.shouldBuildImages ? 'rebuild' : 'reuse'} (${fingerprintLabel})`,
     );
-    runDocker(`${composeCommand} up -d ${buildFlag}postgres platform-api worker dashboard`);
+    runDocker(
+      `${composeCommand} up -d ${buildFlag}${DEFAULT_COMPOSE_STARTUP_SERVICES.join(' ')}`,
+    );
 
     if (setupPlan.shouldBuildImages && setupPlan.buildFingerprint) {
       writeBuildFingerprintCache(setupPlan.buildFingerprint);
@@ -827,6 +900,11 @@ export async function setupLiveEnvironment(options: SetupOptions): Promise<LiveC
 
   await seedDatabase(apiBaseUrl, postgresUrl);
   await verifyStrictPreflight(apiBaseUrl, String(process.env.LIVE_ADMIN_KEY));
+  await waitForInternalWorkerOnline(
+    apiBaseUrl,
+    String(process.env.LIVE_ADMIN_KEY),
+    liveConfig.healthTimeoutMs,
+  );
 
   return {
     runId: options.runId,

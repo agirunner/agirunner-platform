@@ -51,6 +51,14 @@ function parseJsonResponse(body: string): Record<string, unknown> {
   }
 }
 
+function normalizeRuntimeBaseUrl(runtimeUrl: string): URL {
+  const parsed = new URL(runtimeUrl);
+  if (parsed.pathname.endsWith('/api/v1/tasks')) {
+    parsed.pathname = parsed.pathname.slice(0, -'/api/v1/tasks'.length) || '/';
+  }
+  return parsed;
+}
+
 export class RuntimeApiClient {
   private readonly runtimeBaseUrl: URL;
   private readonly runtimeApiKey?: string;
@@ -58,7 +66,7 @@ export class RuntimeApiClient {
   private readonly allowLegacyCancelAlias: boolean;
 
   constructor(config: RuntimeApiClientConfig) {
-    this.runtimeBaseUrl = new URL(config.runtimeUrl);
+    this.runtimeBaseUrl = normalizeRuntimeBaseUrl(config.runtimeUrl);
     this.runtimeApiKey = config.runtimeApiKey;
     this.requestTimeoutMs = config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
     this.allowLegacyCancelAlias = config.allowLegacyCancelAlias ?? false;

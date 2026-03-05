@@ -15,7 +15,7 @@
  *   WORKER_NAME        — display name (default: "built-in-worker")
  *   WORKER_CAPS        — comma-separated capabilities list
  *   WORKER_HB_SECS     — heartbeat interval in seconds (default: 30)
- *   INTERNAL_WORKER_BACKEND — legacy-node|go-runtime (default: legacy-node)
+ *   INTERNAL_WORKER_BACKEND — legacy-node|go-runtime (default: go-runtime)
  *   RUNTIME_URL        — runtime endpoint for migration path
  *   RUNTIME_API_KEY    — bearer token for runtime endpoint
  *   AGENT_API_URL      — URL of the legacy agent/LLM API executor
@@ -32,7 +32,7 @@ const WORKER_NAME = process.env.WORKER_NAME ?? 'built-in-worker';
 const CAPABILITIES = (process.env.WORKER_CAPS ?? 'general').split(',').map((cap) => cap.trim());
 const HEARTBEAT_SECS = Number(process.env.WORKER_HB_SECS ?? 30);
 const INTERNAL_WORKER_BACKEND = internalWorkerBackendSchema.parse(
-  process.env.INTERNAL_WORKER_BACKEND ?? 'legacy-node',
+  process.env.INTERNAL_WORKER_BACKEND ?? 'go-runtime',
 );
 const AGENT_API_URL = process.env.AGENT_API_URL;
 const AGENT_API_KEY = process.env.AGENT_API_KEY;

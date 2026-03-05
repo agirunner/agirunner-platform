@@ -43,6 +43,7 @@ import {
   internalWorkerBackendSchema,
   type InternalWorkerBackend,
 } from '../built-in/worker-runtime-contract.js';
+import { RuntimeApiClient } from '../built-in/runtime-api-client.js';
 
 // Re-export role config types for consumers of this module.
 export type { BuiltInRolesConfig, RoleName };
@@ -122,7 +123,7 @@ export interface TaskExecutorConfig {
    * Migration backend selector for S0+ rollout.
    *
    * `legacy-node` keeps current executor behavior.
-   * `go-runtime` is feature-flagged for staged migration work.
+   * `go-runtime` submits work to the runtime sidecar API contract.
    */
   internalWorkerBackend?: InternalWorkerBackend;
   /**
@@ -198,29 +199,65 @@ export function checkProhibitedOperations(
 const MISSING_EXECUTOR_CONFIG_ERROR =
   'Missing built-in worker executor configuration: set executor.agentApiUrl or executor.runtimeUrl to run tasks.';
 
-const GO_RUNTIME_BACKEND_NOT_ENABLED_ERROR =
-  'INTERNAL_WORKER_BACKEND=go-runtime is feature-flagged for staged migration and is not enabled in this execution path yet.';
+const MISSING_RUNTIME_URL_FOR_GO_BACKEND_ERROR =
+  'Missing built-in worker executor configuration: INTERNAL_WORKER_BACKEND=go-runtime requires executor.runtimeUrl.';
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return undefined;
+}
 
 /**
  * Executes a task using the configured executor.
  *
- * When an endpoint URL is provided (`agentApiUrl` or `runtimeUrl`), the task
- * payload is forwarded via HTTP POST and the response body is used as task output.
+ * `legacy-node` backend keeps direct HTTP endpoint behavior for the legacy
+ * Agent API/runtime fallback path.
  *
- * Without an endpoint URL, execution fails closed with a deterministic
- * configuration error.
+ * `go-runtime` backend submits via Runtime API contract (`POST /api/v1/tasks`)
+ * and accepts either `{ output: {...} }` envelopes or raw object payloads.
  */
 export async function executeTask(
   task: Record<string, unknown>,
   config: TaskExecutorConfig,
 ): Promise<TaskExecutionResult> {
   const backend = internalWorkerBackendSchema.parse(config.internalWorkerBackend ?? 'legacy-node');
+  const timeoutMs = config.taskTimeoutMs ?? 5 * 60 * 1000;
+
   if (backend === 'go-runtime') {
-    return {
-      output: {},
-      success: false,
-      error: GO_RUNTIME_BACKEND_NOT_ENABLED_ERROR,
-    };
+    if (!config.runtimeUrl) {
+      return {
+        output: {},
+        success: false,
+        error: MISSING_RUNTIME_URL_FOR_GO_BACKEND_ERROR,
+      };
+    }
+
+    try {
+      const runtimeClient = new RuntimeApiClient({
+        runtimeUrl: config.runtimeUrl,
+        runtimeApiKey: config.runtimeApiKey,
+        requestTimeoutMs: timeoutMs,
+        allowLegacyCancelAlias: true,
+      });
+
+      const runtimeResponse = await runtimeClient.submitTask(task, {
+        llmApiKey: config.agentApiKey,
+      });
+
+      const outputFromEnvelope = asRecord(runtimeResponse['output']);
+      return {
+        output: outputFromEnvelope ?? runtimeResponse,
+        success: true,
+      };
+    } catch (error) {
+      return {
+        output: {},
+        success: false,
+        error: `Runtime endpoint call failed: ${String(error)}`,
+      };
+    }
   }
 
   const usesAgentApiEndpoint = Boolean(config.agentApiUrl);
@@ -233,7 +270,6 @@ export async function executeTask(
     };
   }
 
-  const timeoutMs = config.taskTimeoutMs ?? 5 * 60 * 1000;
   const body = JSON.stringify(buildLegacyWorkerRuntimePayload(task));
   const authToken = usesAgentApiEndpoint ? config.agentApiKey : config.runtimeApiKey;
   const endpointLabel = usesAgentApiEndpoint ? 'Agent API' : 'Runtime';
@@ -282,7 +318,6 @@ export async function executeTask(
           const parsed = JSON.parse(responseData) as Record<string, unknown>;
           resolve({ output: parsed, success: true });
         } catch {
-          // Non-JSON response is fine — wrap in an output envelope
           resolve({ output: { raw: responseData }, success: true });
         }
       });

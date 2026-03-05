@@ -24,5 +24,6 @@ ENV DATABASE_URL=
 ENV JWT_SECRET=
 ENV WEBHOOK_ENCRYPTION_KEY=
 COPY --from=build /app ./
+USER node
 EXPOSE 8080
 CMD ["node", "dist/src/index.js"]

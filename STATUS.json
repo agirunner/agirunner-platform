@@ -1,24 +1,15 @@
 {
-  "task": "Resolve PR #93 blocking authz review defect for worker task claim flow (Stage S2 follow-up)",
+  "task": "Close final PR #94 blocker by enforcing required runtime auth secret in compose startup path",
   "issue": "#90",
-  "branch": "feature/90-v105-s2",
+  "branch": "feature/90-v105-s3",
   "phase": "COMPLETE",
   "completed": [
-    "Validated prior staged S2 implementation against PL-06/07/08/10/15/17/18 closures and preserved final code/test set",
-    "Implemented/verified worker-aware lifecycle semantics for task start/complete/fail with richer payload fields",
-    "Implemented/verified output-schema + verification driven output_pending_review transition behavior",
-    "Implemented signal-first cancel semantics for running/claimed worker tasks",
-    "Implemented timeout monitor cancel-signal + grace deadline + force-fail flow",
-    "Implemented worker polling alias POST /api/v1/workers/:id/next with worker identity ownership checks",
-    "Aligned heartbeat timeout handling to fail stale claimed/running tasks after grace and clear worker/agent active assignments",
-    "Added/updated S2 unit and integration coverage for timeout, heartbeat, lifecycle, worker polling alias, and internal worker auto-agent bootstrap",
-    "Captured S2 evidence artifacts for targeted vitest, pnpm test, pnpm test:core, and random-provider batch run (google)",
-    "Applied Admiral 2026-03-05 gate policy interpretation in S2 docs: phase gate uses deterministic/unit evidence; between-gate milestone uses exactly one provider",
-    "Updated stage documentation/context artifacts including v1.05 S2 stage summary",
-    "Enforced worker-owned agent validation on POST /api/v1/workers/:id/next and added task-claim defense-in-depth worker/agent ownership guard",
-    "Added integration regressions proving foreign-agent worker claims are rejected without task or agent mutation side effects"
+    "Removed fallback defaults for `RUNTIME_API_KEY` in compose runtime + worker env using required interpolation (`${RUNTIME_API_KEY:?RUNTIME_API_KEY must be set}`)",
+    "Updated `.env.example` runtime key to instruction-only placeholder (`RUNTIME_API_KEY=replace-with-at-least-20-characters`)",
+    "Added harness regression assertion in `tests/live/harness/setup.test.ts` proving compose runtime/worker path is fail-fast for unset `RUNTIME_API_KEY` and does not permit legacy fallback pattern",
+    "Captured final blocker evidence under `docs/testing/evidence/s3-pr94-final-*` including negative compose-config proof (unset key fails), positive compose-config proof (set key succeeds), harness test pass log, and runtime-compat go test pass log"
   ],
   "remaining": [],
-  "lastCommit": "9d88dd0",
-  "updatedAt": "2026-03-05T04:53:49Z"
+  "lastCommit": "6dfafb6",
+  "updatedAt": "2026-03-05T07:16:00Z"
 }

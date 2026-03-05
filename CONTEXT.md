@@ -1,7 +1,7 @@
 # CONTEXT.md — AgentBaton Platform v1.0
 
 ## Last Updated
-2026-03-05 04:55 UTC
+2026-03-05 07:20 UTC
 
 ## Product
 AgentBaton Platform — coordination engine for agentic software development pipelines.
@@ -14,36 +14,35 @@ AgentBaton Platform — coordination engine for agentic software development pip
 - **Platform tests:** S2 platform-owned worker lifecycle/control-plane suites green; single-provider S2 batch run captured (`google`) with full PASS summary
 
 ## Platform v1.05 Campaign Status (Issue #90)
-- **Active stage:** S2 — Go internal worker lifecycle + control-plane semantics (complete on `feature/90-v105-s2`)
+- **Active stage:** S3 — Compose default runtime topology + image strategy hooks (implemented on `feature/90-v105-s3`)
 - **S0 baseline freeze snapshot:** `docs/testing/v1.05-s0-baseline-freeze.md`
 - **S1 stage summary:** `docs/testing/v1.05-s1-runtime-contract-security.md`
 - **S2 stage summary:** `docs/testing/v1.05-s2-go-worker-lifecycle.md`
-- **Migration/runtime flags in scope:** `INTERNAL_WORKER_BACKEND`, `RUNTIME_URL`, `RUNTIME_API_KEY`, `TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS`
-- **S2 platform lifecycle/control-plane implementation highlights:**
-  - `apps/platform-api/src/api/routes/tasks.routes.ts`
-  - `apps/platform-api/src/api/routes/workers.routes.ts`
-  - `apps/platform-api/src/services/task-lifecycle-service.ts`
-  - `apps/platform-api/src/services/task-timeout-service.ts`
-  - `apps/platform-api/src/services/worker-heartbeat-service.ts`
-  - `apps/platform-api/src/services/worker-registration-service.ts`
-  - `apps/platform-api/tests/integration/task-lifecycle.integration.test.ts`
-  - `apps/platform-api/tests/integration/milestone-d-worker-events.integration.test.ts`
-  - `apps/platform-api/tests/unit/task-timeout-service.test.ts`
-  - `apps/platform-api/tests/unit/worker-heartbeat-service.test.ts`
-  - `apps/platform-api/tests/unit/worker-registration-service.test.ts`
-- **S2 evidence artifacts (committed):**
-  - Worker lifecycle S2 vitest run: `docs/testing/evidence/s2-platform-worker-lifecycle-vitest.log`
-  - Full unit/integration/harness run: `docs/testing/evidence/s2-pnpm-test.log`
-  - Core lane run: `docs/testing/evidence/s2-pnpm-test-core.log`
-  - Random-provider selection: `docs/testing/evidence/s2-random-provider-selection.json` (selected `google`; `openai`/`anthropic` out-of-scope for this single-provider S2 run)
-  - Random-provider batch summary: `docs/testing/evidence/s2-random-provider-batch-summary.json`
-  - Source summary copy: `docs/testing/evidence/s2-random-provider-batch-source-summary.json`
-  - Source manifest copy: `docs/testing/evidence/s2-random-provider-batch-source-manifest.json`
-  - Batch command log: `docs/testing/evidence/s2-random-provider-batch.log`
+- **S3 stage summary:** `docs/testing/v1.05-s3-compose-runtime-image-strategy.md`
+- **Migration/runtime flags in scope:** `INTERNAL_WORKER_BACKEND`, `RUNTIME_URL`, `RUNTIME_API_KEY`, `TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS`, `AGENTBATON_RUNTIME_IMAGE`, `RUNTIME_DOCKER_HOST`, `RUNTIME_ENFORCE_SOCKET_PROXY`
+- **S3 implementation highlights:**
+  - `docker-compose.yml` (runtime sidecar + socket-proxy + go-runtime default backend + internal runtime-only network + worker least-privilege hardening)
+  - `apps/runtime-compat/` (fail-closed prod profile + explicit test-only deterministic fallback controls)
+  - `apps/platform-api/src/bootstrap/built-in-worker.ts` (go-runtime execution path enabled)
+  - `apps/platform-api/src/built-in/runtime-api-client.ts` (runtime URL normalization)
+  - `apps/platform-api/Dockerfile` (runtime stage now non-root for API/worker containers)
+  - `tests/live/harness/setup.ts` + `tests/live/harness/setup.test.ts` (S3 startup topology + deterministic dashboard rate-limit budget + compose hardening assertions)
+  - `scripts/runtime-image-publish.sh` + `scripts/README.md` (private registry + tar fallback hooks)
+- **S3 evidence artifacts (committed):**
+  - Core lane gate log: `docs/testing/evidence/s3-pnpm-test-core.log`
+  - Dashboard lane gate log: `docs/testing/evidence/s3-dashboard-lane.log`
+  - Default compose startup log: `docs/testing/evidence/s3-compose-default-up.log`
+  - Default compose service status: `docs/testing/evidence/s3-compose-default-ps.log`
+  - Runtime health check: `docs/testing/evidence/s3-runtime-health.json`
+  - Internal worker online proof: `docs/testing/evidence/s3-workers-online.json`
+  - Worker registration/runtime backend log: `docs/testing/evidence/s3-worker-service.log`
+  - PR #94 blocker-fix runtime tests: `docs/testing/evidence/s3-pr94-fix-runtime-go-test.log`
+  - PR #94 blocker-fix harness tests: `docs/testing/evidence/s3-pr94-fix-harness-tests.log`
+  - PR #94 blocker-fix compose startup + hardening evidence: `docs/testing/evidence/s3-pr94-fix-compose-*.log`, `docs/testing/evidence/s3-pr94-fix-runtime-health-auth.json`, `docs/testing/evidence/s3-pr94-fix-worker-security-inspect.json`
 - **Gate policy interpretation (Admiral, 2026-03-05):**
   - Inside phase gates: deterministic/unit evidence required; full live-provider matrix is out-of-scope.
   - Between gates: exactly one provider batch run is a hard gate.
-  - S2 closeout follows this model and labels single-provider (`google`) scope explicitly.
+  - S3 closeout follows this model and labels in-phase deterministic gates explicitly.
 
 ## Admiral Evidence Authenticity Directive (2026-03-02)
 - **No stubs, no placeholder outputs, no harness-simulated execution paths** may be counted as PASS for release gating.
