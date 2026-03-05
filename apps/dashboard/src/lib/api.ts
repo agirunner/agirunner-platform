@@ -10,6 +10,22 @@ interface DashboardApiOptions {
   fetcher?: typeof fetch;
 }
 
+interface NamedRecord {
+  id: string;
+  name?: string;
+  title?: string;
+  state?: string;
+  status?: string;
+}
+
+export interface DashboardSearchResult {
+  type: 'pipeline' | 'task' | 'worker' | 'agent';
+  id: string;
+  label: string;
+  subtitle: string;
+  href: string;
+}
+
 export interface DashboardApi {
   login(apiKey: string): Promise<void>;
   logout(): void;
@@ -19,6 +35,10 @@ export interface DashboardApi {
   getTask(id: string): Promise<unknown>;
   listWorkers(): Promise<unknown>;
   listAgents(): Promise<unknown>;
+  approveTask(taskId: string): Promise<unknown>;
+  retryTask(taskId: string, payload?: { override_input?: Record<string, unknown>; force?: boolean }): Promise<unknown>;
+  cancelTask(taskId: string): Promise<unknown>;
+  search(query: string): Promise<DashboardSearchResult[]>;
   getMetrics(): Promise<string>;
 }
 
@@ -65,6 +85,30 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     }
   }
 
+  async function postJson(path: string, body?: Record<string, unknown>): Promise<unknown> {
+    const activeSession = readSession();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (activeSession?.accessToken) {
+      headers.Authorization = `Bearer ${activeSession.accessToken}`;
+    }
+
+    const response = await requestFetch(`${baseUrl}${path}`, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+
   return {
     async login(apiKey: string): Promise<void> {
       const auth = await client.exchangeApiKey(apiKey);
@@ -83,6 +127,30 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     getTask: (id) => withRefresh(() => client.getTask(id)),
     listWorkers: () => withRefresh(() => client.listWorkers()),
     listAgents: () => withRefresh(() => client.listAgents()),
+    approveTask: (taskId) => withRefresh(() => postJson(`/api/v1/tasks/${taskId}/approve`)),
+    retryTask: (taskId, payload = {}) => withRefresh(() => postJson(`/api/v1/tasks/${taskId}/retry`, payload)),
+    cancelTask: (taskId) => withRefresh(() => postJson(`/api/v1/tasks/${taskId}/cancel`)),
+    search: (query) =>
+      withRefresh(async () => {
+        const normalizedQuery = query.trim().toLowerCase();
+        if (normalizedQuery.length < 2) {
+          return [];
+        }
+
+        const [pipelines, tasks, workers, agents] = await Promise.allSettled([
+          client.listPipelines({ per_page: 50 }),
+          client.listTasks({ per_page: 50 }),
+          client.listWorkers(),
+          client.listAgents(),
+        ]);
+
+        return buildSearchResults(normalizedQuery, {
+          pipelines: extractListResult(pipelines),
+          tasks: extractListResult(tasks),
+          workers: extractDataResult(workers),
+          agents: extractDataResult(agents),
+        });
+      }),
     getMetrics: () =>
       withRefresh(async () => {
         const activeSession = readSession();
@@ -104,6 +172,85 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         return response.text();
       }),
   };
+}
+
+export function buildSearchResults(
+  normalizedQuery: string,
+  collections: {
+    pipelines: NamedRecord[];
+    tasks: NamedRecord[];
+    workers: NamedRecord[];
+    agents: NamedRecord[];
+  },
+): DashboardSearchResult[] {
+  const pipelineMatches = filterRecords(collections.pipelines, normalizedQuery).map((item) => ({
+    type: 'pipeline' as const,
+    id: item.id,
+    label: item.name ?? item.id,
+    subtitle: item.state ?? 'pipeline',
+    href: `/pipelines/${item.id}`,
+  }));
+
+  const taskMatches = filterRecords(collections.tasks, normalizedQuery).map((item) => ({
+    type: 'task' as const,
+    id: item.id,
+    label: item.title ?? item.name ?? item.id,
+    subtitle: item.state ?? 'task',
+    href: `/tasks/${item.id}`,
+  }));
+
+  const workerMatches = filterRecords(collections.workers, normalizedQuery).map((item) => ({
+    type: 'worker' as const,
+    id: item.id,
+    label: item.name ?? item.id,
+    subtitle: item.status ?? 'worker',
+    href: '/workers',
+  }));
+
+  const agentMatches = filterRecords(collections.agents, normalizedQuery).map((item) => ({
+    type: 'agent' as const,
+    id: item.id,
+    label: item.name ?? item.id,
+    subtitle: item.status ?? 'agent',
+    href: '/workers',
+  }));
+
+  return [...pipelineMatches, ...taskMatches, ...workerMatches, ...agentMatches].slice(0, 12);
+}
+
+function filterRecords(records: NamedRecord[], query: string): NamedRecord[] {
+  return records.filter((record) => {
+    const haystack = `${record.id} ${record.name ?? ''} ${record.title ?? ''}`.toLowerCase();
+    return haystack.includes(query);
+  });
+}
+
+function extractListResult(
+  result: PromiseSettledResult<unknown>,
+): NamedRecord[] {
+  if (result.status !== 'fulfilled') {
+    return [];
+  }
+
+  const value = result.value as { data?: unknown };
+  return Array.isArray(value.data) ? (value.data as NamedRecord[]) : [];
+}
+
+function extractDataResult(result: PromiseSettledResult<unknown>): NamedRecord[] {
+  if (result.status !== 'fulfilled') {
+    return [];
+  }
+
+  const value = result.value as { data?: unknown } | unknown[];
+  if (Array.isArray(value)) {
+    return value as NamedRecord[];
+  }
+
+  if (value && typeof value === 'object' && Array.isArray((value as { data?: unknown }).data)) {
+    return (value as { data: NamedRecord[] }).data;
+  }
+
+  return [];
 }
 
 export const dashboardApi = createDashboardApi();

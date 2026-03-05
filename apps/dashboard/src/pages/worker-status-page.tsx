@@ -1,6 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { dashboardApi } from '../lib/api.js';
+import { subscribeToEvents } from '../lib/sse.js';
 
 interface WorkerItem {
   id: string;
@@ -19,6 +21,8 @@ interface AgentItem {
 }
 
 export function WorkerStatusPage(): JSX.Element {
+  const queryClient = useQueryClient();
+
   const workers = useQuery({
     queryKey: ['workers'],
     queryFn: () => dashboardApi.listWorkers() as Promise<WorkerItem[]>,
@@ -29,10 +33,30 @@ export function WorkerStatusPage(): JSX.Element {
     queryFn: () => dashboardApi.listAgents() as Promise<AgentItem[]>,
   });
 
+  useEffect(() => {
+    return subscribeToEvents(
+      (eventType, payload) => {
+        const entityType = typeof payload.entity_type === 'string' ? payload.entity_type : '';
+        if (
+          eventType.startsWith('worker.')
+          || eventType.startsWith('agent.')
+          || entityType === 'worker'
+          || entityType === 'agent'
+          || eventType.startsWith('task.')
+        ) {
+          void queryClient.invalidateQueries({ queryKey: ['workers'] });
+          void queryClient.invalidateQueries({ queryKey: ['agents'] });
+        }
+      },
+      { entityTypes: ['worker', 'agent', 'task'] },
+    );
+  }, [queryClient]);
+
   return (
     <section className="grid two">
       <div className="card">
         <h2>Workers</h2>
+        <p className="muted">Live heartbeat-driven worker status and runtime connectivity.</p>
         <table className="table">
           <thead>
             <tr>
@@ -40,15 +64,19 @@ export function WorkerStatusPage(): JSX.Element {
               <th>Status</th>
               <th>Runtime</th>
               <th>Mode</th>
+              <th>Last Heartbeat</th>
             </tr>
           </thead>
           <tbody>
             {workers.data?.map((worker) => (
               <tr key={worker.id}>
                 <td>{worker.name}</td>
-                <td>{worker.status}</td>
+                <td>
+                  <span className={`status-badge status-${worker.status}`}>{worker.status}</span>
+                </td>
                 <td>{worker.runtime_type}</td>
                 <td>{worker.connection_mode}</td>
+                <td>{new Date(worker.last_heartbeat_at).toLocaleTimeString()}</td>
               </tr>
             ))}
           </tbody>
@@ -68,7 +96,9 @@ export function WorkerStatusPage(): JSX.Element {
             {agents.data?.map((agent) => (
               <tr key={agent.id}>
                 <td>{agent.name}</td>
-                <td>{agent.status}</td>
+                <td>
+                  <span className={`status-badge status-${agent.status}`}>{agent.status}</span>
+                </td>
                 <td>{agent.current_task_id ?? '—'}</td>
               </tr>
             ))}

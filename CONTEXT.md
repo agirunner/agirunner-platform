@@ -1,7 +1,7 @@
 # CONTEXT.md — AgentBaton Platform v1.0
 
 ## Last Updated
-2026-03-05 15:20 UTC
+2026-03-05 18:10 UTC
 
 ## Product
 AgentBaton Platform — coordination engine for agentic software development pipelines.
@@ -14,7 +14,7 @@ AgentBaton Platform — coordination engine for agentic software development pip
 - **Platform tests:** S2 platform-owned worker lifecycle/control-plane suites green; single-provider S2 batch run captured (`google`) with full PASS summary
 
 ## Platform v1.05 Campaign Status (Issue #90)
-- **Active stage:** S4 — API surface/design contract closure (implemented on `feature/90-v105-s4`)
+- **Active stage:** S5 Stage-X — dashboard/control-plane closure slice (`feature/90-v105-s5-stagex-control-plane`)
 - **S0 baseline freeze snapshot:** `docs/testing/v1.05-s0-baseline-freeze.md`
 - **S1 stage summary:** `docs/testing/v1.05-s1-runtime-contract-security.md`
 - **S2 stage summary:** `docs/testing/v1.05-s2-go-worker-lifecycle.md`
@@ -25,17 +25,17 @@ AgentBaton Platform — coordination engine for agentic software development pip
   - Normalized envelopes/auth details: success `meta.request_id`/`meta.timestamp`, error-code normalization (`CYCLE_DETECTED`, `RATE_LIMITED`, `SERVICE_UNAVAILABLE`), auth token `expires_at`, refresh rotation + logout invalidation + CSRF hardening
   - Enforced Admiral S4 directive: built-in worker go-runtime only; legacy-node mode deprecated/disabled in active/default operation with migration note `docs/decisions/DECISION-003-built-in-worker-go-runtime-only.md`
   - Aligned API key canonical format to `ab_{scope}_{random}` with legacy verification compatibility and MCP tool namespace to `baton_*` with aliases
-- **S4 evidence artifacts (committed):**
-  - Gate tests: `docs/testing/evidence/s4-pnpm-test.log`, `docs/testing/evidence/s4-pnpm-test-ci.log`
-  - Go-only deprecation trace: `docs/testing/evidence/s4-go-only-deprecation.log`
-- **S4.5 policy update (2026-03-05):**
-  - Applied Admiral v1.1–v1.2 network decision: runtime segment no longer uses Docker internal-only isolation (`runtime_internal` no longer `internal: true`).
-  - Verified runtime can reach host-bound executor URL from container and captured network evidence in `docs/testing/evidence/s4.5-policy-network-decision-20260305T150959Z.md`.
-  - One-provider batch rerun reached terminal result with live-openai explicitly skipped in this workspace due missing `OPENAI_API_KEY` (see same evidence bundle).
-- **Gate policy interpretation (Admiral, 2026-03-05):**
-  - Inside phase gates: deterministic/unit evidence required; full live-provider matrix is out-of-scope.
-  - Between gates: exactly one provider batch run is a hard gate.
-  - S4 closeout follows this model and labels in-phase deterministic gates explicitly.
+- **S5 Stage-X highlights (this branch):**
+  - Added dedicated dashboard activity feed (`/activity`) with live realtime stream rendering.
+  - Upgraded dashboard realtime transport to singleton SSE channel + subscriber filtering, and adopted push refresh in worker/pipeline/task views.
+  - Added global search, breadcrumbs, keyboard shortcuts, pipeline list board/filter/sort view, and task control actions (approve/retry/cancel).
+  - Added deterministic dashboard unit coverage for breadcrumbs/activity normalization/realtime singleton/mission-control summary.
+- **S5 Stage-X evidence artifacts (committed):**
+  - `docs/testing/evidence/s5-stagex-20260305T180144Z-summary.md`
+  - `docs/testing/evidence/s5-stagex-20260305T180144Z-dashboard-typecheck.log`
+  - `docs/testing/evidence/s5-stagex-20260305T180144Z-dashboard-unit.log`
+  - `docs/testing/evidence/s5-stagex-20260305T180144Z-platform-api-unit.log`
+  - `docs/testing/evidence/s5-stagex-20260305T180144Z-test-core.log` (expected env block: missing `RUNTIME_API_KEY`)
 
 ## Admiral Evidence Authenticity Directive (2026-03-02)
 - **No stubs, no placeholder outputs, no harness-simulated execution paths** may be counted as PASS for release gating.

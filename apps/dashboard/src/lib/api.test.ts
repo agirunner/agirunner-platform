@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { createDashboardApi } from './api.js';
+import { buildSearchResults, createDashboardApi } from './api.js';
 import { clearSession, readSession, writeSession } from './session.js';
 
 function mockLocalStorage() {
@@ -152,5 +152,44 @@ describe('dashboard api auth/session behavior', () => {
     const [, options] = vi.mocked(fetcher).mock.calls[0];
     expect(options?.headers).toBeUndefined();
     expect(options?.credentials).toBe('include');
+  });
+});
+
+describe('dashboard global search', () => {
+  it('buildSearchResults creates task/pipeline/worker/agent route targets', () => {
+    const results = buildSearchResults('build', {
+      pipelines: [{ id: 'pipeline-1', name: 'Build Pipeline', state: 'running' }],
+      tasks: [{ id: 'task-1', title: 'Build artifact', state: 'ready' }],
+      workers: [{ id: 'worker-1', name: 'Builder worker', status: 'online' }],
+      agents: [{ id: 'agent-1', name: 'Builder agent', status: 'idle' }],
+    });
+
+    expect(results.map((result) => result.type)).toEqual(['pipeline', 'task', 'worker', 'agent']);
+    expect(results[0].href).toBe('/pipelines/pipeline-1');
+    expect(results[1].href).toBe('/tasks/task-1');
+    expect(results[2].href).toBe('/workers');
+  });
+
+  it('search() merges matches from all dashboard resources', async () => {
+    writeSession({ accessToken: 'token', tenantId: 'tenant-1' });
+
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      listPipelines: vi.fn().mockResolvedValue({ data: [{ id: 'pipeline-1', name: 'Test Pipeline', state: 'running' }] }),
+      getPipeline: vi.fn(),
+      listTasks: vi.fn().mockResolvedValue({ data: [{ id: 'task-1', title: 'Test task', state: 'ready' }] }),
+      getTask: vi.fn(),
+      listWorkers: vi.fn().mockResolvedValue([{ id: 'worker-1', name: 'Test worker', status: 'online' }]),
+      listAgents: vi.fn().mockResolvedValue([{ id: 'agent-1', name: 'Test agent', status: 'idle' }]),
+    };
+
+    const api = createDashboardApi({ client: client as never });
+    const results = await api.search('test');
+
+    expect(results).toHaveLength(4);
+    expect(client.listPipelines).toHaveBeenCalledWith({ per_page: 50 });
+    expect(client.listTasks).toHaveBeenCalledWith({ per_page: 50 });
   });
 });

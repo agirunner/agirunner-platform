@@ -3,6 +3,7 @@ import { Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
 
 import { DashboardLayout } from '../components/layout.js';
 import { clearSession, readSession } from '../lib/session.js';
+import { ActivityFeedPage } from '../pages/activity-feed-page.js';
 import { LoginPage } from '../pages/login-page.js';
 import { PipelineDetailPage } from '../pages/pipeline-detail-page.js';
 import { PipelineListPage } from '../pages/pipeline-list-page.js';
@@ -31,6 +32,7 @@ export function App(): JSX.Element {
           <Route path="/pipelines/:id" element={<PipelineDetailPage />} />
           <Route path="/tasks/:id" element={<TaskDetailPage />} />
           <Route path="/workers" element={<WorkerStatusPage />} />
+          <Route path="/activity" element={<ActivityFeedPage />} />
           <Route path="/metrics" element={<SystemMetricsPage />} />
         </Route>
       </Route>
