@@ -477,6 +477,42 @@ export function runDeterministicAuthenticityValidator(
         fallbackStubRefs.length > 0 ? fallbackStubRefs : [`pipeline:${pipeline.pipelineId}:state`],
     });
 
+    const simulationRefs: string[] = [];
+    for (const task of pipeline.tasks) {
+      const output = task.output;
+      if (!output || typeof output !== 'object' || Array.isArray(output)) {
+        continue;
+      }
+
+      const outputRecord = output as Record<string, unknown>;
+      const executionMode =
+        typeof outputRecord.execution_mode === 'string'
+          ? outputRecord.execution_mode.toLowerCase()
+          : '';
+      const authenticityGateHint =
+        typeof outputRecord.authenticity_gate_hint === 'string'
+          ? outputRecord.authenticity_gate_hint.toUpperCase()
+          : '';
+      const simulatedFlag = outputRecord.simulated === true;
+      const simulatedExecutionMode = executionMode.startsWith('simulated');
+      const explicitNotPassHint = authenticityGateHint === 'NOT_PASS';
+
+      if (simulatedFlag || simulatedExecutionMode || explicitNotPassHint) {
+        simulationRefs.push(`task:${task.id}:output`);
+      }
+    }
+
+    checks.push({
+      checkId: `simulation-rejection.execution-backed:${pipeline.pipelineId}`,
+      status: simulationRefs.length === 0 ? 'PASS' : 'NOT_PASS',
+      rationale:
+        simulationRefs.length === 0
+          ? 'No explicit simulation markers detected in task output envelopes'
+          : 'Detected explicit simulation markers; authenticity gate must fail closed for non execution-backed outputs',
+      evidenceRefs:
+        simulationRefs.length > 0 ? simulationRefs : [`pipeline:${pipeline.pipelineId}:state`],
+    });
+
     if (pipeline.requiresGitDiffEvidence) {
       const outputBlob = pipeline.tasks.map((task) => JSON.stringify(task.output ?? {})).join('\n');
       const hasGitEvidence = CODE_EVIDENCE_PATTERN.test(outputBlob);
@@ -620,6 +656,7 @@ async function callOpenAiStrictJson(
 const EVIDENCE_REF_ALIASABLE_CHECK_PREFIXES = [
   'acceptance-structure.',
   'placeholder-rejection.',
+  'simulation-rejection.',
   'git-diff-linkage',
   'resilience.',
 ] as const;
@@ -722,6 +759,10 @@ function preferredTaskEvidenceSuffixByCheckId(checkId: string): 'output' | 'stat
   }
 
   if (checkId.startsWith('placeholder-rejection.')) {
+    return 'output';
+  }
+
+  if (checkId.startsWith('simulation-rejection.')) {
     return 'output';
   }
 

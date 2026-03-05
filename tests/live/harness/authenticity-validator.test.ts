@@ -128,6 +128,40 @@ test('deterministic validator rejects placeholder/template output markers', () =
   );
 });
 
+test('deterministic validator rejects explicitly simulated output envelopes', () => {
+  const evidence = makeEvidence({
+    requiresGitDiffEvidence: false,
+    tasks: [
+      {
+        id: 't-simulated',
+        role: 'developer',
+        state: 'completed',
+        output: {
+          execution_mode: 'simulated-not-executed',
+          simulated: true,
+          authenticity_gate_hint: 'NOT_PASS',
+          summary: 'SIMULATED OUTPUT (NOT EXECUTION-BACKED)',
+        },
+      },
+    ],
+  });
+
+  const verdict = runDeterministicAuthenticityValidator(
+    'sdlc-happy',
+    makeResult({ authenticityEvidence: [evidence] }),
+    [evidence],
+  );
+
+  assert.equal(verdict.status, 'NOT_PASS');
+  assert.ok(
+    verdict.checks.some(
+      (check) =>
+        check.checkId.startsWith('simulation-rejection.execution-backed') &&
+        check.status === 'NOT_PASS',
+    ),
+  );
+});
+
 test('deterministic validator enforces git/diff linkage where applicable', () => {
   const evidence = makeEvidence({
     tasks: [

@@ -57,8 +57,10 @@ describe('execute route impossible-scope policy alignment', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      execution_mode: 'live-agent-api',
+      execution_mode: 'simulated-not-executed',
       role: 'developer',
+      simulated: true,
+      authenticity_gate_hint: 'NOT_PASS',
     });
   });
 
@@ -79,6 +81,60 @@ describe('execute route impossible-scope policy alignment', () => {
     expect(response.statusCode).toBe(422);
     expect(response.json()).toMatchObject({
       error: 'impossible_scope',
+    });
+  });
+
+  it('returns simulation-marked output and never emits concrete diff payload fields', async () => {
+    const server = await createApp();
+
+    const response = await server.inject({
+      method: 'POST',
+      url: '/execute',
+      payload: {
+        type: 'test',
+        task_id: 'task-42',
+        input: {
+          repo: 'todo-app',
+          issue: 'pagination',
+          goal: 'Fix issue #123',
+          instruction: 'Generate a real diff',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as Record<string, unknown>;
+
+    expect(body.execution_mode).toBe('simulated-not-executed');
+    expect(body.simulated).toBe(true);
+    expect(body.authenticity_gate_hint).toBe('NOT_PASS');
+    expect(String(body.summary)).toContain('NOT EXECUTION-BACKED');
+    expect(body.patch).toBeUndefined();
+    expect(body.changed_files).toBeUndefined();
+    expect(body.tests).toBeUndefined();
+  });
+
+  it('captures pipeline id from nested task context for traceability', async () => {
+    const server = await createApp();
+
+    const response = await server.inject({
+      method: 'POST',
+      url: '/execute',
+      payload: {
+        type: 'code',
+        context: {
+          task: {
+            pipeline_id: 'pipeline-from-task-context',
+          },
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      pipeline_id: 'pipeline-from-task-context',
+      execution_mode: 'simulated-not-executed',
+      authenticity_gate_hint: 'NOT_PASS',
     });
   });
 });

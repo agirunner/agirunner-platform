@@ -233,14 +233,23 @@ export async function assertPostSetupAgentApiReachability(
   );
 }
 
-function loadEnvFile(envPath = '/root/.secrets/openai-test.env'): void {
+const PROVIDER_ENV_FILE_DEFAULTS: Record<'openai' | 'google' | 'anthropic', string[]> = {
+  openai: ['/root/.secrets/openai-test.env'],
+  google: ['/root/.secrets/google-test.env', '/root/.secrets/gemini-test.env'],
+  anthropic: ['/root/.secrets/anthropic-test.env'],
+};
+
+function parseEnvFile(envPath: string): void {
   if (!existsSync(envPath)) return;
+
   const raw = readFileSync(envPath, 'utf8');
   for (const line of raw.split('\n')) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
+
     const eqIndex = trimmed.indexOf('=');
     if (eqIndex <= 0) continue;
+
     const key = trimmed.slice(0, eqIndex).trim();
     let value = trimmed.slice(eqIndex + 1).trim();
     if (
@@ -249,8 +258,50 @@ function loadEnvFile(envPath = '/root/.secrets/openai-test.env'): void {
     ) {
       value = value.slice(1, -1);
     }
+
     if (!process.env[key]) process.env[key] = value;
   }
+}
+
+function parseEnvPathList(raw: string | undefined): string[] {
+  if (!raw) return [];
+
+  return raw
+    .split(/[,:]/)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+function resolveProviderEnvFiles(provider: Exclude<Provider, 'none'>): string[] {
+  const providerOverrideKey = `LIVE_${provider.toUpperCase()}_ENV_FILE`;
+  const providerOverride = parseEnvPathList(process.env[providerOverrideKey]);
+  const sharedOverride = parseEnvPathList(process.env.LIVE_ENV_FILES);
+
+  const defaults = PROVIDER_ENV_FILE_DEFAULTS[provider] ?? [];
+
+  return Array.from(new Set([...providerOverride, ...sharedOverride, ...defaults]));
+}
+
+export function bootstrapLiveCredentialEnv(providers: readonly Provider[]): string[] {
+  const filesToLoad = new Set<string>();
+
+  for (const provider of providers) {
+    if (provider === 'none') continue;
+
+    for (const envFilePath of resolveProviderEnvFiles(provider)) {
+      filesToLoad.add(envFilePath);
+    }
+  }
+
+  const loadedFiles: string[] = [];
+
+  for (const envFilePath of filesToLoad) {
+    if (!existsSync(envFilePath)) continue;
+    parseEnvFile(envFilePath);
+    loadedFiles.push(envFilePath);
+  }
+
+  return loadedFiles;
 }
 
 function printUsage(): void {
@@ -1178,14 +1229,14 @@ export function isDirectExecution(metaUrl = import.meta.url): boolean {
 
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
-
-  if (options.lane === 'live') {
-    loadEnvFile('/root/.secrets/openai-test.env');
-  }
-
   const matrix = makeExecutionMatrix(options);
 
-  if (options.lane === 'live' && !options.preflightOnly) {
+  if (options.lane === 'live') {
+    const loadedFiles = bootstrapLiveCredentialEnv(matrix.map((entry) => entry.provider));
+    if (loadedFiles.length > 0) {
+      console.log(`[live-harness] loaded credential env files: ${loadedFiles.join(', ')}`);
+    }
+
     assertLiveApiKeysForMatrix(matrix);
   }
 

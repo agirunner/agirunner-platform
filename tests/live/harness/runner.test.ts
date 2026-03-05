@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 
 import {
@@ -6,6 +9,7 @@ import {
   assertLiveApiKey,
   assertLiveApiKeysForMatrix,
   assertPostSetupAgentApiReachability,
+  bootstrapLiveCredentialEnv,
   deriveDashboardScenarioResults,
   makeExecutionMatrix,
   parseArgs,
@@ -79,6 +83,35 @@ test('live lane provider key check fails when key is missing', () => {
   delete process.env.ANTHROPIC_API_KEY;
   assert.throws(() => assertLiveApiKey('anthropic'), /Missing key for provider anthropic/);
   if (previous !== undefined) process.env.ANTHROPIC_API_KEY = previous;
+});
+
+test('bootstrapLiveCredentialEnv loads provider credentials via deterministic env-file override', () => {
+  const tempRoot = mkdtempSync(path.join(tmpdir(), 'live-credential-bootstrap-'));
+  const envFilePath = path.join(tempRoot, 'google-test.env');
+
+  const prevGoogleEnvPath = process.env.LIVE_GOOGLE_ENV_FILE;
+  const prevGoogleApiKey = process.env.GOOGLE_API_KEY;
+  const prevGeminiApiKey = process.env.GEMINI_API_KEY;
+
+  writeFileSync(envFilePath, 'GOOGLE_API_KEY=bootstrap-google-key\n');
+  process.env.LIVE_GOOGLE_ENV_FILE = envFilePath;
+  delete process.env.GOOGLE_API_KEY;
+  delete process.env.GEMINI_API_KEY;
+
+  try {
+    const loadedFiles = bootstrapLiveCredentialEnv(['google'] as const);
+    assert.deepEqual(loadedFiles, [envFilePath]);
+    assert.equal(process.env.GOOGLE_API_KEY, 'bootstrap-google-key');
+    assert.doesNotThrow(() => assertLiveApiKey('google'));
+  } finally {
+    if (prevGoogleEnvPath === undefined) delete process.env.LIVE_GOOGLE_ENV_FILE;
+    else process.env.LIVE_GOOGLE_ENV_FILE = prevGoogleEnvPath;
+    if (prevGoogleApiKey === undefined) delete process.env.GOOGLE_API_KEY;
+    else process.env.GOOGLE_API_KEY = prevGoogleApiKey;
+    if (prevGeminiApiKey === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = prevGeminiApiKey;
+    rmSync(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test('live --all validates provider keys for every matrix provider', () => {

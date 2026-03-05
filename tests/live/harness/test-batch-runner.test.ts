@@ -4,7 +4,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { filterProvidersWithEnv, summaryMarkdown } from '../../../scripts/test-batch-lib.mjs';
+import {
+  filterProvidersWithEnv,
+  loadProviderCredentialEnvFiles,
+  summaryMarkdown,
+} from '../../../scripts/test-batch-lib.mjs';
 import {
   buildBatchResultsReport,
   buildBootstrapSteps,
@@ -449,6 +453,34 @@ test('filterProvidersWithEnv drops providers without credentials in non-strict m
     else process.env.GOOGLE_API_KEY = prevGoogle;
     if (prevGemini === undefined) delete process.env.GEMINI_API_KEY;
     else process.env.GEMINI_API_KEY = prevGemini;
+  }
+});
+
+test('loadProviderCredentialEnvFiles loads provider credentials from deterministic override path', () => {
+  const tempRoot = mkdtempSync(path.join(tmpdir(), 'batch-credential-bootstrap-'));
+  const envFilePath = path.join(tempRoot, 'google-test.env');
+
+  const prevBatchGoogleEnv = process.env.BATCH_GOOGLE_ENV_FILE;
+  const prevGoogle = process.env.GOOGLE_API_KEY;
+  const prevGemini = process.env.GEMINI_API_KEY;
+
+  writeFileSync(envFilePath, 'GOOGLE_API_KEY=batch-google-key\n');
+  process.env.BATCH_GOOGLE_ENV_FILE = envFilePath;
+  delete process.env.GOOGLE_API_KEY;
+  delete process.env.GEMINI_API_KEY;
+
+  try {
+    const loaded = loadProviderCredentialEnvFiles(['google']);
+    assert.deepEqual(loaded, [envFilePath]);
+    assert.equal(process.env.GOOGLE_API_KEY, 'batch-google-key');
+  } finally {
+    if (prevBatchGoogleEnv === undefined) delete process.env.BATCH_GOOGLE_ENV_FILE;
+    else process.env.BATCH_GOOGLE_ENV_FILE = prevBatchGoogleEnv;
+    if (prevGoogle === undefined) delete process.env.GOOGLE_API_KEY;
+    else process.env.GOOGLE_API_KEY = prevGoogle;
+    if (prevGemini === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = prevGemini;
+    rmSync(tempRoot, { recursive: true, force: true });
   }
 });
 

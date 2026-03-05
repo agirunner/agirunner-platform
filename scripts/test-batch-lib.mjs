@@ -53,15 +53,65 @@ function parseEnvFile(filePath) {
   }
 }
 
+const PROVIDER_ENV_FILE_DEFAULTS = {
+  openai: ['/root/.secrets/openai-test.env'],
+  google: ['/root/.secrets/google-test.env', '/root/.secrets/gemini-test.env'],
+  anthropic: ['/root/.secrets/anthropic-test.env'],
+};
+
+function parseEnvPathList(raw) {
+  if (!raw) return [];
+
+  return String(raw)
+    .split(/[,:]/)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+function resolveProviderEnvFiles(provider) {
+  const providerOverride = parseEnvPathList(process.env[`BATCH_${String(provider).toUpperCase()}_ENV_FILE`]);
+  const sharedOverride = parseEnvPathList(process.env.BATCH_ENV_FILES);
+  const defaults = PROVIDER_ENV_FILE_DEFAULTS[provider] ?? [];
+
+  return Array.from(new Set([...providerOverride, ...sharedOverride, ...defaults]));
+}
+
+export function loadProviderCredentialEnvFiles(providers = ALLOWED_PROVIDERS) {
+  const loadedFiles = [];
+
+  for (const provider of providers) {
+    for (const envFilePath of resolveProviderEnvFiles(provider)) {
+      try {
+        parseEnvFile(envFilePath);
+        loadedFiles.push(envFilePath);
+      } catch {
+        // optional provider credential env file
+      }
+    }
+  }
+
+  return Array.from(new Set(loadedFiles));
+}
+
 export function loadBatchEnv() {
   const files = ['.env.test-batch', '.env.test-batch.local'];
+  const loadedBatchEnvFiles = [];
+
   for (const fileName of files) {
+    const fullPath = path.join(ROOT, fileName);
     try {
-      parseEnvFile(path.join(ROOT, fileName));
+      parseEnvFile(fullPath);
+      loadedBatchEnvFiles.push(fullPath);
     } catch {
       // optional env files
     }
   }
+
+  const loadedCredentialEnvFiles = loadProviderCredentialEnvFiles(ALLOWED_PROVIDERS);
+  return {
+    loadedBatchEnvFiles,
+    loadedCredentialEnvFiles,
+  };
 }
 
 export function usage() {

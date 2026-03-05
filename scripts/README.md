@@ -15,6 +15,8 @@ This runner executes the platform verification suites and writes consolidated re
 - Docker running
 - `pnpm` available
 - Provider API keys set (OpenAI/Anthropic/Google, depending on selected providers)
+  - Deterministic provider credential bootstrap auto-loads `/root/.secrets/{openai,google,gemini,anthropic}-test.env` when present.
+  - Optional overrides: `BATCH_OPENAI_ENV_FILE`, `BATCH_GOOGLE_ENV_FILE`, `BATCH_ANTHROPIC_ENV_FILE`, or `BATCH_ENV_FILES`.
   - If `--providers` is omitted, missing provider keys are auto-skipped with a warning so non-live lanes still run.
   - Skipped providers are still represented as `live-<provider>` stages with `status=skipped` and `notRunReason=missing-provider-credentials` in `summary.{json,md}`.
 
@@ -33,6 +35,14 @@ Preview only (no test execution):
 
 ```bash
 pnpm test:batch --dry-run
+```
+
+Deterministic Google preflight in subagent contexts:
+
+```bash
+BATCH_GOOGLE_ENV_FILE=/root/.secrets/google-test.env \
+LIVE_GOOGLE_ENV_FILE=/root/.secrets/google-test.env \
+pnpm exec tsx tests/live/harness/runner.ts --lane live --provider google --preflight-only
 ```
 
 ## Run full batch (safe default)
