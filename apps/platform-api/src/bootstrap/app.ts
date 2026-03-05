@@ -93,7 +93,7 @@ export async function buildApp() {
   });
 
   const agentService = new AgentService(pool, eventService, config);
-  const taskService = new TaskService(pool, eventService, config);
+  const taskService = new TaskService(pool, eventService, config, workerConnectionHub);
   const lifecycleMonitor = startLifecycleMonitor(app.log, config, agentService, taskService, workerService);
 
   app.addHook('onClose', async () => {

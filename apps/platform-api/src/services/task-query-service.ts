@@ -17,7 +17,12 @@ export class TaskQueryService {
 
   toTaskResponse(task: Record<string, unknown>) {
     const metadata = (task.metadata ?? {}) as Record<string, unknown>;
-    return { ...task, description: metadata.description ?? null, parent_id: metadata.parent_id ?? null };
+    return {
+      ...task,
+      description: metadata.description ?? null,
+      parent_id: metadata.parent_id ?? null,
+      verification: metadata.verification ?? null,
+    };
   }
 
   async listTasks(tenantId: string, query: ListTaskQuery) {

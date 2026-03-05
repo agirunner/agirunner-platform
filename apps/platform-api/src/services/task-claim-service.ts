@@ -1,6 +1,6 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
-import { AgentBusyError, NotFoundError } from '../errors/domain-errors.js';
+import { AgentBusyError, ForbiddenError, NotFoundError } from '../errors/domain-errors.js';
 import { assertValidTransition } from '../orchestration/task-state-machine.js';
 import { EventService } from './event-service.js';
 
@@ -31,6 +31,24 @@ export class TaskClaimService {
       if (!agentRes.rowCount) throw new NotFoundError('Agent not found');
 
       const agent = agentRes.rows[0];
+      if (identity.scope === 'worker') {
+        if (!identity.ownerId) {
+          throw new ForbiddenError('Worker identity is not bound to a worker owner.');
+        }
+
+        if (agent.worker_id !== identity.ownerId) {
+          throw new ForbiddenError('Worker cannot claim tasks with an agent owned by a different worker.');
+        }
+
+        if (payload.worker_id && payload.worker_id !== identity.ownerId) {
+          throw new ForbiddenError('Worker cannot claim tasks on behalf of a different worker.');
+        }
+      }
+
+      if (payload.worker_id && agent.worker_id !== payload.worker_id) {
+        throw new ForbiddenError('Worker cannot claim tasks with an agent owned by a different worker.');
+      }
+
       if (agent.current_task_id) {
         throw new AgentBusyError(`Agent already holds task '${agent.current_task_id}'. Complete or fail it first.`, {
           current_task_id: agent.current_task_id,

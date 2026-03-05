@@ -192,6 +192,244 @@ describe('milestone d worker/events integration', () => {
     ws.close();
   });
 
+  it('supports polling alias /workers/:id/next with worker-owned identity', async () => {
+    const registration = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workers/register',
+      headers: { authorization: `Bearer ${workerBootstrapKey}` },
+      payload: {
+        name: 'polling-worker',
+        runtime_type: 'internal',
+        connection_mode: 'polling',
+        capabilities: ['go', 'testing'],
+      },
+    });
+    expect(registration.statusCode).toBe(201);
+
+    const workerId = registration.json().data.worker_id as string;
+    const workerApiKey = registration.json().data.worker_api_key as string;
+    const agentId = registration.json().data.agents[0].id as string;
+
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks',
+      headers: { authorization: `Bearer ${workerBootstrapKey}` },
+      payload: {
+        title: 'poll-me',
+        type: 'code',
+        capabilities_required: ['go'],
+      },
+    });
+    expect(created.statusCode).toBe(201);
+    const taskId = created.json().data.id as string;
+
+    const claim = await app.inject({
+      method: 'POST',
+      url: `/api/v1/workers/${workerId}/next`,
+      headers: { authorization: `Bearer ${workerApiKey}` },
+      payload: {},
+    });
+
+    expect(claim.statusCode).toBe(200);
+    expect(claim.json().data.id).toBe(taskId);
+    expect(claim.json().data.assigned_worker_id).toBe(workerId);
+    expect(claim.json().data.assigned_agent_id).toBe(agentId);
+
+    const noTask = await app.inject({
+      method: 'POST',
+      url: `/api/v1/workers/${workerId}/next`,
+      headers: { authorization: `Bearer ${workerApiKey}` },
+      payload: {},
+    });
+    expect(noTask.statusCode).toBe(409);
+  });
+
+  it('rejects polling alias claims that supply an agent owned by another worker', async () => {
+    const workerARegistration = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workers/register',
+      headers: { authorization: `Bearer ${workerBootstrapKey}` },
+      payload: {
+        name: 'worker-a',
+        runtime_type: 'internal',
+        connection_mode: 'polling',
+        capabilities: ['go'],
+      },
+    });
+    expect(workerARegistration.statusCode).toBe(201);
+
+    const workerBRegistration = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workers/register',
+      headers: { authorization: `Bearer ${workerBootstrapKey}` },
+      payload: {
+        name: 'worker-b',
+        runtime_type: 'internal',
+        connection_mode: 'polling',
+        capabilities: ['go'],
+      },
+    });
+    expect(workerBRegistration.statusCode).toBe(201);
+
+    const workerAId = workerARegistration.json().data.worker_id as string;
+    const workerAApiKey = workerARegistration.json().data.worker_api_key as string;
+    const workerAAgentId = workerARegistration.json().data.agents[0].id as string;
+    const workerBAgentId = workerBRegistration.json().data.agents[0].id as string;
+
+    const taskCreated = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks',
+      headers: { authorization: `Bearer ${workerBootstrapKey}` },
+      payload: {
+        title: 'foreign-agent-claim',
+        type: 'code',
+        capabilities_required: ['go'],
+      },
+    });
+    expect(taskCreated.statusCode).toBe(201);
+    const taskId = taskCreated.json().data.id as string;
+
+    const maliciousClaim = await app.inject({
+      method: 'POST',
+      url: `/api/v1/workers/${workerAId}/next`,
+      headers: { authorization: `Bearer ${workerAApiKey}` },
+      payload: { agent_id: workerBAgentId },
+    });
+
+    expect(maliciousClaim.statusCode).toBe(403);
+
+    const [taskState, workerAAgentState, workerBAgentState, taskTransitions] = await Promise.all([
+      db.pool.query(
+        'SELECT state, assigned_worker_id, assigned_agent_id, claimed_at FROM tasks WHERE tenant_id = $1 AND id = $2',
+        ['00000000-0000-0000-0000-000000000001', taskId],
+      ),
+      db.pool.query('SELECT status, current_task_id FROM agents WHERE tenant_id = $1 AND id = $2', [
+        '00000000-0000-0000-0000-000000000001',
+        workerAAgentId,
+      ]),
+      db.pool.query('SELECT status, current_task_id FROM agents WHERE tenant_id = $1 AND id = $2', [
+        '00000000-0000-0000-0000-000000000001',
+        workerBAgentId,
+      ]),
+      db.pool.query(
+        `SELECT id
+         FROM events
+         WHERE tenant_id = $1
+           AND entity_type = 'task'
+           AND entity_id = $2
+           AND type = 'task.state_changed'`,
+        ['00000000-0000-0000-0000-000000000001', taskId],
+      ),
+    ]);
+
+    expect(taskState.rows[0].state).toBe('ready');
+    expect(taskState.rows[0].assigned_worker_id).toBeNull();
+    expect(taskState.rows[0].assigned_agent_id).toBeNull();
+    expect(taskState.rows[0].claimed_at).toBeNull();
+
+    expect(workerAAgentState.rows[0].status).toBe('idle');
+    expect(workerAAgentState.rows[0].current_task_id).toBeNull();
+    expect(workerBAgentState.rows[0].status).toBe('idle');
+    expect(workerBAgentState.rows[0].current_task_id).toBeNull();
+
+    expect(taskTransitions.rowCount).toBe(0);
+  });
+
+  it('rejects /tasks/claim worker-scope requests that omit worker_id but target a foreign agent', async () => {
+    const capability = `claim-scope-${randomUUID()}`;
+
+    const workerARegistration = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workers/register',
+      headers: { authorization: `Bearer ${workerBootstrapKey}` },
+      payload: {
+        name: `tasks-claim-worker-a-${randomUUID()}`,
+        runtime_type: 'internal',
+        connection_mode: 'polling',
+        capabilities: [capability],
+      },
+    });
+    expect(workerARegistration.statusCode).toBe(201);
+
+    const workerBRegistration = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workers/register',
+      headers: { authorization: `Bearer ${workerBootstrapKey}` },
+      payload: {
+        name: `tasks-claim-worker-b-${randomUUID()}`,
+        runtime_type: 'internal',
+        connection_mode: 'polling',
+        capabilities: [capability],
+      },
+    });
+    expect(workerBRegistration.statusCode).toBe(201);
+
+    const workerAApiKey = workerARegistration.json().data.worker_api_key as string;
+    const workerAAgentId = workerARegistration.json().data.agents[0].id as string;
+    const workerBAgentId = workerBRegistration.json().data.agents[0].id as string;
+
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks',
+      headers: { authorization: `Bearer ${workerBootstrapKey}` },
+      payload: {
+        title: `tasks-claim-foreign-agent-${randomUUID()}`,
+        type: 'code',
+        capabilities_required: [capability],
+      },
+    });
+    expect(created.statusCode).toBe(201);
+    const taskId = created.json().data.id as string;
+
+    const maliciousClaim = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/claim',
+      headers: { authorization: `Bearer ${workerAApiKey}` },
+      payload: {
+        agent_id: workerBAgentId,
+        capabilities: [capability],
+      },
+    });
+
+    expect(maliciousClaim.statusCode).toBe(403);
+
+    const [taskState, workerAAgentState, workerBAgentState, taskTransitions] = await Promise.all([
+      db.pool.query(
+        'SELECT state, assigned_worker_id, assigned_agent_id, claimed_at FROM tasks WHERE tenant_id = $1 AND id = $2',
+        ['00000000-0000-0000-0000-000000000001', taskId],
+      ),
+      db.pool.query('SELECT status, current_task_id FROM agents WHERE tenant_id = $1 AND id = $2', [
+        '00000000-0000-0000-0000-000000000001',
+        workerAAgentId,
+      ]),
+      db.pool.query('SELECT status, current_task_id FROM agents WHERE tenant_id = $1 AND id = $2', [
+        '00000000-0000-0000-0000-000000000001',
+        workerBAgentId,
+      ]),
+      db.pool.query(
+        `SELECT id
+         FROM events
+         WHERE tenant_id = $1
+           AND entity_type = 'task'
+           AND entity_id = $2
+           AND type = 'task.state_changed'`,
+        ['00000000-0000-0000-0000-000000000001', taskId],
+      ),
+    ]);
+
+    expect(taskState.rows[0].state).toBe('ready');
+    expect(taskState.rows[0].assigned_worker_id).toBeNull();
+    expect(taskState.rows[0].assigned_agent_id).toBeNull();
+    expect(taskState.rows[0].claimed_at).toBeNull();
+
+    expect(workerAAgentState.rows[0].status).toBe('idle');
+    expect(workerAAgentState.rows[0].current_task_id).toBeNull();
+    expect(workerBAgentState.rows[0].status).toBe('idle');
+    expect(workerBAgentState.rows[0].current_task_id).toBeNull();
+
+    expect(taskTransitions.rowCount).toBe(0);
+  });
+
   it('streams events over SSE and applies worker timeout recovery with grace period', async () => {
     const registration = await app.inject({
       method: 'POST',
@@ -260,9 +498,10 @@ describe('milestone d worker/events integration', () => {
 
     await app.workerService.enforceHeartbeatTimeouts(new Date(firstCheck.getTime() + 11_000));
 
-    const taskAfterGrace = await db.pool.query('SELECT state, assigned_worker_id FROM tasks WHERE id = $1', [staleTaskId]);
-    expect(taskAfterGrace.rows[0].state).toBe('ready');
+    const taskAfterGrace = await db.pool.query('SELECT state, assigned_worker_id, error FROM tasks WHERE id = $1', [staleTaskId]);
+    expect(taskAfterGrace.rows[0].state).toBe('failed');
     expect(taskAfterGrace.rows[0].assigned_worker_id).toBeNull();
+    expect(taskAfterGrace.rows[0].error.message).toContain('Worker heartbeat timeout');
   });
 
   it('accepts busy heartbeat when a disconnected worker reconnects', async () => {

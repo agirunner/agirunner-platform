@@ -7,7 +7,10 @@ import { PipelineStateService } from './pipeline-state-service.js';
 import { TaskQueryService } from './task-query-service.js';
 import { TaskTimeoutService } from './task-timeout-service.js';
 import type { CreateTaskInput, ListTaskQuery, TaskServiceConfig } from './task-service.types.js';
+import type { WorkerConnectionHub } from './worker-connection-hub.js';
 import { TaskWriteService } from './task-write-service.js';
+
+const DEFAULT_CANCEL_SIGNAL_GRACE_PERIOD_MS = 60_000;
 
 export class TaskService {
   private readonly queryService: TaskQueryService;
@@ -20,7 +23,78 @@ export class TaskService {
     pool: DatabasePool,
     eventService: EventService,
     config: TaskServiceConfig,
+    connectionHub?: WorkerConnectionHub,
   ) {
+    const cancelSignalGracePeriodMs =
+      config.TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS ?? DEFAULT_CANCEL_SIGNAL_GRACE_PERIOD_MS;
+
+    const queueWorkerCancelSignal = async (
+      identity: ApiKeyIdentity,
+      workerId: string,
+      taskId: string,
+      reason: 'manual_cancel' | 'task_timeout',
+      requestedAt: Date,
+    ): Promise<string | null> => {
+      const workerExists = await pool.query(
+        'SELECT id FROM workers WHERE tenant_id = $1 AND id = $2',
+        [identity.tenantId, workerId],
+      );
+      if (!workerExists.rowCount) {
+        return null;
+      }
+
+      const existingSignal = await pool.query<{ id: string }>(
+        `SELECT id
+         FROM worker_signals
+         WHERE tenant_id = $1
+           AND worker_id = $2
+           AND task_id = $3
+           AND signal_type = 'cancel_task'
+           AND delivered = false
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [identity.tenantId, workerId, taskId],
+      );
+      if (existingSignal.rowCount) {
+        return existingSignal.rows[0].id;
+      }
+
+      const signalPayload = {
+        reason,
+        requested_at: requestedAt.toISOString(),
+        grace_period_ms: cancelSignalGracePeriodMs,
+      };
+
+      const signalResult = await pool.query<{ id: string; created_at: Date }>(
+        `INSERT INTO worker_signals (tenant_id, worker_id, signal_type, task_id, data)
+         VALUES ($1, $2, 'cancel_task', $3, $4)
+         RETURNING id, created_at`,
+        [identity.tenantId, workerId, taskId, signalPayload],
+      );
+
+      const signal = signalResult.rows[0];
+      connectionHub?.sendToWorker(workerId, {
+        type: 'worker.signal',
+        signal_id: signal.id,
+        signal_type: 'cancel_task',
+        task_id: taskId,
+        data: signalPayload,
+        issued_at: signal.created_at,
+      });
+
+      await eventService.emit({
+        tenantId: identity.tenantId,
+        type: 'worker.signaled',
+        entityType: 'worker',
+        entityId: workerId,
+        actorType: identity.scope,
+        actorId: identity.keyPrefix,
+        data: { signal_type: 'cancel_task', task_id: taskId },
+      });
+
+      return signal.id;
+    };
+
     this.queryService = new TaskQueryService(pool);
     this.writeService = new TaskWriteService({
       pool,
@@ -37,6 +111,7 @@ export class TaskService {
       pipelineStateService,
       loadTaskOrThrow: this.queryService.loadTaskOrThrow.bind(this.queryService),
       toTaskResponse: this.queryService.toTaskResponse.bind(this.queryService),
+      queueWorkerCancelSignal,
     });
 
     this.claimService = new TaskClaimService({
@@ -46,7 +121,12 @@ export class TaskService {
       getTaskContext: this.queryService.getTaskContext.bind(this.queryService),
     });
 
-    this.timeoutService = new TaskTimeoutService(pool, this.lifecycleService.applyStateTransition.bind(this.lifecycleService));
+    this.timeoutService = new TaskTimeoutService(
+      pool,
+      this.lifecycleService.applyStateTransition.bind(this.lifecycleService),
+      queueWorkerCancelSignal,
+      cancelSignalGracePeriodMs,
+    );
   }
 
   createTask(identity: ApiKeyIdentity, input: CreateTaskInput) {
@@ -73,7 +153,16 @@ export class TaskService {
     return this.queryService.getTaskContext(tenantId, taskId, agentId);
   }
 
-  claimTask(identity: ApiKeyIdentity, payload: { agent_id: string; worker_id?: string; capabilities: string[]; pipeline_id?: string; include_context?: boolean }) {
+  claimTask(
+    identity: ApiKeyIdentity,
+    payload: {
+      agent_id: string;
+      worker_id?: string;
+      capabilities: string[];
+      pipeline_id?: string;
+      include_context?: boolean;
+    },
+  ) {
     return this.claimService.claimTask(identity, payload);
   }
 
@@ -81,11 +170,32 @@ export class TaskService {
     return this.lifecycleService.startTask(identity, taskId, payload);
   }
 
-  completeTask(identity: ApiKeyIdentity, taskId: string, payload: { output: unknown }) {
+  completeTask(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: {
+      output: unknown;
+      metrics?: Record<string, unknown>;
+      git_info?: Record<string, unknown>;
+      verification?: Record<string, unknown>;
+      agent_id?: string;
+      worker_id?: string;
+    },
+  ) {
     return this.lifecycleService.completeTask(identity, taskId, payload);
   }
 
-  failTask(identity: ApiKeyIdentity, taskId: string, payload: { error: Record<string, unknown> }) {
+  failTask(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: {
+      error: Record<string, unknown>;
+      metrics?: Record<string, unknown>;
+      git_info?: Record<string, unknown>;
+      agent_id?: string;
+      worker_id?: string;
+    },
+  ) {
     return this.lifecycleService.failTask(identity, taskId, payload);
   }
 

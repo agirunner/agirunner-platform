@@ -117,9 +117,9 @@ export async function enforceHeartbeatTimeouts(context: WorkerServiceContext, no
           affected += 1;
         }
       } else {
-        // Grace period expired — transition to offline and requeue tasks
+        // Grace period expired — transition to offline and fail stale tasks.
         if (worker.status !== 'offline') {
-          await context.pool.query(`UPDATE workers SET status = 'offline' WHERE tenant_id = $1 AND id = $2`, [
+          await context.pool.query(`UPDATE workers SET status = 'offline', current_task_id = NULL WHERE tenant_id = $1 AND id = $2`, [
             worker.tenant_id,
             worker.id,
           ]);
@@ -139,10 +139,22 @@ export async function enforceHeartbeatTimeouts(context: WorkerServiceContext, no
           affected += 1;
         }
 
-        const reassigned = await context.pool.query(
+        await context.pool.query(
+          `UPDATE agents
+           SET status = 'inactive', current_task_id = NULL
+           WHERE tenant_id = $1 AND worker_id = $2`,
+          [worker.tenant_id, worker.id],
+        );
+
+        const failedTasks = await context.pool.query<{ id: string }>(
           `UPDATE tasks
-           SET state = 'ready',
+           SET state = 'failed',
                state_changed_at = now(),
+               error = jsonb_build_object(
+                 'category', 'infrastructure',
+                 'message', 'Worker heartbeat timeout',
+                 'recoverable', true
+               ),
                assigned_worker_id = NULL,
                assigned_agent_id = NULL,
                claimed_at = NULL,
@@ -152,8 +164,25 @@ export async function enforceHeartbeatTimeouts(context: WorkerServiceContext, no
           [worker.tenant_id, worker.id],
         );
 
-        if (reassigned.rowCount) {
-          affected += reassigned.rowCount;
+        for (const failedTask of failedTasks.rows) {
+          await context.eventService.emit({
+            tenantId: worker.tenant_id,
+            type: 'task.state_changed',
+            entityType: 'task',
+            entityId: failedTask.id,
+            actorType: 'system',
+            actorId: 'worker_heartbeat_monitor',
+            data: {
+              from_state: 'running',
+              to_state: 'failed',
+              reason: 'worker_heartbeat_timeout',
+              worker_id: worker.id,
+            },
+          });
+        }
+
+        if (failedTasks.rowCount) {
+          affected += failedTasks.rowCount;
         }
       }
       continue;

@@ -17,6 +17,7 @@ const testConfig = {
   TASK_DEFAULT_TIMEOUT_MINUTES: 30,
   TASK_DEFAULT_AUTO_RETRY: false,
   TASK_DEFAULT_MAX_RETRIES: 0,
+  TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS: 60_000,
 };
 
 describe('task lifecycle integration', () => {
@@ -243,29 +244,211 @@ describe('task lifecycle integration', () => {
     expect(task.rows[0].error.message).toContain('heartbeat timeout');
   });
 
-  it('timed out task auto-retries when configured', async () => {
+  it('timeout monitor queues cancel signal first and force-fails after grace', async () => {
     const taskId = randomUUID();
     const agentId = randomUUID();
+    const workerId = randomUUID();
+
     await db.pool.query(
-      `INSERT INTO agents (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds)
-       VALUES ($1,$2,'agent-timeout',ARRAY['python'],'busy',30)`,
-      [agentId, tenantId],
+      `INSERT INTO workers (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds)
+       VALUES ($1,$2,'timeout-worker',ARRAY['python'],'busy',30)`,
+      [workerId, tenantId],
+    );
+
+    await db.pool.query(
+      `INSERT INTO agents (id, tenant_id, worker_id, name, capabilities, status, heartbeat_interval_seconds, current_task_id)
+       VALUES ($1,$2,$3,'agent-timeout',ARRAY['python'],'busy',30,$4)`,
+      [agentId, tenantId, workerId, taskId],
     );
 
     await db.pool.query(
       `INSERT INTO tasks (
-        id, tenant_id, title, type, state, assigned_agent_id, claimed_at,
+        id, tenant_id, title, type, state, assigned_agent_id, assigned_worker_id, started_at,
         timeout_minutes, auto_retry, max_retries, retry_count
-      ) VALUES ($1,$2,'timeout-task','code','claimed',$3,$4,1,true,2,0)`,
-      [taskId, tenantId, agentId, new Date(Date.now() - 5 * 60_000)],
+      ) VALUES ($1,$2,'timeout-task','code','running',$3,$4,$5,1,true,2,0)`,
+      [taskId, tenantId, agentId, workerId, new Date(Date.now() - 5 * 60_000)],
     );
 
-    await db.pool.query('UPDATE agents SET current_task_id = $2 WHERE tenant_id = $1 AND id = $3', [tenantId, taskId, agentId]);
+    const firstPassTime = new Date();
+    await taskService.failTimedOutTasks(firstPassTime);
 
-    await taskService.failTimedOutTasks(new Date());
+    const [signal, taskAfterSignal] = await Promise.all([
+      db.pool.query(
+        `SELECT signal_type, task_id, delivered
+         FROM worker_signals
+         WHERE tenant_id = $1 AND worker_id = $2 AND task_id = $3`,
+        [tenantId, workerId, taskId],
+      ),
+      db.pool.query('SELECT state, metadata FROM tasks WHERE tenant_id = $1 AND id = $2', [tenantId, taskId]),
+    ]);
 
-    const task = await db.pool.query('SELECT state, retry_count FROM tasks WHERE tenant_id = $1 AND id = $2', [tenantId, taskId]);
-    expect(task.rows[0].state).toBe('ready');
-    expect(task.rows[0].retry_count).toBe(1);
+    expect(signal.rowCount).toBe(1);
+    expect(signal.rows[0].signal_type).toBe('cancel_task');
+    expect(taskAfterSignal.rows[0].state).toBe('running');
+    expect(taskAfterSignal.rows[0].metadata.timeout_force_fail_at).toBeTruthy();
+
+    await taskService.failTimedOutTasks(new Date(firstPassTime.getTime() + 61_000));
+
+    const [failedTask, agent] = await Promise.all([
+      db.pool.query('SELECT state, error, assigned_worker_id FROM tasks WHERE tenant_id = $1 AND id = $2', [tenantId, taskId]),
+      db.pool.query('SELECT current_task_id FROM agents WHERE tenant_id = $1 AND id = $2', [tenantId, agentId]),
+    ]);
+
+    expect(failedTask.rows[0].state).toBe('failed');
+    expect(failedTask.rows[0].error.message).toContain('timeout exceeded');
+    expect(failedTask.rows[0].assigned_worker_id).toBeNull();
+    expect(agent.rows[0].current_task_id).toBeNull();
+  });
+
+  it('cancel on running worker task queues cancel signal before terminal cancellation transition', async () => {
+    const taskId = randomUUID();
+    const agentId = randomUUID();
+    const workerId = randomUUID();
+
+    await db.pool.query(
+      `INSERT INTO workers (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds)
+       VALUES ($1,$2,'cancel-worker',ARRAY['typescript'],'busy',30)`,
+      [workerId, tenantId],
+    );
+
+    await db.pool.query(
+      `INSERT INTO agents (id, tenant_id, worker_id, name, capabilities, status, heartbeat_interval_seconds, current_task_id)
+       VALUES ($1,$2,$3,'cancel-agent',ARRAY['typescript'],'busy',30,$4)`,
+      [agentId, tenantId, workerId, taskId],
+    );
+
+    await db.pool.query(
+      `INSERT INTO tasks (id, tenant_id, title, type, state, assigned_agent_id, assigned_worker_id, started_at)
+       VALUES ($1,$2,'cancel-me','code','running',$3,$4,now())`,
+      [taskId, tenantId, agentId, workerId],
+    );
+
+    const adminIdentity = {
+      id: 'admin',
+      tenantId,
+      scope: 'admin' as const,
+      ownerType: 'user',
+      ownerId: null,
+      keyPrefix: 'admin',
+    };
+
+    const cancelResult = await taskService.cancelTask(adminIdentity, taskId);
+    expect(cancelResult.state).toBe('cancelled');
+
+    const [queuedSignal, taskAfterCancel] = await Promise.all([
+      db.pool.query(
+        `SELECT signal_type, delivered FROM worker_signals WHERE tenant_id = $1 AND worker_id = $2 AND task_id = $3`,
+        [tenantId, workerId, taskId],
+      ),
+      db.pool.query('SELECT state, assigned_worker_id FROM tasks WHERE tenant_id = $1 AND id = $2', [tenantId, taskId]),
+    ]);
+
+    expect(queuedSignal.rowCount).toBe(1);
+    expect(queuedSignal.rows[0].signal_type).toBe('cancel_task');
+    expect(taskAfterCancel.rows[0].state).toBe('cancelled');
+    expect(taskAfterCancel.rows[0].assigned_worker_id).toBeNull();
+  });
+
+  it('worker identity can start and complete task with rich payload fields', async () => {
+    const taskId = randomUUID();
+    const workerId = randomUUID();
+    const agentId = randomUUID();
+
+    await db.pool.query(
+      `INSERT INTO workers (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds)
+       VALUES ($1,$2,'worker-lifecycle',ARRAY['go'],'busy',30)`,
+      [workerId, tenantId],
+    );
+
+    await db.pool.query(
+      `INSERT INTO agents (id, tenant_id, worker_id, name, capabilities, status, heartbeat_interval_seconds)
+       VALUES ($1,$2,$3,'agent-lifecycle',ARRAY['go'],'busy',30)`,
+      [agentId, tenantId, workerId],
+    );
+
+    await db.pool.query(
+      `INSERT INTO tasks (id, tenant_id, title, type, state, assigned_agent_id, assigned_worker_id, claimed_at)
+       VALUES ($1,$2,'worker-complete','code','claimed',$3,$4,now())`,
+      [taskId, tenantId, agentId, workerId],
+    );
+
+    await db.pool.query('UPDATE workers SET current_task_id = $3 WHERE tenant_id = $1 AND id = $2', [
+      tenantId,
+      workerId,
+      taskId,
+    ]);
+    await db.pool.query('UPDATE agents SET current_task_id = $3 WHERE tenant_id = $1 AND id = $2', [
+      tenantId,
+      agentId,
+      taskId,
+    ]);
+
+    const workerIdentity = {
+      id: 'worker-key',
+      tenantId,
+      scope: 'worker' as const,
+      ownerType: 'worker',
+      ownerId: workerId,
+      keyPrefix: 'worker-key',
+    };
+
+    await taskService.startTask(workerIdentity, taskId, { agent_id: agentId });
+
+    const completed = await taskService.completeTask(workerIdentity, taskId, {
+      output: { ok: true },
+      metrics: { duration_seconds: 12, verification_passed: true },
+      git_info: { commit_hash: 'abc123' },
+      verification: { passed: true, strategies_run: ['test_execution'] },
+      agent_id: agentId,
+    });
+
+    expect(completed.state).toBe('completed');
+    expect(completed.metrics).toMatchObject({ duration_seconds: 12 });
+    expect(completed.git_info).toMatchObject({ commit_hash: 'abc123' });
+    expect(completed.verification).toMatchObject({ passed: true });
+  });
+
+  it('invalid output schema transitions completion into output_pending_review', async () => {
+    const taskId = randomUUID();
+    const agentId = randomUUID();
+
+    await db.pool.query(
+      `INSERT INTO agents (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds, current_task_id)
+       VALUES ($1,$2,'schema-agent',ARRAY['typescript'],'busy',30,$3)`,
+      [agentId, tenantId, taskId],
+    );
+
+    await db.pool.query(
+      `INSERT INTO tasks (id, tenant_id, title, type, state, assigned_agent_id, started_at, role_config)
+       VALUES ($1,$2,'schema-task','code','running',$3,now(),$4::jsonb)`,
+      [
+        taskId,
+        tenantId,
+        agentId,
+        {
+          output_schema: {
+            type: 'object',
+            required: ['summary'],
+            properties: {
+              summary: { type: 'string' },
+            },
+          },
+        },
+      ],
+    );
+
+    const result = await taskService.completeTask(
+      { id: 'agent', tenantId, scope: 'agent', ownerType: 'agent', ownerId: agentId, keyPrefix: 'agent' },
+      taskId,
+      {
+        output: { note: 'missing summary' },
+        verification: { passed: true },
+      },
+    );
+
+    expect(result.state).toBe('output_pending_review');
+
+    const stored = await db.pool.query('SELECT output FROM tasks WHERE tenant_id = $1 AND id = $2', [tenantId, taskId]);
+    expect(stored.rows[0].output).toMatchObject({ note: 'missing summary' });
   });
 });

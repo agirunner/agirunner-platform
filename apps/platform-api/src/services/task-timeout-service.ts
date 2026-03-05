@@ -9,19 +9,44 @@ interface ApplyTransition {
     nextState: TaskState,
     options: {
       expectedStates: TaskState[];
+      requireAssignment?: { agentId?: string; workerId?: string };
       error?: unknown;
       retryIncrement?: boolean;
       clearAssignment?: boolean;
       clearExecutionData?: boolean;
+      clearLifecycleControlMetadata?: boolean;
       reason?: string;
     },
   ): Promise<unknown>;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
+}
+
+function parseIsoDate(value: unknown): Date | null {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return null;
+  }
+  const parsed = new Date(value);
+  return Number.isFinite(parsed.getTime()) ? parsed : null;
 }
 
 export class TaskTimeoutService {
   constructor(
     private readonly pool: DatabasePool,
     private readonly applyTransition: ApplyTransition,
+    private readonly queueWorkerCancelSignal: (
+      identity: ApiKeyIdentity,
+      workerId: string,
+      taskId: string,
+      reason: 'manual_cancel' | 'task_timeout',
+      requestedAt: Date,
+    ) => Promise<string | null>,
+    private readonly cancelSignalGracePeriodMs: number,
   ) {}
 
   async failTimedOutTasks(now = new Date()): Promise<number> {
@@ -34,8 +59,10 @@ export class TaskTimeoutService {
       keyPrefix: 'system',
     };
 
-    const staleTasks = await this.pool.query(
-      `SELECT id, tenant_id, auto_retry, retry_count, max_retries
+    let affectedCount = 0;
+
+    const timedOutTasks = await this.pool.query(
+      `SELECT id, tenant_id, state, assigned_worker_id, metadata
        FROM tasks
        WHERE state IN ('claimed', 'running')
          AND COALESCE(started_at, claimed_at) IS NOT NULL
@@ -43,29 +70,83 @@ export class TaskTimeoutService {
       [now],
     );
 
-    let affectedCount = 0;
-    for (const staleTask of staleTasks.rows) {
-      const scopedIdentity = { ...systemIdentity, tenantId: staleTask.tenant_id as string };
-      const shouldRetry = Boolean(staleTask.auto_retry) && Number(staleTask.retry_count) < Number(staleTask.max_retries);
+    for (const staleTask of timedOutTasks.rows) {
+      const taskId = staleTask.id as string;
+      const tenantId = staleTask.tenant_id as string;
+      const workerId = staleTask.assigned_worker_id as string | null;
+      const metadata = asRecord(staleTask.metadata);
 
-      if (shouldRetry) {
-        await this.applyTransition(scopedIdentity, staleTask.id as string, 'ready', {
+      const timeoutForceFailAt = parseIsoDate(metadata.timeout_force_fail_at);
+      if (timeoutForceFailAt) {
+        if (now.getTime() < timeoutForceFailAt.getTime()) {
+          continue;
+        }
+
+        const scopedIdentity = { ...systemIdentity, tenantId };
+        await this.applyTransition(scopedIdentity, taskId, 'failed', {
           expectedStates: ['claimed', 'running'],
-          retryIncrement: true,
+          error: {
+            category: 'timeout',
+            message: 'Task timeout exceeded after cancel grace period',
+            recoverable: false,
+          },
           clearAssignment: true,
-          reason: 'timeout_auto_retry',
-          clearExecutionData: true,
+          clearLifecycleControlMetadata: true,
+          reason: 'timeout_force_failed',
         });
-      } else {
-        await this.applyTransition(scopedIdentity, staleTask.id as string, 'failed', {
-          expectedStates: ['claimed', 'running'],
-          error: { category: 'timeout', message: 'Task timeout exceeded', recoverable: false },
-          clearAssignment: true,
-          reason: 'timeout_failed',
-        });
+        affectedCount += 1;
+        continue;
       }
 
-      affectedCount += 1;
+      if (!workerId) {
+        const scopedIdentity = { ...systemIdentity, tenantId };
+        await this.applyTransition(scopedIdentity, taskId, 'failed', {
+          expectedStates: ['claimed', 'running'],
+          error: {
+            category: 'timeout',
+            message: 'Task timeout exceeded',
+            recoverable: false,
+          },
+          clearAssignment: true,
+          clearLifecycleControlMetadata: true,
+          reason: 'timeout_failed_no_worker',
+        });
+        affectedCount += 1;
+        continue;
+      }
+
+      const scopedIdentity = { ...systemIdentity, tenantId };
+      const signalRequestedAt = new Date();
+      const signalId = await this.queueWorkerCancelSignal(
+        scopedIdentity,
+        workerId,
+        taskId,
+        'task_timeout',
+        signalRequestedAt,
+      );
+
+      const forceFailAt = new Date(signalRequestedAt.getTime() + this.cancelSignalGracePeriodMs);
+      const marked = await this.pool.query(
+        `UPDATE tasks
+         SET metadata = metadata || $3::jsonb
+         WHERE tenant_id = $1
+           AND id = $2
+           AND state IN ('claimed', 'running')
+         RETURNING id`,
+        [
+          tenantId,
+          taskId,
+          {
+            timeout_cancel_requested_at: signalRequestedAt.toISOString(),
+            timeout_force_fail_at: forceFailAt.toISOString(),
+            ...(signalId ? { timeout_signal_id: signalId } : {}),
+          },
+        ],
+      );
+
+      if (marked.rowCount) {
+        affectedCount += 1;
+      }
     }
 
     return affectedCount;

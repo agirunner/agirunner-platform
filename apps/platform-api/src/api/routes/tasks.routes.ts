@@ -54,10 +54,24 @@ const claimSchema = z.object({
 const taskControlSchema = z.object({
   agent_id: z.string().uuid().optional(),
   worker_id: z.string().uuid().optional(),
+  started_at: z.string().datetime().optional(),
 });
 
-const completeSchema = z.object({ output: z.any() });
-const failSchema = z.object({ error: z.record(z.unknown()) });
+const completeSchema = z.object({
+  output: z.any(),
+  metrics: z.record(z.unknown()).optional(),
+  git_info: z.record(z.unknown()).optional(),
+  verification: z.record(z.unknown()).optional(),
+  agent_id: z.string().uuid().optional(),
+  worker_id: z.string().uuid().optional(),
+});
+const failSchema = z.object({
+  error: z.record(z.unknown()),
+  metrics: z.record(z.unknown()).optional(),
+  git_info: z.record(z.unknown()).optional(),
+  agent_id: z.string().uuid().optional(),
+  worker_id: z.string().uuid().optional(),
+});
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
@@ -67,7 +81,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const taskRoutes: FastifyPluginAsync = async (app) => {
-  const taskService = new TaskService(app.pgPool, new EventService(app.pgPool), app.config);
+  const taskService = new TaskService(app.pgPool, new EventService(app.pgPool), app.config, app.workerConnectionHub);
 
   app.post(
     '/api/v1/tasks',
@@ -189,6 +203,11 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       const body = parseOrThrow(completeSchema.safeParse(request.body));
       const task = await taskService.completeTask(request.auth!, params.id, {
         output: body.output,
+        metrics: body.metrics,
+        git_info: body.git_info,
+        verification: body.verification,
+        agent_id: body.agent_id,
+        worker_id: body.worker_id,
       });
       return { data: task };
     },

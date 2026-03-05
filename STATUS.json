@@ -1,24 +1,24 @@
 {
-  "task": "Implement Platform v1.05 Stage S1 runtime API contract alignment + security foundation",
+  "task": "Resolve PR #93 blocking authz review defect for worker task claim flow (Stage S2 follow-up)",
   "issue": "#90",
-  "branch": "feature/90-v105-s1",
+  "branch": "feature/90-v105-s2",
   "phase": "COMPLETE",
   "completed": [
-    "Pulled latest main including merged PR #91 and created feature/90-v105-s1 from main",
-    "Read canonical S1 design sections, project CONTEXT, workspace/coding standards, and platform decisions",
-    "Added RuntimeApiClient production module with submit/cancel/logs/health contract methods plus legacy cancel alias fallback",
-    "Added platform runtime contract unit tests for submission payload, cancel behavior, logs endpoint, and health endpoint",
-    "Hardened startup fail-closed secret checks to require JWT_SECRET + WEBHOOK_ENCRYPTION_KEY with 32-char minimum",
-    "Added startup secret regression tests for missing/short secret failure modes",
-    "Ran stage-relevant tests (targeted vitest, pnpm test, pnpm test:core)",
-    "Executed exactly one random-provider batch run using crypto-random selection (provider=google)",
-    "Committed S1 evidence artifacts under docs/testing/evidence with explicit out-of-scope labeling for non-selected providers",
-    "Updated CONTEXT.md and created S1 stage testing summary document",
-    "Pushed branch feature/90-v105-s1",
-    "Opened PR #92 against main",
-    "Posted Issue #90 progress comment with test/evidence status"
+    "Validated prior staged S2 implementation against PL-06/07/08/10/15/17/18 closures and preserved final code/test set",
+    "Implemented/verified worker-aware lifecycle semantics for task start/complete/fail with richer payload fields",
+    "Implemented/verified output-schema + verification driven output_pending_review transition behavior",
+    "Implemented signal-first cancel semantics for running/claimed worker tasks",
+    "Implemented timeout monitor cancel-signal + grace deadline + force-fail flow",
+    "Implemented worker polling alias POST /api/v1/workers/:id/next with worker identity ownership checks",
+    "Aligned heartbeat timeout handling to fail stale claimed/running tasks after grace and clear worker/agent active assignments",
+    "Added/updated S2 unit and integration coverage for timeout, heartbeat, lifecycle, worker polling alias, and internal worker auto-agent bootstrap",
+    "Captured S2 evidence artifacts for targeted vitest, pnpm test, pnpm test:core, and random-provider batch run (google)",
+    "Applied Admiral 2026-03-05 gate policy interpretation in S2 docs: phase gate uses deterministic/unit evidence; between-gate milestone uses exactly one provider",
+    "Updated stage documentation/context artifacts including v1.05 S2 stage summary",
+    "Enforced worker-owned agent validation on POST /api/v1/workers/:id/next and added task-claim defense-in-depth worker/agent ownership guard",
+    "Added integration regressions proving foreign-agent worker claims are rejected without task or agent mutation side effects"
   ],
   "remaining": [],
-  "lastCommit": "ecda608",
-  "updatedAt": "2026-03-05T01:17:00Z"
+  "lastCommit": "9d88dd0",
+  "updatedAt": "2026-03-05T04:53:49Z"
 }

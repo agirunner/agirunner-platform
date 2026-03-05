@@ -170,6 +170,68 @@ describe('task lifecycle bulk coverage', () => {
     expect(second?.id).toBe(low.id);
   });
 
+  it('rejects worker-context claims when agent belongs to a different worker', async () => {
+    const workerAId = randomUUID();
+    const workerBId = randomUUID();
+    const workerAAgentId = randomUUID();
+    const workerBAgentId = randomUUID();
+    const capability = `worker-claim-${randomUUID()}`;
+
+    await db.pool.query(
+      `INSERT INTO workers (id, tenant_id, name, capabilities, status)
+       VALUES ($1, $2, 'worker-a', ARRAY[$3], 'online'),
+              ($4, $2, 'worker-b', ARRAY[$3], 'online')`,
+      [workerAId, tenantId, capability, workerBId],
+    );
+
+    await db.pool.query(
+      `INSERT INTO agents (id, tenant_id, worker_id, name, capabilities, status, heartbeat_interval_seconds)
+       VALUES ($1,$2,$3,'worker-a-agent',ARRAY[$5],'idle',30),
+              ($4,$2,$6,'worker-b-agent',ARRAY[$5],'idle',30)`,
+      [workerAAgentId, tenantId, workerAId, workerBAgentId, capability, workerBId],
+    );
+
+    const task = await taskService.createTask(
+      { ...admin, scope: 'worker', ownerId: workerAId, keyPrefix: 'worker-a-key' },
+      { title: 'worker-agent-authz', type: 'code', capabilities_required: [capability] },
+    );
+
+    const workerIdentity = {
+      id: 'worker-a-key',
+      tenantId,
+      scope: 'worker' as const,
+      ownerType: 'worker',
+      ownerId: workerAId,
+      keyPrefix: 'worker-a-key',
+    };
+
+    await expect(
+      taskService.claimTask(workerIdentity, {
+        agent_id: workerBAgentId,
+        worker_id: workerAId,
+        capabilities: [capability],
+      }),
+    ).rejects.toMatchObject({ statusCode: 403, code: 'FORBIDDEN' });
+
+    const [taskState, workerAAgentState, workerBAgentState] = await Promise.all([
+      db.pool.query('SELECT state, assigned_agent_id, assigned_worker_id FROM tasks WHERE tenant_id = $1 AND id = $2', [
+        tenantId,
+        task.id,
+      ]),
+      db.pool.query('SELECT status, current_task_id FROM agents WHERE tenant_id = $1 AND id = $2', [tenantId, workerAAgentId]),
+      db.pool.query('SELECT status, current_task_id FROM agents WHERE tenant_id = $1 AND id = $2', [tenantId, workerBAgentId]),
+    ]);
+
+    expect(taskState.rows[0].state).toBe('ready');
+    expect(taskState.rows[0].assigned_agent_id).toBeNull();
+    expect(taskState.rows[0].assigned_worker_id).toBeNull();
+
+    expect(workerAAgentState.rows[0].status).toBe('idle');
+    expect(workerAAgentState.rows[0].current_task_id).toBeNull();
+    expect(workerBAgentState.rows[0].status).toBe('idle');
+    expect(workerBAgentState.rows[0].current_task_id).toBeNull();
+  });
+
   it('covers FR-019/FR-048 retry behavior and FR-SM-003/FR-SM-007 audit events emitted', async () => {
     const agentId = randomUUID();
     await db.pool.query(

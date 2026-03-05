@@ -1,7 +1,7 @@
 # CONTEXT.md — AgentBaton Platform v1.0
 
 ## Last Updated
-2026-03-05 01:16 UTC
+2026-03-05 04:55 UTC
 
 ## Product
 AgentBaton Platform — coordination engine for agentic software development pipelines.
@@ -11,29 +11,39 @@ AgentBaton Platform — coordination engine for agentic software development pip
 - **Unit/integration tests:** platform-api suite green locally (`316 passed`, `1 skipped`) ✅
 - **Open issues:** 0 ✅
 - **Runtime tests:** All v1.0-gating pass ✅
-- **Platform tests:** S1 platform-owned contract/security suites green; single-provider S1 batch run captured with known OT-1 live failure evidence
+- **Platform tests:** S2 platform-owned worker lifecycle/control-plane suites green; single-provider S2 batch run captured (`google`) with full PASS summary
 
 ## Platform v1.05 Campaign Status (Issue #90)
-- **Active stage:** S1 — Runtime API contract alignment + security foundation
+- **Active stage:** S2 — Go internal worker lifecycle + control-plane semantics (complete on `feature/90-v105-s2`)
 - **S0 baseline freeze snapshot:** `docs/testing/v1.05-s0-baseline-freeze.md`
 - **S1 stage summary:** `docs/testing/v1.05-s1-runtime-contract-security.md`
-- **Migration flags introduced:** `INTERNAL_WORKER_BACKEND`, `RUNTIME_URL`, `RUNTIME_API_KEY`
-- **S1 platform contract/security implementation:**
-  - `apps/platform-api/src/built-in/runtime-api-client.ts`
-  - `apps/platform-api/src/built-in/worker-runtime-contract.ts`
-  - `apps/platform-api/src/bootstrap/app.ts`
-  - `apps/platform-api/tests/unit/runtime-api-client.test.ts`
-  - `apps/platform-api/tests/unit/worker-runtime-contract.test.ts`
-  - `apps/platform-api/tests/unit/startup-secrets.test.ts`
-- **S1 evidence artifacts (committed):**
-  - Contract/security vitest log: `docs/testing/evidence/s1-platform-runtime-contract-vitest.log`
-  - Full unit/integration/harness run: `docs/testing/evidence/s1-pnpm-test.log`
-  - Core lane run: `docs/testing/evidence/s1-pnpm-test-core.log`
-  - Random-provider selection: `docs/testing/evidence/s1-random-provider-selection.json` (selected `google`; `openai`/`anthropic` out-of-scope for this single-provider S1 run)
-  - Random-provider batch summary: `docs/testing/evidence/s1-random-provider-batch-summary.json`
-  - Source summary copy: `docs/testing/evidence/s1-random-provider-batch-source-summary.json`
-  - Source manifest copy: `docs/testing/evidence/s1-random-provider-batch-source-manifest.json`
-  - Batch command log: `docs/testing/evidence/s1-random-provider-batch.log`
+- **S2 stage summary:** `docs/testing/v1.05-s2-go-worker-lifecycle.md`
+- **Migration/runtime flags in scope:** `INTERNAL_WORKER_BACKEND`, `RUNTIME_URL`, `RUNTIME_API_KEY`, `TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS`
+- **S2 platform lifecycle/control-plane implementation highlights:**
+  - `apps/platform-api/src/api/routes/tasks.routes.ts`
+  - `apps/platform-api/src/api/routes/workers.routes.ts`
+  - `apps/platform-api/src/services/task-lifecycle-service.ts`
+  - `apps/platform-api/src/services/task-timeout-service.ts`
+  - `apps/platform-api/src/services/worker-heartbeat-service.ts`
+  - `apps/platform-api/src/services/worker-registration-service.ts`
+  - `apps/platform-api/tests/integration/task-lifecycle.integration.test.ts`
+  - `apps/platform-api/tests/integration/milestone-d-worker-events.integration.test.ts`
+  - `apps/platform-api/tests/unit/task-timeout-service.test.ts`
+  - `apps/platform-api/tests/unit/worker-heartbeat-service.test.ts`
+  - `apps/platform-api/tests/unit/worker-registration-service.test.ts`
+- **S2 evidence artifacts (committed):**
+  - Worker lifecycle S2 vitest run: `docs/testing/evidence/s2-platform-worker-lifecycle-vitest.log`
+  - Full unit/integration/harness run: `docs/testing/evidence/s2-pnpm-test.log`
+  - Core lane run: `docs/testing/evidence/s2-pnpm-test-core.log`
+  - Random-provider selection: `docs/testing/evidence/s2-random-provider-selection.json` (selected `google`; `openai`/`anthropic` out-of-scope for this single-provider S2 run)
+  - Random-provider batch summary: `docs/testing/evidence/s2-random-provider-batch-summary.json`
+  - Source summary copy: `docs/testing/evidence/s2-random-provider-batch-source-summary.json`
+  - Source manifest copy: `docs/testing/evidence/s2-random-provider-batch-source-manifest.json`
+  - Batch command log: `docs/testing/evidence/s2-random-provider-batch.log`
+- **Gate policy interpretation (Admiral, 2026-03-05):**
+  - Inside phase gates: deterministic/unit evidence required; full live-provider matrix is out-of-scope.
+  - Between gates: exactly one provider batch run is a hard gate.
+  - S2 closeout follows this model and labels single-provider (`google`) scope explicitly.
 
 ## Admiral Evidence Authenticity Directive (2026-03-02)
 - **No stubs, no placeholder outputs, no harness-simulated execution paths** may be counted as PASS for release gating.

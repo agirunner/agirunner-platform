@@ -1,4 +1,5 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
+import { validateOutputSchema } from '../built-in/output-validator.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ConflictError, ForbiddenError } from '../errors/domain-errors.js';
 import { assertValidTransition, type TaskState } from '../orchestration/task-state-machine.js';
@@ -11,10 +12,15 @@ interface TransitionOptions {
   requireAssignment?: { agentId?: string; workerId?: string };
   output?: unknown;
   error?: unknown;
+  metrics?: Record<string, unknown>;
+  gitInfo?: Record<string, unknown>;
+  verification?: Record<string, unknown>;
   reason?: string;
   retryIncrement?: boolean;
   clearAssignment?: boolean;
   clearExecutionData?: boolean;
+  clearLifecycleControlMetadata?: boolean;
+  startedAt?: Date;
 }
 
 interface TaskLifecycleDependencies {
@@ -27,16 +33,84 @@ interface TaskLifecycleDependencies {
     client?: DatabaseClient,
   ) => Promise<Record<string, unknown>>;
   toTaskResponse: (task: Record<string, unknown>) => Record<string, unknown>;
+  queueWorkerCancelSignal?: (
+    identity: ApiKeyIdentity,
+    workerId: string,
+    taskId: string,
+    reason: 'manual_cancel' | 'task_timeout',
+    requestedAt: Date,
+  ) => Promise<string | null>;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
 }
 
 export class TaskLifecycleService {
   constructor(private readonly deps: TaskLifecycleDependencies) {}
 
-  private requireCallingAgentId(identity: ApiKeyIdentity): string {
-    if (identity.scope !== 'agent' || !identity.ownerId) {
-      throw new ForbiddenError('Agent identity is required for task lifecycle operations');
+  private requireLifecycleIdentity(
+    identity: ApiKeyIdentity,
+    payload: { agent_id?: string; worker_id?: string } = {},
+  ): { agentId?: string; workerId?: string } {
+    if (identity.scope === 'agent') {
+      if (!identity.ownerId) {
+        throw new ForbiddenError('Agent identity is required for task lifecycle operations');
+      }
+      if (payload.agent_id && payload.agent_id !== identity.ownerId) {
+        throw new ForbiddenError('Task lifecycle operation can only target the calling agent');
+      }
+      return {
+        agentId: identity.ownerId,
+        workerId: payload.worker_id,
+      };
     }
-    return identity.ownerId;
+
+    if (identity.scope === 'worker') {
+      if (!identity.ownerId) {
+        throw new ForbiddenError('Worker identity is required for task lifecycle operations');
+      }
+      if (payload.worker_id && payload.worker_id !== identity.ownerId) {
+        throw new ForbiddenError('Task lifecycle operation can only target the calling worker');
+      }
+      return {
+        agentId: payload.agent_id,
+        workerId: identity.ownerId,
+      };
+    }
+
+    throw new ForbiddenError('Agent or worker identity is required for task lifecycle operations');
+  }
+
+  private extractOutputSchema(task: Record<string, unknown>): Record<string, unknown> | undefined {
+    const explicitOutputSchema = task.output_schema;
+    if (explicitOutputSchema && typeof explicitOutputSchema === 'object' && !Array.isArray(explicitOutputSchema)) {
+      return explicitOutputSchema as Record<string, unknown>;
+    }
+
+    const roleConfig = asRecord(task.role_config);
+    const schema = roleConfig.output_schema;
+    if (schema && typeof schema === 'object' && !Array.isArray(schema)) {
+      return schema as Record<string, unknown>;
+    }
+
+    return undefined;
+  }
+
+  private readVerificationPassed(
+    verification: Record<string, unknown> | undefined,
+    metrics: Record<string, unknown> | undefined,
+  ): boolean | undefined {
+    if (typeof verification?.passed === 'boolean') {
+      return verification.passed;
+    }
+    if (typeof metrics?.verification_passed === 'boolean') {
+      return metrics.verification_passed as boolean;
+    }
+    return undefined;
   }
 
   async applyStateTransition(
@@ -69,13 +143,26 @@ export class TaskLifecycleService {
 
       const updateFragments: string[] = ['state = $3', 'state_changed_at = now()'];
       const values: unknown[] = [identity.tenantId, taskId, nextState];
-      if (nextState === 'running') updateFragments.push('started_at = now()');
-      if (nextState === 'completed') {
-        updateFragments.push('completed_at = now()', 'output = $4', 'error = NULL');
-        values.push(options.output ?? {});
+
+      if (nextState === 'running') {
+        if (options.startedAt) {
+          values.push(options.startedAt);
+          updateFragments.push(`started_at = $${values.length}`);
+        } else {
+          updateFragments.push('started_at = now()');
+        }
       }
+
+      if (nextState === 'completed') {
+        updateFragments.push('completed_at = now()', 'error = NULL');
+      }
+
+      if (options.output !== undefined) {
+        values.push(options.output);
+        updateFragments.push(`output = $${values.length}`);
+      }
+
       if (nextState === 'failed') {
-        updateFragments.push('error = $4');
         values.push(
           options.error ?? {
             category: 'unknown',
@@ -83,7 +170,37 @@ export class TaskLifecycleService {
             recoverable: false,
           },
         );
+        updateFragments.push(`error = $${values.length}`);
       }
+
+      if (options.metrics !== undefined) {
+        values.push(options.metrics);
+        updateFragments.push(`metrics = $${values.length}`);
+      }
+
+      if (options.gitInfo !== undefined) {
+        values.push(options.gitInfo);
+        updateFragments.push(`git_info = $${values.length}`);
+      }
+
+      const metadataPatch =
+        options.verification !== undefined
+          ? { verification: options.verification }
+          : undefined;
+
+      let metadataExpression = 'metadata';
+      if (options.clearLifecycleControlMetadata) {
+        metadataExpression =
+          "(metadata - 'cancel_signal_requested_at' - 'cancel_force_fail_at' - 'cancel_signal_id' - 'cancel_reason' - 'timeout_cancel_requested_at' - 'timeout_force_fail_at' - 'timeout_signal_id')";
+      }
+      if (metadataPatch) {
+        values.push(metadataPatch);
+        metadataExpression = `${metadataExpression} || $${values.length}::jsonb`;
+      }
+      if (metadataExpression !== 'metadata') {
+        updateFragments.push(`metadata = ${metadataExpression}`);
+      }
+
       if (options.retryIncrement) updateFragments.push('retry_count = retry_count + 1');
       if (options.clearAssignment)
         updateFragments.push(
@@ -162,51 +279,100 @@ export class TaskLifecycleService {
   async startTask(
     identity: ApiKeyIdentity,
     taskId: string,
-    payload: { agent_id?: string; worker_id?: string },
+    payload: { agent_id?: string; worker_id?: string; started_at?: string },
   ) {
-    const callingAgentId = this.requireCallingAgentId(identity);
-    if (payload.agent_id && payload.agent_id !== callingAgentId)
-      throw new ForbiddenError('Task can only be started by the assigned agent');
+    const assignment = this.requireLifecycleIdentity(identity, payload);
+    const startedAt = payload.started_at ? new Date(payload.started_at) : undefined;
+
     return this.applyStateTransition(identity, taskId, 'running', {
       expectedStates: ['claimed'],
-      requireAssignment: { agentId: callingAgentId, workerId: payload.worker_id },
+      requireAssignment: assignment,
       reason: 'task_started',
+      startedAt:
+        startedAt && Number.isFinite(startedAt.getTime())
+          ? startedAt
+          : undefined,
     });
   }
 
-  async completeTask(identity: ApiKeyIdentity, taskId: string, payload: { output: unknown }) {
-    return this.applyStateTransition(identity, taskId, 'completed', {
-      expectedStates: ['running'],
-      requireAssignment: { agentId: this.requireCallingAgentId(identity) },
-      output: payload.output,
-      clearAssignment: true,
-      reason: 'task_completed',
-    });
+  async completeTask(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: {
+      output: unknown;
+      metrics?: Record<string, unknown>;
+      git_info?: Record<string, unknown>;
+      verification?: Record<string, unknown>;
+      agent_id?: string;
+      worker_id?: string;
+    },
+  ) {
+    const assignment = this.requireLifecycleIdentity(identity, payload);
+    const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
+    const outputValidation = validateOutputSchema(payload.output, this.extractOutputSchema(task));
+    const verificationPassed = this.readVerificationPassed(payload.verification, payload.metrics);
+
+    const shouldMoveToOutputReview = !outputValidation.valid || verificationPassed === false;
+
+    return shouldMoveToOutputReview
+      ? this.applyStateTransition(identity, taskId, 'output_pending_review', {
+          expectedStates: ['running'],
+          requireAssignment: assignment,
+          output: payload.output,
+          metrics: payload.metrics,
+          gitInfo: payload.git_info,
+          verification: payload.verification,
+          clearAssignment: true,
+          clearLifecycleControlMetadata: true,
+          reason: !outputValidation.valid ? 'output_schema_review_required' : 'verification_review_required',
+        })
+      : this.applyStateTransition(identity, taskId, 'completed', {
+          expectedStates: ['running'],
+          requireAssignment: assignment,
+          output: payload.output,
+          metrics: payload.metrics,
+          gitInfo: payload.git_info,
+          verification: payload.verification,
+          clearAssignment: true,
+          clearLifecycleControlMetadata: true,
+          reason: 'task_completed',
+        });
   }
 
   async failTask(
     identity: ApiKeyIdentity,
     taskId: string,
-    payload: { error: Record<string, unknown> },
+    payload: {
+      error: Record<string, unknown>;
+      metrics?: Record<string, unknown>;
+      git_info?: Record<string, unknown>;
+      agent_id?: string;
+      worker_id?: string;
+    },
   ) {
-    const callingAgentId = this.requireCallingAgentId(identity);
+    const assignment = this.requireLifecycleIdentity(identity, payload);
     const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
     const shouldRetry =
       Boolean(task.auto_retry) && Number(task.retry_count) < Number(task.max_retries);
+
     return shouldRetry
       ? this.applyStateTransition(identity, taskId, 'ready', {
           expectedStates: ['running', 'claimed'],
-          requireAssignment: { agentId: callingAgentId },
+          requireAssignment: assignment,
           retryIncrement: true,
           clearAssignment: true,
           reason: 'auto_retry',
           clearExecutionData: true,
+          clearLifecycleControlMetadata: true,
         })
       : this.applyStateTransition(identity, taskId, 'failed', {
           expectedStates: ['running', 'claimed'],
-          requireAssignment: { agentId: callingAgentId },
+          requireAssignment: assignment,
           error: payload.error,
+          metrics: payload.metrics,
+          gitInfo: payload.git_info,
           clearAssignment: true,
+          clearLifecycleControlMetadata: true,
           reason: 'task_failed',
         });
   }
@@ -226,6 +392,7 @@ export class TaskLifecycleService {
       retryIncrement: true,
       clearAssignment: true,
       clearExecutionData: true,
+      clearLifecycleControlMetadata: true,
       reason: 'manual_retry',
     });
   }
@@ -233,6 +400,21 @@ export class TaskLifecycleService {
   async cancelTask(identity: ApiKeyIdentity, taskId: string) {
     const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
     if (task.state === 'completed') throw new ConflictError('Completed task cannot be cancelled');
+
+    if (
+      (task.state === 'claimed' || task.state === 'running') &&
+      typeof task.assigned_worker_id === 'string' &&
+      this.deps.queueWorkerCancelSignal
+    ) {
+      await this.deps.queueWorkerCancelSignal(
+        identity,
+        task.assigned_worker_id,
+        taskId,
+        'manual_cancel',
+        new Date(),
+      );
+    }
+
     return this.applyStateTransition(identity, taskId, 'cancelled', {
       expectedStates: [
         'pending',
@@ -244,6 +426,7 @@ export class TaskLifecycleService {
         'failed',
       ],
       clearAssignment: true,
+      clearLifecycleControlMetadata: true,
       reason: 'cancelled',
     });
   }

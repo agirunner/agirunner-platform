@@ -14,6 +14,7 @@ const config = {
   TASK_DEFAULT_TIMEOUT_MINUTES: 30,
   TASK_DEFAULT_AUTO_RETRY: false,
   TASK_DEFAULT_MAX_RETRIES: 0,
+  TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS: 60_000,
 };
 
 describe('auth and webhook coverage', () => {
@@ -127,8 +128,16 @@ describe('auth and webhook coverage', () => {
     expect(meRes.statusCode).toBe(401);
   });
 
-  it('covers FR-047/FR-048 periodic timeout checks and auto-retry on timeout', async () => {
+  it('covers FR-047 periodic timeout checks with signal + grace + force-fail semantics', async () => {
     const taskService = new TaskService(db.pool, new EventService(db.pool), config);
+
+    const workerId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO workers (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds)
+       VALUES ($1,$2,'timeout-worker',ARRAY['typescript'],'busy',30)`,
+      [workerId, tenantId],
+    );
+    await db.pool.query('UPDATE agents SET worker_id = $3 WHERE tenant_id = $1 AND id = $2', [tenantId, agentIdentity.ownerId, workerId]);
 
     const timedOutTask = await taskService.createTask(
       { id: 'worker', tenantId, scope: 'worker', ownerType: 'worker', ownerId: null, keyPrefix: 'w1' },
@@ -143,17 +152,33 @@ describe('auth and webhook coverage', () => {
 
     await db.pool.query(
       `UPDATE tasks
-       SET state = 'claimed', assigned_agent_id = $3, claimed_at = now() - interval '10 minutes'
+       SET state = 'running', assigned_agent_id = $3, assigned_worker_id = $4, started_at = now() - interval '10 minutes'
        WHERE tenant_id = $1 AND id = $2`,
-      [tenantId, timedOutTask.id, agentIdentity.ownerId],
+      [tenantId, timedOutTask.id, agentIdentity.ownerId, workerId],
     );
-    await db.pool.query(`UPDATE agents SET current_task_id = $3, status = 'busy' WHERE tenant_id = $1 AND id = $2`, [tenantId, agentIdentity.ownerId, timedOutTask.id]);
+    await db.pool.query(
+      `UPDATE agents SET current_task_id = $3, status = 'busy' WHERE tenant_id = $1 AND id = $2`,
+      [tenantId, agentIdentity.ownerId, timedOutTask.id],
+    );
 
-    await taskService.failTimedOutTasks(new Date());
+    const firstPass = new Date();
+    await taskService.failTimedOutTasks(firstPass);
+
+    const queuedSignal = await db.pool.query(
+      'SELECT signal_type FROM worker_signals WHERE tenant_id = $1 AND worker_id = $2 AND task_id = $3',
+      [tenantId, workerId, timedOutTask.id],
+    );
+    expect(queuedSignal.rowCount).toBe(1);
+    expect(queuedSignal.rows[0].signal_type).toBe('cancel_task');
+
+    const afterSignal = (await taskService.getTask(tenantId, timedOutTask.id as string)) as Record<string, unknown>;
+    expect(afterSignal.state).toBe('running');
+
+    await taskService.failTimedOutTasks(new Date(firstPass.getTime() + 61_000));
+
     const taskAfter = (await taskService.getTask(tenantId, timedOutTask.id as string)) as Record<string, unknown>;
-
-    expect(taskAfter.state).toBe('ready');
-    expect(taskAfter.retry_count).toBe(1);
+    expect(taskAfter.state).toBe('failed');
+    expect((taskAfter.error as Record<string, unknown>).message).toMatch(/timeout exceeded/i);
   });
 
   it('covers FR-027/FR-210/FR-211 webhook CRUD endpoints and list contract', async () => {

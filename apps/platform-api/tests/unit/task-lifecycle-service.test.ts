@@ -82,3 +82,193 @@ describe('TaskLifecycleService concurrent state guard (maintenance-sad cancellat
     expect(client.query).toHaveBeenCalledWith('ROLLBACK');
   });
 });
+
+describe('TaskLifecycleService worker identity + payload semantics', () => {
+  it('allows worker identity to complete assigned running task', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-worker',
+                state: 'completed',
+                pipeline_id: null,
+                assigned_agent_id: null,
+                assigned_worker_id: null,
+                metrics: { duration_seconds: 4 },
+                git_info: { commit_hash: 'abc123' },
+                metadata: { verification: { passed: true } },
+              },
+            ],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-worker',
+        state: 'running',
+        pipeline_id: null,
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: 'worker-1',
+        role_config: {},
+      }),
+      toTaskResponse: (task) => task,
+    });
+
+    const result = await service.completeTask(
+      {
+        id: 'worker-key',
+        tenantId: 'tenant-1',
+        scope: 'worker',
+        ownerType: 'worker',
+        ownerId: 'worker-1',
+        keyPrefix: 'wk',
+      },
+      'task-worker',
+      {
+        output: { ok: true },
+        metrics: { duration_seconds: 4 },
+        git_info: { commit_hash: 'abc123' },
+        verification: { passed: true },
+      },
+    );
+
+    expect(result.state).toBe('completed');
+    expect(result.metrics).toMatchObject({ duration_seconds: 4 });
+  });
+
+  it('moves completion to output_pending_review when output schema validation fails', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-review',
+                state: 'output_pending_review',
+                pipeline_id: null,
+                assigned_agent_id: null,
+                assigned_worker_id: null,
+                output: { missing: true },
+                metadata: { verification: { passed: true } },
+              },
+            ],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-review',
+        state: 'running',
+        pipeline_id: null,
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        role_config: {
+          output_schema: {
+            type: 'object',
+            required: ['summary'],
+            properties: { summary: { type: 'string' } },
+          },
+        },
+      }),
+      toTaskResponse: (task) => task,
+    });
+
+    const result = await service.completeTask(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'ak',
+      },
+      'task-review',
+      {
+        output: { missing: true },
+        verification: { passed: true },
+      },
+    );
+
+    expect(result.state).toBe('output_pending_review');
+  });
+
+  it('queues cancel signal for running worker task before cancellation transition', async () => {
+    const queueWorkerCancelSignal = vi.fn(async () => 'signal-1');
+
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-cancel',
+                state: 'cancelled',
+                assigned_agent_id: null,
+                assigned_worker_id: null,
+                pipeline_id: null,
+              },
+            ],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-cancel',
+        state: 'running',
+        assigned_worker_id: 'worker-1',
+      }),
+      toTaskResponse: (task) => task,
+      queueWorkerCancelSignal,
+    });
+
+    const result = await service.cancelTask(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'task-cancel',
+    );
+
+    expect(result.state).toBe('cancelled');
+    expect(queueWorkerCancelSignal).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'worker-1',
+      'task-cancel',
+      'manual_cancel',
+      expect.any(Date),
+    );
+  });
+});

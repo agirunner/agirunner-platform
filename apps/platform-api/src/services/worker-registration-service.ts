@@ -40,7 +40,25 @@ export async function registerWorker(
   });
 
   const createdAgents: Array<{ id: string; name: string; api_key: string; capabilities: string[] }> = [];
-  for (const agent of input.agents ?? []) {
+
+  const shouldAutoCreateInternalAgent =
+    (input.agents?.length ?? 0) === 0 &&
+    (input.runtime_type ?? 'external') === 'internal';
+
+  const agentsToCreate = shouldAutoCreateInternalAgent
+    ? [
+        {
+          name: `${input.name.trim()}-agent`,
+          capabilities: input.capabilities ?? [],
+          metadata: {
+            auto_created: true,
+            creation_source: 'worker_registration_internal_runtime',
+          },
+        },
+      ]
+    : (input.agents ?? []);
+
+  for (const agent of agentsToCreate) {
     const agentRes = await context.pool.query(
       `INSERT INTO agents (
         tenant_id, worker_id, name, capabilities, status, heartbeat_interval_seconds, last_heartbeat_at, metadata

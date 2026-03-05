@@ -12,6 +12,28 @@ function createPool(row: Record<string, unknown>) {
 }
 
 describe('task query service git activity (FR-055)', () => {
+  it('exposes verification payload from task metadata in normalized task response', () => {
+    const service = new TaskQueryService(createPool({
+      id: taskId,
+      tenant_id: tenantId,
+      metadata: {
+        description: 'test task',
+        verification: { passed: true, strategies_run: ['test_execution'] },
+      },
+    }) as never);
+
+    const response = service.toTaskResponse({
+      id: taskId,
+      tenant_id: tenantId,
+      metadata: {
+        description: 'test task',
+        verification: { passed: true, strategies_run: ['test_execution'] },
+      },
+    });
+
+    expect(response.verification).toEqual({ passed: true, strategies_run: ['test_execution'] });
+    expect(response.description).toBe('test task');
+  });
   it('returns normalized git activity payload from task.git_info', async () => {
     const service = new TaskQueryService(
       createPool({
