@@ -128,6 +128,7 @@ export interface RuntimeTaskSubmissionOptions {
 function resolveTaskDescription(task: Record<string, unknown>, input: Record<string, unknown>): string {
   return (
     asNonEmptyString(input.description) ??
+    asNonEmptyString(input.objective) ??
     asNonEmptyString(input.goal) ??
     asNonEmptyString(task.description) ??
     asNonEmptyString(task.title) ??

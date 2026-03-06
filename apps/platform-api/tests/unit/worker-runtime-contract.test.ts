@@ -134,10 +134,26 @@ describe('executeTask runtime endpoint behavior', () => {
     let observedAuthHeader: string | undefined;
     let observedPath: string | undefined;
     let observedBody: Record<string, unknown> | undefined;
+    let taskStatusPolls = 0;
 
     const server = createServer((req, res) => {
       observedAuthHeader = req.headers.authorization;
       observedPath = req.url;
+
+      if (req.method === 'GET') {
+        taskStatusPolls += 1;
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            task_id: 'task-go-runtime-flag',
+            status: 'completed',
+            result: {
+              output: { accepted: true, via: 'runtime-contract' },
+            },
+          }),
+        );
+        return;
+      }
 
       let body = '';
       req.on('data', (chunk) => {
@@ -145,8 +161,8 @@ describe('executeTask runtime endpoint behavior', () => {
       });
       req.on('end', () => {
         observedBody = JSON.parse(body) as Record<string, unknown>;
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ output: { accepted: true, via: 'runtime-contract' } }));
+        res.writeHead(202, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ task_id: 'task-go-runtime-flag', status: 'accepted' }));
       });
     });
 
@@ -184,7 +200,7 @@ describe('executeTask runtime endpoint behavior', () => {
       expect(result.success).toBe(true);
       expect(result.output).toEqual({ accepted: true, via: 'runtime-contract' });
       expect(observedAuthHeader).toBe('Bearer runtime_token');
-      expect(observedPath).toBe('/api/v1/tasks');
+      expect(observedPath).toBe('/api/v1/tasks/task-go-runtime-flag');
       expect(observedBody).toMatchObject({
         task_id: 'task-go-runtime-flag',
         tenant_id: 'tenant-123',
@@ -201,6 +217,7 @@ describe('executeTask runtime endpoint behavior', () => {
           tools: ['file_read'],
         },
       });
+      expect(taskStatusPolls).toBe(1);
     } finally {
       await new Promise<void>((resolve, reject) =>
         server.close((error) => {

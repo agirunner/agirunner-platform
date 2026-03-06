@@ -439,7 +439,7 @@ describe('milestone d worker/events integration', () => {
     });
     const workerId = registration.json().data.worker_id as string;
 
-    const streamResponse = await fetch(`${baseUrl}/api/v1/events?event_type=worker.signaled`, {
+    const streamResponse = await fetch(`${baseUrl}/api/v1/events/stream?event_type=worker.signaled`, {
       headers: { authorization: `Bearer ${adminKey}` },
     });
     expect(streamResponse.status).toBe(200);
