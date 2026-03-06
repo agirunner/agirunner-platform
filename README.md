@@ -26,30 +26,59 @@ pnpm db:migrate
 pnpm dev
 ```
 
-### Compose default topology (v1.05 S3)
+### Compose default topology
 
 `docker compose up -d` now starts:
 
 - `postgres`
 - `platform-api`
 - `socket-proxy`
-- `internal-runtime` (runtime sidecar)
-- `worker` (internal worker bridge, default `INTERNAL_WORKER_BACKEND=go-runtime`)
+- `architect-runtime`, `developer-runtime`, `reviewer-runtime`, `qa-runtime`, `project-manager-runtime`
+- `architect-worker`, `developer-worker`, `reviewer-worker`, `qa-worker`, `project-manager-worker`
 - `dashboard`
 
-Runtime and worker are not host-port exposed in the default topology.
-`socket-proxy` + `internal-runtime` communicate over a dedicated bridge network segment (`runtime_internal`), and `worker` joins both `platform_net` and `runtime_internal` to bridge API↔runtime traffic.
-For v1.1–v1.2 scope, `runtime_internal` is not marked `internal: true`, so runtime-side containers can reach host/external execution endpoints (for example `AGENT_API_URL`) while keeping socket access constrained to `socket-proxy`.
+Runtimes and workers are not host-port exposed in the default topology.
+`socket-proxy` + the role-specific runtimes communicate over a dedicated bridge network segment (`runtime_internal`), and each worker joins both `platform_net` and `runtime_internal` to bridge API-to-runtime traffic for its role.
+For v1.1–v1.2 scope, `runtime_internal` is not marked `internal: true`, so runtime-side containers can still reach external git/LLM endpoints while keeping socket access constrained to `socket-proxy`.
 
 Security defaults in compose/runtime profile:
-- `RUNTIME_COMPAT_PROFILE=prod` (fail-closed)
-- `RUNTIME_API_KEY` required (runtime startup fails when missing/too short)
-- `AGENT_API_URL` required for runtime task forwarding in prod profile
-- deterministic runtime fallback is disabled by default and only available with explicit test profile + flag (`RUNTIME_COMPAT_PROFILE=test`, `RUNTIME_COMPAT_ENABLE_DETERMINISTIC_FALLBACK=true`)
+- default stack uses the real Go runtime from `../agentbaton-runtime`
+- `/execute` is disabled by default (`EXECUTE_ROUTE_MODE=disabled`)
+- `*_FILE` secret bindings mounted from `./.secrets` to `/run/secrets`
+- `RUNTIME_API_KEY_FILE` required (runtime startup fails when missing/too short)
+- task containers default to `${AGENTBATON_TASK_IMAGE:-alpine/git:2.47.2}` so repository clone/push tooling is present before workspace setup runs
 
-### Runtime image strategy hooks (S3)
+### Test-only compat bridge
 
-- Local default: `AGENTBATON_RUNTIME_IMAGE=agentbaton-runtime:local` built from `apps/runtime-compat`.
+`runtime-compat` and `platform-api /execute` are now test-only. To enable the compatibility path explicitly, start compose with the override file:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.test.yml up -d
+```
+
+That override rebinds the role runtime services back to `apps/runtime-compat` and enables `/execute` in `test-simulated` mode by default. Use `EXECUTE_ROUTE_MODE=test-execution-backed` only for harness lanes that intentionally exercise the bridge.
+
+### Prebuilt Runtime Images
+
+To use a fetched runtime image instead of building from `../agentbaton-runtime`, set:
+
+```env
+AGENTBATON_RUNTIME_IMAGE=ghcr.io/agirunner/agentbaton-runtime@sha256:...
+```
+
+The image is expected to support file-backed secret loading. Compose mounts `./.secrets` into every runtime and worker as `/run/secrets` and passes env vars such as:
+
+- `RUNTIME_API_KEY_FILE=/run/secrets/runtime_api_key`
+- `DEFAULT_ADMIN_API_KEY_FILE=/run/secrets/default_admin_api_key`
+- `JWT_SECRET_FILE=/run/secrets/jwt_secret`
+- `WEBHOOK_ENCRYPTION_KEY_FILE=/run/secrets/webhook_encryption_key`
+- `OPENAI_API_KEY_FILE=/run/secrets/openai_api_key`
+
+That means a pulled image does not need secrets baked in. It only needs the updated runtime binary that reads `*_FILE` env vars and the mounted `/run/secrets` directory.
+
+### Runtime image strategy hooks
+
+- Local default: `AGENTBATON_RUNTIME_IMAGE=agentbaton-runtime:local` built from `../agentbaton-runtime`.
 - Staging/release: set `AGENTBATON_RUNTIME_IMAGE` to a digest-pinned runtime image.
 - Publication helper: `scripts/runtime-image-publish.sh`
   - Builds/tag runtime image from `agentbaton-runtime` repo

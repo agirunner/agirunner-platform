@@ -136,6 +136,9 @@ export interface TaskExecutorConfig {
    * Bearer token for runtime endpoint calls (if required).
    */
   runtimeApiKey?: string;
+  llmProvider?: string;
+  llmModel?: string;
+  defaultRoleConfigs?: Record<string, Record<string, unknown>>;
   /**
    * Timeout for a single task execution in milliseconds.
    * Defaults to 5 minutes.
@@ -158,10 +161,19 @@ export interface WorkerRegistration {
   agent: BuiltInAgentRegistration;
 }
 
+interface BuiltInWorkerWebSocketConfig {
+  apiBaseUrl: string;
+  reconnectMinMs?: number;
+  reconnectMaxMs?: number;
+}
+
 export interface TaskExecutionResult {
   output: Record<string, unknown>;
   success: boolean;
   error?: string;
+  metrics?: Record<string, unknown>;
+  gitInfo?: Record<string, unknown>;
+  verification?: Record<string, unknown>;
 }
 
 /**
@@ -197,6 +209,45 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
   return undefined;
 }
 
+function asString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function buildRuntimeGitInfo(runtimeResult: Record<string, unknown>): Record<string, unknown> | undefined {
+  const gitCommit = asString(runtimeResult['git_commit']);
+  const filesChanged = Array.isArray(runtimeResult['files_changed'])
+    ? (runtimeResult['files_changed'] as unknown[]).filter(
+        (value): value is string => typeof value === 'string' && value.length > 0,
+      )
+    : [];
+  const artifacts = Array.isArray(runtimeResult['artifacts'])
+    ? (runtimeResult['artifacts'] as unknown[]).filter(
+        (value): value is Record<string, unknown> =>
+          Boolean(value) && typeof value === 'object' && !Array.isArray(value),
+      )
+    : [];
+
+  if (!gitCommit && filesChanged.length === 0 && artifacts.length === 0 && runtimeResult['git_push_ok'] === undefined) {
+    return undefined;
+  }
+
+  return {
+    commit_hash: gitCommit,
+    git_push_ok: runtimeResult['git_push_ok'] === true,
+    files_changed: filesChanged,
+    artifacts,
+    summary: asString(runtimeResult['summary']),
+  };
+}
+
+function buildRuntimeFailureMessage(status: string, error: Record<string, unknown> | undefined): string {
+  const errorMessage = asString(error?.message);
+  if (errorMessage) {
+    return `Runtime task ${status}: ${errorMessage}`;
+  }
+  return `Runtime task ended with status ${status}`;
+}
+
 /**
  * Executes a task using the Go runtime contract.
  *
@@ -226,14 +277,29 @@ export async function executeTask(
       allowLegacyCancelAlias: true,
     });
 
-    const runtimeResponse = await runtimeClient.submitTask(task, {
+    const runtimeResponse = await runtimeClient.executeTask(task, {
       llmApiKey: config.agentApiKey,
+      llmProvider: config.llmProvider,
+      llmModel: config.llmModel,
+      defaultRoleConfigs: config.defaultRoleConfigs,
     });
 
-    const outputFromEnvelope = asRecord(runtimeResponse['output']);
+    if (runtimeResponse.status !== 'completed') {
+      return {
+        output: {},
+        success: false,
+        error: buildRuntimeFailureMessage(runtimeResponse.status, runtimeResponse.error),
+      };
+    }
+
+    const runtimeResult = runtimeResponse.result ?? {};
+    const outputFromRuntime = asRecord(runtimeResult['output']);
     return {
-      output: outputFromEnvelope ?? runtimeResponse,
+      output: outputFromRuntime ?? {},
       success: true,
+      metrics: asRecord(runtimeResult['metrics']),
+      gitInfo: buildRuntimeGitInfo(runtimeResult),
+      verification: asRecord(runtimeResult['verification_results']),
     };
   } catch (error) {
     return {
@@ -368,6 +434,9 @@ export function createBuiltInTaskHandler(
 
     await callPlatformApi(apiBaseUrl, agentApiKey, 'POST', `/api/v1/tasks/${taskId}/complete`, {
       output: result.output,
+      metrics: result.metrics,
+      git_info: result.gitInfo,
+      verification: result.verification,
     });
   };
 }
@@ -608,57 +677,112 @@ export async function registerBuiltInWorker(
  */
 export function connectBuiltInWorkerWebSocket(
   registration: WorkerRegistration,
-  config: Pick<BuiltInWorkerConfig, 'apiBaseUrl'>,
+  config: BuiltInWorkerWebSocketConfig,
   onTask: (task: Record<string, unknown>) => Promise<void>,
 ): () => void {
   const wsBaseUrl = config.apiBaseUrl.replace(/^http/, 'ws');
   const wsUrl = `${wsBaseUrl}${registration.websocketUrl}`;
-
-  const ws = new WebSocket(wsUrl, {
-    headers: { Authorization: `Bearer ${registration.workerApiKey}` },
-  });
-
+  const reconnectMinMs = Math.max(100, config.reconnectMinMs ?? 1_000);
+  const reconnectMaxMs = Math.max(reconnectMinMs, config.reconnectMaxMs ?? 30_000);
+  let ws: WebSocket | null = null;
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let reconnectAttempt = 0;
+  let stopped = false;
 
-  ws.on('open', () => {
-    // Start heartbeat loop — same protocol as any external worker (FR-756).
-    heartbeatTimer = setInterval(() => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'worker.heartbeat', status: 'online' }));
-      }
-    }, registration.heartbeatIntervalSeconds * 1000);
-  });
-
-  ws.on('message', (rawData: Buffer | string) => {
-    try {
-      const payload = JSON.parse(rawData.toString()) as Record<string, unknown>;
-      if (payload.type === 'task.assigned' && payload.task) {
-        const task = payload.task as Record<string, unknown>;
-        // Acknowledge receipt before processing.
-        ws.send(
-          JSON.stringify({
-            type: 'task.assignment_ack',
-            task_id: task.id,
-            agent_id: registration.agent.agentId,
-          }),
-        );
-        void onTask(task).catch((error: unknown) => {
-          console.error('[built-in-worker] Task handler error:', error);
-        });
-      }
-    } catch (parseError) {
-      console.error('[built-in-worker] Failed to parse message:', parseError);
-    }
-  });
-
-  ws.on('error', (error) => {
-    console.error('[built-in-worker] WebSocket error:', error);
-  });
-
-  return () => {
+  const clearHeartbeatTimer = (): void => {
     if (heartbeatTimer) {
       clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
     }
-    ws.close();
+  };
+
+  const clearReconnectTimer = (): void => {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+  };
+
+  const sendHeartbeat = (): void => {
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'worker.heartbeat', status: 'online' }));
+    }
+  };
+
+  const scheduleReconnect = (): void => {
+    if (stopped || reconnectTimer) {
+      return;
+    }
+
+    const delayMs = Math.min(reconnectMinMs * 2 ** reconnectAttempt, reconnectMaxMs);
+    reconnectAttempt += 1;
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      connect();
+    }, delayMs);
+  };
+
+  const connect = (): void => {
+    if (stopped) {
+      return;
+    }
+
+    clearReconnectTimer();
+    const socket = new WebSocket(wsUrl, {
+      headers: { Authorization: `Bearer ${registration.workerApiKey}` },
+    });
+    ws = socket;
+
+    socket.on('open', () => {
+      reconnectAttempt = 0;
+      clearHeartbeatTimer();
+      sendHeartbeat();
+      heartbeatTimer = setInterval(sendHeartbeat, registration.heartbeatIntervalSeconds * 1000);
+    });
+
+    socket.on('message', (rawData: Buffer | string) => {
+      try {
+        const payload = JSON.parse(rawData.toString()) as Record<string, unknown>;
+        if (payload.type === 'task.assigned' && payload.task) {
+          const task = payload.task as Record<string, unknown>;
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(
+              JSON.stringify({
+                type: 'task.assignment_ack',
+                task_id: task.id,
+                agent_id: registration.agent.agentId,
+              }),
+            );
+          }
+          void onTask(task).catch((error: unknown) => {
+            console.error('[built-in-worker] Task handler error:', error);
+          });
+        }
+      } catch (parseError) {
+        console.error('[built-in-worker] Failed to parse message:', parseError);
+      }
+    });
+
+    socket.on('error', (error) => {
+      console.error('[built-in-worker] WebSocket error:', error);
+    });
+
+    socket.on('close', () => {
+      if (ws === socket) {
+        ws = null;
+      }
+      clearHeartbeatTimer();
+      scheduleReconnect();
+    });
+  };
+
+  connect();
+
+  return () => {
+    stopped = true;
+    clearReconnectTimer();
+    clearHeartbeatTimer();
+    ws?.close();
   };
 }

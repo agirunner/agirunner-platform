@@ -7,7 +7,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { matchesSubscription, processSseBuffer, subscribeToEvents } from './sse.js';
+import { matchesSubscription, processSseBuffer, resetEventTransportForTests, subscribeToEvents } from './sse.js';
 import { clearSession, writeSession } from './session.js';
 
 function mockLocalStorage() {
@@ -87,6 +87,7 @@ describe('FR-031 / FR-423a: shared subscribeToEvents behavior', () => {
     vi.unstubAllGlobals();
     mockLocalStorage();
     clearSession();
+    resetEventTransportForTests();
   });
 
   it('returns a teardown function that aborts the shared stream', async () => {
@@ -120,6 +121,12 @@ describe('FR-031 / FR-423a: shared subscribeToEvents behavior', () => {
     await Promise.resolve();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:8080/api/v1/events/stream',
+      expect.objectContaining({
+        headers: { Authorization: 'Bearer test-token' },
+      }),
+    );
 
     unsubscribeOne();
     unsubscribeTwo();
@@ -133,6 +140,61 @@ describe('FR-031 / FR-423a: shared subscribeToEvents behavior', () => {
     unsubscribe();
 
     await Promise.resolve();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('prefers websocket transport and subscribes after authentication', async () => {
+    const sent: string[] = [];
+    class MockWebSocket {
+      static CLOSED = 3;
+      static CLOSING = 2;
+      static OPEN = 1;
+      readyState = MockWebSocket.OPEN;
+      private handlers = new Map<string, Array<(event?: { data: string }) => void>>();
+
+      constructor(_url: string) {
+        queueMicrotask(() => {
+          this.emit('open');
+        });
+      }
+
+      addEventListener(type: string, handler: (event?: { data: string }) => void) {
+        this.handlers.set(type, [...(this.handlers.get(type) ?? []), handler]);
+      }
+
+      send(message: string) {
+        sent.push(message);
+        const parsed = JSON.parse(message) as { action?: string };
+        if (parsed.action === 'authenticate') {
+          this.emit('message', { data: JSON.stringify({ type: 'authenticated' }) });
+        }
+      }
+
+      close() {
+        this.readyState = MockWebSocket.CLOSED;
+        this.emit('close');
+      }
+
+      private emit(type: string, event?: { data: string }) {
+        for (const handler of this.handlers.get(type) ?? []) {
+          handler(event);
+        }
+      }
+    }
+
+    vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket);
+    vi.stubGlobal('window', { WebSocket: MockWebSocket });
+    const fetchMock = vi.fn().mockRejectedValue(new Error('unused')) as unknown as typeof fetch;
+    vi.stubGlobal('fetch', fetchMock);
+    writeSession({ accessToken: 'test-token', tenantId: 'tenant-1' });
+
+    const unsubscribe = subscribeToEvents(vi.fn());
+    await Promise.resolve();
+    await Promise.resolve();
+    unsubscribe();
+
+    expect(sent).toContain(JSON.stringify({ action: 'authenticate', token: 'test-token' }));
+    expect(sent).toContain(JSON.stringify({ action: 'subscribe', filters: {} }));
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

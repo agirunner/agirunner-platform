@@ -47,6 +47,12 @@ describe('worker-runtime contract builders', () => {
       {
         llmProvider: 'openai',
         llmModel: 'gpt-4o-mini',
+        defaultRoleConfigs: {
+          developer: {
+            system_prompt: 'Implement safely',
+            tools: ['file_read', 'file_write'],
+          },
+        },
       },
     );
 
@@ -55,7 +61,7 @@ describe('worker-runtime contract builders', () => {
       pipeline_id: 'pipeline-123',
       tenant_id: 'tenant-abc',
       role: 'developer',
-      input: { objective: 'ship s4' },
+      input: { objective: 'ship s4', description: 'ship s4', acceptance_criteria: [] },
       context_stack: {
         pipeline: { id: 'pipeline-123' },
         agent: { id: 'agent-1' },
@@ -71,6 +77,41 @@ describe('worker-runtime contract builders', () => {
         llm_model: 'gpt-4o-mini',
         git_token: 'git-token-from-resource',
       },
+      role_config: {
+        planning_mode: true,
+        system_prompt: 'Implement safely',
+        tools: ['file_read', 'file_write'],
+      },
+    });
+  });
+
+  it('normalizes string acceptance criteria to the runtime array contract', () => {
+    const submission = buildRuntimeTaskSubmission(
+      {
+        id: 'task-runtime-2',
+        tenant_id: 'tenant-abc',
+        role: 'project-manager',
+        input: {
+          goal: 'write a hello world app',
+          acceptance_criteria: 'app runs locally',
+        },
+      },
+      {
+        llmProvider: 'openai',
+        llmModel: 'gpt-4o-mini',
+        defaultRoleConfigs: {
+          'project-manager': {
+            system_prompt: 'Plan the work',
+            tools: ['file_read'],
+          },
+        },
+      },
+    );
+
+    expect(submission.input).toMatchObject({
+      goal: 'write a hello world app',
+      description: 'write a hello world app',
+      acceptance_criteria: ['app runs locally'],
     });
   });
 
@@ -119,6 +160,7 @@ describe('executeTask runtime endpoint behavior', () => {
       const result = await executeTask(
         {
           id: 'task-go-runtime-flag',
+          tenant_id: 'tenant-123',
           role: 'developer',
           input: { objective: 's4 migration' },
           context: { stage: 's4' },
@@ -128,6 +170,14 @@ describe('executeTask runtime endpoint behavior', () => {
           runtimeUrl: `http://127.0.0.1:${address.port}/api/v1/tasks`,
           runtimeApiKey: 'runtime_token',
           agentApiKey: 'llm_key',
+          llmProvider: 'openai',
+          llmModel: 'gpt-4o-mini',
+          defaultRoleConfigs: {
+            developer: {
+              system_prompt: 'Implement safely',
+              tools: ['file_read'],
+            },
+          },
         },
       );
 
@@ -137,11 +187,18 @@ describe('executeTask runtime endpoint behavior', () => {
       expect(observedPath).toBe('/api/v1/tasks');
       expect(observedBody).toMatchObject({
         task_id: 'task-go-runtime-flag',
+        tenant_id: 'tenant-123',
         role: 'developer',
-        input: { objective: 's4 migration' },
+        input: { objective: 's4 migration', description: 's4 migration' },
         context_stack: { stage: 's4' },
         credentials: {
           llm_api_key: 'llm_key',
+          llm_provider: 'openai',
+          llm_model: 'gpt-4o-mini',
+        },
+        role_config: {
+          system_prompt: 'Implement safely',
+          tools: ['file_read'],
         },
       });
     } finally {

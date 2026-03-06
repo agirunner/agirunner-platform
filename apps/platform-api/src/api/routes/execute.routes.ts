@@ -99,9 +99,26 @@ function shouldFailAsImpossible(payload: ExecuteRequestBody): boolean {
   return shouldRejectImpossibleScopeTask(payload as Record<string, unknown>);
 }
 
-function isExecutionBackedModeEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+type ExecuteRouteMode = 'disabled' | 'test-simulated' | 'test-execution-backed';
+
+function resolveExecuteRouteMode(env: NodeJS.ProcessEnv = process.env): ExecuteRouteMode {
   const mode = env.EXECUTE_ROUTE_MODE?.trim().toLowerCase();
-  return mode === 'execution-backed' || mode === 'live-agent-api';
+
+  if (mode === 'test-simulated') {
+    return 'test-simulated';
+  }
+  if (mode === 'test-execution-backed') {
+    return 'test-execution-backed';
+  }
+  return 'disabled';
+}
+
+function isExecuteRouteEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return resolveExecuteRouteMode(env) !== 'disabled';
+}
+
+function isExecutionBackedModeEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return resolveExecuteRouteMode(env) === 'test-execution-backed';
 }
 
 function resolveOpenAiApiBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
@@ -171,7 +188,7 @@ const DISALLOWED_OUTPUT_PATTERNS: Array<{ id: string; regex: RegExp }> = [
   { id: 'todo-token', regex: /\bTODO\b|\bTBD\b/i },
   { id: 'replace-me', regex: /replace\s+me|<insert[^>]*>/i },
   { id: 'dummy-output', regex: /\bdummy\b|\bmock\s+output\b|lorem ipsum/i },
-  { id: 'placeholder-word', regex: /\bplaceholder\b/i },
+  { id: 'placeholder-stub', regex: /\b(?:placeholder|stub)\s+(?:text|content|implementation|code|response|output)\b/i },
 ];
 
 function findDisallowedOutputMarker(text: string): string | null {
@@ -438,9 +455,27 @@ async function buildExecutionBackedOutput(
 }
 
 export async function executeRoutes(app: FastifyInstance): Promise<void> {
-  app.get('/execute', async () => ({ status: 'ok', service: 'task-executor' }));
+  app.get('/execute', async (_request, reply) => {
+    if (!isExecuteRouteEnabled()) {
+      return reply.status(404).send({
+        error: 'execute_route_disabled',
+        message:
+          'The /execute compatibility route is disabled outside explicit test modes. Use the runtime /api/v1/tasks endpoint instead.',
+      });
+    }
+
+    return reply.status(200).send({ status: 'ok', service: 'task-executor' });
+  });
 
   app.post<{ Body: ExecuteRequestBody }>('/execute', async (request, reply) => {
+    if (!isExecuteRouteEnabled()) {
+      return reply.status(404).send({
+        error: 'execute_route_disabled',
+        message:
+          'The /execute compatibility route is disabled outside explicit test modes. Use the runtime /api/v1/tasks endpoint instead.',
+      });
+    }
+
     const payload = request.body ?? {};
 
     if (shouldFailAsImpossible(payload)) {

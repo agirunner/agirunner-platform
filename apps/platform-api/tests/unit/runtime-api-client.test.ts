@@ -113,6 +113,80 @@ describe('RuntimeApiClient', () => {
     });
   });
 
+  it('waits for terminal runtime status and returns the final task result', async () => {
+    const observedCalls: string[] = [];
+    let statusPollCount = 0;
+
+    await withHttpServer(
+      (request) => {
+        const url = String(request.url ?? '');
+        observedCalls.push(`${String(request.method ?? '')} ${url}`);
+
+        if (url === '/api/v1/tasks' && request.method === 'POST') {
+          return {
+            status: 202,
+            json: {
+              task_id: 'task-runtime-final',
+              status: 'accepted',
+            },
+          };
+        }
+
+        statusPollCount += 1;
+        if (statusPollCount === 1) {
+          return {
+            status: 200,
+            json: {
+              task_id: 'task-runtime-final',
+              status: 'running',
+            },
+          };
+        }
+
+        return {
+          status: 200,
+          json: {
+            task_id: 'task-runtime-final',
+            status: 'completed',
+            result: {
+              status: 'completed',
+              output: { summary: 'done' },
+              metrics: { total_cost_usd: 0.01 },
+            },
+          },
+        };
+      },
+      async (port) => {
+        const client = new RuntimeApiClient({
+          runtimeUrl: `http://127.0.0.1:${port}`,
+          requestTimeoutMs: 2_000,
+        });
+
+        const result = await client.executeTask({
+          id: 'task-runtime-final',
+          tenant_id: 'tenant-1',
+          role: 'developer',
+          input: { objective: 'ship S1' },
+        });
+
+        expect(result).toMatchObject({
+          task_id: 'task-runtime-final',
+          status: 'completed',
+          result: {
+            output: { summary: 'done' },
+            metrics: { total_cost_usd: 0.01 },
+          },
+        });
+      },
+    );
+
+    expect(observedCalls).toEqual([
+      'POST /api/v1/tasks',
+      'GET /api/v1/tasks/task-runtime-final',
+      'GET /api/v1/tasks/task-runtime-final',
+    ]);
+  });
+
   it('normalizes runtimeUrl values that include /api/v1/tasks endpoint path', async () => {
     let observedPath = '';
 

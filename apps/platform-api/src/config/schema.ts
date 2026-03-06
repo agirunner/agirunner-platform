@@ -24,7 +24,7 @@ export const envSchema = z.object({
   TASK_DEFAULT_MAX_RETRIES: z.coerce.number().int().min(0).default(0),
   TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS: z.coerce.number().int().min(1).default(60000),
   WORKER_WEBSOCKET_PATH: z.string().min(1).default('/api/v1/events'),
-  EVENT_STREAM_PATH: z.string().min(1).default('/api/v1/events'),
+  EVENT_STREAM_PATH: z.string().min(1).default('/api/v1/events/stream'),
   EVENT_STREAM_KEEPALIVE_INTERVAL_MS: z.coerce.number().int().min(1).default(15000),
   WORKER_DEFAULT_HEARTBEAT_INTERVAL_SECONDS: z.coerce.number().int().min(5).default(30),
   WORKER_API_KEY_TTL_MS: z.coerce.number().int().min(1).default(31536000000),

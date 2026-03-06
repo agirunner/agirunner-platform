@@ -43,6 +43,7 @@ describe('execute route impossible-scope policy alignment', () => {
   }
 
   it('rejects canonical impossible rewrite objectives', async () => {
+    process.env.EXECUTE_ROUTE_MODE = 'test-simulated';
     const server = await createApp();
 
     const response = await server.inject({
@@ -63,6 +64,7 @@ describe('execute route impossible-scope policy alignment', () => {
   });
 
   it('does not reject ordinary Rust mentions without impossible constraints', async () => {
+    process.env.EXECUTE_ROUTE_MODE = 'test-simulated';
     const server = await createApp();
 
     const response = await server.inject({
@@ -88,6 +90,7 @@ describe('execute route impossible-scope policy alignment', () => {
   });
 
   it('rejects tasks explicitly marked with deterministic impossible failure mode', async () => {
+    process.env.EXECUTE_ROUTE_MODE = 'test-simulated';
     const server = await createApp();
 
     const response = await server.inject({
@@ -108,6 +111,7 @@ describe('execute route impossible-scope policy alignment', () => {
   });
 
   it('returns simulation-marked output and never emits concrete diff payload fields', async () => {
+    process.env.EXECUTE_ROUTE_MODE = 'test-simulated';
     const server = await createApp();
 
     const response = await server.inject({
@@ -138,6 +142,7 @@ describe('execute route impossible-scope policy alignment', () => {
   });
 
   it('captures pipeline id from nested task context for traceability', async () => {
+    process.env.EXECUTE_ROUTE_MODE = 'test-simulated';
     const server = await createApp();
 
     const response = await server.inject({
@@ -162,7 +167,7 @@ describe('execute route impossible-scope policy alignment', () => {
   });
 
   it('returns execution-backed output when execute-route mode is enabled', async () => {
-    process.env.EXECUTE_ROUTE_MODE = 'execution-backed';
+    process.env.EXECUTE_ROUTE_MODE = 'test-execution-backed';
     process.env.OPENAI_API_KEY = 'test-openai-key';
     process.env.LIVE_AUTH_LLM_API_BASE_URL = 'https://example.invalid/v1';
     process.env.LIVE_EVALUATION_MODEL = 'gpt-4.1-mini';
@@ -227,7 +232,7 @@ describe('execute route impossible-scope policy alignment', () => {
   });
 
   it('fails closed when execution-backed output contains placeholder markers', async () => {
-    process.env.EXECUTE_ROUTE_MODE = 'execution-backed';
+    process.env.EXECUTE_ROUTE_MODE = 'test-execution-backed';
     process.env.OPENAI_API_KEY = 'test-openai-key';
     process.env.LIVE_AUTH_LLM_API_BASE_URL = 'https://example.invalid/v1';
     process.env.LIVE_EVALUATION_MODEL = 'gpt-4.1-mini';
@@ -286,8 +291,67 @@ describe('execute route impossible-scope policy alignment', () => {
     expect(response.json().message).toContain('tests[0]');
   });
 
+  it('does not fail closed for ordinary prose that mentions placeholders', async () => {
+    process.env.EXECUTE_ROUTE_MODE = 'test-execution-backed';
+    process.env.OPENAI_API_KEY = 'test-openai-key';
+    process.env.LIVE_AUTH_LLM_API_BASE_URL = 'https://example.invalid/v1';
+    process.env.LIVE_EVALUATION_MODEL = 'gpt-4.1-mini';
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  summary: 'Replaced the placeholder navigation copy with a concrete settings route.',
+                  implementation: [
+                    'Removed the placeholder navigation label and wired a real settings link.',
+                    'Added a profile editing screen with concrete field handling.',
+                  ],
+                  changed_files: [
+                    {
+                      path: 'src/App.jsx',
+                      change: 'Updated navigation and route definitions.',
+                      reason: 'Replace placeholder navigation copy with the actual settings route.',
+                    },
+                  ],
+                  patch:
+                    'diff --git a/src/App.jsx b/src/App.jsx\nindex 1111111..2222222 100644\n--- a/src/App.jsx\n+++ b/src/App.jsx\n@@ -1,3 +1,5 @@\n+import SettingsPage from \"./SettingsPage\";\n+// concrete route wiring\n',
+                  tests: ['Manual test: confirm placeholder copy is gone from navigation.'],
+                  risks: ['Low risk: touches only route wiring and settings navigation.'],
+                  review_notes: ['Placeholder wording in legacy docs may still need cleanup.'],
+                }),
+              },
+            },
+          ],
+        }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const server = await createApp();
+    const response = await server.inject({
+      method: 'POST',
+      url: '/execute',
+      payload: {
+        type: 'code',
+        task_id: 'task-125',
+        title: 'Settings page implementation',
+      },
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      task_id: 'task-125',
+      execution_mode: 'live-agent-api',
+    });
+  });
+
   it('fails closed when execution-backed mode is enabled without OPENAI_API_KEY', async () => {
-    process.env.EXECUTE_ROUTE_MODE = 'execution-backed';
+    process.env.EXECUTE_ROUTE_MODE = 'test-execution-backed';
     delete process.env.OPENAI_API_KEY;
 
     const server = await createApp();
@@ -303,6 +367,25 @@ describe('execute route impossible-scope policy alignment', () => {
     expect(response.statusCode).toBe(503);
     expect(response.json()).toMatchObject({
       error: 'execute_backend_unavailable',
+    });
+  });
+
+  it('fails closed when the compatibility route is not explicitly enabled', async () => {
+    delete process.env.EXECUTE_ROUTE_MODE;
+
+    const server = await createApp();
+    const response = await server.inject({
+      method: 'POST',
+      url: '/execute',
+      payload: {
+        type: 'code',
+        task_id: 'task-disabled-1',
+      },
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toMatchObject({
+      error: 'execute_route_disabled',
     });
   });
 });

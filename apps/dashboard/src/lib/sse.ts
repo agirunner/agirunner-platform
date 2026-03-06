@@ -1,7 +1,8 @@
 import { readSession } from './session.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
-const EVENTS_PATH = '/api/v1/events';
+const EVENTS_PATH = '/api/v1/events/stream';
+const EVENTS_WS_PATH = '/api/v1/events/ws';
 
 export interface StreamEventPayload {
   id?: number | string;
@@ -31,6 +32,8 @@ const subscribers = new Map<number, Subscriber>();
 let subscriberCounter = 0;
 let streamController: AbortController | null = null;
 let streamLoopPromise: Promise<void> | null = null;
+let socket: WebSocket | null = null;
+let socketFallbackActive = false;
 
 export function subscribeToEvents(
   onEvent: (eventType: string, payload: StreamEventPayload) => void,
@@ -47,6 +50,17 @@ export function subscribeToEvents(
       stopStreamLoop();
     }
   };
+}
+
+export function resetEventTransportForTests(): void {
+  subscribers.clear();
+  subscriberCounter = 0;
+  socket?.close();
+  socket = null;
+  streamController?.abort();
+  streamController = null;
+  streamLoopPromise = null;
+  socketFallbackActive = false;
 }
 
 export function processSseBuffer(
@@ -103,6 +117,10 @@ function ensureStreamLoop(): void {
     return;
   }
 
+  if (ensureWebsocketConnection()) {
+    return;
+  }
+
   streamController = new AbortController();
   streamLoopPromise = runStreamLoop(streamController)
     .catch(() => {
@@ -118,7 +136,53 @@ function ensureStreamLoop(): void {
 }
 
 function stopStreamLoop(): void {
+  socket?.close();
+  socket = null;
   streamController?.abort();
+}
+
+function ensureWebsocketConnection(): boolean {
+  if (typeof window === 'undefined' || typeof WebSocket === 'undefined') {
+    return false;
+  }
+  if (socket && socket.readyState !== WebSocket.CLOSED) {
+    return true;
+  }
+
+  const session = readSession();
+  if (!session?.accessToken) {
+    return false;
+  }
+
+  try {
+    socket = new WebSocket(buildWebsocketUrl());
+  } catch {
+    socket = null;
+    return false;
+  }
+
+  socketFallbackActive = false;
+  socket.addEventListener('open', () => {
+    socket?.send(JSON.stringify({ action: 'authenticate', token: session.accessToken }));
+  });
+  socket.addEventListener('message', (event) => {
+    handleWebsocketMessage(event.data);
+  });
+  socket.addEventListener('close', () => {
+    socket = null;
+    if (subscribers.size > 0 && !socketFallbackActive) {
+      socketFallbackActive = true;
+      ensureStreamLoop();
+    }
+  });
+  socket.addEventListener('error', () => {
+    socketFallbackActive = true;
+    if (socket && socket.readyState < WebSocket.CLOSING) {
+      socket.close();
+    }
+  });
+
+  return true;
 }
 
 async function runStreamLoop(controller: AbortController): Promise<void> {
@@ -175,6 +239,43 @@ function dispatchEvent(eventType: string, payload: StreamEventPayload): void {
 
     subscriber.onEvent(eventType, payload);
   }
+}
+
+function handleWebsocketMessage(raw: string | ArrayBufferLike | Blob | ArrayBufferView): void {
+  if (typeof raw !== 'string') {
+    return;
+  }
+
+  try {
+    const payload = JSON.parse(raw) as Record<string, unknown>;
+    switch (payload.type) {
+      case 'authenticated':
+        socket?.send(JSON.stringify({ action: 'subscribe', filters: {} }));
+        return;
+      case 'event':
+        dispatchEvent(
+          typeof payload.event_type === 'string' ? payload.event_type : 'message',
+          {
+            id: payload.event_id as string | number | undefined,
+            type: payload.event_type as string | undefined,
+            entity_type: payload.entity_type as string | undefined,
+            entity_id: payload.entity_id as string | undefined,
+            data: (payload.data as Record<string, unknown> | undefined) ?? {},
+            created_at: payload.timestamp as string | undefined,
+          },
+        );
+        return;
+      default:
+        return;
+    }
+  } catch {
+    // ignore malformed websocket payloads
+  }
+}
+
+function buildWebsocketUrl(): string {
+  const normalized = API_BASE_URL.replace(/^http/, 'ws');
+  return `${normalized}${EVENTS_WS_PATH}`;
 }
 
 function extractValue(lines: string[], prefix: string): string | undefined {

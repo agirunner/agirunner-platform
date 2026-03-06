@@ -7,17 +7,27 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { parseBearerToken } from '../auth/api-key.js';
 import { requestCounter, requestDuration } from '../observability/metrics.js';
 
-function rateLimitKeyGenerator(request: FastifyRequest): string {
+export function resolveRateLimitRoute(request: FastifyRequest): string {
+  return request.routeOptions.url ?? request.raw.url ?? 'unknown';
+}
+
+export function isRealtimeTransportRoute(app: FastifyInstance, request: FastifyRequest): boolean {
+  const route = resolveRateLimitRoute(request);
+  return route === app.config.EVENT_STREAM_PATH || route === '/api/v1/events/ws' || route === app.config.WORKER_WEBSOCKET_PATH;
+}
+
+export function rateLimitKeyGenerator(request: FastifyRequest): string {
+  const route = resolveRateLimitRoute(request);
   const authorization = request.headers.authorization;
   if (!authorization) {
-    return request.ip;
+    return `${route}:ip:${request.ip}`;
   }
 
   try {
     const token = parseBearerToken(authorization);
-    return `key:${token.slice(0, 24)}`;
+    return `${route}:key:${token.slice(0, 24)}`;
   } catch {
-    return request.ip;
+    return `${route}:ip:${request.ip}`;
   }
 }
 
@@ -64,6 +74,7 @@ export async function registerPlugins(app: FastifyInstance): Promise<void> {
     max: app.config.RATE_LIMIT_MAX_PER_MINUTE,
     timeWindow: '1 minute',
     keyGenerator: rateLimitKeyGenerator,
+    allowList: (request) => request.method === 'OPTIONS' || isRealtimeTransportRoute(app, request),
   });
 
   app.addHook('preSerialization', (request, _reply, payload, done) => {

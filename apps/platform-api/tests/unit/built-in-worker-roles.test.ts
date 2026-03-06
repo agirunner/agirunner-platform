@@ -93,6 +93,28 @@ describe('FR-743: 4 core role agents registered', () => {
     }
   });
 
+  it('each role only advertises runtime tool ids that the Go runtime implements', () => {
+    const config = loadBuiltInRolesConfig(CONFIG_PATH);
+    const runtimeToolIds = new Set([
+      'file_read',
+      'file_list',
+      'file_edit',
+      'file_write',
+      'shell_exec',
+      'git_status',
+      'git_diff',
+      'git_log',
+      'git_commit',
+      'git_push',
+    ]);
+
+    for (const role of listRoleNames(config)) {
+      for (const tool of config.roles[role].allowedTools) {
+        expect(runtimeToolIds.has(tool)).toBe(true);
+      }
+    }
+  });
+
   it('each role has a model preference', () => {
     const config = loadBuiltInRolesConfig(CONFIG_PATH);
     for (const role of listRoleNames(config)) {

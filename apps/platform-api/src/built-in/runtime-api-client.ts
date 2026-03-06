@@ -8,7 +8,9 @@ import {
 } from './worker-runtime-contract.js';
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
+const DEFAULT_STATUS_POLL_INTERVAL_MS = 250;
 const LEGACY_CANCEL_FALLBACK_CODES = new Set([404, 405, 501]);
+const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'cancelled', 'budget_exceeded']);
 
 export interface RuntimeApiClientConfig {
   runtimeUrl: string;
@@ -20,6 +22,15 @@ export interface RuntimeApiClientConfig {
 export interface RuntimeTaskCancelResult {
   method: 'post-cancel' | 'delete-legacy';
   response: Record<string, unknown>;
+}
+
+export interface RuntimeTaskExecutionResult {
+  task_id: string;
+  status: string;
+  result?: Record<string, unknown>;
+  error?: Record<string, unknown>;
+  started_at?: string;
+  completed_at?: string;
 }
 
 export class RuntimeApiHttpError extends Error {
@@ -80,6 +91,18 @@ export class RuntimeApiClient {
     return this.requestJson('POST', '/api/v1/tasks', submission);
   }
 
+  async executeTask(
+    task: Record<string, unknown>,
+    options: RuntimeTaskSubmissionOptions = {},
+  ): Promise<RuntimeTaskExecutionResult> {
+    const accepted = await this.submitTask(task, options);
+    const taskId = String(accepted['task_id'] ?? '');
+    if (!taskId) {
+      throw new RuntimeApiHttpError('Runtime API POST /api/v1/tasks returned no task_id', 502, JSON.stringify(accepted));
+    }
+    return this.waitForTaskCompletion(taskId);
+  }
+
   async cancelTask(taskId: string): Promise<RuntimeTaskCancelResult> {
     const encodedTaskId = encodeURIComponent(taskId);
 
@@ -104,8 +127,39 @@ export class RuntimeApiClient {
     return this.requestJson('GET', `/api/v1/tasks/${encodedTaskId}/logs`);
   }
 
+  getTaskStatus(taskId: string): Promise<Record<string, unknown>> {
+    const encodedTaskId = encodeURIComponent(taskId);
+    return this.requestJson('GET', `/api/v1/tasks/${encodedTaskId}`);
+  }
+
   getHealth(): Promise<Record<string, unknown>> {
     return this.requestJson('GET', '/health');
+  }
+
+  private async waitForTaskCompletion(taskId: string): Promise<RuntimeTaskExecutionResult> {
+    const deadline = Date.now() + this.requestTimeoutMs;
+
+    while (Date.now() <= deadline) {
+      const response = await this.getTaskStatus(taskId);
+      const status = String(response['status'] ?? '');
+      if (TERMINAL_TASK_STATUSES.has(status)) {
+        return {
+          task_id: String(response['task_id'] ?? taskId),
+          status,
+          result: valueAsRecord(response['result']),
+          error: valueAsRecord(response['error']),
+          started_at: valueAsString(response['started_at']),
+          completed_at: valueAsString(response['completed_at']),
+        };
+      }
+      await sleep(DEFAULT_STATUS_POLL_INTERVAL_MS);
+    }
+
+    throw new RuntimeApiHttpError(
+      `Runtime task ${taskId} did not reach a terminal state within ${this.requestTimeoutMs}ms`,
+      408,
+      '',
+    );
   }
 
   private requestJson(
@@ -187,4 +241,19 @@ export class RuntimeApiClient {
       request.end();
     });
   }
+}
+
+function valueAsRecord(value: unknown): Record<string, unknown> | undefined {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return undefined;
+}
+
+function valueAsString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+async function sleep(delayMs: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
 }

@@ -65,6 +65,27 @@ function asRecordArray(value: unknown): Record<string, unknown>[] {
     .map((entry) => ({ ...entry }));
 }
 
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0);
+}
+
+function asOptionalStringArray(value: unknown): string[] | undefined {
+  const arrayValue = asStringArray(value);
+  if (arrayValue.length > 0) {
+    return arrayValue;
+  }
+
+  const singleValue = asNonEmptyString(value);
+  if (singleValue) {
+    return [singleValue];
+  }
+
+  return undefined;
+}
+
 function extractGitToken(resourceBindings: Record<string, unknown>[]): string | undefined {
   for (const binding of resourceBindings) {
     const bindingToken = asNonEmptyString(binding['git_token']);
@@ -101,6 +122,61 @@ export interface RuntimeTaskSubmissionOptions {
   llmProvider?: string;
   llmModel?: string;
   gitToken?: string;
+  defaultRoleConfigs?: Record<string, Record<string, unknown>>;
+}
+
+function resolveTaskDescription(task: Record<string, unknown>, input: Record<string, unknown>): string {
+  return (
+    asNonEmptyString(input.description) ??
+    asNonEmptyString(input.goal) ??
+    asNonEmptyString(task.description) ??
+    asNonEmptyString(task.title) ??
+    'Task execution request'
+  );
+}
+
+function normalizeRuntimeInput(
+  task: Record<string, unknown>,
+  input: Record<string, unknown>,
+): Record<string, unknown> {
+  const acceptanceCriteria =
+    asOptionalStringArray(input.acceptance_criteria) ??
+    asOptionalStringArray(task.acceptance_criteria) ??
+    [];
+
+  return {
+    ...input,
+    description: resolveTaskDescription(task, input),
+    acceptance_criteria: acceptanceCriteria,
+  };
+}
+
+function mergeRoleConfig(
+  role: string,
+  taskRoleConfig: Record<string, unknown>,
+  defaultRoleConfigs: Record<string, Record<string, unknown>>,
+): Record<string, unknown> {
+  const defaults = asRecord(defaultRoleConfigs[role]);
+  const merged = {
+    ...defaults,
+    ...taskRoleConfig,
+  };
+
+  const tools =
+    asStringArray((merged as Record<string, unknown>).tools).length > 0
+      ? asStringArray((merged as Record<string, unknown>).tools)
+      : asStringArray(defaults.allowedTools).length > 0
+        ? asStringArray(defaults.allowedTools)
+        : asStringArray((taskRoleConfig as Record<string, unknown>).allowedTools);
+
+  return {
+    ...merged,
+    system_prompt:
+      asNonEmptyString((merged as Record<string, unknown>).system_prompt) ??
+      asNonEmptyString((merged as Record<string, unknown>).systemPrompt) ??
+      '',
+    tools,
+  };
 }
 
 export function buildRuntimeTaskSubmission(
@@ -108,13 +184,16 @@ export function buildRuntimeTaskSubmission(
   options: RuntimeTaskSubmissionOptions = {},
 ): RuntimeTaskSubmission {
   const resourceBindings = asRecordArray(task.resource_bindings);
+  const role = asNonEmptyString(task.role) ?? 'developer';
+  const input = asRecord(task.input);
+  const mergedRoleConfig = mergeRoleConfig(role, asRecord(task.role_config), options.defaultRoleConfigs ?? {});
 
   const submission = {
     task_id: String(task.id ?? task.task_id ?? ''),
     pipeline_id: asNonEmptyString(task.pipeline_id),
     tenant_id: asNonEmptyString(task.tenant_id),
-    role: asNonEmptyString(task.role) ?? 'developer',
-    input: asRecord(task.input),
+    role,
+    input: normalizeRuntimeInput(task, input),
     context_stack: asRecord(task.context_stack ?? task.context),
     upstream_outputs: asRecord(task.upstream_outputs),
     resource_bindings: resourceBindings,
@@ -124,7 +203,7 @@ export function buildRuntimeTaskSubmission(
       llm_model: asNonEmptyString(options.llmModel),
       git_token: asNonEmptyString(options.gitToken) ?? extractGitToken(resourceBindings),
     },
-    role_config: asRecord(task.role_config),
+    role_config: mergedRoleConfig,
     environment: asRecord(task.environment),
     constraints: asRecord(task.constraints),
   };
