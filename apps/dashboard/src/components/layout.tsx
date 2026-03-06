@@ -19,6 +19,7 @@ const SECTION_LABELS: Record<string, string> = {
   templates: 'Templates',
   tasks: 'Tasks',
   workers: 'Workers',
+  'runtime-customization': 'Runtime Customization',
   activity: 'Activity Feed',
   'api-keys': 'API Keys',
   metrics: 'System Metrics',
@@ -65,6 +66,9 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
       } else if (event.altKey && event.key === '4') {
         event.preventDefault();
         navigate('/metrics');
+      } else if (event.altKey && event.key === '5') {
+        event.preventDefault();
+        navigate('/runtime-customization');
       } else if (event.shiftKey && event.key.toLowerCase() === 'r') {
         event.preventDefault();
         void queryClient.invalidateQueries();
@@ -158,11 +162,14 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
           <NavLink to="/pipelines">Pipelines</NavLink>
           <NavLink to="/templates">Templates</NavLink>
           <NavLink to="/workers">Workers</NavLink>
+          <NavLink to="/runtime-customization">Runtime Customization</NavLink>
           <NavLink to="/activity">Activity Feed</NavLink>
           <NavLink to="/api-keys">API Keys</NavLink>
           <NavLink to="/metrics">System Metrics</NavLink>
         </nav>
-        <p className="muted shortcut-hint">Shortcuts: Alt+1/2/3/4 navigate · Shift+R refresh · Shift+T theme</p>
+        <p className="muted shortcut-hint">
+          Shortcuts: Alt+1/2/3/4/5 navigate · Shift+R refresh · Shift+T theme
+        </p>
         <button
           className="button"
           type="button"
@@ -180,7 +187,11 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
         <nav aria-label="Breadcrumb" className="breadcrumbs">
           {breadcrumbs.map((crumb, index) => (
             <span key={`${crumb.label}-${index}`} className="row" style={{ gap: '0.4rem' }}>
-              {crumb.href ? <NavLink to={crumb.href}>{crumb.label}</NavLink> : <span>{crumb.label}</span>}
+              {crumb.href ? (
+                <NavLink to={crumb.href}>{crumb.label}</NavLink>
+              ) : (
+                <span>{crumb.label}</span>
+              )}
               {index < breadcrumbs.length - 1 ? <span className="muted">/</span> : null}
             </span>
           ))}

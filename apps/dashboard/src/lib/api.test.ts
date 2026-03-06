@@ -30,7 +30,10 @@ describe('dashboard api auth/session behavior', () => {
     const listPipelines = vi
       .fn()
       .mockRejectedValueOnce(new Error('HTTP 401: token expired'))
-      .mockResolvedValueOnce({ data: [], pagination: { page: 1, per_page: 50, total: 0, total_pages: 1 } });
+      .mockResolvedValueOnce({
+        data: [],
+        pagination: { page: 1, per_page: 50, total: 0, total_pages: 1 },
+      });
 
     const client = {
       refreshSession: vi.fn().mockResolvedValue({ token: 'fresh-token' }),
@@ -88,7 +91,9 @@ describe('dashboard api auth/session behavior', () => {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
       listPipelines: vi.fn(),
-      exchangeApiKey: vi.fn().mockResolvedValue({ token: 'ephemeral-token', tenant_id: 'tenant-1' }),
+      exchangeApiKey: vi
+        .fn()
+        .mockResolvedValue({ token: 'ephemeral-token', tenant_id: 'tenant-1' }),
       getPipeline: vi.fn(),
       createPipeline: vi.fn(),
       listTasks: vi.fn(),
@@ -108,9 +113,11 @@ describe('dashboard api auth/session behavior', () => {
   it('calls server-side logout before clearing the local session', async () => {
     writeSession({ accessToken: 'logout-token', tenantId: 'tenant-1' });
 
-    const fetcher = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: { logged_out: true } }), { status: 200 }),
-    ) as unknown as typeof fetch;
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ data: { logged_out: true } }), { status: 200 }),
+      ) as unknown as typeof fetch;
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
@@ -124,7 +131,11 @@ describe('dashboard api auth/session behavior', () => {
       listAgents: vi.fn(),
     };
 
-    const api = createDashboardApi({ client: client as never, fetcher, baseUrl: 'http://localhost:8080' });
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
     await api.logout();
 
     expect(fetcher).toHaveBeenCalledWith(
@@ -143,7 +154,17 @@ describe('dashboard api auth/session behavior', () => {
     const fetcher = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
-          data: [{ id: 'tmpl-1', name: 'SDLC', slug: 'sdlc', version: 1, is_built_in: false, is_published: true, schema: {} }],
+          data: [
+            {
+              id: 'tmpl-1',
+              name: 'SDLC',
+              slug: 'sdlc',
+              version: 1,
+              is_built_in: false,
+              is_published: true,
+              schema: {},
+            },
+          ],
         }),
         { status: 200 },
       ),
@@ -161,7 +182,11 @@ describe('dashboard api auth/session behavior', () => {
       listAgents: vi.fn(),
     };
 
-    const api = createDashboardApi({ client: client as never, fetcher, baseUrl: 'http://localhost:8080' });
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
     const templates = await api.listTemplates();
     const pipeline = await api.createPipeline({ template_id: 'tmpl-1', name: 'Test Run' });
 
@@ -173,7 +198,9 @@ describe('dashboard api auth/session behavior', () => {
   it('sends bearer token when loading metrics if an in-memory access token exists', async () => {
     writeSession({ accessToken: 'metrics-token', tenantId: 'tenant-1' });
 
-    const fetcher = vi.fn().mockResolvedValue(new Response('ok', { status: 200 })) as unknown as typeof fetch;
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(new Response('ok', { status: 200 })) as unknown as typeof fetch;
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
@@ -187,7 +214,11 @@ describe('dashboard api auth/session behavior', () => {
       listAgents: vi.fn(),
     };
 
-    const api = createDashboardApi({ client: client as never, fetcher, baseUrl: 'http://localhost:8080' });
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
     const body = await api.getMetrics();
 
     expect(body).toBe('ok');
@@ -199,7 +230,9 @@ describe('dashboard api auth/session behavior', () => {
   it('loads metrics using cookie-only auth when no in-memory access token exists', async () => {
     writeSession({ accessToken: null, tenantId: 'tenant-1' });
 
-    const fetcher = vi.fn().mockResolvedValue(new Response('ok', { status: 200 })) as unknown as typeof fetch;
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(new Response('ok', { status: 200 })) as unknown as typeof fetch;
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
@@ -213,13 +246,205 @@ describe('dashboard api auth/session behavior', () => {
       listAgents: vi.fn(),
     };
 
-    const api = createDashboardApi({ client: client as never, fetcher, baseUrl: 'http://localhost:8080' });
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
     const body = await api.getMetrics();
 
     expect(body).toBe('ok');
     const [, options] = vi.mocked(fetcher).mock.calls[0];
     expect(options?.headers).toBeUndefined();
     expect(options?.credentials).toBe('include');
+  });
+
+  it('calls runtime customization endpoints with typed dashboard methods', async () => {
+    writeSession({ accessToken: 'runtime-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              state: 'unconfigured',
+              customization_enabled: false,
+              active_digest: 'ghcr.io/agentbaton/runtime:base',
+              resolved_reasoning: {
+                orchestrator_level: 'medium',
+                internal_workers_level: 'medium',
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              valid: true,
+              manifest: {
+                template: 'node',
+                base_image: 'ghcr.io/agentbaton/runtime@sha256:1234',
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              build_id: 'build-1',
+              state: 'gated',
+              link_ready: true,
+              digest: 'sha256:build',
+              manifest: {
+                template: 'node',
+                base_image: 'ghcr.io/agentbaton/runtime@sha256:1234',
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      ) as unknown as typeof fetch;
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listPipelines: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getPipeline: vi.fn(),
+      createPipeline: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+    const status = await api.getCustomizationStatus();
+    const validation = await api.validateCustomization({
+      manifest: {
+        template: 'node',
+        base_image: 'ghcr.io/agentbaton/runtime@sha256:1234',
+      },
+    });
+    const build = await api.createCustomizationBuild({
+      manifest: {
+        template: 'node',
+        base_image: 'ghcr.io/agentbaton/runtime@sha256:1234',
+      },
+    });
+
+    expect(status.state).toBe('unconfigured');
+    expect(validation.valid).toBe(true);
+    expect(build.build_id).toBe('build-1');
+    expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
+      'http://localhost:8080/api/v1/runtime/customizations/status',
+    );
+    expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
+      'http://localhost:8080/api/v1/runtime/customizations/validate',
+    );
+    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
+      'http://localhost:8080/api/v1/runtime/customizations/builds',
+    );
+  });
+
+  it('supports reconstruct export and build link through the dashboard api', async () => {
+    writeSession({ accessToken: 'runtime-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              state: 'linked',
+              manifest: {
+                template: 'python',
+                base_image: 'ghcr.io/agentbaton/runtime@sha256:5678',
+              },
+              profile: {
+                manifest: {
+                  template: 'python',
+                  base_image: 'ghcr.io/agentbaton/runtime@sha256:5678',
+                },
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              artifact_type: 'profile',
+              format: 'yaml',
+              content: 'name: runtime-profile',
+              redaction_applied: true,
+              scan_passed: true,
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              build_id: 'build-2',
+              state: 'linked',
+              linked: true,
+              configured_digest: 'sha256:build-2',
+              active_digest: 'sha256:base',
+            },
+          }),
+          { status: 200 },
+        ),
+      ) as unknown as typeof fetch;
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listPipelines: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getPipeline: vi.fn(),
+      createPipeline: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+    const reconstruct = await api.reconstructCustomization();
+    const exported = await api.exportCustomization({ artifact_type: 'profile', format: 'yaml' });
+    const linked = await api.linkCustomizationBuild({ build_id: 'build-2' });
+
+    expect(reconstruct.profile.manifest.template).toBe('python');
+    expect(exported.redaction_applied).toBe(true);
+    expect(linked.linked).toBe(true);
+    const validateCall = vi.mocked(fetcher).mock.calls[1];
+    expect(validateCall[0]).toBe(
+      'http://localhost:8080/api/v1/runtime/customizations/reconstruct/export',
+    );
+    expect(validateCall[1]).toEqual(
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+      }),
+    );
   });
 });
 
@@ -245,13 +470,21 @@ describe('dashboard global search', () => {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
       exchangeApiKey: vi.fn(),
-      listPipelines: vi.fn().mockResolvedValue({ data: [{ id: 'pipeline-1', name: 'Test Pipeline', state: 'running' }] }),
+      listPipelines: vi.fn().mockResolvedValue({
+        data: [{ id: 'pipeline-1', name: 'Test Pipeline', state: 'running' }],
+      }),
       getPipeline: vi.fn(),
       createPipeline: vi.fn(),
-      listTasks: vi.fn().mockResolvedValue({ data: [{ id: 'task-1', title: 'Test task', state: 'ready' }] }),
+      listTasks: vi
+        .fn()
+        .mockResolvedValue({ data: [{ id: 'task-1', title: 'Test task', state: 'ready' }] }),
       getTask: vi.fn(),
-      listWorkers: vi.fn().mockResolvedValue([{ id: 'worker-1', name: 'Test worker', status: 'online' }]),
-      listAgents: vi.fn().mockResolvedValue([{ id: 'agent-1', name: 'Test agent', status: 'idle' }]),
+      listWorkers: vi
+        .fn()
+        .mockResolvedValue([{ id: 'worker-1', name: 'Test worker', status: 'online' }]),
+      listAgents: vi
+        .fn()
+        .mockResolvedValue([{ id: 'agent-1', name: 'Test agent', status: 'idle' }]),
     };
 
     const api = createDashboardApi({ client: client as never });

@@ -61,6 +61,185 @@ export interface DashboardApiKeyRecord {
   created_at: string;
 }
 
+export interface DashboardCustomizationManagedFile {
+  source: string;
+  target: string;
+}
+
+export interface DashboardCustomizationSetupScript {
+  path: string;
+  sha256: string;
+}
+
+export interface DashboardCustomizationReasoning {
+  orchestrator_level?: 'low' | 'medium' | 'high';
+  internal_workers_level?: 'low' | 'medium' | 'high';
+}
+
+export interface DashboardCustomizationManifest {
+  template: string;
+  base_image: string;
+  customizations?: {
+    apt?: string[];
+    npm_global?: string[];
+    pip?: string[];
+    files?: DashboardCustomizationManagedFile[];
+    setup_script?: DashboardCustomizationSetupScript;
+  };
+  reasoning?: DashboardCustomizationReasoning;
+}
+
+export interface DashboardCustomizationValidationError {
+  field_path: string;
+  rule_id: string;
+  message: string;
+  remediation: string;
+}
+
+export interface DashboardCustomizationValidateResponse {
+  valid: boolean;
+  manifest: DashboardCustomizationManifest;
+  errors?: DashboardCustomizationValidationError[];
+}
+
+export interface DashboardCustomizationGate {
+  name: string;
+  status: string;
+  message?: string;
+}
+
+export interface DashboardCustomizationWaiver {
+  gate: string;
+  scope?: string;
+  environment?: string;
+  reason?: string;
+  ticket?: string;
+  approved_by?: string[];
+  expires_at?: string;
+}
+
+export interface DashboardCustomizationBuildInputs {
+  template_version?: string;
+  policy_bundle_version?: string;
+  lock_digests?: Record<string, string>;
+  build_args?: Record<string, string>;
+  secret_refs?: Array<{ id: string; version: string }>;
+}
+
+export interface DashboardCustomizationTrustPolicy {
+  environment?: string;
+}
+
+export interface DashboardCustomizationTrustEvidence {
+  vulnerability?: {
+    critical_findings?: number;
+    high_findings?: number;
+  };
+  sbom?: {
+    format?: string;
+    digest?: string;
+  };
+  provenance?: {
+    verified?: boolean;
+    source_revision?: string;
+    builder_id?: string;
+    ciih?: string;
+    digest?: string;
+  };
+  signature?: {
+    verified?: boolean;
+    trusted_identity?: string;
+  };
+}
+
+export interface DashboardCustomizationBuildResponse {
+  build_id?: string;
+  state: string;
+  ciih?: string;
+  digest?: string;
+  manifest: DashboardCustomizationManifest;
+  inputs?: DashboardCustomizationBuildInputs;
+  trust_policy?: DashboardCustomizationTrustPolicy;
+  gates?: DashboardCustomizationGate[];
+  waivers?: DashboardCustomizationWaiver[];
+  auto_link_requested?: boolean;
+  link_ready: boolean;
+  link_blocked_reason?: string;
+  reused?: boolean;
+  errors?: DashboardCustomizationValidationError[];
+  error?: string;
+}
+
+export interface DashboardCustomizationStatusResponse {
+  state: string;
+  customization_enabled: boolean;
+  configured_digest?: string;
+  active_digest?: string;
+  pending_rollout_digest?: string;
+  resolved_reasoning: DashboardCustomizationReasoning;
+}
+
+export interface DashboardCustomizationLinkResponse {
+  build_id?: string;
+  state: string;
+  ciih?: string;
+  digest?: string;
+  gates?: DashboardCustomizationGate[];
+  linked: boolean;
+  configured_digest?: string;
+  active_digest?: string;
+  link_blocked_reason?: string;
+  reused?: boolean;
+  error?: string;
+}
+
+export interface DashboardCustomizationRollbackResponse {
+  current_build_id?: string;
+  target_build_id?: string;
+  state: string;
+  current_digest?: string;
+  target_digest?: string;
+  previous_digest?: string;
+  configured_digest?: string;
+  active_digest?: string;
+  target_gates?: DashboardCustomizationGate[];
+  rolled_back: boolean;
+  rollback_blocked_reason?: string;
+  error?: string;
+}
+
+export interface DashboardCustomizationProfile {
+  profile_id?: string;
+  name?: string;
+  scope?: string;
+  manifest_checksum?: string;
+  latest_gated_digest?: string;
+  created_by?: string;
+  updated_at?: string;
+  inference_metadata?: Record<string, string>;
+  manifest: DashboardCustomizationManifest;
+}
+
+export interface DashboardCustomizationInspectResponse {
+  state: string;
+  manifest: DashboardCustomizationManifest;
+  profile: DashboardCustomizationProfile;
+  field_confidence?: Record<string, string>;
+  non_inferable_fields?: string[];
+}
+
+export interface DashboardCustomizationExportResponse {
+  artifact_type?: string;
+  format?: string;
+  path?: string;
+  checksum?: string;
+  content?: string;
+  redaction_applied: boolean;
+  scan_passed: boolean;
+  findings?: Array<{ rule_id: string; location: string; message: string }>;
+  error?: string;
+}
+
 export interface DashboardApi {
   login(apiKey: string): Promise<void>;
   logout(): Promise<void>;
@@ -79,24 +258,40 @@ export interface DashboardApi {
   listWorkers(): Promise<unknown>;
   listAgents(): Promise<unknown>;
   approveTask(taskId: string): Promise<unknown>;
-  retryTask(taskId: string, payload?: { override_input?: Record<string, unknown>; force?: boolean }): Promise<unknown>;
+  retryTask(
+    taskId: string,
+    payload?: { override_input?: Record<string, unknown>; force?: boolean },
+  ): Promise<unknown>;
   cancelTask(taskId: string): Promise<unknown>;
   rejectTask(taskId: string, payload: { feedback: string }): Promise<unknown>;
   requestTaskChanges(
     taskId: string,
-    payload: { feedback: string; override_input?: Record<string, unknown>; preferred_agent_id?: string; preferred_worker_id?: string },
+    payload: {
+      feedback: string;
+      override_input?: Record<string, unknown>;
+      preferred_agent_id?: string;
+      preferred_worker_id?: string;
+    },
   ): Promise<unknown>;
   skipTask(taskId: string, payload: { reason: string }): Promise<unknown>;
   reassignTask(
     taskId: string,
     payload: { preferred_agent_id?: string; preferred_worker_id?: string; reason: string },
   ): Promise<unknown>;
-  escalateTask(taskId: string, payload: { reason: string; escalation_target?: string }): Promise<unknown>;
-  overrideTaskOutput(taskId: string, payload: { output: unknown; reason: string }): Promise<unknown>;
+  escalateTask(
+    taskId: string,
+    payload: { reason: string; escalation_target?: string },
+  ): Promise<unknown>;
+  overrideTaskOutput(
+    taskId: string,
+    payload: { output: unknown; reason: string },
+  ): Promise<unknown>;
   pausePipeline(pipelineId: string): Promise<unknown>;
   resumePipeline(pipelineId: string): Promise<unknown>;
   manualReworkPipeline(pipelineId: string, payload: { feedback: string }): Promise<unknown>;
-  listEvents(filters?: Record<string, string>): Promise<{ data: DashboardEventRecord[]; meta?: Record<string, unknown> }>;
+  listEvents(
+    filters?: Record<string, string>,
+  ): Promise<{ data: DashboardEventRecord[]; meta?: Record<string, unknown> }>;
   listApiKeys(): Promise<DashboardApiKeyRecord[]>;
   createApiKey(payload: {
     scope: 'agent' | 'worker' | 'admin';
@@ -108,6 +303,31 @@ export interface DashboardApi {
   revokeApiKey(id: string): Promise<unknown>;
   search(query: string): Promise<DashboardSearchResult[]>;
   getMetrics(): Promise<string>;
+  getCustomizationStatus(): Promise<DashboardCustomizationStatusResponse>;
+  validateCustomization(payload: {
+    manifest: DashboardCustomizationManifest;
+  }): Promise<DashboardCustomizationValidateResponse>;
+  createCustomizationBuild(payload: {
+    manifest: DashboardCustomizationManifest;
+    auto_link?: boolean;
+    inputs?: DashboardCustomizationBuildInputs;
+    trust_policy?: DashboardCustomizationTrustPolicy;
+    trust_evidence?: DashboardCustomizationTrustEvidence;
+    waivers?: DashboardCustomizationWaiver[];
+  }): Promise<DashboardCustomizationBuildResponse>;
+  getCustomizationBuild(id: string): Promise<DashboardCustomizationBuildResponse>;
+  linkCustomizationBuild(payload: {
+    build_id: string;
+  }): Promise<DashboardCustomizationLinkResponse>;
+  rollbackCustomizationBuild(payload: {
+    current_build_id: string;
+    target_build_id: string;
+  }): Promise<DashboardCustomizationRollbackResponse>;
+  reconstructCustomization(): Promise<DashboardCustomizationInspectResponse>;
+  exportCustomization(payload: {
+    artifact_type?: 'manifest' | 'profile' | 'template';
+    format?: 'json' | 'yaml';
+  }): Promise<DashboardCustomizationExportResponse>;
 }
 
 export function createDashboardApi(options: DashboardApiOptions = {}): DashboardApi {
@@ -153,14 +373,14 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     }
   }
 
-  async function requestJson(
+  async function requestJson<T>(
     path: string,
     options: {
       method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
       body?: Record<string, unknown>;
       includeAuth?: boolean;
     } = {},
-  ): Promise<unknown> {
+  ): Promise<T> {
     const activeSession = readSession();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -181,7 +401,18 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       throw new Error(`HTTP ${response.status}`);
     }
 
-    return response.json();
+    return response.json() as Promise<T>;
+  }
+
+  async function requestData<T>(
+    path: string,
+    options: {
+      method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+      body?: Record<string, unknown>;
+    } = {},
+  ): Promise<T> {
+    const response = await requestJson<{ data: T }>(path, options);
+    return response.data;
   }
 
   return {
@@ -203,7 +434,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     listPipelines: () => withRefresh(() => client.listPipelines()),
     getPipeline: (id) => withRefresh(() => client.getPipeline(id)),
     listTemplates: () =>
-      withRefresh(() => requestJson('/api/v1/templates?per_page=50', { method: 'GET' }) as Promise<{ data: DashboardTemplate[] }>),
+      withRefresh(
+        () =>
+          requestJson('/api/v1/templates?per_page=50', { method: 'GET' }) as Promise<{
+            data: DashboardTemplate[];
+          }>,
+      ),
     createPipeline: (payload) => withRefresh(() => client.createPipeline(payload)),
     cancelPipeline: (pipelineId) => withRefresh(() => client.cancelPipeline(pipelineId)),
     listTasks: (filters) => withRefresh(() => client.listTasks(filters)),
@@ -211,37 +447,52 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     listWorkers: () => withRefresh(() => client.listWorkers()),
     listAgents: () => withRefresh(() => client.listAgents()),
     approveTask: (taskId) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/approve`)),
-    retryTask: (taskId, payload = {}) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/retry`, { body: payload })),
+    retryTask: (taskId, payload = {}) =>
+      withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/retry`, { body: payload })),
     cancelTask: (taskId) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/cancel`)),
-    rejectTask: (taskId, payload) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/reject`, { body: payload })),
+    rejectTask: (taskId, payload) =>
+      withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/reject`, { body: payload })),
     requestTaskChanges: (taskId, payload) =>
       withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/request-changes`, { body: payload })),
-    skipTask: (taskId, payload) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/skip`, { body: payload })),
-    reassignTask: (taskId, payload) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/reassign`, { body: payload })),
-    escalateTask: (taskId, payload) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/escalate`, { body: payload })),
+    skipTask: (taskId, payload) =>
+      withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/skip`, { body: payload })),
+    reassignTask: (taskId, payload) =>
+      withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/reassign`, { body: payload })),
+    escalateTask: (taskId, payload) =>
+      withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/escalate`, { body: payload })),
     overrideTaskOutput: (taskId, payload) =>
       withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/output-override`, { body: payload })),
-    pausePipeline: (pipelineId) => withRefresh(() => requestJson(`/api/v1/pipelines/${pipelineId}/pause`)),
-    resumePipeline: (pipelineId) => withRefresh(() => requestJson(`/api/v1/pipelines/${pipelineId}/resume`)),
+    pausePipeline: (pipelineId) =>
+      withRefresh(() => requestJson(`/api/v1/pipelines/${pipelineId}/pause`)),
+    resumePipeline: (pipelineId) =>
+      withRefresh(() => requestJson(`/api/v1/pipelines/${pipelineId}/resume`)),
     manualReworkPipeline: (pipelineId, payload) =>
-      withRefresh(() => requestJson(`/api/v1/pipelines/${pipelineId}/manual-rework`, { body: payload })),
+      withRefresh(() =>
+        requestJson(`/api/v1/pipelines/${pipelineId}/manual-rework`, { body: payload }),
+      ),
     listEvents: (filters) =>
       withRefresh(() =>
-        requestJson(`/api/v1/events${buildQueryString(filters)}`, { method: 'GET' }) as Promise<{ data: DashboardEventRecord[] }>,
+        requestJson<{ data: DashboardEventRecord[] }>(
+          `/api/v1/events${buildQueryString(filters)}`,
+          { method: 'GET' },
+        ),
       ),
     listApiKeys: () =>
       withRefresh(async () => {
-        const response = (await requestJson('/api/v1/api-keys', { method: 'GET' })) as { data: DashboardApiKeyRecord[] };
+        const response = await requestJson<{ data: DashboardApiKeyRecord[] }>('/api/v1/api-keys', {
+          method: 'GET',
+        });
         return response.data;
       }),
     createApiKey: (payload) =>
       withRefresh(async () => {
-        const response = (await requestJson('/api/v1/api-keys', { body: payload })) as {
+        const response = await requestJson<{
           data: { api_key: string; key_prefix: string };
-        };
+        }>('/api/v1/api-keys', { body: payload });
         return response.data;
       }),
-    revokeApiKey: (id) => withRefresh(() => requestJson(`/api/v1/api-keys/${id}`, { method: 'DELETE' })),
+    revokeApiKey: (id) =>
+      withRefresh(() => requestJson(`/api/v1/api-keys/${id}`, { method: 'DELETE' })),
     search: (query) =>
       withRefresh(async () => {
         const normalizedQuery = query.trim().toLowerCase();
@@ -283,6 +534,59 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
 
         return response.text();
       }),
+    getCustomizationStatus: () =>
+      withRefresh(() =>
+        requestData<DashboardCustomizationStatusResponse>('/api/v1/runtime/customizations/status', {
+          method: 'GET',
+        }),
+      ),
+    validateCustomization: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardCustomizationValidateResponse>(
+          '/api/v1/runtime/customizations/validate',
+          { body: payload },
+        ),
+      ),
+    createCustomizationBuild: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardCustomizationBuildResponse>('/api/v1/runtime/customizations/builds', {
+          body: payload,
+        }),
+      ),
+    getCustomizationBuild: (id) =>
+      withRefresh(() =>
+        requestData<DashboardCustomizationBuildResponse>(
+          `/api/v1/runtime/customizations/builds/${id}`,
+          { method: 'GET' },
+        ),
+      ),
+    linkCustomizationBuild: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardCustomizationLinkResponse>('/api/v1/runtime/customizations/links', {
+          body: payload,
+        }),
+      ),
+    rollbackCustomizationBuild: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardCustomizationRollbackResponse>(
+          '/api/v1/runtime/customizations/rollback',
+          { body: payload },
+        ),
+      ),
+    reconstructCustomization: () =>
+      withRefresh(() =>
+        requestData<DashboardCustomizationInspectResponse>(
+          '/api/v1/runtime/customizations/reconstruct',
+          { body: {} },
+        ),
+      ),
+    exportCustomization: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardCustomizationExportResponse>(
+          '/api/v1/runtime/customizations/reconstruct/export',
+          { body: payload },
+        ),
+      ),
   };
 }
 
@@ -353,9 +657,7 @@ function filterRecords(records: NamedRecord[], query: string): NamedRecord[] {
   });
 }
 
-function extractListResult(
-  result: PromiseSettledResult<unknown>,
-): NamedRecord[] {
+function extractListResult(result: PromiseSettledResult<unknown>): NamedRecord[] {
   if (result.status !== 'fulfilled') {
     return [];
   }

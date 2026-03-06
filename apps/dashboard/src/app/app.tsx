@@ -8,6 +8,7 @@ import { ApiKeyManagementPage } from '../pages/api-key-management-page.js';
 import { LoginPage } from '../pages/login-page.js';
 import { PipelineDetailPage } from '../pages/pipeline-detail-page.js';
 import { PipelineListPage } from '../pages/pipeline-list-page.js';
+import { RuntimeCustomizationPage } from '../pages/runtime-customization-page.js';
 import { SystemMetricsPage } from '../pages/system-metrics-page.js';
 import { TaskDetailPage } from '../pages/task-detail-page.js';
 import { TemplateBrowserPage } from '../pages/template-browser-page.js';
@@ -35,6 +36,7 @@ export function App(): JSX.Element {
           <Route path="/templates" element={<TemplateBrowserPage />} />
           <Route path="/tasks/:id" element={<TaskDetailPage />} />
           <Route path="/workers" element={<WorkerStatusPage />} />
+          <Route path="/runtime-customization" element={<RuntimeCustomizationPage />} />
           <Route path="/activity" element={<ActivityFeedPage />} />
           <Route path="/api-keys" element={<ApiKeyManagementPage />} />
           <Route path="/metrics" element={<SystemMetricsPage />} />

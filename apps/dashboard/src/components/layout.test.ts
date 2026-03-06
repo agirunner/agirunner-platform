@@ -11,6 +11,9 @@ describe('layout breadcrumbs', () => {
     expect(buildBreadcrumbs('/workers')).toEqual([{ label: 'Workers', href: undefined }]);
     expect(buildBreadcrumbs('/activity')).toEqual([{ label: 'Activity Feed', href: undefined }]);
     expect(buildBreadcrumbs('/templates')).toEqual([{ label: 'Templates', href: undefined }]);
+    expect(buildBreadcrumbs('/runtime-customization')).toEqual([
+      { label: 'Runtime Customization', href: undefined },
+    ]);
   });
 
   it('truncates id segments and keeps parent links navigable', () => {

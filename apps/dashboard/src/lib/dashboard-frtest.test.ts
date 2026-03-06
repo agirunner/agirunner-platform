@@ -24,6 +24,7 @@
  * FR-429:  Pipeline list view with filters
  * FR-717:  Dashboard renders phases as swimlanes
  * FR-755:  Quickstart docs for 15-min first pipeline
+ * FR-RT-1620..1625: Guided runtime customization in existing dashboard
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -50,8 +51,12 @@ function mockLocalStorage() {
   const store = new Map<string, string>();
   vi.stubGlobal('localStorage', {
     getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => { store.set(key, value); },
-    removeItem: (key: string) => { store.delete(key); },
+    setItem: (key: string, value: string) => {
+      store.set(key, value);
+    },
+    removeItem: (key: string) => {
+      store.delete(key);
+    },
   });
 }
 
@@ -69,6 +74,7 @@ describe('FR-030: modern SPA structure', () => {
     expect(source).toContain('/pipelines');
     expect(source).toContain('/templates');
     expect(source).toContain('/workers');
+    expect(source).toContain('/runtime-customization');
     expect(source).toContain('/metrics');
     expect(source).toContain('/login');
   });
@@ -276,6 +282,34 @@ describe('FR-420 / FR-424 / FR-426: template browser, pipeline launch, API key m
     expect(source).toContain('Loading templates');
     expect(source).toContain('Launch Pipeline');
     expect(source).toContain('dashboardApi.createPipeline');
+  });
+});
+
+describe('FR-RT-1620..1625: guided runtime customization flow', () => {
+  it('dashboard api exposes runtime customization validation, build, link, and export methods', () => {
+    const source = readComponent('lib/api.ts');
+    expect(source).toContain('getCustomizationStatus');
+    expect(source).toContain('validateCustomization');
+    expect(source).toContain('createCustomizationBuild');
+    expect(source).toContain('linkCustomizationBuild');
+    expect(source).toContain('exportCustomization');
+  });
+
+  it('runtime customization page remains inside the existing dashboard app and renders gate and digest review language', () => {
+    const pageSource = readComponent('pages/runtime-customization-page.tsx');
+    const panelSource = readComponent('pages/runtime-customization-support.tsx');
+    const formSource = readComponent('pages/runtime-customization-form.ts');
+    expect(pageSource).toContain('Runtime Customization');
+    expect(pageSource).toContain('Guided authoring');
+    expect(panelSource).toContain('Gate Review');
+    expect(formSource).toContain('Configured');
+    expect(formSource).toContain('Pending rollout');
+  });
+
+  it('layout exposes runtime customization navigation in the existing sidebar', () => {
+    const source = readComponent('components/layout.tsx');
+    expect(source).toContain('/runtime-customization');
+    expect(source).toContain('Runtime Customization');
   });
 });
 
