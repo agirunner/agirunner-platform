@@ -1,0 +1,11 @@
+# Batch Stage Report — unit
+- Status: **PASS**
+- Exit code: 0
+- Duration: 1542ms
+- Started: 2026-03-05T23:23:16.011Z
+- Finished: 2026-03-05T23:23:17.553Z
+- Command: `pnpm test`
+- Stdout log: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/stages/unit/stdout.log
+- Stderr log: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/stages/unit/stderr.log
+- Lane artifacts root: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/lanes/unit/artifacts
+- Lane results path: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/lanes/unit/results.v1.json

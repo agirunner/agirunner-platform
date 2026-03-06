@@ -61,15 +61,18 @@ test('buildStages does not leak LIVE_* unit env and injects AP-7-safe AGENT_API_
     const unit = stages.find((stage) => stage.stageId === 'unit');
     const core = stages.find((stage) => stage.stageId === 'core');
     const integration = stages.find((stage) => stage.stageId === 'integration-dashboard');
+    const live = stages.find((stage) => stage.stageId === 'live-openai');
 
     assert.ok(unit);
     assert.ok(core);
     assert.ok(integration);
+    assert.ok(live);
 
     assert.equal(unit?.env.LIVE_ARTIFACTS_ROOT, undefined);
     assert.equal(unit?.env.LIVE_REPORTS_RESULTS_PATH, undefined);
 
     assert.equal(core?.env.AGENT_API_URL, `http://127.0.0.1:${core?.ports.platformApi}/execute`);
+    assert.equal(live?.env.EXECUTE_ROUTE_MODE, 'execution-backed');
     assert.match(
       String(integration?.env.PLAYWRIGHT_BROWSERS_PATH ?? ''),
       /\.cache\/ms-playwright$/,
@@ -80,10 +83,81 @@ test('buildStages does not leak LIVE_* unit env and injects AP-7-safe AGENT_API_
   }
 });
 
+test('buildStages defaults live stage command to warm traceability flow', async () => {
+  const defaults = loadBatchDefaults();
+  const previousLiveMode = process.env.BATCH_LIVE_STAGE_MODE;
+  delete process.env.BATCH_LIVE_STAGE_MODE;
+
+  try {
+    const stages = await buildStages(
+      defaults,
+      makeOptions(),
+      '2026-03-04T00-00-00-000Z',
+      path.resolve('tests/artifacts/batch/run-test'),
+    );
+
+    const live = stages.find((stage) => stage.stageId === 'live-openai');
+    assert.deepEqual(live?.command, [
+      'pnpm',
+      'exec',
+      'tsx',
+      'tests/live/harness/traceability-flow.ts',
+      'run-fast',
+      '--provider',
+      'openai',
+      '--runner-all-scenarios',
+    ]);
+    assert.equal(live?.liveExecutionMode, 'warm');
+  } finally {
+    if (previousLiveMode === undefined) delete process.env.BATCH_LIVE_STAGE_MODE;
+    else process.env.BATCH_LIVE_STAGE_MODE = previousLiveMode;
+  }
+});
+
+test('buildStages fails closed when cold mode is requested without documented exception', async () => {
+  const defaults = loadBatchDefaults();
+  const previousLiveMode = process.env.BATCH_LIVE_STAGE_MODE;
+  const previousExceptionReason = process.env.BATCH_COLD_MODE_EXCEPTION_REASON;
+  const previousExceptionAlias = process.env.BATCH_COLD_MODE_EXCEPTION;
+
+  process.env.BATCH_LIVE_STAGE_MODE = 'cold';
+  delete process.env.BATCH_COLD_MODE_EXCEPTION_REASON;
+  delete process.env.BATCH_COLD_MODE_EXCEPTION;
+
+  try {
+    await assert.rejects(
+      () =>
+        buildStages(
+          defaults,
+          makeOptions(),
+          '2026-03-04T00-00-00-000Z',
+          path.resolve('tests/artifacts/batch/run-test'),
+        ),
+      /requires BATCH_COLD_MODE_EXCEPTION_REASON/,
+    );
+  } finally {
+    if (previousLiveMode === undefined) delete process.env.BATCH_LIVE_STAGE_MODE;
+    else process.env.BATCH_LIVE_STAGE_MODE = previousLiveMode;
+
+    if (previousExceptionReason === undefined) delete process.env.BATCH_COLD_MODE_EXCEPTION_REASON;
+    else process.env.BATCH_COLD_MODE_EXCEPTION_REASON = previousExceptionReason;
+
+    if (previousExceptionAlias === undefined) delete process.env.BATCH_COLD_MODE_EXCEPTION;
+    else process.env.BATCH_COLD_MODE_EXCEPTION = previousExceptionAlias;
+  }
+});
+
 test('buildStages preserves explicit AGENT_API_URL override for docker lanes', async () => {
   const defaults = loadBatchDefaults();
   const previousAgentApi = process.env.AGENT_API_URL;
+  const previousExecuteRouteMode = process.env.EXECUTE_ROUTE_MODE;
+  const previousLiveMode = process.env.BATCH_LIVE_STAGE_MODE;
+  const previousExceptionReason = process.env.BATCH_COLD_MODE_EXCEPTION_REASON;
+
   process.env.AGENT_API_URL = 'http://example.invalid:19000/execute';
+  process.env.EXECUTE_ROUTE_MODE = 'live-agent-api';
+  process.env.BATCH_LIVE_STAGE_MODE = 'cold';
+  process.env.BATCH_COLD_MODE_EXCEPTION_REASON = 'INC-12345 temporary provider outage repro';
 
   try {
     const stages = await buildStages(
@@ -95,9 +169,21 @@ test('buildStages preserves explicit AGENT_API_URL override for docker lanes', a
 
     const live = stages.find((stage) => stage.stageId === 'live-openai');
     assert.equal(live?.env.AGENT_API_URL, 'http://example.invalid:19000/execute');
+    assert.equal(live?.env.EXECUTE_ROUTE_MODE, 'live-agent-api');
+    assert.equal(live?.liveExecutionMode, 'cold');
+    assert.match(String(live?.coldModeExceptionReason ?? ''), /INC-12345/);
   } finally {
     if (previousAgentApi === undefined) delete process.env.AGENT_API_URL;
     else process.env.AGENT_API_URL = previousAgentApi;
+
+    if (previousExecuteRouteMode === undefined) delete process.env.EXECUTE_ROUTE_MODE;
+    else process.env.EXECUTE_ROUTE_MODE = previousExecuteRouteMode;
+
+    if (previousLiveMode === undefined) delete process.env.BATCH_LIVE_STAGE_MODE;
+    else process.env.BATCH_LIVE_STAGE_MODE = previousLiveMode;
+
+    if (previousExceptionReason === undefined) delete process.env.BATCH_COLD_MODE_EXCEPTION_REASON;
+    else process.env.BATCH_COLD_MODE_EXCEPTION_REASON = previousExceptionReason;
   }
 });
 

@@ -1,0 +1,29 @@
+{
+  "runId": "2026-03-05T23-36-28-829Z-sdlc-google-r1",
+  "startedAt": "2026-03-05T23:36:28.829Z",
+  "finishedAt": "2026-03-05T23:36:47.016Z",
+  "template": "sdlc",
+  "provider": "google",
+  "repeat": 1,
+  "scenarios": {
+    "si2-extended-isolation": {
+      "status": "pass",
+      "duration": "1.96s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 5,
+      "screenshots": []
+    }
+  },
+  "containers_leaked": 0,
+  "temp_files_leaked": 0,
+  "total_cost": "$0.0000",
+  "timing": {
+    "setupMs": 16151,
+    "scenarioMs": {
+      "si2-extended-isolation": 1964
+    },
+    "teardownMs": 2,
+    "totalMs": 18187
+  }
+}

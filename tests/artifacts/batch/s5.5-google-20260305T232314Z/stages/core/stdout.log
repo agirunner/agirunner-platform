@@ -1,0 +1,397 @@
+
+> agentbaton-platform@0.1.0 test:core:all /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform
+> tsx tests/live/harness/runner.ts --lane core --all
+
+Live harness agent API bootstrap: source=harness-live-executor url=http://host.docker.internal:40781/execute
+Live harness compose startup: rebuild (workspace:7382118825cd46f19a1dc075460cc56313d04f15a458a318360ce2fb3c1ade70)
+Sending build context to Docker daemon  6.155kB
+Step 1/14 : FROM golang:1.22-alpine AS build
+ ---> 4129f51f28c9
+Step 2/14 : WORKDIR /src
+ ---> Using cache
+ ---> 1bb3babc1f24
+Step 3/14 : COPY go.mod ./
+ ---> Using cache
+ ---> c7227a7d885d
+Step 4/14 : COPY main.go ./
+ ---> Using cache
+ ---> cbdf801ee739
+Step 5/14 : RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/runtime-compat ./main.go
+ ---> Using cache
+ ---> 88e961424f20
+Step 6/14 : FROM alpine:3.20
+ ---> cc9071bd1610
+Step 7/14 : RUN apk add --no-cache ca-certificates
+ ---> Using cache
+ ---> 4eda6fbba38a
+Step 8/14 : RUN addgroup -g 10001 runtime && adduser -D -u 10001 -G runtime runtime
+ ---> Using cache
+ ---> 6cab5c12fb69
+Step 9/14 : USER runtime
+ ---> Using cache
+ ---> f3d3123aba93
+Step 10/14 : WORKDIR /app
+ ---> Using cache
+ ---> 1b261629f657
+Step 11/14 : COPY --from=build /out/runtime-compat /app/runtime-compat
+ ---> Using cache
+ ---> 8aa879acdbd9
+Step 12/14 : EXPOSE 8081
+ ---> Using cache
+ ---> 0ae6bf8b81e8
+Step 13/14 : ENTRYPOINT ["/app/runtime-compat"]
+ ---> Using cache
+ ---> 3a3e9d1d95e3
+Step 14/14 : LABEL com.docker.compose.image.builder=classic
+ ---> Using cache
+ ---> 2df62204f091
+Successfully built 2df62204f091
+Successfully tagged agentbaton-runtime:local
+Sending build context to Docker daemon  524.4kBSending build context to Docker daemon  842.4kB
+Step 1/25 : FROM node:22-alpine AS base
+ ---> 463254b4a812
+Step 2/25 : RUN corepack enable
+ ---> Using cache
+ ---> b37863438eba
+Step 3/25 : WORKDIR /workspace
+ ---> Using cache
+ ---> 87615cff0540
+Step 4/25 : FROM base AS deps
+ ---> 87615cff0540
+Step 5/25 : COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+ ---> Using cache
+ ---> 2167855542af
+Step 6/25 : COPY apps/platform-api/package.json apps/platform-api/package.json
+ ---> Using cache
+ ---> ae1b1baede78
+Step 7/25 : COPY packages packages
+ ---> Using cache
+ ---> 0734c395ef6d
+Step 8/25 : RUN pnpm install --frozen-lockfile
+ ---> Using cache
+ ---> faa90cfd3967
+Step 9/25 : FROM deps AS build
+ ---> faa90cfd3967
+Step 10/25 : COPY . .
+ ---> 3d054b5d956b
+Step 11/25 : RUN pnpm --filter @agentbaton/platform-api build
+ ---> Running in 5def54e3dd89
+
+> @agentbaton/platform-api@0.1.0 build /workspace/apps/platform-api
+> tsc -p tsconfig.json
+
+ ---> Removed intermediate container 5def54e3dd89
+ ---> d0e45f7fcc72
+Step 12/25 : RUN mkdir -p apps/platform-api/dist/src/db/migrations apps/platform-api/dist/configs   && cp apps/platform-api/src/db/migrations/*.sql apps/platform-api/dist/src/db/migrations/   && cp apps/platform-api/configs/built-in-roles.json apps/platform-api/dist/configs/
+ ---> Running in f1b550a82f25
+ ---> Removed intermediate container f1b550a82f25
+ ---> 83b610e751de
+Step 13/25 : RUN pnpm --filter @agentbaton/platform-api deploy --legacy /app --prod
+ ---> Running in a188a841b9a2
+ WARN  Shared workspace lockfile detected but configuration forces legacy deploy implementation.
+Packages are copied from the content-addressable store to the virtual store.
+  Content-addressable store is at: /root/.local/share/pnpm/store/v10
+  Virtual store is at:             ../app/node_modules/.pnpm
+Progress: resolved 0, reused 1, downloaded 0, added 0
+apps/platform-api                        |  WARN  deprecated supertest@7.0.0
+ WARN  2 deprecated subdependencies found: glob@10.5.0, superagent@9.0.2
+.                                        | +102 ++++++++++
+Progress: resolved 500, reused 425, downloaded 0, added 0
+Progress: resolved 500, reused 425, downloaded 0, added 9
+Progress: resolved 500, reused 425, downloaded 0, added 37
+Progress: resolved 500, reused 425, downloaded 0, added 71
+Progress: resolved 500, reused 425, downloaded 0, added 97
+Progress: resolved 500, reused 425, downloaded 0, added 98
+Progress: resolved 500, reused 425, downloaded 0, added 99
+Progress: resolved 500, reused 425, downloaded 0, added 101
+Progress: resolved 500, reused 425, downloaded 0, added 102
+Progress: resolved 500, reused 425, downloaded 0, added 102, done
+ WARN  Failed to create bin at /app/node_modules/.bin/acorn. ENOENT: no such file or directory, open '/app/node_modules/.pnpm/acorn@8.16.0/node_modules/acorn/bin/acorn'
+ WARN  Failed to create bin at /workspace/apps/app/node_modules/.bin/vite. ENOENT: no such file or directory, open '/app/node_modules/.pnpm/vite@5.4.21_@types+node@22.13.5/node_modules/vite/bin/vite.js'
+ ---> Removed intermediate container a188a841b9a2
+ ---> 5c06f51925a4
+Step 14/25 : FROM node:22-alpine AS runtime
+ ---> 463254b4a812
+Step 15/25 : WORKDIR /app
+ ---> Using cache
+ ---> 21cba276b0fa
+Step 16/25 : ENV NODE_ENV=production
+ ---> Using cache
+ ---> c8a4c5007e42
+Step 17/25 : ENV PORT=8080
+ ---> Using cache
+ ---> 6939f15f515b
+Step 18/25 : ENV DATABASE_URL=
+ ---> Using cache
+ ---> c119dff94f40
+Step 19/25 : ENV JWT_SECRET=
+ ---> Using cache
+ ---> 7d565ebf2310
+Step 20/25 : ENV WEBHOOK_ENCRYPTION_KEY=
+ ---> Using cache
+ ---> 3633d2e6ce62
+Step 21/25 : COPY --from=build /app ./
+ ---> ea499dc3d613
+Step 22/25 : USER node
+ ---> Running in d2fbca97ce7d
+ ---> Removed intermediate container d2fbca97ce7d
+ ---> 91153bf6619e
+Step 23/25 : EXPOSE 8080
+ ---> Running in f12a2e54751f
+ ---> Removed intermediate container f12a2e54751f
+ ---> 1e56d9d40247
+Step 24/25 : CMD ["node", "dist/src/index.js"]
+ ---> Running in 3adc1cb14601
+ ---> Removed intermediate container 3adc1cb14601
+ ---> bd22a24dfdcb
+Step 25/25 : LABEL com.docker.compose.image.builder=classic
+ ---> Running in 12673c42da36
+ ---> Removed intermediate container 12673c42da36
+ ---> 4124e2a40677
+Successfully built 4124e2a40677
+Successfully tagged agentbaton-batch-2026-03-05t23-23-15-182z-core-platform-api:latest
+Sending build context to Docker daemon  524.4kBSending build context to Docker daemon  524.4kBSending build context to Docker daemon  842.4kB
+Step 1/17 : FROM node:22-alpine AS build
+ ---> 463254b4a812
+Step 2/17 : RUN corepack enable
+ ---> Using cache
+ ---> b37863438eba
+Step 3/17 : WORKDIR /workspace
+ ---> Using cache
+ ---> 87615cff0540
+Step 4/17 : COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+ ---> Using cache
+ ---> 2167855542af
+Step 5/17 : COPY apps/dashboard/package.json apps/dashboard/package.json
+ ---> Using cache
+ ---> 3811ef342c5c
+Step 6/17 : COPY packages packages
+ ---> Using cache
+ ---> b85f1c8426fc
+Step 7/17 : RUN pnpm install --frozen-lockfile
+ ---> Using cache
+ ---> 068a36ede86e
+Step 8/17 : COPY . .
+Sending build context to Docker daemon  842.4kB
+Step 1/25 : FROM node:22-alpine AS base
+ ---> 463254b4a812
+Step 2/25 : RUN corepack enable
+ ---> Using cache
+ ---> b37863438eba
+Step 3/25 : WORKDIR /workspace
+ ---> Using cache
+ ---> 87615cff0540
+Step 4/25 : FROM base AS deps
+ ---> 87615cff0540
+Step 5/25 : COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+ ---> Using cache
+ ---> 2167855542af
+Step 6/25 : COPY apps/platform-api/package.json apps/platform-api/package.json
+ ---> Using cache
+ ---> ae1b1baede78
+Step 7/25 : COPY packages packages
+ ---> Using cache
+ ---> 0734c395ef6d
+Step 8/25 : RUN pnpm install --frozen-lockfile
+ ---> Using cache
+ ---> faa90cfd3967
+Step 9/25 : FROM deps AS build
+ ---> faa90cfd3967
+Step 10/25 : COPY . .
+ ---> Using cache
+ ---> 3d054b5d956b
+Step 11/25 : RUN pnpm --filter @agentbaton/platform-api build
+ ---> Using cache
+ ---> d0e45f7fcc72
+Step 12/25 : RUN mkdir -p apps/platform-api/dist/src/db/migrations apps/platform-api/dist/configs   && cp apps/platform-api/src/db/migrations/*.sql apps/platform-api/dist/src/db/migrations/   && cp apps/platform-api/configs/built-in-roles.json apps/platform-api/dist/configs/
+ ---> Using cache
+ ---> 83b610e751de
+Step 13/25 : RUN pnpm --filter @agentbaton/platform-api deploy --legacy /app --prod
+ ---> Using cache
+ ---> 5c06f51925a4
+Step 14/25 : FROM node:22-alpine AS runtime
+ ---> 463254b4a812
+Step 15/25 : WORKDIR /app
+ ---> Using cache
+ ---> 21cba276b0fa
+Step 16/25 : ENV NODE_ENV=production
+ ---> Using cache
+ ---> c8a4c5007e42
+Step 17/25 : ENV PORT=8080
+ ---> Using cache
+ ---> 6939f15f515b
+Step 18/25 : ENV DATABASE_URL=
+ ---> Using cache
+ ---> c119dff94f40
+Step 19/25 : ENV JWT_SECRET=
+ ---> Using cache
+ ---> 7d565ebf2310
+Step 20/25 : ENV WEBHOOK_ENCRYPTION_KEY=
+ ---> Using cache
+ ---> 3633d2e6ce62
+Step 21/25 : COPY --from=build /app ./
+ ---> Using cache
+ ---> ea499dc3d613
+Step 22/25 : USER node
+ ---> Using cache
+ ---> 91153bf6619e
+Step 23/25 : EXPOSE 8080
+ ---> Using cache
+ ---> 1e56d9d40247
+Step 24/25 : CMD ["node", "dist/src/index.js"]
+ ---> Using cache
+ ---> bd22a24dfdcb
+Step 25/25 : LABEL com.docker.compose.image.builder=classic
+ ---> Using cache
+ ---> 4124e2a40677
+Successfully built 4124e2a40677
+Successfully tagged agentbaton-batch-2026-03-05t23-23-15-182z-core-worker:latest
+ ---> 8c7bcf96651e
+Step 9/17 : ARG VITE_PLATFORM_API_URL=http://localhost:8080
+ ---> Running in c42799907d95
+ ---> Removed intermediate container c42799907d95
+ ---> a56ac078f6be
+Step 10/17 : ENV VITE_PLATFORM_API_URL=${VITE_PLATFORM_API_URL}
+ ---> Running in b86dbe4bcd3b
+ ---> Removed intermediate container b86dbe4bcd3b
+ ---> cd358e88d60a
+Step 11/17 : RUN pnpm --filter @agentbaton/dashboard build
+ ---> Running in cf67fdf694d7
+
+> @agentbaton/dashboard@0.1.0 build /workspace/apps/dashboard
+> vite build
+
+vite v6.2.0 building for production...
+transforming...
+[91m../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useQueries.js (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useQueries.js" was ignored.
+[0m[91m../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useQuery.js (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useQuery.js" was ignored.
+[0m[91m../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/QueryClientProvider.js" was ignored.
+[0m[91m../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useIsFetching.js (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useIsFetching.js" was ignored.
+[0m[91m../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/HydrationBoundary.js (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/HydrationBoundary.js" was ignored.
+[0m[91m../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/QueryErrorResetBoundary.js (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/QueryErrorResetBoundary.js" was ignored.
+[0m[91m../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useMutationState.js (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useMutationState.js" was ignored.
+[0m[91m../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useMutation.js (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useMutation.js" was ignored.
+[0m[91m../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useInfiniteQuery.js (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useInfiniteQuery.js" was ignored.
+[0m[91m../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/isRestoring.js (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/isRestoring.js" was ignored.
+[0m[91m../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useSuspenseInfiniteQuery.js (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useSuspenseInfiniteQuery.js" was ignored.
+[0m[91m../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useSuspenseQuery.js (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useSuspenseQuery.js" was ignored.
+[0m[91m../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useSuspenseQueries.js (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useSuspenseQueries.js" was ignored.
+[0m[91m../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/errorBoundaryUtils.js (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/errorBoundaryUtils.js" was ignored.
+[0m[91m../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useBaseQuery.js (1:0): Module level directives cause errors when bundled, "use client" in "../../node_modules/.pnpm/@tanstack+react-query@5.66.8_react@18.3.1/node_modules/@tanstack/react-query/build/modern/useBaseQuery.js" was ignored.
+[0m✓ 92 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.41 kB │ gzip:  0.27 kB
+dist/assets/index-CvAnMEw7.css    2.48 kB │ gzip:  0.97 kB
+dist/assets/index-C5NuLq70.js   234.10 kB │ gzip: 73.73 kB
+✓ built in 759ms
+ ---> Removed intermediate container cf67fdf694d7
+ ---> bfdac6601829
+Step 12/17 : FROM nginx:1.27-alpine AS runtime
+ ---> 6769dc3a703c
+Step 13/17 : COPY apps/dashboard/nginx.conf /etc/nginx/conf.d/default.conf
+ ---> Using cache
+ ---> d04fe9c991df
+Step 14/17 : COPY --from=build /workspace/apps/dashboard/dist /usr/share/nginx/html
+ ---> Using cache
+ ---> 4b17ce9cab38
+Step 15/17 : EXPOSE 80
+ ---> Using cache
+ ---> ed63402d8509
+Step 16/17 : CMD ["nginx", "-g", "daemon off;"]
+ ---> Using cache
+ ---> c710382484dc
+Step 17/17 : LABEL com.docker.compose.image.builder=classic
+ ---> Using cache
+ ---> 9df672f7ad6c
+Successfully built 9df672f7ad6c
+Successfully tagged agentbaton-batch-2026-03-05t23-23-15-182z-core-dashboard:latest
+
+▶ Running scenario: sdlc-happy
+  ✓ sdlc-happy — 11 validations
+
+▶ Running scenario: ap2-external-runtime
+  ✓ ap2-external-runtime — 16 validations
+
+▶ Running scenario: ap3-standalone-worker
+  ✓ ap3-standalone-worker — 14 validations
+
+▶ Running scenario: ap4-mixed-workers
+  ✓ ap4-mixed-workers — 16 validations
+
+▶ Running scenario: maintenance-happy
+  ✓ maintenance-happy — 8 validations
+
+▶ Running scenario: ap6-runtime-maintenance
+  ✓ ap6-runtime-maintenance — 16 validations
+
+▶ Running scenario: ap7-failure-recovery
+  ✓ ap7-failure-recovery — 14 validations
+
+▶ Running scenario: ot1-cascade
+  ✓ ot1-cascade — 15 validations
+
+▶ Running scenario: ot2-routing
+  ✓ ot2-routing — 9 validations
+
+▶ Running scenario: ot3-state
+  ✓ ot3-state — 8 validations
+
+▶ Running scenario: ot4-health
+  ✓ ot4-health — 10 validations
+
+▶ Running scenario: hl1-approval-flow
+  ✓ hl1-approval-flow — 11 validations
+
+▶ Running scenario: hl2-pipeline-controls
+  ✓ hl2-pipeline-controls — 8 validations
+
+▶ Running scenario: it1-sdk
+  ✓ it1-sdk — 13 validations
+
+▶ Running scenario: it2-mcp
+  ✓ it2-mcp — 14 validations
+
+▶ Running scenario: it3-webhooks
+  ✓ it3-webhooks — 8 validations
+
+▶ Running scenario: it3-mcp-sse-stream
+  ✓ it3-mcp-sse-stream — 10 validations
+
+▶ Running scenario: si1-isolation
+  ✓ si1-isolation — 13 validations
+
+▶ Running scenario: si2-auth
+  ✓ si2-auth — 7 validations
+
+▶ Running scenario: si2-extended-isolation
+  ✓ si2-extended-isolation — 5 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-23-17-947Z-sdlc-none-r1
+  ✓ sdlc-happy — 9.42s — 11 validations
+  ✓ ap2-external-runtime — 3.82s — 16 validations
+  ✓ ap3-standalone-worker — 4.60s — 14 validations
+  ✓ ap4-mixed-workers — 4.67s — 16 validations
+  ✓ maintenance-happy — 9.40s — 8 validations
+  ✓ ap6-runtime-maintenance — 3.75s — 16 validations
+  ✓ ap7-failure-recovery — 3.23s — 14 validations
+  ✓ ot1-cascade — 7.18s — 15 validations
+  ✓ ot2-routing — 9.08s — 9 validations
+  ✓ ot3-state — 7.84s — 8 validations
+  ✓ ot4-health — 1.85s — 10 validations
+  ✓ hl1-approval-flow — 3.85s — 11 validations
+  ✓ hl2-pipeline-controls — 2.03s — 8 validations
+  ✓ it1-sdk — 2.75s — 13 validations
+  ✓ it2-mcp — 2.34s — 14 validations
+  ✓ it3-webhooks — 0.50s — 8 validations
+  ✓ it3-mcp-sse-stream — 2.10s — 10 validations
+  ✓ si1-isolation — 6.50s — 13 validations
+  ✓ si2-auth — 1.10s — 7 validations
+  ✓ si2-extended-isolation — 1.89s — 5 validations
+  Timing: setup=60.52s | teardown=11.53s | total=160.28s
+
+Aggregate timing: runs=1 | median=160.28s | avg=160.28s

@@ -1,0 +1,11 @@
+# Batch Stage Report — integration-dashboard
+- Status: **PASS**
+- Exit code: 0
+- Duration: 85534ms
+- Started: 2026-03-05T23:25:58.271Z
+- Finished: 2026-03-05T23:27:23.805Z
+- Command: `pnpm exec tsx tests/live/harness/runner.ts --dashboard`
+- Stdout log: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/stages/integration-dashboard/stdout.log
+- Stderr log: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/stages/integration-dashboard/stderr.log
+- Lane artifacts root: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/lanes/integration-dashboard/artifacts
+- Lane results path: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/lanes/integration-dashboard/results.v1.json

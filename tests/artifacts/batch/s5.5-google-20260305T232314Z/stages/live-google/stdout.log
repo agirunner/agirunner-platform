@@ -1,0 +1,589 @@
+Live harness agent API bootstrap: source=provided url=http://host.docker.internal:8142/execute
+Live harness compose startup: reuse (workspace:7382118825cd46f19a1dc075460cc56313d04f15a458a318360ce2fb3c1ade70)
+Sending build context to Docker daemon  524.4kBSending build context to Docker daemon  842.4kB
+Step 1/25 : FROM node:22-alpine AS base
+ ---> 463254b4a812
+Step 2/25 : RUN corepack enable
+ ---> Using cache
+ ---> b37863438eba
+Step 3/25 : WORKDIR /workspace
+ ---> Using cache
+ ---> 87615cff0540
+Step 4/25 : FROM base AS deps
+ ---> 87615cff0540
+Step 5/25 : COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+ ---> Using cache
+ ---> 2167855542af
+Step 6/25 : COPY apps/platform-api/package.json apps/platform-api/package.json
+ ---> Using cache
+ ---> ae1b1baede78
+Step 7/25 : COPY packages packages
+ ---> Using cache
+ ---> 0734c395ef6d
+Step 8/25 : RUN pnpm install --frozen-lockfile
+ ---> Using cache
+ ---> faa90cfd3967
+Step 9/25 : FROM deps AS build
+ ---> faa90cfd3967
+Step 10/25 : COPY . .
+ ---> Using cache
+ ---> 3d054b5d956b
+Step 11/25 : RUN pnpm --filter @agentbaton/platform-api build
+ ---> Using cache
+ ---> d0e45f7fcc72
+Step 12/25 : RUN mkdir -p apps/platform-api/dist/src/db/migrations apps/platform-api/dist/configs   && cp apps/platform-api/src/db/migrations/*.sql apps/platform-api/dist/src/db/migrations/   && cp apps/platform-api/configs/built-in-roles.json apps/platform-api/dist/configs/
+ ---> Using cache
+ ---> 83b610e751de
+Step 13/25 : RUN pnpm --filter @agentbaton/platform-api deploy --legacy /app --prod
+ ---> Using cache
+ ---> 5c06f51925a4
+Step 14/25 : FROM node:22-alpine AS runtime
+ ---> 463254b4a812
+Step 15/25 : WORKDIR /app
+ ---> Using cache
+ ---> 21cba276b0fa
+Step 16/25 : ENV NODE_ENV=production
+ ---> Using cache
+ ---> c8a4c5007e42
+Step 17/25 : ENV PORT=8080
+ ---> Using cache
+ ---> 6939f15f515b
+Step 18/25 : ENV DATABASE_URL=
+ ---> Using cache
+ ---> c119dff94f40
+Step 19/25 : ENV JWT_SECRET=
+ ---> Using cache
+ ---> 7d565ebf2310
+Step 20/25 : ENV WEBHOOK_ENCRYPTION_KEY=
+ ---> Using cache
+ ---> 3633d2e6ce62
+Step 21/25 : COPY --from=build /app ./
+ ---> Using cache
+ ---> ea499dc3d613
+Step 22/25 : USER node
+ ---> Using cache
+ ---> 91153bf6619e
+Step 23/25 : EXPOSE 8080
+ ---> Using cache
+ ---> 1e56d9d40247
+Step 24/25 : CMD ["node", "dist/src/index.js"]
+ ---> Using cache
+ ---> bd22a24dfdcb
+Step 25/25 : LABEL com.docker.compose.image.builder=classic
+ ---> Using cache
+ ---> 4124e2a40677
+Successfully built 4124e2a40677
+Successfully tagged agentbaton-batch-2026-03-05t23-23-15-182z-live-google-platform-api:latest
+Sending build context to Docker daemon  524.4kBSending build context to Docker daemon  524.4kBSending build context to Docker daemon  842.4kB
+Step 1/25 : FROM node:22-alpine AS base
+ ---> 463254b4a812
+Step 2/25 : RUN corepack enable
+ ---> Using cache
+ ---> b37863438eba
+Step 3/25 : WORKDIR /workspace
+ ---> Using cache
+ ---> 87615cff0540
+Step 4/25 : FROM base AS deps
+ ---> 87615cff0540
+Step 5/25 : COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+Sending build context to Docker daemon  842.4kB
+ ---> Using cache
+ ---> 2167855542af
+Step 6/25 : COPY apps/platform-api/package.json apps/platform-api/package.json
+ ---> Using cache
+ ---> ae1b1baede78
+Step 7/25 : COPY packages packages
+ ---> Using cache
+ ---> 0734c395ef6d
+Step 8/25 : RUN pnpm install --frozen-lockfile
+ ---> Using cache
+ ---> faa90cfd3967
+Step 9/25 : FROM deps AS build
+ ---> faa90cfd3967
+Step 10/25 : COPY . .
+Step 1/17 : FROM node:22-alpine AS build
+ ---> 463254b4a812
+Step 2/17 : RUN corepack enable
+ ---> Using cache
+ ---> b37863438eba
+Step 3/17 : WORKDIR /workspace
+ ---> Using cache
+ ---> 87615cff0540
+Step 4/17 : COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+ ---> Using cache
+ ---> 2167855542af
+Step 5/17 : COPY apps/dashboard/package.json apps/dashboard/package.json
+ ---> Using cache
+ ---> 3811ef342c5c
+Step 6/17 : COPY packages packages
+ ---> Using cache
+ ---> b85f1c8426fc
+Step 7/17 : RUN pnpm install --frozen-lockfile
+ ---> Using cache
+ ---> 068a36ede86e
+Step 8/17 : COPY . .
+ ---> Using cache
+ ---> 3d054b5d956b
+Step 11/25 : RUN pnpm --filter @agentbaton/platform-api build
+ ---> Using cache
+ ---> d0e45f7fcc72
+Step 12/25 : RUN mkdir -p apps/platform-api/dist/src/db/migrations apps/platform-api/dist/configs   && cp apps/platform-api/src/db/migrations/*.sql apps/platform-api/dist/src/db/migrations/   && cp apps/platform-api/configs/built-in-roles.json apps/platform-api/dist/configs/
+ ---> Using cache
+ ---> 83b610e751de
+Step 13/25 : RUN pnpm --filter @agentbaton/platform-api deploy --legacy /app --prod
+ ---> Using cache
+ ---> 5c06f51925a4
+Step 14/25 : FROM node:22-alpine AS runtime
+ ---> 463254b4a812
+Step 15/25 : WORKDIR /app
+ ---> Using cache
+ ---> 21cba276b0fa
+Step 16/25 : ENV NODE_ENV=production
+ ---> Using cache
+ ---> c8a4c5007e42
+Step 17/25 : ENV PORT=8080
+ ---> Using cache
+ ---> 6939f15f515b
+Step 18/25 : ENV DATABASE_URL=
+ ---> Using cache
+ ---> c119dff94f40
+Step 19/25 : ENV JWT_SECRET=
+ ---> Using cache
+ ---> 7d565ebf2310
+Step 20/25 : ENV WEBHOOK_ENCRYPTION_KEY=
+ ---> Using cache
+ ---> 3633d2e6ce62
+Step 21/25 : COPY --from=build /app ./
+ ---> Using cache
+ ---> 8c7bcf96651e
+Step 9/17 : ARG VITE_PLATFORM_API_URL=http://localhost:8080
+ ---> Using cache
+ ---> a56ac078f6be
+Step 10/17 : ENV VITE_PLATFORM_API_URL=${VITE_PLATFORM_API_URL}
+ ---> Using cache
+ ---> cd358e88d60a
+Step 11/17 : RUN pnpm --filter @agentbaton/dashboard build
+ ---> Using cache
+ ---> bfdac6601829
+Step 12/17 : FROM nginx:1.27-alpine AS runtime
+ ---> 6769dc3a703c
+Step 13/17 : COPY apps/dashboard/nginx.conf /etc/nginx/conf.d/default.conf
+ ---> Using cache
+ ---> d04fe9c991df
+Step 14/17 : COPY --from=build /workspace/apps/dashboard/dist /usr/share/nginx/html
+ ---> Using cache
+ ---> Using cache
+ ---> ea499dc3d613
+Step 22/25 : USER node
+ ---> Using cache
+ ---> 91153bf6619e
+Step 23/25 : EXPOSE 8080
+ ---> Using cache
+ ---> 1e56d9d40247
+Step 24/25 : CMD ["node", "dist/src/index.js"]
+ ---> Using cache
+ ---> bd22a24dfdcb
+Step 25/25 : LABEL com.docker.compose.image.builder=classic
+ ---> Using cache
+ ---> 4124e2a40677
+ ---> 4b17ce9cab38
+Step 15/17 : EXPOSE 80
+ ---> Using cache
+ ---> ed63402d8509
+Step 16/17 : CMD ["nginx", "-g", "daemon off;"]
+ ---> Using cache
+ ---> c710382484dc
+Step 17/17 : LABEL com.docker.compose.image.builder=classic
+ ---> Using cache
+ ---> 9df672f7ad6c
+Successfully built 9df672f7ad6c
+Successfully built 4124e2a40677
+Successfully tagged agentbaton-batch-2026-03-05t23-23-15-182z-live-google-dashboard:latest
+Successfully tagged agentbaton-batch-2026-03-05t23-23-15-182z-live-google-worker:latest
+✓ Strict preflight passed (health/config/auth).
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-27-24-776Z-sdlc-google-r1
+  ✓ preflight — 26.53s — 1 validations
+  Timing: setup=26.23s | teardown=0.00s | total=26.53s
+
+Aggregate timing: runs=1 | median=26.53s | avg=26.53s
+
+=== Running sdlc-happy on google (warm) ===
+Live harness agent API bootstrap: source=provided url=http://host.docker.internal:8142/execute
+
+▶ Running scenario: sdlc-happy
+  ✓ sdlc-happy — 11 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-27-51-738Z-sdlc-google-r1
+  ✓ sdlc-happy — 49.92s — 11 validations
+  Timing: setup=16.02s | teardown=0.00s | total=66.23s
+
+Aggregate timing: runs=1 | median=66.23s | avg=66.23s
+  ⏱ duration=66.65s | status=PASS
+
+=== Running ap2-external-runtime on google (warm) ===
+
+▶ Running scenario: ap2-external-runtime
+  ✓ ap2-external-runtime — 16 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-28-58-405Z-sdlc-google-r1
+  ✓ ap2-external-runtime — 3.81s — 16 validations
+  Timing: setup=16.08s | teardown=0.00s | total=19.96s
+
+Aggregate timing: runs=1 | median=19.96s | avg=19.96s
+  ⏱ duration=20.39s | status=PASS
+
+=== Running ap3-standalone-worker on google (warm) ===
+Live harness agent API bootstrap: source=provided url=http://host.docker.internal:8142/execute
+
+▶ Running scenario: ap3-standalone-worker
+  ✓ ap3-standalone-worker — 14 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-29-18-849Z-sdlc-google-r1
+  ✓ ap3-standalone-worker — 4.50s — 14 validations
+  Timing: setup=16.24s | teardown=0.00s | total=20.84s
+
+Aggregate timing: runs=1 | median=20.84s | avg=20.84s
+  ⏱ duration=21.34s | status=PASS
+
+=== Running ap4-mixed-workers on google (warm) ===
+
+▶ Running scenario: ap4-mixed-workers
+  ✓ ap4-mixed-workers — 16 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-29-40-136Z-sdlc-google-r1
+  ✓ ap4-mixed-workers — 4.96s — 16 validations
+  Timing: setup=16.15s | teardown=0.00s | total=21.19s
+
+Aggregate timing: runs=1 | median=21.19s | avg=21.19s
+  ⏱ duration=21.61s | status=PASS
+
+=== Running maintenance-happy on google (warm) ===
+Live harness agent API bootstrap: source=provided url=http://host.docker.internal:8142/execute
+
+▶ Running scenario: maintenance-happy
+  ✓ maintenance-happy — 8 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-30-01-833Z-sdlc-google-r1
+  ✓ maintenance-happy — 69.65s — 8 validations
+  Timing: setup=16.12s | teardown=0.00s | total=85.85s
+
+Aggregate timing: runs=1 | median=85.85s | avg=85.85s
+  ⏱ duration=86.38s | status=PASS
+
+=== Running ap6-runtime-maintenance on google (warm) ===
+
+▶ Running scenario: ap6-runtime-maintenance
+  ✓ ap6-runtime-maintenance — 16 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-31-28-184Z-sdlc-google-r1
+  ✓ ap6-runtime-maintenance — 3.77s — 16 validations
+  Timing: setup=16.03s | teardown=0.00s | total=19.86s
+
+Aggregate timing: runs=1 | median=19.86s | avg=19.86s
+  ⏱ duration=20.34s | status=PASS
+
+=== Running ap7-failure-recovery on google (warm) ===
+Live harness agent API bootstrap: source=provided url=http://host.docker.internal:8142/execute
+
+▶ Running scenario: ap7-failure-recovery
+  ✓ ap7-failure-recovery — 14 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-31-48-487Z-sdlc-google-r1
+  ✓ ap7-failure-recovery — 3.29s — 14 validations
+  Timing: setup=16.09s | teardown=0.00s | total=19.68s
+
+Aggregate timing: runs=1 | median=19.68s | avg=19.68s
+  ⏱ duration=20.14s | status=PASS
+
+=== Running ot1-cascade on google (warm) ===
+
+▶ Running scenario: ot1-cascade
+  ✓ ot1-cascade — 15 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-32-08-677Z-sdlc-google-r1
+  ✓ ot1-cascade — 7.10s — 15 validations
+  Timing: setup=16.13s | teardown=0.00s | total=23.35s
+
+Aggregate timing: runs=1 | median=23.35s | avg=23.35s
+  ⏱ duration=23.86s | status=PASS
+
+=== Running ot2-routing on google (warm) ===
+
+▶ Running scenario: ot2-routing
+  ✓ ot2-routing — 9 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-32-32-537Z-sdlc-google-r1
+  ✓ ot2-routing — 9.18s — 9 validations
+  Timing: setup=16.20s | teardown=0.00s | total=25.46s
+
+Aggregate timing: runs=1 | median=25.46s | avg=25.46s
+  ⏱ duration=25.97s | status=PASS
+
+=== Running ot3-state on google (warm) ===
+
+▶ Running scenario: ot3-state
+  ✓ ot3-state — 8 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-32-58-449Z-sdlc-google-r1
+  ✓ ot3-state — 8.04s — 8 validations
+  Timing: setup=16.07s | teardown=0.00s | total=24.20s
+
+Aggregate timing: runs=1 | median=24.20s | avg=24.20s
+  ⏱ duration=24.64s | status=PASS
+
+=== Running ot4-health on google (warm) ===
+
+▶ Running scenario: ot4-health
+  ✓ ot4-health — 10 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-33-23-088Z-sdlc-google-r1
+  ✓ ot4-health — 1.84s — 10 validations
+  Timing: setup=16.18s | teardown=0.00s | total=18.11s
+
+Aggregate timing: runs=1 | median=18.11s | avg=18.11s
+  ⏱ duration=18.55s | status=PASS
+
+=== Running hl1-approval-flow on google (warm) ===
+
+▶ Running scenario: hl1-approval-flow
+  ✓ hl1-approval-flow — 11 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-33-41-622Z-sdlc-google-r1
+  ✓ hl1-approval-flow — 4.00s — 11 validations
+  Timing: setup=16.09s | teardown=0.00s | total=20.15s
+
+Aggregate timing: runs=1 | median=20.15s | avg=20.15s
+  ⏱ duration=20.57s | status=PASS
+
+=== Running hl2-pipeline-controls on google (warm) ===
+
+▶ Running scenario: hl2-pipeline-controls
+  ✓ hl2-pipeline-controls — 8 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-34-02-234Z-sdlc-google-r1
+  ✓ hl2-pipeline-controls — 2.17s — 8 validations
+  Timing: setup=16.10s | teardown=0.00s | total=18.35s
+
+Aggregate timing: runs=1 | median=18.35s | avg=18.35s
+  ⏱ duration=18.81s | status=PASS
+
+=== Running it1-sdk on google (warm) ===
+
+▶ Running scenario: it1-sdk
+  ✓ it1-sdk — 13 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-34-21-087Z-sdlc-google-r1
+  ✓ it1-sdk — 2.72s — 13 validations
+  Timing: setup=16.10s | teardown=0.00s | total=18.88s
+
+Aggregate timing: runs=1 | median=18.88s | avg=18.88s
+  ⏱ duration=19.38s | status=PASS
+
+=== Running it2-mcp on google (warm) ===
+
+▶ Running scenario: it2-mcp
+  ✓ it2-mcp — 14 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-34-40-404Z-sdlc-google-r1
+  ✓ it2-mcp — 2.34s — 14 validations
+  Timing: setup=15.91s | teardown=0.00s | total=18.32s
+
+Aggregate timing: runs=1 | median=18.32s | avg=18.32s
+  ⏱ duration=18.75s | status=PASS
+
+=== Running it3-webhooks on google (warm) ===
+
+▶ Running scenario: it3-webhooks
+  ✓ it3-webhooks — 8 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-34-59-160Z-sdlc-google-r1
+  ✓ it3-webhooks — 0.46s — 8 validations
+  Timing: setup=15.97s | teardown=0.00s | total=16.49s
+
+Aggregate timing: runs=1 | median=16.49s | avg=16.49s
+  ⏱ duration=16.93s | status=PASS
+
+=== Running it3-mcp-sse-stream on google (warm) ===
+
+▶ Running scenario: it3-mcp-sse-stream
+  ✓ it3-mcp-sse-stream — 10 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-35-16-097Z-sdlc-google-r1
+  ✓ it3-mcp-sse-stream — 2.04s — 10 validations
+  Timing: setup=16.06s | teardown=0.00s | total=18.17s
+
+Aggregate timing: runs=1 | median=18.17s | avg=18.17s
+  ⏱ duration=26.57s | status=PASS
+
+=== Running si1-isolation on google (warm) ===
+
+▶ Running scenario: si1-isolation
+  ✓ si1-isolation — 13 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-35-42-670Z-sdlc-google-r1
+  ✓ si1-isolation — 6.65s — 13 validations
+  Timing: setup=16.12s | teardown=0.00s | total=22.84s
+
+Aggregate timing: runs=1 | median=22.84s | avg=22.84s
+  ⏱ duration=28.46s | status=PASS
+
+=== Running si2-auth on google (warm) ===
+
+▶ Running scenario: si2-auth
+  ✓ si2-auth — 7 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-36-11-118Z-sdlc-google-r1
+  ✓ si2-auth — 1.12s — 7 validations
+  Timing: setup=16.10s | teardown=0.00s | total=17.28s
+
+Aggregate timing: runs=1 | median=17.28s | avg=17.28s
+  ⏱ duration=17.72s | status=PASS
+
+=== Running si2-extended-isolation on google (warm) ===
+
+▶ Running scenario: si2-extended-isolation
+  ✓ si2-extended-isolation — 5 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-36-28-829Z-sdlc-google-r1
+  ✓ si2-extended-isolation — 1.96s — 5 validations
+  Timing: setup=16.15s | teardown=0.00s | total=18.19s
+
+Aggregate timing: runs=1 | median=18.19s | avg=18.19s
+  ⏱ duration=18.61s | status=PASS
+
+=== Running sdlc-sad on google (warm) ===
+Live harness agent API bootstrap: source=provided url=http://host.docker.internal:8142/execute
+
+▶ Running scenario: sdlc-sad
+  ✓ sdlc-sad — 14 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-36-47-507Z-sdlc-google-r1
+  ✓ sdlc-sad — 3.23s — 14 validations
+  Timing: setup=16.08s | teardown=0.00s | total=19.42s
+
+Aggregate timing: runs=1 | median=19.42s | avg=19.42s
+  ⏱ duration=19.92s | status=PASS
+
+=== Running maintenance-sad on google (warm) ===
+
+▶ Running scenario: maintenance-sad
+  ✓ maintenance-sad — 7 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-37-07-418Z-sdlc-google-r1
+  ✓ maintenance-sad — 0.86s — 7 validations
+  Timing: setup=16.09s | teardown=0.00s | total=17.06s
+
+Aggregate timing: runs=1 | median=17.06s | avg=17.06s
+  ⏱ duration=17.54s | status=PASS
+
+=== Running ap5-full on google (warm) ===
+Live harness agent API bootstrap: source=provided url=http://host.docker.internal:8142/execute
+
+▶ Running scenario: ap5-full
+  ✓ ap5-full — 18 validations
+
+============================================================
+LIVE TEST SUMMARY
+============================================================
+
+Run: 2026-03-05T23-37-24-949Z-sdlc-google-r1
+  ✓ ap5-full — 116.45s — 18 validations
+  Timing: setup=16.21s | teardown=0.00s | total=132.97s
+
+Aggregate timing: runs=1 | median=132.97s | avg=132.97s
+  ⏱ duration=133.44s | status=PASS
+
+Timing summary (warm): runs=23 | median=20.39s | avg=30.72s

@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "runId": "2026-03-05T23-23-15-182Z",
+  "stageId": "unit",
+  "stageLabel": "Unit + harness guard tests",
+  "lane": "unit",
+  "provider": "none",
+  "mode": "sequential",
+  "failurePolicy": "continue-on-error",
+  "status": "pass",
+  "command": [
+    "pnpm",
+    "test"
+  ],
+  "startedAt": "2026-03-05T23:23:16.011Z",
+  "finishedAt": "2026-03-05T23:23:17.553Z",
+  "durationMs": 1542,
+  "exitCode": 0,
+  "logs": {
+    "stdout": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/stages/unit/stdout.log",
+    "stderr": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/stages/unit/stderr.log"
+  },
+  "artifacts": {
+    "laneArtifactsRoot": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/lanes/unit/artifacts",
+    "laneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/lanes/unit/results.v1.json"
+  },
+  "errorExcerpt": ""
+}

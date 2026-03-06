@@ -777,36 +777,91 @@ function preferredTaskEvidenceSuffixByCheckId(checkId: string): 'output' | 'stat
   return undefined;
 }
 
+function normalizeTaskIdentity(taskId: string): string {
+  return taskId.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function findCanonicalTaskRefs(
+  taskId: string,
+  validRefs: Set<string>,
+): { stateRef?: string; outputRef?: string } {
+  const directStateRef = `task:${taskId}:state`;
+  const directOutputRef = `task:${taskId}:output`;
+
+  if (validRefs.has(directStateRef) || validRefs.has(directOutputRef)) {
+    return {
+      stateRef: validRefs.has(directStateRef) ? directStateRef : undefined,
+      outputRef: validRefs.has(directOutputRef) ? directOutputRef : undefined,
+    };
+  }
+
+  const normalizedTaskId = normalizeTaskIdentity(taskId);
+  if (!normalizedTaskId) {
+    return {};
+  }
+
+  let stateRef: string | undefined;
+  let outputRef: string | undefined;
+
+  for (const ref of validRefs) {
+    const match = ref.match(/^task:([^:]+):(state|output)$/);
+    if (!match) {
+      continue;
+    }
+
+    const [, candidateTaskId, suffix] = match;
+    if (normalizeTaskIdentity(candidateTaskId) !== normalizedTaskId) {
+      continue;
+    }
+
+    if (suffix === 'state') {
+      stateRef = ref;
+    }
+
+    if (suffix === 'output') {
+      outputRef = ref;
+    }
+  }
+
+  return { stateRef, outputRef };
+}
+
 function normalizeTaskEvidenceAlias(
   candidate: string,
   checkId: string,
   validRefs: Set<string>,
 ): string | undefined {
-  const taskMatch = candidate.match(/^task:([^:]+)$/);
+  const taskMatch = candidate.match(/^task:([^:]+)(?::([^:]+))?$/);
   if (!taskMatch) {
     return undefined;
   }
 
   const taskId = taskMatch[1];
+  const requestedSuffix = taskMatch[2];
   const preferredSuffix = preferredTaskEvidenceSuffixByCheckId(checkId);
+  const { stateRef, outputRef } = findCanonicalTaskRefs(taskId, validRefs);
 
-  if (preferredSuffix) {
-    const preferredRef = `task:${taskId}:${preferredSuffix}`;
-    if (validRefs.has(preferredRef)) {
-      return preferredRef;
-    }
+  if (preferredSuffix === 'state' && stateRef) {
+    return stateRef;
   }
 
-  const stateRef = `task:${taskId}:state`;
-  const outputRef = `task:${taskId}:output`;
-  const hasStateRef = validRefs.has(stateRef);
-  const hasOutputRef = validRefs.has(outputRef);
+  if (preferredSuffix === 'output' && outputRef) {
+    return outputRef;
+  }
 
-  if (hasStateRef && !hasOutputRef) return stateRef;
-  if (hasOutputRef && !hasStateRef) return outputRef;
+  if (requestedSuffix === 'state' && stateRef) {
+    return stateRef;
+  }
 
-  // Ambiguous bare task refs are fail-closed unless a deterministic check-id
-  // preference resolved them above.
+  if (requestedSuffix === 'output' && outputRef) {
+    return outputRef;
+  }
+
+  if (stateRef && !outputRef) return stateRef;
+  if (outputRef && !stateRef) return outputRef;
+
+  // Ambiguous task refs are fail-closed unless deterministic check semantics
+  // provide a specific suffix preference.
   return undefined;
 }
 

@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import path from 'node:path';
 
 import { regenerateLaneResults } from './report.js';
+import { ALL_SCENARIOS } from './runner.js';
 
 type Provider = 'openai' | 'google' | 'anthropic';
 type CellStatus = 'NOT_PASS' | 'PASS' | 'FLAKY' | 'FAIL';
@@ -72,8 +73,26 @@ type CellExecution = {
 
 const ROOT = process.cwd();
 const CANONICAL_DEFINITIONS_PATH = path.join(ROOT, 'tests/reports/test-cases.v1.json');
-const CONSOLIDATED_RESULTS_PATH = path.join(ROOT, 'tests/reports/results.v1.json');
-const LIVE_ARTIFACTS_DIR = path.join(ROOT, 'tests/artifacts/live');
+
+function resolvePathOverride(root: string, override: string | undefined, fallback: string): string {
+  const trimmed = override?.trim();
+  if (!trimmed) {
+    return path.join(root, fallback);
+  }
+
+  return path.isAbsolute(trimmed) ? trimmed : path.join(root, trimmed);
+}
+
+const CONSOLIDATED_RESULTS_PATH = resolvePathOverride(
+  ROOT,
+  process.env.LIVE_REPORTS_RESULTS_PATH,
+  'tests/reports/results.v1.json',
+);
+
+const LIVE_ARTIFACTS_DIR = path.join(
+  resolvePathOverride(ROOT, process.env.LIVE_ARTIFACTS_ROOT, 'tests/artifacts'),
+  'live',
+);
 
 const INFRA_FAILURE_SIGNATURES = [
   /timed out waiting for/i,
@@ -441,6 +460,37 @@ function parseCsvArg(argv: string[], flag: string): string[] | undefined {
     .filter(Boolean);
 }
 
+function hasFlag(argv: string[], flag: string): boolean {
+  return argv.includes(flag);
+}
+
+function ensureScenarioCells(results: ConsolidatedResults, scenarios: string[]): void {
+  const providerDefaults: Record<Provider, LiveCell> = {
+    openai: { status: 'NOT_PASS' },
+    google: { status: 'NOT_PASS' },
+    anthropic: { status: 'NOT_PASS' },
+  };
+
+  for (const scenario of scenarios) {
+    if (!results.live_cells[scenario]) {
+      results.live_cells[scenario] = {
+        openai: { ...providerDefaults.openai },
+        google: { ...providerDefaults.google },
+        anthropic: { ...providerDefaults.anthropic },
+      };
+    }
+
+    if (!results.scenarios.some((entry) => entry.key === scenario)) {
+      results.scenarios.push({
+        key: scenario,
+        id: scenario,
+        title: scenario,
+        planRef: 'runner-all-scenarios',
+      });
+    }
+  }
+}
+
 function resetBaseline(): void {
   const results = readResults();
   results.providers = [...PROVIDERS];
@@ -458,9 +508,14 @@ function runMatrix(argv: string[], mode: RunMode): void {
   const scenarioArg = parseCsvArg(argv, '--scenarios');
   const oneProvider = parseCsvArg(argv, '--provider');
   const oneScenario = parseCsvArg(argv, '--scenario');
+  const useRunnerAllScenarios = hasFlag(argv, '--runner-all-scenarios');
 
   const providers = (oneProvider ?? providerArg ?? PROVIDERS) as Provider[];
-  const scenarios = oneScenario ?? scenarioArg ?? SCENARIOS.map((s) => s.key);
+  const canonicalScenarioKeys = SCENARIOS.map((s) => s.key);
+  const defaultScenarioKeys = useRunnerAllScenarios
+    ? Array.from(new Set<string>([...canonicalScenarioKeys, ...ALL_SCENARIOS]))
+    : canonicalScenarioKeys;
+  const scenarios = oneScenario ?? scenarioArg ?? defaultScenarioKeys;
 
   for (const provider of providers) {
     if (!PROVIDERS.includes(provider)) {
@@ -468,11 +523,14 @@ function runMatrix(argv: string[], mode: RunMode): void {
     }
   }
 
+  const supportedScenarios = new Set<string>(defaultScenarioKeys);
   for (const scenario of scenarios) {
-    if (!results.scenarios.some((s) => s.key === scenario)) {
+    if (!supportedScenarios.has(scenario)) {
       throw new Error(`Unsupported scenario: ${scenario}`);
     }
   }
+
+  ensureScenarioCells(results, scenarios);
 
   const durations: number[] = [];
 
@@ -554,7 +612,7 @@ function main(): void {
   pnpm exec tsx tests/live/harness/traceability-flow.ts reset
   pnpm exec tsx tests/live/harness/traceability-flow.ts preflight [--provider openai]
   pnpm exec tsx tests/live/harness/traceability-flow.ts run [--providers openai,google,anthropic] [--scenarios ot1-cascade,it1-sdk]
-  pnpm exec tsx tests/live/harness/traceability-flow.ts run-fast [--providers openai,google,anthropic] [--scenarios ot1-cascade,it1-sdk]
+  pnpm exec tsx tests/live/harness/traceability-flow.ts run-fast [--providers openai,google,anthropic] [--scenarios ot1-cascade,it1-sdk] [--runner-all-scenarios]
   pnpm exec tsx tests/live/harness/traceability-flow.ts run --provider openai --scenario ot1-cascade
   pnpm exec tsx tests/live/harness/traceability-flow.ts run-fast --provider openai --scenario ot1-cascade\n\nArtifacts: tests/artifacts/live (run-*.json + run-*.md)\nConsolidated results: tests/reports/results.v1.json`);
 }

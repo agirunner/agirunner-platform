@@ -555,6 +555,81 @@ test('llm validator normalizes bare task refs to canonical refs when check seman
   }
 });
 
+test('llm validator normalizes malformed task uuid refs to canonical task evidence', async () => {
+  const prevOpenAiKey = process.env.OPENAI_API_KEY;
+  const prevProvider = process.env.LIVE_AUTH_LLM_PROVIDER;
+  const prevModel = process.env.LIVE_AUTH_LLM_MODEL;
+  const prevFetch = globalThis.fetch;
+
+  try {
+    process.env.OPENAI_API_KEY = 'test-key';
+    process.env.LIVE_AUTH_LLM_PROVIDER = 'openai';
+    process.env.LIVE_AUTH_LLM_MODEL = 'gpt-4o-mini';
+
+    const deterministic = runDeterministicAuthenticityValidator('sdlc-happy', makeResult(), [
+      makeEvidence(),
+    ]);
+
+    const canonicalTaskId = '0aeddb6d-d3a3-43b6-bcf5-8724524b1112';
+    const malformedTaskId = '0aeddb6dd3a3-43b6-bcf5-8724524b1112';
+
+    const mockedVerdict = {
+      verdict: 'PASS',
+      summary: 'Malformed task UUID should normalize to canonical task output ref.',
+      checks: [
+        {
+          checkId: 'acceptance-structure.completed-task-output',
+          status: 'PASS',
+          rationale: 'Completed task output exists.',
+          evidenceRefs: [`task:${malformedTaskId}:state`],
+        },
+      ],
+      missingEvidenceRefs: [],
+    };
+
+    globalThis.fetch = (async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 'chatcmpl-test',
+        model: 'gpt-4o-mini',
+        choices: [
+          {
+            message: {
+              content: JSON.stringify(mockedVerdict),
+            },
+          },
+        ],
+      }),
+    })) as typeof globalThis.fetch;
+
+    const llm = await runLlmAuthenticityValidator('sdlc-happy', deterministic, [
+      {
+        ref: `task:${canonicalTaskId}:state`,
+        location: `pipeline-1.tasks.${canonicalTaskId}.state`,
+        text: 'completed',
+      },
+      {
+        ref: `task:${canonicalTaskId}:output`,
+        location: `pipeline-1.tasks.${canonicalTaskId}.output`,
+        text: 'diff --git a/src/app.js b/src/app.js',
+      },
+    ]);
+
+    assert.equal(llm.status, 'PASS');
+    const normalizedRefs = llm.output?.verdict.checks.flatMap((check) => check.evidenceRefs) ?? [];
+    assert.deepEqual(normalizedRefs, [`task:${canonicalTaskId}:output`]);
+  } finally {
+    if (prevOpenAiKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = prevOpenAiKey;
+    if (prevProvider === undefined) delete process.env.LIVE_AUTH_LLM_PROVIDER;
+    else process.env.LIVE_AUTH_LLM_PROVIDER = prevProvider;
+    if (prevModel === undefined) delete process.env.LIVE_AUTH_LLM_MODEL;
+    else process.env.LIVE_AUTH_LLM_MODEL = prevModel;
+    globalThis.fetch = prevFetch;
+  }
+});
+
 test('llm validator keeps fail-closed behavior for ambiguous bare task refs when check semantics are unknown', async () => {
   const prevOpenAiKey = process.env.OPENAI_API_KEY;
   const prevProvider = process.env.LIVE_AUTH_LLM_PROVIDER;

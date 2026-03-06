@@ -1,0 +1,29 @@
+{
+  "runId": "2026-03-05T23-32-32-537Z-sdlc-google-r1",
+  "startedAt": "2026-03-05T23:32:32.537Z",
+  "finishedAt": "2026-03-05T23:32:57.993Z",
+  "template": "sdlc",
+  "provider": "google",
+  "repeat": 1,
+  "scenarios": {
+    "ot2-routing": {
+      "status": "pass",
+      "duration": "9.18s",
+      "cost": "$0.0000",
+      "artifacts": 1,
+      "validations": 9,
+      "screenshots": []
+    }
+  },
+  "containers_leaked": 0,
+  "temp_files_leaked": 0,
+  "total_cost": "$0.0000",
+  "timing": {
+    "setupMs": 16204,
+    "scenarioMs": {
+      "ot2-routing": 9178
+    },
+    "teardownMs": 1,
+    "totalMs": 25456
+  }
+}

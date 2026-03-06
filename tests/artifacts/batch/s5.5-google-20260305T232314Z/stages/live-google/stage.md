@@ -1,0 +1,11 @@
+# Batch Stage Report — live-google
+- Status: **PASS**
+- Exit code: 0
+- Duration: 745606ms
+- Started: 2026-03-05T23:27:23.805Z
+- Finished: 2026-03-05T23:39:49.411Z
+- Command: `pnpm exec tsx tests/live/harness/traceability-flow.ts run-fast --provider google --runner-all-scenarios`
+- Stdout log: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/stages/live-google/stdout.log
+- Stderr log: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/stages/live-google/stderr.log
+- Lane artifacts root: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/lanes/live-google/artifacts
+- Lane results path: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/lanes/live-google/results.v1.json

@@ -1,16 +1,39 @@
 import fastify, { type FastifyInstance } from 'fastify';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { executeRoutes } from '../../src/api/routes/execute.routes.js';
 
 describe('execute route impossible-scope policy alignment', () => {
   let app: FastifyInstance | undefined;
+  const previousExecuteRouteMode = process.env.EXECUTE_ROUTE_MODE;
+  const previousOpenAiKey = process.env.OPENAI_API_KEY;
+  const previousLiveAuthLlmApiBaseUrl = process.env.LIVE_AUTH_LLM_API_BASE_URL;
+  const previousLiveEvaluationModel = process.env.LIVE_EVALUATION_MODEL;
+  const previousLiveAuthLlmModel = process.env.LIVE_AUTH_LLM_MODEL;
 
   afterEach(async () => {
     if (app) {
       await app.close();
       app = undefined;
     }
+
+    if (previousExecuteRouteMode === undefined) delete process.env.EXECUTE_ROUTE_MODE;
+    else process.env.EXECUTE_ROUTE_MODE = previousExecuteRouteMode;
+
+    if (previousOpenAiKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = previousOpenAiKey;
+
+    if (previousLiveAuthLlmApiBaseUrl === undefined) delete process.env.LIVE_AUTH_LLM_API_BASE_URL;
+    else process.env.LIVE_AUTH_LLM_API_BASE_URL = previousLiveAuthLlmApiBaseUrl;
+
+    if (previousLiveEvaluationModel === undefined) delete process.env.LIVE_EVALUATION_MODEL;
+    else process.env.LIVE_EVALUATION_MODEL = previousLiveEvaluationModel;
+
+    if (previousLiveAuthLlmModel === undefined) delete process.env.LIVE_AUTH_LLM_MODEL;
+    else process.env.LIVE_AUTH_LLM_MODEL = previousLiveAuthLlmModel;
+
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   async function createApp(): Promise<FastifyInstance> {
@@ -135,6 +158,151 @@ describe('execute route impossible-scope policy alignment', () => {
       pipeline_id: 'pipeline-from-task-context',
       execution_mode: 'simulated-not-executed',
       authenticity_gate_hint: 'NOT_PASS',
+    });
+  });
+
+  it('returns execution-backed output when execute-route mode is enabled', async () => {
+    process.env.EXECUTE_ROUTE_MODE = 'execution-backed';
+    process.env.OPENAI_API_KEY = 'test-openai-key';
+    process.env.LIVE_AUTH_LLM_API_BASE_URL = 'https://example.invalid/v1';
+    process.env.LIVE_EVALUATION_MODEL = 'gpt-4.1-mini';
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  summary: 'Implemented pagination fix with concrete code changes.',
+                  implementation: [
+                    'Updated pagination query builder to enforce stable cursor ordering.',
+                    'Added request validation for cursor and limit boundary cases.',
+                  ],
+                  changed_files: [
+                    {
+                      path: 'apps/api/src/pagination.ts',
+                      change: 'Added stable ordering and cursor normalization.',
+                      reason: 'Guarantee deterministic page traversal across inserts.',
+                    },
+                  ],
+                  patch:
+                    'diff --git a/apps/api/src/pagination.ts b/apps/api/src/pagination.ts\nindex 1111111..2222222 100644\n--- a/apps/api/src/pagination.ts\n+++ b/apps/api/src/pagination.ts\n@@ -11,6 +11,8 @@ export function buildCursorQuery(...) {\n+  const stableOrder = [...];\n+  return stableOrder;\n }',
+                  tests: ['pnpm --filter api test pagination --runInBand'],
+                  risks: ['Requires validating behavior on large datasets in staging.'],
+                  review_notes: ['Confirmed backward compatibility for existing API clients.'],
+                }),
+              },
+            },
+          ],
+        }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const server = await createApp();
+    const response = await server.inject({
+      method: 'POST',
+      url: '/execute',
+      payload: {
+        type: 'code',
+        task_id: 'task-123',
+        title: 'Pagination hardening',
+        context: {
+          scenario: 'sdlc-happy',
+        },
+      },
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body).toMatchObject({
+      task_id: 'task-123',
+      execution_mode: 'live-agent-api',
+      handled_by: 'platform-api-live-executor',
+      tests: ['pnpm --filter api test pagination --runInBand'],
+    });
+  });
+
+  it('fails closed when execution-backed output contains placeholder markers', async () => {
+    process.env.EXECUTE_ROUTE_MODE = 'execution-backed';
+    process.env.OPENAI_API_KEY = 'test-openai-key';
+    process.env.LIVE_AUTH_LLM_API_BASE_URL = 'https://example.invalid/v1';
+    process.env.LIVE_EVALUATION_MODEL = 'gpt-4.1-mini';
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  summary: 'Implemented pagination fix.',
+                  implementation: [
+                    'Updated pagination query builder to enforce stable cursor ordering.',
+                    'Added request validation for cursor and limit boundary cases.',
+                  ],
+                  changed_files: [
+                    {
+                      path: 'apps/api/src/pagination.ts',
+                      change: 'Added stable ordering and cursor normalization.',
+                      reason: 'Guarantee deterministic page traversal across inserts.',
+                    },
+                  ],
+                  patch:
+                    'diff --git a/apps/api/src/pagination.ts b/apps/api/src/pagination.ts\nindex 1111111..2222222 100644\n--- a/apps/api/src/pagination.ts\n+++ b/apps/api/src/pagination.ts\n@@ -11,6 +11,8 @@ export function buildCursorQuery(...) {\n+  const stableOrder = [...];\n+  return stableOrder;\n }',
+                  tests: ['pnpm --filter api test {{placeholder}} pagination'],
+                  risks: ['Requires validating behavior on large datasets in staging.'],
+                  review_notes: ['Confirmed backward compatibility for existing API clients.'],
+                }),
+              },
+            },
+          ],
+        }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const server = await createApp();
+    const response = await server.inject({
+      method: 'POST',
+      url: '/execute',
+      payload: {
+        type: 'code',
+        task_id: 'task-124',
+        title: 'Pagination hardening',
+      },
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(response.statusCode).toBe(502);
+    expect(response.json()).toMatchObject({
+      error: 'execute_backend_failed',
+    });
+    expect(response.json().message).toContain('disallowed placeholder marker');
+    expect(response.json().message).toContain('tests[0]');
+  });
+
+  it('fails closed when execution-backed mode is enabled without OPENAI_API_KEY', async () => {
+    process.env.EXECUTE_ROUTE_MODE = 'execution-backed';
+    delete process.env.OPENAI_API_KEY;
+
+    const server = await createApp();
+    const response = await server.inject({
+      method: 'POST',
+      url: '/execute',
+      payload: {
+        type: 'code',
+        task_id: 'task-closed-1',
+      },
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({
+      error: 'execute_backend_unavailable',
     });
   });
 });

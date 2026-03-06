@@ -17,6 +17,65 @@ const PLAYWRIGHT_BROWSERS_PATH = path.join(ROOT, '.cache', 'ms-playwright');
 const BATCH_CANONICAL_RESULTS_PATH = path.join(ROOT, 'tests', 'reports', 'batch-results.v1.json');
 const BATCH_CANONICAL_TEST_CASES_PATH = path.join(ROOT, 'tests', 'reports', 'test-cases.v1.json');
 
+const BATCH_LIVE_STAGE_MODE_ENV = 'BATCH_LIVE_STAGE_MODE';
+const BATCH_COLD_MODE_EXCEPTION_REASON_ENV = 'BATCH_COLD_MODE_EXCEPTION_REASON';
+const BATCH_COLD_MODE_EXCEPTION_ALIAS_ENV = 'BATCH_COLD_MODE_EXCEPTION';
+const WARM_LIVE_STAGE_COMMAND = [
+  'pnpm',
+  'exec',
+  'tsx',
+  'tests/live/harness/traceability-flow.ts',
+  'run-fast',
+  '--provider',
+  '__PROVIDER__',
+  '--runner-all-scenarios',
+];
+
+function resolveLiveStageExecutionPolicy(env = process.env) {
+  const requestedMode = (env[BATCH_LIVE_STAGE_MODE_ENV] ?? 'warm').trim().toLowerCase();
+
+  if (!requestedMode || requestedMode === 'warm') {
+    return { mode: 'warm' };
+  }
+
+  if (requestedMode !== 'cold') {
+    throw new Error(
+      `${BATCH_LIVE_STAGE_MODE_ENV} must be "warm" (default) or "cold" (received: ${JSON.stringify(
+        env[BATCH_LIVE_STAGE_MODE_ENV],
+      )}).`,
+    );
+  }
+
+  const exceptionReason =
+    env[BATCH_COLD_MODE_EXCEPTION_REASON_ENV]?.trim() ||
+    env[BATCH_COLD_MODE_EXCEPTION_ALIAS_ENV]?.trim() ||
+    '';
+
+  if (!exceptionReason) {
+    throw new Error(
+      `${BATCH_LIVE_STAGE_MODE_ENV}=cold requires ${BATCH_COLD_MODE_EXCEPTION_REASON_ENV} ` +
+        '(document incident/ticket/exception rationale).',
+    );
+  }
+
+  console.warn(
+    `[test-batch] warning: cold live stage mode enabled by exception (${exceptionReason}).`,
+  );
+
+  return {
+    mode: 'cold',
+    exceptionReason,
+  };
+}
+
+function resolveLiveStageCommand(defaultCommand, policy) {
+  if (policy.mode === 'warm') {
+    return [...WARM_LIVE_STAGE_COMMAND];
+  }
+
+  return [...defaultCommand];
+}
+
 function needsWorkspaceInstall() {
   if (!existsSync(path.join(ROOT, 'node_modules', '.pnpm'))) {
     return true;
@@ -161,6 +220,8 @@ export async function buildStages(defaults, options, runId, reportDir, probes = 
   const stages = [];
   const stageDefs = defaults.stages;
   const portAvailabilityProbe = probes.portAvailabilityProbe ?? isPortAvailable;
+  const liveStagePolicy = resolveLiveStageExecutionPolicy();
+  const liveStageCommandTemplate = resolveLiveStageCommand(stageDefs.live.command, liveStagePolicy);
 
   stages.push({ stageId: 'unit', lane: 'unit', provider: 'none', ...stageDefs.unit });
   stages.push({ stageId: 'core', lane: 'core', provider: 'none', ...stageDefs.core });
@@ -177,7 +238,9 @@ export async function buildStages(defaults, options, runId, reportDir, probes = 
       lane: 'live',
       provider,
       ...stageDefs.live,
-      command: stageDefs.live.command.map((part) => (part === '__PROVIDER__' ? provider : part)),
+      command: liveStageCommandTemplate.map((part) => (part === '__PROVIDER__' ? provider : part)),
+      liveExecutionMode: liveStagePolicy.mode,
+      coldModeExceptionReason: liveStagePolicy.exceptionReason,
     });
   }
 
@@ -188,7 +251,9 @@ export async function buildStages(defaults, options, runId, reportDir, probes = 
       lane: 'live',
       provider,
       ...stageDefs.live,
-      command: stageDefs.live.command.map((part) => (part === '__PROVIDER__' ? provider : part)),
+      command: liveStageCommandTemplate.map((part) => (part === '__PROVIDER__' ? provider : part)),
+      liveExecutionMode: liveStagePolicy.mode,
+      coldModeExceptionReason: liveStagePolicy.exceptionReason,
       skip: missingProviderSkip(providerRecord),
     });
   }
@@ -254,6 +319,9 @@ export async function buildStages(defaults, options, runId, reportDir, probes = 
         AGENT_API_URL: explicitAgentApiUrl || defaultAgentApiUrl,
         RATE_LIMIT_MAX_PER_MINUTE: process.env.RATE_LIMIT_MAX_PER_MINUTE || '1000',
         LIVE_COMPOSE_MIN_FREE_GB: process.env.LIVE_COMPOSE_MIN_FREE_GB || '3',
+        ...(stage.lane === 'live'
+          ? { EXECUTE_ROUTE_MODE: process.env.EXECUTE_ROUTE_MODE || 'execution-backed' }
+          : {}),
         ...(process.env.RUNTIME_API_KEY
           ? { RUNTIME_API_KEY: process.env.RUNTIME_API_KEY }
           : {}),
@@ -346,6 +414,8 @@ function skippedStageReport(stage, options, runId, notRunReason) {
     artifacts: stage.artifacts,
     ports: stage.ports,
     composeProjectName: stage.composeProjectName,
+    liveExecutionMode: stage.liveExecutionMode,
+    coldModeExceptionReason: stage.coldModeExceptionReason,
     notRunReason,
     skip: stage.skip,
   };
@@ -405,6 +475,8 @@ async function runStage(stage, options, runId) {
     exitCode: stageStatus.exitCode,
     ports: stage.ports,
     composeProjectName: stage.composeProjectName,
+    liveExecutionMode: stage.liveExecutionMode,
+    coldModeExceptionReason: stage.coldModeExceptionReason,
     logs: stage.logs,
     artifacts: stage.artifacts,
     errorExcerpt:
