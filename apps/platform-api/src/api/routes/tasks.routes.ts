@@ -78,6 +78,37 @@ const retrySchema = z.object({
   force: z.boolean().optional(),
 });
 
+const rejectSchema = z.object({
+  feedback: z.string().min(1).max(4000),
+});
+
+const requestChangesSchema = z.object({
+  feedback: z.string().min(1).max(4000),
+  override_input: z.record(z.unknown()).optional(),
+  preferred_agent_id: z.string().uuid().optional(),
+  preferred_worker_id: z.string().uuid().optional(),
+});
+
+const skipSchema = z.object({
+  reason: z.string().min(1).max(4000),
+});
+
+const reassignSchema = z.object({
+  preferred_agent_id: z.string().uuid().optional(),
+  preferred_worker_id: z.string().uuid().optional(),
+  reason: z.string().min(1).max(4000),
+});
+
+const escalateSchema = z.object({
+  reason: z.string().min(1).max(4000),
+  escalation_target: z.string().max(255).optional(),
+});
+
+const overrideOutputSchema = z.object({
+  output: z.unknown(),
+  reason: z.string().min(1).max(4000),
+});
+
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
     return result.data;
@@ -256,6 +287,75 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const task = await taskService.cancelTask(request.auth!, params.id);
+      return { data: task };
+    },
+  );
+
+  app.post(
+    '/api/v1/tasks/:id/reject',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(rejectSchema.safeParse(request.body));
+      const task = await taskService.rejectTask(request.auth!, params.id, body);
+      return { data: task };
+    },
+  );
+
+  app.post(
+    '/api/v1/tasks/:id/request-changes',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(requestChangesSchema.safeParse(request.body));
+      const task = await taskService.requestTaskChanges(request.auth!, params.id, body);
+      return { data: task };
+    },
+  );
+
+  app.post(
+    '/api/v1/tasks/:id/skip',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(skipSchema.safeParse(request.body));
+      const task = await taskService.skipTask(request.auth!, params.id, body);
+      return { data: task };
+    },
+  );
+
+  app.post(
+    '/api/v1/tasks/:id/reassign',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(reassignSchema.safeParse(request.body));
+      const task = await taskService.reassignTask(request.auth!, params.id, body);
+      return { data: task };
+    },
+  );
+
+  app.post(
+    '/api/v1/tasks/:id/escalate',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(escalateSchema.safeParse(request.body));
+      const task = await taskService.escalateTask(request.auth!, params.id, body);
+      return { data: task };
+    },
+  );
+
+  app.post(
+    '/api/v1/tasks/:id/output-override',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(overrideOutputSchema.safeParse(request.body));
+      const task = await taskService.overrideTaskOutput(request.auth!, params.id, {
+        output: body.output,
+        reason: body.reason,
+      });
       return { data: task };
     },
   );

@@ -15,6 +15,10 @@ const pipelineCreateSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
 });
 
+const manualReworkSchema = z.object({
+  feedback: z.string().min(1).max(4000),
+});
+
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
     return result.data;
@@ -57,6 +61,25 @@ export const pipelineRoutes: FastifyPluginAsync = async (app) => {
   app.post('/api/v1/pipelines/:id/cancel', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
     const params = request.params as { id: string };
     const pipeline = await pipelineService.cancelPipeline(request.auth!, params.id);
+    return { data: pipeline };
+  });
+
+  app.post('/api/v1/pipelines/:id/pause', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
+    const params = request.params as { id: string };
+    const pipeline = await pipelineService.pausePipeline(request.auth!, params.id);
+    return { data: pipeline };
+  });
+
+  app.post('/api/v1/pipelines/:id/resume', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
+    const params = request.params as { id: string };
+    const pipeline = await pipelineService.resumePipeline(request.auth!, params.id);
+    return { data: pipeline };
+  });
+
+  app.post('/api/v1/pipelines/:id/manual-rework', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
+    const params = request.params as { id: string };
+    const body = parseOrThrow(manualReworkSchema.safeParse(request.body));
+    const pipeline = await pipelineService.manualReworkPipeline(request.auth!, params.id, body.feedback);
     return { data: pipeline };
   });
 

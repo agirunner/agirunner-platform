@@ -25,7 +25,22 @@
  */
 
 import { connectBuiltInWorkerWebSocket, createBuiltInTaskHandler, registerBuiltInWorker } from './bootstrap/built-in-worker.js';
+import { loadBuiltInRolesConfig, resolveProvider, resolveProviderApiKey } from './built-in/role-config.js';
 import { internalWorkerBackendSchema } from './built-in/worker-runtime-contract.js';
+import { resolveSecretEnv } from './config/secret-env.js';
+
+resolveSecretEnv(
+  process.env,
+  [
+    { envName: 'PLATFORM_API_KEY', required: true, minLength: 20, requireFileInProduction: true },
+    { envName: 'RUNTIME_API_KEY', minLength: 20, requireFileInProduction: true },
+    { envName: 'AGENT_API_KEY', requireFileInProduction: true },
+    { envName: 'OPENAI_API_KEY', requireFileInProduction: true },
+    { envName: 'ANTHROPIC_API_KEY', requireFileInProduction: true },
+    { envName: 'GOOGLE_API_KEY', requireFileInProduction: true },
+  ],
+  process.env,
+);
 
 const API_URL = process.env.PLATFORM_API_URL ?? 'http://localhost:8080';
 const API_KEY = process.env.PLATFORM_API_KEY ?? '';
@@ -35,10 +50,22 @@ const HEARTBEAT_SECS = Number(process.env.WORKER_HB_SECS ?? 30);
 const INTERNAL_WORKER_BACKEND = internalWorkerBackendSchema.parse(
   process.env.INTERNAL_WORKER_BACKEND ?? 'go-runtime',
 );
-const AGENT_API_KEY = process.env.AGENT_API_KEY;
 const RUNTIME_URL = process.env.RUNTIME_URL;
 const RUNTIME_API_KEY = process.env.RUNTIME_API_KEY;
 const TASK_TIMEOUT_MS = process.env.TASK_TIMEOUT_MS ? Number(process.env.TASK_TIMEOUT_MS) : undefined;
+const rolesConfig = loadBuiltInRolesConfig();
+const provider = resolveProvider(rolesConfig, process.env);
+const providerApiKey = resolveProviderApiKey(rolesConfig, provider, process.env) ?? process.env.AGENT_API_KEY;
+const providerModel = process.env.BUILT_IN_WORKER_LLM_MODEL ?? rolesConfig.providers[provider].defaultModel;
+const defaultRoleConfigs = Object.fromEntries(
+  Object.entries(rolesConfig.roles).map(([roleName, roleConfig]) => [
+    roleName,
+    {
+      system_prompt: roleConfig.systemPrompt,
+      tools: roleConfig.allowedTools,
+    },
+  ]),
+);
 
 if (!API_KEY) {
   console.error('[built-in-worker] PLATFORM_API_KEY is required');
@@ -67,9 +94,12 @@ async function run(): Promise<void> {
     heartbeatIntervalSeconds: HEARTBEAT_SECS,
     executor: {
       internalWorkerBackend: INTERNAL_WORKER_BACKEND,
-      agentApiKey: AGENT_API_KEY,
+      agentApiKey: providerApiKey,
       runtimeUrl: RUNTIME_URL,
       runtimeApiKey: RUNTIME_API_KEY,
+      llmProvider: provider,
+      llmModel: providerModel,
+      defaultRoleConfigs,
       taskTimeoutMs: TASK_TIMEOUT_MS,
     },
   };

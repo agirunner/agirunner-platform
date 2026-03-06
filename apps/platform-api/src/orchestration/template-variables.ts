@@ -96,7 +96,8 @@ export function resolveTemplateVariables(
 
 export function substituteTemplateVariables<T>(template: T, parameters: Record<string, unknown>): T {
   if (typeof template === 'string') {
-    return template.replace(/\$\{(\w+)\}/g, (match, name: string) => {
+    return template.replace(/\$\{(\w+)\}|\{\{\s*(\w+)\s*\}\}/g, (match, dollarName: string, braceName: string) => {
+      const name = dollarName || braceName;
       return Object.prototype.hasOwnProperty.call(parameters, name) ? String(parameters[name]) : match;
     }) as T;
   }

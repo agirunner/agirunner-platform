@@ -3,6 +3,7 @@ import type { DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 import { PipelineCancellationService } from './pipeline-cancellation-service.js';
+import { PipelineControlService } from './pipeline-control-service.js';
 import { PipelineCreationService } from './pipeline-creation-service.js';
 import { EventService } from './event-service.js';
 import { PipelineStateService } from './pipeline-state-service.js';
@@ -11,6 +12,7 @@ import type { CreatePipelineInput, ListPipelineQuery, PipelineServiceConfig } fr
 export class PipelineService {
   private readonly creationService: PipelineCreationService;
   private readonly cancellationService: PipelineCancellationService;
+  private readonly controlService: PipelineControlService;
 
   constructor(
     private readonly pool: DatabasePool,
@@ -25,6 +27,7 @@ export class PipelineService {
       stateService,
       getPipeline: this.getPipeline.bind(this),
     });
+    this.controlService = new PipelineControlService(pool, eventService, stateService);
   }
 
   createPipeline(identity: ApiKeyIdentity, input: CreatePipelineInput) {
@@ -152,5 +155,17 @@ export class PipelineService {
 
   cancelPipeline(identity: ApiKeyIdentity, pipelineId: string) {
     return this.cancellationService.cancelPipeline(identity, pipelineId);
+  }
+
+  pausePipeline(identity: ApiKeyIdentity, pipelineId: string) {
+    return this.controlService.pausePipeline(identity, pipelineId);
+  }
+
+  resumePipeline(identity: ApiKeyIdentity, pipelineId: string) {
+    return this.controlService.resumePipeline(identity, pipelineId);
+  }
+
+  manualReworkPipeline(identity: ApiKeyIdentity, pipelineId: string, feedback: string) {
+    return this.controlService.manualReworkPipeline(identity, pipelineId, feedback);
   }
 }

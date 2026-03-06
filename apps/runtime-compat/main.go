@@ -88,17 +88,76 @@ func loadConfig() serverConfig {
 		runtimeProfile = runtimeProfileProd
 	}
 
+	runtimeAPIKey := mustLoadSecretEnv("RUNTIME_API_KEY", secretBindingOptions{
+		runtimeProfile:         runtimeProfile,
+		required:               runtimeProfile != runtimeProfileTest,
+		minLength:              runtimeAPIKeyMinLength,
+		requireFileInProd:      true,
+	})
+	agentAPIKey := mustLoadSecretEnv("AGENT_API_KEY", secretBindingOptions{
+		runtimeProfile:    runtimeProfile,
+		requireFileInProd: true,
+	})
+
 	return serverConfig{
 		Port:                        port,
 		RuntimeProfile:              runtimeProfile,
-		RuntimeAPIKey:               strings.TrimSpace(os.Getenv("RUNTIME_API_KEY")),
+		RuntimeAPIKey:               runtimeAPIKey,
 		RequireRuntimeAuth:          runtimeProfile != runtimeProfileTest,
 		AgentAPIURL:                 strings.TrimSpace(os.Getenv("AGENT_API_URL")),
-		AgentAPIKey:                 strings.TrimSpace(os.Getenv("AGENT_API_KEY")),
+		AgentAPIKey:                 agentAPIKey,
 		EnableDeterministicFallback: parseBoolWithDefault(os.Getenv("RUNTIME_COMPAT_ENABLE_DETERMINISTIC_FALLBACK"), false),
 		DockerHost:                  strings.TrimSpace(os.Getenv("DOCKER_HOST")),
 		EnforceSocketProxy:          parseBoolWithDefault(os.Getenv("RUNTIME_ENFORCE_SOCKET_PROXY"), true),
 	}
+}
+
+type secretBindingOptions struct {
+	runtimeProfile    string
+	required          bool
+	minLength         int
+	requireFileInProd bool
+}
+
+func mustLoadSecretEnv(envName string, options secretBindingOptions) string {
+	fileEnvName := envName + "_FILE"
+	inlineValue := strings.TrimSpace(os.Getenv(envName))
+	filePath := strings.TrimSpace(os.Getenv(fileEnvName))
+
+	var resolvedValue string
+	if filePath != "" {
+		fileBytes, err := os.ReadFile(filePath)
+		if err != nil {
+			log.Fatalf("runtime-compat failed reading %s for %s: %v", fileEnvName, envName, err)
+		}
+
+		resolvedValue = strings.TrimSpace(string(fileBytes))
+		if resolvedValue == "" {
+			log.Fatalf("runtime-compat %s for %s resolved to an empty file", fileEnvName, envName)
+		}
+
+		if inlineValue != "" && inlineValue != resolvedValue {
+			log.Fatalf("runtime-compat %s and %s must match when both are set", envName, fileEnvName)
+		}
+
+		os.Setenv(envName, resolvedValue)
+	} else {
+		resolvedValue = inlineValue
+	}
+
+	if options.requireFileInProd && options.runtimeProfile == runtimeProfileProd && inlineValue != "" && filePath == "" {
+		log.Fatalf("runtime-compat %s is required for %s when RUNTIME_COMPAT_PROFILE=prod", fileEnvName, envName)
+	}
+
+	if options.required && resolvedValue == "" {
+		log.Fatalf("runtime-compat missing required secret %s or %s", envName, fileEnvName)
+	}
+
+	if options.minLength > 0 && resolvedValue != "" && len(resolvedValue) < options.minLength {
+		log.Fatalf("runtime-compat %s must be at least %d characters long", envName, options.minLength)
+	}
+
+	return resolvedValue
 }
 
 func validateConfig(cfg serverConfig) error {

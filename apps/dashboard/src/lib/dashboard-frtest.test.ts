@@ -67,6 +67,7 @@ describe('FR-030: modern SPA structure', () => {
   it('app includes route definitions covering all major pages', () => {
     const source = readComponent('app/app.tsx');
     expect(source).toContain('/pipelines');
+    expect(source).toContain('/templates');
     expect(source).toContain('/workers');
     expect(source).toContain('/metrics');
     expect(source).toContain('/login');
@@ -231,10 +232,12 @@ describe('FR-156: dashboard is tenant-scoped', () => {
 // FR-426: API key management
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-420 / FR-424 / FR-426: template browser, pipeline launch, API key management', () => {
-  it('api layer exposes listPipelines and the broader pipeline surface for template navigation', () => {
+  it('api layer exposes template browsing and pipeline launch methods', () => {
     const source = readComponent('lib/api.ts');
     expect(source).toContain('listPipelines');
+    expect(source).toContain('listTemplates');
     expect(source).toContain('getPipeline');
+    expect(source).toContain('createPipeline');
   });
 
   it('DashboardApi interface supports login (API key exchange) for key management workflows', () => {
@@ -252,6 +255,7 @@ describe('FR-420 / FR-424 / FR-426: template browser, pipeline launch, API key m
       setAccessToken: vi.fn(),
       listPipelines: vi.fn(),
       getPipeline: vi.fn(),
+      createPipeline: vi.fn(),
       listTasks: vi.fn(),
       getTask: vi.fn(),
       listWorkers: vi.fn(),
@@ -265,6 +269,13 @@ describe('FR-420 / FR-424 / FR-426: template browser, pipeline launch, API key m
     expect(client.setAccessToken).toHaveBeenCalledWith('access-tok');
     const session = readSession();
     expect(session?.tenantId).toBe('tenant-1');
+  });
+
+  it('template browser page renders template browsing and launch controls', () => {
+    const source = readComponent('pages/template-browser-page.tsx');
+    expect(source).toContain('Loading templates');
+    expect(source).toContain('Launch Pipeline');
+    expect(source).toContain('dashboardApi.createPipeline');
   });
 });
 
@@ -280,6 +291,7 @@ describe('FR-427: dashboard navigation and layout', () => {
   it('layout includes navigation links to all major sections', () => {
     const source = readComponent('components/layout.tsx');
     expect(source).toContain('/pipelines');
+    expect(source).toContain('/templates');
     expect(source).toContain('/workers');
     expect(source).toContain('/metrics');
   });

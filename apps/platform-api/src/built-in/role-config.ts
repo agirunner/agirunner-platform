@@ -11,7 +11,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export type RoleName = 'developer' | 'reviewer' | 'architect' | 'qa';
+export type RoleName = 'developer' | 'reviewer' | 'architect' | 'qa' | 'project-manager';
 
 export type LlmProvider = 'anthropic' | 'openai' | 'google';
 
@@ -93,7 +93,7 @@ export function loadBuiltInRolesConfig(configPath?: string): BuiltInRolesConfig 
 
 /**
  * Returns all role names defined in the config.
- * FR-743: the 4 core roles are developer, reviewer, architect, qa.
+ * FR-743: the built-in worker supports the core delivery roles plus project-manager.
  */
 export function listRoleNames(config: BuiltInRolesConfig): RoleName[] {
   return Object.keys(config.roles) as RoleName[];

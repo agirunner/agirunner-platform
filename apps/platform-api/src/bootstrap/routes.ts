@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 
 import { agentRoutes } from '../api/routes/agents.routes.js';
+import { apiKeyRoutes } from '../api/routes/api-keys.routes.js';
 import { authRoutes } from '../api/routes/auth.routes.js';
 import { eventRoutes } from '../api/routes/events.routes.js';
 import { executeRoutes } from '../api/routes/execute.routes.js';
@@ -15,6 +16,7 @@ import { projectRoutes } from '../api/routes/projects.routes.js';
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(healthRoutes);
   await app.register(authRoutes);
+  await app.register(apiKeyRoutes);
   await app.register(taskRoutes);
   await app.register(executeRoutes);
   await app.register(agentRoutes);

@@ -16,9 +16,11 @@ interface BreadcrumbItem {
 
 const SECTION_LABELS: Record<string, string> = {
   pipelines: 'Pipelines',
+  templates: 'Templates',
   tasks: 'Tasks',
   workers: 'Workers',
   activity: 'Activity Feed',
+  'api-keys': 'API Keys',
   metrics: 'System Metrics',
 };
 
@@ -154,8 +156,10 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
         </form>
         <nav>
           <NavLink to="/pipelines">Pipelines</NavLink>
+          <NavLink to="/templates">Templates</NavLink>
           <NavLink to="/workers">Workers</NavLink>
           <NavLink to="/activity">Activity Feed</NavLink>
+          <NavLink to="/api-keys">API Keys</NavLink>
           <NavLink to="/metrics">System Metrics</NavLink>
         </nav>
         <p className="muted shortcut-hint">Shortcuts: Alt+1/2/3/4 navigate · Shift+R refresh · Shift+T theme</p>
@@ -163,8 +167,10 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
           className="button"
           type="button"
           onClick={() => {
-            dashboardApi.logout();
-            navigate('/login');
+            void dashboardApi.logout().finally(() => {
+              queryClient.clear();
+              navigate('/login');
+            });
           }}
         >
           Logout

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -95,6 +97,25 @@ func TestValidateConfigTestProfileRequiresBridgeOrFallback(t *testing.T) {
 	}
 }
 
+func TestLoadConfigReadsSecretFromFileInProd(t *testing.T) {
+	secretPath := filepath.Join(t.TempDir(), "runtime-api-key")
+	if err := os.WriteFile(secretPath, []byte("runtime-secret-1234567890\n"), 0o600); err != nil {
+		t.Fatalf("failed writing temp secret: %v", err)
+	}
+
+	t.Setenv("PORT", "18081")
+	t.Setenv("RUNTIME_COMPAT_PROFILE", runtimeProfileProd)
+	t.Setenv("RUNTIME_API_KEY_FILE", secretPath)
+	t.Setenv("AGENT_API_URL", "http://example.invalid/execute")
+	t.Setenv("RUNTIME_ENFORCE_SOCKET_PROXY", "false")
+
+	cfg := loadConfig()
+
+	if cfg.RuntimeAPIKey != "runtime-secret-1234567890" {
+		t.Fatalf("expected runtime api key from file, got %q", cfg.RuntimeAPIKey)
+	}
+}
+
 func TestWithConfiguredAuthRequiresBearerTokenWhenEnabled(t *testing.T) {
 	cfg := serverConfig{RequireRuntimeAuth: true, RuntimeAPIKey: "runtime-secret"}
 	handler := withConfiguredAuth(cfg, func(w http.ResponseWriter, _ *http.Request) {
@@ -122,6 +143,40 @@ func TestWithConfiguredAuthAllowsRequestsWhenAuthDisabled(t *testing.T) {
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected 200 when auth disabled, got %d", response.Code)
+	}
+}
+
+func TestHealthHandlerReportsConfiguredBridgeAndSocketProxyState(t *testing.T) {
+	cfg := serverConfig{
+		RuntimeProfile:     runtimeProfileProd,
+		RequireRuntimeAuth: true,
+		AgentAPIURL:        "http://example.invalid/execute",
+		DockerHost:         "tcp://socket-proxy:2375",
+		EnforceSocketProxy: true,
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/health", nil)
+	response := httptest.NewRecorder()
+
+	healthHandler(cfg).ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected health status 200, got %d", response.Code)
+	}
+
+	var body map[string]any
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed decoding health response: %v", err)
+	}
+
+	checks, ok := body["checks"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected checks object in health response, got %#v", body)
+	}
+
+	bridge, ok := checks["agent_api_bridge"].(map[string]any)
+	if !ok || bridge["configured"] != true {
+		t.Fatalf("expected configured bridge in health response, got %#v", checks["agent_api_bridge"])
 	}
 }
 
@@ -171,6 +226,41 @@ func TestSubmitTaskHandlerAllowsDeterministicFallbackOnlyWhenExplicitlyEnabled(t
 	}
 	if output["mode"] != "deterministic-fallback" {
 		t.Fatalf("expected deterministic-fallback mode, got %#v", output)
+	}
+}
+
+func TestTaskActionHandlerSupportsCancelAndLogsContract(t *testing.T) {
+	handler := taskActionHandler()
+
+	cancelRequest := httptest.NewRequest(http.MethodPost, "/api/v1/tasks/task-123/cancel", nil)
+	cancelResponse := httptest.NewRecorder()
+	handler.ServeHTTP(cancelResponse, cancelRequest)
+	if cancelResponse.Code != http.StatusOK {
+		t.Fatalf("expected cancel response 200, got %d", cancelResponse.Code)
+	}
+
+	var cancelBody map[string]any
+	if err := json.Unmarshal(cancelResponse.Body.Bytes(), &cancelBody); err != nil {
+		t.Fatalf("failed decoding cancel body: %v", err)
+	}
+	if cancelBody["cancelled"] != true {
+		t.Fatalf("expected cancelled=true, got %#v", cancelBody)
+	}
+
+	logsRequest := httptest.NewRequest(http.MethodGet, "/api/v1/tasks/task-123/logs", nil)
+	logsResponse := httptest.NewRecorder()
+	handler.ServeHTTP(logsResponse, logsRequest)
+	if logsResponse.Code != http.StatusOK {
+		t.Fatalf("expected logs response 200, got %d", logsResponse.Code)
+	}
+
+	var logsBody map[string]any
+	if err := json.Unmarshal(logsResponse.Body.Bytes(), &logsBody); err != nil {
+		t.Fatalf("failed decoding logs body: %v", err)
+	}
+	logEntries, ok := logsBody["logs"].([]any)
+	if !ok || len(logEntries) == 0 {
+		t.Fatalf("expected at least one log entry, got %#v", logsBody)
 	}
 }
 

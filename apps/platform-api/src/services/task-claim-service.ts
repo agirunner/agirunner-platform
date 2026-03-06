@@ -56,15 +56,31 @@ export class TaskClaimService {
       }
 
       const taskRes = await client.query(
-        `SELECT * FROM tasks
+        `SELECT tasks.* FROM tasks
+         LEFT JOIN pipelines ON pipelines.tenant_id = tasks.tenant_id AND pipelines.id = tasks.pipeline_id
          WHERE tenant_id = $1
            AND state = 'ready'
            AND capabilities_required <@ $2::text[]
            AND ($3::uuid IS NULL OR pipeline_id = $3::uuid)
-         ORDER BY ${priorityCase} DESC, created_at ASC
+           AND (pipelines.id IS NULL OR pipelines.state <> 'paused')
+           AND (
+             NOT (metadata ? 'preferred_agent_id')
+             OR NULLIF(metadata->>'preferred_agent_id', '') IS NULL
+             OR metadata->>'preferred_agent_id' = $4
+           )
+           AND (
+             NOT (metadata ? 'preferred_worker_id')
+             OR NULLIF(metadata->>'preferred_worker_id', '') IS NULL
+             OR metadata->>'preferred_worker_id' = COALESCE($5, metadata->>'preferred_worker_id')
+           )
+         ORDER BY
+           CASE WHEN metadata->>'preferred_agent_id' = $4 THEN 1 ELSE 0 END DESC,
+           CASE WHEN metadata->>'preferred_worker_id' = COALESCE($5, metadata->>'preferred_worker_id') THEN 1 ELSE 0 END DESC,
+           ${priorityCase} DESC,
+           created_at ASC
          LIMIT 1
          FOR UPDATE SKIP LOCKED`,
-        [identity.tenantId, payload.capabilities, payload.pipeline_id ?? null],
+        [identity.tenantId, payload.capabilities, payload.pipeline_id ?? null, payload.agent_id, payload.worker_id ?? null],
       );
 
       if (!taskRes.rowCount) {

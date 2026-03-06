@@ -11,6 +11,9 @@ interface WorkerItem {
   connection_mode: string;
   status: string;
   last_heartbeat_at: string;
+  metadata?: {
+    metrics?: Record<string, unknown>;
+  };
 }
 
 interface AgentItem {
@@ -81,6 +84,7 @@ export function WorkerStatusPage(): JSX.Element {
             ))}
           </tbody>
         </table>
+        <pre>{JSON.stringify(workers.data?.map((worker) => ({ id: worker.id, metrics: worker.metadata?.metrics ?? {} })) ?? [], null, 2)}</pre>
       </div>
       <div className="card">
         <h2>Agents</h2>

@@ -7,11 +7,13 @@
 
 import { createServer } from 'node:http';
 import { describe, expect, it, vi } from 'vitest';
+import { WebSocketServer } from 'ws';
 
 import {
   executeTask,
   createBuiltInTaskHandler,
   checkProhibitedOperations,
+  connectBuiltInWorkerWebSocket,
   type TaskExecutorConfig,
   type TaskExecutionResult,
   type WorkerRegistration,
@@ -39,6 +41,21 @@ const minimalConfig: BuiltInWorkerConfig = {
   heartbeatIntervalSeconds: 30,
 };
 
+async function waitFor(
+  predicate: () => boolean,
+  timeoutMs = 3_000,
+  intervalMs = 25,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  throw new Error('Timed out waiting for condition');
+}
+
 describe('executeTask', () => {
   it('fails closed when runtimeUrl is missing in go-only mode', async () => {
     const config: TaskExecutorConfig = {};
@@ -54,18 +71,40 @@ describe('executeTask', () => {
   it('returns parsed runtime output when a go-runtime endpoint is configured', async () => {
     let receivedAuthHeader: string | undefined;
     let receivedBody: Record<string, unknown> | undefined;
+    const observedUrls: string[] = [];
 
     const server = createServer((req, res) => {
+      observedUrls.push(String(req.url ?? ''));
       receivedAuthHeader = req.headers.authorization;
-      let body = '';
-      req.on('data', (chunk) => {
-        body += chunk.toString();
-      });
-      req.on('end', () => {
-        receivedBody = JSON.parse(body) as Record<string, unknown>;
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end('{"output":{"result":"ok","evidence":"go-runtime"}}');
-      });
+      if (req.method === 'POST' && req.url === '/api/v1/tasks') {
+        let body = '';
+        req.on('data', (chunk) => {
+          body += chunk.toString();
+        });
+        req.on('end', () => {
+          receivedBody = JSON.parse(body) as Record<string, unknown>;
+          res.writeHead(202, { 'Content-Type': 'application/json' });
+          res.end('{"task_id":"task-xyz","status":"accepted"}');
+        });
+        return;
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          task_id: 'task-xyz',
+          status: 'completed',
+          result: {
+            status: 'completed',
+            output: { result: 'ok', evidence: 'go-runtime' },
+            metrics: { total_cost_usd: 0.01 },
+            git_commit: 'abc123',
+            git_push_ok: true,
+            files_changed: ['src/index.ts'],
+            verification_results: { passed: true, strategy: 'structured_review' },
+          },
+        }),
+      );
     });
 
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -93,12 +132,20 @@ describe('executeTask', () => {
 
       expect(result.success).toBe(true);
       expect(result.output).toMatchObject({ result: 'ok', evidence: 'go-runtime' });
+      expect(result.metrics).toMatchObject({ total_cost_usd: 0.01 });
+      expect(result.gitInfo).toMatchObject({
+        commit_hash: 'abc123',
+        git_push_ok: true,
+        files_changed: ['src/index.ts'],
+      });
+      expect(result.verification).toMatchObject({ passed: true, strategy: 'structured_review' });
       expect(receivedAuthHeader).toBe('Bearer runtime-token');
       expect(receivedBody).toMatchObject({
         task_id: 'task-xyz',
         role: 'developer',
         input: { repo: 'enterprise/example' },
       });
+      expect(observedUrls).toEqual(['/api/v1/tasks', '/api/v1/tasks/task-xyz']);
     } finally {
       await new Promise<void>((resolve, reject) =>
         server.close((error) => {
@@ -152,6 +199,64 @@ describe('createBuiltInTaskHandler', () => {
     expect(freshHandler).not.toBe(freshExecute);
     expect(typeof freshHandler).toBe('function');
     expect(typeof freshExecute).toBe('function');
+  });
+});
+
+describe('connectBuiltInWorkerWebSocket', () => {
+  it('reconnects automatically after the websocket connection drops', async () => {
+    const connections: Array<{ auth?: string }> = [];
+    const sockets: Array<import('ws').WebSocket> = [];
+    const httpServer = createServer();
+    const wss = new WebSocketServer({ noServer: true });
+
+    httpServer.on('upgrade', (request, socket, head) => {
+      if ((request.url ?? '') !== mockRegistration.websocketUrl) {
+        socket.destroy();
+        return;
+      }
+
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        sockets.push(ws);
+        connections.push({ auth: request.headers.authorization });
+        ws.send(JSON.stringify({ type: 'connection.ready' }));
+      });
+    });
+
+    await new Promise<void>((resolve) => {
+      httpServer.listen(0, '127.0.0.1', resolve);
+    });
+    const address = httpServer.address();
+    if (!address || typeof address === 'string') {
+      throw new Error('Failed to start websocket test server');
+    }
+
+    const disconnect = connectBuiltInWorkerWebSocket(
+      mockRegistration,
+      {
+        apiBaseUrl: `http://127.0.0.1:${address.port}`,
+        reconnectMinMs: 50,
+        reconnectMaxMs: 100,
+      },
+      async () => undefined,
+    );
+
+    try {
+      await waitFor(() => connections.length >= 1);
+      expect(connections[0]).toMatchObject({ auth: `Bearer ${mockRegistration.workerApiKey}` });
+
+      sockets[0]?.terminate();
+
+      await waitFor(() => connections.length >= 2);
+      expect(connections[1]).toMatchObject({ auth: `Bearer ${mockRegistration.workerApiKey}` });
+    } finally {
+      disconnect();
+      await new Promise<void>((resolve) => {
+        wss.clients.forEach((client) => client.terminate());
+        wss.close(() => {
+          httpServer.close(() => resolve());
+        });
+      });
+    }
   });
 });
 

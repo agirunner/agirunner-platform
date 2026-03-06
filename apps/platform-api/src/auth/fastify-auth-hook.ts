@@ -33,12 +33,26 @@ function isJwtToken(token: string): boolean {
 }
 
 async function verifyJwtIdentity(request: FastifyRequest, token: string): Promise<ApiKeyIdentity> {
-  const claims = await verifyJwt<
-    Omit<ApiKeyIdentity, 'id'> & {
-      keyId: string;
-      tokenType?: string;
+  let claims: Omit<ApiKeyIdentity, 'id'> & {
+    keyId: string;
+    tokenType?: string;
+  };
+
+  try {
+    claims = await verifyJwt<
+      Omit<ApiKeyIdentity, 'id'> & {
+        keyId: string;
+        tokenType?: string;
+      }
+    >(request.server, token);
+  } catch (error) {
+    const code =
+      error && typeof error === 'object' && 'code' in error ? String(error.code) : undefined;
+    if (code?.startsWith('FAST_JWT_')) {
+      throw new UnauthorizedError('Invalid or expired access token');
     }
-  >(request.server, token);
+    throw error;
+  }
 
   if (claims.tokenType === 'refresh') {
     throw new UnauthorizedError('Access token required');

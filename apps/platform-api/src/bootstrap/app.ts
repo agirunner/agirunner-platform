@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { loadEnv } from '../config/env.js';
+import { resolveSecretEnv } from '../config/secret-env.js';
 import { createPool } from '../db/client.js';
 import { runMigrations } from '../db/migrations/run-migrations.js';
 import { seedDefaultTenant } from '../db/seed.js';
@@ -45,8 +46,19 @@ export function assertRequiredStartupSecrets(source: NodeJS.ProcessEnv = process
 }
 
 export async function buildApp() {
+  resolveSecretEnv(
+    process.env,
+    [
+      { envName: 'JWT_SECRET', required: true, minLength: 32, requireFileInProduction: true },
+      { envName: 'WEBHOOK_ENCRYPTION_KEY', required: true, minLength: 32, requireFileInProduction: true },
+      { envName: 'DEFAULT_ADMIN_API_KEY', minLength: 20, requireFileInProduction: true },
+      { envName: 'OPENAI_API_KEY', requireFileInProduction: true },
+    ],
+    process.env,
+  );
+
   assertRequiredStartupSecrets();
-  const config = loadEnv();
+  const config = loadEnv(process.env);
   const app = Fastify({
     logger: {
       level: config.LOG_LEVEL,
@@ -57,7 +69,7 @@ export async function buildApp() {
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
   const migrationsDir = path.join(currentDir, '..', 'db', 'migrations');
   await runMigrations(pool, migrationsDir);
-  await seedDefaultTenant(pool);
+  await seedDefaultTenant(pool, process.env);
 
   const eventService = new EventService(pool);
   const eventStreamService = new EventStreamService(pool);

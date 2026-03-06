@@ -26,11 +26,54 @@ export interface DashboardSearchResult {
   href: string;
 }
 
+export interface DashboardTemplate {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  version: number;
+  is_built_in: boolean;
+  is_published: boolean;
+  schema: Record<string, unknown>;
+}
+
+export interface DashboardEventRecord {
+  id: string;
+  type: string;
+  entity_type: string;
+  entity_id: string;
+  actor_type: string;
+  actor_id?: string | null;
+  data?: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface DashboardApiKeyRecord {
+  id: string;
+  scope: string;
+  owner_type: string;
+  owner_id: string | null;
+  label: string | null;
+  key_prefix: string;
+  last_used_at: string | null;
+  expires_at: string;
+  is_revoked: boolean;
+  created_at: string;
+}
+
 export interface DashboardApi {
   login(apiKey: string): Promise<void>;
-  logout(): void;
+  logout(): Promise<void>;
   listPipelines(): Promise<unknown>;
   getPipeline(id: string): Promise<unknown>;
+  listTemplates(): Promise<{ data: DashboardTemplate[]; meta?: Record<string, unknown> }>;
+  createPipeline(payload: {
+    template_id: string;
+    name: string;
+    parameters?: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
+  }): Promise<unknown>;
+  cancelPipeline(pipelineId: string): Promise<unknown>;
   listTasks(filters?: Record<string, string>): Promise<unknown>;
   getTask(id: string): Promise<unknown>;
   listWorkers(): Promise<unknown>;
@@ -38,6 +81,31 @@ export interface DashboardApi {
   approveTask(taskId: string): Promise<unknown>;
   retryTask(taskId: string, payload?: { override_input?: Record<string, unknown>; force?: boolean }): Promise<unknown>;
   cancelTask(taskId: string): Promise<unknown>;
+  rejectTask(taskId: string, payload: { feedback: string }): Promise<unknown>;
+  requestTaskChanges(
+    taskId: string,
+    payload: { feedback: string; override_input?: Record<string, unknown>; preferred_agent_id?: string; preferred_worker_id?: string },
+  ): Promise<unknown>;
+  skipTask(taskId: string, payload: { reason: string }): Promise<unknown>;
+  reassignTask(
+    taskId: string,
+    payload: { preferred_agent_id?: string; preferred_worker_id?: string; reason: string },
+  ): Promise<unknown>;
+  escalateTask(taskId: string, payload: { reason: string; escalation_target?: string }): Promise<unknown>;
+  overrideTaskOutput(taskId: string, payload: { output: unknown; reason: string }): Promise<unknown>;
+  pausePipeline(pipelineId: string): Promise<unknown>;
+  resumePipeline(pipelineId: string): Promise<unknown>;
+  manualReworkPipeline(pipelineId: string, payload: { feedback: string }): Promise<unknown>;
+  listEvents(filters?: Record<string, string>): Promise<{ data: DashboardEventRecord[]; meta?: Record<string, unknown> }>;
+  listApiKeys(): Promise<DashboardApiKeyRecord[]>;
+  createApiKey(payload: {
+    scope: 'agent' | 'worker' | 'admin';
+    owner_type: string;
+    owner_id?: string;
+    label?: string;
+    expires_at: string;
+  }): Promise<{ api_key: string; key_prefix: string }>;
+  revokeApiKey(id: string): Promise<unknown>;
   search(query: string): Promise<DashboardSearchResult[]>;
   getMetrics(): Promise<string>;
 }
@@ -85,21 +153,28 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     }
   }
 
-  async function postJson(path: string, body?: Record<string, unknown>): Promise<unknown> {
+  async function requestJson(
+    path: string,
+    options: {
+      method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+      body?: Record<string, unknown>;
+      includeAuth?: boolean;
+    } = {},
+  ): Promise<unknown> {
     const activeSession = readSession();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
 
-    if (activeSession?.accessToken) {
+    if ((options.includeAuth ?? true) && activeSession?.accessToken) {
       headers.Authorization = `Bearer ${activeSession.accessToken}`;
     }
 
     const response = await requestFetch(`${baseUrl}${path}`, {
-      method: 'POST',
+      method: options.method ?? 'POST',
       headers,
       credentials: 'include',
-      body: body ? JSON.stringify(body) : undefined,
+      body: options.body ? JSON.stringify(options.body) : undefined,
     });
 
     if (!response.ok) {
@@ -118,18 +193,55 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       });
       client.setAccessToken(auth.token);
     },
-    logout(): void {
-      clearSession();
+    async logout(): Promise<void> {
+      try {
+        await requestJson('/api/v1/auth/logout', { method: 'POST' });
+      } finally {
+        clearSession();
+      }
     },
     listPipelines: () => withRefresh(() => client.listPipelines()),
     getPipeline: (id) => withRefresh(() => client.getPipeline(id)),
+    listTemplates: () =>
+      withRefresh(() => requestJson('/api/v1/templates?per_page=50', { method: 'GET' }) as Promise<{ data: DashboardTemplate[] }>),
+    createPipeline: (payload) => withRefresh(() => client.createPipeline(payload)),
+    cancelPipeline: (pipelineId) => withRefresh(() => client.cancelPipeline(pipelineId)),
     listTasks: (filters) => withRefresh(() => client.listTasks(filters)),
     getTask: (id) => withRefresh(() => client.getTask(id)),
     listWorkers: () => withRefresh(() => client.listWorkers()),
     listAgents: () => withRefresh(() => client.listAgents()),
-    approveTask: (taskId) => withRefresh(() => postJson(`/api/v1/tasks/${taskId}/approve`)),
-    retryTask: (taskId, payload = {}) => withRefresh(() => postJson(`/api/v1/tasks/${taskId}/retry`, payload)),
-    cancelTask: (taskId) => withRefresh(() => postJson(`/api/v1/tasks/${taskId}/cancel`)),
+    approveTask: (taskId) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/approve`)),
+    retryTask: (taskId, payload = {}) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/retry`, { body: payload })),
+    cancelTask: (taskId) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/cancel`)),
+    rejectTask: (taskId, payload) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/reject`, { body: payload })),
+    requestTaskChanges: (taskId, payload) =>
+      withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/request-changes`, { body: payload })),
+    skipTask: (taskId, payload) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/skip`, { body: payload })),
+    reassignTask: (taskId, payload) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/reassign`, { body: payload })),
+    escalateTask: (taskId, payload) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/escalate`, { body: payload })),
+    overrideTaskOutput: (taskId, payload) =>
+      withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/output-override`, { body: payload })),
+    pausePipeline: (pipelineId) => withRefresh(() => requestJson(`/api/v1/pipelines/${pipelineId}/pause`)),
+    resumePipeline: (pipelineId) => withRefresh(() => requestJson(`/api/v1/pipelines/${pipelineId}/resume`)),
+    manualReworkPipeline: (pipelineId, payload) =>
+      withRefresh(() => requestJson(`/api/v1/pipelines/${pipelineId}/manual-rework`, { body: payload })),
+    listEvents: (filters) =>
+      withRefresh(() =>
+        requestJson(`/api/v1/events${buildQueryString(filters)}`, { method: 'GET' }) as Promise<{ data: DashboardEventRecord[] }>,
+      ),
+    listApiKeys: () =>
+      withRefresh(async () => {
+        const response = (await requestJson('/api/v1/api-keys', { method: 'GET' })) as { data: DashboardApiKeyRecord[] };
+        return response.data;
+      }),
+    createApiKey: (payload) =>
+      withRefresh(async () => {
+        const response = (await requestJson('/api/v1/api-keys', { body: payload })) as {
+          data: { api_key: string; key_prefix: string };
+        };
+        return response.data;
+      }),
+    revokeApiKey: (id) => withRefresh(() => requestJson(`/api/v1/api-keys/${id}`, { method: 'DELETE' })),
     search: (query) =>
       withRefresh(async () => {
         const normalizedQuery = query.trim().toLowerCase();
@@ -172,6 +284,22 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         return response.text();
       }),
   };
+}
+
+function buildQueryString(filters?: Record<string, string>): string {
+  if (!filters) {
+    return '';
+  }
+
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value) {
+      params.set(key, value);
+    }
+  });
+
+  const rendered = params.toString();
+  return rendered.length > 0 ? `?${rendered}` : '';
 }
 
 export function buildSearchResults(

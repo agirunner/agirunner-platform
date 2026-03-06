@@ -34,8 +34,8 @@ describe('FR-751 / FR-750: classifyTaskCapability', () => {
     expect(result).toBe('can-handle');
   });
 
-  it('returns can-handle for all 4 core role capabilities', () => {
-    const roles = ['role:developer', 'role:reviewer', 'role:architect', 'role:qa'];
+  it('returns can-handle for all built-in role capabilities', () => {
+    const roles = ['role:developer', 'role:reviewer', 'role:architect', 'role:qa', 'role:project-manager'];
     for (const role of roles) {
       const result = classifyTaskCapability({ capabilities_required: ['llm-api', role] });
       expect(result).toBe('can-handle');

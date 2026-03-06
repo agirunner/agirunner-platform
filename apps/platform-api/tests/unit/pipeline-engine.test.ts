@@ -64,6 +64,35 @@ describe('pipeline engine unit', () => {
     expect(output).toEqual({ title: 'Implement login', nested: { language: 'typescript', dryRun: 'true' } });
   });
 
+  it('substitutes double-brace template variables used by SDLC templates', () => {
+    const resolved = resolveTemplateVariables(
+      [
+        { name: 'repo', type: 'string' as const, required: true },
+        { name: 'goal', type: 'string' as const, required: true },
+      ],
+      { repo: 'playground-repo', goal: 'Add a settings page' },
+    );
+
+    const output = substituteTemplateVariables(
+      {
+        title: 'Architecture: {{goal}}',
+        nested: {
+          repo: '{{ repo }}',
+          instruction: 'Implement {{goal}} in {{repo}}',
+        },
+      },
+      resolved,
+    );
+
+    expect(output).toEqual({
+      title: 'Architecture: Add a settings page',
+      nested: {
+        repo: 'playground-repo',
+        instruction: 'Implement Add a settings page in playground-repo',
+      },
+    });
+  });
+
   it('derives pipeline state from task state set', () => {
     expect(derivePipelineState(['ready', 'pending'])).toBe('pending');
     expect(derivePipelineState(['running', 'pending'])).toBe('active');

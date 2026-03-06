@@ -22,6 +22,7 @@ interface TransitionOptions {
   clearLifecycleControlMetadata?: boolean;
   startedAt?: Date;
   overrideInput?: Record<string, unknown>;
+  metadataPatch?: Record<string, unknown>;
 }
 
 interface TaskLifecycleDependencies {
@@ -190,8 +191,11 @@ export class TaskLifecycleService {
       }
 
       const metadataPatch =
-        options.verification !== undefined
-          ? { verification: options.verification }
+        options.verification !== undefined || options.metadataPatch !== undefined
+          ? {
+              ...(options.verification !== undefined ? { verification: options.verification } : {}),
+              ...(options.metadataPatch ?? {}),
+            }
           : undefined;
 
       let metadataExpression = 'metadata';
@@ -446,6 +450,150 @@ export class TaskLifecycleService {
       clearAssignment: true,
       clearLifecycleControlMetadata: true,
       reason: 'cancelled',
+    });
+  }
+
+  async rejectTask(identity: ApiKeyIdentity, taskId: string, payload: { feedback: string }) {
+    return this.applyStateTransition(identity, taskId, 'failed', {
+      expectedStates: ['awaiting_approval', 'output_pending_review', 'running', 'claimed'],
+      clearAssignment: true,
+      clearLifecycleControlMetadata: true,
+      error: {
+        category: 'review_rejected',
+        message: payload.feedback,
+        recoverable: true,
+      },
+      metadataPatch: {
+        review_feedback: payload.feedback,
+        review_action: 'reject',
+        review_updated_at: new Date().toISOString(),
+      },
+      reason: 'review_rejected',
+    });
+  }
+
+  async requestTaskChanges(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: { feedback: string; override_input?: Record<string, unknown>; preferred_agent_id?: string; preferred_worker_id?: string },
+  ) {
+    const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
+    const nextInput =
+      payload.override_input
+      ?? {
+        ...asRecord(task.input),
+        review_feedback: payload.feedback,
+      };
+
+    return this.applyStateTransition(identity, taskId, 'ready', {
+      expectedStates: ['awaiting_approval', 'output_pending_review', 'completed', 'failed', 'cancelled'],
+      clearAssignment: true,
+      clearExecutionData: true,
+      clearLifecycleControlMetadata: true,
+      retryIncrement: true,
+      overrideInput: nextInput,
+      metadataPatch: {
+        review_feedback: payload.feedback,
+        review_action: 'request_changes',
+        review_updated_at: new Date().toISOString(),
+        ...(payload.preferred_agent_id ? { preferred_agent_id: payload.preferred_agent_id } : {}),
+        ...(payload.preferred_worker_id ? { preferred_worker_id: payload.preferred_worker_id } : {}),
+      },
+      reason: 'review_requested_changes',
+    });
+  }
+
+  async skipTask(identity: ApiKeyIdentity, taskId: string, payload: { reason: string }) {
+    return this.applyStateTransition(identity, taskId, 'completed', {
+      expectedStates: ['pending', 'ready', 'awaiting_approval', 'output_pending_review', 'failed', 'cancelled'],
+      clearAssignment: true,
+      clearLifecycleControlMetadata: true,
+      output: {
+        skipped: true,
+        reason: payload.reason,
+      },
+      metadataPatch: {
+        review_action: 'skip',
+        review_feedback: payload.reason,
+        review_updated_at: new Date().toISOString(),
+      },
+      reason: 'task_skipped',
+    });
+  }
+
+  async reassignTask(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: { preferred_agent_id?: string; preferred_worker_id?: string; reason: string },
+  ) {
+    const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
+    if (
+      (task.state === 'claimed' || task.state === 'running') &&
+      typeof task.assigned_worker_id === 'string' &&
+      this.deps.queueWorkerCancelSignal
+    ) {
+      await this.deps.queueWorkerCancelSignal(
+        identity,
+        task.assigned_worker_id,
+        taskId,
+        'manual_cancel',
+        new Date(),
+      );
+    }
+
+    return this.applyStateTransition(identity, taskId, 'ready', {
+      expectedStates: ['pending', 'ready', 'claimed', 'running', 'awaiting_approval', 'output_pending_review', 'failed', 'cancelled'],
+      clearAssignment: true,
+      clearExecutionData: task.state === 'output_pending_review' || task.state === 'failed',
+      clearLifecycleControlMetadata: true,
+      metadataPatch: {
+        preferred_agent_id: payload.preferred_agent_id ?? null,
+        preferred_worker_id: payload.preferred_worker_id ?? null,
+        review_action: 'reassign',
+        review_feedback: payload.reason,
+        review_updated_at: new Date().toISOString(),
+      },
+      reason: 'task_reassigned',
+    });
+  }
+
+  async escalateTask(identity: ApiKeyIdentity, taskId: string, payload: { reason: string; escalation_target?: string }) {
+    const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
+    const existingEscalations = Array.isArray(asRecord(task.metadata).escalations)
+      ? (asRecord(task.metadata).escalations as unknown[])
+      : [];
+
+    return this.applyStateTransition(identity, taskId, task.state as TaskState, {
+      expectedStates: [task.state as TaskState],
+      metadataPatch: {
+        escalations: [
+          ...existingEscalations,
+          {
+            reason: payload.reason,
+            target: payload.escalation_target ?? null,
+            escalated_at: new Date().toISOString(),
+          },
+        ],
+        review_action: 'escalate',
+        review_feedback: payload.reason,
+        review_updated_at: new Date().toISOString(),
+      },
+      reason: 'task_escalated',
+    });
+  }
+
+  async overrideTaskOutput(identity: ApiKeyIdentity, taskId: string, payload: { output: unknown; reason: string }) {
+    return this.applyStateTransition(identity, taskId, 'completed', {
+      expectedStates: ['output_pending_review', 'failed', 'cancelled', 'completed'],
+      clearAssignment: true,
+      clearLifecycleControlMetadata: true,
+      output: payload.output,
+      metadataPatch: {
+        review_action: 'override_output',
+        review_feedback: payload.reason,
+        review_updated_at: new Date().toISOString(),
+      },
+      reason: 'task_output_overridden',
     });
   }
 }

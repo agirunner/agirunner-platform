@@ -215,6 +215,38 @@ export class TaskService {
     return this.lifecycleService.cancelTask(identity, taskId);
   }
 
+  rejectTask(identity: ApiKeyIdentity, taskId: string, payload: { feedback: string }) {
+    return this.lifecycleService.rejectTask(identity, taskId, payload);
+  }
+
+  requestTaskChanges(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: { feedback: string; override_input?: Record<string, unknown>; preferred_agent_id?: string; preferred_worker_id?: string },
+  ) {
+    return this.lifecycleService.requestTaskChanges(identity, taskId, payload);
+  }
+
+  skipTask(identity: ApiKeyIdentity, taskId: string, payload: { reason: string }) {
+    return this.lifecycleService.skipTask(identity, taskId, payload);
+  }
+
+  reassignTask(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: { preferred_agent_id?: string; preferred_worker_id?: string; reason: string },
+  ) {
+    return this.lifecycleService.reassignTask(identity, taskId, payload);
+  }
+
+  escalateTask(identity: ApiKeyIdentity, taskId: string, payload: { reason: string; escalation_target?: string }) {
+    return this.lifecycleService.escalateTask(identity, taskId, payload);
+  }
+
+  overrideTaskOutput(identity: ApiKeyIdentity, taskId: string, payload: { output: unknown; reason: string }) {
+    return this.lifecycleService.overrideTaskOutput(identity, taskId, payload);
+  }
+
   failTimedOutTasks(now = new Date()) {
     return this.timeoutService.failTimedOutTasks(now);
   }

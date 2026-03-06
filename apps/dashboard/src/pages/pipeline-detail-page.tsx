@@ -1,5 +1,5 @@
 import type { Pipeline } from '@agentbaton/sdk';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 
@@ -23,6 +23,7 @@ export function PipelineDetailPage(): JSX.Element {
   const params = useParams<{ id: string }>();
   const pipelineId = params.id ?? '';
   const queryClient = useQueryClient();
+  const [feedback, setFeedback] = useState('Manual pipeline rework requested.');
 
   const pipelineQuery = useQuery({
     queryKey: ['pipeline', pipelineId],
@@ -52,6 +53,22 @@ export function PipelineDetailPage(): JSX.Element {
   }, [pipelineId, queryClient]);
 
   const summary = useMemo(() => summarizeTasks(taskQuery.data?.data ?? []), [taskQuery.data?.data]);
+  const historyQuery = useQuery({
+    queryKey: ['pipeline-history', pipelineId],
+    queryFn: () => dashboardApi.listEvents({ entity_type: 'pipeline', entity_id: pipelineId, per_page: '20' }),
+    enabled: pipelineId.length > 0,
+  });
+  const costSummary = useMemo(() => {
+    const tasks = taskQuery.data?.data ?? [];
+    return tasks.reduce(
+      (acc, task) => {
+        const typedTask = task as { metrics?: { total_cost_usd?: number } };
+        acc.totalCostUsd += Number(typedTask.metrics?.total_cost_usd ?? 0);
+        return acc;
+      },
+      { totalCostUsd: 0 },
+    );
+  }, [taskQuery.data?.data]);
 
   return (
     <section className="grid">
@@ -73,6 +90,17 @@ export function PipelineDetailPage(): JSX.Element {
       <div className="card">
         <h3>Mission Control</h3>
         <p className="muted">Real-time phase snapshot derived from task-state gates.</p>
+        <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <button type="button" className="button" onClick={() => void dashboardApi.pausePipeline(pipelineId).then(() => queryClient.invalidateQueries())}>
+            Pause
+          </button>
+          <button type="button" className="button" onClick={() => void dashboardApi.resumePipeline(pipelineId).then(() => queryClient.invalidateQueries())}>
+            Resume
+          </button>
+          <button type="button" className="button" onClick={() => void dashboardApi.cancelPipeline(pipelineId).then(() => queryClient.invalidateQueries())}>
+            Cancel
+          </button>
+        </div>
         <div className="row mission-grid">
           <MissionMetric label="Total" value={summary.total} />
           <MissionMetric label="Ready" value={summary.ready} />
@@ -81,6 +109,29 @@ export function PipelineDetailPage(): JSX.Element {
           <MissionMetric label="Completed" value={summary.completed} />
           <MissionMetric label="Failed" value={summary.failed} />
         </div>
+        <label htmlFor="pipeline-manual-rework">Manual rework feedback</label>
+        <textarea
+          id="pipeline-manual-rework"
+          className="input"
+          rows={4}
+          value={feedback}
+          onChange={(event) => setFeedback(event.target.value)}
+        />
+        <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            className="button"
+            onClick={() => void dashboardApi.manualReworkPipeline(pipelineId, { feedback }).then(() => queryClient.invalidateQueries())}
+          >
+            Manual Rework
+          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3>Cost Summary</h3>
+        <p className="muted">Aggregate surfaced task cost for the pipeline.</p>
+        <strong>${costSummary.totalCostUsd.toFixed(4)}</strong>
       </div>
 
       <div className="card">
@@ -109,6 +160,21 @@ export function PipelineDetailPage(): JSX.Element {
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="card">
+        <h3>Pipeline History</h3>
+        {historyQuery.isLoading ? <p>Loading history...</p> : null}
+        {historyQuery.error ? <p style={{ color: '#dc2626' }}>Failed to load pipeline history.</p> : null}
+        <ul className="search-results">
+          {historyQuery.data?.data.map((event) => (
+            <li key={event.id}>
+              <strong>{event.type}</strong>
+              <span className="muted"> {new Date(event.created_at).toLocaleString()}</span>
+              <pre>{JSON.stringify(event.data ?? {}, null, 2)}</pre>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );

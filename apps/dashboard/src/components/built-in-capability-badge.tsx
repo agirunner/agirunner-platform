@@ -17,6 +17,7 @@ const BUILT_IN_SUPPORTED_CAPABILITIES = new Set([
   'role:reviewer',
   'role:architect',
   'role:qa',
+  'role:project-manager',
   'lang:typescript',
   'lang:python',
   'lang:go',

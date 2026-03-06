@@ -90,6 +90,7 @@ describe('dashboard api auth/session behavior', () => {
       listPipelines: vi.fn(),
       exchangeApiKey: vi.fn().mockResolvedValue({ token: 'ephemeral-token', tenant_id: 'tenant-1' }),
       getPipeline: vi.fn(),
+      createPipeline: vi.fn(),
       listTasks: vi.fn(),
       getTask: vi.fn(),
       listWorkers: vi.fn(),
@@ -104,6 +105,71 @@ describe('dashboard api auth/session behavior', () => {
     expect(localStorage.getItem('agentbaton.accessToken')).toBeNull();
   });
 
+  it('calls server-side logout before clearing the local session', async () => {
+    writeSession({ accessToken: 'logout-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { logged_out: true } }), { status: 200 }),
+    ) as unknown as typeof fetch;
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listPipelines: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getPipeline: vi.fn(),
+      createPipeline: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({ client: client as never, fetcher, baseUrl: 'http://localhost:8080' });
+    await api.logout();
+
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://localhost:8080/api/v1/auth/logout',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+      }),
+    );
+    expect(readSession()).toBeNull();
+  });
+
+  it('lists templates and creates pipelines through the dashboard api surface', async () => {
+    writeSession({ accessToken: 'api-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [{ id: 'tmpl-1', name: 'SDLC', slug: 'sdlc', version: 1, is_built_in: false, is_published: true, schema: {} }],
+        }),
+        { status: 200 },
+      ),
+    ) as unknown as typeof fetch;
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listPipelines: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getPipeline: vi.fn(),
+      createPipeline: vi.fn().mockResolvedValue({ id: 'pipe-1' }),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({ client: client as never, fetcher, baseUrl: 'http://localhost:8080' });
+    const templates = await api.listTemplates();
+    const pipeline = await api.createPipeline({ template_id: 'tmpl-1', name: 'Test Run' });
+
+    expect(templates.data).toHaveLength(1);
+    expect(client.createPipeline).toHaveBeenCalledWith({ template_id: 'tmpl-1', name: 'Test Run' });
+    expect(pipeline).toEqual({ id: 'pipe-1' });
+  });
+
   it('sends bearer token when loading metrics if an in-memory access token exists', async () => {
     writeSession({ accessToken: 'metrics-token', tenantId: 'tenant-1' });
 
@@ -114,6 +180,7 @@ describe('dashboard api auth/session behavior', () => {
       listPipelines: vi.fn(),
       exchangeApiKey: vi.fn(),
       getPipeline: vi.fn(),
+      createPipeline: vi.fn(),
       listTasks: vi.fn(),
       getTask: vi.fn(),
       listWorkers: vi.fn(),
@@ -139,6 +206,7 @@ describe('dashboard api auth/session behavior', () => {
       listPipelines: vi.fn(),
       exchangeApiKey: vi.fn(),
       getPipeline: vi.fn(),
+      createPipeline: vi.fn(),
       listTasks: vi.fn(),
       getTask: vi.fn(),
       listWorkers: vi.fn(),
@@ -179,6 +247,7 @@ describe('dashboard global search', () => {
       exchangeApiKey: vi.fn(),
       listPipelines: vi.fn().mockResolvedValue({ data: [{ id: 'pipeline-1', name: 'Test Pipeline', state: 'running' }] }),
       getPipeline: vi.fn(),
+      createPipeline: vi.fn(),
       listTasks: vi.fn().mockResolvedValue({ data: [{ id: 'task-1', title: 'Test task', state: 'ready' }] }),
       getTask: vi.fn(),
       listWorkers: vi.fn().mockResolvedValue([{ id: 'worker-1', name: 'Test worker', status: 'online' }]),

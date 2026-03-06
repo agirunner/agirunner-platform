@@ -43,7 +43,7 @@ interface ExistingDefaultKeyRow {
   key_hash: string;
 }
 
-export async function seedDefaultTenant(pool: pg.Pool): Promise<void> {
+export async function seedDefaultTenant(pool: pg.Pool, source: NodeJS.ProcessEnv = process.env): Promise<void> {
   await pool.query(
     `INSERT INTO tenants (id, name, slug)
      VALUES ($1, 'Default', 'default')
@@ -51,7 +51,7 @@ export async function seedDefaultTenant(pool: pg.Pool): Promise<void> {
     [DEFAULT_TENANT_ID],
   );
 
-  await seedDefaultAdminKey(pool);
+  await seedDefaultAdminKey(pool, source);
 }
 
 /**
@@ -60,8 +60,8 @@ export async function seedDefaultTenant(pool: pg.Pool): Promise<void> {
  *
  * The full key is printed to stdout only when it is first generated.
  */
-async function seedDefaultAdminKey(pool: pg.Pool): Promise<void> {
-  const configuredKey = getConfiguredDefaultAdminKey();
+async function seedDefaultAdminKey(pool: pg.Pool, source: NodeJS.ProcessEnv = process.env): Promise<void> {
+  const configuredKey = getConfiguredDefaultAdminKey(source);
 
   const existing = await pool.query<ExistingDefaultKeyRow>(
     `SELECT id, key_hash FROM api_keys WHERE tenant_id = $1 AND key_prefix = $2 LIMIT 1`,
