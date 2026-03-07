@@ -61,6 +61,35 @@ export interface DashboardApiKeyRecord {
   created_at: string;
 }
 
+export interface DashboardPipelinePhaseActionPayload {
+  action: 'approve' | 'reject' | 'request_changes';
+  feedback?: string;
+  override_input?: Record<string, unknown>;
+}
+
+export interface DashboardResolvedConfigResponse {
+  pipeline_id: string;
+  resolved_config: Record<string, unknown>;
+  config_layers?: Record<string, Record<string, unknown>>;
+}
+
+export interface DashboardProjectTimelineEntry {
+  kind?: string;
+  pipeline_id: string;
+  name: string;
+  state: string;
+  created_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  duration_seconds?: number | null;
+  task_counts?: Record<string, unknown>;
+  phase_progression?: Array<Record<string, unknown>>;
+  phase_metrics?: Array<Record<string, unknown>>;
+  produced_artifacts?: Array<Record<string, unknown>>;
+  chain?: Record<string, unknown>;
+  link?: string;
+}
+
 export interface DashboardCustomizationManagedFile {
   source: string;
   target: string;
@@ -289,6 +318,21 @@ export interface DashboardApi {
   pausePipeline(pipelineId: string): Promise<unknown>;
   resumePipeline(pipelineId: string): Promise<unknown>;
   manualReworkPipeline(pipelineId: string, payload: { feedback: string }): Promise<unknown>;
+  actOnPhaseGate(
+    pipelineId: string,
+    phaseName: string,
+    payload: DashboardPipelinePhaseActionPayload,
+  ): Promise<unknown>;
+  cancelPhase(pipelineId: string, phaseName: string): Promise<unknown>;
+  getResolvedPipelineConfig(
+    pipelineId: string,
+    showLayers?: boolean,
+  ): Promise<DashboardResolvedConfigResponse>;
+  getProjectTimeline(projectId: string): Promise<DashboardProjectTimelineEntry[]>;
+  createPlanningPipeline(
+    projectId: string,
+    payload: { brief: string; name?: string },
+  ): Promise<unknown>;
   listEvents(
     filters?: Record<string, string>,
   ): Promise<{ data: DashboardEventRecord[]; meta?: Record<string, unknown> }>;
@@ -469,6 +513,35 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     manualReworkPipeline: (pipelineId, payload) =>
       withRefresh(() =>
         requestJson(`/api/v1/pipelines/${pipelineId}/manual-rework`, { body: payload }),
+      ),
+    actOnPhaseGate: (pipelineId, phaseName, payload) =>
+      withRefresh(() =>
+        requestJson(`/api/v1/pipelines/${pipelineId}/phases/${phaseName}/gate`, {
+          body: payload as unknown as Record<string, unknown>,
+        }),
+      ),
+    cancelPhase: (pipelineId, phaseName) =>
+      withRefresh(() =>
+        requestJson(`/api/v1/pipelines/${pipelineId}/phases/${phaseName}/cancel`),
+      ),
+    getResolvedPipelineConfig: (pipelineId, showLayers = false) =>
+      withRefresh(() =>
+        requestData<DashboardResolvedConfigResponse>(
+          `/api/v1/pipelines/${pipelineId}/config/resolved${showLayers ? '?show_layers=true' : ''}`,
+          { method: 'GET' },
+        ),
+      ),
+    getProjectTimeline: (projectId) =>
+      withRefresh(() =>
+        requestData<DashboardProjectTimelineEntry[]>(`/api/v1/projects/${projectId}/timeline`, {
+          method: 'GET',
+        }),
+      ),
+    createPlanningPipeline: (projectId, payload) =>
+      withRefresh(() =>
+        requestJson(`/api/v1/projects/${projectId}/planning-pipeline`, {
+          body: payload,
+        }),
       ),
     listEvents: (filters) =>
       withRefresh(() =>

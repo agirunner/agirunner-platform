@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { shouldInvalidatePipelineRealtimeEvent, summarizeTasks } from './pipeline-detail-page.js';
+import { shouldInvalidatePipelineRealtimeEvent, summarizeTasks } from './pipeline-detail-support.js';
 
 describe('pipeline mission-control summary', () => {
   it('counts task states into mission-control buckets', () => {

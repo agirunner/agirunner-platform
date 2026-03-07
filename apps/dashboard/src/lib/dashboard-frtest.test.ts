@@ -174,14 +174,23 @@ describe('FR-036a / FR-423 / FR-717: pipeline detail and dependency graph', () =
   });
 
   it('pipeline-detail-page renders task dependency graph as a list', () => {
-    const source = readComponent('pages/pipeline-detail-page.tsx');
+    const source = `${readComponent('pages/pipeline-detail-page.tsx')}\n${readComponent('pages/pipeline-detail-sections.tsx')}`;
     expect(source).toContain('Task Graph');
     expect(source).toContain('depends_on');
   });
 
   it('pipeline-detail-page renders task state column for live status tracking', () => {
-    const source = readComponent('pages/pipeline-detail-page.tsx');
+    const source = `${readComponent('pages/pipeline-detail-page.tsx')}\n${readComponent('pages/pipeline-detail-sections.tsx')}`;
     expect(source).toContain('.state');
+  });
+
+  it('pipeline-detail-page exposes workflow swimlanes, phase gate actions, resolved config, and project timeline', () => {
+    const source = `${readComponent('pages/pipeline-detail-page.tsx')}\n${readComponent('pages/pipeline-detail-sections.tsx')}`;
+    expect(source).toContain('Workflow Swimlanes');
+    expect(source).toContain('actOnPhaseGate');
+    expect(source).toContain('cancelPhase');
+    expect(source).toContain('Resolved Config');
+    expect(source).toContain('Project Timeline');
   });
 });
 

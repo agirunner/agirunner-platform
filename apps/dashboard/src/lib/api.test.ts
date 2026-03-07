@@ -446,6 +446,72 @@ describe('dashboard api auth/session behavior', () => {
       }),
     );
   });
+
+  it('calls workflow cockpit endpoints with typed dashboard methods', async () => {
+    writeSession({ accessToken: 'workflow-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: { id: 'pipe-1', current_phase: 'review' } }), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: { id: 'pipe-1', phases: [] } }), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ data: { pipeline_id: 'pipe-1', resolved_config: { retries: 2 } } }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: [{ pipeline_id: 'pipe-1', kind: 'run_summary' }] }), {
+          status: 200,
+        }),
+      ) as unknown as typeof fetch;
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listPipelines: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getPipeline: vi.fn(),
+      createPipeline: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    await api.actOnPhaseGate('pipe-1', 'review', { action: 'approve' });
+    await api.cancelPhase('pipe-1', 'release');
+    const config = await api.getResolvedPipelineConfig('pipe-1', true);
+    const timeline = await api.getProjectTimeline('project-1');
+
+    expect(config.resolved_config).toEqual({ retries: 2 });
+    expect(timeline[0].kind).toBe('run_summary');
+    expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
+      'http://localhost:8080/api/v1/pipelines/pipe-1/phases/review/gate',
+    );
+    expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
+      'http://localhost:8080/api/v1/pipelines/pipe-1/phases/release/cancel',
+    );
+    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
+      'http://localhost:8080/api/v1/pipelines/pipe-1/config/resolved?show_layers=true',
+    );
+    expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
+      'http://localhost:8080/api/v1/projects/project-1/timeline',
+    );
+  });
 });
 
 describe('dashboard global search', () => {
