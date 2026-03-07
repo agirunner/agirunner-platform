@@ -9,6 +9,13 @@ import { registerTaskOutputDocuments } from './document-reference-service.js';
 import { EventService } from './event-service.js';
 import { PipelineStateService } from './pipeline-state-service.js';
 import { applyOutputStateDeclarations } from './task-output-storage.js';
+import {
+  calculateRetryBackoffSeconds,
+  readPersistedLifecyclePolicy,
+  type EscalationPolicy,
+  type LifecyclePolicy,
+  type RetryPolicy,
+} from './task-lifecycle-policy.js';
 
 interface TransitionOptions {
   expectedStates: TaskState[];
@@ -23,6 +30,7 @@ interface TransitionOptions {
   clearAssignment?: boolean;
   clearExecutionData?: boolean;
   clearLifecycleControlMetadata?: boolean;
+  clearEscalationMetadata?: boolean;
   startedAt?: Date;
   overrideInput?: Record<string, unknown>;
   metadataPatch?: Record<string, unknown>;
@@ -36,6 +44,7 @@ interface TaskLifecycleDependencies {
   pool: DatabasePool;
   eventService: EventService;
   pipelineStateService: PipelineStateService;
+  defaultTaskTimeoutMinutes: number;
   loadTaskOrThrow: (
     tenantId: string,
     taskId: string,
@@ -215,6 +224,9 @@ export class TaskLifecycleService {
         metadataExpression =
           "(metadata - 'cancel_signal_requested_at' - 'cancel_force_fail_at' - 'cancel_signal_id' - 'cancel_reason' - 'timeout_cancel_requested_at' - 'timeout_force_fail_at' - 'timeout_signal_id')";
       }
+      if (options.clearEscalationMetadata) {
+        metadataExpression = `${metadataExpression} - 'escalation_status' - 'escalation_task_id'`;
+      }
       if (metadataPatch) {
         values.push(metadataPatch);
         metadataExpression = `${metadataExpression} || $${values.length}::jsonb`;
@@ -360,6 +372,7 @@ export class TaskLifecycleService {
             verification: payload.verification,
             clearAssignment: true,
             clearLifecycleControlMetadata: true,
+            clearEscalationMetadata: true,
             reason: !outputValidation.valid
               ? 'output_schema_review_required'
               : 'verification_review_required',
@@ -373,6 +386,7 @@ export class TaskLifecycleService {
             verification: payload.verification,
             clearAssignment: true,
             clearLifecycleControlMetadata: true,
+            clearEscalationMetadata: true,
             afterUpdate: async (updatedTask, client) => {
               await registerTaskOutputDocuments(client, identity.tenantId, updatedTask, persisted.output);
             },
@@ -403,29 +417,68 @@ export class TaskLifecycleService {
   ) {
     const assignment = this.requireLifecycleIdentity(identity, payload);
     const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
-    const shouldRetry =
-      Boolean(task.auto_retry) && Number(task.retry_count) < Number(task.max_retries);
+    const lifecyclePolicy = readPersistedLifecyclePolicy(task.metadata);
+    const failure = classifyFailure(payload.error);
+    const retryPlan = buildRetryPlan(task, lifecyclePolicy, failure);
 
-    return shouldRetry
-      ? this.applyStateTransition(identity, taskId, 'ready', {
-          expectedStates: ['running', 'claimed'],
-          requireAssignment: assignment,
-          retryIncrement: true,
-          clearAssignment: true,
-          reason: 'auto_retry',
-          clearExecutionData: true,
-          clearLifecycleControlMetadata: true,
-        })
-      : this.applyStateTransition(identity, taskId, 'failed', {
-          expectedStates: ['running', 'claimed'],
-          requireAssignment: assignment,
-          error: payload.error,
-          metrics: payload.metrics,
-          gitInfo: payload.git_info,
-          clearAssignment: true,
-          clearLifecycleControlMetadata: true,
-          reason: 'task_failed',
-        });
+    if (retryPlan.shouldRetry) {
+      const nextState: TaskState = retryPlan.policy ? 'pending' : 'ready';
+      return this.applyStateTransition(identity, taskId, nextState, {
+        expectedStates: ['running', 'claimed'],
+        requireAssignment: assignment,
+        retryIncrement: true,
+        clearAssignment: true,
+        reason: 'auto_retry_scheduled',
+        clearExecutionData: true,
+        clearLifecycleControlMetadata: true,
+        clearEscalationMetadata: true,
+        metadataPatch: {
+          retry_policy: retryPlan.policy,
+          ...(retryPlan.policy
+            ? { retry_available_at: retryPlan.retryAvailableAt?.toISOString() ?? null }
+            : { retry_available_at: null }),
+          retry_backoff_seconds: retryPlan.backoffSeconds,
+          last_failure: failure,
+          retry_last_error: payload.error,
+        },
+        afterUpdate: async (updatedTask, client) => {
+          await this.deps.eventService.emit(
+            {
+              tenantId: identity.tenantId,
+              type: 'task.retry_scheduled',
+              entityType: 'task',
+              entityId: taskId,
+              actorType: identity.scope,
+              actorId: identity.keyPrefix,
+              data: {
+                retry_count: updatedTask.retry_count,
+                backoff_seconds: retryPlan.backoffSeconds,
+                retry_available_at: retryPlan.retryAvailableAt?.toISOString() ?? null,
+                failure,
+              },
+            },
+            client,
+          );
+        },
+      });
+    }
+
+    return this.applyStateTransition(identity, taskId, 'failed', {
+      expectedStates: ['running', 'claimed'],
+      requireAssignment: assignment,
+      error: payload.error,
+      metrics: payload.metrics,
+      gitInfo: payload.git_info,
+      clearAssignment: true,
+      clearLifecycleControlMetadata: true,
+      metadataPatch: {
+        last_failure: failure,
+      },
+      afterUpdate: async (updatedTask, client) => {
+        await this.maybeCreateEscalationTask(identity, updatedTask, lifecyclePolicy, failure, client);
+      },
+      reason: 'task_failed',
+    });
   }
 
   async approveTask(identity: ApiKeyIdentity, taskId: string) {
@@ -463,6 +516,7 @@ export class TaskLifecycleService {
       clearAssignment: true,
       clearExecutionData: true,
       clearLifecycleControlMetadata: true,
+      clearEscalationMetadata: true,
       overrideInput: payload.override_input,
       reason: payload.force ? 'manual_retry_forced' : 'manual_retry',
     });
@@ -498,6 +552,7 @@ export class TaskLifecycleService {
       ],
       clearAssignment: true,
       clearLifecycleControlMetadata: true,
+      clearEscalationMetadata: true,
       reason: 'cancelled',
     });
   }
@@ -507,6 +562,7 @@ export class TaskLifecycleService {
       expectedStates: ['awaiting_approval', 'output_pending_review', 'running', 'claimed'],
       clearAssignment: true,
       clearLifecycleControlMetadata: true,
+      clearEscalationMetadata: true,
       error: {
         category: 'review_rejected',
         message: payload.feedback,
@@ -548,6 +604,7 @@ export class TaskLifecycleService {
       clearAssignment: true,
       clearExecutionData: true,
       clearLifecycleControlMetadata: true,
+      clearEscalationMetadata: true,
       retryIncrement: true,
       overrideInput: nextInput,
       metadataPatch: {
@@ -575,6 +632,7 @@ export class TaskLifecycleService {
       ],
       clearAssignment: true,
       clearLifecycleControlMetadata: true,
+      clearEscalationMetadata: true,
       output: {
         skipped: true,
         reason: payload.reason,
@@ -622,6 +680,7 @@ export class TaskLifecycleService {
       clearAssignment: true,
       clearExecutionData: task.state === 'output_pending_review' || task.state === 'failed',
       clearLifecycleControlMetadata: true,
+      clearEscalationMetadata: true,
       metadataPatch: {
         preferred_agent_id: payload.preferred_agent_id ?? null,
         preferred_worker_id: payload.preferred_worker_id ?? null,
@@ -671,6 +730,7 @@ export class TaskLifecycleService {
       expectedStates: ['output_pending_review', 'failed', 'cancelled', 'completed'],
       clearAssignment: true,
       clearLifecycleControlMetadata: true,
+      clearEscalationMetadata: true,
       output: payload.output,
       metadataPatch: {
         review_action: 'override_output',
@@ -680,4 +740,214 @@ export class TaskLifecycleService {
       reason: 'task_output_overridden',
     });
   }
+
+  private async maybeCreateEscalationTask(
+    identity: ApiKeyIdentity,
+    task: Record<string, unknown>,
+    lifecyclePolicy: LifecyclePolicy | undefined,
+    failure: FailureClassification,
+    client: DatabaseClient,
+  ) {
+    const escalation = lifecyclePolicy?.escalation;
+    if (!escalation || !escalation.enabled) {
+      return;
+    }
+    if (task.type === 'orchestration' && asRecord(task.metadata).escalation_source_task_id) {
+      return;
+    }
+    if (asRecord(task.metadata).escalation_status === 'pending') {
+      return;
+    }
+
+    const escalationTaskInput = buildEscalationTaskInput(task, escalation, failure);
+    const escalationInsert = await client.query(
+      `INSERT INTO tasks (
+         tenant_id, pipeline_id, project_id, title, type, role, priority, state, depends_on,
+         requires_approval, input, context, capabilities_required, role_config, environment,
+         resource_bindings, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, metadata
+       ) VALUES (
+         $1,$2,$3,$4,$5,$6,$7,'ready',$8::uuid[],$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21
+       )
+       RETURNING *`,
+      [
+        identity.tenantId,
+        escalationTaskInput.pipeline_id ?? null,
+        escalationTaskInput.project_id ?? null,
+        escalationTaskInput.title,
+        escalationTaskInput.type,
+        escalationTaskInput.role ?? null,
+        escalationTaskInput.priority ?? 'normal',
+        [],
+        false,
+        escalationTaskInput.input ?? {},
+        escalationTaskInput.context ?? {},
+        [],
+        escalationTaskInput.role_config ?? null,
+        null,
+        [],
+        Number(task.timeout_minutes) || this.deps.defaultTaskTimeoutMinutes,
+        null,
+        null,
+        false,
+        0,
+        escalationTaskInput.metadata ?? {},
+      ],
+    );
+    const escalationTask = escalationInsert.rows[0] as Record<string, unknown>;
+
+    await this.deps.eventService.emit(
+      {
+        tenantId: identity.tenantId,
+        type: 'task.created',
+        entityType: 'task',
+        entityId: String(escalationTask.id),
+        actorType: 'system',
+        actorId: 'lifecycle_policy',
+        data: { state: 'ready' },
+      },
+      client,
+    );
+
+    await client.query(
+      `UPDATE tasks
+         SET metadata = metadata || $3::jsonb
+       WHERE tenant_id = $1 AND id = $2`,
+      [
+        identity.tenantId,
+        task.id,
+        {
+          escalation_status: 'pending',
+          escalation_task_id: escalationTask.id,
+        },
+      ],
+    );
+
+    await this.deps.eventService.emit(
+      {
+        tenantId: identity.tenantId,
+        type: 'task.escalated',
+        entityType: 'task',
+        entityId: String(task.id),
+        actorType: 'system',
+        actorId: 'lifecycle_policy',
+        data: {
+          escalation_task_id: escalationTask.id,
+          failure,
+          role: escalation.role,
+        },
+      },
+      client,
+    );
+  }
+}
+
+interface FailureClassification {
+  category: string;
+  retryable: boolean;
+  recoverable: boolean;
+}
+
+interface RetryPlan {
+  shouldRetry: boolean;
+  backoffSeconds: number;
+  retryAvailableAt: Date | null;
+  policy?: RetryPolicy;
+}
+
+function classifyFailure(error: Record<string, unknown>): FailureClassification {
+  const category =
+    typeof error.category === 'string' && error.category.trim().length > 0
+      ? error.category
+      : 'unknown';
+  if (typeof error.recoverable === 'boolean') {
+    return {
+      category,
+      retryable: error.recoverable,
+      recoverable: error.recoverable,
+    };
+  }
+
+  const retryableCategories = new Set([
+    'timeout',
+    'transient_error',
+    'resource_unavailable',
+    'network_error',
+  ]);
+  const retryable = retryableCategories.has(category);
+  return {
+    category,
+    retryable,
+    recoverable: retryable,
+  };
+}
+
+function buildRetryPlan(
+  task: Record<string, unknown>,
+  lifecyclePolicy: LifecyclePolicy | undefined,
+  failure: FailureClassification,
+): RetryPlan {
+  const policy = lifecyclePolicy?.retry_policy;
+  if (policy) {
+    const retryableCategories = new Set(policy.retryable_categories);
+    const shouldRetry =
+      failure.retryable &&
+      retryableCategories.has(failure.category) &&
+      Number(task.retry_count) < policy.max_attempts;
+    const attemptNumber = Number(task.retry_count) + 1;
+    const backoffSeconds = shouldRetry
+      ? calculateRetryBackoffSeconds(policy, attemptNumber)
+      : 0;
+    return {
+      shouldRetry,
+      backoffSeconds,
+      retryAvailableAt: shouldRetry ? new Date(Date.now() + backoffSeconds * 1000) : null,
+      policy,
+    };
+  }
+
+  const shouldRetry =
+    Boolean(task.auto_retry) &&
+    Number(task.retry_count) < Number(task.max_retries);
+  return {
+    shouldRetry,
+    backoffSeconds: 0,
+    retryAvailableAt: shouldRetry ? new Date() : null,
+  };
+}
+
+function buildEscalationTaskInput(
+  task: Record<string, unknown>,
+  escalation: EscalationPolicy,
+  failure: FailureClassification,
+) {
+  const title = escalation.title_template.replace('{{task_title}}', String(task.title ?? 'task'));
+  return {
+    title,
+    type: escalation.task_type,
+    role: escalation.role,
+    priority: 'high',
+    pipeline_id: task.pipeline_id as string | undefined,
+    project_id: task.project_id as string | undefined,
+    parent_id: task.id as string,
+    input: {
+      source_task_id: task.id,
+      source_task_title: task.title,
+      source_task_role: task.role,
+      failure,
+      error: task.error ?? null,
+      review_feedback: asRecord(task.metadata).review_feedback ?? null,
+      retry_count: task.retry_count ?? 0,
+      allowed_actions: ['retry_modified', 'reassign', 'skip', 'fail_pipeline'],
+    },
+    context: {
+      escalation: true,
+    },
+    metadata: {
+      escalation_source_task_id: task.id,
+      escalation_source_state: task.state,
+    },
+    role_config: escalation.instructions
+      ? { system_prompt: escalation.instructions }
+      : undefined,
+  };
 }

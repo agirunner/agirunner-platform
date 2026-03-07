@@ -2,6 +2,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
+import { readTemplateLifecyclePolicy } from './task-lifecycle-policy.js';
 import type { CreateTaskInput, TaskServiceConfig } from './task-service.types.js';
 
 interface TaskWriteDependencies {
@@ -55,6 +56,9 @@ export class TaskWriteService {
       dependencies.length > 0 ? 'pending' : input.requires_approval ? 'awaiting_approval' : 'ready';
     const metadata = {
       ...(normalizedInput.metadata ?? {}),
+      ...(normalizedInput.retry_policy
+        ? { lifecycle_policy: { retry_policy: readTemplateLifecyclePolicy({ retry_policy: normalizedInput.retry_policy }, 'retry_policy')?.retry_policy } }
+        : {}),
       ...(normalizedInput.description ? { description: normalizedInput.description } : {}),
       ...(normalizedInput.parent_id ? { parent_id: normalizedInput.parent_id } : {}),
     };

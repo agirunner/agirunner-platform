@@ -24,6 +24,7 @@ export interface CreateTaskInput {
   auto_retry?: boolean;
   max_retries?: number;
   metadata?: Record<string, unknown>;
+  retry_policy?: Record<string, unknown>;
 }
 
 export interface ListTaskQuery {

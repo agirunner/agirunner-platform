@@ -30,6 +30,7 @@ const taskCreateSchema = z.object({
   auto_retry: z.boolean().optional(),
   max_retries: z.number().int().min(0).max(10).optional(),
   metadata: z.record(z.unknown()).optional(),
+  retry_policy: z.record(z.unknown()).optional(),
 });
 
 const taskPatchSchema = z.object({

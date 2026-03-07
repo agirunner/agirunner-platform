@@ -5,6 +5,7 @@ import type { AppEnv } from '../config/schema.js';
 import { NotFoundError, SchemaValidationFailedError } from '../errors/domain-errors.js';
 import type { TemplateTaskDefinition } from '../orchestration/pipeline-engine.js';
 import { substituteTemplateVariables } from '../orchestration/template-variables.js';
+import { mergeLifecyclePolicy, type LifecyclePolicy } from './task-lifecycle-policy.js';
 
 export function buildTemplateTaskIdMap(tasks: TemplateTaskDefinition[]): Map<string, string> {
   const map = new Map<string, string>();
@@ -54,6 +55,7 @@ export async function insertTaskFromTemplate(params: {
   taskIdMap: Map<string, string>;
   client: DatabaseClient;
   config: PipelineInstantiationConfig;
+  pipelineLifecycle?: LifecyclePolicy;
 }) {
   const { tenantId, pipelineId, projectId, task, parameters, taskIdMap, client, config } = params;
 
@@ -83,6 +85,10 @@ export async function insertTaskFromTemplate(params: {
     ? substituteTemplateVariables(task.role_config, parameters)
     : null;
   const metadata = task.metadata ? substituteTemplateVariables(task.metadata, parameters) : {};
+  const lifecyclePolicy = mergeLifecyclePolicy(params.pipelineLifecycle, task.lifecycle);
+  if (lifecyclePolicy) {
+    metadata.lifecycle_policy = lifecyclePolicy;
+  }
   if (task.output_state) {
     metadata.output_state = substituteTemplateVariables(task.output_state, parameters);
   }

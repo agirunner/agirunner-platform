@@ -50,6 +50,7 @@ describe('TaskLifecycleService concurrent state guard (maintenance-sad cancellat
       pool: pool as never,
       eventService: eventService as never,
       pipelineStateService: pipelineStateService as never,
+      defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow,
       toTaskResponse: (task) => task,
     });
@@ -114,6 +115,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: { emit: vi.fn() } as never,
       pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-worker',
         state: 'running',
@@ -176,6 +178,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: { emit: vi.fn() } as never,
       pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-review',
         state: 'running',
@@ -241,6 +244,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: { emit: vi.fn() } as never,
       pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-cancel',
         state: 'running',
@@ -299,6 +303,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: { emit: vi.fn() } as never,
       pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-review-loop',
         state: 'output_pending_review',
@@ -369,6 +374,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: { emit: vi.fn() } as never,
       pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-reassign',
         state: 'running',
@@ -415,6 +421,179 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       expect.arrayContaining([
         expect.objectContaining({ preferred_worker_id: 'worker-3', review_action: 'reassign' }),
       ]),
+    );
+  });
+
+  it('schedules retry with backoff when lifecycle retry policy marks the failure retryable', async () => {
+    const eventService = { emit: vi.fn() };
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-retry-policy',
+                state: 'pending',
+                pipeline_id: null,
+                retry_count: 1,
+                metadata: {
+                  retry_backoff_seconds: 5,
+                },
+              },
+            ],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-retry-policy',
+        state: 'running',
+        pipeline_id: null,
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        retry_count: 0,
+        metadata: {
+          lifecycle_policy: {
+            retry_policy: {
+              max_attempts: 2,
+              backoff_strategy: 'fixed',
+              initial_backoff_seconds: 5,
+              retryable_categories: ['timeout'],
+            },
+          },
+        },
+      }),
+      toTaskResponse: (task) => task,
+    });
+
+    const result = await service.failTask(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'ak',
+      },
+      'task-retry-policy',
+      {
+        error: { category: 'timeout', message: 'too slow' },
+      },
+    );
+
+    expect(result.state).toBe('pending');
+    expect(result.retry_count).toBe(1);
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'task.retry_scheduled' }),
+      expect.anything(),
+    );
+  });
+
+  it('creates an inline escalation task when lifecycle escalation policy is enabled', async () => {
+    const eventService = { emit: vi.fn() };
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-escalate',
+                state: 'failed',
+                pipeline_id: 'pipe-1',
+                title: 'Compile',
+                role: 'builder',
+                timeout_minutes: 20,
+                retry_count: 1,
+                error: { category: 'validation_error', message: 'bad input' },
+                metadata: {
+                  lifecycle_policy: {
+                    escalation: {
+                      enabled: true,
+                      role: 'orchestrator',
+                      task_type: 'orchestration',
+                      title_template: 'Escalation: {{task_title}}',
+                    },
+                  },
+                },
+              },
+            ],
+          };
+        }
+        if (sql.startsWith('INSERT INTO tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{ id: 'escalation-1' }],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-escalate',
+        state: 'running',
+        pipeline_id: 'pipe-1',
+        project_id: null,
+        title: 'Compile',
+        role: 'builder',
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        timeout_minutes: 20,
+        retry_count: 1,
+        metadata: {
+          lifecycle_policy: {
+            escalation: {
+              enabled: true,
+              role: 'orchestrator',
+              task_type: 'orchestration',
+              title_template: 'Escalation: {{task_title}}',
+            },
+          },
+        },
+      }),
+      toTaskResponse: (task) => task,
+    });
+
+    await service.failTask(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'ak',
+      },
+      'task-escalate',
+      {
+        error: { category: 'validation_error', message: 'bad input', recoverable: false },
+      },
+    );
+
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO tasks'),
+      expect.arrayContaining(['Escalation: Compile', 'orchestration', 'orchestrator']),
+    );
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'task.escalated' }),
+      expect.anything(),
     );
   });
 });

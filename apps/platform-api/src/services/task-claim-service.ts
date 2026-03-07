@@ -24,6 +24,17 @@ export class TaskClaimService {
     const client = await this.deps.pool.connect();
     try {
       await client.query('BEGIN');
+      await client.query(
+        `UPDATE tasks
+            SET state = 'ready',
+                state_changed_at = now()
+          WHERE tenant_id = $1
+            AND state = 'pending'
+            AND metadata ? 'retry_available_at'
+            AND ($2::uuid IS NULL OR pipeline_id = $2::uuid)
+            AND (metadata->>'retry_available_at')::timestamptz <= now()`,
+        [identity.tenantId, payload.pipeline_id ?? null],
+      );
 
       const agentRes = await client.query('SELECT * FROM agents WHERE tenant_id = $1 AND id = $2 FOR UPDATE', [
         identity.tenantId,

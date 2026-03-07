@@ -130,6 +130,7 @@ export class TaskService {
       pool,
       eventService,
       pipelineStateService,
+      defaultTaskTimeoutMinutes: config.TASK_DEFAULT_TIMEOUT_MINUTES,
       artifactService,
       loadTaskOrThrow: this.queryService.loadTaskOrThrow.bind(this.queryService),
       toTaskResponse: this.queryService.toTaskResponse.bind(this.queryService),

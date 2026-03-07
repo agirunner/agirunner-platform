@@ -3,7 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { EventService } from '../../src/services/event-service.js';
+import { PipelineService } from '../../src/services/pipeline-service.js';
 import { TaskService } from '../../src/services/task-service.js';
+import { TemplateService } from '../../src/services/template-service.js';
 import { startTestDatabase, stopTestDatabase, type TestDatabase } from '../helpers/postgres.js';
 
 const tenantId = '00000000-0000-0000-0000-000000000001';
@@ -19,12 +21,17 @@ const config = {
 describe('task lifecycle bulk coverage', () => {
   let db: TestDatabase;
   let taskService: TaskService;
+  let templateService: TemplateService;
+  let pipelineService: PipelineService;
 
   const admin = { id: 'admin', tenantId, scope: 'admin' as const, ownerType: 'user', ownerId: null, keyPrefix: 'admin' };
 
   beforeAll(async () => {
     db = await startTestDatabase();
-    taskService = new TaskService(db.pool, new EventService(db.pool), config);
+    const eventService = new EventService(db.pool);
+    taskService = new TaskService(db.pool, eventService, config);
+    templateService = new TemplateService(db.pool, eventService);
+    pipelineService = new PipelineService(db.pool, eventService, config);
   });
 
   afterAll(async () => {
@@ -351,5 +358,111 @@ describe('task lifecycle bulk coverage', () => {
 
     const failed = await db.pool.query('SELECT type, data FROM events WHERE tenant_id = $1 AND entity_id = $2 ORDER BY created_at ASC', [tenantId, task.id]);
     expect(failed.rows.some((row) => row.type === 'task.state_changed')).toBe(true);
+  });
+
+  it('schedules policy-based retry with backoff and releases it on the next claim attempt', async () => {
+    const agentId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO agents (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds)
+       VALUES ($1,$2,'policy-retry-agent',ARRAY['ts'],'idle',30)`,
+      [agentId, tenantId],
+    );
+
+    const capability = `ts-${randomUUID()}`;
+    const pipelineId = randomUUID();
+    await db.pool.query(`INSERT INTO pipelines (id, tenant_id, name) VALUES ($1,$2,'policy-retry-scope')`, [pipelineId, tenantId]);
+
+    const task = await taskService.createTask(
+      { ...admin, scope: 'worker', keyPrefix: 'worker-10' },
+      {
+        title: 'policy retry',
+        type: 'code',
+        capabilities_required: [capability],
+        pipeline_id: pipelineId,
+        retry_policy: {
+          max_attempts: 2,
+          backoff_strategy: 'fixed',
+          initial_backoff_seconds: 0,
+          retryable_categories: ['timeout'],
+        },
+      },
+    );
+
+    const identity = { id: 'agent-key', tenantId, scope: 'agent' as const, ownerType: 'agent', ownerId: agentId, keyPrefix: 'agent-5' };
+    await taskService.claimTask(identity, { agent_id: agentId, capabilities: [capability], pipeline_id: pipelineId });
+    await taskService.startTask(identity, task.id as string, { agent_id: agentId });
+    const retried = await taskService.failTask(identity, task.id as string, {
+      error: { category: 'timeout', message: 'slow' },
+    });
+    expect(retried.state).toBe('pending');
+
+    const released = await taskService.claimTask(identity, {
+      agent_id: agentId,
+      capabilities: [capability],
+      pipeline_id: pipelineId,
+      include_context: false,
+    });
+    expect(released?.id).toBe(task.id);
+
+    const events = await db.pool.query(
+      'SELECT type FROM events WHERE tenant_id = $1 AND entity_id = $2 ORDER BY created_at ASC',
+      [tenantId, task.id],
+    );
+    expect(events.rows.some((row) => row.type === 'task.retry_scheduled')).toBe(true);
+  });
+
+  it('creates an inline escalation task and keeps the pipeline non-terminal while escalation is pending', async () => {
+    const agentId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO agents (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds)
+       VALUES ($1,$2,'escalation-agent',ARRAY['go'],'idle',30)`,
+      [agentId, tenantId],
+    );
+
+    const template = await templateService.createTemplate(admin, {
+      name: 'inline-escalation-template',
+      slug: `inline-escalation-${Date.now()}`,
+      schema: {
+        lifecycle: {
+          escalation: {
+            role: 'orchestrator',
+            task_type: 'orchestration',
+            title_template: 'Escalation: {{task_title}}',
+          },
+        },
+        tasks: [{ id: 'compile', title_template: 'Compile', type: 'code', capabilities_required: ['go'] }],
+      },
+    });
+
+    const pipeline = await pipelineService.createPipeline(admin, {
+      template_id: template.id as string,
+      name: 'inline escalation pipeline',
+    });
+
+    const [task] = pipeline.tasks as Array<Record<string, unknown>>;
+    const identity = { id: 'agent-key', tenantId, scope: 'agent' as const, ownerType: 'agent', ownerId: agentId, keyPrefix: 'agent-6' };
+    await taskService.claimTask(identity, { agent_id: agentId, capabilities: ['go'], pipeline_id: pipeline.id as string });
+    await taskService.startTask(identity, task.id as string, { agent_id: agentId });
+    await taskService.failTask(identity, task.id as string, {
+      error: { category: 'validation_error', message: 'bad input', recoverable: false },
+    });
+
+    const escalationTasks = await db.pool.query(
+      `SELECT title, type, role, input, metadata
+         FROM tasks
+        WHERE tenant_id = $1
+          AND pipeline_id = $2
+          AND metadata->>'escalation_source_task_id' = $3`,
+      [tenantId, pipeline.id, task.id],
+    );
+    expect(escalationTasks.rowCount).toBe(1);
+    expect(escalationTasks.rows[0].title).toBe('Escalation: Compile');
+    expect(escalationTasks.rows[0].role).toBe('orchestrator');
+
+    const pipelineState = await db.pool.query(
+      'SELECT state FROM pipelines WHERE tenant_id = $1 AND id = $2',
+      [tenantId, pipeline.id],
+    );
+    expect(pipelineState.rows[0].state).toBe('paused');
   });
 });

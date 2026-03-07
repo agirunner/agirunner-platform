@@ -27,7 +27,7 @@ export class PipelineStateService {
         'SELECT id, state, started_at, completed_at FROM pipelines WHERE tenant_id = $1 AND id = $2',
         [tenantId, pipelineId],
       ),
-      db.query('SELECT state FROM tasks WHERE tenant_id = $1 AND pipeline_id = $2', [
+      db.query('SELECT state, metadata FROM tasks WHERE tenant_id = $1 AND pipeline_id = $2', [
         tenantId,
         pipelineId,
       ]),
@@ -38,7 +38,9 @@ export class PipelineStateService {
     }
 
     const previousState = pipelineRes.rows[0].state as string;
-    const derivedState = derivePipelineState(taskStatesRes.rows.map((row) => row.state as string));
+    const derivedState = derivePipelineState(
+      taskStatesRes.rows.map((row) => normalizePipelineTaskState(row as Record<string, unknown>)),
+    );
 
     const setStartedAt = derivedState === 'active';
     const setCompletedAt = ['completed', 'failed', 'cancelled'].includes(derivedState);
@@ -81,4 +83,17 @@ export class PipelineStateService {
 
     return derivedState;
   }
+}
+
+function normalizePipelineTaskState(row: Record<string, unknown>): string {
+  if (
+    row.state === 'failed' &&
+    row.metadata &&
+    typeof row.metadata === 'object' &&
+    !Array.isArray(row.metadata) &&
+    (row.metadata as Record<string, unknown>).escalation_status === 'pending'
+  ) {
+    return 'output_pending_review';
+  }
+  return String(row.state);
 }

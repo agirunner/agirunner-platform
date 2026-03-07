@@ -3,6 +3,7 @@ import {
   CycleDetectedError,
   SchemaValidationFailedError,
 } from '../errors/domain-errors.js';
+import { readTemplateLifecyclePolicy, type LifecyclePolicy } from '../services/task-lifecycle-policy.js';
 import { parseTemplateVariables, type TemplateVariableDefinition } from './template-variables.js';
 
 export type PipelineState = 'pending' | 'active' | 'completed' | 'failed' | 'cancelled' | 'paused';
@@ -27,6 +28,7 @@ export interface TemplateTaskDefinition {
   capabilities_required?: string[];
   role_config?: Record<string, unknown>;
   environment?: Record<string, unknown>;
+  lifecycle?: LifecyclePolicy;
   output_state?: Record<string, OutputStateDeclaration>;
   timeout_minutes?: number;
   auto_retry?: boolean;
@@ -40,6 +42,7 @@ export interface TemplateSchema {
   config?: Record<string, unknown>;
   config_policy?: Record<string, unknown>;
   default_instruction_config?: Record<string, unknown>;
+  lifecycle?: LifecyclePolicy;
   /**
    * Workflow patterns map (reserved for v1.1).  Present here so the
    * no-nesting constraint (FR-712) can be validated at creation time even
@@ -304,6 +307,7 @@ export function validateTemplateSchema(input: unknown): TemplateSchema {
         : undefined,
       role_config: isObject(rawTask.role_config) ? rawTask.role_config : undefined,
       environment: isObject(rawTask.environment) ? rawTask.environment : undefined,
+      lifecycle: readTemplateLifecyclePolicy(rawTask.lifecycle, `Task '${rawTask.id}' lifecycle`),
       output_state: normalizeOutputStateDeclaration(rawTask.id, rawTask.output_state),
       timeout_minutes:
         typeof rawTask.timeout_minutes === 'number' ? rawTask.timeout_minutes : undefined,
@@ -355,6 +359,7 @@ export function validateTemplateSchema(input: unknown): TemplateSchema {
     default_instruction_config: isObject(input.default_instruction_config)
       ? input.default_instruction_config
       : undefined,
+    lifecycle: readTemplateLifecyclePolicy(input.lifecycle, 'Template lifecycle'),
     patterns: validatedPatterns,
     metadata: isObject(input.metadata) ? input.metadata : undefined,
   };

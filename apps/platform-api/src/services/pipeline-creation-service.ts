@@ -95,6 +95,7 @@ export class PipelineCreationService {
           taskIdMap,
           client,
           config: this.deps.config,
+          pipelineLifecycle: schema.lifecycle,
         });
         createdTasks.push(createdTask);
         await this.deps.eventService.emit(
