@@ -25,6 +25,7 @@ const manualReworkSchema = z.object({
 const phaseGateSchema = z.object({
   action: z.enum(['approve', 'reject', 'request_changes']),
   feedback: z.string().min(1).max(4000).optional(),
+  override_input: z.record(z.unknown()).optional(),
 });
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {

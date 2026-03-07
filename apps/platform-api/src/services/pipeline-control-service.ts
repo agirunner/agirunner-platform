@@ -126,7 +126,11 @@ export class PipelineControlService {
     identity: ApiKeyIdentity,
     pipelineId: string,
     phaseName: string,
-    payload: { action: 'approve' | 'reject' | 'request_changes'; feedback?: string },
+    payload: {
+      action: 'approve' | 'reject' | 'request_changes';
+      feedback?: string;
+      override_input?: Record<string, unknown>;
+    },
   ) {
     const client = await this.pool.connect();
     try {
@@ -162,24 +166,25 @@ export class PipelineControlService {
         acted_at: new Date().toISOString(),
         acted_by: identity.keyPrefix,
       };
-      const nextRuntimeState = {
-        ...runtimeState,
-        phase_gates: {
-          ...(runtimeState.phase_gates ?? {}),
-          [phase.name]: gateDecision,
-        },
-      };
-
-      await client.query(
-        `UPDATE pipelines
-            SET metadata = metadata || $3::jsonb,
-                updated_at = now()
-          WHERE tenant_id = $1
-            AND id = $2`,
-        [identity.tenantId, pipelineId, { workflow_runtime: nextRuntimeState }],
-      );
+      let nextRuntimeState = runtimeState;
 
       if (payload.action === 'approve') {
+        nextRuntimeState = {
+          ...runtimeState,
+          phase_gates: {
+            ...(runtimeState.phase_gates ?? {}),
+            [phase.name]: gateDecision,
+          },
+        };
+        await client.query(
+          `UPDATE pipelines
+              SET metadata = metadata || $3::jsonb,
+                  updated_at = now()
+            WHERE tenant_id = $1
+              AND id = $2`,
+          [identity.tenantId, pipelineId, { workflow_runtime: nextRuntimeState }],
+        );
+
         const activation = await activateNextWorkflowPhase({
           tenantId: identity.tenantId,
           pipelineId,
@@ -224,12 +229,106 @@ export class PipelineControlService {
           );
         }
       }
+      if (payload.action === 'request_changes') {
+        const phaseTasks = tasks.filter((task) => phase.task_ids.includes(String(task.id)));
+        for (const task of phaseTasks) {
+          const currentInput = asRecord(task.input);
+          const clarificationHistory = Array.isArray(currentInput.clarification_history)
+            ? [...(currentInput.clarification_history as unknown[])]
+            : [];
+          const overrideInput = payload.override_input ?? {};
+          const overrideClarificationAnswers = asRecord(overrideInput.clarification_answers);
+          clarificationHistory.push({
+            feedback: payload.feedback ?? 'Clarification requested',
+            answers: overrideInput,
+            answered_at: new Date().toISOString(),
+            answered_by: identity.keyPrefix,
+          });
+          const nextInput = {
+            ...currentInput,
+            ...overrideInput,
+            clarification_answers: {
+              ...(asRecord(currentInput.clarification_answers)),
+              ...overrideClarificationAnswers,
+            },
+            clarification_history: clarificationHistory,
+          };
+
+          await client.query(
+            `UPDATE tasks
+                SET state = 'ready',
+                    state_changed_at = now(),
+                    assigned_agent_id = NULL,
+                    assigned_worker_id = NULL,
+                    claimed_at = NULL,
+                    started_at = NULL,
+                    completed_at = NULL,
+                    output = NULL,
+                    error = NULL,
+                    metrics = NULL,
+                    git_info = NULL,
+                    retry_count = retry_count + 1,
+                    rework_count = rework_count + 1,
+                    input = $3::jsonb,
+                    metadata = (metadata - 'escalation_status' - 'escalation_task_id') || $4::jsonb
+              WHERE tenant_id = $1
+                AND id = $2`,
+            [
+              identity.tenantId,
+              task.id,
+              nextInput,
+              {
+                review_action: 'request_changes',
+                review_feedback: payload.feedback ?? 'Clarification requested',
+                review_updated_at: new Date().toISOString(),
+                clarification_requested: true,
+              },
+            ],
+          );
+          task.state = 'ready';
+          task.input = nextInput;
+
+          await this.eventService.emit(
+            {
+              tenantId: identity.tenantId,
+              type: 'task.state_changed',
+              entityType: 'task',
+              entityId: String(task.id),
+              actorType: identity.scope,
+              actorId: identity.keyPrefix,
+              data: { from_state: 'completed', to_state: 'ready' },
+            },
+            client,
+          );
+        }
+      }
+      if (payload.action === 'reject') {
+        nextRuntimeState = {
+          ...runtimeState,
+          phase_gates: {
+            ...(runtimeState.phase_gates ?? {}),
+            [phase.name]: gateDecision,
+          },
+        };
+        await client.query(
+          `UPDATE pipelines
+              SET metadata = metadata || $3::jsonb,
+                  updated_at = now()
+            WHERE tenant_id = $1
+              AND id = $2`,
+          [identity.tenantId, pipelineId, { workflow_runtime: nextRuntimeState }],
+        );
+      }
 
       await this.eventService.emit(
         {
           tenantId: identity.tenantId,
           type:
-            payload.action === 'approve' ? 'phase.gate.approved' : 'phase.gate.rejected',
+            payload.action === 'approve'
+              ? 'phase.gate.approved'
+              : payload.action === 'reject'
+                ? 'phase.gate.rejected'
+                : 'phase.gate.request_changes',
           entityType: 'pipeline',
           entityId: pipelineId,
           actorType: identity.scope,

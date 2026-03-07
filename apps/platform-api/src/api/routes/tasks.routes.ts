@@ -309,6 +309,17 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
+    '/api/v1/tasks/:id/rework',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(requestChangesSchema.safeParse(request.body));
+      const task = await taskService.requestTaskChanges(request.auth!, params.id, body);
+      return { data: task };
+    },
+  );
+
+  app.post(
     '/api/v1/tasks/:id/request-changes',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request) => {

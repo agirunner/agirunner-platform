@@ -5,6 +5,8 @@ import { authenticateApiKey, withAllowedScopes, withScope } from '../../auth/fas
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { EventService } from '../../services/event-service.js';
+import { PipelineService } from '../../services/pipeline-service.js';
+import { ProjectPlanningService } from '../../services/project-planning-service.js';
 import { ProjectService } from '../../services/project-service.js';
 import { ProjectSpecService } from '../../services/project-spec-service.js';
 
@@ -35,6 +37,11 @@ const projectMemoryPatchSchema = z.object({
   value: z.unknown(),
 });
 
+const planningPipelineSchema = z.object({
+  brief: z.string().min(1).max(20000),
+  name: z.string().min(1).max(255).optional(),
+});
+
 const projectSpecSchema = z.object({
   resources: z.record(z.unknown()).optional(),
   documents: z.record(z.unknown()).optional(),
@@ -54,6 +61,13 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 export const projectRoutes: FastifyPluginAsync = async (app) => {
   const projectService = new ProjectService(app.pgPool, new EventService(app.pgPool));
   const projectSpecService = new ProjectSpecService(app.pgPool, new EventService(app.pgPool));
+  const pipelineService = new PipelineService(
+    app.pgPool,
+    new EventService(app.pgPool),
+    app.config,
+    app.workerConnectionHub,
+  );
+  const projectPlanningService = new ProjectPlanningService(app.pgPool, pipelineService);
 
   app.post('/api/v1/projects', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request, reply) => {
     const body = parseOrThrow(projectCreateSchema.safeParse(request.body));
@@ -139,6 +153,21 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
       ) as z.infer<typeof projectMemoryPatchSchema>;
       const project = await projectService.patchProjectMemory(request.auth!, params.id, body);
       return { data: project };
+    },
+  );
+
+  app.post(
+    '/api/v1/projects/:id/planning-pipeline',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(planningPipelineSchema.safeParse(request.body));
+      const pipeline = await projectPlanningService.createPlanningPipeline(
+        request.auth!,
+        params.id,
+        body,
+      );
+      return reply.status(201).send({ data: pipeline });
     },
   );
 

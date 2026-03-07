@@ -239,7 +239,11 @@ export class PipelineService {
     identity: ApiKeyIdentity,
     pipelineId: string,
     phaseName: string,
-    payload: { action: 'approve' | 'reject' | 'request_changes'; feedback?: string },
+    payload: {
+      action: 'approve' | 'reject' | 'request_changes';
+      feedback?: string;
+      override_input?: Record<string, unknown>;
+    },
   ) {
     return this.controlService.actOnPhaseGate(identity, pipelineId, phaseName, payload);
   }

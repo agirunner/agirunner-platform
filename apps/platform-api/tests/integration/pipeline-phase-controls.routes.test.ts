@@ -243,4 +243,95 @@ describe('pipeline phase control routes', () => {
         .every((task) => task.state === 'cancelled'),
     ).toBe(true);
   });
+
+  it('creates a planning pipeline and resumes the same planning task with clarification answers', async () => {
+    const projectResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/projects',
+      headers: { authorization: `Bearer ${adminKey}` },
+      payload: {
+        name: 'Planning Project',
+        slug: `planning-project-${Date.now()}`,
+      },
+    });
+    expect(projectResponse.statusCode).toBe(201);
+    const projectId = projectResponse.json().data.id as string;
+
+    const pipelineResponse = await app.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/planning-pipeline`,
+      headers: { authorization: `Bearer ${adminKey}` },
+      payload: {
+        brief: 'Build a customer support assistant with escalation workflows.',
+      },
+    });
+    expect(pipelineResponse.statusCode).toBe(201);
+    expect(pipelineResponse.json().data.metadata.planning_pipeline).toBe(true);
+
+    const pipelineId = pipelineResponse.json().data.id as string;
+    const planningTask = pipelineResponse.json().data.tasks[0] as Record<string, unknown>;
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/claim',
+      headers: { authorization: `Bearer ${agentKey}` },
+      payload: {
+        agent_id: agentId,
+        capabilities: ['workflow'],
+        pipeline_id: pipelineId,
+      },
+    });
+    await app.inject({
+      method: 'POST',
+      url: `/api/v1/tasks/${planningTask.id}/start`,
+      headers: { authorization: `Bearer ${agentKey}` },
+      payload: { agent_id: agentId },
+    });
+    await app.inject({
+      method: 'POST',
+      url: `/api/v1/tasks/${planningTask.id}/complete`,
+      headers: { authorization: `Bearer ${agentKey}` },
+      payload: {
+        agent_id: agentId,
+        output: {
+          suggested_plan: { template: 'execution-template', parameters: { sprint: 1 } },
+          clarification_questions: [
+            { id: 'target-users', question: 'Who are the target support personas?' },
+          ],
+        },
+      },
+    });
+
+    const reworkGate = await app.inject({
+      method: 'POST',
+      url: `/api/v1/pipelines/${pipelineId}/phases/planning/gate`,
+      headers: { authorization: `Bearer ${adminKey}` },
+      payload: {
+        action: 'request_changes',
+        feedback: 'Need audience clarification before finalizing the plan.',
+        override_input: {
+          clarification_answers: {
+            'target-users': 'Tier 1 support agents and customer success managers',
+          },
+        },
+      },
+    });
+    expect(reworkGate.statusCode).toBe(200);
+
+    const taskReload = await app.inject({
+      method: 'GET',
+      url: `/api/v1/tasks/${planningTask.id}`,
+      headers: { authorization: `Bearer ${agentKey}` },
+    });
+    expect(taskReload.statusCode).toBe(200);
+    expect(taskReload.json().data.state).toBe('ready');
+    expect(taskReload.json().data.input.project_brief).toBe(
+      'Build a customer support assistant with escalation workflows.',
+    );
+    expect(taskReload.json().data.input.clarification_answers['target-users']).toBe(
+      'Tier 1 support agents and customer success managers',
+    );
+    expect(taskReload.json().data.input.clarification_history).toHaveLength(1);
+    expect(taskReload.json().data.output).toBeNull();
+  });
 });
