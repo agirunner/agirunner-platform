@@ -8,6 +8,7 @@ import { EventService } from '../../services/event-service.js';
 
 const registerSchema = z.object({
   name: z.string().min(1).max(200),
+  protocol: z.enum(['rest', 'acp']).optional(),
   capabilities: z.array(z.string().min(1)).default([]),
   tools: z
     .object({
@@ -18,6 +19,13 @@ const registerSchema = z.object({
   worker_id: z.string().uuid().optional(),
   heartbeat_interval_seconds: z.number().int().min(5).max(3600).optional(),
   metadata: z.record(z.unknown()).optional(),
+  acp: z
+    .object({
+      transports: z.array(z.enum(['stdio', 'http', 'websocket'])).min(1).optional(),
+      session_modes: z.array(z.enum(['run', 'session'])).min(1).optional(),
+      capabilities: z.record(z.unknown()).optional(),
+    })
+    .optional(),
   profile: z.record(z.unknown()).optional(),
 });
 

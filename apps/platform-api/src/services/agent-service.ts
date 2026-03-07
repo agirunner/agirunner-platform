@@ -7,11 +7,17 @@ import { EventService } from './event-service.js';
 
 interface RegisterAgentInput {
   name: string;
+  protocol?: 'rest' | 'acp';
   capabilities?: string[];
   tools?: { required?: string[]; optional?: string[] };
   worker_id?: string;
   heartbeat_interval_seconds?: number;
   metadata?: Record<string, unknown>;
+  acp?: {
+    transports?: Array<'stdio' | 'http' | 'websocket'>;
+    session_modes?: Array<'run' | 'session'>;
+    capabilities?: Record<string, unknown>;
+  };
   profile?: Record<string, unknown>;
 }
 
@@ -33,6 +39,8 @@ export class AgentService {
   async registerAgent(identity: ApiKeyIdentity, input: RegisterAgentInput) {
     const metadata = {
       ...(input.metadata ?? {}),
+      protocol: input.protocol ?? 'rest',
+      ...(input.acp ? { acp: input.acp } : {}),
       ...(input.profile ? { profile: input.profile } : {}),
       ...(input.tools ? { tools: input.tools } : {}),
     };
