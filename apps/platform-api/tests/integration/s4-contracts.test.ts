@@ -46,6 +46,8 @@ describe('S4 API contract closure', () => {
     process.env.LOG_LEVEL = 'error';
     process.env.RATE_LIMIT_MAX_PER_MINUTE = '200';
     process.env.GIT_WEBHOOK_GITHUB_SECRET = 'github-secret-s4';
+    process.env.GIT_WEBHOOK_GITEA_SECRET = 'gitea-secret-s4';
+    process.env.GIT_WEBHOOK_GITLAB_SECRET = 'gitlab-secret-s4';
 
     adminKey = (
       await createApiKey(db.pool, {
@@ -240,14 +242,14 @@ describe('S4 API contract closure', () => {
     });
 
     const pipelineId = pipeline.json().data.id as string;
-    await db.pool.query(`UPDATE pipelines SET state = 'completed' WHERE tenant_id = $1 AND id = $2`, [
-      tenantId,
-      pipelineId,
-    ]);
-    await db.pool.query(`UPDATE tasks SET state = 'completed' WHERE tenant_id = $1 AND pipeline_id = $2`, [
-      tenantId,
-      pipelineId,
-    ]);
+    await db.pool.query(
+      `UPDATE pipelines SET state = 'completed' WHERE tenant_id = $1 AND id = $2`,
+      [tenantId, pipelineId],
+    );
+    await db.pool.query(
+      `UPDATE tasks SET state = 'completed' WHERE tenant_id = $1 AND pipeline_id = $2`,
+      [tenantId, pipelineId],
+    );
 
     const deleted = await app.inject({
       method: 'DELETE',
@@ -272,7 +274,9 @@ describe('S4 API contract closure', () => {
       ? token.headers['set-cookie']
       : [token.headers['set-cookie'] as string];
 
-    const refreshCookie = cookies.find((c) => c.startsWith('agentbaton_refresh_token='))!.split(';')[0];
+    const refreshCookie = cookies
+      .find((c) => c.startsWith('agentbaton_refresh_token='))!
+      .split(';')[0];
     const csrfCookie = cookies.find((c) => c.startsWith('agentbaton_csrf_token='))!.split(';')[0];
     const csrfToken = csrfCookie.split('=')[1];
 
@@ -346,7 +350,7 @@ describe('S4 API contract closure', () => {
     expect(accepted.json().data.mapped_task_id).toBe(taskId);
 
     const taskAfter = await db.pool.query('SELECT git_info FROM tasks WHERE id = $1', [taskId]);
-    expect(taskAfter.rows[0].git_info.provider).toBe('github');
+    expect(taskAfter.rows[0].git_info.provider_event.provider).toBe('github');
 
     const tamperedPayload = `${rawPayload}\n`;
     const tampered = await app.inject({
@@ -374,6 +378,115 @@ describe('S4 API contract closure', () => {
     });
 
     expect(rejected.statusCode).toBe(401);
+  });
+
+  it('normalizes GitLab merge request webhooks into task git_info metadata', async () => {
+    const taskId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO tasks (id, tenant_id, title, type, state, input, context)
+       VALUES ($1,$2,'gitlab-target','code','ready','{}'::jsonb,'{}'::jsonb)`,
+      [taskId, tenantId],
+    );
+
+    const payload = {
+      object_attributes: {
+        id: 77,
+        iid: 12,
+        action: 'open',
+        title: `MR for ${taskId}`,
+        description: 'GitLab MR',
+        url: 'https://gitlab.example.com/org/repo/-/merge_requests/12',
+        state: 'opened',
+        source_branch: `baton/${taskId}/feature`,
+        target_branch: 'main',
+        merge_status: 'can_be_merged',
+      },
+    };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/webhooks/git',
+      headers: {
+        'content-type': 'application/json',
+        'x-gitlab-event': 'merge_request',
+        'x-gitlab-token': 'gitlab-secret-s4',
+      },
+      payload,
+    });
+
+    expect(response.statusCode).toBe(202);
+    const updated = await db.pool.query('SELECT git_info FROM tasks WHERE id = $1', [taskId]);
+    expect(updated.rows[0].git_info).toMatchObject({
+      linked_prs: [
+        {
+          provider: 'gitlab',
+          id: 12,
+          title: `MR for ${taskId}`,
+          source_branch: `baton/${taskId}/feature`,
+          target_branch: 'main',
+        },
+      ],
+      branches: [`baton/${taskId}/feature`, 'main'],
+      provider_event: {
+        provider: 'gitlab',
+        event_type: 'merge_request',
+        action: 'open',
+      },
+    });
+  });
+
+  it('normalizes Gitea pull request webhooks into task git_info metadata', async () => {
+    const taskId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO tasks (id, tenant_id, title, type, state, input, context)
+       VALUES ($1,$2,'gitea-target','code','ready','{}'::jsonb,'{}'::jsonb)`,
+      [taskId, tenantId],
+    );
+
+    const rawPayload = JSON.stringify({
+      action: 'opened',
+      pull_request: {
+        number: 42,
+        title: `PR for ${taskId}`,
+        body: 'Gitea PR',
+        html_url: 'https://gitea.example.com/org/repo/pulls/42',
+        state: 'open',
+        head: { ref: `baton/${taskId}/branch` },
+        base: { ref: 'main' },
+      },
+    });
+    const signature = createHmac('sha256', 'gitea-secret-s4').update(rawPayload).digest('hex');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/webhooks/git',
+      headers: {
+        'content-type': 'application/json',
+        'x-gitea-event': 'pull_request',
+        'x-gitea-signature': signature,
+      },
+      payload: rawPayload,
+    });
+
+    expect(response.statusCode).toBe(202);
+    const updated = await db.pool.query('SELECT git_info FROM tasks WHERE id = $1', [taskId]);
+    expect(updated.rows[0].git_info).toMatchObject({
+      linked_prs: [
+        {
+          provider: 'gitea',
+          id: 42,
+          title: `PR for ${taskId}`,
+          source_branch: `baton/${taskId}/branch`,
+          target_branch: 'main',
+        },
+      ],
+      branches: [`baton/${taskId}/branch`, 'main'],
+      provider_event: {
+        provider: 'gitea',
+        event_type: 'pull_request',
+        action: 'opened',
+      },
+    });
   });
 
   it('returns CYCLE_DETECTED when template dependency graph contains a cycle', async () => {

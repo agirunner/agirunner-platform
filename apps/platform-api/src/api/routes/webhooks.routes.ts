@@ -6,6 +6,11 @@ import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { SchemaValidationFailedError, UnauthorizedError } from '../../errors/domain-errors.js';
+import {
+  extractTaskIdFromGitPayload,
+  mapGitEventType,
+  normalizeGitEvent,
+} from '../../services/git-platform-adapter.js';
 
 const registerSchema = z.object({
   url: z.string().url(),
@@ -19,9 +24,13 @@ const updateSchema = z
     event_types: z.array(z.string().min(1)).optional(),
     is_active: z.boolean().optional(),
   })
-  .refine((value) => value.url !== undefined || value.event_types !== undefined || value.is_active !== undefined, {
-    message: 'At least one field is required',
-  });
+  .refine(
+    (value) =>
+      value.url !== undefined || value.event_types !== undefined || value.is_active !== undefined,
+    {
+      message: 'At least one field is required',
+    },
+  );
 
 interface InboundWebhookIdentity {
   provider: 'github' | 'gitea' | 'gitlab';
@@ -129,83 +138,46 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function extractTaskId(payload: Record<string, unknown>): string | undefined {
-  const texts: string[] = [];
-
-  const pullRequest = asRecord(payload.pull_request);
-  const commit = asRecord(payload.head_commit);
-  const checkRun = asRecord(payload.check_run);
-
-  [
-    payload['title'],
-    payload['body'],
-    payload['ref'],
-    pullRequest['title'],
-    pullRequest['body'],
-    pullRequest['head'] && asRecord(pullRequest['head'])['ref'],
-    pullRequest['base'] && asRecord(pullRequest['base'])['ref'],
-    commit['message'],
-    checkRun['name'],
-  ].forEach((value) => {
-    if (typeof value === 'string' && value.length > 0) {
-      texts.push(value);
-    }
-  });
-
-  const taskIdPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
-
-  for (const text of texts) {
-    const match = text.match(taskIdPattern);
-    if (match) {
-      return match[0].toLowerCase();
-    }
-  }
-
-  return undefined;
-}
-
-function mapEventType(identity: InboundWebhookIdentity, payload: Record<string, unknown>): string {
-  if (identity.eventType === 'pull_request') {
-    const action = String(payload.action ?? 'updated');
-    if (action === 'opened') return 'task.git.pr_opened';
-    if (action === 'closed' && asRecord(payload.pull_request).merged === true) {
-      return 'task.git.pr_merged';
-    }
-    if (action === 'closed') return 'task.git.pr_closed';
-    return 'task.git.pr_updated';
-  }
-
-  if (identity.eventType === 'status' || identity.eventType === 'check_run') {
-    return 'task.git.ci_status_updated';
-  }
-
-  return `task.git.${identity.eventType}`;
-}
-
 export const webhookRoutes: FastifyPluginAsync = async (app) => {
-  app.post('/api/v1/webhooks', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request, reply) => {
-    const body = parseOrThrow(registerSchema.safeParse(request.body));
-    const data = await app.webhookService.registerWebhook(request.auth!, body);
-    return reply.status(201).send({ data });
-  });
+  app.post(
+    '/api/v1/webhooks',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request, reply) => {
+      const body = parseOrThrow(registerSchema.safeParse(request.body));
+      const data = await app.webhookService.registerWebhook(request.auth!, body);
+      return reply.status(201).send({ data });
+    },
+  );
 
-  app.patch('/api/v1/webhooks/:id', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
-    const params = request.params as { id: string };
-    const body = parseOrThrow(updateSchema.safeParse(request.body));
-    const data = await app.webhookService.updateWebhook(request.auth!.tenantId, params.id, body);
-    return { data };
-  });
+  app.patch(
+    '/api/v1/webhooks/:id',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(updateSchema.safeParse(request.body));
+      const data = await app.webhookService.updateWebhook(request.auth!.tenantId, params.id, body);
+      return { data };
+    },
+  );
 
-  app.get('/api/v1/webhooks', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
-    const data = await app.webhookService.listWebhooks(request.auth!.tenantId);
-    return { data };
-  });
+  app.get(
+    '/api/v1/webhooks',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const data = await app.webhookService.listWebhooks(request.auth!.tenantId);
+      return { data };
+    },
+  );
 
-  app.delete('/api/v1/webhooks/:id', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request, reply) => {
-    const params = request.params as { id: string };
-    await app.webhookService.deleteWebhook(request.auth!.tenantId, params.id);
-    return reply.status(204).send();
-  });
+  app.delete(
+    '/api/v1/webhooks/:id',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      await app.webhookService.deleteWebhook(request.auth!.tenantId, params.id);
+      return reply.status(204).send();
+    },
+  );
 
   app.post(
     '/api/v1/webhooks/git',
@@ -233,7 +205,7 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
       verifySignature(identity, rawBody);
 
       const payload = asRecord(request.body);
-      const taskId = extractTaskId(payload);
+      const taskId = extractTaskIdFromGitPayload(payload);
 
       if (!taskId) {
         return reply.status(202).send({
@@ -264,15 +236,8 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
       }
 
       const tenantId = taskLookup.rows[0].tenant_id;
-      const mappedEventType = mapEventType(identity, payload);
-      const gitInfo = {
-        provider: identity.provider,
-        event_type: identity.eventType,
-        received_at: new Date().toISOString(),
-        pull_request: asRecord(payload.pull_request),
-        check_run: asRecord(payload.check_run),
-        status: asRecord(payload)['state'],
-      };
+      const mappedEventType = mapGitEventType(identity, payload);
+      const gitInfo = normalizeGitEvent(identity, payload);
 
       await app.pgPool.query(
         `UPDATE tasks
