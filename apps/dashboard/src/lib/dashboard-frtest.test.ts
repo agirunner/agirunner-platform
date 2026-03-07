@@ -134,6 +134,13 @@ describe('FR-032: pipeline list view', () => {
     const source = readComponent('pages/pipeline-list-page.tsx');
     expect(source).toContain('.state');
   });
+
+  it('pipeline-list-page includes AI planning launch controls', () => {
+    const source = readComponent('pages/pipeline-list-page.tsx');
+    expect(source).toContain('Start With AI Planning');
+    expect(source).toContain('createPlanningPipeline');
+    expect(source).toContain('listProjects');
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -159,6 +166,14 @@ describe('FR-033 / FR-034 / FR-035 / FR-035a / FR-036 / FR-213: task detail page
   it('task-detail-page renders JSON data view for task inspection', () => {
     const source = readComponent('pages/task-detail-page.tsx');
     expect(source).toContain('JSON.stringify');
+  });
+
+  it('task-detail-page surfaces clarification and rework details beyond raw JSON', () => {
+    const source = readComponent('pages/task-detail-page.tsx');
+    expect(source).toContain('Clarification & Rework');
+    expect(source).toContain('Escalation Response');
+    expect(source).toContain('readClarificationHistory');
+    expect(source).toContain('readReworkDetails');
   });
 });
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { dashboardApi } from '../lib/api.js';
+import { dashboardApi, type DashboardProjectRecord } from '../lib/api.js';
 import { subscribeToEvents } from '../lib/sse.js';
 
 interface PipelineItem {
@@ -22,10 +22,19 @@ export function PipelineListPage(): JSX.Element {
   const [textFilter, setTextFilter] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'name'>('newest');
   const [view, setView] = useState<'list' | 'board'>('list');
+  const [planningProjectId, setPlanningProjectId] = useState('');
+  const [planningBrief, setPlanningBrief] = useState('Plan the next delivery iteration for this project.');
+  const [planningName, setPlanningName] = useState('AI Planning');
+  const [planningStatus, setPlanningStatus] = useState<string | null>(null);
+  const [planningError, setPlanningError] = useState<string | null>(null);
 
   const query = useQuery({
     queryKey: ['pipelines'],
     queryFn: () => dashboardApi.listPipelines() as Promise<PipelineListResult>,
+  });
+  const projectsQuery = useQuery({
+    queryKey: ['projects'],
+    queryFn: () => dashboardApi.listProjects() as Promise<{ data: DashboardProjectRecord[] }>,
   });
 
   useEffect(() => {
@@ -76,6 +85,38 @@ export function PipelineListPage(): JSX.Element {
       return acc;
     }, {});
   }, [filteredPipelines]);
+
+  async function handleStartPlanningPipeline() {
+    setPlanningStatus(null);
+    setPlanningError(null);
+    if (!planningProjectId) {
+      setPlanningError('Select a project before starting a planning pipeline.');
+      return;
+    }
+    if (planningBrief.trim().length === 0) {
+      setPlanningError('Planning brief is required.');
+      return;
+    }
+    try {
+      const response = await dashboardApi.createPlanningPipeline(planningProjectId, {
+        brief: planningBrief.trim(),
+        name: planningName.trim() || undefined,
+      });
+      const payload = response as { data?: { id?: string }; id?: string };
+      const pipelineId = payload.data?.id ?? payload.id;
+      setPlanningStatus(
+        pipelineId
+          ? `Planning pipeline created: ${pipelineId}`
+          : 'Planning pipeline created.',
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['pipelines'] }),
+        queryClient.invalidateQueries({ queryKey: ['projects'] }),
+      ]);
+    } catch (error) {
+      setPlanningError(String(error));
+    }
+  }
 
   return (
     <section className="card">
@@ -131,6 +172,50 @@ export function PipelineListPage(): JSX.Element {
           <option value="oldest">Oldest</option>
           <option value="name">Name</option>
         </select>
+      </div>
+
+      <div className="card">
+        <h3>Start With AI Planning</h3>
+        <p className="muted">
+          Launch a planning pipeline from the dashboard using a project brief and get a phase-gated plan for review.
+        </p>
+        <div className="grid">
+          <label htmlFor="planning-project-select">Project</label>
+          <select
+            id="planning-project-select"
+            value={planningProjectId}
+            onChange={(event) => setPlanningProjectId(event.target.value)}
+          >
+            <option value="">Select project</option>
+            {(projectsQuery.data?.data ?? []).map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </select>
+          <label htmlFor="planning-name">Pipeline name</label>
+          <input
+            id="planning-name"
+            className="input"
+            value={planningName}
+            onChange={(event) => setPlanningName(event.target.value)}
+          />
+          <label htmlFor="planning-brief">Project brief</label>
+          <textarea
+            id="planning-brief"
+            className="input"
+            rows={5}
+            value={planningBrief}
+            onChange={(event) => setPlanningBrief(event.target.value)}
+          />
+          <div className="row" style={{ justifyContent: 'flex-end' }}>
+            <button type="button" className="button primary" onClick={() => void handleStartPlanningPipeline()}>
+              Start Planning Pipeline
+            </button>
+          </div>
+          {planningStatus ? <p style={{ color: '#16a34a' }}>{planningStatus}</p> : null}
+          {planningError ? <p style={{ color: '#dc2626' }}>{planningError}</p> : null}
+        </div>
       </div>
 
       {query.isLoading ? <p>Loading pipelines...</p> : null}

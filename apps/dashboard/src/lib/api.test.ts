@@ -512,6 +512,60 @@ describe('dashboard api auth/session behavior', () => {
       'http://localhost:8080/api/v1/projects/project-1/timeline',
     );
   });
+
+  it('lists projects and starts a planning pipeline through typed dashboard methods', async () => {
+    writeSession({ accessToken: 'planning-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [{ id: 'project-1', name: 'Alpha', slug: 'alpha' }],
+            meta: { total: 1 },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: { id: 'pipe-9', name: 'AI Planning' } }), {
+          status: 201,
+        }),
+      ) as unknown as typeof fetch;
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listPipelines: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getPipeline: vi.fn(),
+      createPipeline: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    const projects = await api.listProjects();
+    const planning = await api.createPlanningPipeline('project-1', {
+      brief: 'Plan the next workflow increment.',
+      name: 'AI Planning',
+    });
+
+    expect(projects.data[0].id).toBe('project-1');
+    expect((planning as { data?: { id?: string } }).data?.id).toBe('pipe-9');
+    expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
+      'http://localhost:8080/api/v1/projects?per_page=50',
+    );
+    expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
+      'http://localhost:8080/api/v1/projects/project-1/planning-pipeline',
+    );
+  });
 });
 
 describe('dashboard global search', () => {

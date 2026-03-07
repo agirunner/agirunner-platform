@@ -90,6 +90,15 @@ export interface DashboardProjectTimelineEntry {
   link?: string;
 }
 
+export interface DashboardProjectRecord {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  is_active?: boolean;
+  created_at?: string;
+}
+
 export interface DashboardCustomizationManagedFile {
   source: string;
   target: string;
@@ -273,6 +282,7 @@ export interface DashboardApi {
   login(apiKey: string): Promise<void>;
   logout(): Promise<void>;
   listPipelines(): Promise<unknown>;
+  listProjects(): Promise<{ data: DashboardProjectRecord[]; meta?: Record<string, unknown> }>;
   getPipeline(id: string): Promise<unknown>;
   listTemplates(): Promise<{ data: DashboardTemplate[]; meta?: Record<string, unknown> }>;
   createPipeline(payload: {
@@ -476,6 +486,14 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       }
     },
     listPipelines: () => withRefresh(() => client.listPipelines()),
+    listProjects: () =>
+      withRefresh(
+        () =>
+          requestJson('/api/v1/projects?per_page=50', { method: 'GET' }) as Promise<{
+            data: DashboardProjectRecord[];
+            meta?: Record<string, unknown>;
+          }>,
+      ),
     getPipeline: (id) => withRefresh(() => client.getPipeline(id)),
     listTemplates: () =>
       withRefresh(
