@@ -91,11 +91,57 @@ export const fleetRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  app.post(
+    '/api/v1/fleet/containers/prune',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request, reply) => {
+      const removed = await service.pruneStaleContainers(request.auth!.tenantId);
+      reply.status(200);
+      return { data: { removed } };
+    },
+  );
+
+  // --- Actual State (Worker Reports) ---
+
+  app.post(
+    '/api/v1/fleet/workers/actual-state',
+    { preHandler: [authenticateApiKey, withScope('worker')] },
+    async (request, reply) => {
+      const body = request.body as {
+        desiredStateId: string;
+        containerId: string;
+        containerStatus: string;
+        cpuUsagePercent?: number;
+        memoryUsageBytes?: number;
+        networkRxBytes?: number;
+        networkTxBytes?: number;
+      };
+      await service.reportActualState(body.desiredStateId, body.containerId, body.containerStatus, {
+        cpuPercent: body.cpuUsagePercent,
+        memoryBytes: body.memoryUsageBytes,
+        rxBytes: body.networkRxBytes,
+        txBytes: body.networkTxBytes,
+      });
+      reply.status(204);
+    },
+  );
+
   // --- Images ---
 
   app.get(
     '/api/v1/fleet/images',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async () => ({ data: await service.listImages() }),
+  );
+
+  app.post(
+    '/api/v1/fleet/images/pull',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request, reply) => {
+      const body = request.body as { repository: string; tag: string };
+      await service.requestImagePull(body.repository, body.tag);
+      reply.status(202);
+      return { data: { repository: body.repository, tag: body.tag } };
+    },
   );
 };

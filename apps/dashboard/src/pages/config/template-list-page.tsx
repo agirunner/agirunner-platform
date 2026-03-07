@@ -1,19 +1,37 @@
 import { useQuery } from '@tanstack/react-query';
-import { dashboardApi } from '../../lib/api.js';
+import { Loader2, Copy, Download, Pencil, Plus, LayoutTemplate } from 'lucide-react';
+import { dashboardApi, type DashboardTemplate } from '../../lib/api.js';
+import { Button } from '../../components/ui/button.js';
+import { Badge } from '../../components/ui/badge.js';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '../../components/ui/table.js';
 
-interface Template {
-  id: string;
-  name: string;
-  version: string;
-  is_published: boolean;
-  created_at: string;
+function normalizeTemplates(
+  response: { data: DashboardTemplate[] } | DashboardTemplate[] | undefined,
+): DashboardTemplate[] {
+  if (!response) return [];
+  if (Array.isArray(response)) return response;
+  return response?.data ?? [];
 }
 
-function normalizeData(response: { data: Template[] } | Template[]): Template[] {
-  if (Array.isArray(response)) {
-    return response;
-  }
-  return response?.data ?? [];
+function exportTemplate(template: DashboardTemplate) {
+  const blob = new Blob([JSON.stringify(template, null, 2)], {
+    type: 'application/json',
+  });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `${template.slug}-v${template.version}.json`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
 }
 
 export function TemplateListPage(): JSX.Element {
@@ -22,54 +40,114 @@ export function TemplateListPage(): JSX.Element {
     queryFn: () => dashboardApi.listTemplates(),
   });
 
-  if (isLoading) return <div className="p-4">Loading...</div>;
-  if (error) return <div className="p-4 text-destructive">Error loading data</div>;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted" />
+      </div>
+    );
+  }
 
-  const templates = normalizeData(data);
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          Failed to load templates: {String(error)}
+        </div>
+      </div>
+    );
+  }
+
+  const templates = normalizeTemplates(data);
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold mb-4">Templates</h1>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Templates</h1>
+          <p className="text-sm text-muted">
+            Manage workflow templates, versions, and publishing.
+          </p>
+        </div>
+        <Button disabled title="Coming soon">
+          <Plus className="h-4 w-4" />
+          Create Template
+        </Button>
+      </div>
 
       {templates.length === 0 ? (
-        <p className="text-muted-foreground">No templates found.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left">
-                <th className="pb-2 pr-4 font-medium">Name</th>
-                <th className="pb-2 pr-4 font-medium">Version</th>
-                <th className="pb-2 pr-4 font-medium">Published</th>
-                <th className="pb-2 font-medium">Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {templates.map((template) => (
-                <tr key={template.id} className="border-b hover:bg-muted/50">
-                  <td className="py-3 pr-4 font-medium">{template.name}</td>
-                  <td className="py-3 pr-4 text-muted-foreground">
-                    {template.version}
-                  </td>
-                  <td className="py-3 pr-4">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        template.is_published
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {template.is_published ? 'Published' : 'Draft'}
-                    </span>
-                  </td>
-                  <td className="py-3 text-muted-foreground">
-                    {new Date(template.created_at).toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex flex-col items-center justify-center py-12 text-muted">
+          <LayoutTemplate className="h-12 w-12 mb-4" />
+          <p className="font-medium">No templates found</p>
+          <p className="text-sm mt-1">Templates will appear here once created.</p>
         </div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Slug</TableHead>
+              <TableHead>Version</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Built-in</TableHead>
+              <TableHead className="w-[140px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {templates.map((template) => (
+              <TableRow key={template.id}>
+                <TableCell className="font-medium">{template.name}</TableCell>
+                <TableCell className="font-mono text-xs text-muted">
+                  {template.slug}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline">v{template.version}</Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={template.is_published ? 'success' : 'secondary'}>
+                    {template.is_published ? 'Published' : 'Draft'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {template.is_built_in ? (
+                    <Badge variant="outline">Built-in</Badge>
+                  ) : (
+                    <span className="text-sm text-muted">Custom</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      title="Edit template"
+                      onClick={() => {
+                        window.location.assign(`/config/templates/${template.id}/edit`);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      title="Clone template"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      title="Export as JSON"
+                      onClick={() => exportTemplate(template)}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </div>
   );

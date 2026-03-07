@@ -16,6 +16,7 @@ type DockerClient interface {
 	StopContainer(ctx context.Context, containerID string, timeout time.Duration) error
 	RemoveContainer(ctx context.Context, containerID string) error
 	ListImages(ctx context.Context) ([]ContainerImage, error)
+	GetContainerStats(ctx context.Context, containerID string) (*ContainerStats, error)
 }
 
 // ContainerInfo represents a running container as reported by Docker.
@@ -138,6 +139,9 @@ func (r *Reconciler) reconcileOnce(ctx context.Context) error {
 		}
 	}
 
+	// Report actual state for all managed containers
+	r.reportActualState(ctx, actual)
+
 	// Report images
 	r.reportImages(ctx)
 
@@ -246,6 +250,37 @@ func (r *Reconciler) buildContainerSpec(ds DesiredState, replicaIndex int) Conta
 			labelDesiredStateID: ds.ID,
 			labelVersion:        fmt.Sprintf("%d", ds.Version),
 		},
+	}
+}
+
+func (r *Reconciler) reportActualState(ctx context.Context, containers []ContainerInfo) {
+	for _, c := range containers {
+		dsID, ok := c.Labels[labelDesiredStateID]
+		if !ok {
+			continue
+		}
+
+		stats, err := r.docker.GetContainerStats(ctx, c.ID)
+		if err != nil {
+			r.logger.Error("failed to get container stats", "container", c.ID, "error", err)
+			continue
+		}
+
+		state := ActualState{
+			DesiredStateID:  dsID,
+			ContainerID:     c.ID,
+			ContainerStatus: c.Status,
+		}
+		if stats != nil {
+			state.CPUUsagePercent = float32(stats.CPUPercent)
+			state.MemoryUsageBytes = int64(stats.MemoryBytes)
+			state.NetworkRxBytes = int64(stats.RxBytes)
+			state.NetworkTxBytes = int64(stats.TxBytes)
+		}
+
+		if err := r.platform.ReportActualState(state); err != nil {
+			r.logger.Error("failed to report actual state", "container", c.ID, "error", err)
+		}
 	}
 }
 

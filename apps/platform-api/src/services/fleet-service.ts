@@ -256,6 +256,27 @@ export class FleetService {
     );
   }
 
+  async pruneStaleContainers(tenantId: string): Promise<number> {
+    const result = await this.pool.query(
+      `DELETE FROM worker_actual_state
+       WHERE desired_state_id IN (
+         SELECT id FROM worker_desired_state WHERE tenant_id = $1
+       )
+       AND container_status IN ($2, $3)`,
+      [tenantId, 'exited', 'dead'],
+    );
+    return result.rowCount ?? 0;
+  }
+
+  async requestImagePull(repository: string, tag: string): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO container_images (repository, tag, last_seen)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (repository, tag) DO UPDATE SET last_seen = NOW()`,
+      [repository, tag],
+    );
+  }
+
   async reportImage(repository: string, tag: string | null, digest: string | null, sizeBytes: number | null): Promise<void> {
     await this.pool.query(
       `INSERT INTO container_images (repository, tag, digest, size_bytes, last_seen)

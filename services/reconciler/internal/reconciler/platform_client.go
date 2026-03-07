@@ -70,13 +70,72 @@ func (c *PlatformClient) FetchDesiredState() ([]DesiredState, error) {
 
 // ReportActualState sends container state back to the platform.
 func (c *PlatformClient) ReportActualState(state ActualState) error {
-	// The reconciler reports state via internal API — this is a placeholder
-	// for the actual implementation that will use the fleet report endpoints.
+	payload := map[string]interface{}{
+		"desiredStateId":   state.DesiredStateID,
+		"containerId":     state.ContainerID,
+		"containerStatus": state.ContainerStatus,
+		"cpuUsagePercent":  state.CPUUsagePercent,
+		"memoryUsageBytes": state.MemoryUsageBytes,
+		"networkRxBytes":   state.NetworkRxBytes,
+		"networkTxBytes":   state.NetworkTxBytes,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal actual state: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/v1/fleet/workers/actual-state", c.baseURL)
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create actual state request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("actual state request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("actual state API returned HTTP %d: %s", resp.StatusCode, string(respBody))
+	}
 	return nil
 }
 
 // ReportImage reports a discovered Docker image to the platform.
 func (c *PlatformClient) ReportImage(image ContainerImage) error {
+	payload := map[string]interface{}{
+		"repository": image.Repository,
+		"tag":        image.Tag,
+		"digest":     image.Digest,
+		"sizeBytes":  image.SizeBytes,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal image report: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/v1/fleet/images", c.baseURL)
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create image report request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("image report request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("image report API returned HTTP %d: %s", resp.StatusCode, string(respBody))
+	}
 	return nil
 }
 

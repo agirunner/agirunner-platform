@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import bcrypt from 'bcryptjs';
+import argon2 from 'argon2';
 
 import { UserService } from '../../src/services/user-service.js';
 
@@ -77,7 +77,7 @@ describe('UserService', () => {
       expect(result.email).toBe('dev@example.com');
       const insertCall = pool.query.mock.calls[1];
       const passwordHash = insertCall[1][2] as string;
-      expect(passwordHash).toMatch(/^\$2[ab]\$/);
+      expect(passwordHash).toMatch(/^\$argon2id\$/);
     });
 
     it('creates user without password for SSO-only', async () => {
@@ -159,7 +159,7 @@ describe('UserService', () => {
 
   describe('verifyPassword', () => {
     it('returns user on correct password', async () => {
-      const hash = await bcrypt.hash('correctpass', 4);
+      const hash = await argon2.hash('correctpass', { type: argon2.argon2id });
       const userWithHash = { ...sampleUserRow, password_hash: hash };
       pool.query
         .mockResolvedValueOnce({ rows: [userWithHash], rowCount: 1 })
@@ -171,7 +171,7 @@ describe('UserService', () => {
     });
 
     it('throws on wrong password', async () => {
-      const hash = await bcrypt.hash('correctpass', 4);
+      const hash = await argon2.hash('correctpass', { type: argon2.argon2id });
       const userWithHash = { ...sampleUserRow, password_hash: hash };
       pool.query.mockResolvedValueOnce({ rows: [userWithHash], rowCount: 1 });
 
@@ -189,7 +189,7 @@ describe('UserService', () => {
     });
 
     it('throws on inactive user', async () => {
-      const hash = await bcrypt.hash('correctpass', 4);
+      const hash = await argon2.hash('correctpass', { type: argon2.argon2id });
       const inactiveUser = { ...sampleUserRow, password_hash: hash, is_active: false };
       pool.query.mockResolvedValueOnce({ rows: [inactiveUser], rowCount: 1 });
 
@@ -207,7 +207,7 @@ describe('UserService', () => {
 
       const insertCall = pool.query.mock.calls[0];
       const newHash = insertCall[1][0] as string;
-      expect(newHash).toMatch(/^\$2[ab]\$/);
+      expect(newHash).toMatch(/^\$argon2id\$/);
     });
 
     it('rejects short password', async () => {

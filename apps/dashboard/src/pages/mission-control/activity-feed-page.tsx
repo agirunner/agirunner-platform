@@ -1,70 +1,182 @@
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { dashboardApi } from '../../lib/api.js';
+import { Filter, RefreshCw } from 'lucide-react';
 
-interface EventEntry {
-  id: string;
-  type: string;
-  message: string;
-  created_at: string;
-}
+import { dashboardApi, type DashboardEventRecord } from '../../lib/api.js';
+import { cn } from '../../lib/utils.js';
+import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card.js';
+import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '../../components/ui/table.js';
 
-function normalizeData(response: { data: EventEntry[] } | EventEntry[]): EventEntry[] {
-  if (Array.isArray(response)) {
-    return response;
+type EntityFilter = 'all' | 'workflow' | 'task' | 'worker' | 'agent';
+
+const ENTITY_FILTERS: EntityFilter[] = ['all', 'workflow', 'task', 'worker', 'agent'];
+const REFETCH_INTERVAL = 3000;
+
+function eventTypeBadgeVariant(eventType: string): 'default' | 'success' | 'warning' | 'destructive' | 'secondary' {
+  if (eventType.includes('failed') || eventType.includes('error')) {
+    return 'destructive';
   }
-  return response?.data ?? [];
+  if (eventType.includes('completed') || eventType.includes('success')) {
+    return 'success';
+  }
+  if (eventType.includes('approval') || eventType.includes('pending') || eventType.includes('escalat')) {
+    return 'warning';
+  }
+  return 'secondary';
 }
 
-const TYPE_COLORS: Record<string, string> = {
-  info: 'bg-blue-100 text-blue-800',
-  warning: 'bg-yellow-100 text-yellow-800',
-  error: 'bg-red-100 text-red-800',
-  success: 'bg-green-100 text-green-800',
-};
-
-function badgeClass(type: string): string {
-  return TYPE_COLORS[type.toLowerCase()] ?? 'bg-gray-100 text-gray-800';
+function normalizeEvents(response: unknown): DashboardEventRecord[] {
+  if (Array.isArray(response)) {
+    return response as DashboardEventRecord[];
+  }
+  const wrapped = response as { data?: unknown } | null;
+  if (wrapped && Array.isArray(wrapped.data)) {
+    return wrapped.data as DashboardEventRecord[];
+  }
+  return [];
 }
 
 export function ActivityFeedPage(): JSX.Element {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['events'],
-    queryFn: () => dashboardApi.listEvents(),
+  const [entityFilter, setEntityFilter] = useState<EntityFilter>('all');
+
+  const { data, isLoading, error, isFetching } = useQuery({
+    queryKey: ['events', entityFilter],
+    queryFn: () => {
+      const filters: Record<string, string> = {};
+      if (entityFilter !== 'all') {
+        filters.entity_type = entityFilter;
+      }
+      return dashboardApi.listEvents(filters);
+    },
+    refetchInterval: REFETCH_INTERVAL,
   });
 
-  if (isLoading) return <div className="p-4">Loading...</div>;
-  if (error) return <div className="p-4 text-destructive">Error loading data</div>;
-
-  const events = normalizeData(data);
+  const events = useMemo(() => normalizeEvents(data), [data]);
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold mb-4">Activity Feed</h1>
+    <div className="space-y-6 p-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Activity Feed</h1>
+        {isFetching && <RefreshCw className="h-4 w-4 animate-spin text-muted" />}
+      </div>
 
-      {events.length === 0 ? (
-        <p className="text-muted-foreground">No events recorded yet.</p>
-      ) : (
-        <ul className="space-y-3">
-          {events.map((event) => (
-            <li
-              key={event.id}
-              className="flex items-start gap-4 rounded-lg border p-4"
-            >
-              <span
-                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeClass(event.type)}`}
-              >
-                {event.type}
-              </span>
-              <div className="flex-1">
-                <p className="text-sm">{event.message}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {new Date(event.created_at).toLocaleString()}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
+      <FilterBar activeFilter={entityFilter} onFilterChange={setEntityFilter} />
+
+      {isLoading && (
+        <div className="flex items-center justify-center p-12 text-muted">
+          <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
+          Loading events...
+        </div>
       )}
+
+      {error && (
+        <Card className="border-red-300">
+          <CardContent className="p-6 text-red-600">
+            Failed to load events. Please retry.
+          </CardContent>
+        </Card>
+      )}
+
+      {!isLoading && !error && <EventTable events={events} />}
     </div>
+  );
+}
+
+interface FilterBarProps {
+  activeFilter: EntityFilter;
+  onFilterChange: (filter: EntityFilter) => void;
+}
+
+function FilterBar({ activeFilter, onFilterChange }: FilterBarProps): JSX.Element {
+  return (
+    <Card>
+      <CardContent className="flex items-center gap-3 p-4">
+        <Filter className="h-4 w-4 text-muted" />
+        <span className="text-sm font-medium text-muted">Entity Type:</span>
+        <div className="flex flex-wrap gap-2">
+          {ENTITY_FILTERS.map((filter) => (
+            <Button
+              key={filter}
+              size="sm"
+              variant={activeFilter === filter ? 'default' : 'outline'}
+              onClick={() => onFilterChange(filter)}
+            >
+              {filter === 'all' ? 'All' : filter.charAt(0).toUpperCase() + filter.slice(1)}
+            </Button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+interface EventTableProps {
+  events: DashboardEventRecord[];
+}
+
+function EventTable({ events }: EventTableProps): JSX.Element {
+  if (events.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center text-muted">
+          No events match the current filter.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Events ({events.length})</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Timestamp</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Entity</TableHead>
+              <TableHead>Actor</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {events.map((event) => (
+              <TableRow key={event.id}>
+                <TableCell className="whitespace-nowrap text-xs text-muted">
+                  {new Date(event.created_at).toLocaleString()}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={eventTypeBadgeVariant(event.type)}>{event.type}</Badge>
+                </TableCell>
+                <TableCell>
+                  <span className="text-sm">
+                    <span className="font-medium">{event.entity_type}</span>
+                    {event.entity_id && (
+                      <span className="ml-1 text-muted">({event.entity_id.slice(0, 8)})</span>
+                    )}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <span className={cn('text-sm', event.actor_id ? '' : 'text-muted')}>
+                    {event.actor_type}
+                    {event.actor_id && <span className="ml-1 text-muted">({event.actor_id.slice(0, 8)})</span>}
+                  </span>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }

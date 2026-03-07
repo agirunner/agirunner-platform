@@ -1,24 +1,317 @@
-import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
-import { dashboardApi } from '../../lib/api.js';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useParams, Link } from 'react-router-dom';
+import {
+  Loader2,
+  CheckCircle,
+  XCircle,
+  RotateCcw,
+  Clock,
+  DollarSign,
+  User,
+  Cpu,
+  Workflow,
+  Download,
+} from 'lucide-react';
+import { dashboardApi, type DashboardTaskArtifactRecord, type DashboardEventRecord } from '../../lib/api.js';
+import { cn } from '../../lib/utils.js';
+import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from '../../components/ui/tabs.js';
 
 interface Task {
   id: string;
-  title: string;
+  name?: string;
+  title?: string;
   status: string;
-  assigned_worker: string | null;
-  description?: string;
-  created_at: string;
-  updated_at: string;
+  state?: string;
+  role?: string;
+  agent_id?: string;
+  agent_name?: string;
+  assigned_worker?: string;
+  worker_id?: string;
   workflow_id?: string;
-  output?: string;
+  workflow_name?: string;
+  created_at: string;
+  started_at?: string;
+  completed_at?: string;
+  duration_seconds?: number;
+  cost?: number;
+  output?: unknown;
+  description?: string;
 }
 
-function normalizeData(response: { data: Task } | Task): Task {
-  if ('data' in response && !('id' in response)) {
-    return (response as { data: Task }).data;
+function normalizeTask(response: unknown): Task {
+  const wrapped = response as { data?: unknown };
+  if (wrapped?.data && typeof wrapped.data === 'object' && 'id' in (wrapped.data as object)) {
+    return wrapped.data as Task;
   }
   return response as Task;
+}
+
+function resolveStatus(task: Task): string {
+  return (task.status ?? task.state ?? 'unknown').toLowerCase();
+}
+
+function statusBadgeVariant(status: string) {
+  const map: Record<string, 'success' | 'default' | 'destructive' | 'warning' | 'secondary'> = {
+    completed: 'success',
+    running: 'default',
+    failed: 'destructive',
+    paused: 'warning',
+    pending: 'secondary',
+    awaiting_approval: 'warning',
+  };
+  return map[status] ?? 'secondary';
+}
+
+function formatTimestamp(value?: string): string {
+  if (!value) return '-';
+  return new Date(value).toLocaleString();
+}
+
+function formatDuration(task: Task): string {
+  if (task.duration_seconds !== undefined && task.duration_seconds !== null) {
+    const s = task.duration_seconds;
+    if (s < 60) return `${Math.round(s)}s`;
+    return `${Math.floor(s / 60)}m ${Math.round(s % 60)}s`;
+  }
+  if (!task.started_at) return '-';
+  const start = new Date(task.started_at).getTime();
+  const end = task.completed_at ? new Date(task.completed_at).getTime() : Date.now();
+  const seconds = (end - start) / 1000;
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function InfoCard({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+}): JSX.Element {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 text-sm text-muted">
+          <Icon className="h-4 w-4" />
+          {label}
+        </div>
+        <p className="mt-1 text-sm font-medium">{value}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TaskActionButtons({ task }: { task: Task }): JSX.Element {
+  const queryClient = useQueryClient();
+  const status = resolveStatus(task);
+  const isAwaitingApproval = status === 'awaiting_approval';
+  const isFailed = status === 'failed';
+  const isRunning = status === 'running';
+
+  const approveMutation = useMutation({
+    mutationFn: () => dashboardApi.approveTask(task.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task', task.id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: () => dashboardApi.rejectTask(task.id, { feedback: 'Rejected from dashboard' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task', task.id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+
+  const retryMutation = useMutation({
+    mutationFn: () => dashboardApi.retryTask(task.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task', task.id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: () => dashboardApi.cancelTask(task.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task', task.id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+
+  const isActionPending =
+    approveMutation.isPending ||
+    rejectMutation.isPending ||
+    retryMutation.isPending ||
+    cancelMutation.isPending;
+
+  return (
+    <div className="flex gap-2">
+      {isAwaitingApproval && (
+        <>
+          <Button
+            size="sm"
+            disabled={isActionPending}
+            onClick={() => approveMutation.mutate()}
+          >
+            <CheckCircle className="h-4 w-4" />
+            Approve
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            disabled={isActionPending}
+            onClick={() => rejectMutation.mutate()}
+          >
+            <XCircle className="h-4 w-4" />
+            Reject
+          </Button>
+        </>
+      )}
+      {isFailed && (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={isActionPending}
+          onClick={() => retryMutation.mutate()}
+        >
+          <RotateCcw className="h-4 w-4" />
+          Retry
+        </Button>
+      )}
+      {isRunning && (
+        <Button
+          variant="destructive"
+          size="sm"
+          disabled={isActionPending}
+          onClick={() => cancelMutation.mutate()}
+        >
+          <XCircle className="h-4 w-4" />
+          Cancel
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function OutputSection({ output }: { output: unknown }): JSX.Element {
+  if (output === undefined || output === null) {
+    return <p className="text-sm text-muted">No output available.</p>;
+  }
+
+  const formatted = typeof output === 'string' ? output : JSON.stringify(output, null, 2);
+
+  return (
+    <pre className="overflow-x-auto rounded-md border bg-border/10 p-4 text-xs">
+      <code>{formatted}</code>
+    </pre>
+  );
+}
+
+function EventLog({ taskId }: { taskId: string }): JSX.Element {
+  const { data, isLoading } = useQuery({
+    queryKey: ['events', 'task', taskId],
+    queryFn: () => dashboardApi.listEvents({ entity_type: 'task', entity_id: taskId }),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 py-4 text-sm text-muted">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading events...
+      </div>
+    );
+  }
+
+  const events: DashboardEventRecord[] = data?.data ?? [];
+
+  if (events.length === 0) {
+    return <p className="text-sm text-muted">No execution events recorded.</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {events.map((event) => (
+        <div key={event.id} className="flex items-start gap-3 rounded-md border p-3 text-sm">
+          <div className="min-w-0 flex-1">
+            <p className="font-medium capitalize">{event.type.replace(/_/g, ' ')}</p>
+            <p className="text-xs text-muted">{new Date(event.created_at).toLocaleString()}</p>
+            {event.data && Object.keys(event.data).length > 0 && (
+              <pre className="mt-1 overflow-x-auto text-xs text-muted">
+                {JSON.stringify(event.data, null, 2)}
+              </pre>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ArtifactList({ taskId }: { taskId: string }): JSX.Element {
+  const { data, isLoading } = useQuery({
+    queryKey: ['task-artifacts', taskId],
+    queryFn: () => dashboardApi.listTaskArtifacts(taskId),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 py-4 text-sm text-muted">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading artifacts...
+      </div>
+    );
+  }
+
+  const artifacts: DashboardTaskArtifactRecord[] = data ?? [];
+
+  if (artifacts.length === 0) {
+    return <p className="text-sm text-muted">No artifacts produced by this task.</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {artifacts.map((artifact) => (
+        <div
+          key={artifact.id}
+          className="flex items-center justify-between rounded-md border p-3"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">{artifact.logical_path}</p>
+            <p className="text-xs text-muted">
+              {artifact.content_type} &middot; {formatFileSize(artifact.size_bytes)}
+            </p>
+          </div>
+          <a
+            href={artifact.download_url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Button variant="ghost" size="sm">
+              <Download className="h-4 w-4" />
+            </Button>
+          </a>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function TaskDetailPage(): JSX.Element {
@@ -30,82 +323,104 @@ export function TaskDetailPage(): JSX.Element {
     enabled: Boolean(id),
   });
 
-  if (isLoading) return <div className="p-4">Loading...</div>;
-  if (error) return <div className="p-4 text-destructive">Error loading data</div>;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted" />
+      </div>
+    );
+  }
 
-  const task = normalizeData(data);
+  if (error) {
+    return (
+      <div className="p-6 text-red-600">Failed to load task. Please try again later.</div>
+    );
+  }
 
-  const isAwaitingApproval = task.status === 'awaiting_approval';
-  const isFailed = task.status === 'failed';
+  const task = normalizeTask(data);
+  const status = resolveStatus(task);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{task.title}</h1>
-        <div className="flex gap-2">
-          {isAwaitingApproval && (
-            <>
-              <button
-                type="button"
-                className="rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
-              >
-                Approve
-              </button>
-              <button
-                type="button"
-                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-              >
-                Reject
-              </button>
-            </>
-          )}
-          {isFailed && (
-            <button
-              type="button"
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              Retry
-            </button>
-          )}
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold">{task.title ?? task.name ?? task.id}</h1>
+          <Badge variant={statusBadgeVariant(status)} className="capitalize">
+            {status.replace(/_/g, ' ')}
+          </Badge>
         </div>
+        <TaskActionButtons task={task} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground">Status</p>
-          <p className="mt-1 text-lg font-medium capitalize">
-            {task.status.replace('_', ' ')}
-          </p>
-        </div>
-        <div className="rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground">Assigned Worker</p>
-          <p className="mt-1 text-lg font-medium">
-            {task.assigned_worker ?? 'Unassigned'}
-          </p>
-        </div>
-        <div className="rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground">Created</p>
-          <p className="mt-1 text-lg font-medium">
-            {new Date(task.created_at).toLocaleString()}
-          </p>
-        </div>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <InfoCard
+          icon={User}
+          label="Assigned Agent"
+          value={task.agent_name ?? task.agent_id ?? 'Unassigned'}
+        />
+        <InfoCard
+          icon={Cpu}
+          label="Worker"
+          value={task.assigned_worker ?? task.worker_id ?? 'Unassigned'}
+        />
+        <InfoCard
+          icon={Workflow}
+          label="Workflow"
+          value={task.workflow_name ?? task.workflow_id ?? '-'}
+        />
+        <InfoCard icon={User} label="Role" value={task.role ?? '-'} />
+        <InfoCard icon={Clock} label="Created" value={formatTimestamp(task.created_at)} />
+        <InfoCard icon={Clock} label="Started" value={formatTimestamp(task.started_at)} />
+        <InfoCard icon={Clock} label="Completed" value={formatTimestamp(task.completed_at)} />
+        <InfoCard
+          icon={DollarSign}
+          label="Cost"
+          value={
+            task.cost !== undefined && task.cost !== null ? `$${task.cost.toFixed(2)}` : '-'
+          }
+        />
       </div>
 
-      {task.description && (
-        <section>
-          <h2 className="text-lg font-medium mb-2">Description</h2>
-          <p className="text-muted-foreground">{task.description}</p>
-        </section>
-      )}
+      <Tabs defaultValue="output">
+        <TabsList>
+          <TabsTrigger value="output">Output</TabsTrigger>
+          <TabsTrigger value="logs">Execution Logs</TabsTrigger>
+          <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
+        </TabsList>
 
-      {task.output && (
-        <section>
-          <h2 className="text-lg font-medium mb-2">Output</h2>
-          <pre className="rounded-lg border bg-muted p-4 text-sm overflow-x-auto">
-            {task.output}
-          </pre>
-        </section>
-      )}
+        <TabsContent value="output">
+          <Card>
+            <CardHeader>
+              <CardTitle>Task Output</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <OutputSection output={task.output} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="logs">
+          <Card>
+            <CardHeader>
+              <CardTitle>Execution Logs</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <EventLog taskId={task.id} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="artifacts">
+          <Card>
+            <CardHeader>
+              <CardTitle>Artifacts</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ArtifactList taskId={task.id} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -96,9 +96,9 @@ async function verifyJwtIdentity(request: FastifyRequest, token: string): Promis
   });
 }
 
-async function verifyUserJwtIdentity(request: FastifyRequest, claims: UserJwtClaims): Promise<ApiKeyIdentity> {
-  const result = await request.server.pgPool.query<{ id: string; is_active: boolean; role: string }>(
-    'SELECT id, is_active, role FROM users WHERE id = $1 AND tenant_id = $2',
+async function verifyUserJwtIdentity(request: FastifyRequest, claims: UserJwtClaims & { iat?: number }): Promise<ApiKeyIdentity> {
+  const result = await request.server.pgPool.query<{ id: string; is_active: boolean; role: string; updated_at: Date }>(
+    'SELECT id, is_active, role, updated_at FROM users WHERE id = $1 AND tenant_id = $2',
     [claims.userId, claims.tenantId],
   );
 
@@ -107,6 +107,13 @@ async function verifyUserJwtIdentity(request: FastifyRequest, claims: UserJwtCla
   }
 
   const user = result.rows[0];
+
+  if (claims.iat) {
+    const tokenIssuedAt = new Date(claims.iat * 1000);
+    if (user.updated_at > tokenIssuedAt) {
+      throw new UnauthorizedError('Token invalidated by password change');
+    }
+  }
 
   return {
     id: user.id,

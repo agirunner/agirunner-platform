@@ -238,6 +238,44 @@ describe('FleetService', () => {
     });
   });
 
+  describe('pruneStaleContainers', () => {
+    it('removes containers with exited or dead status for the tenant', async () => {
+      pool.query.mockResolvedValueOnce({ rowCount: 3 });
+
+      const removed = await service.pruneStaleContainers(TENANT_ID);
+
+      expect(removed).toBe(3);
+      const sql = pool.query.mock.calls[0][0] as string;
+      expect(sql).toContain('DELETE FROM worker_actual_state');
+      expect(sql).toContain('container_status IN');
+      const params = pool.query.mock.calls[0][1] as string[];
+      expect(params).toContain('exited');
+      expect(params).toContain('dead');
+    });
+
+    it('returns zero when no stale containers exist', async () => {
+      pool.query.mockResolvedValueOnce({ rowCount: 0 });
+
+      const removed = await service.pruneStaleContainers(TENANT_ID);
+
+      expect(removed).toBe(0);
+    });
+  });
+
+  describe('requestImagePull', () => {
+    it('inserts an image pull request record', async () => {
+      pool.query.mockResolvedValueOnce({ rowCount: 1 });
+
+      await service.requestImagePull('agirunner-runtime', 'v2.0');
+
+      const sql = pool.query.mock.calls[0][0] as string;
+      expect(sql).toContain('INSERT INTO container_images');
+      const params = pool.query.mock.calls[0][1] as string[];
+      expect(params[0]).toBe('agirunner-runtime');
+      expect(params[1]).toBe('v2.0');
+    });
+  });
+
   describe('reportActualState', () => {
     it('upserts actual state via ON CONFLICT', async () => {
       pool.query.mockResolvedValueOnce({ rowCount: 1 });

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { withRole } from '../../auth/rbac.js';
@@ -79,6 +79,87 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
       });
     },
   );
+
+  app.get('/api/v1/auth/sso/:provider', async (request, reply) => {
+    const { provider } = request.params as { provider: string };
+    const { getSSOProviderConfig, buildAuthorizationUrl } = await import('../../auth/sso-provider.js');
+
+    const config = getSSOProviderConfig(provider);
+    if (!config) {
+      reply.status(400);
+      return { error: `SSO provider '${provider}' is not configured` };
+    }
+
+    const state = randomBytes(32).toString('hex');
+    reply.setCookie(`sso_state_${provider}`, state, {
+      path: '/',
+      httpOnly: true,
+      maxAge: 300,
+      sameSite: 'lax',
+    });
+
+    const url = buildAuthorizationUrl(provider, config, state);
+    return reply.redirect(url);
+  });
+
+  app.get('/api/v1/auth/sso/:provider/callback', async (request, reply) => {
+    const { provider } = request.params as { provider: string };
+    const { code, state } = request.query as { code?: string; state?: string };
+    const { getSSOProviderConfig, exchangeCodeForUser } = await import('../../auth/sso-provider.js');
+
+    if (!code) {
+      reply.status(400);
+      return { error: 'Missing authorization code' };
+    }
+
+    const cookieName = `sso_state_${provider}`;
+    const savedState = (request.cookies as Record<string, string>)?.[cookieName];
+    if (!savedState || savedState !== state) {
+      reply.status(403);
+      return { error: 'Invalid state parameter' };
+    }
+    reply.clearCookie(cookieName, { path: '/' });
+
+    const config = getSSOProviderConfig(provider);
+    if (!config) {
+      reply.status(400);
+      return { error: `SSO provider '${provider}' is not configured` };
+    }
+
+    const ssoUser = await exchangeCodeForUser(provider, config, code);
+
+    const ssoUserService = new UserService(app.pgPool);
+    const tenantId = request.auth?.tenantId ?? DEFAULT_TENANT_ID;
+    const user = await ssoUserService.findOrCreateFromSSO(
+      tenantId,
+      ssoUser.provider,
+      ssoUser.providerUserId,
+      ssoUser.email,
+      ssoUser.displayName,
+    );
+
+    const scope = roleToScope(user.role);
+    const accessToken = await issueUserAccessToken(app, {
+      userId: user.id,
+      tenantId: user.tenantId,
+      role: user.role,
+      scope,
+      email: user.email,
+    });
+    const refreshToken = await issueUserRefreshToken(app, {
+      userId: user.id,
+      tenantId: user.tenantId,
+      role: user.role,
+      scope,
+      email: user.email,
+      tokenId: randomUUID(),
+    });
+
+    const dashboardUrl = process.env['AGIRUNNER_DASHBOARD_URL'] ?? 'http://localhost:3000';
+    return reply.redirect(
+      `${dashboardUrl}/auth/callback?access_token=${accessToken}&refresh_token=${refreshToken}`,
+    );
+  });
 
   app.get(
     '/api/v1/users',

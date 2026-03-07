@@ -106,3 +106,7 @@ func (c *noopDockerClient) RemoveContainer(_ context.Context, containerID string
 func (c *noopDockerClient) ListImages(_ context.Context) ([]reconciler.ContainerImage, error) {
 	return nil, nil
 }
+
+func (c *noopDockerClient) GetContainerStats(_ context.Context, _ string) (*reconciler.ContainerStats, error) {
+	return nil, nil
+}

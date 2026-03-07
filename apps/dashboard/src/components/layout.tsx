@@ -8,17 +8,24 @@ import {
   ChevronRight,
   Clipboard,
   Cog,
+  Container,
+  Database,
   FileText,
   FolderOpen,
   Gauge,
+  HardDrive,
   Key,
   LayoutDashboard,
+  Link2,
+  Lock,
   LogOut,
   Moon,
+  ScrollText,
   Search,
   Server,
   Shield,
   Sun,
+  Timer,
   Users,
   Workflow,
 } from 'lucide-react';
@@ -62,7 +69,8 @@ const NAV_SECTIONS: NavSection[] = [
     icon: FolderOpen,
     items: [
       { label: 'All Projects', href: '/projects', icon: FolderOpen },
-      { label: 'Memory Browser', href: '/projects/memory', icon: FileText },
+      { label: 'Memory Browser', href: '/projects/memory', icon: Database },
+      { label: 'Content Browser', href: '/projects/content', icon: FileText },
     ],
   },
   {
@@ -71,9 +79,10 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Templates', href: '/config/templates', icon: FileText },
       { label: 'Role Definitions', href: '/config/roles', icon: Users },
+      { label: 'Platform Instructions', href: '/config/instructions', icon: ScrollText },
       { label: 'LLM Providers', href: '/config/llm', icon: Cog },
       { label: 'Runtimes', href: '/config/runtimes', icon: Server },
-      { label: 'Integrations', href: '/config/integrations', icon: Box },
+      { label: 'Integrations', href: '/config/integrations', icon: Link2 },
     ],
   },
   {
@@ -82,7 +91,8 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Workers', href: '/fleet/workers', icon: Server },
       { label: 'Agents', href: '/fleet/agents', icon: Users },
-      { label: 'Docker', href: '/fleet/docker', icon: Box },
+      { label: 'Docker', href: '/fleet/docker', icon: Container },
+      { label: 'Warm Pools', href: '/fleet/warm-pools', icon: HardDrive },
     ],
   },
   {
@@ -90,7 +100,10 @@ const NAV_SECTIONS: NavSection[] = [
     icon: Shield,
     items: [
       { label: 'Audit Log', href: '/governance/audit', icon: Shield },
+      { label: 'Retention Policy', href: '/governance/retention', icon: Timer },
+      { label: 'Legal Holds', href: '/governance/legal-holds', icon: Lock },
       { label: 'API Keys', href: '/governance/api-keys', icon: Key },
+      { label: 'Orchestrator Grants', href: '/governance/grants', icon: Link2 },
       { label: 'User Management', href: '/governance/users', icon: Users },
     ],
   },

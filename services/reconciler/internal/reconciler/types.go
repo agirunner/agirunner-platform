@@ -62,6 +62,14 @@ type SecurityEvent struct {
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
+// ContainerStats holds resource usage metrics returned by Docker stats.
+type ContainerStats struct {
+	CPUPercent  float64
+	MemoryBytes uint64
+	RxBytes     uint64
+	TxBytes     uint64
+}
+
 // ContainerResourceMetrics holds per-container resource usage stats.
 type ContainerResourceMetrics struct {
 	ContainerID      string  `json:"container_id"`

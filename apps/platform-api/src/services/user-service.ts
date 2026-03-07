@@ -1,11 +1,9 @@
 import { z } from 'zod';
-import bcrypt from 'bcryptjs';
+import argon2 from 'argon2';
 
 import type { DatabasePool } from '../db/database.js';
 import type { RbacRole } from '../auth/rbac.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
-
-const BCRYPT_COST = 12;
 
 const emailSchema = z.string().email().max(255);
 
@@ -95,7 +93,7 @@ export class UserService {
     if (existing.rowCount) throw new ConflictError('Email already registered');
 
     const passwordHash = validated.password
-      ? await bcrypt.hash(validated.password, BCRYPT_COST)
+      ? await argon2.hash(validated.password, { type: argon2.argon2id })
       : null;
 
     const result = await this.pool.query<UserRow>(
@@ -154,18 +152,18 @@ export class UserService {
     );
 
     if (!result.rowCount || !result.rows[0].password_hash) {
-      await bcrypt.hash(password, BCRYPT_COST);
+      await argon2.hash(password, { type: argon2.argon2id });
       throw new NotFoundError('Invalid credentials');
     }
 
     const user = result.rows[0];
 
     if (!user.is_active) {
-      await bcrypt.hash(password, BCRYPT_COST);
+      await argon2.hash(password, { type: argon2.argon2id });
       throw new NotFoundError('Invalid credentials');
     }
 
-    const valid = await bcrypt.compare(password, user.password_hash!);
+    const valid = await argon2.verify(user.password_hash!, password);
     if (!valid) {
       throw new NotFoundError('Invalid credentials');
     }
@@ -181,7 +179,7 @@ export class UserService {
   async changePassword(tenantId: string, userId: string, newPassword: string): Promise<void> {
     z.string().min(8).max(128).parse(newPassword);
 
-    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
+    const passwordHash = await argon2.hash(newPassword, { type: argon2.argon2id });
     const result = await this.pool.query(
       'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE tenant_id = $2 AND id = $3',
       [passwordHash, tenantId, userId],
