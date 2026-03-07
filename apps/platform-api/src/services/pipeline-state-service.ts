@@ -4,12 +4,14 @@ import { NotFoundError } from '../errors/domain-errors.js';
 import { derivePipelineState } from '../orchestration/pipeline-engine.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { EventService } from './event-service.js';
+import { ProjectTimelineService } from './project-timeline-service.js';
 
 export class PipelineStateService {
   constructor(
     private readonly pool: DatabasePool,
     private readonly eventService: EventService,
     private readonly artifactRetentionService?: ArtifactRetentionService,
+    private readonly projectTimelineService?: ProjectTimelineService,
   ) {}
 
   async recomputePipelineState(
@@ -68,6 +70,11 @@ export class PipelineStateService {
       ['completed', 'failed', 'cancelled'].includes(derivedState)
     ) {
       await this.artifactRetentionService?.purgePipelineArtifactsOnTerminalState(
+        tenantId,
+        pipelineId,
+        client,
+      );
+      await this.projectTimelineService?.recordPipelineTerminalState(
         tenantId,
         pipelineId,
         client,

@@ -334,4 +334,143 @@ describe('pipeline phase control routes', () => {
     expect(taskReload.json().data.input.clarification_history).toHaveLength(1);
     expect(taskReload.json().data.output).toBeNull();
   });
+
+  it('chains a planning pipeline into an execution pipeline and records project timeline summaries', async () => {
+    const executionTemplate = await app.inject({
+      method: 'POST',
+      url: '/api/v1/templates',
+      headers: { authorization: `Bearer ${adminKey}` },
+      payload: {
+        name: 'Execution Template',
+        slug: `execution-template-${Date.now()}`,
+        schema: {
+          tasks: [{ id: 'build', title_template: 'Build sprint {{sprint}}', type: 'code' }],
+        },
+      },
+    });
+    expect(executionTemplate.statusCode).toBe(201);
+
+    const projectResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/projects',
+      headers: { authorization: `Bearer ${adminKey}` },
+      payload: {
+        name: 'Timeline Project',
+        slug: `timeline-project-${Date.now()}`,
+      },
+    });
+    const projectId = projectResponse.json().data.id as string;
+
+    const planningPipelineResponse = await app.inject({
+      method: 'POST',
+      url: `/api/v1/projects/${projectId}/planning-pipeline`,
+      headers: { authorization: `Bearer ${adminKey}` },
+      payload: {
+        brief: 'Plan sprint one for a billing dashboard.',
+      },
+    });
+    expect(planningPipelineResponse.statusCode).toBe(201);
+    const planningPipelineId = planningPipelineResponse.json().data.id as string;
+    const planningTaskId = planningPipelineResponse.json().data.tasks[0].id as string;
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/claim',
+      headers: { authorization: `Bearer ${agentKey}` },
+      payload: {
+        agent_id: agentId,
+        capabilities: ['workflow'],
+        pipeline_id: planningPipelineId,
+      },
+    });
+    await app.inject({
+      method: 'POST',
+      url: `/api/v1/tasks/${planningTaskId}/start`,
+      headers: { authorization: `Bearer ${agentKey}` },
+      payload: { agent_id: agentId },
+    });
+    await app.inject({
+      method: 'POST',
+      url: `/api/v1/tasks/${planningTaskId}/complete`,
+      headers: { authorization: `Bearer ${agentKey}` },
+      payload: {
+        agent_id: agentId,
+        output: {
+          suggested_plan: {
+            template: executionTemplate.json().data.id,
+            parameters: { sprint: 1 },
+          },
+        },
+      },
+    });
+
+    await app.inject({
+      method: 'POST',
+      url: `/api/v1/pipelines/${planningPipelineId}/phases/planning/gate`,
+      headers: { authorization: `Bearer ${adminKey}` },
+      payload: { action: 'approve' },
+    });
+
+    const chainedPipelineResponse = await app.inject({
+      method: 'POST',
+      url: `/api/v1/pipelines/${planningPipelineId}/chain`,
+      headers: { authorization: `Bearer ${adminKey}` },
+      payload: { name: 'Execution Sprint 1' },
+    });
+    expect(chainedPipelineResponse.statusCode).toBe(201);
+    expect(chainedPipelineResponse.json().data.project_id).toBe(projectId);
+    expect(chainedPipelineResponse.json().data.metadata.chain_source_pipeline_id).toBe(
+      planningPipelineId,
+    );
+
+    const chainedPipelineId = chainedPipelineResponse.json().data.id as string;
+    const chainedTaskId = chainedPipelineResponse.json().data.tasks[0].id as string;
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/claim',
+      headers: { authorization: `Bearer ${agentKey}` },
+      payload: {
+        agent_id: agentId,
+        capabilities: ['workflow'],
+        pipeline_id: chainedPipelineId,
+      },
+    });
+    await app.inject({
+      method: 'POST',
+      url: `/api/v1/tasks/${chainedTaskId}/start`,
+      headers: { authorization: `Bearer ${agentKey}` },
+      payload: { agent_id: agentId },
+    });
+    await app.inject({
+      method: 'POST',
+      url: `/api/v1/tasks/${chainedTaskId}/complete`,
+      headers: { authorization: `Bearer ${agentKey}` },
+      payload: {
+        agent_id: agentId,
+        output: { delivered: true },
+      },
+    });
+
+    const timelineResponse = await app.inject({
+      method: 'GET',
+      url: `/api/v1/projects/${projectId}/timeline`,
+      headers: { authorization: `Bearer ${agentKey}` },
+    });
+    expect(timelineResponse.statusCode).toBe(200);
+    expect(timelineResponse.json().data).toHaveLength(2);
+    expect(
+      timelineResponse.json().data.some(
+        (entry: Record<string, unknown>) =>
+          entry.pipeline_id === planningPipelineId &&
+          (entry.chain as Record<string, unknown>).child_pipeline_ids?.includes(chainedPipelineId),
+      ),
+    ).toBe(true);
+    expect(
+      timelineResponse.json().data.some(
+        (entry: Record<string, unknown>) =>
+          entry.pipeline_id === chainedPipelineId &&
+          (entry.chain as Record<string, unknown>).source_pipeline_id === planningPipelineId,
+      ),
+    ).toBe(true);
+  });
 });

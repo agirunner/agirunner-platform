@@ -104,6 +104,12 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
     return { data: project };
   });
 
+  app.get('/api/v1/projects/:id/timeline', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
+    const params = request.params as { id: string };
+    const timeline = await pipelineService.getProjectTimeline(request.auth!.tenantId, params.id);
+    return { data: timeline };
+  });
+
   app.get('/api/v1/projects/:id/spec', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
     const params = request.params as { id: string };
     const query = request.query as { version?: string };

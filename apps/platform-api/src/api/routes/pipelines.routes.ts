@@ -6,6 +6,7 @@ import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { EventService } from '../../services/event-service.js';
 import { listPipelineDocuments } from '../../services/document-reference-service.js';
+import { PipelineChainingService } from '../../services/pipeline-chaining-service.js';
 import { PipelineService } from '../../services/pipeline-service.js';
 
 const pipelineCreateSchema = z.object({
@@ -28,6 +29,10 @@ const phaseGateSchema = z.object({
   override_input: z.record(z.unknown()).optional(),
 });
 
+const pipelineChainSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+});
+
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
     return result.data;
@@ -42,6 +47,7 @@ export const pipelineRoutes: FastifyPluginAsync = async (app) => {
     app.config,
     app.workerConnectionHub,
   );
+  const pipelineChainingService = new PipelineChainingService(app.pgPool, pipelineService);
 
   app.post('/api/v1/pipelines', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request, reply) => {
     const body = parseOrThrow(pipelineCreateSchema.safeParse(request.body));
@@ -109,6 +115,13 @@ export const pipelineRoutes: FastifyPluginAsync = async (app) => {
     const body = parseOrThrow(manualReworkSchema.safeParse(request.body));
     const pipeline = await pipelineService.manualReworkPipeline(request.auth!, params.id, body.feedback);
     return { data: pipeline };
+  });
+
+  app.post('/api/v1/pipelines/:id/chain', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request, reply) => {
+    const params = request.params as { id: string };
+    const body = parseOrThrow(pipelineChainSchema.safeParse(request.body ?? {}));
+    const pipeline = await pipelineChainingService.chainPipelineFromSuggestedPlan(request.auth!, params.id, body);
+    return reply.status(201).send({ data: pipeline });
   });
 
   app.post('/api/v1/pipelines/:id/phases/:name/gate', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {

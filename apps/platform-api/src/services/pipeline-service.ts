@@ -13,6 +13,7 @@ import { PipelineControlService } from './pipeline-control-service.js';
 import { PipelineCreationService } from './pipeline-creation-service.js';
 import { EventService } from './event-service.js';
 import { PipelineStateService } from './pipeline-state-service.js';
+import { ProjectTimelineService } from './project-timeline-service.js';
 import type { WorkerConnectionHub } from './worker-connection-hub.js';
 import type {
   CreatePipelineInput,
@@ -24,6 +25,7 @@ export class PipelineService {
   private readonly creationService: PipelineCreationService;
   private readonly cancellationService: PipelineCancellationService;
   private readonly controlService: PipelineControlService;
+  private readonly projectTimelineService: ProjectTimelineService;
 
   constructor(
     private readonly pool: DatabasePool,
@@ -31,11 +33,17 @@ export class PipelineService {
     config: PipelineServiceConfig,
     connectionHub?: WorkerConnectionHub,
   ) {
+    this.projectTimelineService = new ProjectTimelineService(pool);
     const artifactRetentionService = new ArtifactRetentionService(
       pool,
       createArtifactStorage(buildArtifactStorageConfig(config)),
     );
-    const stateService = new PipelineStateService(pool, eventService, artifactRetentionService);
+    const stateService = new PipelineStateService(
+      pool,
+      eventService,
+      artifactRetentionService,
+      this.projectTimelineService,
+    );
     this.creationService = new PipelineCreationService({
       pool,
       eventService,
@@ -250,5 +258,9 @@ export class PipelineService {
 
   cancelPhase(identity: ApiKeyIdentity, pipelineId: string, phaseName: string) {
     return this.controlService.cancelPhase(identity, pipelineId, phaseName);
+  }
+
+  getProjectTimeline(tenantId: string, projectId: string) {
+    return this.projectTimelineService.getProjectTimeline(tenantId, projectId);
   }
 }
