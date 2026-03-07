@@ -20,6 +20,8 @@ export const envSchema = z
     AGENT_KEY_EXPIRY_MS: z.coerce.number().int().min(1).default(31536000000),
     AGENT_HEARTBEAT_TOLERANCE_MS: z.coerce.number().int().min(1).default(2000),
     TASK_DEFAULT_TIMEOUT_MINUTES: z.coerce.number().int().min(1).default(30),
+    TASK_MAX_SUBTASK_DEPTH: z.coerce.number().int().min(1).default(3),
+    TASK_MAX_SUBTASKS_PER_PARENT: z.coerce.number().int().min(1).default(20),
     TASK_DEFAULT_AUTO_RETRY: z
       .enum(['true', 'false'])
       .transform((value) => value === 'true')

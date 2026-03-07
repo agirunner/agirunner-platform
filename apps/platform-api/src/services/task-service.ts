@@ -13,6 +13,7 @@ import { TaskTimeoutService } from './task-timeout-service.js';
 import type { CreateTaskInput, ListTaskQuery, TaskServiceConfig } from './task-service.types.js';
 import type { WorkerConnectionHub } from './worker-connection-hub.js';
 import { TaskWriteService } from './task-write-service.js';
+import { OrchestratorGrantService } from './orchestrator-grant-service.js';
 
 const DEFAULT_CANCEL_SIGNAL_GRACE_PERIOD_MS = 60_000;
 
@@ -100,10 +101,13 @@ export class TaskService {
     };
 
     this.queryService = new TaskQueryService(pool);
+    const orchestratorGrantService = new OrchestratorGrantService(pool, eventService);
     this.writeService = new TaskWriteService({
       pool,
       eventService,
       config,
+      hasOrchestratorPermission: orchestratorGrantService.hasPermission.bind(orchestratorGrantService),
+      subtaskPermission: orchestratorGrantService.subtaskPermission(),
       loadTaskOrThrow: this.queryService.loadTaskOrThrow.bind(this.queryService),
       toTaskResponse: this.queryService.toTaskResponse.bind(this.queryService),
     });

@@ -10,6 +10,8 @@ const tenantId = '00000000-0000-0000-0000-000000000001';
 
 const config = {
   TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+  TASK_MAX_SUBTASK_DEPTH: 3,
+  TASK_MAX_SUBTASKS_PER_PARENT: 2,
   TASK_DEFAULT_AUTO_RETRY: false,
   TASK_DEFAULT_MAX_RETRIES: 0,
 };
@@ -134,6 +136,97 @@ describe('task lifecycle bulk coverage', () => {
 
     const listed = await taskService.listTasks(tenantId, { page: 1, per_page: 10, parent_id: parent.id as string });
     expect((listed.data as Array<Record<string, unknown>>).map((row) => row.id)).toContain(child.id);
+  });
+
+  it('enforces configured sub-task depth and per-parent count limits', async () => {
+    const root = await taskService.createTask(
+      { ...admin, scope: 'worker', keyPrefix: 'worker-depth-1' },
+      { title: 'root', type: 'code' },
+    );
+    const childA = await taskService.createTask(
+      { ...admin, scope: 'worker', keyPrefix: 'worker-depth-2' },
+      { title: 'child-a', type: 'code', parent_id: root.id as string },
+    );
+    await taskService.createTask(
+      { ...admin, scope: 'worker', keyPrefix: 'worker-depth-3' },
+      { title: 'child-b', type: 'code', parent_id: root.id as string },
+    );
+
+    await expect(
+      taskService.createTask(
+        { ...admin, scope: 'worker', keyPrefix: 'worker-depth-4' },
+        { title: 'child-c', type: 'code', parent_id: root.id as string },
+      ),
+    ).rejects.toMatchObject({ statusCode: 400 });
+
+    const grandchild = await taskService.createTask(
+      { ...admin, scope: 'worker', keyPrefix: 'worker-depth-5' },
+      { title: 'grandchild', type: 'code', parent_id: childA.id as string },
+    );
+    expect(grandchild.parent_id).toBe(childA.id);
+
+    await expect(
+      taskService.createTask(
+        { ...admin, scope: 'worker', keyPrefix: 'worker-depth-6' },
+        { title: 'great-grandchild', type: 'code', parent_id: grandchild.id as string },
+      ),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('allows delegated sub-task creation only when an active orchestrator grant exists', async () => {
+    const ownerAgentId = randomUUID();
+    const delegatedAgentId = randomUUID();
+    const pipelineId = randomUUID();
+    const parentTaskId = randomUUID();
+
+    await db.pool.query(
+      `INSERT INTO pipelines (id, tenant_id, name, state)
+       VALUES ($1,$2,'grant-scope','active')`,
+      [pipelineId, tenantId],
+    );
+    await db.pool.query(
+      `INSERT INTO agents (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds)
+       VALUES ($1,$2,'owner-agent',ARRAY['coordination'],'idle',30),
+              ($3,$2,'delegated-agent',ARRAY['coordination'],'idle',30)`,
+      [ownerAgentId, tenantId, delegatedAgentId],
+    );
+    await db.pool.query(
+      `INSERT INTO tasks (id, tenant_id, pipeline_id, title, type, state, assigned_agent_id)
+       VALUES ($1,$2,$3,'parent','code','running',$4)`,
+      [parentTaskId, tenantId, pipelineId, ownerAgentId],
+    );
+
+    const delegatedIdentity = {
+      id: 'delegated',
+      tenantId,
+      scope: 'agent' as const,
+      ownerType: 'agent',
+      ownerId: delegatedAgentId,
+      keyPrefix: 'delegated',
+    };
+
+    await expect(
+      taskService.createTask(delegatedIdentity, {
+        title: 'child-without-grant',
+        type: 'code',
+        parent_id: parentTaskId,
+      }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+
+    await db.pool.query(
+      `INSERT INTO orchestrator_grants (tenant_id, agent_id, pipeline_id, permissions)
+       VALUES ($1,$2,$3,$4::text[])`,
+      [tenantId, delegatedAgentId, pipelineId, ['create_subtasks']],
+    );
+
+    const created = await taskService.createTask(delegatedIdentity, {
+      title: 'child-with-grant',
+      type: 'code',
+      parent_id: parentTaskId,
+    });
+
+    expect(created.parent_id).toBe(parentTaskId);
+    expect(created.pipeline_id).toBe(pipelineId);
   });
 
   it('covers FR-012a/FR-025/FR-026 one claimed task per agent and priority FIFO matching', async () => {

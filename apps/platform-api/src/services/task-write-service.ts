@@ -1,6 +1,6 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
-import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
 import type { CreateTaskInput, TaskServiceConfig } from './task-service.types.js';
 
@@ -8,9 +8,28 @@ interface TaskWriteDependencies {
   pool: DatabasePool;
   eventService: EventService;
   config: TaskServiceConfig;
+  hasOrchestratorPermission: (
+    tenantId: string,
+    agentId: string,
+    pipelineId: string,
+    permission: string,
+  ) => Promise<boolean>;
+  subtaskPermission: string;
   loadTaskOrThrow: (tenantId: string, taskId: string) => Promise<Record<string, unknown>>;
   toTaskResponse: (task: Record<string, unknown>) => Record<string, unknown>;
 }
+
+interface ParentTaskRow {
+  id: string;
+  pipeline_id: string | null;
+  project_id: string | null;
+  assigned_agent_id: string | null;
+  assigned_worker_id: string | null;
+  parent_id: string | null;
+}
+
+const DEFAULT_MAX_SUBTASK_DEPTH = 3;
+const DEFAULT_MAX_SUBTASKS_PER_PARENT = 20;
 
 export class TaskWriteService {
   constructor(private readonly deps: TaskWriteDependencies) {}
@@ -18,7 +37,11 @@ export class TaskWriteService {
   async createTask(identity: ApiKeyIdentity, input: CreateTaskInput) {
     if (!input.title?.trim()) throw new ValidationError('title is required');
 
-    const dependencies = input.depends_on ?? [];
+    const normalizedInput = input.parent_id
+      ? await this.applyParentTaskPolicies(identity, input)
+      : input;
+
+    const dependencies = normalizedInput.depends_on ?? [];
     if (dependencies.length > 0) {
       const check = await this.deps.pool.query(
         'SELECT id FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[])',
@@ -31,9 +54,9 @@ export class TaskWriteService {
     const initialState =
       dependencies.length > 0 ? 'pending' : input.requires_approval ? 'awaiting_approval' : 'ready';
     const metadata = {
-      ...(input.metadata ?? {}),
-      ...(input.description ? { description: input.description } : {}),
-      ...(input.parent_id ? { parent_id: input.parent_id } : {}),
+      ...(normalizedInput.metadata ?? {}),
+      ...(normalizedInput.description ? { description: normalizedInput.description } : {}),
+      ...(normalizedInput.parent_id ? { parent_id: normalizedInput.parent_id } : {}),
     };
 
     const insertResult = await this.deps.pool.query(
@@ -45,26 +68,26 @@ export class TaskWriteService {
       RETURNING *`,
       [
         identity.tenantId,
-        input.pipeline_id ?? null,
-        input.project_id ?? null,
-        input.title,
-        input.type,
-        input.role ?? null,
-        input.priority ?? 'normal',
+        normalizedInput.pipeline_id ?? null,
+        normalizedInput.project_id ?? null,
+        normalizedInput.title,
+        normalizedInput.type,
+        normalizedInput.role ?? null,
+        normalizedInput.priority ?? 'normal',
         initialState,
         dependencies,
-        input.requires_approval ?? false,
-        input.input ?? {},
-        input.context ?? {},
-        input.capabilities_required ?? [],
-        input.role_config ?? null,
-        input.environment ?? null,
-        input.resource_bindings ?? [],
-        input.timeout_minutes ?? this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES,
-        input.token_budget ?? null,
-        input.cost_cap_usd ?? null,
-        input.auto_retry ?? this.deps.config.TASK_DEFAULT_AUTO_RETRY,
-        input.max_retries ?? this.deps.config.TASK_DEFAULT_MAX_RETRIES,
+        normalizedInput.requires_approval ?? false,
+        normalizedInput.input ?? {},
+        normalizedInput.context ?? {},
+        normalizedInput.capabilities_required ?? [],
+        normalizedInput.role_config ?? null,
+        normalizedInput.environment ?? null,
+        normalizedInput.resource_bindings ?? [],
+        normalizedInput.timeout_minutes ?? this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES,
+        normalizedInput.token_budget ?? null,
+        normalizedInput.cost_cap_usd ?? null,
+        normalizedInput.auto_retry ?? this.deps.config.TASK_DEFAULT_AUTO_RETRY,
+        normalizedInput.max_retries ?? this.deps.config.TASK_DEFAULT_MAX_RETRIES,
         metadata,
       ],
     );
@@ -81,6 +104,106 @@ export class TaskWriteService {
     });
 
     return this.deps.toTaskResponse(task);
+  }
+
+  private async applyParentTaskPolicies(identity: ApiKeyIdentity, input: CreateTaskInput) {
+    const parentTask = await this.loadParentTask(identity.tenantId, input.parent_id as string);
+    await this.assertSubtaskDepth(identity.tenantId, parentTask);
+    await this.assertSubtaskCount(identity.tenantId, parentTask.id);
+    await this.assertParentPermission(identity, parentTask);
+
+    return {
+      ...input,
+      pipeline_id: input.pipeline_id ?? parentTask.pipeline_id ?? undefined,
+      project_id: input.project_id ?? parentTask.project_id ?? undefined,
+    };
+  }
+
+  private async loadParentTask(tenantId: string, parentId: string): Promise<ParentTaskRow> {
+    const result = await this.deps.pool.query<ParentTaskRow>(
+      `SELECT id, pipeline_id, project_id, assigned_agent_id, assigned_worker_id, metadata->>'parent_id' AS parent_id
+         FROM tasks
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [tenantId, parentId],
+    );
+    if (!result.rowCount) {
+      throw new NotFoundError('Parent task not found');
+    }
+    return result.rows[0];
+  }
+
+  private async assertSubtaskDepth(tenantId: string, parentTask: ParentTaskRow) {
+    const maxDepth = this.deps.config.TASK_MAX_SUBTASK_DEPTH ?? DEFAULT_MAX_SUBTASK_DEPTH;
+    let depth = 1;
+    let currentParentId = parentTask.parent_id;
+
+    while (currentParentId) {
+      depth += 1;
+      if (depth >= maxDepth) {
+        throw new ValidationError(`Sub-task depth limit of ${maxDepth} would be exceeded`);
+      }
+
+      const result = await this.deps.pool.query<{ parent_id: string | null }>(
+        `SELECT metadata->>'parent_id' AS parent_id
+           FROM tasks
+          WHERE tenant_id = $1
+            AND id = $2`,
+        [tenantId, currentParentId],
+      );
+      if (!result.rowCount) {
+        break;
+      }
+      currentParentId = result.rows[0].parent_id;
+    }
+  }
+
+  private async assertSubtaskCount(tenantId: string, parentId: string) {
+    const result = await this.deps.pool.query<{ total: string }>(
+      `SELECT COUNT(*)::text AS total
+         FROM tasks
+        WHERE tenant_id = $1
+          AND metadata->>'parent_id' = $2`,
+      [tenantId, parentId],
+    );
+    const count = Number(result.rows[0]?.total ?? '0');
+    const maxSubtasks =
+      this.deps.config.TASK_MAX_SUBTASKS_PER_PARENT ?? DEFAULT_MAX_SUBTASKS_PER_PARENT;
+    if (count >= maxSubtasks) {
+      throw new ValidationError(
+        `Sub-task count limit of ${maxSubtasks} would be exceeded`,
+      );
+    }
+  }
+
+  private async assertParentPermission(identity: ApiKeyIdentity, parentTask: ParentTaskRow) {
+    if (identity.scope === 'admin') {
+      return;
+    }
+
+    if (identity.scope === 'agent' && identity.ownerId === parentTask.assigned_agent_id) {
+      return;
+    }
+
+    if (identity.scope === 'worker' && identity.ownerId === parentTask.assigned_worker_id) {
+      return;
+    }
+
+    if (
+      identity.scope === 'agent' &&
+      identity.ownerId &&
+      parentTask.pipeline_id &&
+      (await this.deps.hasOrchestratorPermission(
+        identity.tenantId,
+        identity.ownerId,
+        parentTask.pipeline_id,
+        this.deps.subtaskPermission,
+      ))
+    ) {
+      return;
+    }
+
+    throw new ForbiddenError('Only the assigned parent owner or an active orchestrator grant can create sub-tasks');
   }
 
   async updateTask(tenantId: string, taskId: string, payload: Record<string, unknown>) {
