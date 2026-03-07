@@ -42,3 +42,33 @@ type ContainerImage struct {
 	Digest     *string `json:"digest"`
 	SizeBytes  *int64  `json:"size_bytes"`
 }
+
+// MeteringEvent represents a usage metering event to report to the platform.
+type MeteringEvent struct {
+	TaskID          string `json:"taskId"`
+	WorkerID        string `json:"workerId,omitempty"`
+	WallTimeMs      int64  `json:"wallTimeMs"`
+	CpuMs           int64  `json:"cpuMs,omitempty"`
+	MemoryPeakBytes int64  `json:"memoryPeakBytes,omitempty"`
+	NetworkBytes    int64  `json:"networkBytes,omitempty"`
+}
+
+// SecurityEvent represents a security-relevant event for audit logging.
+type SecurityEvent struct {
+	Type     string                 `json:"type"`
+	WorkerID string                 `json:"worker_id"`
+	Severity string                 `json:"severity"`
+	Message  string                 `json:"message"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// ContainerResourceMetrics holds per-container resource usage stats.
+type ContainerResourceMetrics struct {
+	ContainerID      string  `json:"container_id"`
+	DesiredStateID   string  `json:"desired_state_id"`
+	CPUUsagePercent  float64 `json:"cpu_usage_percent"`
+	MemoryUsageBytes int64   `json:"memory_usage_bytes"`
+	MemoryPeakBytes  int64   `json:"memory_peak_bytes"`
+	NetworkRxBytes   int64   `json:"network_rx_bytes"`
+	NetworkTxBytes   int64   `json:"network_tx_bytes"`
+}

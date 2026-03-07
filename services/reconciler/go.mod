@@ -1,6 +1,6 @@
 module agirunner-reconciler
 
-go 1.24
+go 1.22
 
 require (
 	github.com/docker/docker v28.0.4+incompatible

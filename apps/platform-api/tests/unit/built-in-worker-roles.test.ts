@@ -521,6 +521,7 @@ describe('FR-753: external agent preferred over built-in in dispatch', () => {
         runtime_type: 'internal',
         capabilities: ['llm-api'],
         task_load: 0,
+        quality_score: 1,
         created_at: now,
       },
       {
@@ -528,6 +529,7 @@ describe('FR-753: external agent preferred over built-in in dispatch', () => {
         runtime_type: 'external',
         capabilities: ['llm-api'],
         task_load: 0,
+        quality_score: 1,
         created_at: now,
       },
     ]);
@@ -545,6 +547,7 @@ describe('FR-753: external agent preferred over built-in in dispatch', () => {
         runtime_type: 'internal',
         capabilities: ['llm-api', 'role:developer'],
         task_load: 0,
+        quality_score: 1,
         created_at: now,
       },
     ]);

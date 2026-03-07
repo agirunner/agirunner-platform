@@ -11,6 +11,7 @@ export interface DispatchWorkerCandidate {
   capabilities: string[];
   runtime_type: string;
   task_load: number;
+  quality_score: number;
   created_at: Date;
 }
 
@@ -64,6 +65,7 @@ export async function findDispatchCandidateWorkers(
     `SELECT w.id,
             w.capabilities,
             w.runtime_type,
+            w.quality_score,
             w.created_at,
             COUNT(t.id) FILTER (WHERE t.state IN ('claimed','running')) AS task_load
      FROM workers w
@@ -71,9 +73,10 @@ export async function findDispatchCandidateWorkers(
      WHERE w.tenant_id = $1
        AND w.id = ANY($2::uuid[])
        AND w.status IN ('online','busy')
+       AND w.circuit_breaker_state <> 'open'
        AND w.capabilities @> $3::text[]
      GROUP BY w.id
-     ORDER BY task_load ASC, w.created_at ASC`,
+     ORDER BY w.quality_score DESC, task_load ASC, w.created_at ASC`,
     [tenantId, connectedWorkerIds, requiredCapabilities],
   );
 

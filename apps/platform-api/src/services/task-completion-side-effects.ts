@@ -4,12 +4,78 @@ import type { TaskState } from '../orchestration/task-state-machine.js';
 import { activateNextWorkflowPhase, readStoredWorkflow } from '../orchestration/workflow-runtime.js';
 import { EventService } from './event-service.js';
 
+export function validateOutputSchema(output: unknown, schema: Record<string, unknown>): string[] {
+  const errors: string[] = [];
+  if (!schema || typeof schema !== 'object') {
+    return errors;
+  }
+
+  const requiredFields = schema.required as string[] | undefined;
+  const properties = schema.properties as Record<string, Record<string, unknown>> | undefined;
+
+  if (!output || typeof output !== 'object') {
+    errors.push('Output must be an object');
+    return errors;
+  }
+
+  const outputRecord = output as Record<string, unknown>;
+
+  if (requiredFields) {
+    for (const field of requiredFields) {
+      if (!(field in outputRecord)) {
+        errors.push(`Missing required field: ${field}`);
+      }
+    }
+  }
+
+  if (properties) {
+    for (const [key, propSchema] of Object.entries(properties)) {
+      if (key in outputRecord && propSchema.type) {
+        const value = outputRecord[key];
+        const expectedType = propSchema.type as string;
+        if (expectedType === 'string' && typeof value !== 'string') {
+          errors.push(`Field ${key} must be a string`);
+        } else if (expectedType === 'number' && typeof value !== 'number') {
+          errors.push(`Field ${key} must be a number`);
+        } else if (expectedType === 'boolean' && typeof value !== 'boolean') {
+          errors.push(`Field ${key} must be a boolean`);
+        } else if (expectedType === 'array' && !Array.isArray(value)) {
+          errors.push(`Field ${key} must be an array`);
+        } else if (expectedType === 'object' && (typeof value !== 'object' || value === null || Array.isArray(value))) {
+          errors.push(`Field ${key} must be an object`);
+        }
+      }
+    }
+  }
+
+  return errors;
+}
+
 export async function applyTaskCompletionSideEffects(
   eventService: EventService,
   identity: ApiKeyIdentity,
   task: Record<string, unknown>,
   client: DatabaseClient,
 ) {
+  const outputSchema = asRecord((task.metadata as Record<string, unknown> | null)?.output_schema);
+  if (Object.keys(outputSchema).length > 0 && task.output) {
+    const validationErrors = validateOutputSchema(task.output, outputSchema);
+    if (validationErrors.length > 0) {
+      await eventService.emit(
+        {
+          tenantId: identity.tenantId,
+          type: 'task.output_validation_failed',
+          entityType: 'task',
+          entityId: task.id as string,
+          actorType: 'system',
+          actorId: 'schema_validator',
+          data: { errors: validationErrors },
+        },
+        client,
+      );
+    }
+  }
+
   const completedTaskId = task.id as string;
   const dependents = await client.query(
     `SELECT id, depends_on, requires_approval FROM tasks

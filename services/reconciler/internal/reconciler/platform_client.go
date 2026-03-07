@@ -1,6 +1,7 @@
 package reconciler
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -76,5 +77,94 @@ func (c *PlatformClient) ReportActualState(state ActualState) error {
 
 // ReportImage reports a discovered Docker image to the platform.
 func (c *PlatformClient) ReportImage(image ContainerImage) error {
+	return nil
+}
+
+// ReportMeteringEvent sends a metering event to the platform API.
+func (c *PlatformClient) ReportMeteringEvent(event MeteringEvent) error {
+	body, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("marshal metering event: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/v1/metering/events", c.baseURL)
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create metering request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("metering request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("metering API returned HTTP %d: %s", resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
+// ReportSecurityEvent sends a security event for audit logging.
+func (c *PlatformClient) ReportSecurityEvent(event SecurityEvent) error {
+	body, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("marshal security event: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/v1/audit/security-events", c.baseURL)
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create security event request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("security event request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("security event API returned HTTP %d: %s", resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
+// ReportCircuitBreakerOutcome reports a task outcome for quality scoring.
+func (c *PlatformClient) ReportCircuitBreakerOutcome(workerID, outcome, reason string) error {
+	payload := map[string]string{
+		"workerId": workerID,
+		"outcome":  outcome,
+		"reason":   reason,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal circuit breaker report: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/v1/circuit-breaker/report", c.baseURL)
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create circuit breaker request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("circuit breaker request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("circuit breaker API returned HTTP %d: %s", resp.StatusCode, string(respBody))
+	}
 	return nil
 }
