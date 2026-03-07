@@ -4,7 +4,8 @@ import { ForbiddenError, UnauthorizedError } from '../errors/domain-errors.js';
 import { setRequestAuthIdentity } from '../observability/request-context.js';
 import { DEFAULT_TENANT_ID } from '../db/seed.js';
 import { parseBearerToken, verifyApiKey, verifyJwtApiKeyIdentity, type ApiKeyIdentity } from './api-key.js';
-import { verifyJwt } from './jwt.js';
+import { verifyJwt, type UserJwtClaims } from './jwt.js';
+import { scopeToRole } from './rbac.js';
 import { enforceScope, type ApiKeyScope } from './scope.js';
 
 const ACCESS_COOKIE_NAME = 'agirunner_access_token';
@@ -60,18 +61,10 @@ function isJwtToken(token: string): boolean {
 }
 
 async function verifyJwtIdentity(request: FastifyRequest, token: string): Promise<ApiKeyIdentity> {
-  let claims: Omit<ApiKeyIdentity, 'id'> & {
-    keyId: string;
-    tokenType?: string;
-  };
+  let rawClaims: Record<string, unknown>;
 
   try {
-    claims = await verifyJwt<
-      Omit<ApiKeyIdentity, 'id'> & {
-        keyId: string;
-        tokenType?: string;
-      }
-    >(request.server, token);
+    rawClaims = await verifyJwt<Record<string, unknown>>(request.server, token);
   } catch (error) {
     const code =
       error && typeof error === 'object' && 'code' in error ? String(error.code) : undefined;
@@ -81,9 +74,17 @@ async function verifyJwtIdentity(request: FastifyRequest, token: string): Promis
     throw error;
   }
 
-  if (claims.tokenType === 'refresh') {
+  const tokenType = rawClaims.tokenType as string | undefined;
+
+  if (tokenType === 'refresh' || tokenType === 'user_refresh') {
     throw new UnauthorizedError('Access token required');
   }
+
+  if (tokenType === 'user_access') {
+    return verifyUserJwtIdentity(request, rawClaims as unknown as UserJwtClaims);
+  }
+
+  const claims = rawClaims as Omit<ApiKeyIdentity, 'id'> & { keyId: string };
 
   return verifyJwtApiKeyIdentity(request.server.pgPool, {
     keyId: claims.keyId,
@@ -93,6 +94,30 @@ async function verifyJwtIdentity(request: FastifyRequest, token: string): Promis
     ownerId: claims.ownerId,
     keyPrefix: claims.keyPrefix,
   });
+}
+
+async function verifyUserJwtIdentity(request: FastifyRequest, claims: UserJwtClaims): Promise<ApiKeyIdentity> {
+  const result = await request.server.pgPool.query<{ id: string; is_active: boolean; role: string }>(
+    'SELECT id, is_active, role FROM users WHERE id = $1 AND tenant_id = $2',
+    [claims.userId, claims.tenantId],
+  );
+
+  if (!result.rowCount || !result.rows[0].is_active) {
+    throw new UnauthorizedError('User account not found or inactive');
+  }
+
+  const user = result.rows[0];
+
+  return {
+    id: user.id,
+    tenantId: claims.tenantId,
+    scope: claims.scope,
+    ownerType: 'user',
+    ownerId: user.id,
+    keyPrefix: '',
+    role: user.role as import('./rbac.js').RbacRole,
+    userId: user.id,
+  };
 }
 
 export function withScope(requiredScope: ApiKeyScope) {

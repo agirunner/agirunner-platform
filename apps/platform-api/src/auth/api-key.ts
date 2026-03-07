@@ -18,6 +18,8 @@ export interface ApiKeyIdentity {
   ownerType: string;
   ownerId: string | null;
   keyPrefix: string;
+  role?: import('./rbac.js').RbacRole;
+  userId?: string;
 }
 
 export interface JwtApiKeyClaims {

@@ -59,6 +59,8 @@ export async function buildApp() {
       { envName: 'WEBHOOK_ENCRYPTION_KEY', required: true, minLength: 32, requireFileInProduction: true },
       { envName: 'DEFAULT_ADMIN_API_KEY', minLength: 1, requireFileInProduction: true },
       { envName: 'OPENAI_API_KEY', requireFileInProduction: true },
+      { envName: 'AGIRUNNER_ADMIN_EMAIL' },
+      { envName: 'AGIRUNNER_ADMIN_PASSWORD' },
     ],
     process.env,
   );

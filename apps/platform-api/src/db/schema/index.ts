@@ -32,3 +32,5 @@ export * from './runtime-defaults.js';
 export * from './worker-desired-state.js';
 export * from './worker-actual-state.js';
 export * from './container-images.js';
+export * from './users.js';
+export * from './user-identities.js';

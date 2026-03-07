@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import type pg from 'pg';
 
 import {
@@ -7,6 +9,7 @@ import {
 } from '../built-in/role-config.js';
 import { RoleDefinitionService } from '../services/role-definition-service.js';
 import { RuntimeDefaultsService } from '../services/runtime-defaults-service.js';
+import { UserService } from '../services/user-service.js';
 import { DEFAULT_TENANT_ID } from '../db/seed.js';
 
 /**
@@ -39,6 +42,8 @@ export async function seedConfigTables(pool: pg.Pool): Promise<void> {
   await seedRuntimeDefaults(defaultsService, rolesConfig);
 
   console.info('[config-seed] Configuration tables seeded from built-in-roles.json.');
+
+  await seedAdminUser(pool);
 }
 
 async function seedRoleDefinitions(
@@ -80,4 +85,32 @@ async function seedRuntimeDefaults(
     configType: 'number',
     description: 'Maximum number of rework attempts before permanently failing a task',
   });
+}
+
+async function seedAdminUser(pool: pg.Pool): Promise<void> {
+  const userService = new UserService(pool);
+
+  const existing = await userService.listUsers(DEFAULT_TENANT_ID);
+  if (existing.length > 0) {
+    return;
+  }
+
+  const email = process.env.AGIRUNNER_ADMIN_EMAIL ?? 'admin@localhost';
+  const password = process.env.AGIRUNNER_ADMIN_PASSWORD ?? randomBytes(16).toString('base64url');
+  const isGenerated = !process.env.AGIRUNNER_ADMIN_PASSWORD;
+
+  await userService.createUser(DEFAULT_TENANT_ID, {
+    email,
+    password,
+    displayName: 'Admin',
+    role: 'org_admin',
+  });
+
+  if (isGenerated) {
+    console.info(`[config-seed] Initial admin user created: ${email}`);
+    console.info(`[config-seed] Initial admin password: ${password}`);
+    console.info('[config-seed] Change this password immediately after first login.');
+  } else {
+    console.info(`[config-seed] Admin user created: ${email}`);
+  }
 }

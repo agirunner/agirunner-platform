@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 
+import type { RbacRole } from './rbac.js';
 import type { ApiKeyScope } from './scope.js';
 
 export interface JwtClaims {
@@ -9,6 +10,14 @@ export interface JwtClaims {
   ownerType: string;
   ownerId: string | null;
   keyPrefix: string;
+}
+
+export interface UserJwtClaims {
+  userId: string;
+  tenantId: string;
+  role: RbacRole;
+  scope: ApiKeyScope;
+  email: string;
 }
 
 export async function issueAccessToken(app: FastifyInstance, claims: JwtClaims): Promise<string> {
@@ -21,6 +30,20 @@ export async function issueRefreshToken(
 ): Promise<string> {
   return app.jwt.sign(
     { ...claims, tokenType: 'refresh' },
+    { expiresIn: app.config.JWT_REFRESH_EXPIRES_IN },
+  );
+}
+
+export async function issueUserAccessToken(app: FastifyInstance, claims: UserJwtClaims): Promise<string> {
+  return app.jwt.sign({ ...claims, tokenType: 'user_access' }, { expiresIn: app.config.JWT_EXPIRES_IN });
+}
+
+export async function issueUserRefreshToken(
+  app: FastifyInstance,
+  claims: UserJwtClaims & { tokenId: string },
+): Promise<string> {
+  return app.jwt.sign(
+    { ...claims, tokenType: 'user_refresh' },
     { expiresIn: app.config.JWT_REFRESH_EXPIRES_IN },
   );
 }
