@@ -16,6 +16,8 @@ coverage/
 # OS
 .DS_Store
 Thumbs.db
+__pycache__/
+*.pyc
 
 # Test artifacts
 # Canonical report summaries root: tests/reports/ (flat files only)
