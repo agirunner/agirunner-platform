@@ -1,32 +1,100 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import {
+  Activity,
+  Bell,
+  Box,
+  ChevronRight,
+  Clipboard,
+  Cog,
+  FileText,
+  FolderOpen,
+  Gauge,
+  Key,
+  LayoutDashboard,
+  LogOut,
+  Moon,
+  Search,
+  Server,
+  Shield,
+  Sun,
+  Users,
+  Workflow,
+} from 'lucide-react';
 
 import { dashboardApi, type DashboardSearchResult } from '../lib/api.js';
-import { readSession } from '../lib/session.js';
+import { readSession, clearSession } from '../lib/session.js';
+import { cn } from '../lib/utils.js';
+import { readTheme } from '../app/theme.js';
 
 interface LayoutProps {
   onToggleTheme: () => void;
 }
 
-interface BreadcrumbItem {
+interface NavSection {
   label: string;
-  href?: string;
+  icon: React.ElementType;
+  items: Array<{ label: string; href: string; icon: React.ElementType }>;
 }
 
-const SECTION_LABELS: Record<string, string> = {
-  workflows: 'Workflows',
-  projects: 'Projects',
-  templates: 'Templates',
-  tasks: 'Tasks',
-  workers: 'Workers',
-  integrations: 'Integrations',
-  governance: 'Governance',
-  'runtime-customization': 'Runtime Customization',
-  activity: 'Activity Feed',
-  'api-keys': 'API Keys',
-  metrics: 'System Metrics',
-};
+const NAV_SECTIONS: NavSection[] = [
+  {
+    label: 'Mission Control',
+    icon: Gauge,
+    items: [
+      { label: 'Live Board', href: '/mission-control', icon: LayoutDashboard },
+      { label: 'Activity Feed', href: '/mission-control/activity', icon: Activity },
+      { label: 'Alerts & Approvals', href: '/mission-control/alerts', icon: Bell },
+    ],
+  },
+  {
+    label: 'Work',
+    icon: Workflow,
+    items: [
+      { label: 'Workflows', href: '/work/workflows', icon: Workflow },
+      { label: 'Tasks', href: '/work/tasks', icon: Clipboard },
+      { label: 'Approval Queue', href: '/work/approvals', icon: Bell },
+    ],
+  },
+  {
+    label: 'Projects',
+    icon: FolderOpen,
+    items: [
+      { label: 'All Projects', href: '/projects', icon: FolderOpen },
+      { label: 'Memory Browser', href: '/projects/memory', icon: FileText },
+    ],
+  },
+  {
+    label: 'Configuration',
+    icon: Cog,
+    items: [
+      { label: 'Templates', href: '/config/templates', icon: FileText },
+      { label: 'Role Definitions', href: '/config/roles', icon: Users },
+      { label: 'LLM Providers', href: '/config/llm', icon: Cog },
+      { label: 'Runtimes', href: '/config/runtimes', icon: Server },
+      { label: 'Integrations', href: '/config/integrations', icon: Box },
+    ],
+  },
+  {
+    label: 'Fleet',
+    icon: Server,
+    items: [
+      { label: 'Workers', href: '/fleet/workers', icon: Server },
+      { label: 'Agents', href: '/fleet/agents', icon: Users },
+      { label: 'Docker', href: '/fleet/docker', icon: Box },
+    ],
+  },
+  {
+    label: 'Governance',
+    icon: Shield,
+    items: [
+      { label: 'Audit Log', href: '/governance/audit', icon: Shield },
+      { label: 'API Keys', href: '/governance/api-keys', icon: Key },
+      { label: 'User Management', href: '/governance/users', icon: Users },
+    ],
+  },
+];
 
 export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
   const navigate = useNavigate();
@@ -36,212 +104,239 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<DashboardSearchResult[]>([]);
-  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const isDark = readTheme() === 'dark';
 
-  const breadcrumbs = useMemo(() => buildBreadcrumbs(location.pathname), [location.pathname]);
+  const currentSection = useMemo(() => {
+    const path = location.pathname;
+    for (const section of NAV_SECTIONS) {
+      if (section.items.some((item) => path.startsWith(item.href))) {
+        return section.label;
+      }
+    }
+    return NAV_SECTIONS[0].label;
+  }, [location.pathname]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === '/' && !event.metaKey && !event.ctrlKey && !event.altKey) {
-        if (isEditableTarget(event.target)) {
-          return;
-        }
-
+      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
         event.preventDefault();
-        searchInputRef.current?.focus();
-        return;
+        setSearchOpen(true);
+        setTimeout(() => searchInputRef.current?.focus(), 0);
       }
-
-      if (isEditableTarget(event.target)) {
-        return;
-      }
-
-      if (event.altKey && event.key === '1') {
-        event.preventDefault();
-        navigate('/workflows');
-      } else if (event.altKey && event.key === '2') {
-        event.preventDefault();
-        navigate('/projects');
-      } else if (event.altKey && event.key === '3') {
-        event.preventDefault();
-        navigate('/workers');
-      } else if (event.altKey && event.key === '4') {
-        event.preventDefault();
-        navigate('/integrations');
-      } else if (event.altKey && event.key === '5') {
-        event.preventDefault();
-        navigate('/governance');
-      } else if (event.altKey && event.key === '6') {
-        event.preventDefault();
-        navigate('/runtime-customization');
-      } else if (event.shiftKey && event.key.toLowerCase() === 'r') {
-        event.preventDefault();
-        void queryClient.invalidateQueries();
-      } else if (event.shiftKey && event.key.toLowerCase() === 't') {
-        event.preventDefault();
-        onToggleTheme();
+      if (event.key === 'Escape') {
+        setSearchOpen(false);
       }
     };
 
     window.addEventListener('keydown', onKeyDown);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-    };
-  }, [navigate, onToggleTheme, queryClient]);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const submitSearch = async (): Promise<void> => {
     const query = searchQuery.trim();
-    if (query.length < 2) {
-      setSearchResults([]);
-      setSearchError('Enter at least 2 characters to search.');
-      return;
-    }
+    if (query.length < 2) return;
 
     try {
       const results = await dashboardApi.search(query);
       setSearchResults(results);
-      setSearchError(null);
       if (results.length === 1) {
         navigate(results[0].href);
+        setSearchOpen(false);
       }
     } catch {
-      setSearchError('Search failed. Try again.');
+      /* search failed silently */
     }
   };
 
   return (
-    <div className="layout">
-      <aside className="sidebar">
-        <div className="row" style={{ justifyContent: 'space-between' }}>
-          <strong>Agirunner</strong>
-          <button className="button" type="button" onClick={onToggleTheme}>
-            Theme
+    <div className="flex min-h-screen">
+      <aside className="flex w-60 flex-col border-r border-border bg-surface">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <span className="text-lg font-semibold">Agirunner</span>
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            className="rounded-md p-1.5 text-muted hover:bg-border/50"
+            aria-label="Toggle theme"
+          >
+            {isDark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
         </div>
-        <p className="muted">Tenant {session?.tenantId}</p>
-        <form
-          className="search-panel"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void submitSearch();
-          }}
-        >
-          <label htmlFor="dashboard-search">Global Search</label>
-          <div className="row">
-            <input
-              id="dashboard-search"
-              ref={searchInputRef}
-              className="input"
-              placeholder="Search workflows, tasks, workers, agents (/ to focus)"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+
+        <div className="px-3 py-2">
+          <button
+            type="button"
+            onClick={() => {
+              setSearchOpen(true);
+              setTimeout(() => searchInputRef.current?.focus(), 0);
+            }}
+            className="flex w-full items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm text-muted hover:bg-border/30"
+          >
+            <Search size={14} />
+            <span>Search...</span>
+            <kbd className="ml-auto rounded border border-border px-1.5 py-0.5 text-xs">
+              {'\u2318'}K
+            </kbd>
+          </button>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto px-2 py-1">
+          {NAV_SECTIONS.map((section) => (
+            <NavSectionGroup
+              key={section.label}
+              section={section}
+              isActive={currentSection === section.label}
             />
-            <button className="button" type="submit">
-              Go
-            </button>
-          </div>
-          {searchError ? <p className="muted">{searchError}</p> : null}
-          {searchResults.length > 0 ? (
-            <ul className="search-results">
-              {searchResults.map((result) => (
-                <li key={`${result.type}:${result.id}`}>
-                  <button
-                    type="button"
-                    className="button search-result-button"
-                    onClick={() => {
-                      navigate(result.href);
-                      setSearchResults([]);
-                    }}
-                  >
-                    <span>{result.label}</span>
-                    <span className="muted">
-                      {result.type} · {result.subtitle}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </form>
-        <nav>
-          <NavLink to="/workflows">Workflows</NavLink>
-          <NavLink to="/projects">Projects</NavLink>
-          <NavLink to="/templates">Templates</NavLink>
-          <NavLink to="/workers">Workers</NavLink>
-          <NavLink to="/integrations">Integrations</NavLink>
-          <NavLink to="/governance">Governance</NavLink>
-          <NavLink to="/runtime-customization">Runtime Customization</NavLink>
-          <NavLink to="/activity">Activity Feed</NavLink>
-          <NavLink to="/api-keys">API Keys</NavLink>
-          <NavLink to="/metrics">System Metrics</NavLink>
-        </nav>
-        <p className="muted shortcut-hint">
-          Shortcuts: Alt+1/2/3/4/5/6 navigate · Shift+R refresh · Shift+T theme
-        </p>
-        <button
-          className="button"
-          type="button"
-          onClick={() => {
-            void dashboardApi.logout().finally(() => {
-              queryClient.clear();
-              navigate('/login');
-            });
-          }}
-        >
-          Logout
-        </button>
-      </aside>
-      <main className="content">
-        <nav aria-label="Breadcrumb" className="breadcrumbs">
-          {breadcrumbs.map((crumb, index) => (
-            <span key={`${crumb.label}-${index}`} className="row" style={{ gap: '0.4rem' }}>
-              {crumb.href ? (
-                <NavLink to={crumb.href}>{crumb.label}</NavLink>
-              ) : (
-                <span>{crumb.label}</span>
-              )}
-              {index < breadcrumbs.length - 1 ? <span className="muted">/</span> : null}
-            </span>
           ))}
         </nav>
-        <Outlet />
+
+        <div className="border-t border-border p-3">
+          <div className="mb-2 text-xs text-muted">
+            {session?.tenantId ? `Tenant ${session.tenantId.slice(0, 8)}...` : ''}
+          </div>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm text-muted hover:bg-border/30"
+            onClick={() => {
+              void dashboardApi.logout().finally(() => {
+                clearSession();
+                queryClient.clear();
+                navigate('/login');
+              });
+            }}
+          >
+            <LogOut size={14} />
+            Logout
+          </button>
+        </div>
+      </aside>
+
+      <main className="flex-1 overflow-y-auto bg-background">
+        <div className="mx-auto max-w-7xl px-6 py-4">
+          <Outlet />
+        </div>
       </main>
+
+      {searchOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-24"
+          onClick={() => setSearchOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-lg border border-border bg-surface p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void submitSearch();
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <Search size={16} className="text-muted" />
+                <input
+                  ref={searchInputRef}
+                  className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted"
+                  placeholder="Search workflows, tasks, workers..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </form>
+            {searchResults.length > 0 && (
+              <ul className="mt-3 max-h-60 space-y-1 overflow-y-auto border-t border-border pt-2">
+                {searchResults.map((result) => (
+                  <li key={`${result.type}:${result.id}`}>
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between rounded-md px-3 py-2 text-sm hover:bg-border/30"
+                      onClick={() => {
+                        navigate(result.href);
+                        setSearchOpen(false);
+                      }}
+                    >
+                      <span>{result.label}</span>
+                      <span className="text-xs text-muted">{result.type}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-export function buildBreadcrumbs(pathname: string): BreadcrumbItem[] {
-  const segments = pathname.split('/').filter(Boolean);
-  if (segments.length === 0) {
-    return [{ label: 'Workflows', href: '/workflows' }];
-  }
+function NavSectionGroup({
+  section,
+  isActive,
+}: {
+  section: NavSection;
+  isActive: boolean;
+}): JSX.Element {
+  const [expanded, setExpanded] = useState(isActive);
+  const Icon = section.icon;
 
-  const crumbs: BreadcrumbItem[] = [];
-  let currentPath = '';
-
-  segments.forEach((segment, index) => {
-    currentPath += `/${segment}`;
-    const isIdSegment = index > 0 && !SECTION_LABELS[segment];
-
-    crumbs.push({
-      label: isIdSegment ? `${segment.slice(0, 8)}…` : (SECTION_LABELS[segment] ?? segment),
-      href: index === segments.length - 1 ? undefined : currentPath,
-    });
-  });
-
-  return crumbs;
+  return (
+    <div className="mb-1">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className={cn(
+          'flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium',
+          isActive ? 'text-accent' : 'text-foreground hover:bg-border/30',
+        )}
+      >
+        <Icon size={15} />
+        <span className="flex-1 text-left">{section.label}</span>
+        <ChevronRight
+          size={14}
+          className={cn('transition-transform', expanded && 'rotate-90')}
+        />
+      </button>
+      {expanded && (
+        <div className="ml-4 mt-0.5 space-y-0.5 border-l border-border pl-2">
+          {section.items.map((item) => (
+            <NavLink
+              key={item.href}
+              to={item.href}
+              className={({ isActive: active }) =>
+                cn(
+                  'flex items-center gap-2 rounded-md px-3 py-1 text-sm',
+                  active
+                    ? 'bg-accent/10 font-medium text-accent'
+                    : 'text-muted-foreground hover:bg-border/30 hover:text-foreground',
+                )
+              }
+            >
+              <item.icon size={13} />
+              {item.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) {
-    return false;
+export function buildBreadcrumbs(pathname: string): Array<{ label: string; href?: string }> {
+  const segments = pathname.split('/').filter(Boolean);
+  if (segments.length === 0) return [{ label: 'Home' }];
+
+  const crumbs: Array<{ label: string; href?: string }> = [];
+  let currentPath = '';
+
+  for (let i = 0; i < segments.length; i++) {
+    currentPath += `/${segments[i]}`;
+    crumbs.push({
+      label: segments[i].replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+      href: i === segments.length - 1 ? undefined : currentPath,
+    });
   }
 
-  if (target.isContentEditable) {
-    return true;
-  }
-
-  const tagName = target.tagName.toLowerCase();
-  return tagName === 'input' || tagName === 'textarea' || tagName === 'select';
+  return crumbs;
 }

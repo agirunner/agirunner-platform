@@ -3,23 +3,27 @@ import { describe, expect, it } from 'vitest';
 import { buildBreadcrumbs } from './layout.js';
 
 describe('layout breadcrumbs', () => {
-  it('maps root path to workflows breadcrumb', () => {
-    expect(buildBreadcrumbs('/')).toEqual([{ label: 'Workflows', href: '/workflows' }]);
+  it('maps root path to Home breadcrumb', () => {
+    expect(buildBreadcrumbs('/')).toEqual([{ label: 'Home' }]);
   });
 
-  it('creates labeled breadcrumbs for known sections', () => {
-    expect(buildBreadcrumbs('/workers')).toEqual([{ label: 'Workers', href: undefined }]);
-    expect(buildBreadcrumbs('/activity')).toEqual([{ label: 'Activity Feed', href: undefined }]);
-    expect(buildBreadcrumbs('/templates')).toEqual([{ label: 'Templates', href: undefined }]);
-    expect(buildBreadcrumbs('/runtime-customization')).toEqual([
-      { label: 'Runtime Customization', href: undefined },
+  it('creates labeled breadcrumbs for sections', () => {
+    expect(buildBreadcrumbs('/fleet/workers')).toEqual([
+      { label: 'Fleet', href: '/fleet' },
+      { label: 'Workers', href: undefined },
     ]);
   });
 
-  it('truncates id segments and keeps parent links navigable', () => {
-    const crumbs = buildBreadcrumbs('/workflows/12345678-aaaa-bbbb-cccc-0123456789ab');
-    expect(crumbs[0]).toEqual({ label: 'Workflows', href: '/workflows' });
-    expect(crumbs[1].label).toBe('12345678…');
-    expect(crumbs[1].href).toBeUndefined();
+  it('handles nested paths with id segments', () => {
+    const crumbs = buildBreadcrumbs('/work/workflows/12345678-aaaa');
+    expect(crumbs).toHaveLength(3);
+    expect(crumbs[0]).toEqual({ label: 'Work', href: '/work' });
+    expect(crumbs[1]).toEqual({ label: 'Workflows', href: '/work/workflows' });
+    expect(crumbs[2].href).toBeUndefined();
+  });
+
+  it('capitalizes and de-hyphenates segment labels', () => {
+    const crumbs = buildBreadcrumbs('/mission-control');
+    expect(crumbs[0].label).toBe('Mission Control');
   });
 });

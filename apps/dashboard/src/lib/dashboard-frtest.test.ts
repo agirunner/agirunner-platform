@@ -71,14 +71,12 @@ describe('FR-030: modern SPA structure', () => {
 
   it('app includes route definitions covering all major pages', () => {
     const source = readComponent('app/app.tsx');
-    expect(source).toContain('/workflows');
+    expect(source).toContain('/mission-control');
+    expect(source).toContain('/work/workflows');
     expect(source).toContain('/projects');
-    expect(source).toContain('/templates');
-    expect(source).toContain('/workers');
-    expect(source).toContain('/integrations');
-    expect(source).toContain('/governance');
-    expect(source).toContain('/runtime-customization');
-    expect(source).toContain('/metrics');
+    expect(source).toContain('/config/templates');
+    expect(source).toContain('/fleet/workers');
+    expect(source).toContain('/governance/audit');
     expect(source).toContain('/login');
   });
 
@@ -349,10 +347,10 @@ describe('FR-RT-1620..1625: guided runtime customization flow', () => {
     expect(formSource).toContain('Pending rollout');
   });
 
-  it('layout exposes runtime customization navigation in the existing sidebar', () => {
+  it('layout exposes runtime configuration navigation in the sidebar', () => {
     const source = readComponent('components/layout.tsx');
-    expect(source).toContain('/runtime-customization');
-    expect(source).toContain('Runtime Customization');
+    expect(source).toContain('/config/runtimes');
+    expect(source).toContain('Runtimes');
   });
 });
 
@@ -365,25 +363,19 @@ describe('FR-427: dashboard navigation and layout', () => {
     expect(source).toContain('export function DashboardLayout');
   });
 
-  it('layout includes navigation links to all major sections', () => {
+  it('layout includes navigation links to all 6 major sections', () => {
     const source = readComponent('components/layout.tsx');
-    expect(source).toContain('/workflows');
-    expect(source).toContain('/projects');
-    expect(source).toContain('/templates');
-    expect(source).toContain('/workers');
-    expect(source).toContain('/integrations');
-    expect(source).toContain('/governance');
-    expect(source).toContain('/metrics');
+    expect(source).toContain('Mission Control');
+    expect(source).toContain('Work');
+    expect(source).toContain('Projects');
+    expect(source).toContain('Configuration');
+    expect(source).toContain('Fleet');
+    expect(source).toContain('Governance');
   });
 
-  it('layout includes keyboard shortcuts for the expanded operator sections', () => {
+  it('layout includes Cmd+K keyboard shortcut for search', () => {
     const source = readComponent('components/layout.tsx');
-    expect(source).toContain("event.altKey && event.key === '1'");
-    expect(source).toContain("event.altKey && event.key === '2'");
-    expect(source).toContain("event.altKey && event.key === '3'");
-    expect(source).toContain("event.altKey && event.key === '4'");
-    expect(source).toContain("event.altKey && event.key === '5'");
-    expect(source).toContain("event.altKey && event.key === '6'");
+    expect(source).toContain("event.key === 'k'");
   });
 
   it('layout includes a logout control', () => {
