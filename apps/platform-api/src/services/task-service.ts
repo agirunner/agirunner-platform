@@ -1,5 +1,8 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
+import { buildArtifactStorageConfig } from '../content/storage-config.js';
+import { createArtifactStorage } from '../content/storage-factory.js';
 import type { DatabasePool } from '../db/database.js';
+import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { EventService } from './event-service.js';
 import { TaskClaimService } from './task-claim-service.js';
 import { TaskLifecycleService } from './task-lifecycle-service.js';
@@ -104,7 +107,15 @@ export class TaskService {
       toTaskResponse: this.queryService.toTaskResponse.bind(this.queryService),
     });
 
-    const pipelineStateService = new PipelineStateService(pool, eventService);
+    const artifactRetentionService = new ArtifactRetentionService(
+      pool,
+      createArtifactStorage(buildArtifactStorageConfig(config)),
+    );
+    const pipelineStateService = new PipelineStateService(
+      pool,
+      eventService,
+      artifactRetentionService,
+    );
     this.lifecycleService = new TaskLifecycleService({
       pool,
       eventService,
@@ -166,7 +177,11 @@ export class TaskService {
     return this.claimService.claimTask(identity, payload);
   }
 
-  startTask(identity: ApiKeyIdentity, taskId: string, payload: { agent_id?: string; worker_id?: string }) {
+  startTask(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: { agent_id?: string; worker_id?: string },
+  ) {
     return this.lifecycleService.startTask(identity, taskId, payload);
   }
 
@@ -222,7 +237,12 @@ export class TaskService {
   requestTaskChanges(
     identity: ApiKeyIdentity,
     taskId: string,
-    payload: { feedback: string; override_input?: Record<string, unknown>; preferred_agent_id?: string; preferred_worker_id?: string },
+    payload: {
+      feedback: string;
+      override_input?: Record<string, unknown>;
+      preferred_agent_id?: string;
+      preferred_worker_id?: string;
+    },
   ) {
     return this.lifecycleService.requestTaskChanges(identity, taskId, payload);
   }
@@ -239,11 +259,19 @@ export class TaskService {
     return this.lifecycleService.reassignTask(identity, taskId, payload);
   }
 
-  escalateTask(identity: ApiKeyIdentity, taskId: string, payload: { reason: string; escalation_target?: string }) {
+  escalateTask(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: { reason: string; escalation_target?: string },
+  ) {
     return this.lifecycleService.escalateTask(identity, taskId, payload);
   }
 
-  overrideTaskOutput(identity: ApiKeyIdentity, taskId: string, payload: { output: unknown; reason: string }) {
+  overrideTaskOutput(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: { output: unknown; reason: string },
+  ) {
     return this.lifecycleService.overrideTaskOutput(identity, taskId, payload);
   }
 

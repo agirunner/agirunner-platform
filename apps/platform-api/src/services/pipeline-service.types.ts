@@ -1,4 +1,5 @@
 import type { AppEnv } from '../config/schema.js';
+import type { ArtifactStorageEnv } from '../content/storage-config.js';
 
 export interface CreatePipelineInput {
   template_id: string;
@@ -19,4 +20,5 @@ export interface ListPipelineQuery {
 export type PipelineServiceConfig = Pick<
   AppEnv,
   'TASK_DEFAULT_TIMEOUT_MINUTES' | 'TASK_DEFAULT_AUTO_RETRY' | 'TASK_DEFAULT_MAX_RETRIES'
->;
+> &
+  ArtifactStorageEnv;

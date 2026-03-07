@@ -1,13 +1,20 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
+import { buildArtifactStorageConfig } from '../content/storage-config.js';
+import { createArtifactStorage } from '../content/storage-factory.js';
 import type { DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
+import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { PipelineCancellationService } from './pipeline-cancellation-service.js';
 import { PipelineControlService } from './pipeline-control-service.js';
 import { PipelineCreationService } from './pipeline-creation-service.js';
 import { EventService } from './event-service.js';
 import { PipelineStateService } from './pipeline-state-service.js';
-import type { CreatePipelineInput, ListPipelineQuery, PipelineServiceConfig } from './pipeline-service.types.js';
+import type {
+  CreatePipelineInput,
+  ListPipelineQuery,
+  PipelineServiceConfig,
+} from './pipeline-service.types.js';
 
 export class PipelineService {
   private readonly creationService: PipelineCreationService;
@@ -19,8 +26,17 @@ export class PipelineService {
     private readonly eventService: EventService,
     config: PipelineServiceConfig,
   ) {
-    const stateService = new PipelineStateService(pool, eventService);
-    this.creationService = new PipelineCreationService({ pool, eventService, stateService, config });
+    const artifactRetentionService = new ArtifactRetentionService(
+      pool,
+      createArtifactStorage(buildArtifactStorageConfig(config)),
+    );
+    const stateService = new PipelineStateService(pool, eventService, artifactRetentionService);
+    this.creationService = new PipelineCreationService({
+      pool,
+      eventService,
+      stateService,
+      config,
+    });
     this.cancellationService = new PipelineCancellationService({
       pool,
       eventService,
@@ -74,7 +90,12 @@ export class PipelineService {
 
     return {
       data: rows,
-      meta: { total, page: query.page, per_page: query.per_page, pages: Math.ceil(total / query.per_page) || 1 },
+      meta: {
+        total,
+        page: query.page,
+        per_page: query.per_page,
+        pages: Math.ceil(total / query.per_page) || 1,
+      },
     };
   }
 

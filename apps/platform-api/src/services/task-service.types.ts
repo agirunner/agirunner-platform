@@ -1,4 +1,5 @@
 import type { AppEnv } from '../config/schema.js';
+import type { ArtifactStorageEnv } from '../content/storage-config.js';
 
 export interface CreateTaskInput {
   title: string;
@@ -41,4 +42,4 @@ export type TaskServiceConfig = Pick<
   'TASK_DEFAULT_TIMEOUT_MINUTES' | 'TASK_DEFAULT_AUTO_RETRY' | 'TASK_DEFAULT_MAX_RETRIES'
 > & {
   TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS?: number;
-};
+} & ArtifactStorageEnv;

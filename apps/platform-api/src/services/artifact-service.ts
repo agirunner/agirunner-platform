@@ -6,6 +6,7 @@ import type { DatabasePool } from '../db/database.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import type { ArtifactStorageAdapter } from '../content/artifact-storage.js';
 import { DEFAULT_ARTIFACT_CONTENT_TYPE } from '../content/storage-config.js';
+import { ArtifactRetentionService } from './artifact-retention-service.js';
 
 interface ArtifactRow {
   id: string;
@@ -41,13 +42,18 @@ export interface ArtifactUploadInput {
 }
 
 export class ArtifactService {
+  private readonly retention: ArtifactRetentionService;
+
   constructor(
     private readonly pool: DatabasePool,
     private readonly storage: ArtifactStorageAdapter,
     private readonly accessUrlTtlSeconds: number,
-  ) {}
+  ) {
+    this.retention = new ArtifactRetentionService(pool, storage);
+  }
 
   async uploadTaskArtifact(identity: ApiKeyIdentity, taskId: string, input: ArtifactUploadInput) {
+    await this.retention.purgeExpiredArtifacts(identity.tenantId);
     const task = await this.loadTask(identity.tenantId, taskId);
     const relativePath = sanitizeArtifactPath(input.path);
     const payload = decodeArtifactPayload(input.contentBase64);
@@ -90,6 +96,7 @@ export class ArtifactService {
   }
 
   async listTaskArtifacts(tenantId: string, taskId: string, prefix?: string) {
+    await this.retention.purgeExpiredArtifacts(tenantId);
     await this.loadTask(tenantId, taskId);
     const rows = await this.pool.query<ArtifactRow>(
       `SELECT *
@@ -104,6 +111,7 @@ export class ArtifactService {
   }
 
   async downloadTaskArtifact(tenantId: string, taskId: string, artifactId: string) {
+    await this.retention.purgeExpiredArtifacts(tenantId);
     const row = await this.loadArtifact(tenantId, taskId, artifactId);
     const payload = await this.storage.getObject(row.storage_key);
     return {
@@ -114,6 +122,7 @@ export class ArtifactService {
   }
 
   async deleteTaskArtifact(identity: ApiKeyIdentity, taskId: string, artifactId: string) {
+    await this.retention.purgeExpiredArtifacts(identity.tenantId);
     const row = await this.loadArtifact(identity.tenantId, taskId, artifactId);
     await this.storage.deleteObject(row.storage_key);
     await this.pool.query('DELETE FROM pipeline_artifacts WHERE tenant_id = $1 AND id = $2', [

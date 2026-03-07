@@ -1,4 +1,5 @@
 import { mkdtemp, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -30,6 +31,7 @@ describe('task artifact routes', () => {
   let artifactRoot: string;
   let taskId: string;
   let pipelineId: string;
+  let agentId: string;
   const previousEnv: Record<string, string | undefined> = {};
 
   beforeAll(async () => {
@@ -66,7 +68,7 @@ describe('task artifact routes', () => {
 
     pipelineId = randomUUID();
     taskId = randomUUID();
-    const agentId = randomUUID();
+    agentId = randomUUID();
 
     await db.pool.query(
       `INSERT INTO pipelines (id, tenant_id, name, metadata, state)
@@ -183,5 +185,93 @@ describe('task artifact routes', () => {
 
     expect(emptyList.statusCode).toBe(200);
     expect(emptyList.json().data).toEqual([]);
+  });
+
+  it('purges expired artifacts before serving the list response', async () => {
+    const upload = await app.inject({
+      method: 'POST',
+      url: `/api/v1/tasks/${taskId}/artifacts`,
+      headers: { authorization: `Bearer ${agentKey}` },
+      payload: {
+        path: artifactRelativePath,
+        content_base64: Buffer.from(artifactPayload, 'utf8').toString('base64'),
+        content_type: artifactContentType,
+      },
+    });
+
+    expect(upload.statusCode).toBe(201);
+    const artifactId = upload.json().data.id as string;
+    const stored = await db.pool.query<{ storage_key: string }>(
+      'SELECT storage_key FROM pipeline_artifacts WHERE tenant_id = $1 AND id = $2',
+      [tenantId, artifactId],
+    );
+    await db.pool.query(
+      `UPDATE pipeline_artifacts
+          SET expires_at = now() - interval '1 day'
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [tenantId, artifactId],
+    );
+
+    const list = await app.inject({
+      method: 'GET',
+      url: `/api/v1/tasks/${taskId}/artifacts`,
+      headers: { authorization: `Bearer ${agentKey}` },
+    });
+
+    expect(list.statusCode).toBe(200);
+    expect(list.json().data).toEqual([]);
+    expect(stored.rowCount).toBe(1);
+    expect(existsSync(path.join(artifactRoot, stored.rows[0].storage_key))).toBe(false);
+  });
+
+  it('purges ephemeral pipeline artifacts when the pipeline becomes terminal', async () => {
+    const upload = await app.inject({
+      method: 'POST',
+      url: `/api/v1/tasks/${taskId}/artifacts`,
+      headers: { authorization: `Bearer ${agentKey}` },
+      payload: {
+        path: artifactRelativePath,
+        content_base64: Buffer.from(artifactPayload, 'utf8').toString('base64'),
+        content_type: artifactContentType,
+      },
+    });
+
+    expect(upload.statusCode).toBe(201);
+    const artifactId = upload.json().data.id as string;
+    const stored = await db.pool.query<{ storage_key: string }>(
+      'SELECT storage_key FROM pipeline_artifacts WHERE tenant_id = $1 AND id = $2',
+      [tenantId, artifactId],
+    );
+    await db.pool.query(
+      `UPDATE pipeline_artifacts
+          SET retention_policy = $3::jsonb
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [
+        tenantId,
+        artifactId,
+        JSON.stringify({ mode: 'ephemeral', destroy_on_pipeline_complete: true }),
+      ],
+    );
+
+    const complete = await app.inject({
+      method: 'POST',
+      url: `/api/v1/tasks/${taskId}/complete`,
+      headers: { authorization: `Bearer ${agentKey}` },
+      payload: {
+        output: { ok: true },
+        agent_id: agentId,
+      },
+    });
+
+    expect(complete.statusCode).toBe(200);
+    const artifacts = await db.pool.query(
+      'SELECT id FROM pipeline_artifacts WHERE tenant_id = $1 AND pipeline_id = $2',
+      [tenantId, pipelineId],
+    );
+    expect(artifacts.rows).toEqual([]);
+    expect(stored.rowCount).toBe(1);
+    expect(existsSync(path.join(artifactRoot, stored.rows[0].storage_key))).toBe(false);
   });
 });

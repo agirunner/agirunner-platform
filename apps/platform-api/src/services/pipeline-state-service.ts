@@ -2,24 +2,35 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 
 import { NotFoundError } from '../errors/domain-errors.js';
 import { derivePipelineState } from '../orchestration/pipeline-engine.js';
+import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { EventService } from './event-service.js';
 
 export class PipelineStateService {
   constructor(
     private readonly pool: DatabasePool,
     private readonly eventService: EventService,
+    private readonly artifactRetentionService?: ArtifactRetentionService,
   ) {}
 
   async recomputePipelineState(
     tenantId: string,
     pipelineId: string,
     client?: DatabaseClient,
-    actor: { actorType: string; actorId?: string } = { actorType: 'system', actorId: 'pipeline_state_deriver' },
+    actor: { actorType: string; actorId?: string } = {
+      actorType: 'system',
+      actorId: 'pipeline_state_deriver',
+    },
   ) {
     const db = client ?? this.pool;
     const [pipelineRes, taskStatesRes] = await Promise.all([
-      db.query('SELECT id, state, started_at, completed_at FROM pipelines WHERE tenant_id = $1 AND id = $2', [tenantId, pipelineId]),
-      db.query('SELECT state FROM tasks WHERE tenant_id = $1 AND pipeline_id = $2', [tenantId, pipelineId]),
+      db.query(
+        'SELECT id, state, started_at, completed_at FROM pipelines WHERE tenant_id = $1 AND id = $2',
+        [tenantId, pipelineId],
+      ),
+      db.query('SELECT state FROM tasks WHERE tenant_id = $1 AND pipeline_id = $2', [
+        tenantId,
+        pipelineId,
+      ]),
     ]);
 
     if (!pipelineRes.rowCount) {
@@ -41,6 +52,17 @@ export class PipelineStateService {
        WHERE tenant_id = $1 AND id = $2`,
       [tenantId, pipelineId, derivedState, setStartedAt, setCompletedAt],
     );
+
+    if (
+      previousState !== derivedState &&
+      ['completed', 'failed', 'cancelled'].includes(derivedState)
+    ) {
+      await this.artifactRetentionService?.purgePipelineArtifactsOnTerminalState(
+        tenantId,
+        pipelineId,
+        client,
+      );
+    }
 
     if (previousState !== derivedState) {
       await this.eventService.emit(
