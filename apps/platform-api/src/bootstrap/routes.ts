@@ -8,6 +8,7 @@ import { executeRoutes } from '../api/routes/execute.routes.js';
 import { healthRoutes } from '../api/routes/health.routes.js';
 import { pipelineRoutes } from '../api/routes/pipelines.routes.js';
 import { taskRoutes } from '../api/routes/tasks.routes.js';
+import { taskArtifactRoutes } from '../api/routes/task-artifacts.routes.js';
 import { templateRoutes } from '../api/routes/templates.routes.js';
 import { webhookRoutes } from '../api/routes/webhooks.routes.js';
 import { workerRoutes } from '../api/routes/workers.routes.js';
@@ -19,6 +20,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(authRoutes);
   await app.register(apiKeyRoutes);
   await app.register(taskRoutes);
+  await app.register(taskArtifactRoutes);
   await app.register(executeRoutes);
   await app.register(agentRoutes);
   await app.register(workerRoutes);

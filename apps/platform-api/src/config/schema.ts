@@ -5,7 +5,9 @@ export const envSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(8080),
   DATABASE_URL: z.string().min(1),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters long'),
-  WEBHOOK_ENCRYPTION_KEY: z.string().min(32, 'WEBHOOK_ENCRYPTION_KEY must be at least 32 characters long'),
+  WEBHOOK_ENCRYPTION_KEY: z
+    .string()
+    .min(32, 'WEBHOOK_ENCRYPTION_KEY must be at least 32 characters long'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   JWT_EXPIRES_IN: z.string().default('1h'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
@@ -22,6 +24,9 @@ export const envSchema = z.object({
     .transform((value) => value === 'true')
     .default('false'),
   TASK_DEFAULT_MAX_RETRIES: z.coerce.number().int().min(0).default(0),
+  ARTIFACT_STORAGE_BACKEND: z.enum(['local', 's3', 'gcs', 'azure']).default('local'),
+  ARTIFACT_LOCAL_ROOT: z.string().min(1).default('/tmp/agentbaton-platform-artifacts'),
+  ARTIFACT_ACCESS_URL_TTL_SECONDS: z.coerce.number().int().min(1).default(900),
   TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS: z.coerce.number().int().min(1).default(60000),
   WORKER_WEBSOCKET_PATH: z.string().min(1).default('/api/v1/events'),
   EVENT_STREAM_PATH: z.string().min(1).default('/api/v1/events/stream'),

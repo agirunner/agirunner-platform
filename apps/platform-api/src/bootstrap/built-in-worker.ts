@@ -21,6 +21,7 @@
 
 import http from 'node:http';
 import https from 'node:https';
+import path from 'node:path';
 import { WebSocket } from 'ws';
 
 import {
@@ -213,7 +214,9 @@ function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
-function buildRuntimeGitInfo(runtimeResult: Record<string, unknown>): Record<string, unknown> | undefined {
+function buildRuntimeGitInfo(
+  runtimeResult: Record<string, unknown>,
+): Record<string, unknown> | undefined {
   const gitCommit = asString(runtimeResult['git_commit']);
   const filesChanged = Array.isArray(runtimeResult['files_changed'])
     ? (runtimeResult['files_changed'] as unknown[]).filter(
@@ -227,7 +230,12 @@ function buildRuntimeGitInfo(runtimeResult: Record<string, unknown>): Record<str
       )
     : [];
 
-  if (!gitCommit && filesChanged.length === 0 && artifacts.length === 0 && runtimeResult['git_push_ok'] === undefined) {
+  if (
+    !gitCommit &&
+    filesChanged.length === 0 &&
+    artifacts.length === 0 &&
+    runtimeResult['git_push_ok'] === undefined
+  ) {
     return undefined;
   }
 
@@ -240,7 +248,10 @@ function buildRuntimeGitInfo(runtimeResult: Record<string, unknown>): Record<str
   };
 }
 
-function buildRuntimeFailureMessage(status: string, error: Record<string, unknown> | undefined): string {
+function buildRuntimeFailureMessage(
+  status: string,
+  error: Record<string, unknown> | undefined,
+): string {
   const errorMessage = asString(error?.message);
   if (errorMessage) {
     return `Runtime task ${status}: ${errorMessage}`;
@@ -432,6 +443,25 @@ export function createBuiltInTaskHandler(
       return;
     }
 
+    try {
+      await persistRuntimeArtifactsToPlatform(
+        apiBaseUrl,
+        agentApiKey,
+        taskId,
+        executorConfig,
+        result.gitInfo,
+      );
+    } catch (error) {
+      await callPlatformApi(apiBaseUrl, agentApiKey, 'POST', `/api/v1/tasks/${taskId}/fail`, {
+        error: {
+          message: `Artifact persistence failed: ${String(error)}`,
+          source: 'built-in-worker',
+          code: 'artifact_persistence_failed',
+        },
+      });
+      return;
+    }
+
     await callPlatformApi(apiBaseUrl, agentApiKey, 'POST', `/api/v1/tasks/${taskId}/complete`, {
       output: result.output,
       metrics: result.metrics,
@@ -439,6 +469,52 @@ export function createBuiltInTaskHandler(
       verification: result.verification,
     });
   };
+}
+
+async function persistRuntimeArtifactsToPlatform(
+  apiBaseUrl: string,
+  apiKey: string,
+  taskId: string,
+  executorConfig: TaskExecutorConfig,
+  gitInfo: Record<string, unknown> | undefined,
+): Promise<void> {
+  const runtimeArtifacts = Array.isArray(gitInfo?.artifacts)
+    ? gitInfo.artifacts.filter(
+        (value): value is Record<string, unknown> =>
+          Boolean(value) && typeof value === 'object' && !Array.isArray(value),
+      )
+    : [];
+  if (runtimeArtifacts.length === 0 || !executorConfig.runtimeUrl) {
+    return;
+  }
+
+  const runtimeClient = new RuntimeApiClient({
+    runtimeUrl: executorConfig.runtimeUrl,
+    runtimeApiKey: executorConfig.runtimeApiKey,
+    requestTimeoutMs: executorConfig.taskTimeoutMs,
+    allowLegacyCancelAlias: true,
+  });
+
+  const uploaded = new Set<string>();
+  for (const artifact of runtimeArtifacts) {
+    const runtimePath = asString(artifact.path);
+    const artifactName = runtimePath ? path.posix.basename(runtimePath) : undefined;
+    if (!artifactName || uploaded.has(artifactName)) {
+      continue;
+    }
+    const downloaded = await runtimeClient.downloadTaskArtifact(taskId, artifactName);
+    await callPlatformApi(apiBaseUrl, apiKey, 'POST', `/api/v1/tasks/${taskId}/artifacts`, {
+      path: artifactName,
+      content_base64: downloaded.data.toString('base64'),
+      content_type: downloaded.contentType,
+      metadata: {
+        source: 'runtime',
+        runtime_path: runtimePath,
+        runtime_size: artifact.size,
+      },
+    });
+    uploaded.add(artifactName);
+  }
 }
 
 /**

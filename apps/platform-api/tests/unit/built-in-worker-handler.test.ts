@@ -200,6 +200,100 @@ describe('createBuiltInTaskHandler', () => {
     expect(typeof freshHandler).toBe('function');
     expect(typeof freshExecute).toBe('function');
   });
+
+  it('uploads runtime artifacts to the platform before completing the task', async () => {
+    const platformRequests: Array<{ method: string; path: string; body: Record<string, unknown> }> =
+      [];
+    const runtimeServer = createServer((req, res) => {
+      if (req.method === 'GET' && req.url === '/api/v1/tasks/task-artifact/artifacts/report.json') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end('{"artifact":"ok"}');
+        return;
+      }
+      res.writeHead(404).end();
+    });
+    const platformServer = createServer((req, res) => {
+      let body = '';
+      req.on('data', (chunk) => {
+        body += chunk.toString();
+      });
+      req.on('end', () => {
+        platformRequests.push({
+          method: String(req.method ?? ''),
+          path: String(req.url ?? ''),
+          body: body.length > 0 ? (JSON.parse(body) as Record<string, unknown>) : {},
+        });
+        res.writeHead(req.url?.includes('/artifacts') ? 201 : 200, {
+          'Content-Type': 'application/json',
+        });
+        res.end(JSON.stringify({ data: { ok: true } }));
+      });
+    });
+
+    await Promise.all([
+      new Promise<void>((resolve) => runtimeServer.listen(0, '127.0.0.1', resolve)),
+      new Promise<void>((resolve) => platformServer.listen(0, '127.0.0.1', resolve)),
+    ]);
+
+    const runtimeAddress = runtimeServer.address();
+    const platformAddress = platformServer.address();
+    if (
+      !runtimeAddress ||
+      typeof runtimeAddress === 'string' ||
+      !platformAddress ||
+      typeof platformAddress === 'string'
+    ) {
+      throw new Error('Failed to start test servers');
+    }
+
+    const handler = createBuiltInTaskHandler(
+      {
+        ...minimalConfig,
+        apiBaseUrl: `http://127.0.0.1:${platformAddress.port}`,
+        executor: {
+          runtimeUrl: `http://127.0.0.1:${runtimeAddress.port}/api/v1/tasks`,
+          runtimeApiKey: 'runtime-token',
+        },
+      },
+      mockRegistration,
+      {
+        executeTaskFn: vi.fn(async () => ({
+          success: true,
+          output: { ok: true },
+          gitInfo: {
+            artifacts: [{ path: '/workspace/artifacts/report.json', size: 17 }],
+          },
+        })),
+      },
+    );
+
+    try {
+      await handler({ id: 'task-artifact', title: 'Artifact task', type: 'code' });
+
+      expect(platformRequests.map((request) => request.path)).toEqual([
+        '/api/v1/tasks/task-artifact/start',
+        '/api/v1/tasks/task-artifact/artifacts',
+        '/api/v1/tasks/task-artifact/complete',
+      ]);
+      expect(platformRequests[1].body).toMatchObject({
+        path: 'report.json',
+        content_type: 'application/json',
+        metadata: {
+          source: 'runtime',
+          runtime_path: '/workspace/artifacts/report.json',
+          runtime_size: 17,
+        },
+      });
+      expect(String(platformRequests[1].body.content_base64)).toBe(
+        Buffer.from('{"artifact":"ok"}', 'utf8').toString('base64'),
+      );
+    } finally {
+      await Promise.all([
+        new Promise<void>((resolve) => runtimeServer.close(() => resolve())),
+        new Promise<void>((resolve) => platformServer.close(() => resolve())),
+      ]);
+    }
+  });
 });
 
 describe('connectBuiltInWorkerWebSocket', () => {

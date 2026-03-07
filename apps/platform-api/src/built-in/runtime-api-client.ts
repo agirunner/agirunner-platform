@@ -98,7 +98,11 @@ export class RuntimeApiClient {
     const accepted = await this.submitTask(task, options);
     const taskId = String(accepted['task_id'] ?? '');
     if (!taskId) {
-      throw new RuntimeApiHttpError('Runtime API POST /api/v1/tasks returned no task_id', 502, JSON.stringify(accepted));
+      throw new RuntimeApiHttpError(
+        'Runtime API POST /api/v1/tasks returned no task_id',
+        502,
+        JSON.stringify(accepted),
+      );
     }
     return this.waitForTaskCompletion(taskId);
   }
@@ -130,6 +134,20 @@ export class RuntimeApiClient {
   getTaskStatus(taskId: string): Promise<Record<string, unknown>> {
     const encodedTaskId = encodeURIComponent(taskId);
     return this.requestJson('GET', `/api/v1/tasks/${encodedTaskId}`);
+  }
+
+  listTaskArtifacts(taskId: string): Promise<Record<string, unknown>> {
+    const encodedTaskId = encodeURIComponent(taskId);
+    return this.requestJson('GET', `/api/v1/tasks/${encodedTaskId}/artifacts`);
+  }
+
+  downloadTaskArtifact(
+    taskId: string,
+    name: string,
+  ): Promise<{ contentType: string; data: Buffer }> {
+    const encodedTaskId = encodeURIComponent(taskId);
+    const encodedName = encodeURIComponent(name);
+    return this.requestBuffer('GET', `/api/v1/tasks/${encodedTaskId}/artifacts/${encodedName}`);
   }
 
   getHealth(): Promise<Record<string, unknown>> {
@@ -238,6 +256,77 @@ export class RuntimeApiClient {
       if (bodyString) {
         request.write(bodyString);
       }
+      request.end();
+    });
+  }
+
+  private requestBuffer(
+    method: 'GET',
+    path: string,
+  ): Promise<{ contentType: string; data: Buffer }> {
+    const url = new URL(path, this.runtimeBaseUrl);
+    const isHttps = url.protocol === 'https:';
+    const requestModule = isHttps ? https : http;
+    const headers: Record<string, string> = {
+      Accept: '*/*',
+      ...(this.runtimeApiKey ? { Authorization: `Bearer ${this.runtimeApiKey}` } : {}),
+    };
+
+    const options: http.RequestOptions = {
+      hostname: url.hostname,
+      port: url.port || (isHttps ? 443 : 80),
+      path: `${url.pathname}${url.search}`,
+      method,
+      headers,
+    };
+
+    return new Promise((resolve, reject) => {
+      const request = requestModule.request(options, (response) => {
+        const chunks: Buffer[] = [];
+        response.on('data', (chunk: Buffer) => {
+          chunks.push(chunk);
+        });
+        response.on('end', () => {
+          const statusCode = response.statusCode ?? 500;
+          const responseData = Buffer.concat(chunks);
+          if (statusCode >= 400) {
+            reject(
+              new RuntimeApiHttpError(
+                `Runtime API ${method} ${path} failed with HTTP ${statusCode}`,
+                statusCode,
+                responseData.toString('utf8'),
+              ),
+            );
+            return;
+          }
+
+          resolve({
+            contentType: String(response.headers['content-type'] ?? 'application/octet-stream'),
+            data: responseData,
+          });
+        });
+      });
+
+      const timer = setTimeout(() => {
+        request.destroy();
+        reject(
+          new RuntimeApiHttpError(
+            `Runtime API ${method} ${path} timed out after ${this.requestTimeoutMs}ms`,
+            408,
+            '',
+          ),
+        );
+      }, this.requestTimeoutMs);
+
+      request.on('error', (error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+
+      request.on('close', () => {
+        clearTimeout(timer);
+      });
+
       request.end();
     });
   }
