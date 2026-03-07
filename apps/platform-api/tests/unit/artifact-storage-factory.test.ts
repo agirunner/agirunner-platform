@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { createArtifactStorage } from '../../src/content/storage-factory.js';
+import { AzureArtifactStorage } from '../../src/content/azure-artifact-storage.js';
+import { GcsArtifactStorage } from '../../src/content/gcs-artifact-storage.js';
 import { LocalArtifactStorage } from '../../src/content/local-artifact-storage.js';
 import { S3ArtifactStorage } from '../../src/content/s3-artifact-storage.js';
 
@@ -27,5 +29,32 @@ describe('artifact storage factory', () => {
     });
 
     expect(storage).toBeInstanceOf(S3ArtifactStorage);
+  });
+
+  it('creates the GCS backend when configured', () => {
+    const storage = createArtifactStorage({
+      backend: 'gcs',
+      localRoot: '/tmp/ignored',
+      gcs: {
+        bucket: 'artifacts',
+        projectId: 'proj',
+      },
+    });
+
+    expect(storage).toBeInstanceOf(GcsArtifactStorage);
+  });
+
+  it('creates the Azure backend when configured', () => {
+    const storage = createArtifactStorage({
+      backend: 'azure',
+      localRoot: '/tmp/ignored',
+      azure: {
+        accountName: 'artifacts',
+        container: 'runs',
+        accountKey: 'secret',
+      },
+    });
+
+    expect(storage).toBeInstanceOf(AzureArtifactStorage);
   });
 });

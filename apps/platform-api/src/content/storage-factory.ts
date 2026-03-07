@@ -1,5 +1,7 @@
 import { LocalArtifactStorage } from './local-artifact-storage.js';
 import type { ArtifactStorageAdapter } from './artifact-storage.js';
+import { AzureArtifactStorage } from './azure-artifact-storage.js';
+import { GcsArtifactStorage } from './gcs-artifact-storage.js';
 import { S3ArtifactStorage } from './s3-artifact-storage.js';
 
 export interface ArtifactStorageConfig {
@@ -14,6 +16,18 @@ export interface ArtifactStorageConfig {
     secretAccessKey: string;
     sessionToken?: string;
   };
+  gcs?: {
+    bucket: string;
+    projectId?: string;
+    keyFilename?: string;
+    credentialsJson?: string;
+  };
+  azure?: {
+    accountName: string;
+    container: string;
+    connectionString?: string;
+    accountKey?: string;
+  };
 }
 
 export function createArtifactStorage(config: ArtifactStorageConfig): ArtifactStorageAdapter {
@@ -26,6 +40,20 @@ export function createArtifactStorage(config: ArtifactStorageConfig): ArtifactSt
       throw new Error('S3 artifact storage requires S3 configuration');
     }
     return new S3ArtifactStorage(config.s3);
+  }
+
+  if (config.backend === 'gcs') {
+    if (!config.gcs) {
+      throw new Error('GCS artifact storage requires GCS configuration');
+    }
+    return new GcsArtifactStorage(config.gcs);
+  }
+
+  if (config.backend === 'azure') {
+    if (!config.azure) {
+      throw new Error('Azure artifact storage requires Azure configuration');
+    }
+    return new AzureArtifactStorage(config.azure);
   }
 
   throw new Error(`Artifact storage backend "${config.backend}" is not implemented yet.`);

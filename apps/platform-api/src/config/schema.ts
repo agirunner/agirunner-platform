@@ -38,6 +38,14 @@ export const envSchema = z
       .enum(['true', 'false'])
       .transform((value) => value === 'true')
       .default('true'),
+    ARTIFACT_GCS_BUCKET: z.string().optional(),
+    ARTIFACT_GCS_PROJECT_ID: z.string().optional(),
+    ARTIFACT_GCS_KEY_FILE: z.string().optional(),
+    ARTIFACT_GCS_CREDENTIALS_JSON: z.string().optional(),
+    ARTIFACT_AZURE_ACCOUNT_NAME: z.string().optional(),
+    ARTIFACT_AZURE_CONTAINER: z.string().optional(),
+    ARTIFACT_AZURE_CONNECTION_STRING: z.string().optional(),
+    ARTIFACT_AZURE_ACCOUNT_KEY: z.string().optional(),
     TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS: z.coerce.number().int().min(1).default(60000),
     WORKER_WEBSOCKET_PATH: z.string().min(1).default('/api/v1/events'),
     EVENT_STREAM_PATH: z.string().min(1).default('/api/v1/events/stream'),
@@ -76,25 +84,58 @@ export const envSchema = z
     WORKER_ALLOWED_ORIGINS: z.string().default('*'),
   })
   .superRefine((env, context) => {
-    if (env.ARTIFACT_STORAGE_BACKEND !== 's3') {
-      return;
+    if (env.ARTIFACT_STORAGE_BACKEND === 's3') {
+      requireArtifactSettings(context, env, 's3', [
+        ['ARTIFACT_S3_BUCKET', env.ARTIFACT_S3_BUCKET],
+        ['ARTIFACT_S3_ACCESS_KEY_ID', env.ARTIFACT_S3_ACCESS_KEY_ID],
+        ['ARTIFACT_S3_SECRET_ACCESS_KEY', env.ARTIFACT_S3_SECRET_ACCESS_KEY],
+      ]);
     }
 
-    const required: Array<[keyof typeof env, string | undefined]> = [
-      ['ARTIFACT_S3_BUCKET', env.ARTIFACT_S3_BUCKET],
-      ['ARTIFACT_S3_ACCESS_KEY_ID', env.ARTIFACT_S3_ACCESS_KEY_ID],
-      ['ARTIFACT_S3_SECRET_ACCESS_KEY', env.ARTIFACT_S3_SECRET_ACCESS_KEY],
-    ];
+    if (env.ARTIFACT_STORAGE_BACKEND === 'gcs') {
+      requireArtifactSettings(context, env, 'gcs', [
+        ['ARTIFACT_GCS_BUCKET', env.ARTIFACT_GCS_BUCKET],
+      ]);
+    }
 
-    for (const [field, value] of required) {
-      if (!value || value.trim().length === 0) {
+    if (env.ARTIFACT_STORAGE_BACKEND === 'azure') {
+      requireArtifactSettings(context, env, 'azure', [
+        ['ARTIFACT_AZURE_ACCOUNT_NAME', env.ARTIFACT_AZURE_ACCOUNT_NAME],
+        ['ARTIFACT_AZURE_CONTAINER', env.ARTIFACT_AZURE_CONTAINER],
+      ]);
+
+      const hasConnectionString = hasValue(env.ARTIFACT_AZURE_CONNECTION_STRING);
+      const hasAccountKey = hasValue(env.ARTIFACT_AZURE_ACCOUNT_KEY);
+      if (!hasConnectionString && !hasAccountKey) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          path: [field],
-          message: `${field} is required when ARTIFACT_STORAGE_BACKEND=s3`,
+          path: ['ARTIFACT_AZURE_CONNECTION_STRING'],
+          message:
+            'ARTIFACT_AZURE_CONNECTION_STRING or ARTIFACT_AZURE_ACCOUNT_KEY is required when ARTIFACT_STORAGE_BACKEND=azure',
         });
       }
     }
   });
 
 export type AppEnv = z.infer<typeof envSchema>;
+
+function requireArtifactSettings(
+  context: z.RefinementCtx,
+  env: AppEnv,
+  backend: AppEnv['ARTIFACT_STORAGE_BACKEND'],
+  required: Array<[keyof AppEnv, string | undefined]>,
+): void {
+  for (const [field, value] of required) {
+    if (!hasValue(value)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [field],
+        message: `${field} is required when ARTIFACT_STORAGE_BACKEND=${backend}`,
+      });
+    }
+  }
+}
+
+function hasValue(value: string | undefined): boolean {
+  return typeof value === 'string' && value.trim().length > 0;
+}

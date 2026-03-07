@@ -19,5 +19,23 @@ export function buildArtifactStorageConfig(env: AppEnv): ArtifactStorageConfig {
             sessionToken: env.ARTIFACT_S3_SESSION_TOKEN,
           }
         : undefined,
+    gcs:
+      env.ARTIFACT_STORAGE_BACKEND === 'gcs'
+        ? {
+            bucket: env.ARTIFACT_GCS_BUCKET!,
+            projectId: env.ARTIFACT_GCS_PROJECT_ID,
+            keyFilename: env.ARTIFACT_GCS_KEY_FILE,
+            credentialsJson: env.ARTIFACT_GCS_CREDENTIALS_JSON,
+          }
+        : undefined,
+    azure:
+      env.ARTIFACT_STORAGE_BACKEND === 'azure'
+        ? {
+            accountName: env.ARTIFACT_AZURE_ACCOUNT_NAME!,
+            container: env.ARTIFACT_AZURE_CONTAINER!,
+            connectionString: env.ARTIFACT_AZURE_CONNECTION_STRING,
+            accountKey: env.ARTIFACT_AZURE_ACCOUNT_KEY,
+          }
+        : undefined,
   };
 }

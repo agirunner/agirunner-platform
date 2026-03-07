@@ -45,4 +45,34 @@ describe('config validation', () => {
       }),
     ).toThrowError(/ARTIFACT_S3_BUCKET/);
   });
+
+  it('requires GCS settings when GCS artifact storage is enabled', () => {
+    expect(() =>
+      loadEnv({
+        NODE_ENV: 'test',
+        PORT: '9999',
+        DATABASE_URL: 'postgres://user:pass@localhost:5432/db',
+        JWT_SECRET: 'a'.repeat(32),
+        WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32),
+        LOG_LEVEL: 'info',
+        ARTIFACT_STORAGE_BACKEND: 'gcs',
+      }),
+    ).toThrowError(/ARTIFACT_GCS_BUCKET/);
+  });
+
+  it('requires Azure settings when Azure artifact storage is enabled', () => {
+    expect(() =>
+      loadEnv({
+        NODE_ENV: 'test',
+        PORT: '9999',
+        DATABASE_URL: 'postgres://user:pass@localhost:5432/db',
+        JWT_SECRET: 'a'.repeat(32),
+        WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32),
+        LOG_LEVEL: 'info',
+        ARTIFACT_STORAGE_BACKEND: 'azure',
+        ARTIFACT_AZURE_ACCOUNT_NAME: 'storage-account',
+        ARTIFACT_AZURE_CONTAINER: 'artifacts',
+      }),
+    ).toThrowError(/ARTIFACT_AZURE_CONNECTION_STRING|ARTIFACT_AZURE_ACCOUNT_KEY/);
+  });
 });
