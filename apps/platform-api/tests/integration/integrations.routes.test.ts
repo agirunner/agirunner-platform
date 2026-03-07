@@ -50,6 +50,31 @@ async function waitForDeliveryRecord(
   throw new Error('Timed out waiting for integration delivery record');
 }
 
+async function waitForDeliveryCount(
+  db: TestDatabase,
+  tenantId: string,
+  adapterId: string,
+  expectedCount: number,
+): Promise<void> {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const result = await db.pool.query<{ total: string }>(
+      `SELECT COUNT(*)::text AS total
+         FROM integration_adapter_deliveries
+        WHERE tenant_id = $1
+          AND adapter_id = $2`,
+      [tenantId, adapterId],
+    );
+
+    if (Number(result.rows[0]?.total ?? '0') >= expectedCount) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+
+  throw new Error('Timed out waiting for follow-on integration deliveries');
+}
+
 function waitForRequest(server: http.Server): Promise<CapturedRequest> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
@@ -151,6 +176,7 @@ describe('integration adapter routes', () => {
       await app.close();
     }
     if (deliveryServer) {
+      deliveryServer.closeAllConnections?.();
       await new Promise<void>((resolve, reject) => {
         deliveryServer.close((error) => (error ? reject(error) : resolve()));
       });
@@ -296,5 +322,77 @@ describe('integration adapter routes', () => {
 
     expect(approveResponse.statusCode).toBe(200);
     expect(approveResponse.json().data.state).toBe('ready');
+    await waitForDeliveryCount(db, tenantId, adapterId, 2);
+
+    const deleteResponse = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/integrations/${adapterId}`,
+      headers: { authorization: `Bearer ${adminKey}` },
+    });
+    expect(deleteResponse.statusCode).toBe(204);
+  });
+
+  it('formats approval notifications for slack adapters with approve and reject buttons', async () => {
+    const taskId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO tasks (id, tenant_id, pipeline_id, title, type, state, requires_approval)
+       VALUES ($1,$2,$3,'slack-approval-task','review','awaiting_approval',true)`,
+      [taskId, tenantId, pipelineId],
+    );
+
+    const createResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/integrations',
+      headers: { authorization: `Bearer ${adminKey}` },
+      payload: {
+        kind: 'slack',
+        pipeline_id: pipelineId,
+        subscriptions: ['task.state_changed'],
+        config: {
+          webhook_url: `${deliveryBaseUrl}/slack`,
+          channel: '#approvals',
+          username: 'AgentBaton',
+        },
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(201);
+    const adapterId = createResponse.json().data.id as string;
+    const requestPromise = waitForRequest(deliveryServer);
+
+    await app.eventService.emit({
+      tenantId,
+      type: 'task.state_changed',
+      entityType: 'task',
+      entityId: taskId,
+      actorType: 'system',
+      data: { pipeline_id: pipelineId, from_state: 'pending', to_state: 'awaiting_approval' },
+    });
+
+    const delivered = await requestPromise;
+    const payload = JSON.parse(delivered.body) as {
+      channel?: string;
+      username?: string;
+      text?: string;
+      blocks?: Array<Record<string, unknown>>;
+    };
+
+    expect(payload.channel).toBe('#approvals');
+    expect(payload.username).toBe('AgentBaton');
+    expect(payload.text).toContain('awaiting approval');
+    expect(payload.blocks).toHaveLength(2);
+
+    const actionsBlock = payload.blocks?.[1] as { elements?: Array<{ text?: { text?: string }; url?: string }> };
+    expect(actionsBlock.elements?.map((element) => element.text?.text)).toEqual(['Approve', 'Reject']);
+    expect(actionsBlock.elements?.every((element) => element.url?.includes('/api/v1/integrations/actions/'))).toBe(
+      true,
+    );
+
+    const deleteResponse = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/integrations/${adapterId}`,
+      headers: { authorization: `Bearer ${adminKey}` },
+    });
+    expect(deleteResponse.statusCode).toBe(204);
   });
 });

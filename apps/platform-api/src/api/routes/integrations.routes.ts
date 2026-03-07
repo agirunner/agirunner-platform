@@ -4,28 +4,35 @@ import { z } from 'zod';
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
 
-const registerSchema = z.object({
-  kind: z.literal('webhook'),
-  pipeline_id: z.string().uuid().optional(),
-  subscriptions: z.array(z.string().min(1)).default([]),
-  config: z.object({
-    url: z.string().url(),
-    secret: z.string().min(8).optional(),
-    headers: z.record(z.string()).optional(),
+const registerSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('webhook'),
+    pipeline_id: z.string().uuid().optional(),
+    subscriptions: z.array(z.string().min(1)).default([]),
+    config: z.object({
+      url: z.string().url(),
+      secret: z.string().min(8).optional(),
+      headers: z.record(z.string()).optional(),
+    }),
   }),
-});
+  z.object({
+    kind: z.literal('slack'),
+    pipeline_id: z.string().uuid().optional(),
+    subscriptions: z.array(z.string().min(1)).default([]),
+    config: z.object({
+      webhook_url: z.string().url(),
+      channel: z.string().min(1).optional(),
+      username: z.string().min(1).optional(),
+      icon_emoji: z.string().min(1).optional(),
+    }),
+  }),
+]);
 
 const updateSchema = z
   .object({
     subscriptions: z.array(z.string().min(1)).optional(),
     is_active: z.boolean().optional(),
-    config: z
-      .object({
-        url: z.string().url().optional(),
-        secret: z.string().min(8).optional(),
-        headers: z.record(z.string()).optional(),
-      })
-      .optional(),
+    config: z.record(z.unknown()).optional(),
   })
   .refine(
     (value) =>
@@ -49,6 +56,12 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const integrationRoutes: FastifyPluginAsync = async (app) => {
+  app.get('/api/v1/integrations/actions/:token', async (request, reply) => {
+    const params = request.params as { token: string };
+    const data = await app.integrationActionService.executeAction(params.token, {}, { allowImplicitDefaults: true });
+    return reply.type('application/json').send({ data });
+  });
+
   app.post('/api/v1/integrations/actions/:token', async (request) => {
     const params = request.params as { token: string };
     const body = parseOrThrow(actionSchema.safeParse(request.body ?? {}));

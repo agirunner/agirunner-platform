@@ -6,6 +6,12 @@ import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import type { StreamEvent } from './event-stream-service.js';
 import type { IntegrationActionService } from './integration-action-service.js';
 import {
+  deliverSlackEvent,
+  normalizeStoredSlackConfig,
+  toPublicSlackConfig,
+  toSlackDeliveryTarget,
+} from './integration-adapter-slack.js';
+import {
   deliverWebhookEvent,
   matchesSubscription,
   normalizeStoredWebhookConfig,
@@ -15,7 +21,7 @@ import {
   type DeliveryAttempt,
 } from './integration-adapter-webhook.js';
 
-type IntegrationAdapterKind = 'webhook';
+type IntegrationAdapterKind = 'webhook' | 'slack';
 
 interface IntegrationAdapterRow {
   id: string;
@@ -105,12 +111,34 @@ export class IntegrationAdapterService {
   }
 
   async deleteAdapter(tenantId: string, adapterId: string) {
-    const result = await this.pool.query(
-      'DELETE FROM integration_adapters WHERE tenant_id = $1 AND id = $2 RETURNING id',
-      [tenantId, adapterId],
-    );
-    if (!result.rowCount) {
-      throw new NotFoundError('Integration adapter not found');
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `DELETE FROM integration_actions
+          WHERE tenant_id = $1
+            AND adapter_id = $2`,
+        [tenantId, adapterId],
+      );
+      await client.query(
+        `DELETE FROM integration_adapter_deliveries
+          WHERE tenant_id = $1
+            AND adapter_id = $2`,
+        [tenantId, adapterId],
+      );
+      const result = await client.query(
+        'DELETE FROM integration_adapters WHERE tenant_id = $1 AND id = $2 RETURNING id',
+        [tenantId, adapterId],
+      );
+      if (!result.rowCount) {
+        throw new NotFoundError('Integration adapter not found');
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
   }
 
@@ -124,18 +152,28 @@ export class IntegrationAdapterService {
       }
 
       if (row.kind !== 'webhook') {
-        continue;
+        if (row.kind !== 'slack') {
+          continue;
+        }
       }
 
       const deliveryId = await this.insertPendingDelivery(event.tenant_id, row.id, event.id);
       const payload = await this.buildEventPayload(event, pipelineId, row.id);
-      const attempt = await deliverWebhookEvent(
-        this.fetchFn,
-        this.config,
-        toWebhookDeliveryTarget(row.config, this.config.WEBHOOK_ENCRYPTION_KEY),
-        event.type,
-        payload,
-      );
+      const attempt =
+        row.kind === 'webhook'
+          ? await deliverWebhookEvent(
+              this.fetchFn,
+              this.config,
+              toWebhookDeliveryTarget(row.config, this.config.WEBHOOK_ENCRYPTION_KEY),
+              event.type,
+              payload,
+            )
+          : await deliverSlackEvent(
+              this.fetchFn,
+              this.config,
+              toSlackDeliveryTarget(row.config),
+              payload,
+            );
       await this.finishDelivery(deliveryId, attempt);
     }
   }
@@ -235,11 +273,13 @@ export class IntegrationAdapterService {
   }
 
   private toPublicConfig(kind: IntegrationAdapterKind, config: Record<string, unknown>) {
-    if (kind !== 'webhook') {
-      throw new ValidationError(`Unsupported integration adapter kind '${kind}'`);
+    if (kind === 'webhook') {
+      return toPublicWebhookConfig(config);
     }
-
-    return toPublicWebhookConfig(config);
+    if (kind === 'slack') {
+      return toPublicSlackConfig(config);
+    }
+    throw new ValidationError(`Unsupported integration adapter kind '${kind}'`);
   }
 
   private async loadAdapterRow(tenantId: string, adapterId: string): Promise<IntegrationAdapterRow> {
@@ -254,10 +294,12 @@ export class IntegrationAdapterService {
   }
 
   private normalizeStoredConfig(kind: IntegrationAdapterKind, currentConfig: Record<string, unknown>, nextConfig: Record<string, unknown>) {
-    if (kind !== 'webhook') {
-      throw new ValidationError(`Unsupported integration adapter kind '${kind}'`);
+    if (kind === 'webhook') {
+      return normalizeStoredWebhookConfig(currentConfig, nextConfig, this.config.WEBHOOK_ENCRYPTION_KEY);
     }
-
-    return normalizeStoredWebhookConfig(currentConfig, nextConfig, this.config.WEBHOOK_ENCRYPTION_KEY);
+    if (kind === 'slack') {
+      return normalizeStoredSlackConfig(currentConfig, nextConfig);
+    }
+    throw new ValidationError(`Unsupported integration adapter kind '${kind}'`);
   }
 }

@@ -24,6 +24,10 @@ interface ExecuteIntegrationActionInput {
   preferred_worker_id?: string;
 }
 
+interface ExecuteIntegrationActionOptions {
+  allowImplicitDefaults?: boolean;
+}
+
 export class IntegrationActionService {
   constructor(
     private readonly pool: DatabasePool,
@@ -52,7 +56,11 @@ export class IntegrationActionService {
     >;
   }
 
-  async executeAction(token: string, input: ExecuteIntegrationActionInput = {}) {
+  async executeAction(
+    token: string,
+    input: ExecuteIntegrationActionInput = {},
+    options: ExecuteIntegrationActionOptions = {},
+  ) {
     const row = await this.loadPendingAction(token);
     const identity = this.createIntegrationIdentity(row.tenant_id, row.adapter_id);
 
@@ -61,17 +69,21 @@ export class IntegrationActionService {
         ? await this.taskService.approveTask(identity, row.task_id)
         : row.action_type === 'reject'
           ? await this.taskService.rejectTask(identity, row.task_id, {
-              feedback: this.requireFeedback(input.feedback, 'reject'),
+              feedback: this.requireFeedback(input.feedback, 'reject', options.allowImplicitDefaults),
             })
           : row.action_type === 'request_changes'
             ? await this.taskService.requestTaskChanges(identity, row.task_id, {
-                feedback: this.requireFeedback(input.feedback, 'request_changes'),
+                feedback: this.requireFeedback(
+                  input.feedback,
+                  'request_changes',
+                  options.allowImplicitDefaults,
+                ),
                 override_input: input.override_input,
                 preferred_agent_id: input.preferred_agent_id,
                 preferred_worker_id: input.preferred_worker_id,
               })
             : await this.taskService.skipTask(identity, row.task_id, {
-                reason: this.requireReason(input.reason),
+                reason: this.requireReason(input.reason, options.allowImplicitDefaults),
               });
 
     await this.pool.query(
@@ -141,14 +153,28 @@ export class IntegrationActionService {
     return createHash('sha256').update(token).digest('hex');
   }
 
-  private requireFeedback(feedback: string | undefined, actionType: 'reject' | 'request_changes'): string {
+  private requireFeedback(
+    feedback: string | undefined,
+    actionType: 'reject' | 'request_changes',
+    allowImplicitDefaults = false,
+  ): string {
+    if (allowImplicitDefaults && (!feedback || feedback.trim().length === 0)) {
+      return actionType === 'reject'
+        ? 'Rejected by integration callback'
+        : 'Changes requested by integration callback';
+    }
+
     if (!feedback || feedback.trim().length === 0) {
       throw new ValidationError(`${actionType} integration actions require feedback`);
     }
     return feedback;
   }
 
-  private requireReason(reason: string | undefined): string {
+  private requireReason(reason: string | undefined, allowImplicitDefaults = false): string {
+    if (allowImplicitDefaults && (!reason || reason.trim().length === 0)) {
+      return 'Skipped by integration callback';
+    }
+
     if (!reason || reason.trim().length === 0) {
       throw new ValidationError('skip integration actions require a reason');
     }
