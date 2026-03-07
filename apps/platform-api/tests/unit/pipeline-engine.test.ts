@@ -103,4 +103,50 @@ describe('pipeline engine unit', () => {
     expect(derivePipelineState(['cancelled', 'cancelled'])).toBe('cancelled');
     expect(derivePipelineState(['completed', 'completed'])).toBe('completed');
   });
+
+  it('wraps flat templates into an implicit default workflow phase', () => {
+    const schema = validateTemplateSchema({
+      tasks: [{ id: 'build', title_template: 'Build', type: 'code' }],
+    });
+
+    expect(schema.workflow?.phases).toEqual([
+      expect.objectContaining({
+        name: 'default',
+        gate: 'none',
+        parallel: true,
+        tasks: ['build'],
+      }),
+    ]);
+  });
+
+  it('rejects templates that mix depends_on and blocked_by aliases', () => {
+    expect(() =>
+      validateTemplateSchema({
+        tasks: [
+          { id: 'a', title_template: 'A', type: 'code', depends_on: [] },
+          { id: 'b', title_template: 'B', type: 'test', blocked_by: ['a'] },
+        ],
+      }),
+    ).toThrow(/cannot mix/i);
+  });
+
+  it('supports cross-phase dependency references and sequential phases', () => {
+    const schema = validateTemplateSchema({
+      tasks: [
+        { id: 'spec', title_template: 'Spec', type: 'docs' },
+        { id: 'build', title_template: 'Build', type: 'code', depends_on: ['plan.spec'] },
+        { id: 'verify', title_template: 'Verify', type: 'test' },
+      ],
+      workflow: {
+        phases: [
+          { name: 'plan', tasks: ['spec'] },
+          { name: 'execute', tasks: ['build', 'verify'], parallel: false },
+        ],
+      },
+    });
+
+    expect(schema.workflow?.phases.map((phase) => phase.name)).toEqual(['plan', 'execute']);
+    expect(schema.tasks.find((task) => task.id === 'build')?.depends_on).toEqual(['plan.spec']);
+    expect(schema.tasks.find((task) => task.id === 'verify')?.depends_on).toEqual(['build']);
+  });
 });

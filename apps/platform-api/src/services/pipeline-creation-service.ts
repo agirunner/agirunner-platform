@@ -3,8 +3,14 @@ import type { DatabasePool } from '../db/database.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 import { validateTemplateSchema } from '../orchestration/pipeline-engine.js';
 import { resolveTemplateVariables } from '../orchestration/template-variables.js';
+import { deriveWorkflowView } from '../orchestration/workflow-model.js';
 import { resolveInstructionConfig, resolvePipelineConfig } from './config-hierarchy-service.js';
-import { buildTemplateTaskIdMap, insertTaskFromTemplate, loadTemplateOrThrow } from './pipeline-instantiation.js';
+import {
+  buildStoredPipelineWorkflow,
+  buildTemplateTaskIdMap,
+  insertTaskFromTemplate,
+  loadTemplateOrThrow,
+} from './pipeline-instantiation.js';
 import type { CreatePipelineInput, PipelineServiceConfig } from './pipeline-service.types.js';
 import { EventService } from './event-service.js';
 import { PipelineStateService } from './pipeline-state-service.js';
@@ -59,6 +65,12 @@ export class PipelineCreationService {
         templateSchema,
         input.instruction_config,
       );
+      const taskIdMap = buildTemplateTaskIdMap(schema.tasks);
+      const storedWorkflow = buildStoredPipelineWorkflow(schema, taskIdMap);
+      const pipelineMetadata = {
+        ...(input.metadata ?? {}),
+        workflow: storedWorkflow,
+      };
       const pipelineRes = await client.query(
         `INSERT INTO pipelines (
             tenant_id, project_id, template_id, template_version, project_spec_version,
@@ -74,7 +86,7 @@ export class PipelineCreationService {
           projectSpecVersion,
           input.name,
           parameters,
-          input.metadata ?? {},
+          pipelineMetadata,
           resolvedConfig.resolved,
           resolvedConfig.layers,
           instructionConfig,
@@ -82,8 +94,10 @@ export class PipelineCreationService {
       );
 
       const pipeline = pipelineRes.rows[0];
-      const taskIdMap = buildTemplateTaskIdMap(schema.tasks);
       const createdTasks: Record<string, unknown>[] = [];
+      const dependencyMap = new Map(
+        schema.tasks.map((task) => [task.id, [...(task.depends_on ?? [])]]),
+      );
 
       for (const task of schema.tasks) {
         const createdTask = await insertTaskFromTemplate({
@@ -96,6 +110,8 @@ export class PipelineCreationService {
           client,
           config: this.deps.config,
           pipelineLifecycle: schema.lifecycle,
+          storedWorkflow,
+          dependencyMap,
         });
         createdTasks.push(createdTask);
         await this.deps.eventService.emit(
@@ -130,13 +146,34 @@ export class PipelineCreationService {
         client,
       );
 
+      const workflowView = deriveWorkflowView(storedWorkflow, createdTasks);
+      const initialPhase = workflowView.current_phase ?? storedWorkflow.phases[0]?.name ?? null;
+      if (initialPhase) {
+        await this.deps.eventService.emit(
+          {
+            tenantId: identity.tenantId,
+            type: 'phase.started',
+            entityType: 'pipeline',
+            entityId: pipeline.id as string,
+            actorType: identity.scope,
+            actorId: identity.keyPrefix,
+            data: {
+              pipeline_id: pipeline.id,
+              phase_name: initialPhase,
+              timestamp: new Date().toISOString(),
+            },
+          },
+          client,
+        );
+      }
+
       const state = await this.deps.stateService.recomputePipelineState(identity.tenantId, pipeline.id as string, client, {
         actorType: identity.scope,
         actorId: identity.keyPrefix,
       });
 
       await client.query('COMMIT');
-      return { ...pipeline, state, tasks: createdTasks };
+      return { ...pipeline, state, tasks: createdTasks, ...workflowView };
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;

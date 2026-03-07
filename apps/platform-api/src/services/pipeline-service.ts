@@ -4,6 +4,7 @@ import { createArtifactStorage } from '../content/storage-factory.js';
 import type { DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
+import { deriveWorkflowView, type StoredWorkflowDefinition } from '../orchestration/workflow-model.js';
 import { buildResolvedConfigView } from './config-hierarchy-service.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { PipelineCancellationService } from './pipeline-cancellation-service.js';
@@ -125,7 +126,15 @@ export class PipelineService {
       0,
     );
 
-    return { ...pipeline, tasks } as Record<string, unknown>;
+    const metadata =
+      pipeline.metadata && typeof pipeline.metadata === 'object' && !Array.isArray(pipeline.metadata)
+        ? (pipeline.metadata as Record<string, unknown>)
+        : {};
+    const workflow =
+      metadata.workflow && typeof metadata.workflow === 'object' && !Array.isArray(metadata.workflow)
+        ? (metadata.workflow as StoredWorkflowDefinition)
+        : null;
+    return { ...pipeline, tasks, ...deriveWorkflowView(workflow, tasks) } as Record<string, unknown>;
   }
 
   async getResolvedConfig(tenantId: string, pipelineId: string, showLayers = false) {

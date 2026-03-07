@@ -3,6 +3,11 @@ import {
   CycleDetectedError,
   SchemaValidationFailedError,
 } from '../errors/domain-errors.js';
+import {
+  applySequentialPhaseDependencies,
+  type WorkflowDefinition,
+  validateWorkflowDefinition,
+} from './workflow-model.js';
 import { readTemplateLifecyclePolicy, type LifecyclePolicy } from '../services/task-lifecycle-policy.js';
 import { parseTemplateVariables, type TemplateVariableDefinition } from './template-variables.js';
 
@@ -22,6 +27,7 @@ export interface TemplateTaskDefinition {
   type: 'analysis' | 'code' | 'review' | 'test' | 'docs' | 'orchestration' | 'custom';
   role?: string;
   depends_on?: string[];
+  blocked_by?: string[];
   requires_approval?: boolean;
   input_template?: Record<string, unknown>;
   context_template?: Record<string, unknown>;
@@ -39,6 +45,7 @@ export interface TemplateTaskDefinition {
 export interface TemplateSchema {
   variables?: TemplateVariableDefinition[];
   tasks: TemplateTaskDefinition[];
+  workflow?: WorkflowDefinition;
   config?: Record<string, unknown>;
   config_policy?: Record<string, unknown>;
   default_instruction_config?: Record<string, unknown>;
@@ -265,6 +272,9 @@ export function validateTemplateSchema(input: unknown): TemplateSchema {
     throw new SchemaValidationFailedError('Template schema requires a non-empty tasks array');
   }
 
+  let hasBlockedBy = false;
+  let hasDependsOn = false;
+
   const tasks: TemplateTaskDefinition[] = tasksValue.map((rawTask, index) => {
     assertObject(rawTask, `Task at index ${index} must be an object`);
     if (typeof rawTask.id !== 'string' || !rawTask.id.trim()) {
@@ -287,18 +297,36 @@ export function validateTemplateSchema(input: unknown): TemplateSchema {
         `Task '${rawTask.id}' field 'depends_on' must be an array`,
       );
     }
+    if (rawTask.blocked_by !== undefined && !Array.isArray(rawTask.blocked_by)) {
+      throw new SchemaValidationFailedError(
+        `Task '${rawTask.id}' field 'blocked_by' must be an array`,
+      );
+    }
+    if (rawTask.depends_on !== undefined && rawTask.blocked_by !== undefined) {
+      throw new SchemaValidationFailedError(
+        `Task '${rawTask.id}' cannot declare both 'depends_on' and deprecated 'blocked_by'`,
+      );
+    }
+    hasBlockedBy = hasBlockedBy || rawTask.blocked_by !== undefined;
+    hasDependsOn = hasDependsOn || rawTask.depends_on !== undefined;
+
+    const rawDependencies =
+      (rawTask.depends_on as unknown[] | undefined) ??
+      (rawTask.blocked_by as unknown[] | undefined) ??
+      [];
 
     return {
       id: rawTask.id,
       title_template: rawTask.title_template,
       type: rawTask.type as TemplateTaskDefinition['type'],
       role: typeof rawTask.role === 'string' ? rawTask.role : undefined,
-      depends_on: (rawTask.depends_on as unknown[] | undefined)?.map((dep) => {
+      depends_on: rawDependencies.map((dep) => {
         if (typeof dep !== 'string' || !dep.trim()) {
           throw new SchemaValidationFailedError(`Task '${rawTask.id}' has non-string dependency`);
         }
         return dep;
       }),
+      blocked_by: (rawTask.blocked_by as unknown[] | undefined)?.map((dep) => String(dep)),
       requires_approval: rawTask.requires_approval === true,
       input_template: isObject(rawTask.input_template) ? rawTask.input_template : undefined,
       context_template: isObject(rawTask.context_template) ? rawTask.context_template : undefined,
@@ -324,20 +352,24 @@ export function validateTemplateSchema(input: unknown): TemplateSchema {
     idSet.add(task.id);
   }
 
+  if (hasBlockedBy && hasDependsOn) {
+    throw new SchemaValidationFailedError(
+      "Templates cannot mix 'depends_on' and deprecated 'blocked_by' references",
+    );
+  }
+
+  const dependencyMap = new Map(tasks.map((task) => [task.id, [...(task.depends_on ?? [])]]));
+
   for (const task of tasks) {
     for (const dep of task.depends_on ?? []) {
+      if (dep.includes('.')) {
+        continue;
+      }
       if (!idSet.has(dep))
         throw new SchemaValidationFailedError(`Task '${task.id}' depends_on unknown task '${dep}'`);
       if (dep === task.id)
         throw new SchemaValidationFailedError(`Task '${task.id}' cannot depend on itself`);
     }
-  }
-
-  const cyclePath = detectDependencyCycle(tasks);
-  if (cyclePath) {
-    throw new CycleDetectedError('Template dependency graph contains a cycle', {
-      cycle_path: cyclePath,
-    });
   }
 
   // FR-712: Validate that no pattern nests another pattern.
@@ -351,9 +383,34 @@ export function validateTemplateSchema(input: unknown): TemplateSchema {
     validatedPatterns = patternsValue;
   }
 
+  const workflow = validateWorkflowDefinition({
+    workflow: input.workflow,
+    taskIds: tasks.map((task) => task.id),
+    dependencyMap,
+    patterns: validatedPatterns,
+  });
+
+  const dependencyMapWithPhaseRules = applySequentialPhaseDependencies(workflow, dependencyMap);
+  for (const task of tasks) {
+    task.depends_on = dependencyMapWithPhaseRules.get(task.id) ?? [];
+  }
+
+  const cyclePath = detectDependencyCycle(
+    tasks.map((task) => ({
+      ...task,
+      depends_on: (task.depends_on ?? []).filter((dep) => !dep.includes('.')),
+    })),
+  );
+  if (cyclePath) {
+    throw new CycleDetectedError('Template dependency graph contains a cycle', {
+      cycle_path: cyclePath,
+    });
+  }
+
   return {
     variables: parseTemplateVariables(input.variables),
     tasks,
+    workflow,
     config: isObject(input.config) ? input.config : undefined,
     config_policy: isObject(input.config_policy) ? input.config_policy : undefined,
     default_instruction_config: isObject(input.default_instruction_config)

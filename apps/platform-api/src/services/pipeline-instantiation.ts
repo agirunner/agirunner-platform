@@ -3,8 +3,13 @@ import type { DatabaseClient } from '../db/database.js';
 
 import type { AppEnv } from '../config/schema.js';
 import { NotFoundError, SchemaValidationFailedError } from '../errors/domain-errors.js';
-import type { TemplateTaskDefinition } from '../orchestration/pipeline-engine.js';
+import type { TemplateSchema, TemplateTaskDefinition } from '../orchestration/pipeline-engine.js';
 import { substituteTemplateVariables } from '../orchestration/template-variables.js';
+import {
+  buildStoredWorkflow,
+  resolveWorkflowDependencies,
+  type StoredWorkflowDefinition,
+} from '../orchestration/workflow-model.js';
 import { mergeLifecyclePolicy, type LifecyclePolicy } from './task-lifecycle-policy.js';
 
 export function buildTemplateTaskIdMap(tasks: TemplateTaskDefinition[]): Map<string, string> {
@@ -13,6 +18,17 @@ export function buildTemplateTaskIdMap(tasks: TemplateTaskDefinition[]): Map<str
     map.set(task.id, randomUUID());
   }
   return map;
+}
+
+export function buildStoredPipelineWorkflow(
+  schema: TemplateSchema,
+  taskIdMap: Map<string, string>,
+): StoredWorkflowDefinition {
+  const workflow = schema.workflow;
+  if (!workflow) {
+    throw new SchemaValidationFailedError('Template schema is missing workflow definition');
+  }
+  return buildStoredWorkflow(workflow, taskIdMap);
 }
 
 export async function loadTemplateOrThrow(
@@ -56,6 +72,8 @@ export async function insertTaskFromTemplate(params: {
   client: DatabaseClient;
   config: PipelineInstantiationConfig;
   pipelineLifecycle?: LifecyclePolicy;
+  storedWorkflow: StoredWorkflowDefinition;
+  dependencyMap: Map<string, string[]>;
 }) {
   const { tenantId, pipelineId, projectId, task, parameters, taskIdMap, client, config } = params;
 
@@ -66,7 +84,16 @@ export async function insertTaskFromTemplate(params: {
     );
   }
 
-  const dependsOn = (task.depends_on ?? []).map((dependencyTaskId) => {
+  const resolvedDependencies = resolveWorkflowDependencies(
+    { phases: params.storedWorkflow.phases.map((phase) => ({
+      name: phase.name,
+      gate: phase.gate,
+      parallel: phase.parallel,
+      tasks: [...phase.task_refs],
+    })) },
+    params.dependencyMap,
+  );
+  const dependsOn = (resolvedDependencies.get(task.id) ?? []).map((dependencyTaskId) => {
     const mapped = taskIdMap.get(dependencyTaskId);
     if (!mapped) {
       throw new SchemaValidationFailedError(
@@ -76,8 +103,17 @@ export async function insertTaskFromTemplate(params: {
     return mapped;
   });
 
+  const phase = params.storedWorkflow.phases.find((candidate) => candidate.task_refs.includes(task.id));
+  if (!phase) {
+    throw new SchemaValidationFailedError(`Template task '${task.id}' is missing workflow phase`);
+  }
+  const isFirstPhase = params.storedWorkflow.phases[0]?.name === phase.name;
   const initialState =
-    dependsOn.length > 0 ? 'pending' : task.requires_approval ? 'awaiting_approval' : 'ready';
+    !isFirstPhase || dependsOn.length > 0
+      ? 'pending'
+      : task.requires_approval
+        ? 'awaiting_approval'
+        : 'ready';
   const title = substituteTemplateVariables(task.title_template, parameters);
   const input = substituteTemplateVariables(task.input_template ?? {}, parameters);
   const context = substituteTemplateVariables(task.context_template ?? {}, parameters);
@@ -92,6 +128,7 @@ export async function insertTaskFromTemplate(params: {
   if (task.output_state) {
     metadata.output_state = substituteTemplateVariables(task.output_state, parameters);
   }
+  metadata.workflow_phase = phase.name;
 
   const created = await client.query(
     `INSERT INTO tasks (

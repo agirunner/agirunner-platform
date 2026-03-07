@@ -289,6 +289,80 @@ describe('pipeline/template integration', () => {
     expect(task.input).toEqual({ limit: '5' });
   });
 
+  it('activates later workflow phases only after prior phase completion and exposes phase status', async () => {
+    const template = await templateService.createTemplate(adminIdentity, {
+      name: 'Workflow Phase Template',
+      slug: `workflow-phase-${Date.now()}`,
+      schema: {
+        tasks: [
+          { id: 'spec', title_template: 'Spec', type: 'docs', capabilities_required: ['workflow'] },
+          { id: 'build', title_template: 'Build', type: 'code', capabilities_required: ['workflow'] },
+          { id: 'review', title_template: 'Review', type: 'review', capabilities_required: ['workflow'] },
+        ],
+        workflow: {
+          phases: [
+            { name: 'plan', tasks: ['spec'] },
+            { name: 'deliver', tasks: ['build', 'review'], parallel: false },
+          ],
+        },
+      },
+    });
+
+    const pipeline = await pipelineService.createPipeline(adminIdentity, {
+      template_id: template.id as string,
+      name: 'Workflow phase pipeline',
+    });
+
+    const createdTasks = pipeline.tasks as Array<Record<string, unknown>>;
+    const specTask = createdTasks.find((task) => task.role === 'spec')!;
+    const buildTask = createdTasks.find((task) => task.role === 'build')!;
+    const reviewTask = createdTasks.find((task) => task.role === 'review')!;
+
+    expect(specTask.state).toBe('ready');
+    expect(buildTask.state).toBe('pending');
+    expect(reviewTask.state).toBe('pending');
+
+    const agentId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO agents (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds)
+       VALUES ($1,$2,'workflow-agent',ARRAY['workflow'],'idle',30)`,
+      [agentId, tenantId],
+    );
+
+    const identity = {
+      id: 'workflow-agent',
+      tenantId,
+      scope: 'agent' as const,
+      ownerType: 'agent',
+      ownerId: agentId,
+      keyPrefix: 'workflow-agent',
+    };
+
+    await taskService.claimTask(identity, {
+      agent_id: agentId,
+      capabilities: ['workflow'],
+      pipeline_id: pipeline.id as string,
+    });
+    await taskService.startTask(identity, specTask.id as string, { agent_id: agentId });
+    await taskService.completeTask(identity, specTask.id as string, { output: { ok: true } });
+
+    const refreshedPipeline = await pipelineService.getPipeline(tenantId, pipeline.id as string);
+    const phaseMap = new Map(
+      ((refreshedPipeline.phases ?? []) as Array<Record<string, unknown>>).map((phase) => [
+        String(phase.name),
+        phase,
+      ]),
+    );
+
+    expect(refreshedPipeline.current_phase).toBe('deliver');
+    expect(phaseMap.get('plan')?.status).toBe('completed');
+    expect(phaseMap.get('deliver')?.status).toBe('active');
+
+    const refreshedTasks = refreshedPipeline.tasks as Array<Record<string, unknown>>;
+    expect(refreshedTasks.find((task) => task.id === buildTask.id)?.state).toBe('ready');
+    expect(refreshedTasks.find((task) => task.id === reviewTask.id)?.state).toBe('pending');
+  });
+
   it('creates a new immutable template version on update and uses latest version for new pipelines', async () => {
     const templateV1 = await templateService.createTemplate(adminIdentity, {
       name: 'Versioned Template',

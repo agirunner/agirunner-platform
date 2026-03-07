@@ -1,6 +1,7 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabaseClient } from '../db/database.js';
 import type { TaskState } from '../orchestration/task-state-machine.js';
+import type { StoredWorkflowDefinition } from '../orchestration/workflow-model.js';
 import { EventService } from './event-service.js';
 
 export async function applyTaskCompletionSideEffects(
@@ -50,6 +51,8 @@ export async function applyTaskCompletionSideEffects(
     return;
   }
 
+  await advancePipelineWorkflow(eventService, identity, String(task.pipeline_id), client);
+
   const contextKey = (task.role as string | null) || (task.type as string);
   await client.query(
     `UPDATE pipelines
@@ -60,4 +63,153 @@ export async function applyTaskCompletionSideEffects(
        AND octet_length(jsonb_set(context, $2::text[], $3::jsonb, true)::text) <= context_max_bytes`,
     [identity.tenantId, [contextKey], task.output ?? {}, task.pipeline_id],
   );
+}
+
+async function advancePipelineWorkflow(
+  eventService: EventService,
+  identity: ApiKeyIdentity,
+  pipelineId: string,
+  client: DatabaseClient,
+) {
+  const pipelineResult = await client.query(
+    'SELECT metadata FROM pipelines WHERE tenant_id = $1 AND id = $2',
+    [identity.tenantId, pipelineId],
+  );
+  const metadata = asRecord(pipelineResult.rows[0]?.metadata);
+  const workflow = readStoredWorkflow(metadata.workflow);
+  if (!workflow) {
+    return;
+  }
+
+  const tasksResult = await client.query(
+    'SELECT id, state, depends_on, requires_approval, metadata FROM tasks WHERE tenant_id = $1 AND pipeline_id = $2',
+    [identity.tenantId, pipelineId],
+  );
+  const tasks = tasksResult.rows.map((row) => row as Record<string, unknown>);
+
+  for (let phaseIndex = 0; phaseIndex < workflow.phases.length; phaseIndex += 1) {
+    const phase = workflow.phases[phaseIndex];
+    const phaseTasks = tasks.filter((candidate) => phase.task_ids.includes(String(candidate.id)));
+    const allCompleted = phaseTasks.length > 0 && phaseTasks.every((candidate) => candidate.state === 'completed');
+
+    if (!allCompleted) {
+      return;
+    }
+
+    await eventService.emit(
+      {
+        tenantId: identity.tenantId,
+        type: 'phase.completed',
+        entityType: 'pipeline',
+        entityId: pipelineId,
+        actorType: 'system',
+        actorId: 'workflow_resolver',
+        data: {
+          pipeline_id: pipelineId,
+          phase_name: phase.name,
+          timestamp: new Date().toISOString(),
+        },
+      },
+      client,
+    );
+
+    const nextPhase = workflow.phases[phaseIndex + 1];
+    if (!nextPhase) {
+      return;
+    }
+
+    if (phase.gate === 'manual') {
+      await eventService.emit(
+        {
+          tenantId: identity.tenantId,
+          type: 'phase.gate.awaiting_approval',
+          entityType: 'pipeline',
+          entityId: pipelineId,
+          actorType: 'system',
+          actorId: 'workflow_resolver',
+          data: {
+            pipeline_id: pipelineId,
+            phase_name: phase.name,
+            timestamp: new Date().toISOString(),
+          },
+        },
+        client,
+      );
+      return;
+    }
+
+    let activatedAny = false;
+    for (const nextTask of tasks.filter((candidate) => nextPhase.task_ids.includes(String(candidate.id)))) {
+      if (nextTask.state !== 'pending') {
+        continue;
+      }
+      const dependencies = Array.isArray(nextTask.depends_on)
+        ? (nextTask.depends_on as string[])
+        : [];
+      const depsComplete = dependencies.every((dependencyId) => {
+        const dependency = tasks.find((candidate) => String(candidate.id) === String(dependencyId));
+        return dependency ? dependency.state === 'completed' : false;
+      });
+      if (!depsComplete) {
+        continue;
+      }
+
+      const nextState: TaskState = nextTask.requires_approval ? 'awaiting_approval' : 'ready';
+      await client.query(
+        'UPDATE tasks SET state = $3, state_changed_at = now() WHERE tenant_id = $1 AND id = $2',
+        [identity.tenantId, nextTask.id, nextState],
+      );
+      await eventService.emit(
+        {
+          tenantId: identity.tenantId,
+          type: 'task.state_changed',
+          entityType: 'task',
+          entityId: String(nextTask.id),
+          actorType: 'system',
+          actorId: 'workflow_resolver',
+          data: { from_state: 'pending', to_state: nextState },
+        },
+        client,
+      );
+      activatedAny = true;
+    }
+
+    if (activatedAny) {
+      await eventService.emit(
+        {
+          tenantId: identity.tenantId,
+          type: 'phase.started',
+          entityType: 'pipeline',
+          entityId: pipelineId,
+          actorType: 'system',
+          actorId: 'workflow_resolver',
+          data: {
+            pipeline_id: pipelineId,
+            phase_name: nextPhase.name,
+            timestamp: new Date().toISOString(),
+          },
+        },
+        client,
+      );
+    }
+    return;
+  }
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
+}
+
+function readStoredWorkflow(value: unknown): StoredWorkflowDefinition | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  const workflow = value as StoredWorkflowDefinition;
+  if (!Array.isArray(workflow.phases)) {
+    return null;
+  }
+  return workflow;
 }
