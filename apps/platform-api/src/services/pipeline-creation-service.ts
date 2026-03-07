@@ -25,18 +25,32 @@ export class PipelineCreationService {
 
       const template = await loadTemplateOrThrow(identity.tenantId, input.template_id, client);
       const schema = validateTemplateSchema(template.schema as unknown);
+      let projectSpecVersion: number | null = null;
 
       if (input.project_id) {
-        const project = await client.query('SELECT id FROM projects WHERE tenant_id = $1 AND id = $2', [identity.tenantId, input.project_id]);
+        const project = await client.query<{ id: string; current_spec_version: number }>(
+          'SELECT id, current_spec_version FROM projects WHERE tenant_id = $1 AND id = $2',
+          [identity.tenantId, input.project_id],
+        );
         if (!project.rowCount) throw new NotFoundError('Project not found');
+        projectSpecVersion = project.rows[0].current_spec_version;
       }
 
       const parameters = resolveTemplateVariables(schema.variables, input.parameters);
       const pipelineRes = await client.query(
-        `INSERT INTO pipelines (tenant_id, project_id, template_id, template_version, name, parameters, metadata, state)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,'pending')
+        `INSERT INTO pipelines (tenant_id, project_id, template_id, template_version, project_spec_version, name, parameters, metadata, state)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending')
          RETURNING *`,
-        [identity.tenantId, input.project_id ?? null, template.id, template.version, input.name, parameters, input.metadata ?? {}],
+        [
+          identity.tenantId,
+          input.project_id ?? null,
+          template.id,
+          template.version,
+          projectSpecVersion,
+          input.name,
+          parameters,
+          input.metadata ?? {},
+        ],
       );
 
       const pipeline = pipelineRes.rows[0];
@@ -77,7 +91,12 @@ export class PipelineCreationService {
           entityId: pipeline.id as string,
           actorType: identity.scope,
           actorId: identity.keyPrefix,
-          data: { template_id: template.id, template_version: template.version, task_count: createdTasks.length },
+          data: {
+            template_id: template.id,
+            template_version: template.version,
+            project_spec_version: projectSpecVersion,
+            task_count: createdTasks.length,
+          },
         },
         client,
       );

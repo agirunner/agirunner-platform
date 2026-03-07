@@ -6,6 +6,7 @@ import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { EventService } from '../../services/event-service.js';
 import { ProjectService } from '../../services/project-service.js';
+import { ProjectSpecService } from '../../services/project-spec-service.js';
 
 const projectCreateSchema = z.object({
   name: z.string().min(1).max(255),
@@ -34,6 +35,13 @@ const projectMemoryPatchSchema = z.object({
   value: z.unknown(),
 });
 
+const projectSpecSchema = z.object({
+  resources: z.record(z.unknown()).optional(),
+  documents: z.record(z.unknown()).optional(),
+  config: z.record(z.unknown()).optional(),
+  instructions: z.record(z.unknown()).optional(),
+});
+
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
     return result.data;
@@ -44,6 +52,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 
 export const projectRoutes: FastifyPluginAsync = async (app) => {
   const projectService = new ProjectService(app.pgPool, new EventService(app.pgPool));
+  const projectSpecService = new ProjectSpecService(app.pgPool, new EventService(app.pgPool));
 
   app.post('/api/v1/projects', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request, reply) => {
     const body = parseOrThrow(projectCreateSchema.safeParse(request.body));
@@ -78,6 +87,32 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
     const params = request.params as { id: string };
     const project = await projectService.getProject(request.auth!.tenantId, params.id);
     return { data: project };
+  });
+
+  app.get('/api/v1/projects/:id/spec', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
+    const params = request.params as { id: string };
+    const query = request.query as { version?: string };
+    const version =
+      query.version === undefined ? undefined : Number.isFinite(Number(query.version)) ? Number(query.version) : NaN;
+    if (Number.isNaN(version)) {
+      throw new ValidationError('version must be a valid integer');
+    }
+    const spec = await projectSpecService.getProjectSpec(request.auth!.tenantId, params.id, version);
+    return { data: spec };
+  });
+
+  app.put('/api/v1/projects/:id/spec', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
+    const params = request.params as { id: string };
+    const body = parseOrThrow(projectSpecSchema.safeParse(request.body ?? {}));
+    const spec = await projectSpecService.putProjectSpec(request.auth!, params.id, body);
+    return { data: spec };
+  });
+
+  app.get('/api/v1/projects/:id/resources', { preHandler: [authenticateApiKey, withAllowedScopes(['agent', 'admin'])] }, async (request) => {
+    const params = request.params as { id: string };
+    const query = request.query as { type?: string; task_id?: string };
+    const resources = await projectSpecService.listProjectResources(request.auth!, params.id, query);
+    return resources;
   });
 
   app.patch('/api/v1/projects/:id', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {

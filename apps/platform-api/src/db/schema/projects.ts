@@ -16,6 +16,7 @@ export const projects = pgTable(
     memory: jsonb('memory').notNull().default({}),
     memorySizeBytes: integer('memory_size_bytes').notNull().default(0),
     memoryMaxBytes: integer('memory_max_bytes').notNull().default(1048576),
+    currentSpecVersion: integer('current_spec_version').notNull().default(0),
     settings: jsonb('settings').notNull().default({}),
     isActive: boolean('is_active').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

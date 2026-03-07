@@ -1,6 +1,7 @@
 export * from './enums.js';
 export * from './tenants.js';
 export * from './projects.js';
+export * from './project-spec-versions.js';
 export * from './templates.js';
 export * from './pipelines.js';
 export * from './tasks.js';

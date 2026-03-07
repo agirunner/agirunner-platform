@@ -15,6 +15,7 @@ export const pipelines = pgTable(
     projectId: uuid('project_id').references(() => projects.id),
     templateId: uuid('template_id').references(() => templates.id),
     templateVersion: integer('template_version'),
+    projectSpecVersion: integer('project_spec_version'),
     name: text('name').notNull(),
     state: pipelineStateEnum('state').notNull().default('pending'),
     parameters: jsonb('parameters').notNull().default({}),
