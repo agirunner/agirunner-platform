@@ -29,7 +29,9 @@ const phaseGateSchema = z.object({
 });
 
 const workflowChainSchema = z.object({
+  template_id: z.string().uuid().optional(),
   name: z.string().min(1).max(255).optional(),
+  parameters: z.record(z.unknown()).optional(),
 });
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
@@ -114,7 +116,9 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
   app.post('/api/v1/workflows/:id/chain', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request, reply) => {
     const params = request.params as { id: string };
     const body = parseOrThrow(workflowChainSchema.safeParse(request.body ?? {}));
-    const workflow = await workflowChainingService.chainWorkflowFromSuggestedPlan(request.auth!, params.id, body);
+    const workflow = body.template_id
+      ? await workflowChainingService.chainWorkflowExplicit(request.auth!, params.id, body as { template_id: string; name?: string; parameters?: Record<string, unknown> })
+      : await workflowChainingService.chainWorkflowFromSuggestedPlan(request.auth!, params.id, body);
     return reply.status(201).send({ data: workflow });
   });
 

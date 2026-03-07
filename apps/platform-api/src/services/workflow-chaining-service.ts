@@ -14,19 +14,35 @@ export class WorkflowChainingService {
     this.projectTimelineService = new ProjectTimelineService(pool);
   }
 
+  async chainWorkflowExplicit(
+    identity: ApiKeyIdentity,
+    sourceWorkflowId: string,
+    payload: { template_id: string; name?: string; parameters?: Record<string, unknown> },
+  ) {
+    const sourceWorkflow = await this.fetchSourceWorkflow(identity.tenantId, sourceWorkflowId);
+
+    const nextWorkflow = await this.workflowService.createWorkflow(identity, {
+      template_id: payload.template_id,
+      project_id: sourceWorkflow.project_id ? String(sourceWorkflow.project_id) : undefined,
+      name: payload.name ?? `${String(sourceWorkflow.name)} follow-up`,
+      parameters: payload.parameters,
+      metadata: {
+        chain_source_workflow_id: sourceWorkflowId,
+        chain_origin: 'explicit',
+      },
+    });
+
+    await this.linkChildWorkflow(identity.tenantId, sourceWorkflowId, sourceWorkflow, nextWorkflow.id);
+
+    return nextWorkflow;
+  }
+
   async chainWorkflowFromSuggestedPlan(
     identity: ApiKeyIdentity,
     sourceWorkflowId: string,
     payload: { name?: string },
   ) {
-    const workflowResult = await this.pool.query(
-      'SELECT * FROM workflows WHERE tenant_id = $1 AND id = $2',
-      [identity.tenantId, sourceWorkflowId],
-    );
-    if (!workflowResult.rowCount) {
-      throw new NotFoundError('Workflow not found');
-    }
-    const sourceWorkflow = workflowResult.rows[0] as Record<string, unknown>;
+    const sourceWorkflow = await this.fetchSourceWorkflow(identity.tenantId, sourceWorkflowId);
     if (!sourceWorkflow.project_id) {
       throw new ConflictError('Workflow chaining requires a project-scoped workflow');
     }
@@ -61,10 +77,32 @@ export class WorkflowChainingService {
       },
     });
 
+    await this.linkChildWorkflow(identity.tenantId, sourceWorkflowId, sourceWorkflow, nextWorkflow.id);
+
+    return nextWorkflow;
+  }
+
+  private async fetchSourceWorkflow(tenantId: string, workflowId: string) {
+    const result = await this.pool.query(
+      'SELECT * FROM workflows WHERE tenant_id = $1 AND id = $2',
+      [tenantId, workflowId],
+    );
+    if (!result.rowCount) {
+      throw new NotFoundError('Workflow not found');
+    }
+    return result.rows[0] as Record<string, unknown>;
+  }
+
+  private async linkChildWorkflow(
+    tenantId: string,
+    sourceWorkflowId: string,
+    sourceWorkflow: Record<string, unknown>,
+    childWorkflowId: string,
+  ) {
     const sourceMetadata = asRecord(sourceWorkflow.metadata);
     const childWorkflowIds = Array.isArray(sourceMetadata.child_workflow_ids)
-      ? [...(sourceMetadata.child_workflow_ids as unknown[]), nextWorkflow.id]
-      : [nextWorkflow.id];
+      ? [...(sourceMetadata.child_workflow_ids as unknown[]), childWorkflowId]
+      : [childWorkflowId];
     await this.pool.query(
       `UPDATE workflows
           SET metadata = metadata || $3::jsonb,
@@ -72,22 +110,20 @@ export class WorkflowChainingService {
         WHERE tenant_id = $1
           AND id = $2`,
       [
-        identity.tenantId,
+        tenantId,
         sourceWorkflowId,
         {
           child_workflow_ids: childWorkflowIds,
-          latest_chained_workflow_id: nextWorkflow.id,
+          latest_chained_workflow_id: childWorkflowId,
         },
       ],
     );
     if (isTerminalWorkflowState(sourceWorkflow.state)) {
       await this.projectTimelineService.recordWorkflowTerminalState(
-        identity.tenantId,
+        tenantId,
         sourceWorkflowId,
       );
     }
-
-    return nextWorkflow;
   }
 
   private async resolveTemplateId(tenantId: string, templateRef: string) {

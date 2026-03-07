@@ -5,6 +5,7 @@ import { readSession } from '../../lib/session.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card.js';
+import { ActiveRuntimeImageCard, BuildHistoryCard } from './runtimes-build-history.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 
@@ -282,6 +283,9 @@ export function RuntimesPage(): JSX.Element {
           />
         ))}
       </form>
+
+      <ActiveRuntimeImageCard />
+      <BuildHistoryCard />
     </div>
   );
 }

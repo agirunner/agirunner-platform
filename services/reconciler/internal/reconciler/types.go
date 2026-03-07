@@ -21,6 +21,7 @@ type DesiredState struct {
 	RestartRequested   bool                   `json:"restart_requested"`
 	Draining           bool                   `json:"draining"`
 	Version            int                    `json:"version"`
+	WarmPoolSize       int                    `json:"warm_pool_size"`
 }
 
 // ActualState represents the current state of a container.

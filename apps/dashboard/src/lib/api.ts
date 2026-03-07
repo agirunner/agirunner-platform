@@ -404,6 +404,10 @@ export interface DashboardApi {
     metadata?: Record<string, unknown>;
   }): Promise<unknown>;
   cancelWorkflow(workflowId: string): Promise<unknown>;
+  chainWorkflow(
+    workflowId: string,
+    payload: { template_id?: string; name?: string; parameters?: Record<string, unknown> },
+  ): Promise<unknown>;
   listTasks(filters?: Record<string, string>): Promise<unknown>;
   getTask(id: string): Promise<unknown>;
   listTaskArtifacts(taskId: string): Promise<DashboardTaskArtifactRecord[]>;
@@ -684,6 +688,10 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       ),
     createWorkflow: (payload) => withRefresh(() => client.createWorkflow(payload)),
     cancelWorkflow: (workflowId) => withRefresh(() => client.cancelWorkflow(workflowId)),
+    chainWorkflow: (workflowId, payload) =>
+      withRefresh(() =>
+        requestJson(`/api/v1/workflows/${workflowId}/chain`, { body: payload as unknown as Record<string, unknown> }),
+      ),
     listTasks: (filters) => withRefresh(() => client.listTasks(filters)),
     getTask: (id) => withRefresh(() => client.getTask(id)),
     listTaskArtifacts: (taskId) =>

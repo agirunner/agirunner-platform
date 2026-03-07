@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useRef } from 'react';
 import {
   ReactFlow,
+  ReactFlowProvider,
   Background,
   Controls,
   type Node,
@@ -10,6 +11,7 @@ import {
   applyNodeChanges,
   applyEdgeChanges,
   Panel,
+  useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Plus } from 'lucide-react';
@@ -17,6 +19,7 @@ import { Button } from '../../components/ui/button.js';
 import { Badge } from '../../components/ui/badge.js';
 import type { TemplateDefinition, PhaseDefinition, TaskDefinition } from './template-editor-types.js';
 import { VisualEditPanel } from './template-editor-visual-panel.js';
+import { ComponentPalette, type PaletteItemType } from './template-editor-component-palette.js';
 
 interface VisualTabProps {
   template: TemplateDefinition;
@@ -105,8 +108,39 @@ function generateId(): string {
   return crypto.randomUUID().slice(0, 8);
 }
 
+const TASK_TYPE_MAP: Record<string, { type: string; role: string; name: string }> = {
+  'task-autonomous': { type: 'autonomous', role: 'developer', name: 'Autonomous Task' },
+  'task-review': { type: 'human-review', role: 'reviewer', name: 'Review Task' },
+  'task-approval': { type: 'approval', role: 'architect', name: 'Approval Gate' },
+};
+
+function findPhaseAtPosition(
+  phases: PhaseDefinition[],
+  dropX: number,
+): PhaseDefinition | null {
+  let xOffset = 0;
+  for (const phase of phases) {
+    const phaseRight = xOffset + PHASE_WIDTH;
+    if (dropX >= xOffset && dropX <= phaseRight) {
+      return phase;
+    }
+    xOffset += PHASE_WIDTH + 60;
+  }
+  return null;
+}
+
 export function VisualTab({ template, onChange }: VisualTabProps): JSX.Element {
+  return (
+    <ReactFlowProvider>
+      <VisualTabInner template={template} onChange={onChange} />
+    </ReactFlowProvider>
+  );
+}
+
+function VisualTabInner({ template, onChange }: VisualTabProps): JSX.Element {
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const { screenToFlowPosition } = useReactFlow();
 
   const initialNodes = useMemo(() => buildNodes(template.phases), [template.phases]);
   const initialEdges = useMemo(() => buildEdges(template.phases), [template.phases]);
@@ -189,15 +223,81 @@ export function VisualTab({ template, onChange }: VisualTabProps): JSX.Element {
     [onChange],
   );
 
+  const handleDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const handleDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+
+      const itemType = event.dataTransfer.getData('application/reactflow-palette') as PaletteItemType;
+      if (!itemType) return;
+
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      });
+
+      if (itemType === 'phase') {
+        const newPhase: PhaseDefinition = {
+          id: generateId(),
+          name: `Phase ${template.phases.length + 1}`,
+          gate: 'all_complete',
+          gate_type: 'approval',
+          parallel: false,
+          tasks: [],
+        };
+        const updated = { ...template, phases: [...template.phases, newPhase] };
+        onChange(updated);
+        setNodes(buildNodes(updated.phases));
+        setEdges(buildEdges(updated.phases));
+        return;
+      }
+
+      const taskConfig = TASK_TYPE_MAP[itemType];
+      if (!taskConfig) return;
+
+      const targetPhase = findPhaseAtPosition(template.phases, position.x);
+      const resolvedPhase = targetPhase ?? template.phases[template.phases.length - 1];
+
+      if (!resolvedPhase) return;
+
+      const newTask: TaskDefinition = {
+        id: generateId(),
+        name: `${taskConfig.name} ${resolvedPhase.tasks.length + 1}`,
+        role: taskConfig.role,
+        type: taskConfig.type,
+        depends_on: [],
+        requires_approval: itemType === 'task-approval',
+        input_template: '',
+        output_mode: 'inline',
+      };
+
+      const updatedPhases = template.phases.map((p) =>
+        p.id === resolvedPhase.id ? { ...p, tasks: [...p.tasks, newTask] } : p,
+      );
+      const updated = { ...template, phases: updatedPhases };
+      onChange(updated);
+      setNodes(buildNodes(updated.phases));
+      setEdges(buildEdges(updated.phases));
+    },
+    [template, onChange, screenToFlowPosition],
+  );
+
   return (
     <div className="flex h-[600px] border border-border rounded-lg overflow-hidden">
-      <div className="flex-1 relative">
+      <ComponentPalette />
+      <div className="flex-1 relative" ref={reactFlowWrapper}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onNodeClick={handleNodeClick}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
           fitView
           proOptions={{ hideAttribution: true }}
         >
@@ -223,7 +323,7 @@ export function VisualTab({ template, onChange }: VisualTabProps): JSX.Element {
           {template.phases.length === 0 && (
             <Panel position="top-center">
               <div className="mt-40 text-center text-muted text-sm">
-                Click "Add Phase" to start building your workflow.
+                Click "Add Phase" or drag a component from the palette.
               </div>
             </Panel>
           )}

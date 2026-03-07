@@ -15,6 +15,7 @@ import {
   Plus,
   Trash2,
   Save,
+  Link2,
 } from 'lucide-react';
 import {
   ReactFlow,
@@ -67,6 +68,7 @@ import {
   SelectValue,
 } from '../../components/ui/select.js';
 import { Textarea } from '../../components/ui/textarea.js';
+import { ChainWorkflowDialog } from '../../components/chain-workflow-dialog.js';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -1207,6 +1209,7 @@ export function WorkflowDetailPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+  const [isChainOpen, setIsChainOpen] = useState(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['workflow', id],
@@ -1255,6 +1258,16 @@ export function WorkflowDetailPage(): JSX.Element {
             <Plus className="h-4 w-4" />
             Add Task
           </Button>
+          {status === 'completed' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsChainOpen(true)}
+            >
+              <Link2 className="h-4 w-4" />
+              Chain Workflow
+            </Button>
+          )}
           <ActionButtons workflow={workflow} />
         </div>
       </div>
@@ -1362,6 +1375,13 @@ export function WorkflowDetailPage(): JSX.Element {
         workflowId={workflow.id}
         phases={phases}
         existingTasks={tasks}
+      />
+      <ChainWorkflowDialog
+        isOpen={isChainOpen}
+        onOpenChange={setIsChainOpen}
+        sourceWorkflowId={workflow.id}
+        defaultTemplateId={workflow.template_id}
+        defaultWorkflowName={workflow.name}
       />
     </div>
   );
