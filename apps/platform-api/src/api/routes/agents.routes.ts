@@ -9,6 +9,12 @@ import { EventService } from '../../services/event-service.js';
 const registerSchema = z.object({
   name: z.string().min(1).max(200),
   capabilities: z.array(z.string().min(1)).default([]),
+  tools: z
+    .object({
+      required: z.array(z.string().min(1)).optional(),
+      optional: z.array(z.string().min(1)).optional(),
+    })
+    .optional(),
   worker_id: z.string().uuid().optional(),
   heartbeat_interval_seconds: z.number().int().min(5).max(3600).optional(),
   metadata: z.record(z.unknown()).optional(),

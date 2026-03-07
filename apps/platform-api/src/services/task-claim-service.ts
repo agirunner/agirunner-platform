@@ -3,6 +3,7 @@ import type { DatabasePool } from '../db/database.js';
 import { AgentBusyError, ForbiddenError, NotFoundError } from '../errors/domain-errors.js';
 import { assertValidTransition } from '../orchestration/task-state-machine.js';
 import { EventService } from './event-service.js';
+import { computeToolMatch, readAgentToolRequirements, resolveProjectToolTags } from './tool-tag-service.js';
 
 const priorityCase = "CASE priority WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END";
 
@@ -78,7 +79,7 @@ export class TaskClaimService {
            CASE WHEN tasks.metadata->>'preferred_worker_id' = COALESCE($5, tasks.metadata->>'preferred_worker_id') THEN 1 ELSE 0 END DESC,
            ${priorityCase} DESC,
            tasks.created_at ASC
-         LIMIT 1
+         LIMIT 25
          FOR UPDATE OF tasks SKIP LOCKED`,
         [identity.tenantId, payload.capabilities, payload.pipeline_id ?? null, payload.agent_id, payload.worker_id ?? null],
       );
@@ -88,8 +89,31 @@ export class TaskClaimService {
         return null;
       }
 
-      const task = taskRes.rows[0];
-      assertValidTransition(task.id as string, task.state, 'claimed');
+      const agentTools = readAgentToolRequirements(agent);
+      let task: Record<string, unknown> | null = null;
+      let toolMatch = { matched: [] as string[], unavailable_optional: [] as string[] };
+      for (const candidate of taskRes.rows as Record<string, unknown>[]) {
+        const projectTools = await resolveProjectToolTags(
+          client,
+          identity.tenantId,
+          (candidate.project_id as string | null | undefined) ?? null,
+        );
+        const evaluation = computeToolMatch(projectTools, agentTools);
+        if (evaluation.matches) {
+          task = candidate;
+          toolMatch = {
+            matched: evaluation.matched,
+            unavailable_optional: evaluation.unavailable_optional,
+          };
+          break;
+        }
+      }
+
+      if (!task) {
+        await client.query('COMMIT');
+        return null;
+      }
+      assertValidTransition(task.id as string, task.state as Parameters<typeof assertValidTransition>[1], 'claimed');
 
       const updatedTaskRes = await client.query(
         `UPDATE tasks
@@ -132,6 +156,7 @@ export class TaskClaimService {
 
       return {
         ...claimedTask,
+        tools: toolMatch,
         context: await this.deps.getTaskContext(identity.tenantId, task.id as string, payload.agent_id),
       };
     } catch (error) {

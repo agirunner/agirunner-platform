@@ -8,6 +8,7 @@ import { EventService } from './event-service.js';
 interface RegisterAgentInput {
   name: string;
   capabilities?: string[];
+  tools?: { required?: string[]; optional?: string[] };
   worker_id?: string;
   heartbeat_interval_seconds?: number;
   metadata?: Record<string, unknown>;
@@ -30,7 +31,11 @@ export class AgentService {
   ) {}
 
   async registerAgent(identity: ApiKeyIdentity, input: RegisterAgentInput) {
-    const metadata = { ...(input.metadata ?? {}), ...(input.profile ? { profile: input.profile } : {}) };
+    const metadata = {
+      ...(input.metadata ?? {}),
+      ...(input.profile ? { profile: input.profile } : {}),
+      ...(input.tools ? { tools: input.tools } : {}),
+    };
 
     const result = await this.pool.query(
       `INSERT INTO agents (
@@ -74,6 +79,7 @@ export class AgentService {
       status: agent.status,
       api_key: apiKey,
       metadata: agent.metadata,
+      tools: (agent.metadata as Record<string, unknown>)?.tools ?? { required: [], optional: [] },
     };
   }
 

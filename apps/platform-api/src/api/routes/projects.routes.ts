@@ -38,6 +38,7 @@ const projectMemoryPatchSchema = z.object({
 const projectSpecSchema = z.object({
   resources: z.record(z.unknown()).optional(),
   documents: z.record(z.unknown()).optional(),
+  tools: z.record(z.unknown()).optional(),
   config: z.record(z.unknown()).optional(),
   instructions: z.record(z.unknown()).optional(),
 });
@@ -113,6 +114,12 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
     const query = request.query as { type?: string; task_id?: string };
     const resources = await projectSpecService.listProjectResources(request.auth!, params.id, query);
     return resources;
+  });
+
+  app.get('/api/v1/projects/:id/tools', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
+    const params = request.params as { id: string };
+    const tools = await projectSpecService.listProjectTools(request.auth!.tenantId, params.id);
+    return tools;
   });
 
   app.patch('/api/v1/projects/:id', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {

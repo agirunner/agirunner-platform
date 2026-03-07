@@ -3,6 +3,7 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
 import { validateProjectDocumentRegistry } from './document-reference-service.js';
+import { readProjectToolTags, validateProjectToolTags } from './tool-tag-service.js';
 
 type ResourceType =
   | 'repository'
@@ -193,6 +194,13 @@ export class ProjectSpecService {
     };
   }
 
+  async listProjectTools(tenantId: string, projectId: string) {
+    const specEnvelope = await this.getProjectSpec(tenantId, projectId);
+    return {
+      data: readProjectToolTags(specEnvelope.spec),
+    };
+  }
+
   private validateProjectSpec(spec: Record<string, unknown>): void {
     const resources = this.readResourceMap(spec);
     for (const [logicalName, entry] of Object.entries(resources)) {
@@ -211,6 +219,7 @@ export class ProjectSpecService {
     }
 
     validateProjectDocumentRegistry(spec);
+    validateProjectToolTags(spec);
   }
 
   private validateBinding(type: ResourceType, logicalName: string, binding: Record<string, unknown>): void {
