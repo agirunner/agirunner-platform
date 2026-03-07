@@ -10,6 +10,18 @@ import { buildApp } from '../../src/bootstrap/app.js';
 import { startTestDatabase, stopTestDatabase, type TestDatabase } from '../helpers/postgres.js';
 
 const tenantId = '00000000-0000-0000-0000-000000000001';
+const testPort = '8093';
+const testJwtSecret = 'x'.repeat(64);
+const testWebhookSecret = 'k'.repeat(64);
+const artifactTestPipelineName = 'artifact-pipeline';
+const artifactTestAgentName = 'artifact-agent';
+const artifactTestTaskTitle = 'artifact-task';
+const artifactTestCapability = 'ts';
+const artifactTestKeyTtlMs = 60_000;
+const artifactRetentionDays = 7;
+const artifactContentType = 'application/json';
+const artifactRelativePath = 'reports/result.json';
+const artifactPayload = '{"ok":true}';
 
 describe('task artifact routes', () => {
   let db: TestDatabase;
@@ -41,10 +53,10 @@ describe('task artifact routes', () => {
     }
 
     process.env.NODE_ENV = 'test';
-    process.env.PORT = '8093';
+    process.env.PORT = testPort;
     process.env.DATABASE_URL = db.databaseUrl;
-    process.env.JWT_SECRET = 'x'.repeat(64);
-    process.env.WEBHOOK_ENCRYPTION_KEY = 'k'.repeat(64);
+    process.env.JWT_SECRET = testJwtSecret;
+    process.env.WEBHOOK_ENCRYPTION_KEY = testWebhookSecret;
     process.env.JWT_EXPIRES_IN = '5m';
     process.env.JWT_REFRESH_EXPIRES_IN = '1h';
     process.env.LOG_LEVEL = 'error';
@@ -58,18 +70,23 @@ describe('task artifact routes', () => {
 
     await db.pool.query(
       `INSERT INTO pipelines (id, tenant_id, name, metadata, state)
-       VALUES ($1,$2,'artifact-pipeline',$3::jsonb,'active')`,
-      [pipelineId, tenantId, JSON.stringify({ artifact_retention: { mode: 'days', days: 7 } })],
+       VALUES ($1,$2,$3,$4::jsonb,'active')`,
+      [
+        pipelineId,
+        tenantId,
+        artifactTestPipelineName,
+        JSON.stringify({ artifact_retention: { mode: 'days', days: artifactRetentionDays } }),
+      ],
     );
     await db.pool.query(
       `INSERT INTO agents (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds, current_task_id)
-       VALUES ($1,$2,'artifact-agent',ARRAY['ts'],'busy',30,NULL)`,
-      [agentId, tenantId],
+       VALUES ($1,$2,$3,ARRAY[$4],'busy',30,NULL)`,
+      [agentId, tenantId, artifactTestAgentName, artifactTestCapability],
     );
     await db.pool.query(
       `INSERT INTO tasks (id, tenant_id, pipeline_id, title, type, state, assigned_agent_id)
-       VALUES ($1,$2,$3,'artifact-task','code','running',$4)`,
-      [taskId, tenantId, pipelineId, agentId],
+       VALUES ($1,$2,$3,$4,'code','running',$5)`,
+      [taskId, tenantId, pipelineId, artifactTestTaskTitle, agentId],
     );
     await db.pool.query('UPDATE agents SET current_task_id = $3 WHERE tenant_id = $1 AND id = $2', [
       tenantId,
@@ -83,7 +100,7 @@ describe('task artifact routes', () => {
         scope: 'agent',
         ownerType: 'agent',
         ownerId: agentId,
-        expiresAt: new Date(Date.now() + 60_000),
+        expiresAt: new Date(Date.now() + artifactTestKeyTtlMs),
       })
     ).apiKey;
 
@@ -116,18 +133,18 @@ describe('task artifact routes', () => {
       url: `/api/v1/tasks/${taskId}/artifacts`,
       headers: { authorization: `Bearer ${agentKey}` },
       payload: {
-        path: 'reports/result.json',
-        content_base64: Buffer.from('{"ok":true}', 'utf8').toString('base64'),
-        content_type: 'application/json',
+        path: artifactRelativePath,
+        content_base64: Buffer.from(artifactPayload, 'utf8').toString('base64'),
+        content_type: artifactContentType,
         metadata: { source: 'integration-test' },
       },
     });
 
     expect(upload.statusCode).toBe(201);
     const created = upload.json().data;
-    expect(created.logical_path).toBe(`artifact:${pipelineId}/reports/result.json`);
-    expect(created.content_type).toBe('application/json');
-    expect(created.retention_policy).toEqual({ mode: 'days', days: 7 });
+    expect(created.logical_path).toBe(`artifact:${pipelineId}/${artifactRelativePath}`);
+    expect(created.content_type).toBe(artifactContentType);
+    expect(created.retention_policy).toEqual({ mode: 'days', days: artifactRetentionDays });
     expect(created.expires_at).not.toBeNull();
 
     const list = await app.inject({
@@ -147,8 +164,8 @@ describe('task artifact routes', () => {
     });
 
     expect(download.statusCode).toBe(200);
-    expect(download.headers['content-type']).toContain('application/json');
-    expect(download.body).toBe('{"ok":true}');
+    expect(download.headers['content-type']).toContain(artifactContentType);
+    expect(download.body).toBe(artifactPayload);
 
     const remove = await app.inject({
       method: 'DELETE',

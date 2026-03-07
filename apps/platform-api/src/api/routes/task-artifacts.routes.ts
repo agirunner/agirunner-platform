@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
 import { authenticateApiKey, withAllowedScopes } from '../../auth/fastify-auth-hook.js';
+import { buildArtifactStorageConfig } from '../../content/storage-config.js';
 import { createArtifactStorage } from '../../content/storage-factory.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
 import { ArtifactService } from '../../services/artifact-service.js';
@@ -23,19 +24,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 export const taskArtifactRoutes: FastifyPluginAsync = async (app) => {
   const artifactService = new ArtifactService(
     app.pgPool,
-    createArtifactStorage({
-      backend: app.config.ARTIFACT_STORAGE_BACKEND,
-      localRoot: app.config.ARTIFACT_LOCAL_ROOT,
-      s3: {
-        bucket: app.config.ARTIFACT_S3_BUCKET ?? '',
-        region: app.config.ARTIFACT_S3_REGION,
-        endpoint: app.config.ARTIFACT_S3_ENDPOINT,
-        forcePathStyle: app.config.ARTIFACT_S3_FORCE_PATH_STYLE,
-        accessKeyId: app.config.ARTIFACT_S3_ACCESS_KEY_ID ?? '',
-        secretAccessKey: app.config.ARTIFACT_S3_SECRET_ACCESS_KEY ?? '',
-        sessionToken: app.config.ARTIFACT_S3_SESSION_TOKEN,
-      },
-    }),
+    createArtifactStorage(buildArtifactStorageConfig(app.config)),
     app.config.ARTIFACT_ACCESS_URL_TTL_SECONDS,
   );
 

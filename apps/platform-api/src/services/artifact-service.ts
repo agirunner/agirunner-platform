@@ -5,6 +5,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import type { ArtifactStorageAdapter } from '../content/artifact-storage.js';
+import { DEFAULT_ARTIFACT_CONTENT_TYPE } from '../content/storage-config.js';
 
 interface ArtifactRow {
   id: string;
@@ -57,7 +58,7 @@ export class ArtifactService {
     const stored = await this.storage.putObject(
       storageKey,
       payload,
-      input.contentType ?? 'application/octet-stream',
+      input.contentType ?? DEFAULT_ARTIFACT_CONTENT_TYPE,
     );
     const retention = resolveRetentionPolicy(task.pipeline_metadata);
 

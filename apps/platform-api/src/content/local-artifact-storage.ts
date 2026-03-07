@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
+import { DEFAULT_ARTIFACT_CONTENT_TYPE } from './storage-config.js';
 import type {
   ArtifactAccessUrl,
   ArtifactDownload,
@@ -81,9 +82,9 @@ export class LocalArtifactStorage implements ArtifactStorageAdapter {
   private async readContentType(filePath: string): Promise<string> {
     const contentTypePath = `${filePath}.content-type`;
     try {
-      return (await fs.readFile(contentTypePath, 'utf8')).trim() || 'application/octet-stream';
+      return (await fs.readFile(contentTypePath, 'utf8')).trim() || DEFAULT_ARTIFACT_CONTENT_TYPE;
     } catch {
-      return 'application/octet-stream';
+      return DEFAULT_ARTIFACT_CONTENT_TYPE;
     }
   }
 }

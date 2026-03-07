@@ -11,6 +11,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
+import { DEFAULT_ARTIFACT_CONTENT_TYPE } from './storage-config.js';
 import type {
   ArtifactAccessUrl,
   ArtifactDownload,
@@ -99,7 +100,7 @@ export class S3ArtifactStorage implements ArtifactStorageAdapter {
       contentType:
         typeof response.ContentType === 'string'
           ? response.ContentType
-          : 'application/octet-stream',
+          : DEFAULT_ARTIFACT_CONTENT_TYPE,
       data: await body,
     };
   }

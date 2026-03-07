@@ -20,11 +20,19 @@ import {
   type BuiltInWorkerConfig,
 } from '../../src/bootstrap/built-in-worker.js';
 
+const testApiBaseUrl = 'http://localhost:8080';
+const defaultHeartbeatIntervalSeconds = 30;
+const localTestHost = '127.0.0.1';
+const jsonContentType = 'application/json';
+const runtimeArtifactTaskId = 'task-artifact';
+const runtimeArtifactName = 'report.json';
+const runtimeArtifactPath = `/workspace/artifacts/${runtimeArtifactName}`;
+
 const mockRegistration: WorkerRegistration = {
   workerId: 'worker-123',
   workerApiKey: 'ab_worker_testkey',
   websocketUrl: '/ws/workers',
-  heartbeatIntervalSeconds: 30,
+  heartbeatIntervalSeconds: defaultHeartbeatIntervalSeconds,
   agent: {
     agentId: 'agent-123',
     agentApiKey: 'ab_agent_testkey',
@@ -34,11 +42,11 @@ const mockRegistration: WorkerRegistration = {
 };
 
 const minimalConfig: BuiltInWorkerConfig = {
-  apiBaseUrl: 'http://localhost:8080',
+  apiBaseUrl: testApiBaseUrl,
   adminApiKey: 'ab_admin_deftest',
   capabilities: ['general'],
   name: 'test-built-in-worker',
-  heartbeatIntervalSeconds: 30,
+  heartbeatIntervalSeconds: defaultHeartbeatIntervalSeconds,
 };
 
 async function waitFor(
@@ -83,13 +91,13 @@ describe('executeTask', () => {
         });
         req.on('end', () => {
           receivedBody = JSON.parse(body) as Record<string, unknown>;
-          res.writeHead(202, { 'Content-Type': 'application/json' });
+          res.writeHead(202, { 'Content-Type': jsonContentType });
           res.end('{"task_id":"task-xyz","status":"accepted"}');
         });
         return;
       }
 
-      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.writeHead(200, { 'Content-Type': jsonContentType });
       res.end(
         JSON.stringify({
           task_id: 'task-xyz',
@@ -107,7 +115,7 @@ describe('executeTask', () => {
       );
     });
 
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    await new Promise<void>((resolve) => server.listen(0, localTestHost, resolve));
     const address = server.address();
     if (!address || typeof address === 'string') {
       throw new Error('Failed to start mock executor server');
@@ -116,7 +124,7 @@ describe('executeTask', () => {
     try {
       const config: TaskExecutorConfig = {
         internalWorkerBackend: 'go-runtime',
-        runtimeUrl: `http://127.0.0.1:${address.port}/api/v1/tasks`,
+        runtimeUrl: `http://${localTestHost}:${address.port}/api/v1/tasks`,
         runtimeApiKey: 'runtime-token',
         agentApiKey: 'executor-token',
       };
@@ -205,8 +213,11 @@ describe('createBuiltInTaskHandler', () => {
     const platformRequests: Array<{ method: string; path: string; body: Record<string, unknown> }> =
       [];
     const runtimeServer = createServer((req, res) => {
-      if (req.method === 'GET' && req.url === '/api/v1/tasks/task-artifact/artifacts/report.json') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+      if (
+        req.method === 'GET' &&
+        req.url === `/api/v1/tasks/${runtimeArtifactTaskId}/artifacts/${runtimeArtifactName}`
+      ) {
+        res.writeHead(200, { 'Content-Type': jsonContentType });
         res.end('{"artifact":"ok"}');
         return;
       }
@@ -224,15 +235,15 @@ describe('createBuiltInTaskHandler', () => {
           body: body.length > 0 ? (JSON.parse(body) as Record<string, unknown>) : {},
         });
         res.writeHead(req.url?.includes('/artifacts') ? 201 : 200, {
-          'Content-Type': 'application/json',
+          'Content-Type': jsonContentType,
         });
         res.end(JSON.stringify({ data: { ok: true } }));
       });
     });
 
     await Promise.all([
-      new Promise<void>((resolve) => runtimeServer.listen(0, '127.0.0.1', resolve)),
-      new Promise<void>((resolve) => platformServer.listen(0, '127.0.0.1', resolve)),
+      new Promise<void>((resolve) => runtimeServer.listen(0, localTestHost, resolve)),
+      new Promise<void>((resolve) => platformServer.listen(0, localTestHost, resolve)),
     ]);
 
     const runtimeAddress = runtimeServer.address();
@@ -249,9 +260,9 @@ describe('createBuiltInTaskHandler', () => {
     const handler = createBuiltInTaskHandler(
       {
         ...minimalConfig,
-        apiBaseUrl: `http://127.0.0.1:${platformAddress.port}`,
+        apiBaseUrl: `http://${localTestHost}:${platformAddress.port}`,
         executor: {
-          runtimeUrl: `http://127.0.0.1:${runtimeAddress.port}/api/v1/tasks`,
+          runtimeUrl: `http://${localTestHost}:${runtimeAddress.port}/api/v1/tasks`,
           runtimeApiKey: 'runtime-token',
         },
       },
@@ -261,26 +272,26 @@ describe('createBuiltInTaskHandler', () => {
           success: true,
           output: { ok: true },
           gitInfo: {
-            artifacts: [{ path: '/workspace/artifacts/report.json', size: 17 }],
+            artifacts: [{ path: runtimeArtifactPath, size: 17 }],
           },
         })),
       },
     );
 
     try {
-      await handler({ id: 'task-artifact', title: 'Artifact task', type: 'code' });
+      await handler({ id: runtimeArtifactTaskId, title: 'Artifact task', type: 'code' });
 
       expect(platformRequests.map((request) => request.path)).toEqual([
-        '/api/v1/tasks/task-artifact/start',
-        '/api/v1/tasks/task-artifact/artifacts',
-        '/api/v1/tasks/task-artifact/complete',
+        `/api/v1/tasks/${runtimeArtifactTaskId}/start`,
+        `/api/v1/tasks/${runtimeArtifactTaskId}/artifacts`,
+        `/api/v1/tasks/${runtimeArtifactTaskId}/complete`,
       ]);
       expect(platformRequests[1].body).toMatchObject({
-        path: 'report.json',
-        content_type: 'application/json',
+        path: runtimeArtifactName,
+        content_type: jsonContentType,
         metadata: {
           source: 'runtime',
-          runtime_path: '/workspace/artifacts/report.json',
+          runtime_path: runtimeArtifactPath,
           runtime_size: 17,
         },
       });
