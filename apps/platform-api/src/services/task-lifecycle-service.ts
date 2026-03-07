@@ -222,7 +222,7 @@ export class TaskLifecycleService {
       let metadataExpression = 'metadata';
       if (options.clearLifecycleControlMetadata) {
         metadataExpression =
-          "(metadata - 'cancel_signal_requested_at' - 'cancel_force_fail_at' - 'cancel_signal_id' - 'cancel_reason' - 'timeout_cancel_requested_at' - 'timeout_force_fail_at' - 'timeout_signal_id')";
+          "(metadata - 'cancel_signal_requested_at' - 'cancel_force_fail_at' - 'cancel_signal_id' - 'cancel_reason' - 'timeout_cancel_requested_at' - 'timeout_force_fail_at' - 'timeout_signal_id' - 'pipeline_cancel_requested_at' - 'pipeline_cancel_force_at' - 'pipeline_cancel_signal_id')";
       }
       if (options.clearEscalationMetadata) {
         metadataExpression = `${metadataExpression} - 'escalation_status' - 'escalation_task_id'`;

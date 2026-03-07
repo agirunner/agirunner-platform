@@ -40,9 +40,15 @@ export function startLifecycleMonitor(
 
   const timeoutTimer = setInterval(async () => {
     try {
-      const affected = await taskService.failTimedOutTasks();
-      if (affected > 0) {
-        logger.info({ affected }, 'task_timeout_enforced');
+      const [timedOut, cancelled] = await Promise.all([
+        taskService.failTimedOutTasks(),
+        taskService.finalizeGracefulPipelineCancellations(),
+      ]);
+      if (timedOut > 0) {
+        logger.info({ affected: timedOut }, 'task_timeout_enforced');
+      }
+      if (cancelled > 0) {
+        logger.info({ affected: cancelled }, 'pipeline_cancellation_enforced');
       }
     } catch (error) {
       logger.error({ err: error }, 'task_timeout_monitor_failed');

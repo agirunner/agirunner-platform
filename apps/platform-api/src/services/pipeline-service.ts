@@ -11,6 +11,7 @@ import { PipelineControlService } from './pipeline-control-service.js';
 import { PipelineCreationService } from './pipeline-creation-service.js';
 import { EventService } from './event-service.js';
 import { PipelineStateService } from './pipeline-state-service.js';
+import type { WorkerConnectionHub } from './worker-connection-hub.js';
 import type {
   CreatePipelineInput,
   ListPipelineQuery,
@@ -26,6 +27,7 @@ export class PipelineService {
     private readonly pool: DatabasePool,
     private readonly eventService: EventService,
     config: PipelineServiceConfig,
+    connectionHub?: WorkerConnectionHub,
   ) {
     const artifactRetentionService = new ArtifactRetentionService(
       pool,
@@ -42,6 +44,8 @@ export class PipelineService {
       pool,
       eventService,
       stateService,
+      cancelSignalGracePeriodMs: config.TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS ?? 60_000,
+      workerConnectionHub: connectionHub,
       getPipeline: this.getPipeline.bind(this),
     });
     this.controlService = new PipelineControlService(pool, eventService, stateService);

@@ -290,4 +290,8 @@ export class TaskService {
   failTimedOutTasks(now = new Date()) {
     return this.timeoutService.failTimedOutTasks(now);
   }
+
+  finalizeGracefulPipelineCancellations(now = new Date()) {
+    return this.timeoutService.finalizeGracefulPipelineCancellations(now);
+  }
 }

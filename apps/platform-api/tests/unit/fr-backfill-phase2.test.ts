@@ -426,6 +426,7 @@ describe('FR-715: phase-level cancellation', () => {
       pool: mockPool as never,
       eventService: mockEventService as never,
       stateService: mockStateService as never,
+      cancelSignalGracePeriodMs: 60000,
       getPipeline: vi.fn().mockResolvedValue({ id: 'p1', state: 'completed', tasks: [] }),
     });
 

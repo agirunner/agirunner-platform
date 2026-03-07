@@ -175,7 +175,7 @@ describe('pipeline/template integration', () => {
     expect(remainingTaskState.rows[0].state).toBe('running');
   });
 
-  it('cancels pipeline and cascades cancellation to all non-completed tasks', async () => {
+  it('requests graceful cancellation, then finalizes after grace for running tasks', async () => {
     const template = await templateService.createTemplate(adminIdentity, {
       name: 'Cancellation Template',
       slug: 'cancel-template',
@@ -195,6 +195,12 @@ describe('pipeline/template integration', () => {
     });
 
     const [taskA, taskB, taskC, taskD] = pipeline.tasks as Array<Record<string, unknown>>;
+    const workerId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO workers (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds)
+       VALUES ($1,$2,'cancel-worker',ARRAY['typescript'],'busy',30)`,
+      [workerId, tenantId],
+    );
 
     await db.pool.query(
       `UPDATE tasks
@@ -208,20 +214,47 @@ describe('pipeline/template integration', () => {
          AND pipeline_id = $2`,
       [tenantId, pipeline.id, taskA.id, taskB.id, taskC.id],
     );
+    await db.pool.query(
+      `UPDATE tasks
+         SET assigned_worker_id = $3
+       WHERE tenant_id = $1
+         AND id = $2`,
+      [tenantId, taskB.id, workerId],
+    );
 
     const cancelled = await pipelineService.cancelPipeline(adminIdentity, pipeline.id as string);
-    expect(cancelled.state).toBe('failed');
+    expect(cancelled.state).toBe('paused');
 
     const taskStates = await db.pool.query(
-      'SELECT id, state FROM tasks WHERE tenant_id = $1 AND pipeline_id = $2 ORDER BY created_at ASC',
+      'SELECT id, state, metadata FROM tasks WHERE tenant_id = $1 AND pipeline_id = $2 ORDER BY created_at ASC',
       [tenantId, pipeline.id],
     );
 
     const byId = new Map(taskStates.rows.map((row) => [row.id as string, row.state as string]));
     expect(byId.get(taskA.id as string)).toBe('completed');
-    expect(byId.get(taskB.id as string)).toBe('cancelled');
+    expect(byId.get(taskB.id as string)).toBe('running');
     expect(byId.get(taskC.id as string)).toBe('cancelled');
     expect(byId.get(taskD.id as string)).toBe('cancelled');
+
+    const signalledTask = taskStates.rows.find((row) => row.id === taskB.id) as Record<string, unknown>;
+    expect((signalledTask.metadata as Record<string, unknown>).pipeline_cancel_requested_at).toBeTypeOf('string');
+
+    await taskService.finalizeGracefulPipelineCancellations(
+      new Date(Date.now() + 61_000),
+    );
+
+    const finalizedTasks = await db.pool.query(
+      'SELECT id, state FROM tasks WHERE tenant_id = $1 AND pipeline_id = $2 ORDER BY created_at ASC',
+      [tenantId, pipeline.id],
+    );
+    const finalizedById = new Map(finalizedTasks.rows.map((row) => [row.id as string, row.state as string]));
+    expect(finalizedById.get(taskB.id as string)).toBe('cancelled');
+
+    const finalPipelineState = await db.pool.query(
+      'SELECT state FROM pipelines WHERE tenant_id = $1 AND id = $2',
+      [tenantId, pipeline.id],
+    );
+    expect(finalPipelineState.rows[0].state).toBe('cancelled');
   });
 
   it('instantiates template with optional parameters and defaults', async () => {

@@ -21,6 +21,9 @@ export interface ListPipelineQuery {
 
 export type PipelineServiceConfig = Pick<
   AppEnv,
-  'TASK_DEFAULT_TIMEOUT_MINUTES' | 'TASK_DEFAULT_AUTO_RETRY' | 'TASK_DEFAULT_MAX_RETRIES'
+  | 'TASK_DEFAULT_TIMEOUT_MINUTES'
+  | 'TASK_DEFAULT_AUTO_RETRY'
+  | 'TASK_DEFAULT_MAX_RETRIES'
 > &
+  Partial<Pick<AppEnv, 'TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS'>> &
   ArtifactStorageEnv;

@@ -30,7 +30,12 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const pipelineRoutes: FastifyPluginAsync = async (app) => {
-  const pipelineService = new PipelineService(app.pgPool, new EventService(app.pgPool), app.config);
+  const pipelineService = new PipelineService(
+    app.pgPool,
+    new EventService(app.pgPool),
+    app.config,
+    app.workerConnectionHub,
+  );
 
   app.post('/api/v1/pipelines', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request, reply) => {
     const body = parseOrThrow(pipelineCreateSchema.safeParse(request.body));

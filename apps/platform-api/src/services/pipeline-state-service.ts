@@ -24,7 +24,7 @@ export class PipelineStateService {
     const db = client ?? this.pool;
     const [pipelineRes, taskStatesRes] = await Promise.all([
       db.query(
-        'SELECT id, state, started_at, completed_at FROM pipelines WHERE tenant_id = $1 AND id = $2',
+        'SELECT id, state, started_at, completed_at, metadata FROM pipelines WHERE tenant_id = $1 AND id = $2',
         [tenantId, pipelineId],
       ),
       db.query('SELECT state, metadata FROM tasks WHERE tenant_id = $1 AND pipeline_id = $2', [
@@ -38,9 +38,17 @@ export class PipelineStateService {
     }
 
     const previousState = pipelineRes.rows[0].state as string;
-    const derivedState = derivePipelineState(
+    const pipelineMetadata = asRecord(pipelineRes.rows[0].metadata);
+    let derivedState = derivePipelineState(
       taskStatesRes.rows.map((row) => normalizePipelineTaskState(row as Record<string, unknown>)),
     );
+    if (pipelineMetadata.cancel_requested_at) {
+      const hasActiveCancellationTasks = taskStatesRes.rows.some((row) => {
+        const state = String(row.state);
+        return state === 'claimed' || state === 'running';
+      });
+      derivedState = hasActiveCancellationTasks ? 'paused' : 'cancelled';
+    }
 
     const setStartedAt = derivedState === 'active';
     const setCompletedAt = ['completed', 'failed', 'cancelled'].includes(derivedState);
@@ -96,4 +104,11 @@ function normalizePipelineTaskState(row: Record<string, unknown>): string {
     return 'output_pending_review';
   }
   return String(row.state);
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
 }

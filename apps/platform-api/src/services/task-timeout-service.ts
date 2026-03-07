@@ -151,4 +151,42 @@ export class TaskTimeoutService {
 
     return affectedCount;
   }
+
+  async finalizeGracefulPipelineCancellations(now = new Date()): Promise<number> {
+    const systemIdentity: ApiKeyIdentity = {
+      id: 'system',
+      tenantId: '00000000-0000-0000-0000-000000000001',
+      scope: 'admin',
+      ownerType: 'system',
+      ownerId: null,
+      keyPrefix: 'system',
+    };
+
+    let affectedCount = 0;
+    const pendingCancellationTasks = await this.pool.query(
+      `SELECT id, tenant_id, metadata
+         FROM tasks
+        WHERE state IN ('claimed', 'running')
+          AND metadata ? 'pipeline_cancel_force_at'`,
+    );
+
+    for (const row of pendingCancellationTasks.rows) {
+      const metadata = asRecord(row.metadata);
+      const forceCancelAt = parseIsoDate(metadata.pipeline_cancel_force_at);
+      if (!forceCancelAt || now.getTime() < forceCancelAt.getTime()) {
+        continue;
+      }
+
+      const scopedIdentity = { ...systemIdentity, tenantId: row.tenant_id as string };
+      await this.applyTransition(scopedIdentity, row.id as string, 'cancelled', {
+        expectedStates: ['claimed', 'running'],
+        clearAssignment: true,
+        clearLifecycleControlMetadata: true,
+        reason: 'pipeline_cancelled_after_grace',
+      });
+      affectedCount += 1;
+    }
+
+    return affectedCount;
+  }
 }
