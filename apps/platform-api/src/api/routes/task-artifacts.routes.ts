@@ -26,6 +26,15 @@ export const taskArtifactRoutes: FastifyPluginAsync = async (app) => {
     createArtifactStorage({
       backend: app.config.ARTIFACT_STORAGE_BACKEND,
       localRoot: app.config.ARTIFACT_LOCAL_ROOT,
+      s3: {
+        bucket: app.config.ARTIFACT_S3_BUCKET ?? '',
+        region: app.config.ARTIFACT_S3_REGION,
+        endpoint: app.config.ARTIFACT_S3_ENDPOINT,
+        forcePathStyle: app.config.ARTIFACT_S3_FORCE_PATH_STYLE,
+        accessKeyId: app.config.ARTIFACT_S3_ACCESS_KEY_ID ?? '',
+        secretAccessKey: app.config.ARTIFACT_S3_SECRET_ACCESS_KEY ?? '',
+        sessionToken: app.config.ARTIFACT_S3_SESSION_TOKEN,
+      },
     }),
     app.config.ARTIFACT_ACCESS_URL_TTL_SECONDS,
   );

@@ -99,7 +99,7 @@ export class ArtifactService {
        ORDER BY created_at ASC`,
       [tenantId, taskId, prefix ?? null],
     );
-    return rows.rows.map((row) => this.toArtifactResponse(row));
+    return Promise.all(rows.rows.map((row) => this.toArtifactResponse(row)));
   }
 
   async downloadTaskArtifact(tenantId: string, taskId: string, artifactId: string) {
@@ -159,7 +159,8 @@ export class ArtifactService {
     return artifact;
   }
 
-  private toArtifactResponse(row: ArtifactRow) {
+  private async toArtifactResponse(row: ArtifactRow) {
+    const access = await this.storage.createAccessUrl(row.storage_key, this.accessUrlTtlSeconds);
     return {
       id: row.id,
       pipeline_id: row.pipeline_id,
@@ -174,6 +175,9 @@ export class ArtifactService {
       expires_at: row.expires_at?.toISOString() ?? null,
       created_at: row.created_at.toISOString(),
       download_url: `/api/v1/tasks/${row.task_id}/artifacts/${row.id}`,
+      access_url: access.url,
+      access_url_expires_at: access.expiresAt?.toISOString() ?? null,
+      storage_backend: row.storage_backend,
     };
   }
 }
