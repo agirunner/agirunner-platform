@@ -33,6 +33,14 @@ const updateSchema = z
     { message: 'At least one field is required' },
   );
 
+const actionSchema = z.object({
+  feedback: z.string().min(1).max(4000).optional(),
+  reason: z.string().min(1).max(4000).optional(),
+  override_input: z.record(z.unknown()).optional(),
+  preferred_agent_id: z.string().uuid().optional(),
+  preferred_worker_id: z.string().uuid().optional(),
+});
+
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
     return result.data;
@@ -41,6 +49,13 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const integrationRoutes: FastifyPluginAsync = async (app) => {
+  app.post('/api/v1/integrations/actions/:token', async (request) => {
+    const params = request.params as { token: string };
+    const body = parseOrThrow(actionSchema.safeParse(request.body ?? {}));
+    const data = await app.integrationActionService.executeAction(params.token, body);
+    return { data };
+  });
+
   app.post('/api/v1/integrations', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request, reply) => {
     const body = parseOrThrow(registerSchema.safeParse(request.body));
     const data = await app.integrationAdapterService.registerAdapter(request.auth!, body);

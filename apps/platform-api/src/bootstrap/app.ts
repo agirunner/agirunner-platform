@@ -13,6 +13,7 @@ import { registerRequestContext } from '../observability/request-context.js';
 import { AgentService } from '../services/agent-service.js';
 import { EventStreamService } from '../services/event-stream-service.js';
 import { EventService } from '../services/event-service.js';
+import { IntegrationActionService } from '../services/integration-action-service.js';
 import { IntegrationAdapterService } from '../services/integration-adapter-service.js';
 import { startIntegrationDispatcher } from '../services/integration-dispatcher.js';
 import { TaskService } from '../services/task-service.js';
@@ -76,17 +77,25 @@ export async function buildApp() {
   const eventService = new EventService(pool);
   const eventStreamService = new EventStreamService(pool);
   await eventStreamService.start();
-  const integrationAdapterService = new IntegrationAdapterService(pool, config);
 
   const workerConnectionHub = new WorkerConnectionHub();
   const workerService = new WorkerService(pool, eventService, workerConnectionHub, config);
   const webhookService = new WebhookService(pool, config);
   const migratedWebhookSecrets = await webhookService.migratePlaintextSecrets();
+  const taskService = new TaskService(pool, eventService, config, workerConnectionHub);
+  const integrationActionService = new IntegrationActionService(pool, taskService, config);
+  const integrationAdapterService = new IntegrationAdapterService(
+    pool,
+    config,
+    undefined,
+    integrationActionService,
+  );
 
   app.decorate('config', config);
   app.decorate('pgPool', pool);
   app.decorate('eventService', eventService);
   app.decorate('eventStreamService', eventStreamService);
+  app.decorate('integrationActionService', integrationActionService);
   app.decorate('integrationAdapterService', integrationAdapterService);
   app.decorate('workerConnectionHub', workerConnectionHub);
   app.decorate('workerService', workerService);
@@ -109,7 +118,6 @@ export async function buildApp() {
   });
 
   const agentService = new AgentService(pool, eventService, config);
-  const taskService = new TaskService(pool, eventService, config, workerConnectionHub);
   const lifecycleMonitor = startLifecycleMonitor(app.log, config, agentService, taskService, workerService);
   const integrationDispatcher = startIntegrationDispatcher(
     app.log,

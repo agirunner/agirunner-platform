@@ -92,19 +92,10 @@ export async function deliverWebhookEvent(
   fetchFn: typeof globalThis.fetch,
   config: AppEnv,
   target: WebhookDeliveryTarget,
-  event: StreamEvent,
-  pipelineId: string | null,
+  eventType: string,
+  payloadData: Record<string, unknown>,
 ): Promise<DeliveryAttempt> {
-  const payload = JSON.stringify({
-    id: event.id,
-    tenant_id: event.tenant_id,
-    type: event.type,
-    entity_type: event.entity_type,
-    entity_id: event.entity_id,
-    data: event.data,
-    created_at: event.created_at,
-    pipeline_id: pipelineId,
-  });
+  const payload = JSON.stringify(payloadData);
 
   let attempts = 0;
   let delivered = false;
@@ -118,7 +109,7 @@ export async function deliverWebhookEvent(
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-agentbaton-event': event.type,
+          'x-agentbaton-event': eventType,
           ...(target.secret
             ? { 'x-agentbaton-signature': createWebhookSignature(target.secret, payload) }
             : {}),

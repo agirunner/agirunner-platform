@@ -4,6 +4,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { AppEnv } from '../config/schema.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import type { StreamEvent } from './event-stream-service.js';
+import type { IntegrationActionService } from './integration-action-service.js';
 import {
   deliverWebhookEvent,
   matchesSubscription,
@@ -48,6 +49,10 @@ export class IntegrationAdapterService {
     private readonly pool: DatabasePool,
     private readonly config: AppEnv,
     fetchFn?: typeof globalThis.fetch,
+    private readonly integrationActionService?: Pick<
+      IntegrationActionService,
+      'buildApprovalActions'
+    >,
   ) {
     this.fetchFn = fetchFn ?? globalThis.fetch;
   }
@@ -123,12 +128,13 @@ export class IntegrationAdapterService {
       }
 
       const deliveryId = await this.insertPendingDelivery(event.tenant_id, row.id, event.id);
+      const payload = await this.buildEventPayload(event, pipelineId, row.id);
       const attempt = await deliverWebhookEvent(
         this.fetchFn,
         this.config,
         toWebhookDeliveryTarget(row.config, this.config.WEBHOOK_ENCRYPTION_KEY),
-        event,
-        pipelineId,
+        event.type,
+        payload,
       );
       await this.finishDelivery(deliveryId, attempt);
     }
@@ -173,6 +179,45 @@ export class IntegrationAdapterService {
         attempt.lastStatusCode,
         attempt.lastError,
       ],
+    );
+  }
+
+  private async buildEventPayload(
+    event: StreamEvent,
+    pipelineId: string | null,
+    adapterId: string,
+  ): Promise<Record<string, unknown>> {
+    const payload: Record<string, unknown> = {
+      id: event.id,
+      tenant_id: event.tenant_id,
+      type: event.type,
+      entity_type: event.entity_type,
+      entity_id: event.entity_id,
+      data: event.data,
+      created_at: event.created_at,
+      pipeline_id: pipelineId,
+    };
+
+    if (this.shouldAttachApprovalActions(event)) {
+      payload.approval_actions = await this.integrationActionService?.buildApprovalActions(
+        event.tenant_id,
+        adapterId,
+        event.entity_id,
+      );
+    }
+
+    return payload;
+  }
+
+  private shouldAttachApprovalActions(event: StreamEvent): boolean {
+    if (!this.integrationActionService) {
+      return false;
+    }
+
+    return (
+      event.type === 'task.state_changed' &&
+      event.entity_type === 'task' &&
+      event.data?.to_state === 'awaiting_approval'
     );
   }
 

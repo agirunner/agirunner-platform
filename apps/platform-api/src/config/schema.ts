@@ -63,6 +63,8 @@ export const envSchema = z
     WORKER_WEBSOCKET_PING_INTERVAL_MS: z.coerce.number().int().min(1).default(20000),
     WEBHOOK_MAX_ATTEMPTS: z.coerce.number().int().min(1).default(4),
     WEBHOOK_RETRY_BASE_DELAY_MS: z.coerce.number().int().min(1).default(200),
+    PLATFORM_PUBLIC_BASE_URL: z.string().url().default('http://localhost:8080'),
+    INTEGRATION_ACTION_TTL_SECONDS: z.coerce.number().int().min(60).default(86400),
     GIT_WEBHOOK_GITHUB_SECRET: z.string().optional(),
     GIT_WEBHOOK_GITEA_SECRET: z.string().optional(),
     GIT_WEBHOOK_GITLAB_SECRET: z.string().optional(),

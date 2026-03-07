@@ -2,6 +2,7 @@ import type pg from 'pg';
 
 import type { ApiKeyIdentity } from './auth/api-key.js';
 import type { AppEnv } from './config/schema.js';
+import type { IntegrationActionService } from './services/integration-action-service.js';
 import type { EventStreamService } from './services/event-stream-service.js';
 import type { EventService } from './services/event-service.js';
 import type { IntegrationAdapterService } from './services/integration-adapter-service.js';
@@ -15,6 +16,7 @@ declare module 'fastify' {
     pgPool: pg.Pool;
     eventService: EventService;
     eventStreamService: EventStreamService;
+    integrationActionService: IntegrationActionService;
     integrationAdapterService: IntegrationAdapterService;
     workerConnectionHub: WorkerConnectionHub;
     workerService: WorkerService;

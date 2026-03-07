@@ -11,6 +11,7 @@ const tenantId = '00000000-0000-0000-0000-000000000001';
 const testPort = '8094';
 const testJwtSecret = 'x'.repeat(64);
 const testWebhookSecret = 'k'.repeat(64);
+const testPublicBaseUrl = 'http://platform.test';
 const integrationSecret = 'adapter-secret-token';
 const routePipelineName = 'integration-pipeline';
 
@@ -100,6 +101,7 @@ describe('integration adapter routes', () => {
       'JWT_REFRESH_EXPIRES_IN',
       'LOG_LEVEL',
       'RATE_LIMIT_MAX_PER_MINUTE',
+      'PLATFORM_PUBLIC_BASE_URL',
     ]) {
       previousEnv[key] = process.env[key];
     }
@@ -113,6 +115,7 @@ describe('integration adapter routes', () => {
     process.env.JWT_REFRESH_EXPIRES_IN = '1h';
     process.env.LOG_LEVEL = 'error';
     process.env.RATE_LIMIT_MAX_PER_MINUTE = '200';
+    process.env.PLATFORM_PUBLIC_BASE_URL = testPublicBaseUrl;
 
     pipelineId = randomUUID();
     await db.pool.query(
@@ -227,6 +230,13 @@ describe('integration adapter routes', () => {
   });
 
   it('dispatches matching events through the event stream and records delivered attempts', async () => {
+    const taskId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO tasks (id, tenant_id, pipeline_id, title, type, state, requires_approval)
+       VALUES ($1,$2,$3,'approval-task','review','awaiting_approval',true)`,
+      [taskId, tenantId, pipelineId],
+    );
+
     const createResponse = await app.inject({
       method: 'POST',
       url: '/api/v1/integrations',
@@ -234,7 +244,7 @@ describe('integration adapter routes', () => {
       payload: {
         kind: 'webhook',
         pipeline_id: pipelineId,
-        subscriptions: ['task.completed'],
+        subscriptions: ['task.state_changed'],
         config: {
           url: `${deliveryBaseUrl}/events`,
           secret: integrationSecret,
@@ -249,20 +259,25 @@ describe('integration adapter routes', () => {
 
     await app.eventService.emit({
       tenantId,
-      type: 'task.completed',
+      type: 'task.state_changed',
       entityType: 'task',
-      entityId: randomUUID(),
+      entityId: taskId,
       actorType: 'system',
-      data: { pipeline_id: pipelineId },
+      data: { pipeline_id: pipelineId, from_state: 'pending', to_state: 'awaiting_approval' },
     });
 
     const delivered = await requestPromise;
-    const parsed = JSON.parse(delivered.body) as { pipeline_id?: string; type?: string };
+    const parsed = JSON.parse(delivered.body) as {
+      pipeline_id?: string;
+      type?: string;
+      approval_actions?: Record<string, { url: string }>;
+    };
 
-    expect(delivered.headers['x-agentbaton-event']).toBe('task.completed');
+    expect(delivered.headers['x-agentbaton-event']).toBe('task.state_changed');
     expect(delivered.headers['x-agentbaton-signature']).toBeTypeOf('string');
     expect(parsed.pipeline_id).toBe(pipelineId);
-    expect(parsed.type).toBe('task.completed');
+    expect(parsed.type).toBe('task.state_changed');
+    expect(parsed.approval_actions?.approve.url).toContain('/api/v1/integrations/actions/');
 
     const deliveryRecord = await waitForDeliveryRecord(db, tenantId, adapterId);
 
@@ -271,5 +286,15 @@ describe('integration adapter routes', () => {
       attempts: 1,
       last_status_code: 202,
     });
+
+    const approvePath = new URL(parsed.approval_actions!.approve.url).pathname;
+    const approveResponse = await app.inject({
+      method: 'POST',
+      url: approvePath,
+      payload: {},
+    });
+
+    expect(approveResponse.statusCode).toBe(200);
+    expect(approveResponse.json().data.state).toBe('ready');
   });
 });
