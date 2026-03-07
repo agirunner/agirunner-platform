@@ -18,6 +18,14 @@ import {
   toSlackDeliveryTarget,
 } from './integration-adapter-slack.js';
 import {
+  normalizeStoredGitHubIssuesConfig,
+  syncGitHubIssue,
+  toGitHubIssuesTarget,
+  toPublicGitHubIssuesConfig,
+  type GitHubIssueLink,
+  type TaskIssueSnapshot,
+} from './integration-adapter-github-issues.js';
+import {
   deliverWebhookEvent,
   matchesSubscription,
   normalizeStoredWebhookConfig,
@@ -27,7 +35,7 @@ import {
   type DeliveryAttempt,
 } from './integration-adapter-webhook.js';
 
-type IntegrationAdapterKind = 'webhook' | 'slack' | 'otlp_http';
+type IntegrationAdapterKind = 'webhook' | 'slack' | 'otlp_http' | 'github_issues';
 
 interface IntegrationAdapterRow {
   id: string;
@@ -132,6 +140,12 @@ export class IntegrationAdapterService {
             AND adapter_id = $2`,
         [tenantId, adapterId],
       );
+      await client.query(
+        `DELETE FROM integration_resource_links
+          WHERE tenant_id = $1
+            AND adapter_id = $2`,
+        [tenantId, adapterId],
+      );
       const result = await client.query(
         'DELETE FROM integration_adapters WHERE tenant_id = $1 AND id = $2 RETURNING id',
         [tenantId, adapterId],
@@ -157,34 +171,13 @@ export class IntegrationAdapterService {
         continue;
       }
 
-      if (row.kind !== 'webhook' && row.kind !== 'slack' && row.kind !== 'otlp_http') {
+      if (row.kind !== 'webhook' && row.kind !== 'slack' && row.kind !== 'otlp_http' && row.kind !== 'github_issues') {
         continue;
       }
 
       const deliveryId = await this.insertPendingDelivery(event.tenant_id, row.id, event.id);
       const payload = await this.buildEventPayload(event, pipelineId, row.id);
-      const attempt =
-        row.kind === 'webhook'
-          ? await deliverWebhookEvent(
-              this.fetchFn,
-              this.config,
-              toWebhookDeliveryTarget(row.config, this.config.WEBHOOK_ENCRYPTION_KEY),
-              event.type,
-              payload,
-            )
-          : row.kind === 'slack'
-            ? await deliverSlackEvent(
-                this.fetchFn,
-                this.config,
-                toSlackDeliveryTarget(row.config),
-                payload,
-              )
-            : await deliverOtlpEvent(
-                this.fetchFn,
-                this.config,
-                toOtlpDeliveryTarget(row.config),
-                event,
-              );
+      const attempt = await this.deliverByKind(row, event, payload);
       await this.finishDelivery(deliveryId, attempt);
     }
   }
@@ -258,6 +251,42 @@ export class IntegrationAdapterService {
     return payload;
   }
 
+  private async deliverByKind(
+    row: IntegrationAdapterRow,
+    event: StreamEvent,
+    payload: Record<string, unknown>,
+  ): Promise<DeliveryAttempt> {
+    if (row.kind === 'webhook') {
+      return deliverWebhookEvent(
+        this.fetchFn,
+        this.config,
+        toWebhookDeliveryTarget(row.config, this.config.WEBHOOK_ENCRYPTION_KEY),
+        event.type,
+        payload,
+      );
+    }
+
+    if (row.kind === 'slack') {
+      return deliverSlackEvent(
+        this.fetchFn,
+        this.config,
+        toSlackDeliveryTarget(row.config),
+        payload,
+      );
+    }
+
+    if (row.kind === 'otlp_http') {
+      return deliverOtlpEvent(
+        this.fetchFn,
+        this.config,
+        toOtlpDeliveryTarget(row.config),
+        event,
+      );
+    }
+
+    return this.deliverGitHubIssueEvent(row, event);
+  }
+
   private shouldAttachApprovalActions(event: StreamEvent): boolean {
     if (!this.integrationActionService) {
       return false;
@@ -293,6 +322,9 @@ export class IntegrationAdapterService {
     if (kind === 'otlp_http') {
       return toPublicOtlpConfig(config);
     }
+    if (kind === 'github_issues') {
+      return toPublicGitHubIssuesConfig(config);
+    }
     throw new ValidationError(`Unsupported integration adapter kind '${kind}'`);
   }
 
@@ -317,6 +349,122 @@ export class IntegrationAdapterService {
     if (kind === 'otlp_http') {
       return normalizeStoredOtlpConfig(currentConfig, nextConfig);
     }
+    if (kind === 'github_issues') {
+      return normalizeStoredGitHubIssuesConfig(currentConfig, nextConfig, this.config.WEBHOOK_ENCRYPTION_KEY);
+    }
     throw new ValidationError(`Unsupported integration adapter kind '${kind}'`);
+  }
+
+  private async deliverGitHubIssueEvent(
+    row: IntegrationAdapterRow,
+    event: StreamEvent,
+  ): Promise<DeliveryAttempt> {
+    if (event.entity_type !== 'task') {
+      return { attempts: 1, delivered: true, lastStatusCode: 204, lastError: null };
+    }
+
+    const task = await this.loadTaskIssueSnapshot(event.tenant_id, event.entity_id);
+    if (!task) {
+      return { attempts: 1, delivered: false, lastStatusCode: null, lastError: 'Task not found' };
+    }
+
+    const existingLink = await this.loadIssueLink(event.tenant_id, row.id, event.entity_id);
+
+    try {
+      const issue = await syncGitHubIssue(
+        this.fetchFn,
+        toGitHubIssuesTarget(row.config, this.config.WEBHOOK_ENCRYPTION_KEY),
+        task,
+        existingLink,
+      );
+      await this.upsertIssueLink(event.tenant_id, row.id, event.entity_id, issue);
+      return { attempts: 1, delivered: true, lastStatusCode: existingLink ? 200 : 201, lastError: null };
+    } catch (error) {
+      return {
+        attempts: 1,
+        delivered: false,
+        lastStatusCode: null,
+        lastError: error instanceof Error ? error.message : 'GitHub Issues delivery failed',
+      };
+    }
+  }
+
+  private async loadTaskIssueSnapshot(tenantId: string, taskId: string): Promise<TaskIssueSnapshot | null> {
+    const result = await this.pool.query<{
+      id: string;
+      title: string;
+      type: string;
+      state: string;
+      priority: string;
+      pipeline_id: string | null;
+      input: Record<string, unknown> | null;
+    }>(
+      `SELECT id, title, type, state, priority, pipeline_id, input
+       FROM tasks
+       WHERE tenant_id = $1 AND id = $2`,
+      [tenantId, taskId],
+    );
+
+    if (!result.rowCount) {
+      return null;
+    }
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      title: row.title,
+      type: row.type,
+      state: row.state,
+      priority: row.priority,
+      pipelineId: row.pipeline_id,
+      input: (row.input ?? {}) as Record<string, unknown>,
+    };
+  }
+
+  private async loadIssueLink(tenantId: string, adapterId: string, taskId: string): Promise<GitHubIssueLink | null> {
+    const result = await this.pool.query<{ external_id: string; external_url: string | null }>(
+      `SELECT external_id, external_url
+       FROM integration_resource_links
+       WHERE tenant_id = $1
+         AND adapter_id = $2
+         AND entity_type = 'task'
+         AND entity_id = $3`,
+      [tenantId, adapterId, taskId],
+    );
+
+    if (!result.rowCount) {
+      return null;
+    }
+
+    return {
+      externalId: result.rows[0].external_id,
+      externalUrl: result.rows[0].external_url,
+    };
+  }
+
+  private async upsertIssueLink(
+    tenantId: string,
+    adapterId: string,
+    taskId: string,
+    issue: GitHubIssueLink,
+  ): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO integration_resource_links (
+         tenant_id,
+         adapter_id,
+         entity_type,
+         entity_id,
+         external_id,
+         external_url,
+         metadata
+       )
+       VALUES ($1, $2, 'task', $3, $4, $5, '{}'::jsonb)
+       ON CONFLICT (tenant_id, adapter_id, entity_type, entity_id)
+       DO UPDATE SET
+         external_id = EXCLUDED.external_id,
+         external_url = EXCLUDED.external_url,
+         updated_at = now()`,
+      [tenantId, adapterId, taskId, issue.externalId, issue.externalUrl],
+    );
   }
 }

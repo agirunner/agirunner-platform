@@ -104,6 +104,40 @@ function waitForRequest(server: http.Server): Promise<CapturedRequest> {
   });
 }
 
+function waitForJsonRequest(
+  server: http.Server,
+  statusCode: number,
+  payload: Record<string, unknown>,
+): Promise<CapturedRequest> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('Timed out waiting for integration delivery'));
+    }, 5_000);
+
+    server.once('request', (request, response) => {
+      const chunks: Buffer[] = [];
+      request.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+      request.on('end', () => {
+        response.statusCode = statusCode;
+        response.setHeader('content-type', 'application/json');
+        response.end(JSON.stringify(payload), () => {
+          clearTimeout(timeout);
+          setImmediate(() => {
+            resolve({
+              headers: request.headers,
+              body: Buffer.concat(chunks).toString('utf8'),
+            });
+          });
+        });
+      });
+      request.on('error', (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+    });
+  });
+}
+
 describe('integration adapter routes', () => {
   let db: TestDatabase;
   let app: Awaited<ReturnType<typeof buildApp>>;
@@ -459,6 +493,110 @@ describe('integration adapter routes', () => {
         expect.objectContaining({ key: 'gen_ai.system', value: { stringValue: 'openai' } }),
       ]),
     );
+
+    const deleteResponse = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/integrations/${adapterId}`,
+      headers: { authorization: `Bearer ${adminKey}` },
+    });
+    expect(deleteResponse.statusCode).toBe(204);
+  });
+
+  it('creates and updates linked GitHub issues for task lifecycle events', async () => {
+    const taskId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO tasks (id, tenant_id, pipeline_id, title, type, state, priority, input)
+       VALUES ($1,$2,$3,'GitHub issue task','review','pending','high',$4::jsonb)`,
+      [taskId, tenantId, pipelineId, JSON.stringify({ description: 'Track this task in GitHub Issues.' })],
+    );
+
+    const createAdapter = await app.inject({
+      method: 'POST',
+      url: '/api/v1/integrations',
+      headers: { authorization: `Bearer ${adminKey}` },
+      payload: {
+        kind: 'github_issues',
+        pipeline_id: pipelineId,
+        subscriptions: ['task.created', 'task.state_changed'],
+        config: {
+          owner: 'agentbaton',
+          repo: 'platform',
+          api_base_url: `${deliveryBaseUrl}/github`,
+          token: 'github-token-123',
+          labels: ['agentbaton'],
+        },
+      },
+    });
+
+    expect(createAdapter.statusCode).toBe(201);
+    const adapterId = createAdapter.json().data.id as string;
+    expect(createAdapter.json().data.config).toEqual({
+      owner: 'agentbaton',
+      repo: 'platform',
+      api_base_url: `${deliveryBaseUrl}/github`,
+      labels: ['agentbaton'],
+      token_configured: true,
+    });
+
+    const createIssueRequest = waitForJsonRequest(deliveryServer, 201, {
+      number: 42,
+      html_url: 'https://github.test/agentbaton/platform/issues/42',
+    });
+
+    await app.eventService.emit({
+      tenantId,
+      type: 'task.created',
+      entityType: 'task',
+      entityId: taskId,
+      actorType: 'system',
+      data: { pipeline_id: pipelineId },
+    });
+
+    const createdIssue = await createIssueRequest;
+    expect(createdIssue.headers.authorization).toBe('Bearer github-token-123');
+    expect(createdIssue.headers['user-agent']).toBe('AgentBaton');
+    expect(createdIssue.headers.accept).toBe('application/vnd.github+json');
+    const createPayload = JSON.parse(createdIssue.body) as { title?: string; labels?: string[]; body?: string };
+    expect(createPayload.title).toBe('GitHub issue task');
+    expect(createPayload.labels).toEqual(['agentbaton']);
+    expect(createPayload.body).toContain('Track this task in GitHub Issues.');
+
+    const createDelivery = await waitForDeliveryRecord(db, tenantId, adapterId);
+    expect(createDelivery.status).toBe('delivered');
+
+    const updateIssueRequest = waitForJsonRequest(deliveryServer, 200, {
+      number: 42,
+      html_url: 'https://github.test/agentbaton/platform/issues/42',
+    });
+
+    await db.pool.query(`UPDATE tasks SET state = 'completed' WHERE id = $1`, [taskId]);
+    await app.eventService.emit({
+      tenantId,
+      type: 'task.state_changed',
+      entityType: 'task',
+      entityId: taskId,
+      actorType: 'system',
+      data: { pipeline_id: pipelineId, from_state: 'pending', to_state: 'completed' },
+    });
+
+    const updatedIssue = await updateIssueRequest;
+    const updatePayload = JSON.parse(updatedIssue.body) as { state?: string; title?: string };
+    expect(updatePayload.title).toBe('GitHub issue task');
+    expect(updatePayload.state).toBe('closed');
+
+    const linkResult = await db.pool.query<{ external_id: string; external_url: string }>(
+      `SELECT external_id, external_url
+       FROM integration_resource_links
+       WHERE tenant_id = $1
+         AND adapter_id = $2
+         AND entity_type = 'task'
+         AND entity_id = $3`,
+      [tenantId, adapterId, taskId],
+    );
+    expect(linkResult.rows[0]).toEqual({
+      external_id: '42',
+      external_url: 'https://github.test/agentbaton/platform/issues/42',
+    });
 
     const deleteResponse = await app.inject({
       method: 'DELETE',

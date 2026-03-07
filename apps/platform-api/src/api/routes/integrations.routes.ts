@@ -36,6 +36,18 @@ const registerSchema = z.discriminatedUnion('kind', [
       service_name: z.string().min(1).optional(),
     }),
   }),
+  z.object({
+    kind: z.literal('github_issues'),
+    pipeline_id: z.string().uuid().optional(),
+    subscriptions: z.array(z.string().min(1)).default([]),
+    config: z.object({
+      owner: z.string().min(1),
+      repo: z.string().min(1),
+      api_base_url: z.string().url().optional(),
+      token: z.string().min(8),
+      labels: z.array(z.string().min(1)).optional(),
+    }),
+  }),
 ]);
 
 const updateSchema = z

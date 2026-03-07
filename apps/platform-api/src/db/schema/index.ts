@@ -22,4 +22,5 @@ export * from './webhook-task-trigger-invocations.js';
 export * from './integration-adapters.js';
 export * from './integration-adapter-deliveries.js';
 export * from './integration-actions.js';
+export * from './integration-resource-links.js';
 export * from './platform-instructions.js';
