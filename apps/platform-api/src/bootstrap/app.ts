@@ -22,6 +22,7 @@ import { TaskService } from '../services/task-service.js';
 import { WorkerConnectionHub } from '../services/worker-connection-hub.js';
 import { WorkerService } from '../services/worker-service.js';
 import { WebhookService } from '../services/webhook-service.js';
+import { seedConfigTables } from './config-seed.js';
 import { registerPlugins } from './plugins.js';
 import { registerRoutes } from './routes.js';
 import { registerWebsocketGateway } from './websocket.js';
@@ -75,6 +76,7 @@ export async function buildApp() {
   const migrationsDir = path.join(currentDir, '..', 'db', 'migrations');
   await runMigrations(pool, migrationsDir);
   await seedDefaultTenant(pool, process.env);
+  await seedConfigTables(pool);
 
   const auditExporter = config.AUDIT_EXPORT_WEBHOOK_URL
     ? new WebhookAuditExporter(

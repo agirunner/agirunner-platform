@@ -23,6 +23,9 @@ import { workerRoutes } from '../api/routes/workers.routes.js';
 import { projectRoutes } from '../api/routes/projects.routes.js';
 import { runtimeCustomizationRoutes } from '../api/routes/runtime-customization.routes.js';
 import { webhookTaskTriggerRoutes } from '../api/routes/webhook-task-triggers.routes.js';
+import { roleDefinitionRoutes } from '../api/routes/role-definitions.routes.js';
+import { llmConfigRoutes } from '../api/routes/llm-config.routes.js';
+import { runtimeDefaultsRoutes } from '../api/routes/runtime-defaults.routes.js';
 
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(healthRoutes);
@@ -48,4 +51,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(projectRoutes);
   await app.register(runtimeCustomizationRoutes);
   await app.register(webhookTaskTriggerRoutes);
+  await app.register(roleDefinitionRoutes);
+  await app.register(llmConfigRoutes);
+  await app.register(runtimeDefaultsRoutes);
 }

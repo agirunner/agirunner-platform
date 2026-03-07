@@ -1,4 +1,5 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
+import type { DatabasePool } from '../db/database.js';
 import { isBuiltInAgentReplaceable } from '../orchestration/capability-matcher.js';
 import { ConflictError, ForbiddenError } from '../errors/domain-errors.js';
 import {
@@ -159,6 +160,36 @@ export async function acknowledgeTask(
   }
 
   context.connectionHub.acknowledgeDispatch(taskId);
+}
+
+interface ModelAssignmentInfo {
+  role_name: string;
+  primary_model_id: string | null;
+  fallback_model_id: string | null;
+  primary_model_external_id: string | null;
+  fallback_model_external_id: string | null;
+}
+
+/**
+ * Resolves model assignments for a role from the database.
+ * Returns null if no assignment exists for the given role.
+ */
+export async function resolveModelForRole(
+  pool: DatabasePool,
+  tenantId: string,
+  roleName: string,
+): Promise<ModelAssignmentInfo | null> {
+  const result = await pool.query<ModelAssignmentInfo>(
+    `SELECT rma.role_name, rma.primary_model_id, rma.fallback_model_id,
+            pm.model_id AS primary_model_external_id,
+            fm.model_id AS fallback_model_external_id
+     FROM role_model_assignments rma
+     LEFT JOIN llm_models pm ON pm.id = rma.primary_model_id
+     LEFT JOIN llm_models fm ON fm.id = rma.fallback_model_id
+     WHERE rma.tenant_id = $1 AND rma.role_name = $2`,
+    [tenantId, roleName],
+  );
+  return result.rows[0] ?? null;
 }
 
 export async function releaseExpiredDispatches(context: WorkerServiceContext): Promise<number> {
