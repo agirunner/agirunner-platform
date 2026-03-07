@@ -5,7 +5,12 @@ import type {
   AuthTokenResponse,
   CreateTaskInput,
   Pipeline,
+  Project,
+  ProjectTimelineEntry,
+  ResolvedDocumentReference,
+  ResolvedPipelineConfig,
   Task,
+  TaskArtifact,
   Worker,
 } from './types.js';
 
@@ -120,6 +125,24 @@ export class PlatformApiClient {
     return response.data;
   }
 
+  async getResolvedPipelineConfig(
+    pipelineId: string,
+    showLayers = false,
+  ): Promise<ResolvedPipelineConfig> {
+    const suffix = showLayers ? '?show_layers=true' : '';
+    const response = await this.request<ApiDataResponse<ResolvedPipelineConfig>>(
+      `/api/v1/pipelines/${pipelineId}/config/resolved${suffix}`,
+    );
+    return response.data;
+  }
+
+  async listPipelineDocuments(pipelineId: string): Promise<ResolvedDocumentReference[]> {
+    const response = await this.request<ApiDataResponse<ResolvedDocumentReference[]>>(
+      `/api/v1/pipelines/${pipelineId}/documents`,
+    );
+    return response.data;
+  }
+
   async createPipeline(payload: {
     template_id: string;
     name: string;
@@ -138,6 +161,83 @@ export class PlatformApiClient {
     const response = await this.request<ApiDataResponse<Pipeline>>(`/api/v1/pipelines/${pipelineId}/cancel`, {
       method: 'POST',
     });
+    return response.data;
+  }
+
+  async actOnPhaseGate(
+    pipelineId: string,
+    phaseName: string,
+    payload: {
+      action: 'approve' | 'reject' | 'request_changes';
+      feedback?: string;
+      override_input?: Record<string, unknown>;
+    },
+  ): Promise<Pipeline> {
+    const response = await this.request<ApiDataResponse<Pipeline>>(
+      `/api/v1/pipelines/${pipelineId}/phases/${phaseName}/gate`,
+      {
+        method: 'POST',
+        body: payload,
+      },
+    );
+    return response.data;
+  }
+
+  async cancelPhase(pipelineId: string, phaseName: string): Promise<Pipeline> {
+    const response = await this.request<ApiDataResponse<Pipeline>>(
+      `/api/v1/pipelines/${pipelineId}/phases/${phaseName}/cancel`,
+      {
+        method: 'POST',
+      },
+    );
+    return response.data;
+  }
+
+  async listProjects(query: Query = {}): Promise<ApiListResponse<Project>> {
+    return this.request<ApiListResponse<Project>>(this.withQuery('/api/v1/projects', query));
+  }
+
+  async getProject(projectId: string): Promise<Project> {
+    const response = await this.request<ApiDataResponse<Project>>(`/api/v1/projects/${projectId}`);
+    return response.data;
+  }
+
+  async patchProjectMemory(
+    projectId: string,
+    payload: { key: string; value: unknown },
+  ): Promise<Project> {
+    const response = await this.request<ApiDataResponse<Project>>(`/api/v1/projects/${projectId}/memory`, {
+      method: 'PATCH',
+      body: payload,
+    });
+    return response.data;
+  }
+
+  async getProjectTimeline(projectId: string): Promise<ProjectTimelineEntry[]> {
+    const response = await this.request<ApiDataResponse<ProjectTimelineEntry[]>>(
+      `/api/v1/projects/${projectId}/timeline`,
+    );
+    return response.data;
+  }
+
+  async createPlanningPipeline(
+    projectId: string,
+    payload: { brief: string; name?: string },
+  ): Promise<Pipeline> {
+    const response = await this.request<ApiDataResponse<Pipeline>>(
+      `/api/v1/projects/${projectId}/planning-pipeline`,
+      {
+        method: 'POST',
+        body: payload,
+      },
+    );
+    return response.data;
+  }
+
+  async listTaskArtifacts(taskId: string): Promise<TaskArtifact[]> {
+    const response = await this.request<ApiDataResponse<TaskArtifact[]>>(
+      `/api/v1/tasks/${taskId}/artifacts`,
+    );
     return response.data;
   }
 

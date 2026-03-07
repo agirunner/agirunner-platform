@@ -680,18 +680,29 @@ describe('dashboard api auth/session behavior', () => {
 });
 
 describe('dashboard global search', () => {
-  it('buildSearchResults creates task/pipeline/worker/agent route targets', () => {
+  it('buildSearchResults creates task, pipeline, project, template, worker, and agent route targets', () => {
     const results = buildSearchResults('build', {
       pipelines: [{ id: 'pipeline-1', name: 'Build Pipeline', state: 'running' }],
       tasks: [{ id: 'task-1', title: 'Build artifact', state: 'ready' }],
+      projects: [{ id: 'project-1', name: 'Build Project' }],
+      templates: [{ id: 'template-1', name: 'Build Template' }],
       workers: [{ id: 'worker-1', name: 'Builder worker', status: 'online' }],
       agents: [{ id: 'agent-1', name: 'Builder agent', status: 'idle' }],
     });
 
-    expect(results.map((result) => result.type)).toEqual(['pipeline', 'task', 'worker', 'agent']);
+    expect(results.map((result) => result.type)).toEqual([
+      'pipeline',
+      'task',
+      'project',
+      'template',
+      'worker',
+      'agent',
+    ]);
     expect(results[0].href).toBe('/pipelines/pipeline-1');
     expect(results[1].href).toBe('/tasks/task-1');
-    expect(results[2].href).toBe('/workers');
+    expect(results[2].href).toBe('/pipelines');
+    expect(results[3].href).toBe('/templates');
+    expect(results[4].href).toBe('/workers');
   });
 
   it('search() merges matches from all dashboard resources', async () => {
@@ -716,13 +727,23 @@ describe('dashboard global search', () => {
       listAgents: vi
         .fn()
         .mockResolvedValue([{ id: 'agent-1', name: 'Test agent', status: 'idle' }]),
+      listProjects: vi
+        .fn()
+        .mockResolvedValue({ data: [{ id: 'project-1', name: 'Test project' }] }),
     };
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({ data: [{ id: 'template-1', name: 'Test template', slug: 'test-template' }] }),
+        { status: 200 },
+      ),
+    ) as unknown as typeof fetch;
 
-    const api = createDashboardApi({ client: client as never });
+    const api = createDashboardApi({ client: client as never, fetcher, baseUrl: 'http://localhost:8080' });
     const results = await api.search('test');
 
-    expect(results).toHaveLength(4);
+    expect(results).toHaveLength(6);
     expect(client.listPipelines).toHaveBeenCalledWith({ per_page: 50 });
     expect(client.listTasks).toHaveBeenCalledWith({ per_page: 50 });
+    expect(client.listProjects).toHaveBeenCalledWith({ per_page: 50 });
   });
 });

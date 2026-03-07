@@ -136,26 +136,42 @@ export function WorkflowSwimlanesCard(props: {
   );
 }
 
-export function TaskGraphCard(props: { tasks: DashboardPipelineTaskRow[]; isLoading: boolean; hasError: boolean }) {
+export function TaskGraphCard(props: {
+  tasks: DashboardPipelineTaskRow[];
+  phaseGroups: Array<{ phaseName: string; tasks: DashboardPipelineTaskRow[] }>;
+  isLoading: boolean;
+  hasError: boolean;
+}) {
   return (
     <div className="card">
       <h3>Task Graph</h3>
+      <p className="muted">Dependency graph grouped by workflow phase for faster operator scanning.</p>
       {props.isLoading ? <p>Loading tasks...</p> : null}
       {props.hasError ? <p style={{ color: '#dc2626' }}>Failed to load tasks</p> : null}
-      <table className="table">
-        <thead>
-          <tr><th>Task</th><th>State</th><th>Depends On</th></tr>
-        </thead>
-        <tbody>
-          {props.tasks.map((task) => (
-            <tr key={task.id}>
-              <td><Link to={`/tasks/${task.id}`}>{task.title}</Link></td>
-              <td><span className={`status-badge status-${task.state}`}>{task.state}</span></td>
-              <td>{task.depends_on.length > 0 ? task.depends_on.join(', ') : '—'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="grid">
+        {props.phaseGroups.map((group) => (
+          <div key={group.phaseName} className="card timeline-entry">
+            <div className="row" style={{ justifyContent: 'space-between' }}>
+              <strong>{group.phaseName}</strong>
+              <span className="status-badge">{group.tasks.length} tasks</span>
+            </div>
+            <table className="table">
+              <thead>
+                <tr><th>Task</th><th>State</th><th>Depends On</th></tr>
+              </thead>
+              <tbody>
+                {group.tasks.map((task) => (
+                  <tr key={task.id}>
+                    <td><Link to={`/tasks/${task.id}`}>{task.title}</Link></td>
+                    <td><span className={`status-badge status-${task.state}`}>{task.state}</span></td>
+                    <td>{task.depends_on.length > 0 ? task.depends_on.join(', ') : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

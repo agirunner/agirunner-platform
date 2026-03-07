@@ -267,6 +267,7 @@ export function PipelineDetailPage(): JSX.Element {
       <div className="grid two">
         <TaskGraphCard
           tasks={taskQuery.data?.data ?? []}
+          phaseGroups={phaseGroups}
           isLoading={taskQuery.isLoading}
           hasError={Boolean(taskQuery.error)}
         />

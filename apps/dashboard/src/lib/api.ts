@@ -19,7 +19,7 @@ interface NamedRecord {
 }
 
 export interface DashboardSearchResult {
-  type: 'pipeline' | 'task' | 'worker' | 'agent';
+  type: 'pipeline' | 'task' | 'worker' | 'agent' | 'project' | 'template';
   id: string;
   label: string;
   subtitle: string;
@@ -667,11 +667,13 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           return [];
         }
 
-        const [pipelines, tasks, workers, agents] = await Promise.allSettled([
+        const [pipelines, tasks, workers, agents, projects, templates] = await Promise.allSettled([
           client.listPipelines({ per_page: 50 }),
           client.listTasks({ per_page: 50 }),
           client.listWorkers(),
           client.listAgents(),
+          client.listProjects({ per_page: 50 }),
+          requestJson<{ data: DashboardTemplate[] }>('/api/v1/templates?per_page=50', { method: 'GET' }),
         ]);
 
         return buildSearchResults(normalizedQuery, {
@@ -679,6 +681,8 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           tasks: extractListResult(tasks),
           workers: extractDataResult(workers),
           agents: extractDataResult(agents),
+          projects: extractListResult(projects),
+          templates: extractListResult(templates),
         });
       }),
     getMetrics: () =>
@@ -780,6 +784,8 @@ export function buildSearchResults(
     tasks: NamedRecord[];
     workers: NamedRecord[];
     agents: NamedRecord[];
+    projects: NamedRecord[];
+    templates: NamedRecord[];
   },
 ): DashboardSearchResult[] {
   const pipelineMatches = filterRecords(collections.pipelines, normalizedQuery).map((item) => ({
@@ -814,7 +820,30 @@ export function buildSearchResults(
     href: '/workers',
   }));
 
-  return [...pipelineMatches, ...taskMatches, ...workerMatches, ...agentMatches].slice(0, 12);
+  const projectMatches = filterRecords(collections.projects, normalizedQuery).map((item) => ({
+    type: 'project' as const,
+    id: item.id,
+    label: item.name ?? item.id,
+    subtitle: item.status ?? 'project',
+    href: '/pipelines',
+  }));
+
+  const templateMatches = filterRecords(collections.templates, normalizedQuery).map((item) => ({
+    type: 'template' as const,
+    id: item.id,
+    label: item.name ?? item.id,
+    subtitle: item.status ?? 'template',
+    href: '/templates',
+  }));
+
+  return [
+    ...pipelineMatches,
+    ...taskMatches,
+    ...projectMatches,
+    ...templateMatches,
+    ...workerMatches,
+    ...agentMatches,
+  ].slice(0, 12);
 }
 
 function filterRecords(records: NamedRecord[], query: string): NamedRecord[] {

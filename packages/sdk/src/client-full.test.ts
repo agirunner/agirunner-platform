@@ -71,4 +71,43 @@ describe('sdk full client coverage', () => {
     const [, options] = vi.mocked(fetcher).mock.calls[0];
     expect((options?.headers as Record<string, string>).Authorization).toBe('Bearer new-token');
   });
+
+  it('covers project, workflow, document, and artifact parity methods through sdk wrappers', async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 'project-1' }] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'project-1', memory: {} } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'project-1', memory: { last_run_summary: {} } } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ pipeline_id: 'pipe-1', kind: 'run_summary' }] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { pipeline_id: 'pipe-1', resolved_config: { retries: 2 } } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ logical_name: 'brief', scope: 'project', source: 'repository', metadata: {} }] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'pipe-1' } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'pipe-1', current_phase: 'review' } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'pipe-1', state: 'cancelled' } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 'artifact-1', task_id: 'task-1' }] }), { status: 200 })) as unknown as typeof fetch;
+
+    const client = new PlatformApiClient({ baseUrl: 'http://localhost:8080', accessToken: 'token', fetcher });
+
+    const projects = await client.listProjects();
+    const project = await client.getProject('project-1');
+    const patched = await client.patchProjectMemory('project-1', { key: 'last_run_summary', value: {} });
+    const timeline = await client.getProjectTimeline('project-1');
+    const config = await client.getResolvedPipelineConfig('pipe-1', true);
+    const documents = await client.listPipelineDocuments('pipe-1');
+    const planning = await client.createPlanningPipeline('project-1', { brief: 'Plan next run' });
+    const approved = await client.actOnPhaseGate('pipe-1', 'review', { action: 'approve' });
+    const cancelled = await client.cancelPhase('pipe-1', 'review');
+    const artifacts = await client.listTaskArtifacts('task-1');
+
+    expect(projects.data[0].id).toBe('project-1');
+    expect(project.id).toBe('project-1');
+    expect(patched.memory).toEqual({ last_run_summary: {} });
+    expect(timeline[0].pipeline_id).toBe('pipe-1');
+    expect(config.resolved_config).toEqual({ retries: 2 });
+    expect(documents[0].logical_name).toBe('brief');
+    expect(planning.id).toBe('pipe-1');
+    expect(approved.current_phase).toBe('review');
+    expect(cancelled.state).toBe('cancelled');
+    expect(artifacts[0].id).toBe('artifact-1');
+  });
 });

@@ -64,6 +64,82 @@ export interface Worker {
   updated_at: string;
 }
 
+export interface Project {
+  id: string;
+  tenant_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  repository_url: string | null;
+  settings: Record<string, unknown>;
+  memory: Record<string, unknown>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectTimelineEntry {
+  kind?: string;
+  pipeline_id: string;
+  name: string;
+  state: string;
+  created_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  duration_seconds?: number | null;
+  task_counts?: Record<string, unknown>;
+  phase_progression?: Array<Record<string, unknown>>;
+  phase_metrics?: Array<Record<string, unknown>>;
+  produced_artifacts?: Array<Record<string, unknown>>;
+  chain?: Record<string, unknown>;
+}
+
+export interface ResolvedPipelineConfig {
+  pipeline_id: string;
+  resolved_config: Record<string, unknown>;
+  config_layers?: Record<string, Record<string, unknown>>;
+}
+
+export interface ResolvedDocumentReference {
+  logical_name: string;
+  scope: 'project' | 'pipeline';
+  source: 'repository' | 'artifact' | 'external';
+  title?: string;
+  description?: string;
+  metadata: Record<string, unknown>;
+  created_at?: string;
+  task_id?: string;
+  repository?: string;
+  path?: string;
+  url?: string;
+  artifact?: {
+    id: string;
+    task_id: string;
+    logical_path: string;
+    content_type?: string;
+    download_url: string;
+  };
+}
+
+export interface TaskArtifact {
+  id: string;
+  pipeline_id?: string | null;
+  project_id?: string | null;
+  task_id: string;
+  logical_path: string;
+  content_type: string;
+  size_bytes: number;
+  checksum_sha256: string;
+  metadata: Record<string, unknown>;
+  retention_policy: Record<string, unknown>;
+  expires_at?: string | null;
+  created_at: string;
+  download_url: string;
+  access_url?: string | null;
+  access_url_expires_at?: string | null;
+  storage_backend?: string;
+}
+
 export interface Pipeline {
   id: string;
   tenant_id: string;
@@ -74,6 +150,9 @@ export interface Pipeline {
   input: Record<string, unknown>;
   context: Record<string, unknown>;
   metadata: Record<string, unknown>;
+  phases?: Array<Record<string, unknown>>;
+  current_phase?: string | null;
+  phase_progress?: Array<Record<string, unknown>>;
   created_by: string | null;
   created_at: string;
   updated_at: string;
