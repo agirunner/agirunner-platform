@@ -89,7 +89,7 @@ function authHeaders(): Record<string, string> {
 }
 
 async function fetchDefaults(): Promise<ConfigDefaults> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/config/defaults`, {
+  const response = await fetch(`${API_BASE_URL}/api/v1/config/runtime-defaults`, {
     headers: authHeaders(),
     credentials: 'include',
   });
@@ -99,7 +99,7 @@ async function fetchDefaults(): Promise<ConfigDefaults> {
 }
 
 async function patchDefaults(payload: ConfigDefaults): Promise<ConfigDefaults> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/config/defaults`, {
+  const response = await fetch(`${API_BASE_URL}/api/v1/config/runtime-defaults`, {
     method: 'PATCH',
     headers: authHeaders(),
     credentials: 'include',

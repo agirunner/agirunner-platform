@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { FileText, Download, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { dashboardApi, type DashboardAuditLogRecord } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
+import { SavedViews, type SavedViewFilters } from '../../components/saved-views.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
@@ -213,6 +214,19 @@ export function AuditLogPage(): JSX.Element {
             className="w-48"
           />
         </div>
+
+        <SavedViews
+          storageKey="audit-log"
+          currentFilters={{ dateFrom, dateTo, actor, action: actionFilter, resourceType }}
+          onApply={(filters: SavedViewFilters) => {
+            setDateFrom(filters.dateFrom ?? '');
+            setDateTo(filters.dateTo ?? '');
+            setActor(filters.actor ?? '');
+            setActionFilter(filters.action ?? 'all');
+            setResourceType(filters.resourceType ?? '');
+            setPage(1);
+          }}
+        />
       </div>
 
       {entries.length === 0 ? (

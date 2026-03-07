@@ -30,11 +30,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	// TODO: implement real Docker client via socket proxy
-	// For now, the reconciler starts but logs that no Docker client is configured.
-	logger.Warn("Docker client not yet implemented — reconciler will fetch desired state but cannot manage containers")
-
-	var docker reconciler.DockerClient = &noopDockerClient{logger: logger}
+	var docker reconciler.DockerClient
+	if cfg.DockerHost != "" {
+		realClient, err := reconciler.NewRealDockerClient(cfg.DockerHost)
+		if err != nil {
+			logger.Error("failed to create Docker client", "error", err)
+			os.Exit(1)
+		}
+		logger.Info("using Docker client", "host", cfg.DockerHost)
+		docker = realClient
+	} else {
+		logger.Warn("DOCKER_HOST not set — using noop Docker client for dev/test")
+		docker = &noopDockerClient{logger: logger}
+	}
 
 	r := reconciler.New(cfg, docker, logger)
 

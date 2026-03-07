@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Key, Plus, Copy, Check } from 'lucide-react';
 import { dashboardApi, type DashboardApiKeyRecord } from '../../lib/api.js';
+import { toast } from '../../lib/toast.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
@@ -80,6 +81,10 @@ function CreateApiKeyDialog({
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['api-keys'] });
       setCreatedKey(data.api_key);
+      toast.success('API key created');
+    },
+    onError: () => {
+      toast.error('Failed to create API key');
     },
   });
 
@@ -204,6 +209,10 @@ function RevokeConfirmDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['api-keys'] });
       onClose();
+      toast.success('API key revoked');
+    },
+    onError: () => {
+      toast.error('Failed to revoke API key');
     },
   });
 

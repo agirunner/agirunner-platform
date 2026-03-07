@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Copy, Download, Pencil, Plus, LayoutTemplate } from 'lucide-react';
+import { Loader2, Copy, Download, Pencil, Plus, LayoutTemplate, GitCompare } from 'lucide-react';
 import { dashboardApi, type DashboardTemplate } from '../../lib/api.js';
 import { Button } from '../../components/ui/button.js';
 import { Badge } from '../../components/ui/badge.js';
@@ -11,6 +12,14 @@ import {
   TableHead,
   TableCell,
 } from '../../components/ui/table.js';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '../../components/ui/dialog.js';
+import { DiffViewer } from '../../components/diff-viewer.js';
 
 function normalizeTemplates(
   response: { data: DashboardTemplate[] } | DashboardTemplate[] | undefined,
@@ -34,7 +43,14 @@ function exportTemplate(template: DashboardTemplate) {
   URL.revokeObjectURL(url);
 }
 
+function buildDiffText(template: DashboardTemplate, version: number): string {
+  const header = `Template: ${template.name}\nVersion: ${version}\n`;
+  return header + JSON.stringify(template.schema, null, 2);
+}
+
 export function TemplateListPage(): JSX.Element {
+  const [diffTemplate, setDiffTemplate] = useState<DashboardTemplate | null>(null);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['templates'],
     queryFn: () => dashboardApi.listTemplates(),
@@ -142,6 +158,16 @@ export function TemplateListPage(): JSX.Element {
                     >
                       <Download className="h-4 w-4" />
                     </Button>
+                    {template.version > 1 && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        title="View diff with previous version"
+                        onClick={() => setDiffTemplate(template)}
+                      >
+                        <GitCompare className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
@@ -149,6 +175,25 @@ export function TemplateListPage(): JSX.Element {
           </TableBody>
         </Table>
       )}
+
+      <Dialog open={diffTemplate !== null} onOpenChange={(open) => { if (!open) setDiffTemplate(null); }}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Template Version Diff</DialogTitle>
+            <DialogDescription>
+              Comparing version {(diffTemplate?.version ?? 1) - 1} with version {diffTemplate?.version ?? 1} of {diffTemplate?.name ?? ''}.
+            </DialogDescription>
+          </DialogHeader>
+          {diffTemplate && (
+            <DiffViewer
+              oldText={buildDiffText(diffTemplate, diffTemplate.version - 1)}
+              newText={buildDiffText(diffTemplate, diffTemplate.version)}
+              oldLabel={`v${diffTemplate.version - 1}`}
+              newLabel={`v${diffTemplate.version}`}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

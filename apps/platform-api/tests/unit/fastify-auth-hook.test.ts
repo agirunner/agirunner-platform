@@ -28,9 +28,13 @@ describe('authenticateApiKey', () => {
         authorization: 'Bearer header.payload.signature',
       },
       cookies: {},
+      url: '/test',
+      method: 'GET',
       server: {
         pgPool: {},
+        auditService: { record: vi.fn().mockResolvedValue(undefined) },
       },
+      auth: undefined,
     } as never;
 
     await expect(authenticateApiKey(request)).rejects.toBeInstanceOf(UnauthorizedError);

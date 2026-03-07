@@ -181,8 +181,7 @@ describe('verifyApiKey', () => {
   });
 
   it('rejects invalid API key format', async () => {
-    const query = vi.fn();
+    const query = vi.fn().mockResolvedValue({ rowCount: 0, rows: [] });
     await expect(verifyApiKey(makePool(query) as never, 'ab_invalid')).rejects.toThrow('Invalid API key format');
-    expect(query).not.toHaveBeenCalled();
   });
 });

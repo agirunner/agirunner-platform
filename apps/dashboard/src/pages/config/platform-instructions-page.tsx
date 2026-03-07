@@ -1,9 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Save, FileText } from 'lucide-react';
+import MonacoEditor from '@monaco-editor/react';
+
+const Editor = MonacoEditor as unknown as React.ComponentType<{
+  height: string;
+  language: string;
+  value: string;
+  onChange?: (value: string | undefined) => void;
+  options?: Record<string, unknown>;
+}>;
+import { Loader2, Save, FileText, History } from 'lucide-react';
+import { DiffViewer } from '../../components/diff-viewer.js';
 import { readSession } from '../../lib/session.js';
 import { Button } from '../../components/ui/button.js';
-import { Textarea } from '../../components/ui/textarea.js';
 import {
   Card,
   CardHeader,
@@ -61,6 +70,8 @@ export function PlatformInstructionsPage(): JSX.Element {
   const queryClient = useQueryClient();
   const [editorContent, setEditorContent] = useState('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [previousVersions, setPreviousVersions] = useState<string[]>([]);
+  const [isDiffOpen, setIsDiffOpen] = useState(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['platform-instructions'],
@@ -77,15 +88,22 @@ export function PlatformInstructionsPage(): JSX.Element {
   const mutation = useMutation({
     mutationFn: () => saveInstructions(editorContent),
     onSuccess: (updated) => {
+      if (data?.content) {
+        setPreviousVersions((prev) => [...prev, data.content]);
+      }
       queryClient.setQueryData(['platform-instructions'], updated);
       setHasUnsavedChanges(false);
     },
   });
 
-  function handleContentChange(value: string) {
-    setEditorContent(value);
-    setHasUnsavedChanges(value !== (data?.content ?? ''));
-  }
+  const handleContentChange = useCallback(
+    (value: string | undefined) => {
+      const next = value ?? '';
+      setEditorContent(next);
+      setHasUnsavedChanges(next !== (data?.content ?? ''));
+    },
+    [data?.content],
+  );
 
   if (isLoading) {
     return (
@@ -125,6 +143,16 @@ export function PlatformInstructionsPage(): JSX.Element {
               Last saved {new Date(data.updated_at).toLocaleString()}
             </span>
           )}
+          {previousVersions.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsDiffOpen(!isDiffOpen)}
+            >
+              <History className="h-4 w-4" />
+              {isDiffOpen ? 'Hide Diff' : 'Show Diff'}
+            </Button>
+          )}
           <Button
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending || !hasUnsavedChanges}
@@ -161,6 +189,25 @@ export function PlatformInstructionsPage(): JSX.Element {
         </div>
       ) : null}
 
+      {isDiffOpen && previousVersions.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <History className="h-4 w-4" />
+              Version History Diff
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DiffViewer
+              oldText={previousVersions[previousVersions.length - 1]}
+              newText={data?.content ?? ''}
+              oldLabel="Previous Version"
+              newLabel="Current Version"
+            />
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -169,13 +216,23 @@ export function PlatformInstructionsPage(): JSX.Element {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Textarea
-            value={editorContent}
-            onChange={(e) => handleContentChange(e.target.value)}
-            placeholder="Enter platform instructions for all agents..."
-            className="min-h-[400px] font-mono text-sm"
-            spellCheck={false}
-          />
+          <div className="border border-border rounded-lg overflow-hidden">
+            <Editor
+              height="400px"
+              language="markdown"
+              value={editorContent}
+              onChange={handleContentChange}
+              options={{
+                minimap: { enabled: false },
+                fontSize: 13,
+                lineNumbers: 'on',
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                tabSize: 2,
+                wordWrap: 'on',
+              }}
+            />
+          </div>
         </CardContent>
       </Card>
 

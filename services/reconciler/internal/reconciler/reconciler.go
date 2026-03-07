@@ -47,18 +47,36 @@ type Config struct {
 	StopTimeout     time.Duration
 }
 
+// PlatformAPI abstracts communication with the platform API.
+type PlatformAPI interface {
+	FetchDesiredState() ([]DesiredState, error)
+	ReportActualState(state ActualState) error
+	ReportImage(image ContainerImage) error
+}
+
 // Reconciler implements the desired-state reconciliation loop.
 type Reconciler struct {
-	platform *PlatformClient
+	platform PlatformAPI
 	docker   DockerClient
 	config   Config
 	logger   *slog.Logger
 }
 
-// New creates a new Reconciler.
+// New creates a new Reconciler with a real PlatformClient.
 func New(cfg Config, docker DockerClient, logger *slog.Logger) *Reconciler {
 	return &Reconciler{
 		platform: NewPlatformClient(cfg.PlatformAPIURL, cfg.PlatformAPIKey),
+		docker:   docker,
+		config:   cfg,
+		logger:   logger,
+	}
+}
+
+// NewWithPlatform creates a Reconciler with a custom PlatformAPI implementation.
+// This is primarily useful for testing.
+func NewWithPlatform(cfg Config, docker DockerClient, platform PlatformAPI, logger *slog.Logger) *Reconciler {
+	return &Reconciler{
+		platform: platform,
 		docker:   docker,
 		config:   cfg,
 		logger:   logger,

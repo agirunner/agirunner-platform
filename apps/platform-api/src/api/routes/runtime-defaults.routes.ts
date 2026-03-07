@@ -11,13 +11,13 @@ export const runtimeDefaultsRoutes: FastifyPluginAsync = async (app) => {
   const service = new RuntimeDefaultsService(app.pgPool);
 
   app.get(
-    '/api/v1/config/defaults',
+    '/api/v1/config/runtime-defaults',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request) => ({ data: await service.listDefaults(request.auth!.tenantId) }),
   );
 
   app.get(
-    '/api/v1/config/defaults/:id',
+    '/api/v1/config/runtime-defaults/:id',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request) => {
       const params = request.params as { id: string };
@@ -26,7 +26,7 @@ export const runtimeDefaultsRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    '/api/v1/config/defaults',
+    '/api/v1/config/runtime-defaults',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request, reply) => {
       const result = await service.createDefault(
@@ -38,8 +38,8 @@ export const runtimeDefaultsRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  app.put(
-    '/api/v1/config/defaults/:id',
+  app.patch(
+    '/api/v1/config/runtime-defaults/:id',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request) => {
       const params = request.params as { id: string };
@@ -54,7 +54,7 @@ export const runtimeDefaultsRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.delete(
-    '/api/v1/config/defaults/:id',
+    '/api/v1/config/runtime-defaults/:id',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request, reply) => {
       const params = request.params as { id: string };

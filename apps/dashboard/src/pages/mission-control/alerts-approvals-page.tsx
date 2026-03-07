@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { dashboardApi } from '../../lib/api.js';
+import { toast } from '../../lib/toast.js';
 import { cn } from '../../lib/utils.js';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card.js';
 import { Badge } from '../../components/ui/badge.js';
@@ -88,37 +89,44 @@ export function AlertsApprovalsPage(): JSX.Element {
 
   const approveMutation = useMutation({
     mutationFn: (taskId: string) => dashboardApi.approveTask(taskId),
-    onSuccess: invalidateAll,
+    onSuccess: () => { invalidateAll(); toast.success('Task approved'); },
+    onError: () => { toast.error('Failed to approve task'); },
   });
 
   const rejectMutation = useMutation({
     mutationFn: (taskId: string) => dashboardApi.rejectTask(taskId, { feedback: 'Rejected by operator' }),
-    onSuccess: invalidateAll,
+    onSuccess: () => { invalidateAll(); toast.success('Task rejected'); },
+    onError: () => { toast.error('Failed to reject task'); },
   });
 
   const requestChangesMutation = useMutation({
     mutationFn: (taskId: string) => dashboardApi.requestTaskChanges(taskId, { feedback: 'Changes requested by operator' }),
-    onSuccess: invalidateAll,
+    onSuccess: () => { invalidateAll(); toast.success('Changes requested'); },
+    onError: () => { toast.error('Failed to request changes'); },
   });
 
   const skipMutation = useMutation({
     mutationFn: (taskId: string) => dashboardApi.skipTask(taskId, { reason: 'Skipped by operator' }),
-    onSuccess: invalidateAll,
+    onSuccess: () => { invalidateAll(); toast.success('Task skipped'); },
+    onError: () => { toast.error('Failed to skip task'); },
   });
 
   const retryMutation = useMutation({
     mutationFn: (taskId: string) => dashboardApi.retryTask(taskId),
-    onSuccess: invalidateAll,
+    onSuccess: () => { invalidateAll(); toast.success('Task retry initiated'); },
+    onError: () => { toast.error('Failed to retry task'); },
   });
 
   const retryOnDifferentWorkerMutation = useMutation({
     mutationFn: (taskId: string) => dashboardApi.retryTask(taskId, { force: true }),
-    onSuccess: invalidateAll,
+    onSuccess: () => { invalidateAll(); toast.success('Task retry on different worker initiated'); },
+    onError: () => { toast.error('Failed to retry task on different worker'); },
   });
 
   const reassignMutation = useMutation({
     mutationFn: (taskId: string) => dashboardApi.reassignTask(taskId, { reason: 'Reassigned by operator' }),
-    onSuccess: invalidateAll,
+    onSuccess: () => { invalidateAll(); toast.success('Task reassigned'); },
+    onError: () => { toast.error('Failed to reassign task'); },
   });
 
   if (isLoading) {

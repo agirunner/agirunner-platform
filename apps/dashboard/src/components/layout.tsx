@@ -10,6 +10,7 @@ import {
   Cog,
   Container,
   Database,
+  DollarSign,
   FileText,
   FolderOpen,
   Gauge,
@@ -19,15 +20,18 @@ import {
   Link2,
   Lock,
   LogOut,
+  Menu,
   Moon,
   ScrollText,
   Search,
   Server,
   Shield,
+  Sparkles,
   Sun,
   Timer,
   Users,
   Workflow,
+  X,
 } from 'lucide-react';
 
 import { dashboardApi, type DashboardSearchResult } from '../lib/api.js';
@@ -53,6 +57,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Live Board', href: '/mission-control', icon: LayoutDashboard },
       { label: 'Activity Feed', href: '/mission-control/activity', icon: Activity },
       { label: 'Alerts & Approvals', href: '/mission-control/alerts', icon: Bell },
+      { label: 'Cost Dashboard', href: '/mission-control/costs', icon: DollarSign },
     ],
   },
   {
@@ -83,6 +88,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'LLM Providers', href: '/config/llm', icon: Cog },
       { label: 'Runtimes', href: '/config/runtimes', icon: Server },
       { label: 'Integrations', href: '/config/integrations', icon: Link2 },
+      { label: 'AI Assistant', href: '/config/assistant', icon: Sparkles },
     ],
   },
   {
@@ -118,8 +124,13 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<DashboardSearchResult[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const isDark = readTheme() === 'dark';
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const currentSection = useMemo(() => {
     const path = location.pathname;
@@ -163,11 +174,11 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
     }
   };
 
-  return (
-    <div className="flex min-h-screen">
-      <aside className="flex w-60 flex-col border-r border-border bg-surface">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <span className="text-lg font-semibold">Agirunner</span>
+  const sidebarContent = (
+    <>
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <span className="text-lg font-semibold">Agirunner</span>
+        <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={onToggleTheme}
@@ -176,65 +187,120 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
           >
             {isDark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
-        </div>
-
-        <div className="px-3 py-2">
           <button
             type="button"
-            onClick={() => {
-              setSearchOpen(true);
-              setTimeout(() => searchInputRef.current?.focus(), 0);
-            }}
-            className="flex w-full items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm text-muted hover:bg-border/30"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="rounded-md p-1.5 text-muted hover:bg-border/50 lg:hidden"
+            aria-label="Close menu"
           >
-            <Search size={14} />
-            <span>Search...</span>
-            <kbd className="ml-auto rounded border border-border px-1.5 py-0.5 text-xs">
-              {'\u2318'}K
-            </kbd>
+            <X size={16} />
           </button>
         </div>
+      </div>
 
-        <nav className="flex-1 overflow-y-auto px-2 py-1">
-          {NAV_SECTIONS.map((section) => (
-            <NavSectionGroup
-              key={section.label}
-              section={section}
-              isActive={currentSection === section.label}
-            />
-          ))}
-        </nav>
+      <div className="px-3 py-2">
+        <button
+          type="button"
+          onClick={() => {
+            setSearchOpen(true);
+            setIsMobileMenuOpen(false);
+            setTimeout(() => searchInputRef.current?.focus(), 0);
+          }}
+          className="flex w-full items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm text-muted hover:bg-border/30"
+        >
+          <Search size={14} />
+          <span>Search...</span>
+          <kbd className="ml-auto hidden rounded border border-border px-1.5 py-0.5 text-xs sm:inline">
+            {'\u2318'}K
+          </kbd>
+        </button>
+      </div>
 
-        <div className="border-t border-border p-3">
-          <div className="mb-2 text-xs text-muted">
-            {session?.tenantId ? `Tenant ${session.tenantId.slice(0, 8)}...` : ''}
-          </div>
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm text-muted hover:bg-border/30"
-            onClick={() => {
-              void dashboardApi.logout().finally(() => {
-                clearSession();
-                queryClient.clear();
-                navigate('/login');
-              });
-            }}
-          >
-            <LogOut size={14} />
-            Logout
-          </button>
+      <nav className="flex-1 overflow-y-auto px-2 py-1">
+        {NAV_SECTIONS.map((section) => (
+          <NavSectionGroup
+            key={section.label}
+            section={section}
+            isActive={currentSection === section.label}
+          />
+        ))}
+      </nav>
+
+      <div className="border-t border-border p-3">
+        <div className="mb-2 text-xs text-muted">
+          {session?.tenantId ? `Tenant ${session.tenantId.slice(0, 8)}...` : ''}
         </div>
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm text-muted hover:bg-border/30"
+          onClick={() => {
+            void dashboardApi.logout().finally(() => {
+              clearSession();
+              queryClient.clear();
+              navigate('/login');
+            });
+          }}
+        >
+          <LogOut size={14} />
+          Logout
+        </button>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="flex min-h-screen">
+      {/* Mobile header bar */}
+      <div className="fixed left-0 right-0 top-0 z-30 flex items-center justify-between border-b border-border bg-surface px-4 py-2 lg:hidden">
+        <button
+          type="button"
+          onClick={() => setIsMobileMenuOpen(true)}
+          className="rounded-md p-1.5 text-muted hover:bg-border/50"
+          aria-label="Open menu"
+        >
+          <Menu size={20} />
+        </button>
+        <span className="text-sm font-semibold">Agirunner</span>
+        <button
+          type="button"
+          onClick={() => {
+            setSearchOpen(true);
+            setTimeout(() => searchInputRef.current?.focus(), 0);
+          }}
+          className="rounded-md p-1.5 text-muted hover:bg-border/50"
+          aria-label="Search"
+        >
+          <Search size={18} />
+        </button>
+      </div>
+
+      {/* Mobile sidebar overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 flex w-60 flex-col border-r border-border bg-surface transition-transform duration-200 lg:static lg:translate-x-0',
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full',
+        )}
+      >
+        {sidebarContent}
       </aside>
 
-      <main className="flex-1 overflow-y-auto bg-background">
-        <div className="mx-auto max-w-7xl px-6 py-4">
+      <main className="flex-1 overflow-y-auto bg-background pt-12 lg:pt-0">
+        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
           <Outlet />
         </div>
       </main>
 
       {searchOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-24"
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-16 sm:pt-24"
           onClick={() => setSearchOpen(false)}
         >
           <div

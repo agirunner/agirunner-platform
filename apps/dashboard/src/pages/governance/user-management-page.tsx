@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Users, Plus, Pencil, UserX } from 'lucide-react';
 import { readSession } from '../../lib/session.js';
+import { toast } from '../../lib/toast.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
@@ -143,6 +144,10 @@ function CreateUserDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       resetAndClose();
+      toast.success('User created');
+    },
+    onError: () => {
+      toast.error('Failed to create user');
     },
   });
 
@@ -314,6 +319,10 @@ function DeactivateDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       onClose();
+      toast.success('User deactivated');
+    },
+    onError: () => {
+      toast.error('Failed to deactivate user');
     },
   });
 

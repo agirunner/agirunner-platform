@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { dashboardApi } from '../../lib/api.js';
+import { Skeleton } from '../../components/ui/skeleton.js';
+import { SavedViews, type SavedViewFilters } from '../../components/saved-views.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
@@ -116,8 +118,17 @@ export function TaskListPage(): JSX.Element {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted" />
+      <div className="space-y-6 p-6">
+        <Skeleton className="h-8 w-32" />
+        <div className="flex flex-wrap items-center gap-3">
+          <Skeleton className="h-9 w-48" />
+          <Skeleton className="h-9 w-64" />
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -184,6 +195,16 @@ export function TaskListPage(): JSX.Element {
             }}
           />
         </div>
+
+        <SavedViews
+          storageKey="task-list"
+          currentFilters={{ status: statusFilter, search: searchQuery }}
+          onApply={(filters: SavedViewFilters) => {
+            setStatusFilter((filters.status as StatusFilter) ?? 'all');
+            setSearchQuery(filters.search ?? '');
+            setPage(0);
+          }}
+        />
       </div>
 
       {paginatedTasks.length === 0 ? (

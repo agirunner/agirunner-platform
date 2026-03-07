@@ -10,6 +10,7 @@ import {
   dashboardApi,
   type DashboardIntegrationRecord,
 } from '../../lib/api.js';
+import { toast } from '../../lib/toast.js';
 import { Button } from '../../components/ui/button.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Input } from '../../components/ui/input.js';
@@ -105,6 +106,10 @@ function AddIntegrationDialog() {
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
       setForm(INITIAL_FORM);
       setIsOpen(false);
+      toast.success('Integration created');
+    },
+    onError: () => {
+      toast.error('Failed to create integration');
     },
   });
 
@@ -236,6 +241,10 @@ function DeleteConfirmDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
       onClose();
+      toast.success('Integration deleted');
+    },
+    onError: () => {
+      toast.error('Failed to delete integration');
     },
   });
 
@@ -285,8 +294,12 @@ function IntegrationRow({
       dashboardApi.updateIntegration(integration.id, {
         is_active: checked,
       }),
-    onSuccess: () => {
+    onSuccess: (_data, checked) => {
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      toast.success(checked ? 'Integration enabled' : 'Integration disabled');
+    },
+    onError: () => {
+      toast.error('Failed to update integration');
     },
   });
 

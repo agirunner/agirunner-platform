@@ -23,6 +23,7 @@ import { dashboardApi, type DashboardEventRecord } from '../../lib/api.js';
 import { subscribeToEvents } from '../../lib/sse.js';
 import { cn } from '../../lib/utils.js';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card.js';
+import { Skeleton } from '../../components/ui/skeleton.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import {
@@ -218,9 +219,21 @@ export function LiveBoardPage(): JSX.Element {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-12 text-muted">
-        <Activity className="mr-2 h-5 w-5 animate-spin" />
-        Loading Mission Control...
+      <div className="space-y-6 p-6">
+        <Skeleton className="h-8 w-48" />
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Skeleton className="h-48 w-full" />
       </div>
     );
   }

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Container, Image, Trash2, Download } from 'lucide-react';
+import { Container, Image, Trash2, Download, ScrollText } from 'lucide-react';
 import { readSession } from '../../lib/session.js';
 import { cn } from '../../lib/utils.js';
+import { ExecutionLogViewer } from '../../components/execution-log-viewer.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
@@ -194,6 +195,7 @@ function PullImageDialog({
 
 function ContainersTab(): JSX.Element {
   const queryClient = useQueryClient();
+  const [logContainerId, setLogContainerId] = useState<string | null>(null);
 
   const { data: containers, isLoading, error } = useQuery({
     queryKey: ['docker-containers'],
@@ -246,6 +248,7 @@ function ContainersTab(): JSX.Element {
               <TableHead className="text-right">CPU %</TableHead>
               <TableHead className="text-right">Memory (MB)</TableHead>
               <TableHead>Uptime</TableHead>
+              <TableHead className="w-[80px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -264,10 +267,34 @@ function ContainersTab(): JSX.Element {
                 <TableCell className="text-right">{container.cpu_percent.toFixed(1)}</TableCell>
                 <TableCell className="text-right">{container.memory_mb.toFixed(0)}</TableCell>
                 <TableCell className="text-muted-foreground">{container.uptime}</TableCell>
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    title="View logs"
+                    onClick={() => setLogContainerId(container.id)}
+                  >
+                    <ScrollText className="h-4 w-4" />
+                  </Button>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
+      )}
+
+      {logContainerId && (
+        <Dialog open onOpenChange={(open) => { if (!open) setLogContainerId(null); }}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Container Logs</DialogTitle>
+              <DialogDescription>
+                Streaming logs for container {truncateId(logContainerId)}
+              </DialogDescription>
+            </DialogHeader>
+            <ExecutionLogViewer sseUrl={`/api/v1/fleet/containers/${logContainerId}/logs/stream`} />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

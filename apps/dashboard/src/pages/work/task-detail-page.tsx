@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { dashboardApi, type DashboardTaskArtifactRecord, type DashboardEventRecord } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
+import { ExecutionLogViewer } from '../../components/execution-log-viewer.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
@@ -385,6 +386,7 @@ export function TaskDetailPage(): JSX.Element {
         <TabsList>
           <TabsTrigger value="output">Output</TabsTrigger>
           <TabsTrigger value="logs">Execution Logs</TabsTrigger>
+          <TabsTrigger value="streaming">Streaming Logs</TabsTrigger>
           <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
         </TabsList>
 
@@ -406,6 +408,17 @@ export function TaskDetailPage(): JSX.Element {
             </CardHeader>
             <CardContent>
               <EventLog taskId={task.id} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="streaming">
+          <Card>
+            <CardHeader>
+              <CardTitle>Streaming Execution Logs</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ExecutionLogViewer sseUrl={`/api/v1/tasks/${task.id}/logs/stream`} />
             </CardContent>
           </Card>
         </TabsContent>
