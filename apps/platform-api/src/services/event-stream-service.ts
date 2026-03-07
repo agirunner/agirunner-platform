@@ -3,6 +3,7 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 interface EventFilters {
   types?: string[];
   entityTypes?: string[];
+  entityId?: string;
   projectId?: string;
   pipelineId?: string;
 }
@@ -106,6 +107,10 @@ export class EventStreamService {
     }
 
     if (filters.entityTypes && filters.entityTypes.length > 0 && !filters.entityTypes.includes(event.entity_type)) {
+      return false;
+    }
+
+    if (filters.entityId && filters.entityId !== event.entity_id) {
       return false;
     }
 
