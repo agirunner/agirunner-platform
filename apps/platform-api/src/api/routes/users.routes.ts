@@ -24,6 +24,19 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
 
   app.post<{ Body: { email: string; password: string; tenantId?: string } }>(
     '/api/v1/auth/login/password',
+    {
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: '5 minutes',
+          keyGenerator: (request: import('fastify').FastifyRequest) => {
+            const body = request.body as { email?: string } | undefined;
+            const email = body?.email ?? 'unknown';
+            return `login:${request.ip}:${email}`;
+          },
+        },
+      },
+    },
     async (request, reply) => {
       const { email, password, tenantId } = request.body;
       const effectiveTenantId = tenantId ?? DEFAULT_TENANT_ID;
