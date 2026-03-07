@@ -26,6 +26,7 @@ import { webhookTaskTriggerRoutes } from '../api/routes/webhook-task-triggers.ro
 import { roleDefinitionRoutes } from '../api/routes/role-definitions.routes.js';
 import { llmConfigRoutes } from '../api/routes/llm-config.routes.js';
 import { runtimeDefaultsRoutes } from '../api/routes/runtime-defaults.routes.js';
+import { runtimeConfigRoutes } from '../api/routes/runtime-config.routes.js';
 
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(healthRoutes);
@@ -54,4 +55,5 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(roleDefinitionRoutes);
   await app.register(llmConfigRoutes);
   await app.register(runtimeDefaultsRoutes);
+  await app.register(runtimeConfigRoutes);
 }
