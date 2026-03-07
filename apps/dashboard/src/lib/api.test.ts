@@ -566,6 +566,117 @@ describe('dashboard api auth/session behavior', () => {
       'http://localhost:8080/api/v1/projects/project-1/planning-pipeline',
     );
   });
+
+  it('loads content and memory surfaces through typed dashboard methods', async () => {
+    writeSession({ accessToken: 'content-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              id: 'project-1',
+              name: 'Atlas',
+              slug: 'atlas',
+              memory: {
+                last_run_summary: { kind: 'run_summary' },
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              id: 'project-1',
+              name: 'Atlas',
+              slug: 'atlas',
+              memory: {
+                last_run_summary: { kind: 'run_summary' },
+                operator_note: { summary: 'check rollout' },
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                logical_name: 'project_brief',
+                scope: 'project',
+                source: 'repository',
+                repository: 'origin',
+                path: 'docs/brief.md',
+                metadata: {},
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: 'artifact-1',
+                task_id: 'task-1',
+                logical_path: 'artifact:pipe-1/report.json',
+                content_type: 'application/json',
+                size_bytes: 128,
+                checksum_sha256: 'abc',
+                metadata: {},
+                retention_policy: {},
+                created_at: '2026-03-07T00:00:00.000Z',
+                download_url: '/api/v1/tasks/task-1/artifacts/artifact-1',
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      ) as unknown as typeof fetch;
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listPipelines: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getPipeline: vi.fn(),
+      createPipeline: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    const project = await api.getProject('project-1');
+    const updated = await api.patchProjectMemory('project-1', {
+      key: 'operator_note',
+      value: { summary: 'check rollout' },
+    });
+    const documents = await api.listPipelineDocuments('pipe-1');
+    const artifacts = await api.listTaskArtifacts('task-1');
+
+    expect(project.memory?.last_run_summary).toEqual({ kind: 'run_summary' });
+    expect(updated.memory?.operator_note).toEqual({ summary: 'check rollout' });
+    expect(documents[0].logical_name).toBe('project_brief');
+    expect(artifacts[0].id).toBe('artifact-1');
+    expect(vi.mocked(fetcher).mock.calls[0][0]).toBe('http://localhost:8080/api/v1/projects/project-1');
+    expect(vi.mocked(fetcher).mock.calls[1][0]).toBe('http://localhost:8080/api/v1/projects/project-1/memory');
+    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe('http://localhost:8080/api/v1/pipelines/pipe-1/documents');
+    expect(vi.mocked(fetcher).mock.calls[3][0]).toBe('http://localhost:8080/api/v1/tasks/task-1/artifacts');
+  });
 });
 
 describe('dashboard global search', () => {

@@ -1,10 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import type { DashboardProjectTimelineEntry } from '../lib/api.js';
-import type {
-  DashboardPipelinePhaseRow,
-  DashboardPipelineTaskRow,
-} from './pipeline-detail-support.js';
+import type { DashboardPipelinePhaseRow, DashboardPipelineTaskRow } from './pipeline-detail-support.js';
 
 interface MissionControlSummary {
   total: number;

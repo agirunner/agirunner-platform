@@ -175,6 +175,13 @@ describe('FR-033 / FR-034 / FR-035 / FR-035a / FR-036 / FR-213: task detail page
     expect(source).toContain('readClarificationHistory');
     expect(source).toContain('readReworkDetails');
   });
+
+  it('task-detail-page exposes produced artifact inspection links', () => {
+    const source = readComponent('pages/task-detail-page.tsx');
+    expect(source).toContain('Task Artifacts');
+    expect(source).toContain('listTaskArtifacts');
+    expect(source).toContain('Download artifact');
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -206,6 +213,14 @@ describe('FR-036a / FR-423 / FR-717: pipeline detail and dependency graph', () =
     expect(source).toContain('cancelPhase');
     expect(source).toContain('Resolved Config');
     expect(source).toContain('Project Timeline');
+  });
+
+  it('pipeline-detail-page exposes pipeline documents and project memory controls', () => {
+    const source = `${readComponent('pages/pipeline-detail-page.tsx')}\n${readComponent('pages/pipeline-detail-sections.tsx')}\n${readComponent('pages/pipeline-detail-content.tsx')}`;
+    expect(source).toContain('Pipeline Documents');
+    expect(source).toContain('Project Memory');
+    expect(source).toContain('listPipelineDocuments');
+    expect(source).toContain('patchProjectMemory');
   });
 });
 

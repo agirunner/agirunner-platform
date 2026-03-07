@@ -5,16 +5,20 @@ import { Link, useParams } from 'react-router-dom';
 
 import {
   dashboardApi,
+  type DashboardProjectRecord,
   type DashboardProjectTimelineEntry,
+  type DashboardResolvedDocumentReference,
   type DashboardResolvedConfigResponse,
 } from '../lib/api.js';
 import { subscribeToEvents } from '../lib/sse.js';
 import {
   groupTasksByPhase,
   parseOverrideInput,
+  parseMemoryValue,
   readPipelineCurrentPhase,
   readPipelinePhases,
   readPipelineProjectId,
+  readProjectMemoryEntries,
   readPipelineRunSummary,
   shouldInvalidatePipelineRealtimeEvent,
   summarizeTasks,
@@ -28,6 +32,8 @@ import {
   TaskGraphCard,
   WorkflowSwimlanesCard,
 } from './pipeline-detail-sections.js';
+import { PipelineDocumentsCard, ProjectMemoryCard } from './pipeline-detail-content.js';
+import { invalidatePipelineQueries } from './pipeline-detail-query.js';
 
 interface TaskListResult {
   data: DashboardPipelineTaskRow[];
@@ -41,6 +47,10 @@ export function PipelineDetailPage(): JSX.Element {
   const [phaseFeedback, setPhaseFeedback] = useState('Clarify the current phase requirements.');
   const [overrideInput, setOverrideInput] = useState('{\n  "clarification_answers": {}\n}');
   const [overrideError, setOverrideError] = useState<string | null>(null);
+  const [memoryKey, setMemoryKey] = useState('last_operator_note');
+  const [memoryValue, setMemoryValue] = useState('{\n  "summary": ""\n}');
+  const [memoryError, setMemoryError] = useState<string | null>(null);
+  const [memoryMessage, setMemoryMessage] = useState<string | null>(null);
 
   const pipelineQuery = useQuery({
     queryKey: ['pipeline', pipelineId],
@@ -65,6 +75,17 @@ export function PipelineDetailPage(): JSX.Element {
   });
 
   const projectId = readPipelineProjectId(pipelineQuery.data);
+  const projectQuery = useQuery({
+    queryKey: ['project', projectId],
+    queryFn: () => dashboardApi.getProject(projectId ?? '') as Promise<DashboardProjectRecord>,
+    enabled: Boolean(projectId),
+  });
+  const documentQuery = useQuery({
+    queryKey: ['pipeline-documents', pipelineId],
+    queryFn: () =>
+      dashboardApi.listPipelineDocuments(pipelineId) as Promise<DashboardResolvedDocumentReference[]>,
+    enabled: pipelineId.length > 0,
+  });
   const timelineQuery = useQuery({
     queryKey: ['project-timeline', projectId],
     queryFn: () =>
@@ -104,6 +125,10 @@ export function PipelineDetailPage(): JSX.Element {
   );
   const runSummary = useMemo(() => readPipelineRunSummary(pipelineQuery.data), [pipelineQuery.data]);
   const currentPhase = readPipelineCurrentPhase(pipelineQuery.data);
+  const memoryEntries = useMemo(
+    () => readProjectMemoryEntries(projectQuery.data),
+    [projectQuery.data],
+  );
 
   async function handlePhaseAction(
     phaseName: string,
@@ -125,6 +150,30 @@ export function PipelineDetailPage(): JSX.Element {
 
   async function handlePhaseCancel(phaseName: string) {
     await dashboardApi.cancelPhase(pipelineId, phaseName);
+    await invalidatePipelineQueries(queryClient, pipelineId, projectId);
+  }
+
+  async function handleMemorySave() {
+    const parsed = parseMemoryValue(memoryValue);
+    if (!projectId) {
+      setMemoryError('Project memory is only available for project-backed pipelines.');
+      return;
+    }
+    if (!memoryKey.trim()) {
+      setMemoryError('Memory key must not be empty.');
+      return;
+    }
+    if (parsed.error) {
+      setMemoryError(parsed.error);
+      return;
+    }
+    setMemoryError(null);
+    setMemoryMessage(null);
+    await dashboardApi.patchProjectMemory(projectId, {
+      key: memoryKey.trim(),
+      value: parsed.value,
+    });
+    setMemoryMessage(`Updated project memory key '${memoryKey.trim()}'.`);
     await invalidatePipelineQueries(queryClient, pipelineId, projectId);
   }
 
@@ -194,6 +243,28 @@ export function PipelineDetailPage(): JSX.Element {
       </div>
 
       <div className="grid two">
+        <PipelineDocumentsCard
+          isLoading={documentQuery.isLoading}
+          hasError={Boolean(documentQuery.error)}
+          documents={documentQuery.data ?? []}
+        />
+
+        <ProjectMemoryCard
+          project={projectQuery.data}
+          entries={memoryEntries}
+          isLoading={projectQuery.isLoading}
+          hasError={Boolean(projectQuery.error)}
+          memoryKey={memoryKey}
+          memoryValue={memoryValue}
+          memoryError={memoryError}
+          memoryMessage={memoryMessage}
+          onMemoryKeyChange={setMemoryKey}
+          onMemoryValueChange={setMemoryValue}
+          onSave={() => void handleMemorySave()}
+        />
+      </div>
+
+      <div className="grid two">
         <TaskGraphCard
           tasks={taskQuery.data?.data ?? []}
           isLoading={taskQuery.isLoading}
@@ -216,20 +287,4 @@ export function PipelineDetailPage(): JSX.Element {
       ) : null}
     </section>
   );
-}
-
-async function invalidatePipelineQueries(
-  queryClient: ReturnType<typeof useQueryClient>,
-  pipelineId: string,
-  projectId?: string,
-) {
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: ['pipeline', pipelineId] }),
-    queryClient.invalidateQueries({ queryKey: ['tasks', pipelineId] }),
-    queryClient.invalidateQueries({ queryKey: ['pipeline-history', pipelineId] }),
-    queryClient.invalidateQueries({ queryKey: ['pipeline-config', pipelineId] }),
-    projectId
-      ? queryClient.invalidateQueries({ queryKey: ['project-timeline', projectId] })
-      : Promise.resolve(),
-  ]);
 }

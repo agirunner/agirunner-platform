@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   groupTasksByPhase,
+  parseMemoryValue,
   parseOverrideInput,
+  readProjectMemoryEntries,
   readPipelinePhases,
   readPipelineRunSummary,
 } from './pipeline-detail-support.js';
@@ -73,5 +75,28 @@ describe('pipeline detail workflow support', () => {
     });
 
     expect(summary).toEqual({ kind: 'run_summary', pipeline_id: 'pipe-1' });
+  });
+
+  it('parses project memory value as JSON for dashboard editing', () => {
+    expect(parseMemoryValue('{"summary":"updated"}')).toEqual({
+      value: { summary: 'updated' },
+      error: undefined,
+    });
+    expect(parseMemoryValue('').error).toBe('Memory value must not be empty.');
+    expect(parseMemoryValue('{oops').error).toBe('Memory value must be valid JSON.');
+  });
+
+  it('reads project memory entries in sorted order', () => {
+    expect(
+      readProjectMemoryEntries({
+        memory: {
+          zeta: { value: 2 },
+          alpha: { value: 1 },
+        },
+      }),
+    ).toEqual([
+      { key: 'alpha', value: { value: 1 } },
+      { key: 'zeta', value: { value: 2 } },
+    ]);
   });
 });

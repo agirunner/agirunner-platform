@@ -95,8 +95,51 @@ export interface DashboardProjectRecord {
   name: string;
   slug: string;
   description?: string | null;
+  repository_url?: string | null;
   is_active?: boolean;
+  memory?: Record<string, unknown>;
   created_at?: string;
+  updated_at?: string;
+}
+
+export interface DashboardResolvedDocumentReference {
+  logical_name: string;
+  scope: 'project' | 'pipeline';
+  source: 'repository' | 'artifact' | 'external';
+  title?: string;
+  description?: string;
+  metadata: Record<string, unknown>;
+  created_at?: string;
+  task_id?: string;
+  repository?: string;
+  path?: string;
+  url?: string;
+  artifact?: {
+    id: string;
+    task_id: string;
+    logical_path: string;
+    content_type?: string;
+    download_url: string;
+  };
+}
+
+export interface DashboardTaskArtifactRecord {
+  id: string;
+  pipeline_id?: string | null;
+  project_id?: string | null;
+  task_id: string;
+  logical_path: string;
+  content_type: string;
+  size_bytes: number;
+  checksum_sha256: string;
+  metadata: Record<string, unknown>;
+  retention_policy: Record<string, unknown>;
+  expires_at?: string | null;
+  created_at: string;
+  download_url: string;
+  access_url?: string | null;
+  access_url_expires_at?: string | null;
+  storage_backend?: string;
 }
 
 export interface DashboardCustomizationManagedFile {
@@ -283,7 +326,13 @@ export interface DashboardApi {
   logout(): Promise<void>;
   listPipelines(): Promise<unknown>;
   listProjects(): Promise<{ data: DashboardProjectRecord[]; meta?: Record<string, unknown> }>;
+  getProject(projectId: string): Promise<DashboardProjectRecord>;
+  patchProjectMemory(
+    projectId: string,
+    payload: { key: string; value: unknown },
+  ): Promise<DashboardProjectRecord>;
   getPipeline(id: string): Promise<unknown>;
+  listPipelineDocuments(pipelineId: string): Promise<DashboardResolvedDocumentReference[]>;
   listTemplates(): Promise<{ data: DashboardTemplate[]; meta?: Record<string, unknown> }>;
   createPipeline(payload: {
     template_id: string;
@@ -294,6 +343,7 @@ export interface DashboardApi {
   cancelPipeline(pipelineId: string): Promise<unknown>;
   listTasks(filters?: Record<string, string>): Promise<unknown>;
   getTask(id: string): Promise<unknown>;
+  listTaskArtifacts(taskId: string): Promise<DashboardTaskArtifactRecord[]>;
   listWorkers(): Promise<unknown>;
   listAgents(): Promise<unknown>;
   approveTask(taskId: string): Promise<unknown>;
@@ -494,7 +544,27 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
             meta?: Record<string, unknown>;
           }>,
       ),
+    getProject: (projectId) =>
+      withRefresh(() =>
+        requestData<DashboardProjectRecord>(`/api/v1/projects/${projectId}`, {
+          method: 'GET',
+        }),
+      ),
+    patchProjectMemory: (projectId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardProjectRecord>(`/api/v1/projects/${projectId}/memory`, {
+          method: 'PATCH',
+          body: payload as Record<string, unknown>,
+        }),
+      ),
     getPipeline: (id) => withRefresh(() => client.getPipeline(id)),
+    listPipelineDocuments: (pipelineId) =>
+      withRefresh(() =>
+        requestData<DashboardResolvedDocumentReference[]>(
+          `/api/v1/pipelines/${pipelineId}/documents`,
+          { method: 'GET' },
+        ),
+      ),
     listTemplates: () =>
       withRefresh(
         () =>
@@ -506,6 +576,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     cancelPipeline: (pipelineId) => withRefresh(() => client.cancelPipeline(pipelineId)),
     listTasks: (filters) => withRefresh(() => client.listTasks(filters)),
     getTask: (id) => withRefresh(() => client.getTask(id)),
+    listTaskArtifacts: (taskId) =>
+      withRefresh(() =>
+        requestData<DashboardTaskArtifactRecord[]>(`/api/v1/tasks/${taskId}/artifacts`, {
+          method: 'GET',
+        }),
+      ),
     listWorkers: () => withRefresh(() => client.listWorkers()),
     listAgents: () => withRefresh(() => client.listAgents()),
     approveTask: (taskId) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/approve`)),

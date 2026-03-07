@@ -42,6 +42,11 @@ export function TaskDetailPage(): JSX.Element {
     queryFn: () => dashboardApi.listEvents({ entity_type: 'task', entity_id: taskId, per_page: '20' }),
     enabled: taskId.length > 0,
   });
+  const artifactQuery = useQuery({
+    queryKey: ['task-artifacts', taskId],
+    queryFn: () => dashboardApi.listTaskArtifacts(taskId),
+    enabled: taskId.length > 0,
+  });
 
   useEffect(() => {
     if (!taskId) {
@@ -53,7 +58,10 @@ export function TaskDetailPage(): JSX.Element {
           ? payload.entity_id
           : (typeof payload.data?.task_id === 'string' ? payload.data.task_id : undefined);
       if (eventTaskId === taskId && eventType.startsWith('task.')) {
-        void queryClient.invalidateQueries({ queryKey: ['task', taskId] });
+        void Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['task', taskId] }),
+          queryClient.invalidateQueries({ queryKey: ['task-artifacts', taskId] }),
+        ]);
       }
     });
   }, [taskId, queryClient]);
@@ -228,6 +236,31 @@ export function TaskDetailPage(): JSX.Element {
               <h3>Escalation Response</h3>
               <p className="muted">Latest structured human or orchestrator escalation guidance.</p>
               <pre>{JSON.stringify(humanEscalationResponse, null, 2)}</pre>
+            </div>
+          </div>
+
+          <div className="card">
+            <h3>Task Artifacts</h3>
+            <p className="muted">Files and evidence produced during execution for this task.</p>
+            {artifactQuery.isLoading ? <p>Loading artifacts...</p> : null}
+            {artifactQuery.error ? <p style={{ color: '#dc2626' }}>Failed to load task artifacts.</p> : null}
+            <div className="grid">
+              {(artifactQuery.data ?? []).map((artifact) => (
+                <article key={artifact.id} className="card timeline-entry">
+                  <div className="row" style={{ justifyContent: 'space-between' }}>
+                    <strong>{artifact.logical_path}</strong>
+                    <span className="status-badge">{artifact.content_type}</span>
+                  </div>
+                  <div className="row">
+                    <span className="status-badge">{artifact.size_bytes} bytes</span>
+                    <span className="status-badge">{artifact.storage_backend ?? 'storage'}</span>
+                  </div>
+                  <a href={artifact.access_url ?? artifact.download_url} target="_blank" rel="noreferrer">
+                    Download artifact
+                  </a>
+                </article>
+              ))}
+              {artifactQuery.data?.length === 0 ? <p className="muted">No task artifacts recorded yet.</p> : null}
             </div>
           </div>
 
