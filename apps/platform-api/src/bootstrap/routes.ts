@@ -27,6 +27,7 @@ import { roleDefinitionRoutes } from '../api/routes/role-definitions.routes.js';
 import { llmConfigRoutes } from '../api/routes/llm-config.routes.js';
 import { runtimeDefaultsRoutes } from '../api/routes/runtime-defaults.routes.js';
 import { runtimeConfigRoutes } from '../api/routes/runtime-config.routes.js';
+import { fleetRoutes } from '../api/routes/fleet.routes.js';
 
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(healthRoutes);
@@ -56,4 +57,5 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(llmConfigRoutes);
   await app.register(runtimeDefaultsRoutes);
   await app.register(runtimeConfigRoutes);
+  await app.register(fleetRoutes);
 }

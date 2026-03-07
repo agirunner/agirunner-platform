@@ -29,3 +29,6 @@ export * from './llm-providers.js';
 export * from './llm-models.js';
 export * from './role-model-assignments.js';
 export * from './runtime-defaults.js';
+export * from './worker-desired-state.js';
+export * from './worker-actual-state.js';
+export * from './container-images.js';
