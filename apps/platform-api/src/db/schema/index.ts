@@ -15,6 +15,8 @@ export * from './webhooks.js';
 export * from './webhook-deliveries.js';
 export * from './pipeline-artifacts.js';
 export * from './pipeline-documents.js';
+export * from './webhook-task-triggers.js';
+export * from './webhook-task-trigger-invocations.js';
 export * from './integration-adapters.js';
 export * from './integration-adapter-deliveries.js';
 export * from './integration-actions.js';

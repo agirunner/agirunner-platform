@@ -16,6 +16,7 @@ import { webhookRoutes } from '../api/routes/webhooks.routes.js';
 import { workerRoutes } from '../api/routes/workers.routes.js';
 import { projectRoutes } from '../api/routes/projects.routes.js';
 import { runtimeCustomizationRoutes } from '../api/routes/runtime-customization.routes.js';
+import { webhookTaskTriggerRoutes } from '../api/routes/webhook-task-triggers.routes.js';
 
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(healthRoutes);
@@ -34,4 +35,5 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(pipelineRoutes);
   await app.register(projectRoutes);
   await app.register(runtimeCustomizationRoutes);
+  await app.register(webhookTaskTriggerRoutes);
 }
