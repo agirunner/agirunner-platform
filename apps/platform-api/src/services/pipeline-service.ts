@@ -4,7 +4,8 @@ import { createArtifactStorage } from '../content/storage-factory.js';
 import type { DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
-import { deriveWorkflowView, type StoredWorkflowDefinition } from '../orchestration/workflow-model.js';
+import type { StoredWorkflowDefinition } from '../orchestration/workflow-model.js';
+import { deriveWorkflowView, readWorkflowRuntimeState } from '../orchestration/workflow-runtime.js';
 import { buildResolvedConfigView } from './config-hierarchy-service.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { PipelineCancellationService } from './pipeline-cancellation-service.js';
@@ -134,7 +135,11 @@ export class PipelineService {
       metadata.workflow && typeof metadata.workflow === 'object' && !Array.isArray(metadata.workflow)
         ? (metadata.workflow as StoredWorkflowDefinition)
         : null;
-    return { ...pipeline, tasks, ...deriveWorkflowView(workflow, tasks) } as Record<string, unknown>;
+    return {
+      ...pipeline,
+      tasks,
+      ...deriveWorkflowView(workflow, tasks, readWorkflowRuntimeState(metadata.workflow_runtime)),
+    } as Record<string, unknown>;
   }
 
   async getResolvedConfig(tenantId: string, pipelineId: string, showLayers = false) {
@@ -228,5 +233,18 @@ export class PipelineService {
 
   manualReworkPipeline(identity: ApiKeyIdentity, pipelineId: string, feedback: string) {
     return this.controlService.manualReworkPipeline(identity, pipelineId, feedback);
+  }
+
+  actOnPhaseGate(
+    identity: ApiKeyIdentity,
+    pipelineId: string,
+    phaseName: string,
+    payload: { action: 'approve' | 'reject' | 'request_changes'; feedback?: string },
+  ) {
+    return this.controlService.actOnPhaseGate(identity, pipelineId, phaseName, payload);
+  }
+
+  cancelPhase(identity: ApiKeyIdentity, pipelineId: string, phaseName: string) {
+    return this.controlService.cancelPhase(identity, pipelineId, phaseName);
   }
 }

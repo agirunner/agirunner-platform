@@ -30,13 +30,6 @@ export interface StoredWorkflowDefinition {
   phases: StoredWorkflowPhase[];
 }
 
-export interface WorkflowPhaseView {
-  name: string;
-  status: 'pending' | 'active' | 'gate_waiting' | 'completed' | 'cancelled';
-  gate: WorkflowGateType;
-  gate_status: 'awaiting_approval' | 'approved' | 'rejected' | 'none';
-}
-
 const allowedGateTypes = new Set<WorkflowGateType>(['none', 'all_complete', 'manual', 'auto']);
 const terminalStates = new Set(['completed', 'failed', 'cancelled']);
 
@@ -182,79 +175,6 @@ export function buildStoredWorkflow(
         return taskId;
       }),
     })),
-  };
-}
-
-export function deriveWorkflowView(
-  workflow: StoredWorkflowDefinition | null,
-  tasks: Array<Record<string, unknown>>,
-): {
-  phases: Array<WorkflowPhaseView & { progress: { completed_tasks: number; total_tasks: number } }>;
-  current_phase: string | null;
-  phase_progress: Record<string, { completed_tasks: number; total_tasks: number }>;
-} {
-  if (!workflow) {
-    return {
-      phases: [],
-      current_phase: null,
-      phase_progress: {},
-    };
-  }
-
-  const taskMap = new Map(tasks.map((task) => [String(task.id), task]));
-  const phases = workflow.phases.map((phase, index) => {
-    const phaseTasks = phase.task_ids
-      .map((taskId) => taskMap.get(taskId))
-      .filter((task): task is Record<string, unknown> => Boolean(task));
-    const completedCount = phaseTasks.filter((task) => task.state === 'completed').length;
-    const allCompleted = phaseTasks.length > 0 && completedCount === phaseTasks.length;
-    const allCancelled =
-      phaseTasks.length > 0 && phaseTasks.every((task) => String(task.state) === 'cancelled');
-    const hasActiveWork = phaseTasks.some((task) =>
-      ['ready', 'claimed', 'running', 'awaiting_approval', 'output_pending_review'].includes(
-        String(task.state),
-      ),
-    );
-    const previousPhasesCompleted = workflow.phases
-      .slice(0, index)
-      .every((previousPhase) => previousPhase.task_ids.every((taskId) => taskMap.get(taskId)?.state === 'completed'));
-
-    let status: WorkflowPhaseView['status'] = 'pending';
-    let gateStatus: WorkflowPhaseView['gate_status'] = 'none';
-
-    if (allCancelled) {
-      status = 'cancelled';
-    } else if (allCompleted && phase.gate === 'manual') {
-      status = 'gate_waiting';
-      gateStatus = 'awaiting_approval';
-    } else if (allCompleted) {
-      status = 'completed';
-    } else if (previousPhasesCompleted && hasActiveWork) {
-      status = 'active';
-    }
-
-    return {
-      name: phase.name,
-      status,
-      gate: phase.gate,
-      gate_status: gateStatus,
-      progress: {
-        completed_tasks: completedCount,
-        total_tasks: phase.task_ids.length,
-      },
-    };
-  });
-
-  const currentPhase =
-    phases.find((phase) => phase.status === 'active' || phase.status === 'gate_waiting')?.name ??
-    null;
-
-  return {
-    phases,
-    current_phase: currentPhase,
-    phase_progress: Object.fromEntries(
-      phases.map((phase) => [phase.name, phase.progress]),
-    ),
   };
 }
 

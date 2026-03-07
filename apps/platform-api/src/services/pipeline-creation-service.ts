@@ -3,7 +3,7 @@ import type { DatabasePool } from '../db/database.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 import { validateTemplateSchema } from '../orchestration/pipeline-engine.js';
 import { resolveTemplateVariables } from '../orchestration/template-variables.js';
-import { deriveWorkflowView } from '../orchestration/workflow-model.js';
+import { deriveWorkflowView } from '../orchestration/workflow-runtime.js';
 import { resolveInstructionConfig, resolvePipelineConfig } from './config-hierarchy-service.js';
 import {
   buildStoredPipelineWorkflow,

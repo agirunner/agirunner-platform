@@ -22,6 +22,11 @@ const manualReworkSchema = z.object({
   feedback: z.string().min(1).max(4000),
 });
 
+const phaseGateSchema = z.object({
+  action: z.enum(['approve', 'reject', 'request_changes']),
+  feedback: z.string().min(1).max(4000).optional(),
+});
+
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
     return result.data;
@@ -102,6 +107,19 @@ export const pipelineRoutes: FastifyPluginAsync = async (app) => {
     const params = request.params as { id: string };
     const body = parseOrThrow(manualReworkSchema.safeParse(request.body));
     const pipeline = await pipelineService.manualReworkPipeline(request.auth!, params.id, body.feedback);
+    return { data: pipeline };
+  });
+
+  app.post('/api/v1/pipelines/:id/phases/:name/gate', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
+    const params = request.params as { id: string; name: string };
+    const body = parseOrThrow(phaseGateSchema.safeParse(request.body));
+    const pipeline = await pipelineService.actOnPhaseGate(request.auth!, params.id, params.name, body);
+    return { data: pipeline };
+  });
+
+  app.post('/api/v1/pipelines/:id/phases/:name/cancel', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
+    const params = request.params as { id: string; name: string };
+    const pipeline = await pipelineService.cancelPhase(request.auth!, params.id, params.name);
     return { data: pipeline };
   });
 
