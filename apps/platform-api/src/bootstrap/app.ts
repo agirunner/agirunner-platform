@@ -11,11 +11,13 @@ import { registerErrorHandler } from '../errors/error-handler.js';
 import { startLifecycleMonitor } from '../jobs/lifecycle-monitor.js';
 import { registerRequestContext } from '../observability/request-context.js';
 import { AgentService } from '../services/agent-service.js';
+import { AuditService, WebhookAuditExporter } from '../services/audit-service.js';
 import { EventStreamService } from '../services/event-stream-service.js';
 import { EventService } from '../services/event-service.js';
 import { IntegrationActionService } from '../services/integration-action-service.js';
 import { IntegrationAdapterService } from '../services/integration-adapter-service.js';
 import { startIntegrationDispatcher } from '../services/integration-dispatcher.js';
+import { GovernanceService } from '../services/governance-service.js';
 import { TaskService } from '../services/task-service.js';
 import { WorkerConnectionHub } from '../services/worker-connection-hub.js';
 import { WorkerService } from '../services/worker-service.js';
@@ -74,7 +76,15 @@ export async function buildApp() {
   await runMigrations(pool, migrationsDir);
   await seedDefaultTenant(pool, process.env);
 
-  const eventService = new EventService(pool);
+  const auditExporter = config.AUDIT_EXPORT_WEBHOOK_URL
+    ? new WebhookAuditExporter(
+      config.AUDIT_EXPORT_WEBHOOK_URL,
+      config.AUDIT_EXPORT_TIMEOUT_MS,
+      config.AUDIT_EXPORT_WEBHOOK_AUTH_TOKEN,
+    )
+    : undefined;
+  const auditService = new AuditService(pool, auditExporter);
+  const eventService = new EventService(pool, auditService);
   const eventStreamService = new EventStreamService(pool);
   await eventStreamService.start();
 
@@ -83,6 +93,7 @@ export async function buildApp() {
   const webhookService = new WebhookService(pool, config);
   const migratedWebhookSecrets = await webhookService.migratePlaintextSecrets();
   const taskService = new TaskService(pool, eventService, config, workerConnectionHub);
+  const governanceService = new GovernanceService(pool, auditService, config);
   const integrationActionService = new IntegrationActionService(pool, taskService, config);
   const integrationAdapterService = new IntegrationAdapterService(
     pool,
@@ -93,6 +104,7 @@ export async function buildApp() {
 
   app.decorate('config', config);
   app.decorate('pgPool', pool);
+  app.decorate('auditService', auditService);
   app.decorate('eventService', eventService);
   app.decorate('eventStreamService', eventStreamService);
   app.decorate('integrationActionService', integrationActionService);
@@ -118,7 +130,14 @@ export async function buildApp() {
   });
 
   const agentService = new AgentService(pool, eventService, config);
-  const lifecycleMonitor = startLifecycleMonitor(app.log, config, agentService, taskService, workerService);
+  const lifecycleMonitor = startLifecycleMonitor(
+    app.log,
+    config,
+    agentService,
+    taskService,
+    workerService,
+    governanceService,
+  );
   const integrationDispatcher = startIntegrationDispatcher(
     app.log,
     integrationAdapterService,

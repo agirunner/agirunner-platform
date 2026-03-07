@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { authenticateApiKey, withAllowedScopes, withScope } from '../../auth/fastify-auth-hook.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
-import { EventService } from '../../services/event-service.js';
 import { PipelineService } from '../../services/pipeline-service.js';
 import { ProjectPlanningService } from '../../services/project-planning-service.js';
 import { ProjectService } from '../../services/project-service.js';
@@ -59,14 +58,9 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const projectRoutes: FastifyPluginAsync = async (app) => {
-  const projectService = new ProjectService(app.pgPool, new EventService(app.pgPool));
-  const projectSpecService = new ProjectSpecService(app.pgPool, new EventService(app.pgPool));
-  const pipelineService = new PipelineService(
-    app.pgPool,
-    new EventService(app.pgPool),
-    app.config,
-    app.workerConnectionHub,
-  );
+  const projectService = new ProjectService(app.pgPool, app.eventService);
+  const projectSpecService = new ProjectSpecService(app.pgPool, app.eventService);
+  const pipelineService = new PipelineService(app.pgPool, app.eventService, app.config, app.workerConnectionHub);
   const projectPlanningService = new ProjectPlanningService(app.pgPool, pipelineService);
 
   app.post('/api/v1/projects', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request, reply) => {

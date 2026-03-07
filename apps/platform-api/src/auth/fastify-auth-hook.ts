@@ -1,6 +1,8 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
 import { ForbiddenError, UnauthorizedError } from '../errors/domain-errors.js';
+import { setRequestAuthIdentity } from '../observability/request-context.js';
+import { DEFAULT_TENANT_ID } from '../db/seed.js';
 import { parseBearerToken, verifyApiKey, verifyJwtApiKeyIdentity, type ApiKeyIdentity } from './api-key.js';
 import { verifyJwt } from './jwt.js';
 import { enforceScope, type ApiKeyScope } from './scope.js';
@@ -19,13 +21,38 @@ export async function authenticateApiKey(request: FastifyRequest): Promise<void>
   } else if (request.cookies?.[ACCESS_COOKIE_NAME]) {
     token = request.cookies[ACCESS_COOKIE_NAME];
   } else {
+    await request.server.auditService.record({
+      tenantId: request.auth?.tenantId ?? DEFAULT_TENANT_ID,
+      action: 'auth.request_denied',
+      resourceType: 'system',
+      outcome: 'failure',
+      reason: 'missing_authorization',
+      actorType: 'anonymous',
+      actorId: null,
+      metadata: { path: request.url, method: request.method },
+    });
     throw new UnauthorizedError('Missing authorization');
   }
 
-  const identity = isJwtToken(token)
-    ? await verifyJwtIdentity(request, token)
-    : await verifyApiKey(request.server.pgPool, token);
-  request.auth = identity;
+  try {
+    const identity = isJwtToken(token)
+      ? await verifyJwtIdentity(request, token)
+      : await verifyApiKey(request.server.pgPool, token);
+    request.auth = identity;
+    setRequestAuthIdentity(identity);
+  } catch (error) {
+    await request.server.auditService.record({
+      tenantId: DEFAULT_TENANT_ID,
+      action: 'auth.request_denied',
+      resourceType: 'system',
+      outcome: 'failure',
+      reason: error instanceof Error ? error.message : 'authentication_failed',
+      actorType: 'anonymous',
+      actorId: null,
+      metadata: { path: request.url, method: request.method },
+    });
+    throw error;
+  }
 }
 
 function isJwtToken(token: string): boolean {
@@ -74,7 +101,26 @@ export function withScope(requiredScope: ApiKeyScope) {
       throw new UnauthorizedError();
     }
 
-    enforceScope(request.auth.scope, requiredScope);
+    try {
+      enforceScope(request.auth.scope, requiredScope);
+    } catch (error) {
+      await request.server.auditService.record({
+        tenantId: request.auth.tenantId,
+        action: 'auth.request_denied',
+        resourceType: 'system',
+        outcome: 'failure',
+        reason: error instanceof Error ? error.message : 'insufficient_scope',
+        actorType: request.auth.ownerType,
+        actorId: request.auth.ownerId,
+        metadata: {
+          path: request.url,
+          method: request.method,
+          required_scope: requiredScope,
+          actual_scope: request.auth.scope,
+        },
+      });
+      throw error;
+    }
   };
 }
 
@@ -85,6 +131,21 @@ export function withAllowedScopes(allowedScopes: ApiKeyScope[]) {
     }
 
     if (!allowedScopes.includes(request.auth.scope)) {
+      await request.server.auditService.record({
+        tenantId: request.auth.tenantId,
+        action: 'auth.request_denied',
+        resourceType: 'system',
+        outcome: 'failure',
+        reason: 'insufficient_scope',
+        actorType: request.auth.ownerType,
+        actorId: request.auth.ownerId,
+        metadata: {
+          path: request.url,
+          method: request.method,
+          allowed_scopes: allowedScopes,
+          actual_scope: request.auth.scope,
+        },
+      });
       throw new ForbiddenError('Insufficient scope');
     }
   };

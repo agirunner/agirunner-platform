@@ -58,6 +58,8 @@ export const tasks = pgTable(
     completedAt: timestamp('completed_at', { withTimezone: true }),
     metrics: jsonb('metrics'),
     gitInfo: jsonb('git_info'),
+    legalHold: boolean('legal_hold').notNull().default(false),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
     metadata: jsonb('metadata').notNull().default({}),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

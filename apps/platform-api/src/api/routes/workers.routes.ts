@@ -3,7 +3,6 @@ import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { ForbiddenError, SchemaValidationFailedError } from '../../errors/domain-errors.js';
-import { EventService } from '../../services/event-service.js';
 import { ensureWorkerAccess } from '../../services/worker-heartbeat-service.js';
 import { TaskService } from '../../services/task-service.js';
 
@@ -54,7 +53,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const workerRoutes: FastifyPluginAsync = async (app) => {
-  const taskService = new TaskService(app.pgPool, new EventService(app.pgPool), app.config, app.workerConnectionHub);
+  const taskService = new TaskService(app.pgPool, app.eventService, app.config, app.workerConnectionHub);
 
   app.post('/api/v1/workers/register', { preHandler: [authenticateApiKey, withScope('worker')] }, async (request, reply) => {
     const body = parseOrThrow(registerSchema.safeParse(request.body));

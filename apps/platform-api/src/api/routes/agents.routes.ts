@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
 import { AgentService } from '../../services/agent-service.js';
-import { EventService } from '../../services/event-service.js';
 
 const registerSchema = z.object({
   name: z.string().min(1).max(200),
@@ -37,7 +36,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const agentRoutes: FastifyPluginAsync = async (app) => {
-  const agentService = new AgentService(app.pgPool, new EventService(app.pgPool), app.config);
+  const agentService = new AgentService(app.pgPool, app.eventService, app.config);
 
   app.post('/api/v1/agents/register', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request, reply) => {
     const body = parseOrThrow(registerSchema.safeParse(request.body));

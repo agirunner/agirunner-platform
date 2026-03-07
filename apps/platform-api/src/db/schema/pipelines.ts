@@ -1,4 +1,4 @@
-import { index, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { projects } from './projects.js';
 import { pipelineStateEnum } from './enums.js';
@@ -26,6 +26,8 @@ export const pipelines = pgTable(
     configLayers: jsonb('config_layers').notNull().default({}),
     instructionConfig: jsonb('instruction_config'),
     gitBranch: text('git_branch'),
+    legalHold: boolean('legal_hold').notNull().default(false),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
     metadata: jsonb('metadata').notNull().default({}),
     startedAt: timestamp('started_at', { withTimezone: true }),
     completedAt: timestamp('completed_at', { withTimezone: true }),

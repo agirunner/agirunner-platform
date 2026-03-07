@@ -3,7 +3,6 @@ import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
-import { EventService } from '../../services/event-service.js';
 import { PlatformInstructionService } from '../../services/platform-instruction-service.js';
 
 const instructionSchema = z.object({
@@ -19,7 +18,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const platformInstructionRoutes: FastifyPluginAsync = async (app) => {
-  const service = new PlatformInstructionService(app.pgPool, new EventService(app.pgPool));
+  const service = new PlatformInstructionService(app.pgPool, app.eventService);
 
   app.get(
     '/api/v1/platform/instructions',

@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
-import { EventService } from '../../services/event-service.js';
 import { TaskService } from '../../services/task-service.js';
 
 const taskCreateSchema = z.object({
@@ -123,7 +122,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const taskRoutes: FastifyPluginAsync = async (app) => {
-  const taskService = new TaskService(app.pgPool, new EventService(app.pgPool), app.config, app.workerConnectionHub);
+  const taskService = new TaskService(app.pgPool, app.eventService, app.config, app.workerConnectionHub);
 
   app.post(
     '/api/v1/tasks',

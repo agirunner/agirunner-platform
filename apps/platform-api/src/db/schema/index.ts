@@ -11,6 +11,7 @@ export * from './api-keys.js';
 export * from './orchestrator-grants.js';
 export * from './events.js';
 export * from './worker-signals.js';
+export * from './audit-logs.js';
 export * from './webhooks.js';
 export * from './webhook-deliveries.js';
 export * from './pipeline-artifacts.js';

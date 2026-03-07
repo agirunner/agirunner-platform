@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
-import { EventService } from '../../services/event-service.js';
 import { listPipelineDocuments } from '../../services/document-reference-service.js';
 import { PipelineChainingService } from '../../services/pipeline-chaining-service.js';
 import { PipelineService } from '../../services/pipeline-service.js';
@@ -41,12 +40,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const pipelineRoutes: FastifyPluginAsync = async (app) => {
-  const pipelineService = new PipelineService(
-    app.pgPool,
-    new EventService(app.pgPool),
-    app.config,
-    app.workerConnectionHub,
-  );
+  const pipelineService = new PipelineService(app.pgPool, app.eventService, app.config, app.workerConnectionHub);
   const pipelineChainingService = new PipelineChainingService(app.pgPool, pipelineService);
 
   app.post('/api/v1/pipelines', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request, reply) => {
