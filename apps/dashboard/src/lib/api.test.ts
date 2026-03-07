@@ -27,7 +27,7 @@ describe('dashboard api auth/session behavior', () => {
   it('refreshes token and retries request when access token is expired', async () => {
     writeSession({ accessToken: 'expired-token', tenantId: 'tenant-1' });
 
-    const listPipelines = vi
+    const listWorkflows = vi
       .fn()
       .mockRejectedValueOnce(new Error('HTTP 401: token expired'))
       .mockResolvedValueOnce({
@@ -38,9 +38,9 @@ describe('dashboard api auth/session behavior', () => {
     const client = {
       refreshSession: vi.fn().mockResolvedValue({ token: 'fresh-token' }),
       setAccessToken: vi.fn(),
-      listPipelines,
+      listWorkflows,
       exchangeApiKey: vi.fn(),
-      getPipeline: vi.fn(),
+      getWorkflow: vi.fn(),
       listTasks: vi.fn(),
       getTask: vi.fn(),
       listWorkers: vi.fn(),
@@ -49,11 +49,11 @@ describe('dashboard api auth/session behavior', () => {
 
     const api = createDashboardApi({ client: client as never });
 
-    await api.listPipelines();
+    await api.listWorkflows();
 
     expect(client.refreshSession).toHaveBeenCalledTimes(1);
     expect(client.setAccessToken).toHaveBeenCalledWith('fresh-token');
-    expect(listPipelines).toHaveBeenCalledTimes(2);
+    expect(listWorkflows).toHaveBeenCalledTimes(2);
     expect(readSession()).toEqual({ accessToken: 'fresh-token', tenantId: 'tenant-1' });
   });
 
@@ -70,9 +70,9 @@ describe('dashboard api auth/session behavior', () => {
     const client = {
       refreshSession: vi.fn().mockRejectedValue(new Error('HTTP 401: refresh expired')),
       setAccessToken: vi.fn(),
-      listPipelines: vi.fn().mockRejectedValue(new Error('HTTP 401: token expired')),
+      listWorkflows: vi.fn().mockRejectedValue(new Error('HTTP 401: token expired')),
       exchangeApiKey: vi.fn(),
-      getPipeline: vi.fn(),
+      getWorkflow: vi.fn(),
       listTasks: vi.fn(),
       getTask: vi.fn(),
       listWorkers: vi.fn(),
@@ -81,7 +81,7 @@ describe('dashboard api auth/session behavior', () => {
 
     const api = createDashboardApi({ client: client as never });
 
-    await expect(api.listPipelines()).rejects.toThrow('HTTP 401: refresh expired');
+    await expect(api.listWorkflows()).rejects.toThrow('HTTP 401: refresh expired');
     expect(readSession()).toBeNull();
     expect(locationAssign).toHaveBeenCalledWith('/login');
   });
@@ -90,12 +90,12 @@ describe('dashboard api auth/session behavior', () => {
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
-      listPipelines: vi.fn(),
+      listWorkflows: vi.fn(),
       exchangeApiKey: vi
         .fn()
         .mockResolvedValue({ token: 'ephemeral-token', tenant_id: 'tenant-1' }),
-      getPipeline: vi.fn(),
-      createPipeline: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
       listTasks: vi.fn(),
       getTask: vi.fn(),
       listWorkers: vi.fn(),
@@ -103,11 +103,11 @@ describe('dashboard api auth/session behavior', () => {
     };
 
     const api = createDashboardApi({ client: client as never });
-    await api.login('ab_admin_test_key');
+    await api.login('ar_admin_test_key');
 
     expect(readSession()).toEqual({ accessToken: 'ephemeral-token', tenantId: 'tenant-1' });
-    expect(localStorage.getItem('agentbaton.tenantId')).toBe('tenant-1');
-    expect(localStorage.getItem('agentbaton.accessToken')).toBeNull();
+    expect(localStorage.getItem('agirunner.tenantId')).toBe('tenant-1');
+    expect(localStorage.getItem('agirunner.accessToken')).toBeNull();
   });
 
   it('calls server-side logout before clearing the local session', async () => {
@@ -121,10 +121,10 @@ describe('dashboard api auth/session behavior', () => {
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
-      listPipelines: vi.fn(),
+      listWorkflows: vi.fn(),
       exchangeApiKey: vi.fn(),
-      getPipeline: vi.fn(),
-      createPipeline: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
       listTasks: vi.fn(),
       getTask: vi.fn(),
       listWorkers: vi.fn(),
@@ -148,7 +148,7 @@ describe('dashboard api auth/session behavior', () => {
     expect(readSession()).toBeNull();
   });
 
-  it('lists templates and creates pipelines through the dashboard api surface', async () => {
+  it('lists templates and creates workflows through the dashboard api surface', async () => {
     writeSession({ accessToken: 'api-token', tenantId: 'tenant-1' });
 
     const fetcher = vi.fn().mockResolvedValue(
@@ -172,10 +172,10 @@ describe('dashboard api auth/session behavior', () => {
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
-      listPipelines: vi.fn(),
+      listWorkflows: vi.fn(),
       exchangeApiKey: vi.fn(),
-      getPipeline: vi.fn(),
-      createPipeline: vi.fn().mockResolvedValue({ id: 'pipe-1' }),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn().mockResolvedValue({ id: 'pipe-1' }),
       listTasks: vi.fn(),
       getTask: vi.fn(),
       listWorkers: vi.fn(),
@@ -188,11 +188,11 @@ describe('dashboard api auth/session behavior', () => {
       baseUrl: 'http://localhost:8080',
     });
     const templates = await api.listTemplates();
-    const pipeline = await api.createPipeline({ template_id: 'tmpl-1', name: 'Test Run' });
+    const workflow = await api.createWorkflow({ template_id: 'tmpl-1', name: 'Test Run' });
 
     expect(templates.data).toHaveLength(1);
-    expect(client.createPipeline).toHaveBeenCalledWith({ template_id: 'tmpl-1', name: 'Test Run' });
-    expect(pipeline).toEqual({ id: 'pipe-1' });
+    expect(client.createWorkflow).toHaveBeenCalledWith({ template_id: 'tmpl-1', name: 'Test Run' });
+    expect(workflow).toEqual({ id: 'pipe-1' });
   });
 
   it('sends bearer token when loading metrics if an in-memory access token exists', async () => {
@@ -204,10 +204,10 @@ describe('dashboard api auth/session behavior', () => {
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
-      listPipelines: vi.fn(),
+      listWorkflows: vi.fn(),
       exchangeApiKey: vi.fn(),
-      getPipeline: vi.fn(),
-      createPipeline: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
       listTasks: vi.fn(),
       getTask: vi.fn(),
       listWorkers: vi.fn(),
@@ -236,10 +236,10 @@ describe('dashboard api auth/session behavior', () => {
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
-      listPipelines: vi.fn(),
+      listWorkflows: vi.fn(),
       exchangeApiKey: vi.fn(),
-      getPipeline: vi.fn(),
-      createPipeline: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
       listTasks: vi.fn(),
       getTask: vi.fn(),
       listWorkers: vi.fn(),
@@ -270,7 +270,7 @@ describe('dashboard api auth/session behavior', () => {
             data: {
               state: 'unconfigured',
               customization_enabled: false,
-              active_digest: 'ghcr.io/agentbaton/runtime:base',
+              active_digest: 'ghcr.io/agirunner/runtime:base',
               resolved_reasoning: {
                 orchestrator_level: 'medium',
                 internal_workers_level: 'medium',
@@ -287,7 +287,7 @@ describe('dashboard api auth/session behavior', () => {
               valid: true,
               manifest: {
                 template: 'node',
-                base_image: 'ghcr.io/agentbaton/runtime@sha256:1234',
+                base_image: 'ghcr.io/agirunner/runtime@sha256:1234',
               },
             },
           }),
@@ -304,7 +304,7 @@ describe('dashboard api auth/session behavior', () => {
               digest: 'sha256:build',
               manifest: {
                 template: 'node',
-                base_image: 'ghcr.io/agentbaton/runtime@sha256:1234',
+                base_image: 'ghcr.io/agirunner/runtime@sha256:1234',
               },
             },
           }),
@@ -314,10 +314,10 @@ describe('dashboard api auth/session behavior', () => {
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
-      listPipelines: vi.fn(),
+      listWorkflows: vi.fn(),
       exchangeApiKey: vi.fn(),
-      getPipeline: vi.fn(),
-      createPipeline: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
       listTasks: vi.fn(),
       getTask: vi.fn(),
       listWorkers: vi.fn(),
@@ -333,13 +333,13 @@ describe('dashboard api auth/session behavior', () => {
     const validation = await api.validateCustomization({
       manifest: {
         template: 'node',
-        base_image: 'ghcr.io/agentbaton/runtime@sha256:1234',
+        base_image: 'ghcr.io/agirunner/runtime@sha256:1234',
       },
     });
     const build = await api.createCustomizationBuild({
       manifest: {
         template: 'node',
-        base_image: 'ghcr.io/agentbaton/runtime@sha256:1234',
+        base_image: 'ghcr.io/agirunner/runtime@sha256:1234',
       },
     });
 
@@ -369,12 +369,12 @@ describe('dashboard api auth/session behavior', () => {
               state: 'linked',
               manifest: {
                 template: 'python',
-                base_image: 'ghcr.io/agentbaton/runtime@sha256:5678',
+                base_image: 'ghcr.io/agirunner/runtime@sha256:5678',
               },
               profile: {
                 manifest: {
                   template: 'python',
-                  base_image: 'ghcr.io/agentbaton/runtime@sha256:5678',
+                  base_image: 'ghcr.io/agirunner/runtime@sha256:5678',
                 },
               },
             },
@@ -413,10 +413,10 @@ describe('dashboard api auth/session behavior', () => {
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
-      listPipelines: vi.fn(),
+      listWorkflows: vi.fn(),
       exchangeApiKey: vi.fn(),
-      getPipeline: vi.fn(),
-      createPipeline: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
       listTasks: vi.fn(),
       getTask: vi.fn(),
       listWorkers: vi.fn(),
@@ -464,22 +464,22 @@ describe('dashboard api auth/session behavior', () => {
       )
       .mockResolvedValueOnce(
         new Response(
-          JSON.stringify({ data: { pipeline_id: 'pipe-1', resolved_config: { retries: 2 } } }),
+          JSON.stringify({ data: { workflow_id: 'pipe-1', resolved_config: { retries: 2 } } }),
           { status: 200 },
         ),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: [{ pipeline_id: 'pipe-1', kind: 'run_summary' }] }), {
+        new Response(JSON.stringify({ data: [{ workflow_id: 'pipe-1', kind: 'run_summary' }] }), {
           status: 200,
         }),
       ) as unknown as typeof fetch;
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
-      listPipelines: vi.fn(),
+      listWorkflows: vi.fn(),
       exchangeApiKey: vi.fn(),
-      getPipeline: vi.fn(),
-      createPipeline: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
       listTasks: vi.fn(),
       getTask: vi.fn(),
       listWorkers: vi.fn(),
@@ -494,26 +494,26 @@ describe('dashboard api auth/session behavior', () => {
 
     await api.actOnPhaseGate('pipe-1', 'review', { action: 'approve' });
     await api.cancelPhase('pipe-1', 'release');
-    const config = await api.getResolvedPipelineConfig('pipe-1', true);
+    const config = await api.getResolvedWorkflowConfig('pipe-1', true);
     const timeline = await api.getProjectTimeline('project-1');
 
     expect(config.resolved_config).toEqual({ retries: 2 });
     expect(timeline[0].kind).toBe('run_summary');
     expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
-      'http://localhost:8080/api/v1/pipelines/pipe-1/phases/review/gate',
+      'http://localhost:8080/api/v1/workflows/pipe-1/phases/review/gate',
     );
     expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
-      'http://localhost:8080/api/v1/pipelines/pipe-1/phases/release/cancel',
+      'http://localhost:8080/api/v1/workflows/pipe-1/phases/release/cancel',
     );
     expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
-      'http://localhost:8080/api/v1/pipelines/pipe-1/config/resolved?show_layers=true',
+      'http://localhost:8080/api/v1/workflows/pipe-1/config/resolved?show_layers=true',
     );
     expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
       'http://localhost:8080/api/v1/projects/project-1/timeline',
     );
   });
 
-  it('lists projects and starts a planning pipeline through typed dashboard methods', async () => {
+  it('lists projects and starts a planning workflow through typed dashboard methods', async () => {
     writeSession({ accessToken: 'planning-token', tenantId: 'tenant-1' });
 
     const fetcher = vi
@@ -535,10 +535,10 @@ describe('dashboard api auth/session behavior', () => {
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
-      listPipelines: vi.fn(),
+      listWorkflows: vi.fn(),
       exchangeApiKey: vi.fn(),
-      getPipeline: vi.fn(),
-      createPipeline: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
       listTasks: vi.fn(),
       getTask: vi.fn(),
       listWorkers: vi.fn(),
@@ -552,7 +552,7 @@ describe('dashboard api auth/session behavior', () => {
     });
 
     const projects = await api.listProjects();
-    const planning = await api.createPlanningPipeline('project-1', {
+    const planning = await api.createPlanningWorkflow('project-1', {
       brief: 'Plan the next workflow increment.',
       name: 'AI Planning',
     });
@@ -563,7 +563,7 @@ describe('dashboard api auth/session behavior', () => {
       'http://localhost:8080/api/v1/projects?per_page=50',
     );
     expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
-      'http://localhost:8080/api/v1/projects/project-1/planning-pipeline',
+      'http://localhost:8080/api/v1/projects/project-1/planning-workflow',
     );
   });
 
@@ -644,10 +644,10 @@ describe('dashboard api auth/session behavior', () => {
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
-      listPipelines: vi.fn(),
+      listWorkflows: vi.fn(),
       exchangeApiKey: vi.fn(),
-      getPipeline: vi.fn(),
-      createPipeline: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
       listTasks: vi.fn(),
       getTask: vi.fn(),
       listWorkers: vi.fn(),
@@ -665,7 +665,7 @@ describe('dashboard api auth/session behavior', () => {
       key: 'operator_note',
       value: { summary: 'check rollout' },
     });
-    const documents = await api.listPipelineDocuments('pipe-1');
+    const documents = await api.listWorkflowDocuments('pipe-1');
     const artifacts = await api.listTaskArtifacts('task-1');
 
     expect(project.memory?.last_run_summary).toEqual({ kind: 'run_summary' });
@@ -674,15 +674,15 @@ describe('dashboard api auth/session behavior', () => {
     expect(artifacts[0].id).toBe('artifact-1');
     expect(vi.mocked(fetcher).mock.calls[0][0]).toBe('http://localhost:8080/api/v1/projects/project-1');
     expect(vi.mocked(fetcher).mock.calls[1][0]).toBe('http://localhost:8080/api/v1/projects/project-1/memory');
-    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe('http://localhost:8080/api/v1/pipelines/pipe-1/documents');
+    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe('http://localhost:8080/api/v1/workflows/pipe-1/documents');
     expect(vi.mocked(fetcher).mock.calls[3][0]).toBe('http://localhost:8080/api/v1/tasks/task-1/artifacts');
   });
 });
 
 describe('dashboard global search', () => {
-  it('buildSearchResults creates task, pipeline, project, template, worker, and agent route targets', () => {
+  it('buildSearchResults creates task, workflow, project, template, worker, and agent route targets', () => {
     const results = buildSearchResults('build', {
-      pipelines: [{ id: 'pipeline-1', name: 'Build Pipeline', state: 'running' }],
+      workflows: [{ id: 'workflow-1', name: 'Build Workflow', state: 'running' }],
       tasks: [{ id: 'task-1', title: 'Build artifact', state: 'ready' }],
       projects: [{ id: 'project-1', name: 'Build Project' }],
       templates: [{ id: 'template-1', name: 'Build Template' }],
@@ -691,14 +691,14 @@ describe('dashboard global search', () => {
     });
 
     expect(results.map((result) => result.type)).toEqual([
-      'pipeline',
+      'workflow',
       'task',
       'project',
       'template',
       'worker',
       'agent',
     ]);
-    expect(results[0].href).toBe('/pipelines/pipeline-1');
+    expect(results[0].href).toBe('/workflows/workflow-1');
     expect(results[1].href).toBe('/tasks/task-1');
     expect(results[2].href).toBe('/projects');
     expect(results[3].href).toBe('/templates');
@@ -712,11 +712,11 @@ describe('dashboard global search', () => {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
       exchangeApiKey: vi.fn(),
-      listPipelines: vi.fn().mockResolvedValue({
-        data: [{ id: 'pipeline-1', name: 'Test Pipeline', state: 'running' }],
+      listWorkflows: vi.fn().mockResolvedValue({
+        data: [{ id: 'workflow-1', name: 'Test Workflow', state: 'running' }],
       }),
-      getPipeline: vi.fn(),
-      createPipeline: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
       listTasks: vi
         .fn()
         .mockResolvedValue({ data: [{ id: 'task-1', title: 'Test task', state: 'ready' }] }),
@@ -742,7 +742,7 @@ describe('dashboard global search', () => {
     const results = await api.search('test');
 
     expect(results).toHaveLength(6);
-    expect(client.listPipelines).toHaveBeenCalledWith({ per_page: 50 });
+    expect(client.listWorkflows).toHaveBeenCalledWith({ per_page: 50 });
     expect(client.listTasks).toHaveBeenCalledWith({ per_page: 50 });
     expect(client.listProjects).toHaveBeenCalledWith({ per_page: 50 });
   });

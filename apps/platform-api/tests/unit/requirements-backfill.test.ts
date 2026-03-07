@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { assertValidTransition } from '../../src/orchestration/task-state-machine.js';
 import { assertValidWorkerTransition } from '../../src/orchestration/worker-state-machine.js';
-import { derivePipelineState, validateTemplateSchema } from '../../src/orchestration/pipeline-engine.js';
+import { deriveWorkflowState, validateTemplateSchema } from '../../src/orchestration/workflow-engine.js';
 import { selectLeastLoadedWorker } from '../../src/services/worker-dispatch-service.js';
 
 // Schema imports for structural behavioral checks
@@ -15,7 +15,7 @@ import { events } from '../../src/db/schema/events.js';
 import { applyTaskCompletionSideEffects } from '../../src/services/task-completion-side-effects.js';
 import { claimTaskForWorker, acknowledgeTaskAssignment } from '../../src/services/worker-dispatch-repository.js';
 import { registerWorker } from '../../src/services/worker-registration-service.js';
-import { PipelineCancellationService } from '../../src/services/pipeline-cancellation-service.js';
+import { WorkflowCancellationService } from '../../src/services/workflow-cancellation-service.js';
 import { mapErrorToHttpStatus } from '../../src/errors/http-errors.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../../src/api/pagination.js';
 import { NotFoundError, ValidationError, ConflictError, ForbiddenError } from '../../src/errors/domain-errors.js';
@@ -25,11 +25,11 @@ describe('requirements structural backfill', () => {
     // applyTaskCompletionSideEffects is a real exported function (not just a string in source)
     expect(typeof applyTaskCompletionSideEffects).toBe('function');
 
-    // orchestrator_grants schema exists with agentId and pipelineId columns
+    // orchestrator_grants schema exists with agentId and workflowId columns
     expect(orchestratorGrants.agentId).toBeDefined();
-    expect(orchestratorGrants.pipelineId).toBeDefined();
+    expect(orchestratorGrants.workflowId).toBeDefined();
 
-    // pipeline-creation-service uses validateTemplateSchema which accepts 'orchestration' task type
+    // workflow-creation-service uses validateTemplateSchema which accepts 'orchestration' task type
     const schema = validateTemplateSchema({
       tasks: [{ id: 'orchestrate', title_template: 'Orchestrate', type: 'orchestration' }],
     });
@@ -61,11 +61,11 @@ describe('requirements structural backfill', () => {
   it('covers FR-299/FR-420/FR-423/FR-425/FR-426/FR-427/FR-428 API route registrations are live Fastify plugins', async () => {
     // Verify route handler modules export callable Fastify plugins — not just string presence
     const { workerRoutes } = await import('../../src/api/routes/workers.routes.js');
-    const { pipelineRoutes } = await import('../../src/api/routes/pipelines.routes.js');
+    const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
     const { templateRoutes } = await import('../../src/api/routes/templates.routes.js');
 
     expect(typeof workerRoutes).toBe('function');
-    expect(typeof pipelineRoutes).toBe('function');
+    expect(typeof workflowRoutes).toBe('function');
     expect(typeof templateRoutes).toBe('function');
   });
 
@@ -133,10 +133,10 @@ describe('requirements structural backfill', () => {
     });
 
     expect(schema.tasks).toHaveLength(2);
-    expect(derivePipelineState(['ready', 'pending'])).toBe('pending');
-    expect(derivePipelineState(['running', 'pending'])).toBe('active');
+    expect(deriveWorkflowState(['ready', 'pending'])).toBe('pending');
+    expect(deriveWorkflowState(['running', 'pending'])).toBe('active');
 
-    // PipelineCancellationService is a real class (not just a string in source)
-    expect(typeof PipelineCancellationService).toBe('function');
+    // WorkflowCancellationService is a real class (not just a string in source)
+    expect(typeof WorkflowCancellationService).toBe('function');
   });
 });

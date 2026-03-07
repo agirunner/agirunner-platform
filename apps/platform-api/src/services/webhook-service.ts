@@ -180,8 +180,8 @@ export class WebhookService {
             method: 'POST',
             headers: {
               'content-type': 'application/json',
-              'x-agentbaton-signature': createWebhookSignature(signingSecret, payload),
-              'x-agentbaton-event': event.type,
+              'x-agirunner-signature': createWebhookSignature(signingSecret, payload),
+              'x-agirunner-event': event.type,
             },
             body: payload,
           });

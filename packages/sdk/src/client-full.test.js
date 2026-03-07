@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PlatformApiClient } from './client.js';
 describe('sdk full client coverage', () => {
-    it('covers FR-041 typed client methods for task/pipeline/agent/worker APIs', async () => {
+    it('covers FR-041 typed client methods for task/workflow/agent/worker APIs', async () => {
         const fetcher = vi
             .fn()
             .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 't1' }], pagination: { total_pages: 1 } }), { status: 200 }))
@@ -12,12 +12,12 @@ describe('sdk full client coverage', () => {
         const client = new PlatformApiClient({ baseUrl: 'http://localhost:8080', accessToken: 'token', fetcher });
         const list = await client.listTasks();
         const task = await client.getTask('t2');
-        const pipeline = await client.getPipeline('p1');
+        const workflow = await client.getWorkflow('p1');
         const workers = await client.listWorkers();
         const agents = await client.listAgents();
         expect(list.data[0].id).toBe('t1');
         expect(task.id).toBe('t2');
-        expect(pipeline.id).toBe('p1');
+        expect(workflow.id).toBe('p1');
         expect(workers[0].id).toBe('w1');
         expect(agents[0].id).toBe('a1');
     });
@@ -61,8 +61,8 @@ describe('sdk full client coverage', () => {
             .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 'project-1' }] }), { status: 200 }))
             .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'project-1', memory: {} } }), { status: 200 }))
             .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'project-1', memory: { last_run_summary: {} } } }), { status: 200 }))
-            .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ pipeline_id: 'pipe-1', kind: 'run_summary' }] }), { status: 200 }))
-            .mockResolvedValueOnce(new Response(JSON.stringify({ data: { pipeline_id: 'pipe-1', resolved_config: { retries: 2 } } }), { status: 200 }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ workflow_id: 'pipe-1', kind: 'run_summary' }] }), { status: 200 }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({ data: { workflow_id: 'pipe-1', resolved_config: { retries: 2 } } }), { status: 200 }))
             .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ logical_name: 'brief', scope: 'project', source: 'repository', metadata: {} }] }), { status: 200 }))
             .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'pipe-1' } }), { status: 200 }))
             .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'pipe-1', current_phase: 'review' } }), { status: 200 }))
@@ -73,16 +73,16 @@ describe('sdk full client coverage', () => {
         const project = await client.getProject('project-1');
         const patched = await client.patchProjectMemory('project-1', { key: 'last_run_summary', value: {} });
         const timeline = await client.getProjectTimeline('project-1');
-        const config = await client.getResolvedPipelineConfig('pipe-1', true);
-        const documents = await client.listPipelineDocuments('pipe-1');
-        const planning = await client.createPlanningPipeline('project-1', { brief: 'Plan next run' });
+        const config = await client.getResolvedWorkflowConfig('pipe-1', true);
+        const documents = await client.listWorkflowDocuments('pipe-1');
+        const planning = await client.createPlanningWorkflow('project-1', { brief: 'Plan next run' });
         const approved = await client.actOnPhaseGate('pipe-1', 'review', { action: 'approve' });
         const cancelled = await client.cancelPhase('pipe-1', 'review');
         const artifacts = await client.listTaskArtifacts('task-1');
         expect(projects.data[0].id).toBe('project-1');
         expect(project.id).toBe('project-1');
         expect(patched.memory).toEqual({ last_run_summary: {} });
-        expect(timeline[0].pipeline_id).toBe('pipe-1');
+        expect(timeline[0].workflow_id).toBe('pipe-1');
         expect(config.resolved_config).toEqual({ retries: 2 });
         expect(documents[0].logical_name).toBe('brief');
         expect(planning.id).toBe('pipe-1');

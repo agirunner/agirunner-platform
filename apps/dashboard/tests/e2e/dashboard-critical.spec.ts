@@ -17,15 +17,15 @@ test.beforeEach(async ({ page }) => {
     });
   });
 
-  await page.route(`${API}/api/v1/pipelines`, async (route) => {
+  await page.route(`${API}/api/v1/workflows`, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
         data: [
           {
-            id: 'pipeline-1',
-            name: 'Pipeline One',
+            id: 'workflow-1',
+            name: 'Workflow One',
             state: 'running',
             created_at: new Date().toISOString(),
           },
@@ -35,17 +35,17 @@ test.beforeEach(async ({ page }) => {
     });
   });
 
-  await page.route(`${API}/api/v1/pipelines/pipeline-1`, async (route) => {
+  await page.route(`${API}/api/v1/workflows/workflow-1`, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        data: { id: 'pipeline-1', name: 'Pipeline One', state: 'running', context: {} },
+        data: { id: 'workflow-1', name: 'Workflow One', state: 'running', context: {} },
       }),
     });
   });
 
-  await page.route(`${API}/api/v1/tasks?pipeline_id=pipeline-1`, async (route) => {
+  await page.route(`${API}/api/v1/tasks?workflow_id=workflow-1`, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -103,23 +103,23 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('login, view pipeline list, and open task detail', async ({ page }) => {
+test('login, view workflow list, and open task detail', async ({ page }) => {
   await page.goto('/login');
 
-  await page.getByLabel('API Key').fill('ab_admin_example_key');
+  await page.getByLabel('API Key').fill('ar_admin_example_key');
   await page.getByRole('button', { name: 'Sign in' }).click();
 
   const storedTokens = await page.evaluate(() => ({
-    accessToken: window.localStorage.getItem('agentbaton.accessToken'),
-    refreshToken: window.localStorage.getItem('agentbaton.refreshToken'),
+    accessToken: window.localStorage.getItem('agirunner.accessToken'),
+    refreshToken: window.localStorage.getItem('agirunner.refreshToken'),
   }));
   expect(storedTokens.accessToken).toBeNull();
   expect(storedTokens.refreshToken).toBeNull();
 
-  await expect(page.getByRole('heading', { name: 'Pipelines' })).toBeVisible();
-  await page.getByRole('link', { name: 'Pipeline One' }).click();
+  await expect(page.getByRole('heading', { name: 'Workflows' })).toBeVisible();
+  await page.getByRole('link', { name: 'Workflow One' }).click();
 
-  await expect(page.getByRole('heading', { name: 'Pipeline Detail' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Workflow Detail' })).toBeVisible();
   await page.getByRole('link', { name: 'Implement thing' }).click();
 
   await expect(page.getByRole('heading', { name: 'Task Detail' })).toBeVisible();

@@ -17,7 +17,7 @@ function writeForbidden(socket: import('node:stream').Duplex): void {
 
 async function authenticateToken(app: FastifyInstance, token: string): Promise<ApiKeyIdentity | null> {
   try {
-    if (token.startsWith('ab_')) {
+    if (token.startsWith('ar_')) {
       return verifyApiKey(app.pgPool, token);
     }
 
@@ -263,7 +263,7 @@ export function registerWebsocketGateway(app: FastifyInstance): void {
         event_types?: string[];
         entity_types?: string[];
         project_id?: string;
-        pipeline_id?: string;
+        workflow_id?: string;
       }) => {
         if (!identity) {
           throw new Error('Not authenticated');
@@ -276,7 +276,7 @@ export function registerWebsocketGateway(app: FastifyInstance): void {
             types: filters.event_types,
             entityTypes: filters.entity_types,
             projectId: filters.project_id,
-            pipelineId: filters.pipeline_id,
+            workflowId: filters.workflow_id,
           },
           (event) => {
             ws.send(
@@ -348,7 +348,7 @@ export function registerWebsocketGateway(app: FastifyInstance): void {
             event_types: toStringArray(filtersRaw?.event_types),
             entity_types: toStringArray(filtersRaw?.entity_types),
             project_id: typeof filtersRaw?.project_id === 'string' ? filtersRaw.project_id : undefined,
-            pipeline_id: typeof filtersRaw?.pipeline_id === 'string' ? filtersRaw.pipeline_id : undefined,
+            workflow_id: typeof filtersRaw?.workflow_id === 'string' ? filtersRaw.workflow_id : undefined,
           };
 
           subscribeToEvents(filters);

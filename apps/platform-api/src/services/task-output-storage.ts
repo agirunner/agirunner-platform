@@ -1,7 +1,7 @@
 import path from 'node:path';
 
 import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { OutputStateDeclaration } from '../orchestration/pipeline-engine.js';
+import type { OutputStateDeclaration } from '../orchestration/workflow-engine.js';
 import { ValidationError } from '../errors/domain-errors.js';
 import type { ArtifactService } from './artifact-service.js';
 

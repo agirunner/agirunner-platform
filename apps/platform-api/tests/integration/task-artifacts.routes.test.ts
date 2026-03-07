@@ -14,7 +14,7 @@ const tenantId = '00000000-0000-0000-0000-000000000001';
 const testPort = '8093';
 const testJwtSecret = 'x'.repeat(64);
 const testWebhookSecret = 'k'.repeat(64);
-const artifactTestPipelineName = 'artifact-pipeline';
+const artifactTestWorkflowName = 'artifact-workflow';
 const artifactTestAgentName = 'artifact-agent';
 const artifactTestTaskTitle = 'artifact-task';
 const artifactTestCapability = 'ts';
@@ -30,13 +30,13 @@ describe('task artifact routes', () => {
   let agentKey: string;
   let artifactRoot: string;
   let taskId: string;
-  let pipelineId: string;
+  let workflowId: string;
   let agentId: string;
   const previousEnv: Record<string, string | undefined> = {};
 
   beforeAll(async () => {
     db = await startTestDatabase();
-    artifactRoot = await mkdtemp(path.join(os.tmpdir(), 'agentbaton-platform-artifacts-'));
+    artifactRoot = await mkdtemp(path.join(os.tmpdir(), 'agirunner-platform-artifacts-'));
 
     for (const key of [
       'NODE_ENV',
@@ -66,17 +66,17 @@ describe('task artifact routes', () => {
     process.env.ARTIFACT_STORAGE_BACKEND = 'local';
     process.env.ARTIFACT_LOCAL_ROOT = artifactRoot;
 
-    pipelineId = randomUUID();
+    workflowId = randomUUID();
     taskId = randomUUID();
     agentId = randomUUID();
 
     await db.pool.query(
-      `INSERT INTO pipelines (id, tenant_id, name, metadata, state)
+      `INSERT INTO workflows (id, tenant_id, name, metadata, state)
        VALUES ($1,$2,$3,$4::jsonb,'active')`,
       [
-        pipelineId,
+        workflowId,
         tenantId,
-        artifactTestPipelineName,
+        artifactTestWorkflowName,
         JSON.stringify({ artifact_retention: { mode: 'days', days: artifactRetentionDays } }),
       ],
     );
@@ -86,9 +86,9 @@ describe('task artifact routes', () => {
       [agentId, tenantId, artifactTestAgentName, artifactTestCapability],
     );
     await db.pool.query(
-      `INSERT INTO tasks (id, tenant_id, pipeline_id, title, type, state, assigned_agent_id)
+      `INSERT INTO tasks (id, tenant_id, workflow_id, title, type, state, assigned_agent_id)
        VALUES ($1,$2,$3,$4,'code','running',$5)`,
-      [taskId, tenantId, pipelineId, artifactTestTaskTitle, agentId],
+      [taskId, tenantId, workflowId, artifactTestTaskTitle, agentId],
     );
     await db.pool.query('UPDATE agents SET current_task_id = $3 WHERE tenant_id = $1 AND id = $2', [
       tenantId,
@@ -129,7 +129,7 @@ describe('task artifact routes', () => {
     });
   });
 
-  it('uploads, lists, downloads, and deletes task artifacts with pipeline retention metadata', async () => {
+  it('uploads, lists, downloads, and deletes task artifacts with workflow retention metadata', async () => {
     const upload = await app.inject({
       method: 'POST',
       url: `/api/v1/tasks/${taskId}/artifacts`,
@@ -144,7 +144,7 @@ describe('task artifact routes', () => {
 
     expect(upload.statusCode).toBe(201);
     const created = upload.json().data;
-    expect(created.logical_path).toBe(`artifact:${pipelineId}/${artifactRelativePath}`);
+    expect(created.logical_path).toBe(`artifact:${workflowId}/${artifactRelativePath}`);
     expect(created.content_type).toBe(artifactContentType);
     expect(created.retention_policy).toEqual({ mode: 'days', days: artifactRetentionDays });
     expect(created.expires_at).not.toBeNull();
@@ -202,11 +202,11 @@ describe('task artifact routes', () => {
     expect(upload.statusCode).toBe(201);
     const artifactId = upload.json().data.id as string;
     const stored = await db.pool.query<{ storage_key: string }>(
-      'SELECT storage_key FROM pipeline_artifacts WHERE tenant_id = $1 AND id = $2',
+      'SELECT storage_key FROM workflow_artifacts WHERE tenant_id = $1 AND id = $2',
       [tenantId, artifactId],
     );
     await db.pool.query(
-      `UPDATE pipeline_artifacts
+      `UPDATE workflow_artifacts
           SET expires_at = now() - interval '1 day'
         WHERE tenant_id = $1
           AND id = $2`,
@@ -225,7 +225,7 @@ describe('task artifact routes', () => {
     expect(existsSync(path.join(artifactRoot, stored.rows[0].storage_key))).toBe(false);
   });
 
-  it('purges ephemeral pipeline artifacts when the pipeline becomes terminal', async () => {
+  it('purges ephemeral workflow artifacts when the workflow becomes terminal', async () => {
     const upload = await app.inject({
       method: 'POST',
       url: `/api/v1/tasks/${taskId}/artifacts`,
@@ -240,18 +240,18 @@ describe('task artifact routes', () => {
     expect(upload.statusCode).toBe(201);
     const artifactId = upload.json().data.id as string;
     const stored = await db.pool.query<{ storage_key: string }>(
-      'SELECT storage_key FROM pipeline_artifacts WHERE tenant_id = $1 AND id = $2',
+      'SELECT storage_key FROM workflow_artifacts WHERE tenant_id = $1 AND id = $2',
       [tenantId, artifactId],
     );
     await db.pool.query(
-      `UPDATE pipeline_artifacts
+      `UPDATE workflow_artifacts
           SET retention_policy = $3::jsonb
         WHERE tenant_id = $1
           AND id = $2`,
       [
         tenantId,
         artifactId,
-        JSON.stringify({ mode: 'ephemeral', destroy_on_pipeline_complete: true }),
+        JSON.stringify({ mode: 'ephemeral', destroy_on_workflow_complete: true }),
       ],
     );
 
@@ -267,8 +267,8 @@ describe('task artifact routes', () => {
 
     expect(complete.statusCode).toBe(200);
     const artifacts = await db.pool.query(
-      'SELECT id FROM pipeline_artifacts WHERE tenant_id = $1 AND pipeline_id = $2',
-      [tenantId, pipelineId],
+      'SELECT id FROM workflow_artifacts WHERE tenant_id = $1 AND workflow_id = $2',
+      [tenantId, workflowId],
     );
     expect(artifacts.rows).toEqual([]);
     expect(stored.rowCount).toBe(1);

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 const API = 'http://localhost:8080';
-const PIPELINE_ID = 'pipeline-1';
+const WORKFLOW_ID = 'workflow-1';
 const TASK_ID = 'task-1';
 
 test.beforeEach(async ({ page }) => {
@@ -19,15 +19,15 @@ test.beforeEach(async ({ page }) => {
     });
   });
 
-  await page.route(`${API}/api/v1/pipelines`, async (route) => {
+  await page.route(`${API}/api/v1/workflows`, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
         data: [
           {
-            id: PIPELINE_ID,
-            name: 'Pipeline One',
+            id: WORKFLOW_ID,
+            name: 'Workflow One',
             state: 'running',
             created_at: new Date().toISOString(),
           },
@@ -37,17 +37,17 @@ test.beforeEach(async ({ page }) => {
     });
   });
 
-  await page.route(`${API}/api/v1/pipelines/${PIPELINE_ID}`, async (route) => {
+  await page.route(`${API}/api/v1/workflows/${WORKFLOW_ID}`, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
         data: {
-          id: PIPELINE_ID,
+          id: WORKFLOW_ID,
           tenant_id: 'tenant-1',
           project_id: null,
           template_id: 'template-1',
-          name: 'Pipeline One',
+          name: 'Workflow One',
           state: 'running',
           input: {},
           context: {},
@@ -61,7 +61,7 @@ test.beforeEach(async ({ page }) => {
     });
   });
 
-  await page.route(`${API}/api/v1/tasks?pipeline_id=${PIPELINE_ID}`, async (route) => {
+  await page.route(`${API}/api/v1/tasks?workflow_id=${WORKFLOW_ID}`, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -80,7 +80,7 @@ test.beforeEach(async ({ page }) => {
         data: {
           id: TASK_ID,
           tenant_id: 'tenant-1',
-          pipeline_id: PIPELINE_ID,
+          workflow_id: WORKFLOW_ID,
           title: 'Implement thing',
           state: 'ready',
           capabilities_required: ['llm-api', 'role:developer'],
@@ -127,10 +127,10 @@ test.beforeEach(async ({ page }) => {
 test('renders task detail payload for a valid task id', async ({ page }) => {
   await page.goto('/login');
 
-  await page.getByLabel('API Key').fill('ab_admin_example_key');
+  await page.getByLabel('API Key').fill('ar_admin_example_key');
   await page.getByRole('button', { name: 'Sign in' }).click();
 
-  await page.getByRole('link', { name: 'Pipeline One' }).click();
+  await page.getByRole('link', { name: 'Workflow One' }).click();
   await page.getByRole('link', { name: 'Implement thing' }).click();
 
   await expect(page.getByRole('heading', { name: 'Task Detail' })).toBeVisible();

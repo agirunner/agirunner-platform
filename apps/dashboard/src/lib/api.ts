@@ -1,4 +1,4 @@
-import { PlatformApiClient } from '@agentbaton/sdk';
+import { PlatformApiClient } from '@agirunner/sdk';
 
 import { clearSession, readSession, writeSession } from './session.js';
 
@@ -19,7 +19,7 @@ interface NamedRecord {
 }
 
 export interface DashboardSearchResult {
-  type: 'pipeline' | 'task' | 'worker' | 'agent' | 'project' | 'template';
+  type: 'workflow' | 'task' | 'worker' | 'agent' | 'project' | 'template';
   id: string;
   label: string;
   subtitle: string;
@@ -61,21 +61,21 @@ export interface DashboardApiKeyRecord {
   created_at: string;
 }
 
-export interface DashboardPipelinePhaseActionPayload {
+export interface DashboardWorkflowPhaseActionPayload {
   action: 'approve' | 'reject' | 'request_changes';
   feedback?: string;
   override_input?: Record<string, unknown>;
 }
 
 export interface DashboardResolvedConfigResponse {
-  pipeline_id: string;
+  workflow_id: string;
   resolved_config: Record<string, unknown>;
   config_layers?: Record<string, Record<string, unknown>>;
 }
 
 export interface DashboardProjectTimelineEntry {
   kind?: string;
-  pipeline_id: string;
+  workflow_id: string;
   name: string;
   state: string;
   created_at: string;
@@ -131,7 +131,7 @@ export interface DashboardProjectToolCatalog {
 export interface DashboardIntegrationRecord {
   id: string;
   kind: 'webhook' | 'slack' | 'otlp_http' | 'github_issues';
-  pipeline_id?: string | null;
+  workflow_id?: string | null;
   subscriptions: string[];
   is_active: boolean;
   config: Record<string, unknown>;
@@ -158,7 +158,7 @@ export interface DashboardAuditLogRecord {
 
 export interface DashboardResolvedDocumentReference {
   logical_name: string;
-  scope: 'project' | 'pipeline';
+  scope: 'project' | 'workflow';
   source: 'repository' | 'artifact' | 'external';
   title?: string;
   description?: string;
@@ -179,7 +179,7 @@ export interface DashboardResolvedDocumentReference {
 
 export interface DashboardTaskArtifactRecord {
   id: string;
-  pipeline_id?: string | null;
+  workflow_id?: string | null;
   project_id?: string | null;
   task_id: string;
   logical_path: string;
@@ -378,7 +378,7 @@ export interface DashboardCustomizationExportResponse {
 export interface DashboardApi {
   login(apiKey: string): Promise<void>;
   logout(): Promise<void>;
-  listPipelines(): Promise<unknown>;
+  listWorkflows(): Promise<unknown>;
   listProjects(): Promise<{ data: DashboardProjectRecord[]; meta?: Record<string, unknown> }>;
   createProject(payload: {
     name: string;
@@ -394,16 +394,16 @@ export interface DashboardApi {
     projectId: string,
     payload: { key: string; value: unknown },
   ): Promise<DashboardProjectRecord>;
-  getPipeline(id: string): Promise<unknown>;
-  listPipelineDocuments(pipelineId: string): Promise<DashboardResolvedDocumentReference[]>;
+  getWorkflow(id: string): Promise<unknown>;
+  listWorkflowDocuments(workflowId: string): Promise<DashboardResolvedDocumentReference[]>;
   listTemplates(): Promise<{ data: DashboardTemplate[]; meta?: Record<string, unknown> }>;
-  createPipeline(payload: {
+  createWorkflow(payload: {
     template_id: string;
     name: string;
     parameters?: Record<string, unknown>;
     metadata?: Record<string, unknown>;
   }): Promise<unknown>;
-  cancelPipeline(pipelineId: string): Promise<unknown>;
+  cancelWorkflow(workflowId: string): Promise<unknown>;
   listTasks(filters?: Record<string, string>): Promise<unknown>;
   getTask(id: string): Promise<unknown>;
   listTaskArtifacts(taskId: string): Promise<DashboardTaskArtifactRecord[]>;
@@ -438,28 +438,28 @@ export interface DashboardApi {
     taskId: string,
     payload: { output: unknown; reason: string },
   ): Promise<unknown>;
-  pausePipeline(pipelineId: string): Promise<unknown>;
-  resumePipeline(pipelineId: string): Promise<unknown>;
-  manualReworkPipeline(pipelineId: string, payload: { feedback: string }): Promise<unknown>;
+  pauseWorkflow(workflowId: string): Promise<unknown>;
+  resumeWorkflow(workflowId: string): Promise<unknown>;
+  manualReworkWorkflow(workflowId: string, payload: { feedback: string }): Promise<unknown>;
   actOnPhaseGate(
-    pipelineId: string,
+    workflowId: string,
     phaseName: string,
-    payload: DashboardPipelinePhaseActionPayload,
+    payload: DashboardWorkflowPhaseActionPayload,
   ): Promise<unknown>;
-  cancelPhase(pipelineId: string, phaseName: string): Promise<unknown>;
-  getResolvedPipelineConfig(
-    pipelineId: string,
+  cancelPhase(workflowId: string, phaseName: string): Promise<unknown>;
+  getResolvedWorkflowConfig(
+    workflowId: string,
     showLayers?: boolean,
   ): Promise<DashboardResolvedConfigResponse>;
   getProjectTimeline(projectId: string): Promise<DashboardProjectTimelineEntry[]>;
-  createPlanningPipeline(
+  createPlanningWorkflow(
     projectId: string,
     payload: { brief: string; name?: string },
   ): Promise<unknown>;
   listIntegrations(): Promise<DashboardIntegrationRecord[]>;
   createIntegration(payload: {
     kind: DashboardIntegrationRecord['kind'];
-    pipeline_id?: string;
+    workflow_id?: string;
     subscriptions?: string[];
     config: Record<string, unknown>;
   }): Promise<DashboardIntegrationRecord>;
@@ -477,7 +477,7 @@ export interface DashboardApi {
     payload: Partial<DashboardGovernanceRetentionPolicy>,
   ): Promise<DashboardGovernanceRetentionPolicy>;
   setTaskLegalHold(taskId: string, enabled: boolean): Promise<unknown>;
-  setPipelineLegalHold(pipelineId: string, enabled: boolean): Promise<unknown>;
+  setWorkflowLegalHold(workflowId: string, enabled: boolean): Promise<unknown>;
   listAuditLogs(filters?: Record<string, string>): Promise<{ data: DashboardAuditLogRecord[]; pagination?: Record<string, unknown> }>;
   listEvents(
     filters?: Record<string, string>,
@@ -621,7 +621,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         clearSession();
       }
     },
-    listPipelines: () => withRefresh(() => client.listPipelines()),
+    listWorkflows: () => withRefresh(() => client.listWorkflows()),
     listProjects: () =>
       withRefresh(
         () =>
@@ -667,11 +667,11 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           body: payload as Record<string, unknown>,
         }),
       ),
-    getPipeline: (id) => withRefresh(() => client.getPipeline(id)),
-    listPipelineDocuments: (pipelineId) =>
+    getWorkflow: (id) => withRefresh(() => client.getWorkflow(id)),
+    listWorkflowDocuments: (workflowId) =>
       withRefresh(() =>
         requestData<DashboardResolvedDocumentReference[]>(
-          `/api/v1/pipelines/${pipelineId}/documents`,
+          `/api/v1/workflows/${workflowId}/documents`,
           { method: 'GET' },
         ),
       ),
@@ -682,8 +682,8 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
             data: DashboardTemplate[];
           }>,
       ),
-    createPipeline: (payload) => withRefresh(() => client.createPipeline(payload)),
-    cancelPipeline: (pipelineId) => withRefresh(() => client.cancelPipeline(pipelineId)),
+    createWorkflow: (payload) => withRefresh(() => client.createWorkflow(payload)),
+    cancelWorkflow: (workflowId) => withRefresh(() => client.cancelWorkflow(workflowId)),
     listTasks: (filters) => withRefresh(() => client.listTasks(filters)),
     getTask: (id) => withRefresh(() => client.getTask(id)),
     listTaskArtifacts: (taskId) =>
@@ -710,28 +710,28 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/escalate`, { body: payload })),
     overrideTaskOutput: (taskId, payload) =>
       withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/output-override`, { body: payload })),
-    pausePipeline: (pipelineId) =>
-      withRefresh(() => requestJson(`/api/v1/pipelines/${pipelineId}/pause`)),
-    resumePipeline: (pipelineId) =>
-      withRefresh(() => requestJson(`/api/v1/pipelines/${pipelineId}/resume`)),
-    manualReworkPipeline: (pipelineId, payload) =>
+    pauseWorkflow: (workflowId) =>
+      withRefresh(() => requestJson(`/api/v1/workflows/${workflowId}/pause`)),
+    resumeWorkflow: (workflowId) =>
+      withRefresh(() => requestJson(`/api/v1/workflows/${workflowId}/resume`)),
+    manualReworkWorkflow: (workflowId, payload) =>
       withRefresh(() =>
-        requestJson(`/api/v1/pipelines/${pipelineId}/manual-rework`, { body: payload }),
+        requestJson(`/api/v1/workflows/${workflowId}/manual-rework`, { body: payload }),
       ),
-    actOnPhaseGate: (pipelineId, phaseName, payload) =>
+    actOnPhaseGate: (workflowId, phaseName, payload) =>
       withRefresh(() =>
-        requestJson(`/api/v1/pipelines/${pipelineId}/phases/${phaseName}/gate`, {
+        requestJson(`/api/v1/workflows/${workflowId}/phases/${phaseName}/gate`, {
           body: payload as unknown as Record<string, unknown>,
         }),
       ),
-    cancelPhase: (pipelineId, phaseName) =>
+    cancelPhase: (workflowId, phaseName) =>
       withRefresh(() =>
-        requestJson(`/api/v1/pipelines/${pipelineId}/phases/${phaseName}/cancel`),
+        requestJson(`/api/v1/workflows/${workflowId}/phases/${phaseName}/cancel`),
       ),
-    getResolvedPipelineConfig: (pipelineId, showLayers = false) =>
+    getResolvedWorkflowConfig: (workflowId, showLayers = false) =>
       withRefresh(() =>
         requestData<DashboardResolvedConfigResponse>(
-          `/api/v1/pipelines/${pipelineId}/config/resolved${showLayers ? '?show_layers=true' : ''}`,
+          `/api/v1/workflows/${workflowId}/config/resolved${showLayers ? '?show_layers=true' : ''}`,
           { method: 'GET' },
         ),
       ),
@@ -741,9 +741,9 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           method: 'GET',
         }),
       ),
-    createPlanningPipeline: (projectId, payload) =>
+    createPlanningWorkflow: (projectId, payload) =>
       withRefresh(() =>
-        requestJson(`/api/v1/projects/${projectId}/planning-pipeline`, {
+        requestJson(`/api/v1/projects/${projectId}/planning-workflow`, {
           body: payload,
         }),
       ),
@@ -790,9 +790,9 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           body: { enabled },
         }),
       ),
-    setPipelineLegalHold: (pipelineId, enabled) =>
+    setWorkflowLegalHold: (workflowId, enabled) =>
       withRefresh(() =>
-        requestJson(`/api/v1/governance/legal-holds/pipelines/${pipelineId}`, {
+        requestJson(`/api/v1/governance/legal-holds/workflows/${workflowId}`, {
           method: 'PUT',
           body: { enabled },
         }),
@@ -834,8 +834,8 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           return [];
         }
 
-        const [pipelines, tasks, workers, agents, projects, templates] = await Promise.allSettled([
-          client.listPipelines({ per_page: 50 }),
+        const [workflows, tasks, workers, agents, projects, templates] = await Promise.allSettled([
+          client.listWorkflows({ per_page: 50 }),
           client.listTasks({ per_page: 50 }),
           client.listWorkers(),
           client.listAgents(),
@@ -844,7 +844,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         ]);
 
         return buildSearchResults(normalizedQuery, {
-          pipelines: extractListResult(pipelines),
+          workflows: extractListResult(workflows),
           tasks: extractListResult(tasks),
           workers: extractDataResult(workers),
           agents: extractDataResult(agents),
@@ -947,7 +947,7 @@ function buildQueryString(filters?: Record<string, string>): string {
 export function buildSearchResults(
   normalizedQuery: string,
   collections: {
-    pipelines: NamedRecord[];
+    workflows: NamedRecord[];
     tasks: NamedRecord[];
     workers: NamedRecord[];
     agents: NamedRecord[];
@@ -955,12 +955,12 @@ export function buildSearchResults(
     templates: NamedRecord[];
   },
 ): DashboardSearchResult[] {
-  const pipelineMatches = filterRecords(collections.pipelines, normalizedQuery).map((item) => ({
-    type: 'pipeline' as const,
+  const workflowMatches = filterRecords(collections.workflows, normalizedQuery).map((item) => ({
+    type: 'workflow' as const,
     id: item.id,
     label: item.name ?? item.id,
-    subtitle: item.state ?? 'pipeline',
-    href: `/pipelines/${item.id}`,
+    subtitle: item.state ?? 'workflow',
+    href: `/workflows/${item.id}`,
   }));
 
   const taskMatches = filterRecords(collections.tasks, normalizedQuery).map((item) => ({
@@ -1004,7 +1004,7 @@ export function buildSearchResults(
   }));
 
   return [
-    ...pipelineMatches,
+    ...workflowMatches,
     ...taskMatches,
     ...projectMatches,
     ...templateMatches,

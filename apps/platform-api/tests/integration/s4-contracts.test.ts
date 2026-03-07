@@ -218,7 +218,7 @@ describe('S4 API contract closure', () => {
     expect(forcedRetry.json().data.state).toBe('ready');
   });
 
-  it('adds pipeline delete endpoint for terminal pipelines', async () => {
+  it('adds workflow delete endpoint for terminal workflows', async () => {
     const template = await app.inject({
       method: 'POST',
       url: '/api/v1/templates',
@@ -231,29 +231,29 @@ describe('S4 API contract closure', () => {
     });
     const templateId = template.json().data.id as string;
 
-    const pipeline = await app.inject({
+    const workflow = await app.inject({
       method: 'POST',
-      url: '/api/v1/pipelines',
+      url: '/api/v1/workflows',
       headers: { authorization: `Bearer ${adminKey}` },
       payload: {
         template_id: templateId,
-        name: 'deletable-pipeline',
+        name: 'deletable-workflow',
       },
     });
 
-    const pipelineId = pipeline.json().data.id as string;
+    const workflowId = workflow.json().data.id as string;
     await db.pool.query(
-      `UPDATE pipelines SET state = 'completed' WHERE tenant_id = $1 AND id = $2`,
-      [tenantId, pipelineId],
+      `UPDATE workflows SET state = 'completed' WHERE tenant_id = $1 AND id = $2`,
+      [tenantId, workflowId],
     );
     await db.pool.query(
-      `UPDATE tasks SET state = 'completed' WHERE tenant_id = $1 AND pipeline_id = $2`,
-      [tenantId, pipelineId],
+      `UPDATE tasks SET state = 'completed' WHERE tenant_id = $1 AND workflow_id = $2`,
+      [tenantId, workflowId],
     );
 
     const deleted = await app.inject({
       method: 'DELETE',
-      url: `/api/v1/pipelines/${pipelineId}`,
+      url: `/api/v1/workflows/${workflowId}`,
       headers: { authorization: `Bearer ${adminKey}` },
     });
 
@@ -275,9 +275,9 @@ describe('S4 API contract closure', () => {
       : [token.headers['set-cookie'] as string];
 
     const refreshCookie = cookies
-      .find((c) => c.startsWith('agentbaton_refresh_token='))!
+      .find((c) => c.startsWith('agirunner_refresh_token='))!
       .split(';')[0];
-    const csrfCookie = cookies.find((c) => c.startsWith('agentbaton_csrf_token='))!.split(';')[0];
+    const csrfCookie = cookies.find((c) => c.startsWith('agirunner_csrf_token='))!.split(';')[0];
     const csrfToken = csrfCookie.split('=')[1];
 
     const refresh = await app.inject({

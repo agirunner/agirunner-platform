@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const ROOT = path.resolve(process.cwd());
 const CANONICAL_FIXTURE_ROOT = path.join(ROOT, 'tests/live/fixtures');
-const DEFAULT_LIVE_TMP_PREFIX = '/tmp/agentbaton-live-';
+const DEFAULT_LIVE_TMP_PREFIX = '/tmp/agirunner-live-';
 
 function resolveLiveTmpPrefix(): string {
   const override = process.env.LIVE_TMP_PREFIX?.trim();

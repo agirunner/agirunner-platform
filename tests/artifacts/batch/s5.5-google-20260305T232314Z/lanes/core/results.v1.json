@@ -17,43 +17,43 @@
     {
       "key": "sdlc-happy",
       "id": "AP-1",
-      "title": "Built-in Worker — SDLC Pipeline",
+      "title": "Built-in Worker — SDLC Workflow",
       "planRef": "§2 AP-1"
     },
     {
       "key": "ap2-external-runtime",
       "id": "AP-2",
-      "title": "External Runtime — SDLC Pipeline",
+      "title": "External Runtime — SDLC Workflow",
       "planRef": "§2 AP-2"
     },
     {
       "key": "ap3-standalone-worker",
       "id": "AP-3",
-      "title": "Standalone Worker Runtime — SDLC Pipeline",
+      "title": "Standalone Worker Runtime — SDLC Workflow",
       "planRef": "§2 AP-3"
     },
     {
       "key": "ap4-mixed-workers",
       "id": "AP-4",
-      "title": "Mixed Workers — SDLC Pipeline",
+      "title": "Mixed Workers — SDLC Workflow",
       "planRef": "§2 AP-4"
     },
     {
       "key": "maintenance-happy",
       "id": "AP-5",
-      "title": "Built-in Worker — Maintenance Pipeline",
+      "title": "Built-in Worker — Maintenance Workflow",
       "planRef": "§2 AP-5"
     },
     {
       "key": "ap6-runtime-maintenance",
       "id": "AP-6",
-      "title": "External Runtime — Maintenance Pipeline",
+      "title": "External Runtime — Maintenance Workflow",
       "planRef": "§2 AP-6"
     },
     {
       "key": "ap7-failure-recovery",
       "id": "AP-7",
-      "title": "Pipeline Failure and Recovery",
+      "title": "Workflow Failure and Recovery",
       "planRef": "§2 AP-7"
     },
     {
@@ -71,7 +71,7 @@
     {
       "key": "ot3-state",
       "id": "OT-3",
-      "title": "Pipeline State Derivation",
+      "title": "Workflow State Derivation",
       "planRef": "§3 OT-3"
     },
     {
@@ -87,9 +87,9 @@
       "planRef": "§4 HL-1"
     },
     {
-      "key": "hl2-pipeline-controls",
+      "key": "hl2-workflow-controls",
       "id": "HL-2",
-      "title": "Pipeline/Task Control Plane",
+      "title": "Workflow/Task Control Plane",
       "planRef": "§4 HL-2"
     },
     {
@@ -166,7 +166,7 @@
   "matrix": [
     {
       "use_case_id": "AP-1",
-      "title": "Built-in Worker — SDLC Pipeline",
+      "title": "Built-in Worker — SDLC Workflow",
       "plan_section": "§2 AP-1",
       "runtime_scope": "platform",
       "cells": [
@@ -229,7 +229,7 @@
     },
     {
       "use_case_id": "AP-2",
-      "title": "External Runtime — SDLC Pipeline",
+      "title": "External Runtime — SDLC Workflow",
       "plan_section": "§2 AP-2",
       "runtime_scope": "platform",
       "cells": [
@@ -292,7 +292,7 @@
     },
     {
       "use_case_id": "AP-3",
-      "title": "Standalone Worker Runtime — SDLC Pipeline",
+      "title": "Standalone Worker Runtime — SDLC Workflow",
       "plan_section": "§2 AP-3",
       "runtime_scope": "platform",
       "cells": [
@@ -355,7 +355,7 @@
     },
     {
       "use_case_id": "AP-4",
-      "title": "Mixed Workers — SDLC Pipeline",
+      "title": "Mixed Workers — SDLC Workflow",
       "plan_section": "§2 AP-4",
       "runtime_scope": "platform",
       "cells": [
@@ -418,7 +418,7 @@
     },
     {
       "use_case_id": "AP-5",
-      "title": "Built-in Worker — Maintenance Pipeline",
+      "title": "Built-in Worker — Maintenance Workflow",
       "plan_section": "§2 AP-5",
       "runtime_scope": "platform",
       "cells": [
@@ -481,7 +481,7 @@
     },
     {
       "use_case_id": "AP-6",
-      "title": "External Runtime — Maintenance Pipeline",
+      "title": "External Runtime — Maintenance Workflow",
       "plan_section": "§2 AP-6",
       "runtime_scope": "platform",
       "cells": [
@@ -544,7 +544,7 @@
     },
     {
       "use_case_id": "AP-7",
-      "title": "Pipeline Failure and Recovery",
+      "title": "Workflow Failure and Recovery",
       "plan_section": "§2 AP-7",
       "runtime_scope": "platform",
       "cells": [
@@ -733,7 +733,7 @@
     },
     {
       "use_case_id": "OT-3",
-      "title": "Pipeline State Derivation",
+      "title": "Workflow State Derivation",
       "plan_section": "§3 OT-3",
       "runtime_scope": "platform",
       "cells": [
@@ -922,7 +922,7 @@
     },
     {
       "use_case_id": "HL-2",
-      "title": "Pipeline/Task Control Plane",
+      "title": "Workflow/Task Control Plane",
       "plan_section": "§4 HL-2",
       "runtime_scope": "platform",
       "cells": [
@@ -1447,7 +1447,7 @@
           "ot3-state": "PASS",
           "ot4-health": "PASS",
           "hl1-approval-flow": "PASS",
-          "hl2-pipeline-controls": "PASS",
+          "hl2-workflow-controls": "PASS",
           "it1-sdk": "PASS",
           "it2-mcp": "PASS",
           "it3-webhooks": "PASS",
@@ -1593,7 +1593,7 @@
         "status": "NOT_PASS"
       }
     },
-    "hl2-pipeline-controls": {
+    "hl2-workflow-controls": {
       "openai": {
         "status": "NOT_PASS"
       },

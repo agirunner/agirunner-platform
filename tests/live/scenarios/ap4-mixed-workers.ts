@@ -1,5 +1,5 @@
 /**
- * AP-4: Mixed Workers — SDLC Pipeline
+ * AP-4: Mixed Workers — SDLC Workflow
  *
  * Harness-managed mixed-worker scenario:
  * - Built-in-style worker (runtime_type=internal) handles architect + qa
@@ -13,8 +13,8 @@ import type { LiveContext, ScenarioDeliveryEvidence, ScenarioExecutionResult } f
 import {
   assertAllTasksCompleted,
   assertDependencyOrder,
-  assertInitialPipelineState,
-  assertPipelineTerminal,
+  assertInitialWorkflowState,
+  assertWorkflowTerminal,
   assertTaskOutputsPresent,
   assertTaskRoles,
 } from './assertions.js';
@@ -26,7 +26,7 @@ import {
   workerMatches,
 } from './external-worker-utils.js';
 import { loadConfig } from '../config.js';
-import { pollPipelineUntil } from './poll.js';
+import { pollWorkflowUntil } from './poll.js';
 import { sdlcTemplateSchema } from './templates.js';
 import { createTenantBootstrap, registerWorkerAgent } from './tenant.js';
 
@@ -94,7 +94,7 @@ export async function runAp4MixedWorkers(live: LiveContext): Promise<ScenarioExe
     });
     validations.push('template_created');
 
-    const pipeline = await tenant.adminClient.createPipeline({
+    const workflow = await tenant.adminClient.createWorkflow({
       template_id: template.id,
       name: `AP-4 mixed-workers ${live.runId}`,
       parameters: {
@@ -102,10 +102,10 @@ export async function runAp4MixedWorkers(live: LiveContext): Promise<ScenarioExe
         goal: 'Add a multiply endpoint to the calculator API',
       },
     });
-    validations.push('pipeline_created');
+    validations.push('workflow_created');
 
-    assertTaskRoles(pipeline, SDLC_ROLES);
-    assertInitialPipelineState(pipeline);
+    assertTaskRoles(workflow, SDLC_ROLES);
+    assertInitialWorkflowState(workflow);
     validations.push('initial_state_valid');
 
     const routingExpectations: RoleRoutingExpectation[] = [
@@ -118,7 +118,7 @@ export async function runAp4MixedWorkers(live: LiveContext): Promise<ScenarioExe
     const actualRouting = new Map<string, string>();
 
     for (const expectation of routingExpectations) {
-      const claimed = await claimTaskWithPolling(expectation.worker, pipeline.id);
+      const claimed = await claimTaskWithPolling(expectation.worker, workflow.id);
 
       if (claimed.role !== expectation.role) {
         throw new Error(
@@ -154,27 +154,27 @@ export async function runAp4MixedWorkers(live: LiveContext): Promise<ScenarioExe
     }
     validations.push('routing_verified_mixed_workers');
 
-    const completed = await pollPipelineUntil(
+    const completed = await pollWorkflowUntil(
       tenant.adminClient,
-      pipeline.id,
+      workflow.id,
       ['completed', 'failed'],
-      config.pipelineTimeoutMs,
+      config.workflowTimeoutMs,
     );
 
-    assertPipelineTerminal(completed, 'completed', 4);
+    assertWorkflowTerminal(completed, 'completed', 4);
     assertAllTasksCompleted(completed);
     assertTaskOutputsPresent(completed);
     assertDependencyOrder(completed);
-    validations.push('pipeline_completed');
+    validations.push('workflow_completed');
 
     authenticityEvidence = [
       {
-        pipelineId: completed.id,
-        pipelineState: completed.state,
+        workflowId: completed.id,
+        workflowState: completed.state,
         acceptanceCriteria: [
           'Mixed worker routing respects expected role ownership split',
           'Completed task outputs include deterministic synthetic execution signatures',
-          'Pipeline completes without role crossover between worker groups',
+          'Workflow completes without role crossover between worker groups',
         ],
         requiresGitDiffEvidence: false,
         tasks: (completed.tasks ?? []).map((task) => ({

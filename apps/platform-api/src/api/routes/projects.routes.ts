@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { authenticateApiKey, withAllowedScopes, withScope } from '../../auth/fastify-auth-hook.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
-import { PipelineService } from '../../services/pipeline-service.js';
+import { WorkflowService } from '../../services/workflow-service.js';
 import { ProjectPlanningService } from '../../services/project-planning-service.js';
 import { ProjectService } from '../../services/project-service.js';
 import { ProjectSpecService } from '../../services/project-spec-service.js';
@@ -36,7 +36,7 @@ const projectMemoryPatchSchema = z.object({
   value: z.unknown(),
 });
 
-const planningPipelineSchema = z.object({
+const planningWorkflowSchema = z.object({
   brief: z.string().min(1).max(20000),
   name: z.string().min(1).max(255).optional(),
 });
@@ -60,8 +60,8 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 export const projectRoutes: FastifyPluginAsync = async (app) => {
   const projectService = new ProjectService(app.pgPool, app.eventService);
   const projectSpecService = new ProjectSpecService(app.pgPool, app.eventService);
-  const pipelineService = new PipelineService(app.pgPool, app.eventService, app.config, app.workerConnectionHub);
-  const projectPlanningService = new ProjectPlanningService(app.pgPool, pipelineService);
+  const workflowService = new WorkflowService(app.pgPool, app.eventService, app.config, app.workerConnectionHub);
+  const projectPlanningService = new ProjectPlanningService(app.pgPool, workflowService);
 
   app.post('/api/v1/projects', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request, reply) => {
     const body = parseOrThrow(projectCreateSchema.safeParse(request.body));
@@ -100,7 +100,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/api/v1/projects/:id/timeline', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
     const params = request.params as { id: string };
-    const timeline = await pipelineService.getProjectTimeline(request.auth!.tenantId, params.id);
+    const timeline = await workflowService.getProjectTimeline(request.auth!.tenantId, params.id);
     return { data: timeline };
   });
 
@@ -157,17 +157,17 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    '/api/v1/projects/:id/planning-pipeline',
+    '/api/v1/projects/:id/planning-workflow',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request, reply) => {
       const params = request.params as { id: string };
-      const body = parseOrThrow(planningPipelineSchema.safeParse(request.body));
-      const pipeline = await projectPlanningService.createPlanningPipeline(
+      const body = parseOrThrow(planningWorkflowSchema.safeParse(request.body));
+      const workflow = await projectPlanningService.createPlanningWorkflow(
         request.auth!,
         params.id,
         body,
       );
-      return reply.status(201).send({ data: pipeline });
+      return reply.status(201).send({ data: workflow });
     },
   );
 

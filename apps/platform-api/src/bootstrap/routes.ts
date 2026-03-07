@@ -12,7 +12,7 @@ import { governanceRoutes } from '../api/routes/governance.routes.js';
 import { healthRoutes } from '../api/routes/health.routes.js';
 import { integrationRoutes } from '../api/routes/integrations.routes.js';
 import { orchestratorGrantRoutes } from '../api/routes/orchestrator-grants.routes.js';
-import { pipelineRoutes } from '../api/routes/pipelines.routes.js';
+import { workflowRoutes } from '../api/routes/workflows.routes.js';
 import { platformInstructionRoutes } from '../api/routes/platform-instructions.routes.js';
 import { taskRoutes } from '../api/routes/tasks.routes.js';
 import { taskArtifactRoutes } from '../api/routes/task-artifacts.routes.js';
@@ -44,7 +44,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(orchestratorGrantRoutes);
   await app.register(platformInstructionRoutes);
   await app.register(templateRoutes);
-  await app.register(pipelineRoutes);
+  await app.register(workflowRoutes);
   await app.register(projectRoutes);
   await app.register(runtimeCustomizationRoutes);
   await app.register(webhookTaskTriggerRoutes);

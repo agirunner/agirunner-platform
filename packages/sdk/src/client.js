@@ -71,44 +71,44 @@ export class PlatformApiClient {
         });
         return response.data;
     }
-    async listPipelines(query = {}) {
-        return this.request(this.withQuery('/api/v1/pipelines', query));
+    async listWorkflows(query = {}) {
+        return this.request(this.withQuery('/api/v1/workflows', query));
     }
-    async getPipeline(pipelineId) {
-        const response = await this.request(`/api/v1/pipelines/${pipelineId}`);
+    async getWorkflow(workflowId) {
+        const response = await this.request(`/api/v1/workflows/${workflowId}`);
         return response.data;
     }
-    async getResolvedPipelineConfig(pipelineId, showLayers = false) {
+    async getResolvedWorkflowConfig(workflowId, showLayers = false) {
         const suffix = showLayers ? '?show_layers=true' : '';
-        const response = await this.request(`/api/v1/pipelines/${pipelineId}/config/resolved${suffix}`);
+        const response = await this.request(`/api/v1/workflows/${workflowId}/config/resolved${suffix}`);
         return response.data;
     }
-    async listPipelineDocuments(pipelineId) {
-        const response = await this.request(`/api/v1/pipelines/${pipelineId}/documents`);
+    async listWorkflowDocuments(workflowId) {
+        const response = await this.request(`/api/v1/workflows/${workflowId}/documents`);
         return response.data;
     }
-    async createPipeline(payload) {
-        const response = await this.request('/api/v1/pipelines', {
+    async createWorkflow(payload) {
+        const response = await this.request('/api/v1/workflows', {
             method: 'POST',
             body: payload,
         });
         return response.data;
     }
-    async cancelPipeline(pipelineId) {
-        const response = await this.request(`/api/v1/pipelines/${pipelineId}/cancel`, {
+    async cancelWorkflow(workflowId) {
+        const response = await this.request(`/api/v1/workflows/${workflowId}/cancel`, {
             method: 'POST',
         });
         return response.data;
     }
-    async actOnPhaseGate(pipelineId, phaseName, payload) {
-        const response = await this.request(`/api/v1/pipelines/${pipelineId}/phases/${phaseName}/gate`, {
+    async actOnPhaseGate(workflowId, phaseName, payload) {
+        const response = await this.request(`/api/v1/workflows/${workflowId}/phases/${phaseName}/gate`, {
             method: 'POST',
             body: payload,
         });
         return response.data;
     }
-    async cancelPhase(pipelineId, phaseName) {
-        const response = await this.request(`/api/v1/pipelines/${pipelineId}/phases/${phaseName}/cancel`, {
+    async cancelPhase(workflowId, phaseName) {
+        const response = await this.request(`/api/v1/workflows/${workflowId}/phases/${phaseName}/cancel`, {
             method: 'POST',
         });
         return response.data;
@@ -131,8 +131,8 @@ export class PlatformApiClient {
         const response = await this.request(`/api/v1/projects/${projectId}/timeline`);
         return response.data;
     }
-    async createPlanningPipeline(projectId, payload) {
-        const response = await this.request(`/api/v1/projects/${projectId}/planning-pipeline`, {
+    async createPlanningWorkflow(projectId, payload) {
+        const response = await this.request(`/api/v1/projects/${projectId}/planning-workflow`, {
             method: 'POST',
             body: payload,
         });

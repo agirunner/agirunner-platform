@@ -41,7 +41,7 @@ const signalSchema = z.object({
 const nextTaskSchema = z.object({
   agent_id: z.string().uuid().optional(),
   capabilities: z.array(z.string().min(1)).optional(),
-  pipeline_id: z.string().uuid().optional(),
+  workflow_id: z.string().uuid().optional(),
   include_context: z.boolean().optional(),
 });
 
@@ -133,7 +133,7 @@ export const workerRoutes: FastifyPluginAsync = async (app) => {
         (Array.isArray(worker.capabilities)
           ? worker.capabilities.map((capability: unknown) => String(capability))
           : []),
-      pipeline_id: body.pipeline_id,
+      workflow_id: body.workflow_id,
       include_context: body.include_context,
     });
 

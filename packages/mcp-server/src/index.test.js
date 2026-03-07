@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { McpStdioServer, createMessageProcessor } from './index.js';
 function createClient() {
     return {
@@ -7,12 +7,15 @@ function createClient() {
         createTask: vi.fn().mockResolvedValue({ id: 'task-created' }),
         claimTask: vi.fn().mockResolvedValue({ id: 'task-claimed' }),
         completeTask: vi.fn().mockResolvedValue({ id: 'task-completed' }),
-        listPipelines: vi.fn().mockResolvedValue([{ id: 'pipe-1' }]),
-        createPipeline: vi.fn().mockResolvedValue({ id: 'pipe-created' }),
-        cancelPipeline: vi.fn().mockResolvedValue({ id: 'pipe-cancelled' }),
+        listWorkflows: vi.fn().mockResolvedValue([{ id: 'pipe-1' }]),
+        createWorkflow: vi.fn().mockResolvedValue({ id: 'pipe-created' }),
+        cancelWorkflow: vi.fn().mockResolvedValue({ id: 'pipe-cancelled' }),
     };
 }
 describe('McpStdioServer', () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
     it('lists tools via tools/list', async () => {
         const response = await new McpStdioServer(createClient()).handle({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
         expect(response.error).toBeUndefined();
@@ -24,9 +27,9 @@ describe('McpStdioServer', () => {
         { name: 'create_task', args: { title: 'Do work', type: 'code' }, method: 'createTask' },
         { name: 'claim_task', args: { agent_id: 'agent-1', capabilities: ['ts'] }, method: 'claimTask' },
         { name: 'complete_task', args: { id: 'task-1', output: { ok: true } }, method: 'completeTask' },
-        { name: 'list_pipelines', args: { state: 'active' }, method: 'listPipelines' },
-        { name: 'create_pipeline', args: { template_id: 'tpl-1', name: 'Pipe' }, method: 'createPipeline' },
-        { name: 'cancel_pipeline', args: { id: 'pipe-1' }, method: 'cancelPipeline' },
+        { name: 'list_workflows', args: { state: 'active' }, method: 'listWorkflows' },
+        { name: 'create_workflow', args: { template_id: 'tpl-1', name: 'Pipe' }, method: 'createWorkflow' },
+        { name: 'cancel_workflow', args: { id: 'pipe-1' }, method: 'cancelWorkflow' },
     ])('executes %s handler and returns structured content', async ({ name, args, method }) => {
         const client = createClient();
         const server = new McpStdioServer(client);
@@ -48,8 +51,8 @@ describe('McpStdioServer', () => {
         { name: 'create_task', args: { type: 'code' }, missing: 'title' },
         { name: 'claim_task', args: {}, missing: 'agent_id' },
         { name: 'complete_task', args: { output: {} }, missing: 'id' },
-        { name: 'create_pipeline', args: { template_id: 'tpl-1' }, missing: 'name' },
-        { name: 'cancel_pipeline', args: {}, missing: 'id' },
+        { name: 'create_workflow', args: { template_id: 'tpl-1' }, missing: 'name' },
+        { name: 'cancel_workflow', args: {}, missing: 'id' },
     ])('returns invalid params for %s when required params are missing', async ({ name, args, missing }) => {
         const response = await new McpStdioServer(createClient()).handle({
             jsonrpc: '2.0',
@@ -63,7 +66,7 @@ describe('McpStdioServer', () => {
     it.each([
         { tool: 'get_task', args: { id: 'missing' }, error: 'HTTP 404: not found' },
         { tool: 'create_task', args: { title: 'x', type: 'code' }, error: 'HTTP 401: unauthorized' },
-        { tool: 'cancel_pipeline', args: { id: 'missing' }, error: 'HTTP 404: not found' },
+        { tool: 'cancel_workflow', args: { id: 'missing' }, error: 'HTTP 404: not found' },
     ])('surfaces tool execution errors for %s', async ({ tool, args, error }) => {
         const client = createClient();
         if (tool === 'get_task') {
@@ -72,8 +75,8 @@ describe('McpStdioServer', () => {
         if (tool === 'create_task') {
             client.createTask.mockRejectedValueOnce(new Error(error));
         }
-        if (tool === 'cancel_pipeline') {
-            client.cancelPipeline.mockRejectedValueOnce(new Error(error));
+        if (tool === 'cancel_workflow') {
+            client.cancelWorkflow.mockRejectedValueOnce(new Error(error));
         }
         const response = await new McpStdioServer(client).handle({
             jsonrpc: '2.0',
@@ -117,12 +120,15 @@ describe('McpStdioServer', () => {
         }));
     });
     it('does not crash when onMessage rejects — returns parse error instead', async () => {
+        vi.useFakeTimers();
         const malformedSpy = vi.fn();
-        const processor = createMessageProcessor(async () => { throw new Error('boom'); }, malformedSpy);
+        const processor = createMessageProcessor(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 5));
+            throw new Error('boom');
+        }, malformedSpy);
         const validBody = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
         processor(Buffer.from(`Content-Length: ${validBody.length}\r\n\r\n${validBody}`));
-        // Allow the microtask (promise rejection handler) to run
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        await vi.advanceTimersByTimeAsync(5);
         expect(malformedSpy).toHaveBeenCalledWith(expect.objectContaining({
             jsonrpc: '2.0',
             id: null,

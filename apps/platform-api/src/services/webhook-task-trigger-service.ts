@@ -17,7 +17,7 @@ interface TriggerRow {
   name: string;
   source: string;
   project_id: string | null;
-  pipeline_id: string | null;
+  workflow_id: string | null;
   event_header: string | null;
   event_types: string[] | null;
   signature_header: string;
@@ -44,7 +44,7 @@ export interface CreateWebhookTaskTriggerInput {
   name: string;
   source: string;
   project_id?: string;
-  pipeline_id?: string;
+  workflow_id?: string;
   event_header?: string;
   event_types?: string[];
   signature_header: string;
@@ -59,7 +59,7 @@ export interface UpdateWebhookTaskTriggerInput {
   name?: string;
   source?: string;
   project_id?: string | null;
-  pipeline_id?: string | null;
+  workflow_id?: string | null;
   event_header?: string | null;
   event_types?: string[];
   signature_header?: string;
@@ -79,7 +79,7 @@ interface NormalizedInvocation {
     priority?: TaskPriority;
     description?: string;
     role?: string;
-    pipeline_id?: string;
+    workflow_id?: string;
     project_id?: string;
     metadata?: Record<string, unknown>;
     input?: Record<string, unknown>;
@@ -110,7 +110,7 @@ export class WebhookTaskTriggerService {
     const normalized = await this.normalizeTriggerInput(identity.tenantId, input);
     const result = await this.pool.query<TriggerRow>(
       `INSERT INTO webhook_task_triggers (
-         tenant_id, name, source, project_id, pipeline_id, event_header, event_types,
+         tenant_id, name, source, project_id, workflow_id, event_header, event_types,
          signature_header, signature_mode, secret, field_mappings, defaults, is_active
        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13)
        RETURNING *`,
@@ -119,7 +119,7 @@ export class WebhookTaskTriggerService {
         normalized.name,
         normalized.source,
         normalized.project_id,
-        normalized.pipeline_id,
+        normalized.workflow_id,
         normalized.event_header,
         normalized.event_types,
         normalized.signature_header,
@@ -134,8 +134,8 @@ export class WebhookTaskTriggerService {
     await this.eventService.emit({
       tenantId: identity.tenantId,
       type: 'trigger.created',
-      entityType: 'pipeline',
-      entityId: normalized.pipeline_id ?? normalized.project_id ?? result.rows[0].id,
+      entityType: 'workflow',
+      entityId: normalized.workflow_id ?? normalized.project_id ?? result.rows[0].id,
       actorType: identity.scope,
       actorId: identity.keyPrefix,
       data: { trigger_id: result.rows[0].id, source: normalized.source },
@@ -150,7 +150,7 @@ export class WebhookTaskTriggerService {
       name: input.name ?? current.name,
       source: input.source ?? current.source,
       project_id: input.project_id === undefined ? current.project_id : input.project_id,
-      pipeline_id: input.pipeline_id === undefined ? current.pipeline_id : input.pipeline_id,
+      workflow_id: input.workflow_id === undefined ? current.workflow_id : input.workflow_id,
       event_header: input.event_header === undefined ? current.event_header : input.event_header,
       event_types: input.event_types ?? current.event_types ?? [],
       signature_header: input.signature_header ?? current.signature_header,
@@ -162,7 +162,7 @@ export class WebhookTaskTriggerService {
       defaults: input.defaults ?? current.defaults ?? {},
       is_active: input.is_active ?? current.is_active,
     };
-    await this.assertScopeTargets(tenantId, merged.project_id ?? undefined, merged.pipeline_id ?? undefined);
+    await this.assertScopeTargets(tenantId, merged.project_id ?? undefined, merged.workflow_id ?? undefined);
     validateTriggerDefinition(merged);
 
     const result = await this.pool.query<TriggerRow>(
@@ -170,7 +170,7 @@ export class WebhookTaskTriggerService {
           SET name = $3,
               source = $4,
               project_id = $5,
-              pipeline_id = $6,
+              workflow_id = $6,
               event_header = $7,
               event_types = $8,
               signature_header = $9,
@@ -189,7 +189,7 @@ export class WebhookTaskTriggerService {
         merged.name,
         merged.source,
         merged.project_id,
-        merged.pipeline_id,
+        merged.workflow_id,
         merged.event_header,
         merged.event_types,
         merged.signature_header,
@@ -310,12 +310,12 @@ export class WebhookTaskTriggerService {
   }
 
   private async normalizeTriggerInput(tenantId: string, input: CreateWebhookTaskTriggerInput) {
-    await this.assertScopeTargets(tenantId, input.project_id, input.pipeline_id);
+    await this.assertScopeTargets(tenantId, input.project_id, input.workflow_id);
     const normalized = {
       name: input.name.trim(),
       source: input.source.trim(),
       project_id: input.project_id ?? null,
-      pipeline_id: input.pipeline_id ?? null,
+      workflow_id: input.workflow_id ?? null,
       event_header: input.event_header?.trim() || null,
       event_types: input.event_types ?? [],
       signature_header: input.signature_header.trim(),
@@ -332,10 +332,10 @@ export class WebhookTaskTriggerService {
   private async assertScopeTargets(
     tenantId: string,
     projectId?: string | null,
-    pipelineId?: string | null,
+    workflowId?: string | null,
   ) {
-    if (!projectId && !pipelineId) {
-      throw new ValidationError('Webhook task triggers must target a project or pipeline');
+    if (!projectId && !workflowId) {
+      throw new ValidationError('Webhook task triggers must target a project or workflow');
     }
 
     if (projectId) {
@@ -348,16 +348,16 @@ export class WebhookTaskTriggerService {
       }
     }
 
-    if (pipelineId) {
-      const pipeline = await this.pool.query<{ project_id: string | null }>(
-        'SELECT project_id FROM pipelines WHERE tenant_id = $1 AND id = $2',
-        [tenantId, pipelineId],
+    if (workflowId) {
+      const workflow = await this.pool.query<{ project_id: string | null }>(
+        'SELECT project_id FROM workflows WHERE tenant_id = $1 AND id = $2',
+        [tenantId, workflowId],
       );
-      if (!pipeline.rowCount) {
-        throw new NotFoundError('Pipeline not found');
+      if (!workflow.rowCount) {
+        throw new NotFoundError('Workflow not found');
       }
-      if (projectId && pipeline.rows[0].project_id !== projectId) {
-        throw new ValidationError('Pipeline and project targets must belong to the same project scope');
+      if (projectId && workflow.rows[0].project_id !== projectId) {
+        throw new ValidationError('Workflow and project targets must belong to the same project scope');
       }
     }
   }
@@ -428,7 +428,7 @@ function toPublicTrigger(row: TriggerRow) {
     name: row.name,
     source: row.source,
     project_id: row.project_id,
-    pipeline_id: row.pipeline_id,
+    workflow_id: row.workflow_id,
     event_header: row.event_header,
     event_types: row.event_types ?? [],
     signature_header: row.signature_header,
@@ -512,7 +512,7 @@ function buildTriggeredTask(
       ...(priority ? { priority } : {}),
       ...(description ? { description } : {}),
       ...(role ? { role } : {}),
-      ...(trigger.pipeline_id ? { pipeline_id: trigger.pipeline_id } : {}),
+      ...(trigger.workflow_id ? { workflow_id: trigger.workflow_id } : {}),
       ...(trigger.project_id ? { project_id: trigger.project_id } : {}),
       ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
       ...(Object.keys(input).length > 0 ? { input } : {}),

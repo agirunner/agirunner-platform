@@ -14,8 +14,8 @@ import type { ScenarioDeliveryEvidence, ScenarioExecutionResult } from './types.
 
 function makeEvidence(overrides?: Partial<ScenarioDeliveryEvidence>): ScenarioDeliveryEvidence {
   return {
-    pipelineId: 'pipeline-1',
-    pipelineState: 'completed',
+    workflowId: 'workflow-1',
+    workflowState: 'completed',
     acceptanceCriteria: ['All tasks completed with concrete outputs'],
     requiresGitDiffEvidence: true,
     tasks: [
@@ -38,7 +38,7 @@ function makeResult(overrides?: Partial<ScenarioExecutionResult>): ScenarioExecu
     name: 'scenario',
     costUsd: 0,
     artifacts: [],
-    validations: ['pipeline_completed'],
+    validations: ['workflow_completed'],
     screenshots: [],
     authenticityEvidence: [makeEvidence()],
     ...overrides,
@@ -47,8 +47,8 @@ function makeResult(overrides?: Partial<ScenarioExecutionResult>): ScenarioExecu
 
 function makeAp7Evidence(): ScenarioDeliveryEvidence {
   return {
-    pipelineId: 'pipeline-ap7',
-    pipelineState: 'active',
+    workflowId: 'workflow-ap7',
+    workflowState: 'active',
     acceptanceCriteria: ['AP-7 resilience + delivery quality split evidence'],
     requiresGitDiffEvidence: false,
     tasks: [
@@ -70,8 +70,8 @@ function makeAp7Evidence(): ScenarioDeliveryEvidence {
 
 function makeAp2SyntheticEvidence(overrides?: Partial<ScenarioDeliveryEvidence>): ScenarioDeliveryEvidence {
   return {
-    pipelineId: 'pipeline-ap2',
-    pipelineState: 'completed',
+    workflowId: 'workflow-ap2',
+    workflowState: 'completed',
     acceptanceCriteria: ['Deterministic synthetic signature checks for AP-2'],
     requiresGitDiffEvidence: false,
     tasks: [
@@ -84,7 +84,7 @@ function makeAp2SyntheticEvidence(overrides?: Partial<ScenarioDeliveryEvidence>)
           handled_by: 'ap2-external-worker',
           role: 'architect',
           task_id: 'ap2-task-1',
-          pipeline_id: 'pipeline-ap2',
+          workflow_id: 'workflow-ap2',
         },
       },
     ],
@@ -239,7 +239,7 @@ test('deterministic validator rejects AP-2 synthetic signatures with mismatched 
           handled_by: 'ap2-unexpected-worker',
           role: 'architect',
           task_id: 'ap2-task-1',
-          pipeline_id: 'pipeline-ap2',
+          workflow_id: 'workflow-ap2',
         },
       },
     ],
@@ -270,7 +270,7 @@ test('ap7 deterministic resilience validator rejects forbidden no_failure_within
       name: 'ap7-failure-recovery',
       validations: [
         'template_created',
-        'pipeline_created',
+        'workflow_created',
         'resilience_no_hang_within_timeout',
         'resilience_failed_task_observed',
         'resilience_retry_control_invoked',
@@ -305,7 +305,7 @@ test('authenticity gate separates resilience and delivery-quality outcomes for A
       name: 'ap7-failure-recovery',
       validations: [
         'template_created',
-        'pipeline_created',
+        'workflow_created',
         'resilience_no_hang_within_timeout',
         'resilience_failed_task_observed',
         'resilience_retry_control_invoked',
@@ -342,7 +342,7 @@ test('llm validator fails closed when provider credentials are unavailable', asy
   const llm = await runLlmAuthenticityValidator('sdlc-happy', deterministic, [
     {
       ref: 'task:t1:output',
-      location: 'pipeline-1.tasks.t1.output',
+      location: 'workflow-1.tasks.t1.output',
       text: 'diff --git a/src/app.js b/src/app.js',
     },
   ]);
@@ -406,22 +406,22 @@ test('llm validator normalizes known deterministic evidence-ref aliases before f
       summary: 'Grounded output with concrete evidence.',
       checks: [
         {
-          checkId: 'acceptance-structure.pipeline',
+          checkId: 'acceptance-structure.workflow',
           status: 'PASS',
-          rationale: 'Pipeline reached completed state.',
-          evidenceRefs: ['pipeline:pipeline-1'],
+          rationale: 'Workflow reached completed state.',
+          evidenceRefs: ['workflow:workflow-1'],
         },
         {
           checkId: 'placeholder-rejection.output-markers',
           status: 'PASS',
           rationale: 'No placeholders detected.',
-          evidenceRefs: ['placeholder-rejection.*:pipeline-1'],
+          evidenceRefs: ['placeholder-rejection.*:workflow-1'],
         },
         {
           checkId: 'git-diff-linkage',
           status: 'PASS',
           rationale: 'Code diff evidence is present.',
-          evidenceRefs: ['git-diff-linkage:pipeline-1'],
+          evidenceRefs: ['git-diff-linkage:workflow-1'],
         },
       ],
       missingEvidenceRefs: [],
@@ -445,20 +445,20 @@ test('llm validator normalizes known deterministic evidence-ref aliases before f
 
     const llm = await runLlmAuthenticityValidator('sdlc-happy', deterministic, [
       {
-        ref: 'pipeline:pipeline-1:state',
-        location: 'pipeline-1.state',
+        ref: 'workflow:workflow-1:state',
+        location: 'workflow-1.state',
         text: 'completed',
       },
       {
         ref: 'task:t1:output',
-        location: 'pipeline-1.tasks.t1.output',
+        location: 'workflow-1.tasks.t1.output',
         text: 'diff --git a/src/app.js b/src/app.js',
       },
     ]);
 
     assert.equal(llm.status, 'PASS');
     const normalizedRefs = llm.output?.verdict.checks.flatMap((check) => check.evidenceRefs) ?? [];
-    assert.ok(normalizedRefs.includes('pipeline:pipeline-1:state'));
+    assert.ok(normalizedRefs.includes('workflow:workflow-1:state'));
     assert.ok(normalizedRefs.includes('task:t1:output'));
   } finally {
     if (prevOpenAiKey === undefined) delete process.env.OPENAI_API_KEY;
@@ -524,18 +524,18 @@ test('llm validator normalizes bare task refs to canonical refs when check seman
 
     const llm = await runLlmAuthenticityValidator('sdlc-happy', deterministic, [
       {
-        ref: 'pipeline:pipeline-1:state',
-        location: 'pipeline-1.state',
+        ref: 'workflow:workflow-1:state',
+        location: 'workflow-1.state',
         text: 'completed',
       },
       {
         ref: 'task:t1:state',
-        location: 'pipeline-1.tasks.t1.state',
+        location: 'workflow-1.tasks.t1.state',
         text: 'completed',
       },
       {
         ref: 'task:t1:output',
-        location: 'pipeline-1.tasks.t1.output',
+        location: 'workflow-1.tasks.t1.output',
         text: 'diff --git a/src/app.js b/src/app.js',
       },
     ]);
@@ -606,12 +606,12 @@ test('llm validator normalizes malformed task uuid refs to canonical task eviden
     const llm = await runLlmAuthenticityValidator('sdlc-happy', deterministic, [
       {
         ref: `task:${canonicalTaskId}:state`,
-        location: `pipeline-1.tasks.${canonicalTaskId}.state`,
+        location: `workflow-1.tasks.${canonicalTaskId}.state`,
         text: 'completed',
       },
       {
         ref: `task:${canonicalTaskId}:output`,
-        location: `pipeline-1.tasks.${canonicalTaskId}.output`,
+        location: `workflow-1.tasks.${canonicalTaskId}.output`,
         text: 'diff --git a/src/app.js b/src/app.js',
       },
     ]);
@@ -677,18 +677,18 @@ test('llm validator keeps fail-closed behavior for ambiguous bare task refs when
 
     const llm = await runLlmAuthenticityValidator('sdlc-happy', deterministic, [
       {
-        ref: 'pipeline:pipeline-1:state',
-        location: 'pipeline-1.state',
+        ref: 'workflow:workflow-1:state',
+        location: 'workflow-1.state',
         text: 'completed',
       },
       {
         ref: 'task:t1:state',
-        location: 'pipeline-1.tasks.t1.state',
+        location: 'workflow-1.tasks.t1.state',
         text: 'completed',
       },
       {
         ref: 'task:t1:output',
-        location: 'pipeline-1.tasks.t1.output',
+        location: 'workflow-1.tasks.t1.output',
         text: 'diff --git a/src/app.js b/src/app.js',
       },
     ]);
@@ -753,8 +753,8 @@ test('llm validator remains fail-closed for truly unmappable evidence refs', asy
 
     const llm = await runLlmAuthenticityValidator('sdlc-happy', deterministic, [
       {
-        ref: 'pipeline:pipeline-1:state',
-        location: 'pipeline-1.state',
+        ref: 'workflow:workflow-1:state',
+        location: 'workflow-1.state',
         text: 'completed',
       },
     ]);

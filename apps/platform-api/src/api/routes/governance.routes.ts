@@ -53,12 +53,12 @@ export const governanceRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.put(
-    '/api/v1/governance/legal-holds/pipelines/:id',
+    '/api/v1/governance/legal-holds/workflows/:id',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(legalHoldSchema.safeParse(request.body ?? {}));
-      return { data: await governanceService.setPipelineLegalHold(request.auth!, params.id, body.enabled) };
+      return { data: await governanceService.setWorkflowLegalHold(request.auth!, params.id, body.enabled) };
     },
   );
 };

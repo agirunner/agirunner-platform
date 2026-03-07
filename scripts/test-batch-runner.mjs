@@ -83,7 +83,7 @@ function needsWorkspaceInstall() {
 
   const probe = spawnSync(
     'pnpm',
-    ['--filter', '@agentbaton/test-utils', 'exec', 'vitest', '--version'],
+    ['--filter', '@agirunner/test-utils', 'exec', 'vitest', '--version'],
     {
       cwd: ROOT,
       stdio: 'ignore',
@@ -282,7 +282,7 @@ export async function buildStages(defaults, options, runId, reportDir, probes = 
         LIVE_ARTIFACTS_ROOT: stage.artifacts.laneArtifactsRoot,
         LIVE_REPORTS_RESULTS_PATH: stage.artifacts.laneResultsPath,
         LIVE_BUILD_CACHE_PATH: path.join(reportDir, 'compose-build-fingerprint.v1.json'),
-        LIVE_TMP_PREFIX: `/tmp/agentbaton-live-${slug(runId)}-${safeStageId}-`,
+        LIVE_TMP_PREFIX: `/tmp/agirunner-live-${slug(runId)}-${safeStageId}-`,
       });
     }
 
@@ -314,7 +314,7 @@ export async function buildStages(defaults, options, runId, reportDir, probes = 
         DASHBOARD_PORT: String(ports.dashboard),
         LIVE_API_BASE_URL: `http://127.0.0.1:${ports.platformApi}`,
         LIVE_DASHBOARD_BASE_URL: `http://127.0.0.1:${ports.dashboard}`,
-        LIVE_POSTGRES_URL: `postgresql://agentbaton:agentbaton@127.0.0.1:${ports.postgres}/agentbaton`,
+        LIVE_POSTGRES_URL: `postgresql://agirunner:agirunner@127.0.0.1:${ports.postgres}/agirunner`,
         VITE_PLATFORM_API_URL: `http://127.0.0.1:${ports.platformApi}`,
         AGENT_API_URL: explicitAgentApiUrl || defaultAgentApiUrl,
         RATE_LIMIT_MAX_PER_MINUTE: process.env.RATE_LIMIT_MAX_PER_MINUTE || '1000',

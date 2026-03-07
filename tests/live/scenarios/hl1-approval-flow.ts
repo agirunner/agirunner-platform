@@ -1,6 +1,6 @@
 import type { LiveContext, ScenarioExecutionResult } from '../harness/types.js';
 import { loadConfig } from '../config.js';
-import { pollPipelineUntil } from './poll.js';
+import { pollWorkflowUntil } from './poll.js';
 import { createTenantBootstrap, registerWorkerAgent } from './tenant.js';
 
 const config = loadConfig();
@@ -49,17 +49,17 @@ export async function runHl1ApprovalFlow(live: LiveContext): Promise<ScenarioExe
     });
     validations.push('approval_template_created');
 
-    const pipeline = await tenant.adminClient.createPipeline({
+    const workflow = await tenant.adminClient.createWorkflow({
       template_id: template.id,
       name: `HL-1 approve path ${live.runId}`,
     });
-    validations.push('approval_pipeline_created');
+    validations.push('approval_workflow_created');
 
     const first = await registered.agentClient.claimTask({
       agent_id: registered.agentId,
       worker_id: registered.workerId,
       capabilities: ['llm-api', 'role:developer'],
-      pipeline_id: pipeline.id,
+      workflow_id: workflow.id,
     });
     if (!first) throw new Error('Expected developer task to be claimable for HL-1');
 
@@ -70,11 +70,11 @@ export async function runHl1ApprovalFlow(live: LiveContext): Promise<ScenarioExe
     });
     validations.push('developer_task_completed');
 
-    const paused = await pollPipelineUntil(
+    const paused = await pollWorkflowUntil(
       tenant.adminClient,
-      pipeline.id,
+      workflow.id,
       ['paused', 'running', 'failed', 'completed'],
-      config.pipelineTimeoutMs,
+      config.workflowTimeoutMs,
     );
     const approvalTask = (paused.tasks ?? []).find((task) => task.role === 'reviewer');
     if (!approvalTask) {
@@ -94,7 +94,7 @@ export async function runHl1ApprovalFlow(live: LiveContext): Promise<ScenarioExe
       agent_id: registered.agentId,
       worker_id: registered.workerId,
       capabilities: ['llm-api', 'role:reviewer'],
-      pipeline_id: pipeline.id,
+      workflow_id: workflow.id,
     });
     if (!review) throw new Error('HL-1 expected reviewer task to become claimable after approval');
 
@@ -104,18 +104,18 @@ export async function runHl1ApprovalFlow(live: LiveContext): Promise<ScenarioExe
       role: 'reviewer',
     });
 
-    const completed = await pollPipelineUntil(
+    const completed = await pollWorkflowUntil(
       tenant.adminClient,
-      pipeline.id,
+      workflow.id,
       ['completed', 'failed'],
-      config.pipelineTimeoutMs,
+      config.workflowTimeoutMs,
     );
     if (completed.state !== 'completed') {
-      throw new Error(`HL-1 expected completed pipeline after approve path, got ${completed.state}`);
+      throw new Error(`HL-1 expected completed workflow after approve path, got ${completed.state}`);
     }
-    validations.push('approval_pipeline_completed');
+    validations.push('approval_workflow_completed');
 
-    const rejectPipeline = await tenant.adminClient.createPipeline({
+    const rejectWorkflow = await tenant.adminClient.createWorkflow({
       template_id: template.id,
       name: `HL-1 retry path ${live.runId}`,
     });
@@ -124,7 +124,7 @@ export async function runHl1ApprovalFlow(live: LiveContext): Promise<ScenarioExe
       agent_id: registered.agentId,
       worker_id: registered.workerId,
       capabilities: ['llm-api', 'role:developer'],
-      pipeline_id: rejectPipeline.id,
+      workflow_id: rejectWorkflow.id,
     });
     if (!rejectFirst) throw new Error('Expected developer task in retry path');
 
@@ -134,11 +134,11 @@ export async function runHl1ApprovalFlow(live: LiveContext): Promise<ScenarioExe
       role: 'developer',
     });
 
-    const rejectPaused = await pollPipelineUntil(
+    const rejectPaused = await pollWorkflowUntil(
       tenant.adminClient,
-      rejectPipeline.id,
+      rejectWorkflow.id,
       ['paused', 'running', 'failed', 'completed'],
-      config.pipelineTimeoutMs,
+      config.workflowTimeoutMs,
     );
     const rejectTask = (rejectPaused.tasks ?? []).find((task) => task.role === 'reviewer');
     if (!rejectTask) throw new Error('HL-1 retry path missing reviewer task');
@@ -149,7 +149,7 @@ export async function runHl1ApprovalFlow(live: LiveContext): Promise<ScenarioExe
       agent_id: registered.agentId,
       worker_id: registered.workerId,
       capabilities: ['llm-api', 'role:reviewer'],
-      pipeline_id: rejectPipeline.id,
+      workflow_id: rejectWorkflow.id,
     });
     if (!failingReview) throw new Error('HL-1 retry path expected reviewer task to become claimable');
 

@@ -44,7 +44,7 @@ export interface DigestDiffRow {
 export function createInitialCustomizationDraft(): RuntimeCustomizationDraft {
   return {
     template: 'node',
-    baseImage: 'ghcr.io/agentbaton/runtime@sha256:base',
+    baseImage: 'ghcr.io/agirunner/runtime@sha256:base',
     aptPackages: '',
     npmGlobalPackages: '',
     pipPackages: '',

@@ -139,7 +139,7 @@ export async function bootstrapAgentApiEndpoint(params: {
 
 function usesBuiltInWorker(scenarios: readonly string[]): boolean {
   const builtInScenarios = new Set([
-    'ap1-sdlc-pipeline',
+    'ap1-sdlc-workflow',
     'ap3-standalone-worker',
     'ap5-full',
     'ap7-failure-recovery',
@@ -417,7 +417,7 @@ function executeDeterministically(payload: ExecutorRequest): Record<string, unkn
   return {
     scenario,
     task_id: payload.task_id ?? 'unknown-task',
-    pipeline_id: derivePipelineId(payload),
+    workflow_id: deriveWorkflowId(payload),
     role,
     handled_by: 'ap-deterministic-harness-executor',
     execution_mode: 'deterministic-agent-api',
@@ -489,7 +489,7 @@ async function executeWithOpenAi(
 ): Promise<Record<string, unknown>> {
   const role = deriveRole(payload);
   const prompt = [
-    'You are executing one SDLC task inside an autonomous software delivery pipeline.',
+    'You are executing one SDLC task inside an autonomous software delivery workflow.',
     'Return strict JSON only.',
     'Be concrete, implementation-focused, and evidence-backed.',
     'Do not use placeholders, TODOs, or template language.',
@@ -515,7 +515,7 @@ async function executeWithOpenAi(
         {
           role: 'system',
           content:
-            'You are an autonomous software engineer returning structured JSON task outputs for a pipeline worker.',
+            'You are an autonomous software engineer returning structured JSON task outputs for a workflow worker.',
         },
         {
           role: 'user',
@@ -607,7 +607,7 @@ async function executeWithOpenAi(
   return {
     scenario: deriveScenario(payload),
     task_id: payload.task_id ?? 'unknown-task',
-    pipeline_id: derivePipelineId(payload),
+    workflow_id: deriveWorkflowId(payload),
     role,
     handled_by: 'ap-live-harness-executor',
     execution_mode: 'live-agent-api',
@@ -645,16 +645,16 @@ function deriveScenario(payload: ExecutorRequest): string {
   return 'sdlc-happy';
 }
 
-function derivePipelineId(payload: ExecutorRequest): string | null {
+function deriveWorkflowId(payload: ExecutorRequest): string | null {
   const context = payload.context ?? {};
-  if (typeof context.pipeline_id === 'string' && context.pipeline_id.trim()) {
-    return context.pipeline_id;
+  if (typeof context.workflow_id === 'string' && context.workflow_id.trim()) {
+    return context.workflow_id;
   }
 
-  if (context.pipeline && typeof context.pipeline === 'object') {
-    const pipeline = context.pipeline as Record<string, unknown>;
-    if (typeof pipeline.id === 'string' && pipeline.id.trim()) {
-      return pipeline.id;
+  if (context.workflow && typeof context.workflow === 'object') {
+    const workflow = context.workflow as Record<string, unknown>;
+    if (typeof workflow.id === 'string' && workflow.id.trim()) {
+      return workflow.id;
     }
   }
 

@@ -5,7 +5,7 @@ interface EventFilters {
   entityTypes?: string[];
   entityId?: string;
   projectId?: string;
-  pipelineId?: string;
+  workflowId?: string;
 }
 
 export interface StreamEvent {
@@ -36,7 +36,7 @@ export class EventStreamService {
     }
 
     const client = await this.pool.connect();
-    await client.query('LISTEN agentbaton_events');
+    await client.query('LISTEN agirunner_events');
     client.on('notification', (msg) => {
       if (!msg.payload) {
         return;
@@ -51,7 +51,7 @@ export class EventStreamService {
       return;
     }
 
-    await this.listenerClient.query('UNLISTEN agentbaton_events');
+    await this.listenerClient.query('UNLISTEN agirunner_events');
     this.listenerClient.release();
     this.listenerClient = null;
     this.subscribers.clear();
@@ -121,9 +121,9 @@ export class EventStreamService {
       }
     }
 
-    if (filters.pipelineId) {
-      const pipelineId = (event.data?.pipeline_id as string | undefined) ?? (event.entity_type === 'pipeline' ? event.entity_id : undefined);
-      if (pipelineId !== filters.pipelineId) {
+    if (filters.workflowId) {
+      const workflowId = (event.data?.workflow_id as string | undefined) ?? (event.entity_type === 'workflow' ? event.entity_id : undefined);
+      if (workflowId !== filters.workflowId) {
         return false;
       }
     }

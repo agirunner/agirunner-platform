@@ -31,7 +31,7 @@ export class McpStdioServer {
         }
     }
     initializePayload() {
-        return { protocolVersion: '2024-11-05', serverInfo: { name: 'agentbaton-mcp-server', version: '0.1.0' }, capabilities: { tools: {} } };
+        return { protocolVersion: '2024-11-05', serverInfo: { name: 'agirunner-mcp-server', version: '0.1.0' }, capabilities: { tools: {} } };
     }
     ok(id, result) {
         return { jsonrpc: '2.0', id: id ?? null, result };

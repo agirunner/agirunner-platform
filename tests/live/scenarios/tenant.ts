@@ -133,7 +133,7 @@ function createCleanup(tenantId: string): () => Promise<void> {
       // Cascade delete all tenant data
       await cleanupPool.query('DELETE FROM events WHERE tenant_id = $1', [tenantId]);
       await cleanupPool.query('DELETE FROM tasks WHERE tenant_id = $1', [tenantId]);
-      await cleanupPool.query('DELETE FROM pipelines WHERE tenant_id = $1', [tenantId]);
+      await cleanupPool.query('DELETE FROM workflows WHERE tenant_id = $1', [tenantId]);
       await cleanupPool.query('DELETE FROM templates WHERE tenant_id = $1', [tenantId]);
       await cleanupPool.query('DELETE FROM agents WHERE tenant_id = $1', [tenantId]);
       await cleanupPool.query('DELETE FROM workers WHERE tenant_id = $1', [tenantId]);

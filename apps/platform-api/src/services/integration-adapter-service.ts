@@ -29,7 +29,7 @@ import {
   deliverWebhookEvent,
   matchesSubscription,
   normalizeStoredWebhookConfig,
-  readPipelineId,
+  readWorkflowId,
   toPublicWebhookConfig,
   toWebhookDeliveryTarget,
   type DeliveryAttempt,
@@ -40,7 +40,7 @@ type IntegrationAdapterKind = 'webhook' | 'slack' | 'otlp_http' | 'github_issues
 interface IntegrationAdapterRow {
   id: string;
   tenant_id: string;
-  pipeline_id: string | null;
+  workflow_id: string | null;
   kind: IntegrationAdapterKind;
   config: Record<string, unknown>;
   subscriptions: string[] | null;
@@ -51,7 +51,7 @@ interface IntegrationAdapterRow {
 
 interface RegisterIntegrationAdapterInput {
   kind: IntegrationAdapterKind;
-  pipeline_id?: string;
+  workflow_id?: string;
   subscriptions?: string[];
   config: Record<string, unknown>;
 }
@@ -80,12 +80,12 @@ export class IntegrationAdapterService {
   async registerAdapter(identity: ApiKeyIdentity, input: RegisterIntegrationAdapterInput) {
     const config = this.normalizeStoredConfig(input.kind, {}, input.config);
     const result = await this.pool.query<IntegrationAdapterRow>(
-      `INSERT INTO integration_adapters (tenant_id, pipeline_id, kind, config, subscriptions, is_active)
+      `INSERT INTO integration_adapters (tenant_id, workflow_id, kind, config, subscriptions, is_active)
        VALUES ($1,$2,$3,$4::jsonb,$5,true)
        RETURNING *`,
       [
         identity.tenantId,
-        input.pipeline_id ?? null,
+        input.workflow_id ?? null,
         input.kind,
         config,
         input.subscriptions ?? [],
@@ -163,8 +163,8 @@ export class IntegrationAdapterService {
   }
 
   async deliverEvent(event: StreamEvent): Promise<void> {
-    const pipelineId = readPipelineId(event);
-    const rows = await this.listActiveRows(event.tenant_id, pipelineId);
+    const workflowId = readWorkflowId(event);
+    const rows = await this.listActiveRows(event.tenant_id, workflowId);
 
     for (const row of rows) {
       if (!matchesSubscription(event.type, row.subscriptions ?? [])) {
@@ -176,21 +176,21 @@ export class IntegrationAdapterService {
       }
 
       const deliveryId = await this.insertPendingDelivery(event.tenant_id, row.id, event.id);
-      const payload = await this.buildEventPayload(event, pipelineId, row.id);
+      const payload = await this.buildEventPayload(event, workflowId, row.id);
       const attempt = await this.deliverByKind(row, event, payload);
       await this.finishDelivery(deliveryId, attempt);
     }
   }
 
-  private async listActiveRows(tenantId: string, pipelineId: string | null): Promise<IntegrationAdapterRow[]> {
+  private async listActiveRows(tenantId: string, workflowId: string | null): Promise<IntegrationAdapterRow[]> {
     const result = await this.pool.query<IntegrationAdapterRow>(
       `SELECT *
          FROM integration_adapters
         WHERE tenant_id = $1
           AND is_active = true
-          AND ($2::uuid IS NULL OR pipeline_id IS NULL OR pipeline_id = $2)
+          AND ($2::uuid IS NULL OR workflow_id IS NULL OR workflow_id = $2)
         ORDER BY created_at ASC`,
-      [tenantId, pipelineId],
+      [tenantId, workflowId],
     );
     return result.rows;
   }
@@ -226,7 +226,7 @@ export class IntegrationAdapterService {
 
   private async buildEventPayload(
     event: StreamEvent,
-    pipelineId: string | null,
+    workflowId: string | null,
     adapterId: string,
   ): Promise<Record<string, unknown>> {
     const payload: Record<string, unknown> = {
@@ -237,7 +237,7 @@ export class IntegrationAdapterService {
       entity_id: event.entity_id,
       data: event.data,
       created_at: event.created_at,
-      pipeline_id: pipelineId,
+      workflow_id: workflowId,
     };
 
     if (this.shouldAttachApprovalActions(event)) {
@@ -302,7 +302,7 @@ export class IntegrationAdapterService {
   private toPublicAdapter(row: IntegrationAdapterRow) {
     return {
       id: row.id,
-      pipeline_id: row.pipeline_id,
+      workflow_id: row.workflow_id,
       kind: row.kind,
       subscriptions: row.subscriptions ?? [],
       is_active: row.is_active,
@@ -396,10 +396,10 @@ export class IntegrationAdapterService {
       type: string;
       state: string;
       priority: string;
-      pipeline_id: string | null;
+      workflow_id: string | null;
       input: Record<string, unknown> | null;
     }>(
-      `SELECT id, title, type, state, priority, pipeline_id, input
+      `SELECT id, title, type, state, priority, workflow_id, input
        FROM tasks
        WHERE tenant_id = $1 AND id = $2`,
       [tenantId, taskId],
@@ -416,7 +416,7 @@ export class IntegrationAdapterService {
       type: row.type,
       state: row.state,
       priority: row.priority,
-      pipelineId: row.pipeline_id,
+      workflowId: row.workflow_id,
       input: (row.input ?? {}) as Record<string, unknown>,
     };
   }

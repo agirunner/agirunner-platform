@@ -96,8 +96,8 @@ Used in v1.05 S3 to support private-registry publish + tarball fallback flow.
 
 ### What it does
 
-- Builds runtime image from a local runtime repository checkout (`../agentbaton-runtime` by default)
-- Tags runtime image for private registry (`registry.github.com/enterprise-private/agentbaton-runtime:<tag>`)
+- Builds runtime image from a local runtime repository checkout (`../agirunner-runtime` by default)
+- Tags runtime image for private registry (`registry.github.com/enterprise-private/agirunner-runtime:<tag>`)
 - Exports OCI tarball fallback under `dist/images/`
 - Writes JSON manifest with image/tar metadata
 

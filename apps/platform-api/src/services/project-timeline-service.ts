@@ -4,55 +4,55 @@ import { readStoredWorkflow, readWorkflowRuntimeState, deriveWorkflowView } from
 import { buildRunSummary, buildRunSummaryFallback } from './project-run-summary.js';
 
 const PROJECT_TIMELINE_KEY = 'project_timeline';
-const PROJECT_LAST_SUMMARY_KEY = 'last_pipeline_summary';
+const PROJECT_LAST_SUMMARY_KEY = 'last_workflow_summary';
 const PROJECT_RUN_SUMMARIES_KEY = 'run_summaries';
 const PROJECT_LAST_RUN_SUMMARY_KEY = 'last_run_summary';
 
 export class ProjectTimelineService {
   constructor(private readonly pool: DatabasePool) {}
 
-  async recordPipelineTerminalState(
+  async recordWorkflowTerminalState(
     tenantId: string,
-    pipelineId: string,
+    workflowId: string,
     client?: DatabaseClient,
   ) {
     const db = client ?? this.pool;
-    const pipelineResult = await db.query(
-      'SELECT * FROM pipelines WHERE tenant_id = $1 AND id = $2',
-      [tenantId, pipelineId],
+    const workflowResult = await db.query(
+      'SELECT * FROM workflows WHERE tenant_id = $1 AND id = $2',
+      [tenantId, workflowId],
     );
-    if (!pipelineResult.rowCount) {
+    if (!workflowResult.rowCount) {
       return null;
     }
-    const pipeline = pipelineResult.rows[0] as Record<string, unknown>;
-    if (!pipeline.project_id) {
+    const workflow = workflowResult.rows[0] as Record<string, unknown>;
+    if (!workflow.project_id) {
       return null;
     }
 
     const tasksResult = await db.query(
-      'SELECT * FROM tasks WHERE tenant_id = $1 AND pipeline_id = $2 ORDER BY created_at ASC',
-      [tenantId, pipelineId],
+      'SELECT * FROM tasks WHERE tenant_id = $1 AND workflow_id = $2 ORDER BY created_at ASC',
+      [tenantId, workflowId],
     );
     const tasks = tasksResult.rows.map((row) => row as Record<string, unknown>);
     const artifactsResult = await db.query(
       `SELECT id, task_id, logical_path, content_type, size_bytes, created_at
-         FROM pipeline_artifacts
+         FROM workflow_artifacts
         WHERE tenant_id = $1
-          AND pipeline_id = $2
+          AND workflow_id = $2
         ORDER BY created_at ASC`,
-      [tenantId, pipelineId],
+      [tenantId, workflowId],
     );
     const eventsResult = await db.query(
       `SELECT type, actor_type, actor_id, data, created_at
          FROM events
         WHERE tenant_id = $1
-          AND entity_type = 'pipeline'
+          AND entity_type = 'workflow'
           AND entity_id = $2
           AND type = ANY($3::text[])
         ORDER BY created_at ASC`,
       [
         tenantId,
-        pipelineId,
+        workflowId,
         [
           'phase.started',
           'phase.completed',
@@ -63,31 +63,31 @@ export class ProjectTimelineService {
         ],
       ],
     );
-    const summary = buildPipelineSummary(
-      pipeline,
+    const summary = buildWorkflowSummary(
+      workflow,
       tasks,
       artifactsResult.rows as Array<Record<string, unknown>>,
       eventsResult.rows as Array<Record<string, unknown>>,
     );
 
     await db.query(
-      `UPDATE pipelines
+      `UPDATE workflows
           SET metadata = metadata || $3::jsonb,
               updated_at = now()
         WHERE tenant_id = $1
           AND id = $2`,
-      [tenantId, pipelineId, { timeline_summary: summary, run_summary: summary }],
+      [tenantId, workflowId, { timeline_summary: summary, run_summary: summary }],
     );
 
     const projectResult = await db.query(
       'SELECT memory FROM projects WHERE tenant_id = $1 AND id = $2',
-      [tenantId, pipeline.project_id],
+      [tenantId, workflow.project_id],
     );
     const currentMemory = asRecord(projectResult.rows[0]?.memory);
     const existingTimeline = Array.isArray(currentMemory[PROJECT_TIMELINE_KEY])
       ? ([...(currentMemory[PROJECT_TIMELINE_KEY] as unknown[])] as Array<Record<string, unknown>>)
       : [];
-    const nextTimeline = [summary, ...existingTimeline.filter((entry) => entry.pipeline_id !== pipelineId)]
+    const nextTimeline = [summary, ...existingTimeline.filter((entry) => entry.workflow_id !== workflowId)]
       .sort((left, right) =>
         String(right.completed_at ?? right.created_at).localeCompare(
           String(left.completed_at ?? left.created_at),
@@ -104,7 +104,7 @@ export class ProjectTimelineService {
           AND id = $2`,
       [
         tenantId,
-        pipeline.project_id,
+        workflow.project_id,
         {
           ...currentMemory,
           [PROJECT_TIMELINE_KEY]: nextTimeline,
@@ -119,16 +119,16 @@ export class ProjectTimelineService {
   }
 
   async getProjectTimeline(tenantId: string, projectId: string) {
-    const pipelinesResult = await this.pool.query(
+    const workflowsResult = await this.pool.query(
       `SELECT id, name, state, started_at, completed_at, created_at, metadata
-         FROM pipelines
+         FROM workflows
         WHERE tenant_id = $1
           AND project_id = $2
         ORDER BY COALESCE(completed_at, created_at) DESC`,
       [tenantId, projectId],
     );
 
-    return pipelinesResult.rows.map((row) => {
+    return workflowsResult.rows.map((row) => {
       const metadata = asRecord(row.metadata);
       return (
         metadata.run_summary ??
@@ -139,20 +139,20 @@ export class ProjectTimelineService {
   }
 }
 
-function buildPipelineSummary(
-  pipeline: Record<string, unknown>,
+function buildWorkflowSummary(
+  workflowRow: Record<string, unknown>,
   tasks: Array<Record<string, unknown>>,
   artifacts: Array<Record<string, unknown>>,
   events: Array<Record<string, unknown>>,
 ) {
-  const metadata = asRecord(pipeline.metadata);
-  const workflow = readStoredWorkflow(metadata.workflow) as StoredWorkflowDefinition | null;
+  const metadata = asRecord(workflowRow.metadata);
+  const workflowDef = readStoredWorkflow(metadata.workflow) as StoredWorkflowDefinition | null;
   const workflowRuntime = readWorkflowRuntimeState(metadata.workflow_runtime);
-  const workflowView = deriveWorkflowView(workflow, tasks, workflowRuntime);
+  const workflowView = deriveWorkflowView(workflowDef, tasks, workflowRuntime);
   return buildRunSummary({
-    pipeline,
+    workflow: workflowRow,
     tasks,
-    workflow,
+    workflowDef,
     workflowView,
     artifacts: artifacts.map((row) => ({
       id: String(row.id),
@@ -172,8 +172,8 @@ function buildPipelineSummary(
   });
 }
 
-function buildTimelineFallback(pipeline: Record<string, unknown>) {
-  return buildRunSummaryFallback(pipeline);
+function buildTimelineFallback(workflow: Record<string, unknown>) {
+  return buildRunSummaryFallback(workflow);
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

@@ -152,17 +152,17 @@ describe('governance routes', () => {
   });
 
   it('stores retention policy updates and legal holds through governance routes', async () => {
-    const pipelineId = randomUUID();
+    const workflowId = randomUUID();
     const taskId = randomUUID();
     await db.pool.query(
-      `INSERT INTO pipelines (id, tenant_id, name, state)
-       VALUES ($1, $2, 'Retention pipeline', 'completed')`,
-      [pipelineId, tenantId],
+      `INSERT INTO workflows (id, tenant_id, name, state)
+       VALUES ($1, $2, 'Retention workflow', 'completed')`,
+      [workflowId, tenantId],
     );
     await db.pool.query(
-      `INSERT INTO tasks (id, tenant_id, pipeline_id, title, state, completed_at)
+      `INSERT INTO tasks (id, tenant_id, workflow_id, title, state, completed_at)
        VALUES ($1, $2, $3, 'Retained task', 'completed', now())`,
-      [taskId, tenantId, pipelineId],
+      [taskId, tenantId, workflowId],
     );
 
     const updatePolicy = await app.inject({
@@ -191,14 +191,14 @@ describe('governance routes', () => {
     expect(putTaskHold.statusCode).toBe(200);
     expect(putTaskHold.json().data).toEqual({ id: taskId, legal_hold: true });
 
-    const putPipelineHold = await app.inject({
+    const putWorkflowHold = await app.inject({
       method: 'PUT',
-      url: `/api/v1/governance/legal-holds/pipelines/${pipelineId}`,
+      url: `/api/v1/governance/legal-holds/workflows/${workflowId}`,
       headers: { authorization: `Bearer ${adminKey}` },
       payload: { enabled: true },
     });
-    expect(putPipelineHold.statusCode).toBe(200);
-    expect(putPipelineHold.json().data).toEqual({ id: pipelineId, legal_hold: true });
+    expect(putWorkflowHold.statusCode).toBe(200);
+    expect(putWorkflowHold.json().data).toEqual({ id: workflowId, legal_hold: true });
   });
 
   it('enforces task retention while respecting legal hold and records retention actions', async () => {

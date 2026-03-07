@@ -114,7 +114,7 @@ describe('project spec routes', () => {
     });
   });
 
-  it('versions project specs and records the current spec version on pipelines', async () => {
+  it('versions project specs and records the current spec version on workflows', async () => {
     const putSpec = await app.inject({
       method: 'PUT',
       url: `/api/v1/projects/${projectId}/spec`,
@@ -183,19 +183,19 @@ describe('project spec routes', () => {
     expect(getV1.statusCode).toBe(200);
     expect(getV1.json().data.spec.resources.source_repo.binding.branch).toBe('main');
 
-    const pipelineCreate = await app.inject({
+    const workflowCreate = await app.inject({
       method: 'POST',
-      url: '/api/v1/pipelines',
+      url: '/api/v1/workflows',
       headers: { authorization: `Bearer ${adminKey}` },
       payload: {
         template_id: templateId,
         project_id: projectId,
-        name: 'spec-pipeline',
+        name: 'spec-workflow',
       },
     });
 
-    expect(pipelineCreate.statusCode).toBe(201);
-    expect(pipelineCreate.json().data.project_spec_version).toBe(2);
+    expect(workflowCreate.statusCode).toBe(201);
+    expect(workflowCreate.json().data.project_spec_version).toBe(2);
   });
 
   it('lists project resources for admins and filters to task-relevant resources for agents', async () => {
@@ -280,7 +280,7 @@ describe('project spec routes', () => {
     expect(putSpec.json().error.message).toMatch(/artifact_id or logical_path/i);
   });
 
-  it('lists project-spec document references through the pipeline documents endpoint', async () => {
+  it('lists project-spec document references through the workflow documents endpoint', async () => {
     const putSpec = await app.inject({
       method: 'PUT',
       url: `/api/v1/projects/${projectId}/spec`,
@@ -313,23 +313,23 @@ describe('project spec routes', () => {
 
     expect(putSpec.statusCode).toBe(200);
 
-    const pipelineCreate = await app.inject({
+    const workflowCreate = await app.inject({
       method: 'POST',
-      url: '/api/v1/pipelines',
+      url: '/api/v1/workflows',
       headers: { authorization: `Bearer ${adminKey}` },
       payload: {
         template_id: templateId,
         project_id: projectId,
-        name: 'document-pipeline',
+        name: 'document-workflow',
       },
     });
 
-    expect(pipelineCreate.statusCode).toBe(201);
-    const pipelineId = pipelineCreate.json().data.id as string;
+    expect(workflowCreate.statusCode).toBe(201);
+    const workflowId = workflowCreate.json().data.id as string;
 
     const documents = await app.inject({
       method: 'GET',
-      url: `/api/v1/pipelines/${pipelineId}/documents`,
+      url: `/api/v1/workflows/${workflowId}/documents`,
       headers: { authorization: `Bearer ${agentKey}` },
     });
 

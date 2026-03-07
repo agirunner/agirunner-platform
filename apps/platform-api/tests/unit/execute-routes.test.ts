@@ -141,7 +141,7 @@ describe('execute route impossible-scope policy alignment', () => {
     expect(body.tests).toBeUndefined();
   });
 
-  it('captures pipeline id from nested task context for traceability', async () => {
+  it('captures workflow id from nested task context for traceability', async () => {
     process.env.EXECUTE_ROUTE_MODE = 'test-simulated';
     const server = await createApp();
 
@@ -152,7 +152,7 @@ describe('execute route impossible-scope policy alignment', () => {
         type: 'code',
         context: {
           task: {
-            pipeline_id: 'pipeline-from-task-context',
+            workflow_id: 'workflow-from-task-context',
           },
         },
       },
@@ -160,7 +160,7 @@ describe('execute route impossible-scope policy alignment', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      pipeline_id: 'pipeline-from-task-context',
+      workflow_id: 'workflow-from-task-context',
       execution_mode: 'simulated-not-executed',
       authenticity_gate_hint: 'NOT_PASS',
     });

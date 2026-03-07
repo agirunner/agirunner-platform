@@ -5,12 +5,12 @@
  * with the existing runner and any external consumers.
  */
 
-export { pollPipelineUntil, pollTaskUntil, sleep, snapshotPipeline } from './poll.js';
+export { pollWorkflowUntil, pollTaskUntil, sleep, snapshotWorkflow } from './poll.js';
 export {
   assertAllTasksCompleted,
   assertDependencyOrder,
-  assertInitialPipelineState,
-  assertPipelineTerminal,
+  assertInitialWorkflowState,
+  assertWorkflowTerminal,
   assertTaskFailed,
   assertTaskOutputsPresent,
   assertTaskPending,

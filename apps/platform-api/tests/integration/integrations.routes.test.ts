@@ -13,7 +13,7 @@ const testJwtSecret = 'x'.repeat(64);
 const testWebhookSecret = 'k'.repeat(64);
 const testPublicBaseUrl = 'http://platform.test';
 const integrationSecret = 'adapter-secret-token';
-const routePipelineName = 'integration-pipeline';
+const routeWorkflowName = 'integration-workflow';
 
 interface CapturedRequest {
   headers: http.IncomingHttpHeaders;
@@ -142,7 +142,7 @@ describe('integration adapter routes', () => {
   let db: TestDatabase;
   let app: Awaited<ReturnType<typeof buildApp>>;
   let adminKey: string;
-  let pipelineId: string;
+  let workflowId: string;
   let deliveryServer: http.Server;
   let deliveryBaseUrl: string;
   const previousEnv: Record<string, string | undefined> = {};
@@ -176,11 +176,11 @@ describe('integration adapter routes', () => {
     process.env.RATE_LIMIT_MAX_PER_MINUTE = '200';
     process.env.PLATFORM_PUBLIC_BASE_URL = testPublicBaseUrl;
 
-    pipelineId = randomUUID();
+    workflowId = randomUUID();
     await db.pool.query(
-      `INSERT INTO pipelines (id, tenant_id, name, metadata, state)
+      `INSERT INTO workflows (id, tenant_id, name, metadata, state)
        VALUES ($1,$2,$3,'{}'::jsonb,'active')`,
-      [pipelineId, tenantId, routePipelineName],
+      [workflowId, tenantId, routeWorkflowName],
     );
 
     adminKey = (
@@ -235,7 +235,7 @@ describe('integration adapter routes', () => {
       headers: { authorization: `Bearer ${adminKey}` },
       payload: {
         kind: 'webhook',
-        pipeline_id: pipelineId,
+        workflow_id: workflowId,
         subscriptions: ['task.*'],
         config: {
           url: `${deliveryBaseUrl}/events`,
@@ -263,7 +263,7 @@ describe('integration adapter routes', () => {
     expect(listResponse.json().data).toEqual([
       expect.objectContaining({
         id: created.id,
-        pipeline_id: pipelineId,
+        workflow_id: workflowId,
         subscriptions: ['task.*'],
         config: created.config,
       }),
@@ -273,11 +273,11 @@ describe('integration adapter routes', () => {
       method: 'PATCH',
       url: `/api/v1/integrations/${created.id}`,
       headers: { authorization: `Bearer ${adminKey}` },
-      payload: { subscriptions: ['pipeline.*'], is_active: false },
+      payload: { subscriptions: ['workflow.*'], is_active: false },
     });
 
     expect(patchResponse.statusCode).toBe(200);
-    expect(patchResponse.json().data.subscriptions).toEqual(['pipeline.*']);
+    expect(patchResponse.json().data.subscriptions).toEqual(['workflow.*']);
     expect(patchResponse.json().data.is_active).toBe(false);
 
     const deleteResponse = await app.inject({
@@ -292,9 +292,9 @@ describe('integration adapter routes', () => {
   it('dispatches matching events through the event stream and records delivered attempts', async () => {
     const taskId = randomUUID();
     await db.pool.query(
-      `INSERT INTO tasks (id, tenant_id, pipeline_id, title, type, state, requires_approval)
+      `INSERT INTO tasks (id, tenant_id, workflow_id, title, type, state, requires_approval)
        VALUES ($1,$2,$3,'approval-task','review','awaiting_approval',true)`,
-      [taskId, tenantId, pipelineId],
+      [taskId, tenantId, workflowId],
     );
 
     const createResponse = await app.inject({
@@ -303,7 +303,7 @@ describe('integration adapter routes', () => {
       headers: { authorization: `Bearer ${adminKey}` },
       payload: {
         kind: 'webhook',
-        pipeline_id: pipelineId,
+        workflow_id: workflowId,
         subscriptions: ['task.state_changed'],
         config: {
           url: `${deliveryBaseUrl}/events`,
@@ -323,19 +323,19 @@ describe('integration adapter routes', () => {
       entityType: 'task',
       entityId: taskId,
       actorType: 'system',
-      data: { pipeline_id: pipelineId, from_state: 'pending', to_state: 'awaiting_approval' },
+      data: { workflow_id: workflowId, from_state: 'pending', to_state: 'awaiting_approval' },
     });
 
     const delivered = await requestPromise;
     const parsed = JSON.parse(delivered.body) as {
-      pipeline_id?: string;
+      workflow_id?: string;
       type?: string;
       approval_actions?: Record<string, { url: string }>;
     };
 
-    expect(delivered.headers['x-agentbaton-event']).toBe('task.state_changed');
-    expect(delivered.headers['x-agentbaton-signature']).toBeTypeOf('string');
-    expect(parsed.pipeline_id).toBe(pipelineId);
+    expect(delivered.headers['x-agirunner-event']).toBe('task.state_changed');
+    expect(delivered.headers['x-agirunner-signature']).toBeTypeOf('string');
+    expect(parsed.workflow_id).toBe(workflowId);
     expect(parsed.type).toBe('task.state_changed');
     expect(parsed.approval_actions?.approve.url).toContain('/api/v1/integrations/actions/');
 
@@ -369,9 +369,9 @@ describe('integration adapter routes', () => {
   it('formats approval notifications for slack adapters with approve and reject buttons', async () => {
     const taskId = randomUUID();
     await db.pool.query(
-      `INSERT INTO tasks (id, tenant_id, pipeline_id, title, type, state, requires_approval)
+      `INSERT INTO tasks (id, tenant_id, workflow_id, title, type, state, requires_approval)
        VALUES ($1,$2,$3,'slack-approval-task','review','awaiting_approval',true)`,
-      [taskId, tenantId, pipelineId],
+      [taskId, tenantId, workflowId],
     );
 
     const createResponse = await app.inject({
@@ -380,12 +380,12 @@ describe('integration adapter routes', () => {
       headers: { authorization: `Bearer ${adminKey}` },
       payload: {
         kind: 'slack',
-        pipeline_id: pipelineId,
+        workflow_id: workflowId,
         subscriptions: ['task.state_changed'],
         config: {
           webhook_url: `${deliveryBaseUrl}/slack`,
           channel: '#approvals',
-          username: 'AgentBaton',
+          username: 'Agirunner',
         },
       },
     });
@@ -400,7 +400,7 @@ describe('integration adapter routes', () => {
       entityType: 'task',
       entityId: taskId,
       actorType: 'system',
-      data: { pipeline_id: pipelineId, from_state: 'pending', to_state: 'awaiting_approval' },
+      data: { workflow_id: workflowId, from_state: 'pending', to_state: 'awaiting_approval' },
     });
 
     const delivered = await requestPromise;
@@ -412,7 +412,7 @@ describe('integration adapter routes', () => {
     };
 
     expect(payload.channel).toBe('#approvals');
-    expect(payload.username).toBe('AgentBaton');
+    expect(payload.username).toBe('Agirunner');
     expect(payload.text).toContain('awaiting approval');
     expect(payload.blocks).toHaveLength(2);
 
@@ -437,12 +437,12 @@ describe('integration adapter routes', () => {
       headers: { authorization: `Bearer ${adminKey}` },
       payload: {
         kind: 'otlp_http',
-        pipeline_id: pipelineId,
+        workflow_id: workflowId,
         subscriptions: ['task.state_changed'],
         config: {
           endpoint: `${deliveryBaseUrl}/otlp`,
           headers: { authorization: 'Bearer collector-token' },
-          service_name: 'agentbaton-platform-test',
+          service_name: 'agirunner-platform-test',
         },
       },
     });
@@ -458,7 +458,7 @@ describe('integration adapter routes', () => {
       entityId: randomUUID(),
       actorType: 'system',
       data: {
-        pipeline_id: pipelineId,
+        workflow_id: workflowId,
         to_state: 'running',
         task_type: 'code',
         agent_id: 'agent-1',
@@ -481,15 +481,15 @@ describe('integration adapter routes', () => {
     expect(delivered.headers.authorization).toBe('Bearer collector-token');
     expect(payload.resourceSpans?.[0]?.resource?.attributes).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ key: 'service.name', value: { stringValue: 'agentbaton-platform-test' } }),
+        expect.objectContaining({ key: 'service.name', value: { stringValue: 'agirunner-platform-test' } }),
       ]),
     );
     expect(payload.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0]?.name).toBe('task.state_changed');
     expect(payload.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0]?.traceId).toHaveLength(32);
     expect(payload.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0]?.attributes).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ key: 'agentbaton.pipeline.id', value: { stringValue: pipelineId } }),
-        expect.objectContaining({ key: 'agentbaton.task.type', value: { stringValue: 'code' } }),
+        expect.objectContaining({ key: 'agirunner.workflow.id', value: { stringValue: workflowId } }),
+        expect.objectContaining({ key: 'agirunner.task.type', value: { stringValue: 'code' } }),
         expect.objectContaining({ key: 'gen_ai.system', value: { stringValue: 'openai' } }),
       ]),
     );
@@ -505,9 +505,9 @@ describe('integration adapter routes', () => {
   it('creates and updates linked GitHub issues for task lifecycle events', async () => {
     const taskId = randomUUID();
     await db.pool.query(
-      `INSERT INTO tasks (id, tenant_id, pipeline_id, title, type, state, priority, input)
+      `INSERT INTO tasks (id, tenant_id, workflow_id, title, type, state, priority, input)
        VALUES ($1,$2,$3,'GitHub issue task','review','pending','high',$4::jsonb)`,
-      [taskId, tenantId, pipelineId, JSON.stringify({ description: 'Track this task in GitHub Issues.' })],
+      [taskId, tenantId, workflowId, JSON.stringify({ description: 'Track this task in GitHub Issues.' })],
     );
 
     const createAdapter = await app.inject({
@@ -516,14 +516,14 @@ describe('integration adapter routes', () => {
       headers: { authorization: `Bearer ${adminKey}` },
       payload: {
         kind: 'github_issues',
-        pipeline_id: pipelineId,
+        workflow_id: workflowId,
         subscriptions: ['task.created', 'task.state_changed'],
         config: {
-          owner: 'agentbaton',
+          owner: 'agirunner',
           repo: 'platform',
           api_base_url: `${deliveryBaseUrl}/github`,
           token: 'github-token-123',
-          labels: ['agentbaton'],
+          labels: ['agirunner'],
         },
       },
     });
@@ -531,16 +531,16 @@ describe('integration adapter routes', () => {
     expect(createAdapter.statusCode).toBe(201);
     const adapterId = createAdapter.json().data.id as string;
     expect(createAdapter.json().data.config).toEqual({
-      owner: 'agentbaton',
+      owner: 'agirunner',
       repo: 'platform',
       api_base_url: `${deliveryBaseUrl}/github`,
-      labels: ['agentbaton'],
+      labels: ['agirunner'],
       token_configured: true,
     });
 
     const createIssueRequest = waitForJsonRequest(deliveryServer, 201, {
       number: 42,
-      html_url: 'https://github.test/agentbaton/platform/issues/42',
+      html_url: 'https://github.test/agirunner/platform/issues/42',
     });
 
     await app.eventService.emit({
@@ -549,16 +549,16 @@ describe('integration adapter routes', () => {
       entityType: 'task',
       entityId: taskId,
       actorType: 'system',
-      data: { pipeline_id: pipelineId },
+      data: { workflow_id: workflowId },
     });
 
     const createdIssue = await createIssueRequest;
     expect(createdIssue.headers.authorization).toBe('Bearer github-token-123');
-    expect(createdIssue.headers['user-agent']).toBe('AgentBaton');
+    expect(createdIssue.headers['user-agent']).toBe('Agirunner');
     expect(createdIssue.headers.accept).toBe('application/vnd.github+json');
     const createPayload = JSON.parse(createdIssue.body) as { title?: string; labels?: string[]; body?: string };
     expect(createPayload.title).toBe('GitHub issue task');
-    expect(createPayload.labels).toEqual(['agentbaton']);
+    expect(createPayload.labels).toEqual(['agirunner']);
     expect(createPayload.body).toContain('Track this task in GitHub Issues.');
 
     const createDelivery = await waitForDeliveryRecord(db, tenantId, adapterId);
@@ -566,7 +566,7 @@ describe('integration adapter routes', () => {
 
     const updateIssueRequest = waitForJsonRequest(deliveryServer, 200, {
       number: 42,
-      html_url: 'https://github.test/agentbaton/platform/issues/42',
+      html_url: 'https://github.test/agirunner/platform/issues/42',
     });
 
     await db.pool.query(`UPDATE tasks SET state = 'completed' WHERE id = $1`, [taskId]);
@@ -576,7 +576,7 @@ describe('integration adapter routes', () => {
       entityType: 'task',
       entityId: taskId,
       actorType: 'system',
-      data: { pipeline_id: pipelineId, from_state: 'pending', to_state: 'completed' },
+      data: { workflow_id: workflowId, from_state: 'pending', to_state: 'completed' },
     });
 
     const updatedIssue = await updateIssueRequest;
@@ -595,7 +595,7 @@ describe('integration adapter routes', () => {
     );
     expect(linkResult.rows[0]).toEqual({
       external_id: '42',
-      external_url: 'https://github.test/agentbaton/platform/issues/42',
+      external_url: 'https://github.test/agirunner/platform/issues/42',
     });
 
     const deleteResponse = await app.inject({

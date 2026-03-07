@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { AgentService } from '../../src/services/agent-service.js';
 import { EventService } from '../../src/services/event-service.js';
-import { PipelineService } from '../../src/services/pipeline-service.js';
+import { WorkflowService } from '../../src/services/workflow-service.js';
 import { TaskService } from '../../src/services/task-service.js';
 import { startTestDatabase, stopTestDatabase, type TestDatabase } from '../helpers/postgres.js';
 
@@ -25,14 +25,14 @@ describe('task lifecycle integration', () => {
   let db: TestDatabase;
   let taskService: TaskService;
   let agentService: AgentService;
-  let pipelineService: PipelineService;
+  let workflowService: WorkflowService;
 
   beforeAll(async () => {
     db = await startTestDatabase();
     const eventService = new EventService(db.pool);
     taskService = new TaskService(db.pool, eventService, testConfig);
     agentService = new AgentService(db.pool, eventService, testConfig);
-    pipelineService = new PipelineService(db.pool, eventService, testConfig);
+    workflowService = new WorkflowService(db.pool, eventService, testConfig);
   });
 
   afterAll(async () => {
@@ -455,7 +455,7 @@ describe('task lifecycle integration', () => {
     expect(stored.rows[0].output).toMatchObject({ note: 'missing summary' });
   });
 
-  it('registers pipeline document outputs and injects them into downstream task context', async () => {
+  it('registers workflow document outputs and injects them into downstream task context', async () => {
     const adminIdentity = {
       id: 'admin',
       tenantId,
@@ -504,13 +504,13 @@ describe('task lifecycle integration', () => {
       ],
     );
 
-    const pipeline = await pipelineService.createPipeline(adminIdentity, {
+    const workflow = await workflowService.createWorkflow(adminIdentity, {
       template_id: template.rows[0].id,
       project_id: projectId,
-      name: 'docs-pipeline',
+      name: 'docs-workflow',
     });
 
-    const [writerTask, reviewerTask] = pipeline.tasks as Array<Record<string, unknown>>;
+    const [writerTask, reviewerTask] = workflow.tasks as Array<Record<string, unknown>>;
     const agentId = randomUUID();
     await db.pool.query(
       `INSERT INTO agents (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds, current_task_id)
@@ -552,15 +552,15 @@ describe('task lifecycle integration', () => {
       },
     );
 
-    const pipelineDocuments = await db.pool.query(
+    const workflowDocuments = await db.pool.query(
       `SELECT logical_name, source, location
-         FROM pipeline_documents
+         FROM workflow_documents
         WHERE tenant_id = $1
-          AND pipeline_id = $2
+          AND workflow_id = $2
         ORDER BY logical_name ASC`,
-      [tenantId, pipeline.id],
+      [tenantId, workflow.id],
     );
-    expect(pipelineDocuments.rows).toEqual([
+    expect(workflowDocuments.rows).toEqual([
       {
         logical_name: 'implementation_notes',
         source: 'repository',
@@ -578,7 +578,7 @@ describe('task lifecycle integration', () => {
       }),
       expect.objectContaining({
         logical_name: 'implementation_notes',
-        scope: 'pipeline',
+        scope: 'workflow',
         source: 'repository',
         path: 'docs/implementation-notes.md',
         title: 'Implementation Notes',

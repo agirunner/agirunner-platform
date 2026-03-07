@@ -10,7 +10,7 @@ export function validateCleanup(): string[] {
   const validations: string[] = [];
 
   const leakedContainers = cmd(
-    'docker ps -a --filter label=com.docker.compose.project=agentbaton-platform --format "{{.ID}}"',
+    'docker ps -a --filter label=com.docker.compose.project=agirunner-platform --format "{{.ID}}"',
   )
     .split('\n')
     .filter(Boolean);

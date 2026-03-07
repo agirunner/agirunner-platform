@@ -5,37 +5,37 @@
  * exact LLM output content, per the test plan risk mitigation strategy.
  */
 
-import type { ApiPipeline, ApiTask } from '../api-client.js';
+import type { ApiWorkflow, ApiTask } from '../api-client.js';
 
 /**
- * Asserts that a pipeline has reached one of the expected terminal states
+ * Asserts that a workflow has reached one of the expected terminal states
  * and contains the expected number of tasks.
  */
-export function assertPipelineTerminal(
-  pipeline: ApiPipeline,
+export function assertWorkflowTerminal(
+  workflow: ApiWorkflow,
   expectedState: string,
   expectedTaskCount: number,
 ): void {
-  if (pipeline.state !== expectedState) {
+  if (workflow.state !== expectedState) {
     throw new Error(
-      `Pipeline ${pipeline.id} expected state "${expectedState}", got "${pipeline.state}"`,
+      `Workflow ${workflow.id} expected state "${expectedState}", got "${workflow.state}"`,
     );
   }
 
-  const tasks = pipeline.tasks ?? [];
+  const tasks = workflow.tasks ?? [];
   if (tasks.length !== expectedTaskCount) {
     throw new Error(
-      `Pipeline ${pipeline.id} expected ${expectedTaskCount} tasks, got ${tasks.length}`,
+      `Workflow ${workflow.id} expected ${expectedTaskCount} tasks, got ${tasks.length}`,
     );
   }
 }
 
 /**
- * Asserts that all tasks in a completed pipeline are in the "completed" state
+ * Asserts that all tasks in a completed workflow are in the "completed" state
  * and each has a non-null output field.
  */
-export function assertAllTasksCompleted(pipeline: ApiPipeline): void {
-  const tasks = pipeline.tasks ?? [];
+export function assertAllTasksCompleted(workflow: ApiWorkflow): void {
+  const tasks = workflow.tasks ?? [];
   for (const task of tasks) {
     if (task.state !== 'completed') {
       throw new Error(
@@ -50,8 +50,8 @@ export function assertAllTasksCompleted(pipeline: ApiPipeline): void {
  * We assert structure (output is an object with at least one key),
  * NOT exact LLM content.
  */
-export function assertTaskOutputsPresent(pipeline: ApiPipeline): void {
-  const tasks = pipeline.tasks ?? [];
+export function assertTaskOutputsPresent(workflow: ApiWorkflow): void {
+  const tasks = workflow.tasks ?? [];
   for (const task of tasks) {
     if (task.state !== 'completed') continue;
     if (!task.output || typeof task.output !== 'object') {
@@ -68,12 +68,12 @@ export function assertTaskOutputsPresent(pipeline: ApiPipeline): void {
 }
 
 /**
- * Asserts the dependency graph was respected during pipeline execution.
- * For a completed pipeline, verifies each task's dependencies completed
+ * Asserts the dependency graph was respected during workflow execution.
+ * For a completed workflow, verifies each task's dependencies completed
  * before the task itself.
  */
-export function assertDependencyOrder(pipeline: ApiPipeline): void {
-  const tasks = pipeline.tasks ?? [];
+export function assertDependencyOrder(workflow: ApiWorkflow): void {
+  const tasks = workflow.tasks ?? [];
   const taskById = new Map(tasks.map((t) => [t.id, t]));
 
   for (const task of tasks) {
@@ -82,7 +82,7 @@ export function assertDependencyOrder(pipeline: ApiPipeline): void {
       const dep = taskById.get(depId);
       if (!dep) {
         throw new Error(
-          `Task ${task.id} depends on ${depId} which does not exist in pipeline`,
+          `Task ${task.id} depends on ${depId} which does not exist in workflow`,
         );
       }
       if (dep.state !== 'completed' && task.state === 'completed') {
@@ -128,10 +128,10 @@ export function assertTaskPending(task: ApiTask): void {
 }
 
 /**
- * Asserts that the tasks in a pipeline have the expected roles in the expected order.
+ * Asserts that the tasks in a workflow have the expected roles in the expected order.
  */
-export function assertTaskRoles(pipeline: ApiPipeline, expectedRoles: string[]): void {
-  const tasks = pipeline.tasks ?? [];
+export function assertTaskRoles(workflow: ApiWorkflow, expectedRoles: string[]): void {
+  const tasks = workflow.tasks ?? [];
   const roles = tasks.map((t) => t.role ?? t.type);
   if (roles.length !== expectedRoles.length) {
     throw new Error(
@@ -149,12 +149,12 @@ export function assertTaskRoles(pipeline: ApiPipeline, expectedRoles: string[]):
 }
 
 /**
- * Asserts initial pipeline state after creation:
+ * Asserts initial workflow state after creation:
  * - First task(s) with no dependencies should be "ready"
  * - Tasks with unmet dependencies should be "pending"
  */
-export function assertInitialPipelineState(pipeline: ApiPipeline): void {
-  const tasks = pipeline.tasks ?? [];
+export function assertInitialWorkflowState(workflow: ApiWorkflow): void {
+  const tasks = workflow.tasks ?? [];
   for (const task of tasks) {
     const deps = task.depends_on ?? [];
     if (deps.length === 0) {

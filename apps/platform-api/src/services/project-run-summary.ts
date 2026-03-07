@@ -16,16 +16,16 @@ interface ArtifactSummaryRow {
   created_at: Date;
 }
 export function buildRunSummary(params: {
-  pipeline: Record<string, unknown>;
+  workflow: Record<string, unknown>;
   tasks: Array<Record<string, unknown>>;
-  workflow: StoredWorkflowDefinition | null;
+  workflowDef: StoredWorkflowDefinition | null;
   workflowView: {
     phases: Array<WorkflowPhaseView & { progress: { completed_tasks: number; total_tasks: number } }>;
   };
   events: TimelineEventRow[];
   artifacts: ArtifactSummaryRow[];
 }) {
-  const metadata = asRecord(params.pipeline.metadata);
+  const metadata = asRecord(params.workflow.metadata);
   const reworkByTask = params.tasks
     .filter((task) => Number(task.rework_count ?? 0) > 0)
     .map((task) => ({
@@ -37,15 +37,15 @@ export function buildRunSummary(params: {
 
   return {
     kind: 'run_summary',
-    pipeline_id: String(params.pipeline.id),
-    name: String(params.pipeline.name),
-    state: String(params.pipeline.state),
-    created_at: params.pipeline.created_at,
-    started_at: params.pipeline.started_at ?? null,
-    completed_at: params.pipeline.completed_at ?? null,
+    workflow_id: String(params.workflow.id),
+    name: String(params.workflow.name),
+    state: String(params.workflow.state),
+    created_at: params.workflow.created_at,
+    started_at: params.workflow.started_at ?? null,
+    completed_at: params.workflow.completed_at ?? null,
     duration_seconds: calculateDurationSeconds(
-      params.pipeline.started_at,
-      params.pipeline.completed_at,
+      params.workflow.started_at,
+      params.workflow.completed_at,
     ),
     task_counts: countTaskStates(params.tasks),
     rework_cycles: params.tasks.reduce((sum, task) => sum + Number(task.rework_count ?? 0), 0),
@@ -54,25 +54,25 @@ export function buildRunSummary(params: {
     phase_metrics: buildPhaseMetrics(params),
     produced_artifacts: buildProducedArtifacts(params.tasks, params.artifacts),
     chain: {
-      source_pipeline_id: metadata.chain_source_pipeline_id ?? null,
-      child_pipeline_ids: Array.isArray(metadata.child_pipeline_ids)
-        ? metadata.child_pipeline_ids
+      source_workflow_id: metadata.chain_source_workflow_id ?? null,
+      child_workflow_ids: Array.isArray(metadata.child_workflow_ids)
+        ? metadata.child_workflow_ids
         : [],
     },
-    link: `/pipelines/${String(params.pipeline.id)}`,
+    link: `/workflows/${String(params.workflow.id)}`,
   };
 }
-export function buildRunSummaryFallback(pipeline: Record<string, unknown>) {
-  const metadata = asRecord(pipeline.metadata);
+export function buildRunSummaryFallback(workflow: Record<string, unknown>) {
+  const metadata = asRecord(workflow.metadata);
   return {
     kind: 'run_summary',
-    pipeline_id: String(pipeline.id),
-    name: String(pipeline.name),
-    state: String(pipeline.state),
-    created_at: pipeline.created_at,
-    started_at: pipeline.started_at ?? null,
-    completed_at: pipeline.completed_at ?? null,
-    duration_seconds: calculateDurationSeconds(pipeline.started_at, pipeline.completed_at),
+    workflow_id: String(workflow.id),
+    name: String(workflow.name),
+    state: String(workflow.state),
+    created_at: workflow.created_at,
+    started_at: workflow.started_at ?? null,
+    completed_at: workflow.completed_at ?? null,
+    duration_seconds: calculateDurationSeconds(workflow.started_at, workflow.completed_at),
     task_counts: emptyTaskCounts(),
     rework_cycles: 0,
     rework_by_task: [],
@@ -80,12 +80,12 @@ export function buildRunSummaryFallback(pipeline: Record<string, unknown>) {
     phase_metrics: [],
     produced_artifacts: [],
     chain: {
-      source_pipeline_id: metadata.chain_source_pipeline_id ?? null,
-      child_pipeline_ids: Array.isArray(metadata.child_pipeline_ids)
-        ? metadata.child_pipeline_ids
+      source_workflow_id: metadata.chain_source_workflow_id ?? null,
+      child_workflow_ids: Array.isArray(metadata.child_workflow_ids)
+        ? metadata.child_workflow_ids
         : [],
     },
-    link: `/pipelines/${String(pipeline.id)}`,
+    link: `/workflows/${String(workflow.id)}`,
   };
 }
 function buildPhaseProgression(
@@ -100,19 +100,19 @@ function buildPhaseProgression(
   }));
 }
 function buildPhaseMetrics(params: {
-  workflow: StoredWorkflowDefinition | null;
+  workflowDef: StoredWorkflowDefinition | null;
   workflowView: {
     phases: Array<WorkflowPhaseView & { progress: { completed_tasks: number; total_tasks: number } }>;
   };
   tasks: Array<Record<string, unknown>>;
   events: TimelineEventRow[];
 }) {
-  if (!params.workflow) {
+  if (!params.workflowDef) {
     return [];
   }
 
   const phaseViewByName = new Map(params.workflowView.phases.map((phase) => [phase.name, phase]));
-  return params.workflow.phases.map((phase) => {
+  return params.workflowDef.phases.map((phase) => {
     const phaseTasks = params.tasks.filter((task) => phase.task_ids.includes(String(task.id)));
     const gateHistory = buildPhaseGateHistory(params.events, phase.name);
     const timing = buildPhaseTiming(params.events, phase.name, phaseTasks, phase.gate === 'manual');

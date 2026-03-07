@@ -1,6 +1,6 @@
 import { stdin } from 'node:process';
 
-import { PlatformApiClient } from '@agentbaton/sdk';
+import { PlatformApiClient } from '@agirunner/sdk';
 
 import { McpStdioServer } from './dispatcher.js';
 import { createMessageProcessor, writeMessage } from './transport.js';

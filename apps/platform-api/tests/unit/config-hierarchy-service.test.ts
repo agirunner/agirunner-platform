@@ -3,12 +3,12 @@ import { describe, expect, it } from 'vitest';
 import {
   buildResolvedConfigView,
   resolveInstructionConfig,
-  resolvePipelineConfig,
+  resolveWorkflowConfig,
 } from '../../src/services/config-hierarchy-service.js';
 
 describe('config hierarchy service', () => {
   it('deep merges template, project, and run layers while preserving source snapshots', () => {
-    const resolved = resolvePipelineConfig(
+    const resolved = resolveWorkflowConfig(
       {
         config: {
           runtime: { timeout: 30, mode: 'safe' },
@@ -37,7 +37,7 @@ describe('config hierarchy service', () => {
 
   it('rejects locked and constrained overrides', () => {
     expect(() =>
-      resolvePipelineConfig(
+      resolveWorkflowConfig(
         {
           config: { runtime: { timeout: 30, mode: 'safe' } },
           config_policy: {
@@ -53,7 +53,7 @@ describe('config hierarchy service', () => {
     ).toThrow(/locked field 'runtime.mode'/i);
 
     expect(() =>
-      resolvePipelineConfig(
+      resolveWorkflowConfig(
         {
           config: { runtime: { timeout: 30 } },
           config_policy: {
@@ -69,7 +69,7 @@ describe('config hierarchy service', () => {
   });
 
   it('annotates resolved values with their winning source when requested', () => {
-    const resolved = resolvePipelineConfig(
+    const resolved = resolveWorkflowConfig(
       { config: { runtime: { timeout: 30, mode: 'safe' } } },
       { config: { runtime: { timeout: 45 } } },
       { runtime: { timeout: 50 } },

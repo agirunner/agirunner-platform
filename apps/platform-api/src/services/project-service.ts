@@ -268,9 +268,9 @@ export class ProjectService {
   async deleteProject(identity: ApiKeyIdentity, projectId: string) {
     await this.getProject(identity.tenantId, projectId);
 
-    const [pipelines, tasks] = await Promise.all([
+    const [workflows, tasks] = await Promise.all([
       this.pool.query<{ total: string }>(
-        'SELECT count(*)::text AS total FROM pipelines WHERE tenant_id = $1 AND project_id = $2',
+        'SELECT count(*)::text AS total FROM workflows WHERE tenant_id = $1 AND project_id = $2',
         [identity.tenantId, projectId],
       ),
       this.pool.query<{ total: string }>(
@@ -279,8 +279,8 @@ export class ProjectService {
       ),
     ]);
 
-    if (Number(pipelines.rows[0]?.total ?? '0') > 0 || Number(tasks.rows[0]?.total ?? '0') > 0) {
-      throw new ConflictError('Project cannot be deleted while pipelines or tasks reference it');
+    if (Number(workflows.rows[0]?.total ?? '0') > 0 || Number(tasks.rows[0]?.total ?? '0') > 0) {
+      throw new ConflictError('Project cannot be deleted while workflows or tasks reference it');
     }
 
     await this.pool.query('DELETE FROM projects WHERE tenant_id = $1 AND id = $2', [

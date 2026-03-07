@@ -47,43 +47,43 @@ export async function applyTaskCompletionSideEffects(
     );
   }
 
-  if (!task.pipeline_id) {
+  if (!task.workflow_id) {
     return;
   }
 
-  await advancePipelineWorkflow(eventService, identity, String(task.pipeline_id), client);
+  await advanceWorkflowWorkflow(eventService, identity, String(task.workflow_id), client);
 
   const contextKey = (task.role as string | null) || (task.type as string);
   await client.query(
-    `UPDATE pipelines
+    `UPDATE workflows
      SET context = jsonb_set(context, $2::text[], $3::jsonb, true),
          context_size_bytes = octet_length(jsonb_set(context, $2::text[], $3::jsonb, true)::text)
      WHERE tenant_id = $1
        AND id = $4
        AND octet_length(jsonb_set(context, $2::text[], $3::jsonb, true)::text) <= context_max_bytes`,
-    [identity.tenantId, [contextKey], task.output ?? {}, task.pipeline_id],
+    [identity.tenantId, [contextKey], task.output ?? {}, task.workflow_id],
   );
 }
 
-async function advancePipelineWorkflow(
+async function advanceWorkflowWorkflow(
   eventService: EventService,
   identity: ApiKeyIdentity,
-  pipelineId: string,
+  workflowId: string,
   client: DatabaseClient,
 ) {
-  const pipelineResult = await client.query(
-    'SELECT metadata FROM pipelines WHERE tenant_id = $1 AND id = $2',
-    [identity.tenantId, pipelineId],
+  const workflowResult = await client.query(
+    'SELECT metadata FROM workflows WHERE tenant_id = $1 AND id = $2',
+    [identity.tenantId, workflowId],
   );
-  const metadata = asRecord(pipelineResult.rows[0]?.metadata);
+  const metadata = asRecord(workflowResult.rows[0]?.metadata);
   const workflow = readStoredWorkflow(metadata.workflow);
   if (!workflow) {
     return;
   }
 
   const tasksResult = await client.query(
-    'SELECT id, state, depends_on, requires_approval, metadata FROM tasks WHERE tenant_id = $1 AND pipeline_id = $2',
-    [identity.tenantId, pipelineId],
+    'SELECT id, state, depends_on, requires_approval, metadata FROM tasks WHERE tenant_id = $1 AND workflow_id = $2',
+    [identity.tenantId, workflowId],
   );
   const tasks = tasksResult.rows.map((row) => row as Record<string, unknown>);
 
@@ -100,12 +100,12 @@ async function advancePipelineWorkflow(
       {
         tenantId: identity.tenantId,
         type: 'phase.completed',
-        entityType: 'pipeline',
-        entityId: pipelineId,
+        entityType: 'workflow',
+        entityId: workflowId,
         actorType: 'system',
         actorId: 'workflow_resolver',
         data: {
-          pipeline_id: pipelineId,
+          workflow_id: workflowId,
           phase_name: phase.name,
           timestamp: new Date().toISOString(),
         },
@@ -123,12 +123,12 @@ async function advancePipelineWorkflow(
         {
           tenantId: identity.tenantId,
           type: 'phase.gate.awaiting_approval',
-          entityType: 'pipeline',
-          entityId: pipelineId,
+          entityType: 'workflow',
+          entityId: workflowId,
           actorType: 'system',
           actorId: 'workflow_resolver',
           data: {
-            pipeline_id: pipelineId,
+            workflow_id: workflowId,
             phase_name: phase.name,
             timestamp: new Date().toISOString(),
           },
@@ -140,7 +140,7 @@ async function advancePipelineWorkflow(
 
     const activation = await activateNextWorkflowPhase({
       tenantId: identity.tenantId,
-      pipelineId,
+      workflowId,
       workflow,
       currentPhaseName: phase.name,
       tasks,
@@ -169,12 +169,12 @@ async function advancePipelineWorkflow(
         {
           tenantId: identity.tenantId,
           type: 'phase.started',
-          entityType: 'pipeline',
-          entityId: pipelineId,
+          entityType: 'workflow',
+          entityId: workflowId,
           actorType: 'system',
           actorId: 'workflow_resolver',
           data: {
-            pipeline_id: pipelineId,
+            workflow_id: workflowId,
             phase_name: activation.phaseName,
             timestamp: new Date().toISOString(),
           },

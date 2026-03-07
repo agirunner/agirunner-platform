@@ -28,7 +28,7 @@ export const envSchema = z
       .default('false'),
     TASK_DEFAULT_MAX_RETRIES: z.coerce.number().int().min(0).default(0),
     ARTIFACT_STORAGE_BACKEND: z.enum(['local', 's3', 'gcs', 'azure']).default('local'),
-    ARTIFACT_LOCAL_ROOT: z.string().min(1).default('/tmp/agentbaton-platform-artifacts'),
+    ARTIFACT_LOCAL_ROOT: z.string().min(1).default('/tmp/agirunner-platform-artifacts'),
     ARTIFACT_ACCESS_URL_TTL_SECONDS: z.coerce.number().int().min(1).default(900),
     ARTIFACT_S3_BUCKET: z.string().optional(),
     ARTIFACT_S3_REGION: z.string().default('us-east-1'),

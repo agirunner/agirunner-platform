@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { EventService } from '../../src/services/event-service.js';
-import { PipelineService } from '../../src/services/pipeline-service.js';
+import { WorkflowService } from '../../src/services/workflow-service.js';
 import { TaskService } from '../../src/services/task-service.js';
 import { TemplateService } from '../../src/services/template-service.js';
 import { startTestDatabase, stopTestDatabase, type TestDatabase } from '../helpers/postgres.js';
@@ -22,7 +22,7 @@ describe('task lifecycle bulk coverage', () => {
   let db: TestDatabase;
   let taskService: TaskService;
   let templateService: TemplateService;
-  let pipelineService: PipelineService;
+  let workflowService: WorkflowService;
 
   const admin = { id: 'admin', tenantId, scope: 'admin' as const, ownerType: 'user', ownerId: null, keyPrefix: 'admin' };
 
@@ -31,7 +31,7 @@ describe('task lifecycle bulk coverage', () => {
     const eventService = new EventService(db.pool);
     taskService = new TaskService(db.pool, eventService, config);
     templateService = new TemplateService(db.pool, eventService);
-    pipelineService = new PipelineService(db.pool, eventService, config);
+    workflowService = new WorkflowService(db.pool, eventService, config);
   });
 
   afterAll(async () => {
@@ -183,13 +183,13 @@ describe('task lifecycle bulk coverage', () => {
   it('allows delegated sub-task creation only when an active orchestrator grant exists', async () => {
     const ownerAgentId = randomUUID();
     const delegatedAgentId = randomUUID();
-    const pipelineId = randomUUID();
+    const workflowId = randomUUID();
     const parentTaskId = randomUUID();
 
     await db.pool.query(
-      `INSERT INTO pipelines (id, tenant_id, name, state)
+      `INSERT INTO workflows (id, tenant_id, name, state)
        VALUES ($1,$2,'grant-scope','active')`,
-      [pipelineId, tenantId],
+      [workflowId, tenantId],
     );
     await db.pool.query(
       `INSERT INTO agents (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds)
@@ -198,9 +198,9 @@ describe('task lifecycle bulk coverage', () => {
       [ownerAgentId, tenantId, delegatedAgentId],
     );
     await db.pool.query(
-      `INSERT INTO tasks (id, tenant_id, pipeline_id, title, type, state, assigned_agent_id)
+      `INSERT INTO tasks (id, tenant_id, workflow_id, title, type, state, assigned_agent_id)
        VALUES ($1,$2,$3,'parent','code','running',$4)`,
-      [parentTaskId, tenantId, pipelineId, ownerAgentId],
+      [parentTaskId, tenantId, workflowId, ownerAgentId],
     );
 
     const delegatedIdentity = {
@@ -221,9 +221,9 @@ describe('task lifecycle bulk coverage', () => {
     ).rejects.toMatchObject({ statusCode: 403 });
 
     await db.pool.query(
-      `INSERT INTO orchestrator_grants (tenant_id, agent_id, pipeline_id, permissions)
+      `INSERT INTO orchestrator_grants (tenant_id, agent_id, workflow_id, permissions)
        VALUES ($1,$2,$3,$4::text[])`,
-      [tenantId, delegatedAgentId, pipelineId, ['create_subtasks']],
+      [tenantId, delegatedAgentId, workflowId, ['create_subtasks']],
     );
 
     const created = await taskService.createTask(delegatedIdentity, {
@@ -233,7 +233,7 @@ describe('task lifecycle bulk coverage', () => {
     });
 
     expect(created.parent_id).toBe(parentTaskId);
-    expect(created.pipeline_id).toBe(pipelineId);
+    expect(created.workflow_id).toBe(workflowId);
   });
 
   it('covers FR-012a/FR-025/FR-026 one claimed task per agent and priority FIFO matching', async () => {
@@ -245,28 +245,28 @@ describe('task lifecycle bulk coverage', () => {
     );
 
     const capability = `python-${randomUUID()}`;
-    const pipelineId = randomUUID();
-    await db.pool.query(`INSERT INTO pipelines (id, tenant_id, name) VALUES ($1,$2,'claim-scope')`, [pipelineId, tenantId]);
+    const workflowId = randomUUID();
+    await db.pool.query(`INSERT INTO workflows (id, tenant_id, name) VALUES ($1,$2,'claim-scope')`, [workflowId, tenantId]);
 
     const low = await taskService.createTask(
       { ...admin, scope: 'worker', keyPrefix: 'worker-7' },
-      { title: 'low', type: 'code', priority: 'low', capabilities_required: [capability], pipeline_id: pipelineId },
+      { title: 'low', type: 'code', priority: 'low', capabilities_required: [capability], workflow_id: workflowId },
     );
     const high = await taskService.createTask(
       { ...admin, scope: 'worker', keyPrefix: 'worker-8' },
-      { title: 'high', type: 'code', priority: 'high', capabilities_required: [capability], pipeline_id: pipelineId },
+      { title: 'high', type: 'code', priority: 'high', capabilities_required: [capability], workflow_id: workflowId },
     );
 
     const identity = { id: 'agent-key', tenantId, scope: 'agent' as const, ownerType: 'agent', ownerId: agentId, keyPrefix: 'agent-3' };
-    const first = await taskService.claimTask(identity, { agent_id: agentId, capabilities: [capability], pipeline_id: pipelineId });
+    const first = await taskService.claimTask(identity, { agent_id: agentId, capabilities: [capability], workflow_id: workflowId });
     expect(first?.id).toBe(high.id);
 
-    await expect(taskService.claimTask(identity, { agent_id: agentId, capabilities: [capability], pipeline_id: pipelineId })).rejects.toMatchObject({ statusCode: 409 });
+    await expect(taskService.claimTask(identity, { agent_id: agentId, capabilities: [capability], workflow_id: workflowId })).rejects.toMatchObject({ statusCode: 409 });
 
     await taskService.startTask(identity, first!.id as string, { agent_id: agentId });
     await taskService.completeTask(identity, first!.id as string, { output: { ok: true } });
 
-    const second = await taskService.claimTask(identity, { agent_id: agentId, capabilities: [capability], pipeline_id: pipelineId });
+    const second = await taskService.claimTask(identity, { agent_id: agentId, capabilities: [capability], workflow_id: workflowId });
     expect(second?.id).toBe(low.id);
   });
 
@@ -341,16 +341,16 @@ describe('task lifecycle bulk coverage', () => {
     );
 
     const capability = `go-${randomUUID()}`;
-    const pipelineId = randomUUID();
-    await db.pool.query(`INSERT INTO pipelines (id, tenant_id, name) VALUES ($1,$2,'retry-scope')`, [pipelineId, tenantId]);
+    const workflowId = randomUUID();
+    await db.pool.query(`INSERT INTO workflows (id, tenant_id, name) VALUES ($1,$2,'retry-scope')`, [workflowId, tenantId]);
 
     const task = await taskService.createTask(
       { ...admin, scope: 'worker', keyPrefix: 'worker-9' },
-      { title: 'retry', type: 'code', capabilities_required: [capability], auto_retry: true, max_retries: 2, pipeline_id: pipelineId },
+      { title: 'retry', type: 'code', capabilities_required: [capability], auto_retry: true, max_retries: 2, workflow_id: workflowId },
     );
 
     const identity = { id: 'agent-key', tenantId, scope: 'agent' as const, ownerType: 'agent', ownerId: agentId, keyPrefix: 'agent-4' };
-    await taskService.claimTask(identity, { agent_id: agentId, capabilities: [capability], pipeline_id: pipelineId });
+    await taskService.claimTask(identity, { agent_id: agentId, capabilities: [capability], workflow_id: workflowId });
     await taskService.startTask(identity, task.id as string, { agent_id: agentId });
     const retried = await taskService.failTask(identity, task.id as string, { error: { message: 'boom' } });
     expect(retried.state).toBe('ready');
@@ -369,8 +369,8 @@ describe('task lifecycle bulk coverage', () => {
     );
 
     const capability = `ts-${randomUUID()}`;
-    const pipelineId = randomUUID();
-    await db.pool.query(`INSERT INTO pipelines (id, tenant_id, name) VALUES ($1,$2,'policy-retry-scope')`, [pipelineId, tenantId]);
+    const workflowId = randomUUID();
+    await db.pool.query(`INSERT INTO workflows (id, tenant_id, name) VALUES ($1,$2,'policy-retry-scope')`, [workflowId, tenantId]);
 
     const task = await taskService.createTask(
       { ...admin, scope: 'worker', keyPrefix: 'worker-10' },
@@ -378,7 +378,7 @@ describe('task lifecycle bulk coverage', () => {
         title: 'policy retry',
         type: 'code',
         capabilities_required: [capability],
-        pipeline_id: pipelineId,
+        workflow_id: workflowId,
         retry_policy: {
           max_attempts: 2,
           backoff_strategy: 'fixed',
@@ -389,7 +389,7 @@ describe('task lifecycle bulk coverage', () => {
     );
 
     const identity = { id: 'agent-key', tenantId, scope: 'agent' as const, ownerType: 'agent', ownerId: agentId, keyPrefix: 'agent-5' };
-    await taskService.claimTask(identity, { agent_id: agentId, capabilities: [capability], pipeline_id: pipelineId });
+    await taskService.claimTask(identity, { agent_id: agentId, capabilities: [capability], workflow_id: workflowId });
     await taskService.startTask(identity, task.id as string, { agent_id: agentId });
     const retried = await taskService.failTask(identity, task.id as string, {
       error: { category: 'timeout', message: 'slow' },
@@ -399,7 +399,7 @@ describe('task lifecycle bulk coverage', () => {
     const released = await taskService.claimTask(identity, {
       agent_id: agentId,
       capabilities: [capability],
-      pipeline_id: pipelineId,
+      workflow_id: workflowId,
       include_context: false,
     });
     expect(released?.id).toBe(task.id);
@@ -411,7 +411,7 @@ describe('task lifecycle bulk coverage', () => {
     expect(events.rows.some((row) => row.type === 'task.retry_scheduled')).toBe(true);
   });
 
-  it('creates an inline escalation task and keeps the pipeline non-terminal while escalation is pending', async () => {
+  it('creates an inline escalation task and keeps the workflow non-terminal while escalation is pending', async () => {
     const agentId = randomUUID();
     await db.pool.query(
       `INSERT INTO agents (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds)
@@ -434,14 +434,14 @@ describe('task lifecycle bulk coverage', () => {
       },
     });
 
-    const pipeline = await pipelineService.createPipeline(admin, {
+    const workflow = await workflowService.createWorkflow(admin, {
       template_id: template.id as string,
-      name: 'inline escalation pipeline',
+      name: 'inline escalation workflow',
     });
 
-    const [task] = pipeline.tasks as Array<Record<string, unknown>>;
+    const [task] = workflow.tasks as Array<Record<string, unknown>>;
     const identity = { id: 'agent-key', tenantId, scope: 'agent' as const, ownerType: 'agent', ownerId: agentId, keyPrefix: 'agent-6' };
-    await taskService.claimTask(identity, { agent_id: agentId, capabilities: ['go'], pipeline_id: pipeline.id as string });
+    await taskService.claimTask(identity, { agent_id: agentId, capabilities: ['go'], workflow_id: workflow.id as string });
     await taskService.startTask(identity, task.id as string, { agent_id: agentId });
     await taskService.failTask(identity, task.id as string, {
       error: { category: 'validation_error', message: 'bad input', recoverable: false },
@@ -451,18 +451,18 @@ describe('task lifecycle bulk coverage', () => {
       `SELECT title, type, role, input, metadata
          FROM tasks
         WHERE tenant_id = $1
-          AND pipeline_id = $2
+          AND workflow_id = $2
           AND metadata->>'escalation_source_task_id' = $3`,
-      [tenantId, pipeline.id, task.id],
+      [tenantId, workflow.id, task.id],
     );
     expect(escalationTasks.rowCount).toBe(1);
     expect(escalationTasks.rows[0].title).toBe('Escalation: Compile');
     expect(escalationTasks.rows[0].role).toBe('orchestrator');
 
-    const pipelineState = await db.pool.query(
-      'SELECT state FROM pipelines WHERE tenant_id = $1 AND id = $2',
-      [tenantId, pipeline.id],
+    const workflowState = await db.pool.query(
+      'SELECT state FROM workflows WHERE tenant_id = $1 AND id = $2',
+      [tenantId, workflow.id],
     );
-    expect(pipelineState.rows[0].state).toBe('paused');
+    expect(workflowState.rows[0].state).toBe('paused');
   });
 });

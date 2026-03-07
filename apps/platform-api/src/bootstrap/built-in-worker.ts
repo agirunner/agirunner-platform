@@ -522,7 +522,7 @@ async function persistRuntimeArtifactsToPlatform(
  *
  * FR-749: if the attempt limit has not been reached, the task context is enriched
  * with rework feedback and the task is marked for rework. Otherwise, the task is
- * permanently failed so the pipeline can escalate.
+ * permanently failed so the workflow can escalate.
  */
 async function handleReworkOrFail(
   apiBaseUrl: string,

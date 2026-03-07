@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PlatformRealtimeClient } from './realtime.js';
 describe('PlatformRealtimeClient auth transport', () => {
     afterEach(() => {
+        vi.useRealTimers();
         vi.unstubAllGlobals();
     });
     it('does not include access token in SSE URL', async () => {
@@ -33,6 +34,7 @@ describe('PlatformRealtimeClient auth transport', () => {
         expect(urlCalls[0]).not.toContain('access_token');
     });
     it('reconnects SSE stream after disconnect', async () => {
+        vi.useFakeTimers();
         const fetchMock = vi
             .fn()
             .mockResolvedValueOnce(new Response(new ReadableStream({
@@ -55,9 +57,13 @@ describe('PlatformRealtimeClient auth transport', () => {
             accessToken: 'secret-token',
         });
         const stop = client.connect((event) => events.push(event.id));
-        await new Promise((resolve) => setTimeout(resolve, 220));
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(events).toContain('evt-1');
+        await vi.advanceTimersByTimeAsync(100);
+        await Promise.resolve();
         stop();
-        expect(vi.mocked(fetchMock).mock.calls.length).toBeGreaterThanOrEqual(2);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
         expect(events).toContain('evt-1');
         expect(events).toContain('evt-2');
     });

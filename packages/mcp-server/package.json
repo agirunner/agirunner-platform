@@ -1,5 +1,5 @@
 {
-  "name": "@agentbaton/mcp-server",
+  "name": "@agirunner/mcp-server",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,7 +13,7 @@
     "start": "tsx src/index.ts"
   },
   "dependencies": {
-    "@agentbaton/sdk": "workspace:*",
+    "@agirunner/sdk": "workspace:*",
     "zod": "3.24.1"
   },
   "devDependencies": {

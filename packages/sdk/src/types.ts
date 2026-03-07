@@ -80,7 +80,7 @@ export interface Project {
 
 export interface ProjectTimelineEntry {
   kind?: string;
-  pipeline_id: string;
+  workflow_id: string;
   name: string;
   state: string;
   created_at: string;
@@ -94,15 +94,15 @@ export interface ProjectTimelineEntry {
   chain?: Record<string, unknown>;
 }
 
-export interface ResolvedPipelineConfig {
-  pipeline_id: string;
+export interface ResolvedWorkflowConfig {
+  workflow_id: string;
   resolved_config: Record<string, unknown>;
   config_layers?: Record<string, Record<string, unknown>>;
 }
 
 export interface ResolvedDocumentReference {
   logical_name: string;
-  scope: 'project' | 'pipeline';
+  scope: 'project' | 'workflow';
   source: 'repository' | 'artifact' | 'external';
   title?: string;
   description?: string;
@@ -123,7 +123,7 @@ export interface ResolvedDocumentReference {
 
 export interface TaskArtifact {
   id: string;
-  pipeline_id?: string | null;
+  workflow_id?: string | null;
   project_id?: string | null;
   task_id: string;
   logical_path: string;
@@ -140,7 +140,7 @@ export interface TaskArtifact {
   storage_backend?: string;
 }
 
-export interface Pipeline {
+export interface Workflow {
   id: string;
   tenant_id: string;
   project_id: string | null;
@@ -162,7 +162,7 @@ export interface Pipeline {
 export interface Task {
   id: string;
   tenant_id: string;
-  pipeline_id: string | null;
+  workflow_id: string | null;
   project_id: string | null;
   parent_id: string | null;
   title: string;
@@ -210,7 +210,7 @@ export interface CreateTaskInput {
   type: TaskType;
   description?: string;
   priority?: TaskPriority;
-  pipeline_id?: string;
+  workflow_id?: string;
   project_id?: string;
   parent_id?: string;
   role?: string;

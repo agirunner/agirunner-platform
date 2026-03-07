@@ -77,7 +77,7 @@ export const SCENARIO_AUTHENTICITY_ROUTING: ScenarioAuthenticityRoutingEntry[] =
   {
     scenario: 'ot3-state',
     route: 'deterministic',
-    rationale: 'Pipeline state derivation is deterministic by design.',
+    rationale: 'Workflow state derivation is deterministic by design.',
   },
   {
     scenario: 'ot4-health',
@@ -90,9 +90,9 @@ export const SCENARIO_AUTHENTICITY_ROUTING: ScenarioAuthenticityRoutingEntry[] =
     rationale: 'Approval and retry controls are deterministic API/UI transitions.',
   },
   {
-    scenario: 'hl2-pipeline-controls',
+    scenario: 'hl2-workflow-controls',
     route: 'deterministic',
-    rationale: 'Control-plane task/pipeline operations are deterministic.',
+    rationale: 'Control-plane task/workflow operations are deterministic.',
   },
   {
     scenario: 'it1-sdk',

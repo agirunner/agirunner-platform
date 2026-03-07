@@ -1,7 +1,7 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { AuditService } from './audit-service.js';
 
-type EventEntityType = 'task' | 'pipeline' | 'agent' | 'worker' | 'project' | 'template' | 'system';
+type EventEntityType = 'task' | 'workflow' | 'agent' | 'worker' | 'project' | 'template' | 'system';
 
 interface EventInput {
   tenantId: string;

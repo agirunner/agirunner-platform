@@ -164,7 +164,7 @@ export function ProjectsPage(): JSX.Element {
               {timelineQuery.error ? <p style={{ color: '#dc2626' }}>Failed to load project timeline.</p> : null}
               <div className="grid">
                 {(timelineQuery.data ?? []).map((entry) => (
-                  <article key={entry.pipeline_id} className="card timeline-entry">
+                  <article key={entry.workflow_id} className="card timeline-entry">
                     <strong>{entry.name}</strong>
                     <div className="row">
                       <span className={`status-badge status-${entry.state}`}>{entry.state}</span>

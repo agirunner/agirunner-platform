@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { buildBreadcrumbs } from './layout.js';
 
 describe('layout breadcrumbs', () => {
-  it('maps root path to pipelines breadcrumb', () => {
-    expect(buildBreadcrumbs('/')).toEqual([{ label: 'Pipelines', href: '/pipelines' }]);
+  it('maps root path to workflows breadcrumb', () => {
+    expect(buildBreadcrumbs('/')).toEqual([{ label: 'Workflows', href: '/workflows' }]);
   });
 
   it('creates labeled breadcrumbs for known sections', () => {
@@ -17,8 +17,8 @@ describe('layout breadcrumbs', () => {
   });
 
   it('truncates id segments and keeps parent links navigable', () => {
-    const crumbs = buildBreadcrumbs('/pipelines/12345678-aaaa-bbbb-cccc-0123456789ab');
-    expect(crumbs[0]).toEqual({ label: 'Pipelines', href: '/pipelines' });
+    const crumbs = buildBreadcrumbs('/workflows/12345678-aaaa-bbbb-cccc-0123456789ab');
+    expect(crumbs[0]).toEqual({ label: 'Workflows', href: '/workflows' });
     expect(crumbs[1].label).toBe('12345678…');
     expect(crumbs[1].href).toBeUndefined();
   });

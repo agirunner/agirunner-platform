@@ -36,7 +36,7 @@ export function normalizeStoredOtlpConfig(
     service_name:
       typeof nextConfig.service_name === 'string'
         ? nextConfig.service_name
-        : (current?.service_name ?? 'agentbaton-platform'),
+        : (current?.service_name ?? 'agirunner-platform'),
   };
 }
 
@@ -96,12 +96,12 @@ export async function deliverOtlpEvent(
 }
 
 function buildTraceEnvelope(serviceName: string, event: StreamEvent) {
-  const pipelineId = readPipelineId(event);
-  const traceId = hashHex(pipelineId ?? `${event.tenant_id}:${event.entity_id}`, 32);
+  const workflowId = readWorkflowId(event);
+  const traceId = hashHex(workflowId ?? `${event.tenant_id}:${event.entity_id}`, 32);
   const spanId = hashHex(`${event.id}:${event.type}`, 16);
-  const parentSpanId = pipelineId && event.entity_type === 'task' ? hashHex(pipelineId, 16) : undefined;
+  const parentSpanId = workflowId && event.entity_type === 'task' ? hashHex(workflowId, 16) : undefined;
   const timeUnixNano = `${Date.parse(event.created_at) * 1_000_000}`;
-  const attributes = buildAttributes(event, pipelineId);
+  const attributes = buildAttributes(event, workflowId);
 
   return {
     resourceSpans: [
@@ -109,12 +109,12 @@ function buildTraceEnvelope(serviceName: string, event: StreamEvent) {
         resource: {
           attributes: [
             { key: 'service.name', value: { stringValue: serviceName } },
-            { key: 'agentbaton.tenant.id', value: { stringValue: event.tenant_id } },
+            { key: 'agirunner.tenant.id', value: { stringValue: event.tenant_id } },
           ],
         },
         scopeSpans: [
           {
-            scope: { name: 'agentbaton.platform.integration.otlp' },
+            scope: { name: 'agirunner.platform.integration.otlp' },
             spans: [
               {
                 traceId,
@@ -134,34 +134,34 @@ function buildTraceEnvelope(serviceName: string, event: StreamEvent) {
   };
 }
 
-function buildAttributes(event: StreamEvent, pipelineId: string | null) {
+function buildAttributes(event: StreamEvent, workflowId: string | null) {
   const attributes = [
-    { key: 'agentbaton.pipeline.id', value: { stringValue: pipelineId ?? '' } },
-    { key: 'agentbaton.task.id', value: { stringValue: event.entity_type === 'task' ? event.entity_id : '' } },
-    { key: 'agentbaton.task.type', value: { stringValue: readStringField(event.data, 'task_type') ?? '' } },
-    { key: 'agentbaton.task.state', value: { stringValue: readStringField(event.data, 'to_state') ?? '' } },
-    { key: 'agentbaton.agent.id', value: { stringValue: readStringField(event.data, 'agent_id') ?? '' } },
+    { key: 'agirunner.workflow.id', value: { stringValue: workflowId ?? '' } },
+    { key: 'agirunner.task.id', value: { stringValue: event.entity_type === 'task' ? event.entity_id : '' } },
+    { key: 'agirunner.task.type', value: { stringValue: readStringField(event.data, 'task_type') ?? '' } },
+    { key: 'agirunner.task.state', value: { stringValue: readStringField(event.data, 'to_state') ?? '' } },
+    { key: 'agirunner.agent.id', value: { stringValue: readStringField(event.data, 'agent_id') ?? '' } },
     {
-      key: 'agentbaton.agent.framework',
+      key: 'agirunner.agent.framework',
       value: { stringValue: readStringField(event.data, 'agent_framework') ?? '' },
     },
-    { key: 'gen_ai.system', value: { stringValue: readStringField(event.data, 'gen_ai_system') ?? 'agentbaton' } },
+    { key: 'gen_ai.system', value: { stringValue: readStringField(event.data, 'gen_ai_system') ?? 'agirunner' } },
     {
       key: 'gen_ai.request.model',
       value: { stringValue: readStringField(event.data, 'gen_ai_model') ?? '' },
     },
-    { key: 'agentbaton.event.type', value: { stringValue: event.type } },
+    { key: 'agirunner.event.type', value: { stringValue: event.type } },
   ];
 
   return attributes.filter((entry) => entry.value.stringValue.length > 0);
 }
 
-function readPipelineId(event: StreamEvent): string | null {
-  const pipelineId = event.data?.pipeline_id;
-  if (typeof pipelineId === 'string' && pipelineId.length > 0) {
-    return pipelineId;
+function readWorkflowId(event: StreamEvent): string | null {
+  const workflowId = event.data?.workflow_id;
+  if (typeof workflowId === 'string' && workflowId.length > 0) {
+    return workflowId;
   }
-  return event.entity_type === 'pipeline' ? event.entity_id : null;
+  return event.entity_type === 'workflow' ? event.entity_id : null;
 }
 
 function readStringField(data: Record<string, unknown>, key: string): string | undefined {
@@ -182,7 +182,7 @@ function readStoredOtlpConfig(config: Record<string, unknown>): StoredOtlpConfig
     service_name:
       typeof config.service_name === 'string' && config.service_name.length > 0
         ? config.service_name
-        : 'agentbaton-platform',
+        : 'agirunner-platform',
   };
 }
 

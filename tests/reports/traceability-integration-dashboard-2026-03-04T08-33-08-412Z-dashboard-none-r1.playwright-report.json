@@ -1,7 +1,7 @@
 {
   "config": {
-    "configFile": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/live/playwright.config.ts",
-    "rootDir": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/live/dashboard",
+    "configFile": "/root/.openclaw/agents/engineer/workspace/projects/agirunner-platform/tests/live/playwright.config.ts",
+    "rootDir": "/root/.openclaw/agents/engineer/workspace/projects/agirunner-platform/tests/live/dashboard",
     "forbidOnly": false,
     "fullyParallel": false,
     "globalSetup": null,
@@ -22,7 +22,7 @@
       [
         "json",
         {
-          "outputFile": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/integration/dashboard-playwright-2026-03-04T08-33-08-412Z-dashboard-none-r1.json"
+          "outputFile": "/root/.openclaw/agents/engineer/workspace/projects/agirunner-platform/tests/artifacts/integration/dashboard-playwright-2026-03-04T08-33-08-412Z-dashboard-none-r1.json"
         }
       ]
     ],
@@ -33,13 +33,13 @@
     "quiet": false,
     "projects": [
       {
-        "outputDir": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/test-results",
+        "outputDir": "/root/.openclaw/agents/engineer/workspace/projects/agirunner-platform/test-results",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {},
         "id": "",
         "name": "",
-        "testDir": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/live/dashboard",
+        "testDir": "/root/.openclaw/agents/engineer/workspace/projects/agirunner-platform/tests/live/dashboard",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -182,7 +182,7 @@
           "column": 6,
           "specs": [
             {
-              "title": "[scenario:sdlc-happy] pipeline creation and execution surfaces",
+              "title": "[scenario:sdlc-happy] workflow creation and execution surfaces",
               "ok": true,
               "tags": [],
               "tests": [
@@ -406,7 +406,7 @@
               "column": 9
             },
             {
-              "title": "[scenario:ot1-cascade] dependency cascade pipeline visibility",
+              "title": "[scenario:ot1-cascade] dependency cascade workflow visibility",
               "ok": true,
               "tags": [],
               "tests": [
@@ -470,7 +470,7 @@
               "column": 9
             },
             {
-              "title": "[scenario:ot3-state] pipeline state dashboard surfaces",
+              "title": "[scenario:ot3-state] workflow state dashboard surfaces",
               "ok": true,
               "tags": [],
               "tests": [
@@ -566,7 +566,7 @@
               "column": 9
             },
             {
-              "title": "[scenario:hl2-pipeline-controls] pipeline pause/resume/cancel control surfaces",
+              "title": "[scenario:hl2-workflow-controls] workflow pause/resume/cancel control surfaces",
               "ok": true,
               "tags": [],
               "tests": [
@@ -826,15 +826,15 @@
       ]
     },
     {
-      "title": "pipelines.spec.ts",
-      "file": "pipelines.spec.ts",
+      "title": "workflows.spec.ts",
+      "file": "workflows.spec.ts",
       "column": 0,
       "line": 0,
       "specs": [],
       "suites": [
         {
-          "title": "dashboard pipelines",
-          "file": "pipelines.spec.ts",
+          "title": "dashboard workflows",
+          "file": "workflows.spec.ts",
           "line": 5,
           "column": 6,
           "specs": [
@@ -866,7 +866,7 @@
                 }
               ],
               "id": "32db82f3e910ba43899a-54e3f6fdc6d94cced1af",
-              "file": "pipelines.spec.ts",
+              "file": "workflows.spec.ts",
               "line": 6,
               "column": 7
             }

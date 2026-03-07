@@ -39,13 +39,13 @@ export function matchesSubscription(eventType: string, subscriptions: string[]):
   );
 }
 
-export function readPipelineId(event: StreamEvent): string | null {
-  const pipelineId = event.data?.pipeline_id;
-  if (typeof pipelineId === 'string' && pipelineId.length > 0) {
-    return pipelineId;
+export function readWorkflowId(event: StreamEvent): string | null {
+  const workflowId = event.data?.workflow_id;
+  if (typeof workflowId === 'string' && workflowId.length > 0) {
+    return workflowId;
   }
 
-  return event.entity_type === 'pipeline' ? event.entity_id : null;
+  return event.entity_type === 'workflow' ? event.entity_id : null;
 }
 
 export function toPublicWebhookConfig(config: Record<string, unknown>): PublicWebhookConfig {
@@ -109,9 +109,9 @@ export async function deliverWebhookEvent(
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-agentbaton-event': eventType,
+          'x-agirunner-event': eventType,
           ...(target.secret
-            ? { 'x-agentbaton-signature': createWebhookSignature(target.secret, payload) }
+            ? { 'x-agirunner-signature': createWebhookSignature(target.secret, payload) }
             : {}),
           ...target.headers,
         },

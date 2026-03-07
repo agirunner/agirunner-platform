@@ -25,7 +25,7 @@ export function GovernancePage(): JSX.Element {
     audit_log_retention_days: '2557',
   });
   const [taskHoldId, setTaskHoldId] = useState('');
-  const [pipelineHoldId, setPipelineHoldId] = useState('');
+  const [workflowHoldId, setWorkflowHoldId] = useState('');
   const [holdEnabled, setHoldEnabled] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,16 +64,16 @@ export function GovernancePage(): JSX.Element {
     }
   }
 
-  async function handlePipelineHold(): Promise<void> {
-    if (!pipelineHoldId.trim()) {
-      setError('Pipeline id is required for legal hold.');
+  async function handleWorkflowHold(): Promise<void> {
+    if (!workflowHoldId.trim()) {
+      setError('Workflow id is required for legal hold.');
       return;
     }
     setMessage(null);
     setError(null);
     try {
-      await dashboardApi.setPipelineLegalHold(pipelineHoldId.trim(), holdEnabled);
-      setMessage(`Pipeline legal hold ${holdEnabled ? 'enabled' : 'disabled'}.`);
+      await dashboardApi.setWorkflowLegalHold(workflowHoldId.trim(), holdEnabled);
+      setMessage(`Workflow legal hold ${holdEnabled ? 'enabled' : 'disabled'}.`);
     } catch (caught) {
       setError(String(caught));
     }
@@ -125,11 +125,11 @@ export function GovernancePage(): JSX.Element {
                 Apply to Task
               </button>
             </div>
-            <label htmlFor="pipeline-hold-id">Pipeline id</label>
-            <input id="pipeline-hold-id" className="input" value={pipelineHoldId} onChange={(event) => setPipelineHoldId(event.target.value)} />
+            <label htmlFor="workflow-hold-id">Workflow id</label>
+            <input id="workflow-hold-id" className="input" value={workflowHoldId} onChange={(event) => setWorkflowHoldId(event.target.value)} />
             <div className="row" style={{ justifyContent: 'flex-end' }}>
-              <button type="button" className="button" onClick={() => void handlePipelineHold()}>
-                Apply to Pipeline
+              <button type="button" className="button" onClick={() => void handleWorkflowHold()}>
+                Apply to Workflow
               </button>
             </div>
             {message ? <p style={{ color: '#16a34a' }}>{message}</p> : null}

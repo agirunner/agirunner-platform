@@ -29,9 +29,9 @@ describe('activity feed normalization', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-05T17:01:00.000Z'));
 
-    const normalized = normalizeActivityEvent('pipeline.updated', {});
+    const normalized = normalizeActivityEvent('workflow.updated', {});
 
-    expect(normalized.type).toBe('pipeline.updated');
+    expect(normalized.type).toBe('workflow.updated');
     expect(normalized.entityType).toBe('system');
     expect(normalized.actorType).toBe('system');
     expect(normalized.createdAt).toBe('2026-03-05T17:01:00.000Z');

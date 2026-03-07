@@ -120,7 +120,7 @@ export function deriveWorkflowView(
 
 export async function activateNextWorkflowPhase(params: {
   tenantId: string;
-  pipelineId: string;
+  workflowId: string;
   workflow: StoredWorkflowDefinition;
   currentPhaseName: string;
   tasks: Array<Record<string, unknown>>;
@@ -167,7 +167,7 @@ export function getWorkflowPhaseOrThrow(
 ): { name: string; gate: WorkflowGateType; parallel: boolean; task_refs: string[]; task_ids: string[] } {
   const phase = workflow.phases.find((candidate) => candidate.name === phaseName);
   if (!phase) {
-    throw new NotFoundError('Pipeline phase not found');
+    throw new NotFoundError('Workflow phase not found');
   }
   return phase;
 }
@@ -180,16 +180,16 @@ export function assertManualPhaseGateReady(params: {
 }) {
   const phase = getWorkflowPhaseOrThrow(params.workflow, params.phaseName);
   if (phase.gate !== 'manual') {
-    throw new ConflictError('Pipeline phase does not use a manual gate');
+    throw new ConflictError('Workflow phase does not use a manual gate');
   }
   const phaseTasks = params.tasks.filter((task) => phase.task_ids.includes(String(task.id)));
   const allCompleted = phaseTasks.length > 0 && phaseTasks.every((task) => task.state === 'completed');
   if (!allCompleted) {
-    throw new ConflictError('Pipeline phase is not ready for gate action');
+    throw new ConflictError('Workflow phase is not ready for gate action');
   }
   const gateStatus = params.runtimeState.phase_gates?.[phase.name]?.status;
   if (gateStatus === 'approved') {
-    throw new ConflictError('Pipeline phase gate is already approved');
+    throw new ConflictError('Workflow phase gate is already approved');
   }
 }
 
@@ -199,7 +199,7 @@ export function assertPhaseCancelable(
 ): { name: string; task_ids: string[] }[] {
   const phaseIndex = workflow.phases.findIndex((phase) => phase.name === phaseName);
   if (phaseIndex === -1) {
-    throw new NotFoundError('Pipeline phase not found');
+    throw new NotFoundError('Workflow phase not found');
   }
   return workflow.phases.slice(phaseIndex).map((phase) => ({
     name: phase.name,

@@ -1,6 +1,6 @@
 import unittest
 
-from agentbaton_sdk import PlatformApiClient
+from agirunner_sdk import PlatformApiClient
 
 
 class PlatformApiClientTests(unittest.TestCase):

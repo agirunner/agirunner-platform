@@ -50,7 +50,7 @@ describe('resolveSecretEnv', () => {
       resolveSecretEnv(
         {
           NODE_ENV: 'production',
-          PLATFORM_API_KEY: 'ab_admin_def_local_dev_123456789012345',
+          PLATFORM_API_KEY: 'ar_admin_def_local_dev_123456789012345',
         },
         [{ envName: 'PLATFORM_API_KEY', required: true, requireFileInProduction: true }],
       ),

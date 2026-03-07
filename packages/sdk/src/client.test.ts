@@ -123,7 +123,7 @@ describe('PlatformApiClient', () => {
         baseUrl: 'http://localhost:8080',
       });
 
-      await expect(client.exchangeApiKey('ab_admin_defintegrationlane0000000000001')).resolves.toEqual({
+      await expect(client.exchangeApiKey('ar_admin_defintegrationlane0000000000001')).resolves.toEqual({
         token: 'token',
         tenant_id: 'tenant',
         scope: 'admin',

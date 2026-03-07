@@ -17,7 +17,7 @@ describe('S3ArtifactStorage', () => {
     );
 
     const stored = await storage.putObject(
-      'tenant/pipeline/file.txt',
+      'tenant/workflow/file.txt',
       Buffer.from('hello'),
       'text/plain',
     );
@@ -25,7 +25,7 @@ describe('S3ArtifactStorage', () => {
     expect(send).toHaveBeenCalledTimes(1);
     expect(stored).toMatchObject({
       backend: 's3',
-      storageKey: 'tenant/pipeline/file.txt',
+      storageKey: 'tenant/workflow/file.txt',
       contentType: 'text/plain',
       sizeBytes: 5,
     });
@@ -49,7 +49,7 @@ describe('S3ArtifactStorage', () => {
       { client: { send } },
     );
 
-    const artifact = await storage.getObject('tenant/pipeline/out.json');
+    const artifact = await storage.getObject('tenant/workflow/out.json');
 
     expect(artifact.contentType).toBe('application/json');
     expect(artifact.data.toString('utf8')).toBe('{"ok":true}');
@@ -70,10 +70,10 @@ describe('S3ArtifactStorage', () => {
       { client: { send: vi.fn() }, presign },
     );
 
-    const access = await storage.createAccessUrl('tenant/pipeline/out.json', 900);
+    const access = await storage.createAccessUrl('tenant/workflow/out.json', 900);
 
     expect(presign).toHaveBeenCalledTimes(1);
-    expect(access.url).toBe('https://example.test/artifacts/tenant/pipeline/out.json');
+    expect(access.url).toBe('https://example.test/artifacts/tenant/workflow/out.json');
     expect(access.expiresAt).toBeInstanceOf(Date);
   });
 });

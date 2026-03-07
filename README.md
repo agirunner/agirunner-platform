@@ -1,11 +1,11 @@
-# AgentBaton Platform
+# Agirunner Platform
 
 Task coordination broker for AI agents. TypeScript/Node/Fastify/PostgreSQL.
 
 ## Related Repos
 
-- [agentbaton](https://github.com/agirunner/agentbaton) — Specs, requirements, design docs
-- [agentbaton-runtime](https://github.com/agirunner/agentbaton-runtime) — Agentic Runtime (Go/Docker)
+- [agirunner](https://github.com/agirunner/agirunner) — Specs, requirements, design docs
+- [agirunner-runtime](https://github.com/agirunner/agirunner-runtime) — Agentic Runtime (Go/Docker)
 
 ## Testing Documentation (Canonical in Repo)
 
@@ -42,11 +42,11 @@ Runtimes and workers are not host-port exposed in the default topology.
 For v1.1–v1.2 scope, `runtime_internal` is not marked `internal: true`, so runtime-side containers can still reach external git/LLM endpoints while keeping socket access constrained to `socket-proxy`.
 
 Security defaults in compose/runtime profile:
-- default stack uses the real Go runtime from `../agentbaton-runtime`
+- default stack uses the real Go runtime from `../agirunner-runtime`
 - `/execute` is disabled by default (`EXECUTE_ROUTE_MODE=disabled`)
 - `*_FILE` secret bindings mounted from `./.secrets` to `/run/secrets`
 - `RUNTIME_API_KEY_FILE` required (runtime startup fails when missing/too short)
-- task containers default to `${AGENTBATON_TASK_IMAGE:-alpine/git:2.47.2}` so repository clone/push tooling is present before workspace setup runs
+- task containers default to `${AGIRUNNER_TASK_IMAGE:-alpine/git:2.47.2}` so repository clone/push tooling is present before workspace setup runs
 
 ### Test-only compat bridge
 
@@ -60,10 +60,10 @@ That override rebinds the role runtime services back to `apps/runtime-compat` an
 
 ### Prebuilt Runtime Images
 
-To use a fetched runtime image instead of building from `../agentbaton-runtime`, set:
+To use a fetched runtime image instead of building from `../agirunner-runtime`, set:
 
 ```env
-AGENTBATON_RUNTIME_IMAGE=ghcr.io/agirunner/agentbaton-runtime@sha256:...
+AGIRUNNER_RUNTIME_IMAGE=ghcr.io/agirunner/agirunner-runtime@sha256:...
 ```
 
 The image is expected to support file-backed secret loading. Compose mounts `./.secrets` into every runtime and worker as `/run/secrets` and passes env vars such as:
@@ -78,10 +78,10 @@ That means a pulled image does not need secrets baked in. It only needs the upda
 
 ### Runtime image strategy hooks
 
-- Local default: `AGENTBATON_RUNTIME_IMAGE=agentbaton-runtime:local` built from `../agentbaton-runtime`.
-- Staging/release: set `AGENTBATON_RUNTIME_IMAGE` to a digest-pinned runtime image.
+- Local default: `AGIRUNNER_RUNTIME_IMAGE=agirunner-runtime:local` built from `../agirunner-runtime`.
+- Staging/release: set `AGIRUNNER_RUNTIME_IMAGE` to a digest-pinned runtime image.
 - Publication helper: `scripts/runtime-image-publish.sh`
-  - Builds/tag runtime image from `agentbaton-runtime` repo
+  - Builds/tag runtime image from `agirunner-runtime` repo
   - Optionally pushes to private registry
   - Writes tarball fallback artifact under `dist/images/`
 

@@ -17,7 +17,7 @@ export type LegacyWorkerRuntimePayload = z.infer<typeof legacyWorkerRuntimePaylo
 
 export const runtimeTaskSubmissionSchema = z.object({
   task_id: z.string().min(1),
-  pipeline_id: z.string().min(1).optional(),
+  workflow_id: z.string().min(1).optional(),
   tenant_id: z.string().min(1).optional(),
   role: z.string().min(1),
   input: recordSchema.default({}),
@@ -232,7 +232,7 @@ export function buildRuntimeTaskSubmission(
 
   const submission = {
     task_id: String(task.id ?? task.task_id ?? ''),
-    pipeline_id: asNonEmptyString(task.pipeline_id),
+    workflow_id: asNonEmptyString(task.workflow_id),
     tenant_id: asNonEmptyString(task.tenant_id),
     role,
     input: normalizeRuntimeInput(task, input),

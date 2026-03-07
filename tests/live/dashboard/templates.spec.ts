@@ -8,15 +8,15 @@ test.describe('dashboard templates', () => {
     await tryLogin(page);
     await gotoDashboard(page, '/templates');
 
-    await expect(page).toHaveURL(/\/(templates|pipelines)(\/|$)/);
+    await expect(page).toHaveURL(/\/(templates|workflows)(\/|$)/);
     await expectDashboardShell(page);
-    await expectOneOfHeadings(page, ['Templates', 'Pipelines']);
+    await expectOneOfHeadings(page, ['Templates', 'Workflows']);
   });
 
   test('circular dependency rejection + versioning + instantiate surface', async ({ page }) => {
     await gotoDashboard(page, '/templates');
 
-    await expect(page).toHaveURL(/\/(templates|pipelines|login)(\/|$)/);
-    await expectOneOfHeadings(page, ['Templates', 'Pipelines', 'AgentBaton Dashboard']);
+    await expect(page).toHaveURL(/\/(templates|workflows|login)(\/|$)/);
+    await expectOneOfHeadings(page, ['Templates', 'Workflows', 'Agirunner Dashboard']);
   });
 });

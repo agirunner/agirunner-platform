@@ -7,7 +7,7 @@ import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
 const registerSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('webhook'),
-    pipeline_id: z.string().uuid().optional(),
+    workflow_id: z.string().uuid().optional(),
     subscriptions: z.array(z.string().min(1)).default([]),
     config: z.object({
       url: z.string().url(),
@@ -17,7 +17,7 @@ const registerSchema = z.discriminatedUnion('kind', [
   }),
   z.object({
     kind: z.literal('slack'),
-    pipeline_id: z.string().uuid().optional(),
+    workflow_id: z.string().uuid().optional(),
     subscriptions: z.array(z.string().min(1)).default([]),
     config: z.object({
       webhook_url: z.string().url(),
@@ -28,7 +28,7 @@ const registerSchema = z.discriminatedUnion('kind', [
   }),
   z.object({
     kind: z.literal('otlp_http'),
-    pipeline_id: z.string().uuid().optional(),
+    workflow_id: z.string().uuid().optional(),
     subscriptions: z.array(z.string().min(1)).default([]),
     config: z.object({
       endpoint: z.string().url(),
@@ -38,7 +38,7 @@ const registerSchema = z.discriminatedUnion('kind', [
   }),
   z.object({
     kind: z.literal('github_issues'),
-    pipeline_id: z.string().uuid().optional(),
+    workflow_id: z.string().uuid().optional(),
     subscriptions: z.array(z.string().min(1)).default([]),
     config: z.object({
       owner: z.string().min(1),

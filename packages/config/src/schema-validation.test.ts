@@ -15,9 +15,9 @@ describe('worker config schema validation', () => {
     const config = loadWorkerConfig({
       filePath,
       env: {
-        AGENTBATON_WORKER_HEARTBEAT_INTERVAL_SECONDS: 'not-a-number',
-        AGENTBATON_WORKER_RECONNECT_MIN_MS: '-1',
-        AGENTBATON_WORKER_RECONNECT_MAX_MS: '0',
+        AGIRUNNER_WORKER_HEARTBEAT_INTERVAL_SECONDS: 'not-a-number',
+        AGIRUNNER_WORKER_RECONNECT_MIN_MS: '-1',
+        AGIRUNNER_WORKER_RECONNECT_MAX_MS: '0',
       },
     });
 

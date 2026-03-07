@@ -2,28 +2,28 @@
  * Structural and logic unit tests for the remaining dashboard FRs.
  *
  * FR-030:  Modern SPA (React, dark/light, responsive, keyboard shortcuts)
- * FR-031a: Live pipeline execution view
+ * FR-031a: Live workflow execution view
  * FR-031b: Live agent/worker status
  * FR-032:  Board view + list view with filtering
  * FR-033:  Approval button for awaiting_approval
  * FR-034:  Retry button for failed tasks
- * FR-035:  Pipeline-level controls (pause/resume/cancel/rework)
+ * FR-035:  Workflow-level controls (pause/resume/cancel/rework)
  * FR-035a: Task-level intervention (cancel/reassign/escalate/override)
  * FR-036:  Task detail views (full data, JSON viewer)
- * FR-036a: Pipeline detail views
+ * FR-036a: Workflow detail views
  * FR-037:  Agent registry view
  * FR-156:  Dashboard tenant-scoped
  * FR-213:  Dashboard task injection
  * FR-299:  Worker status in dashboard
  * FR-420:  Template browser
- * FR-423:  Pipeline status view with dependency graph
- * FR-424:  Pipeline launch form
+ * FR-423:  Workflow status view with dependency graph
+ * FR-424:  Workflow launch form
  * FR-425:  Worker management view
  * FR-426:  API key management
  * FR-427:  Dashboard navigation and layout
- * FR-429:  Pipeline list view with filters
+ * FR-429:  Workflow list view with filters
  * FR-717:  Dashboard renders phases as swimlanes
- * FR-755:  Quickstart docs for 15-min first pipeline
+ * FR-755:  Quickstart docs for 15-min first workflow
  * FR-RT-1620..1625: Guided runtime customization in existing dashboard
  */
 import fs from 'node:fs';
@@ -71,7 +71,7 @@ describe('FR-030: modern SPA structure', () => {
 
   it('app includes route definitions covering all major pages', () => {
     const source = readComponent('app/app.tsx');
-    expect(source).toContain('/pipelines');
+    expect(source).toContain('/workflows');
     expect(source).toContain('/projects');
     expect(source).toContain('/templates');
     expect(source).toContain('/workers');
@@ -91,17 +91,17 @@ describe('FR-030: modern SPA structure', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FR-031a: Live pipeline execution view
+// FR-031a: Live workflow execution view
 // ─────────────────────────────────────────────────────────────────────────────
-describe('FR-031a: live pipeline execution view', () => {
-  it('pipeline-detail-page fetches pipeline data with a reactive query', () => {
-    const source = readComponent('pages/pipeline-detail-page.tsx');
+describe('FR-031a: live workflow execution view', () => {
+  it('workflow-detail-page fetches workflow data with a reactive query', () => {
+    const source = readComponent('pages/workflow-detail-page.tsx');
     expect(source).toContain('useQuery');
-    expect(source).toContain('getPipeline');
+    expect(source).toContain('getWorkflow');
   });
 
-  it('pipeline-detail-page shows pipeline state in the view', () => {
-    const source = readComponent('pages/pipeline-detail-page.tsx');
+  it('workflow-detail-page shows workflow state in the view', () => {
+    const source = readComponent('pages/workflow-detail-page.tsx');
     expect(source).toContain('.state');
   });
 });
@@ -127,21 +127,21 @@ describe('FR-031b: live agent/worker status', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // FR-032: Board view + list view with filtering
 // ─────────────────────────────────────────────────────────────────────────────
-describe('FR-032: pipeline list view', () => {
-  it('pipeline-list-page exports PipelineListPage component', () => {
-    const source = readComponent('pages/pipeline-list-page.tsx');
-    expect(source).toContain('export function PipelineListPage');
+describe('FR-032: workflow list view', () => {
+  it('workflow-list-page exports WorkflowListPage component', () => {
+    const source = readComponent('pages/workflow-list-page.tsx');
+    expect(source).toContain('export function WorkflowListPage');
   });
 
-  it('pipeline-list-page renders pipeline state column for board-like filtering', () => {
-    const source = readComponent('pages/pipeline-list-page.tsx');
+  it('workflow-list-page renders workflow state column for board-like filtering', () => {
+    const source = readComponent('pages/workflow-list-page.tsx');
     expect(source).toContain('.state');
   });
 
-  it('pipeline-list-page includes AI planning launch controls', () => {
-    const source = readComponent('pages/pipeline-list-page.tsx');
+  it('workflow-list-page includes AI planning launch controls', () => {
+    const source = readComponent('pages/workflow-list-page.tsx');
     expect(source).toContain('Start With AI Planning');
-    expect(source).toContain('createPlanningPipeline');
+    expect(source).toContain('createPlanningWorkflow');
     expect(source).toContain('listProjects');
   });
 });
@@ -149,7 +149,7 @@ describe('FR-032: pipeline list view', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // FR-033: Approval button for awaiting_approval tasks
 // FR-034: Retry button for failed tasks
-// FR-035: Pipeline-level controls
+// FR-035: Workflow-level controls
 // FR-035a: Task-level intervention
 // FR-036: Task detail views
 // FR-213: Dashboard task injection
@@ -189,29 +189,29 @@ describe('FR-033 / FR-034 / FR-035 / FR-035a / FR-036 / FR-213: task detail page
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FR-036a: Pipeline detail views
-// FR-423: Pipeline status view with dependency graph
+// FR-036a: Workflow detail views
+// FR-423: Workflow status view with dependency graph
 // FR-717: Dashboard renders phases as swimlanes
 // ─────────────────────────────────────────────────────────────────────────────
-describe('FR-036a / FR-423 / FR-717: pipeline detail and dependency graph', () => {
-  it('pipeline-detail-page exports PipelineDetailPage component', () => {
-    const source = readComponent('pages/pipeline-detail-page.tsx');
-    expect(source).toContain('export function PipelineDetailPage');
+describe('FR-036a / FR-423 / FR-717: workflow detail and dependency graph', () => {
+  it('workflow-detail-page exports WorkflowDetailPage component', () => {
+    const source = readComponent('pages/workflow-detail-page.tsx');
+    expect(source).toContain('export function WorkflowDetailPage');
   });
 
-  it('pipeline-detail-page renders task dependency graph as a list', () => {
-    const source = `${readComponent('pages/pipeline-detail-page.tsx')}\n${readComponent('pages/pipeline-detail-sections.tsx')}`;
+  it('workflow-detail-page renders task dependency graph as a list', () => {
+    const source = `${readComponent('pages/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail-sections.tsx')}`;
     expect(source).toContain('Task Graph');
     expect(source).toContain('depends_on');
   });
 
-  it('pipeline-detail-page renders task state column for live status tracking', () => {
-    const source = `${readComponent('pages/pipeline-detail-page.tsx')}\n${readComponent('pages/pipeline-detail-sections.tsx')}`;
+  it('workflow-detail-page renders task state column for live status tracking', () => {
+    const source = `${readComponent('pages/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail-sections.tsx')}`;
     expect(source).toContain('.state');
   });
 
-  it('pipeline-detail-page exposes workflow swimlanes, phase gate actions, resolved config, and project timeline', () => {
-    const source = `${readComponent('pages/pipeline-detail-page.tsx')}\n${readComponent('pages/pipeline-detail-sections.tsx')}`;
+  it('workflow-detail-page exposes workflow swimlanes, phase gate actions, resolved config, and project timeline', () => {
+    const source = `${readComponent('pages/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail-sections.tsx')}`;
     expect(source).toContain('Workflow Swimlanes');
     expect(source).toContain('actOnPhaseGate');
     expect(source).toContain('cancelPhase');
@@ -219,11 +219,11 @@ describe('FR-036a / FR-423 / FR-717: pipeline detail and dependency graph', () =
     expect(source).toContain('Project Timeline');
   });
 
-  it('pipeline-detail-page exposes pipeline documents and project memory controls', () => {
-    const source = `${readComponent('pages/pipeline-detail-page.tsx')}\n${readComponent('pages/pipeline-detail-sections.tsx')}\n${readComponent('pages/pipeline-detail-content.tsx')}`;
-    expect(source).toContain('Pipeline Documents');
+  it('workflow-detail-page exposes workflow documents and project memory controls', () => {
+    const source = `${readComponent('pages/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail-sections.tsx')}\n${readComponent('pages/workflow-detail-content.tsx')}`;
+    expect(source).toContain('Workflow Documents');
     expect(source).toContain('Project Memory');
-    expect(source).toContain('listPipelineDocuments');
+    expect(source).toContain('listWorkflowDocuments');
     expect(source).toContain('patchProjectMemory');
   });
 });
@@ -277,16 +277,16 @@ describe('FR-156: dashboard is tenant-scoped', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FR-420: Template browser
-// FR-424: Pipeline launch form
+// FR-424: Workflow launch form
 // FR-426: API key management
 // ─────────────────────────────────────────────────────────────────────────────
-describe('FR-420 / FR-424 / FR-426: template browser, pipeline launch, API key management', () => {
-  it('api layer exposes template browsing and pipeline launch methods', () => {
+describe('FR-420 / FR-424 / FR-426: template browser, workflow launch, API key management', () => {
+  it('api layer exposes template browsing and workflow launch methods', () => {
     const source = readComponent('lib/api.ts');
-    expect(source).toContain('listPipelines');
+    expect(source).toContain('listWorkflows');
     expect(source).toContain('listTemplates');
-    expect(source).toContain('getPipeline');
-    expect(source).toContain('createPipeline');
+    expect(source).toContain('getWorkflow');
+    expect(source).toContain('createWorkflow');
   });
 
   it('DashboardApi interface supports login (API key exchange) for key management workflows', () => {
@@ -296,15 +296,15 @@ describe('FR-420 / FR-424 / FR-426: template browser, pipeline launch, API key m
     expect(source).toContain('exchangeApiKey');
   });
 
-  it('login() exchanges an API key for session tokens (pipeline launch prerequisite)', async () => {
+  it('login() exchanges an API key for session tokens (workflow launch prerequisite)', async () => {
     mockLocalStorage();
     const client = {
       exchangeApiKey: vi.fn().mockResolvedValue({ token: 'access-tok', tenant_id: 'tenant-1' }),
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
-      listPipelines: vi.fn(),
-      getPipeline: vi.fn(),
-      createPipeline: vi.fn(),
+      listWorkflows: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
       listTasks: vi.fn(),
       getTask: vi.fn(),
       listWorkers: vi.fn(),
@@ -312,9 +312,9 @@ describe('FR-420 / FR-424 / FR-426: template browser, pipeline launch, API key m
     };
     const api = createDashboardApi({ client: client as never });
 
-    await api.login('ab_admin_test_key');
+    await api.login('ar_admin_test_key');
 
-    expect(client.exchangeApiKey).toHaveBeenCalledWith('ab_admin_test_key');
+    expect(client.exchangeApiKey).toHaveBeenCalledWith('ar_admin_test_key');
     expect(client.setAccessToken).toHaveBeenCalledWith('access-tok');
     const session = readSession();
     expect(session?.tenantId).toBe('tenant-1');
@@ -323,8 +323,8 @@ describe('FR-420 / FR-424 / FR-426: template browser, pipeline launch, API key m
   it('template browser page renders template browsing and launch controls', () => {
     const source = readComponent('pages/template-browser-page.tsx');
     expect(source).toContain('Loading templates');
-    expect(source).toContain('Launch Pipeline');
-    expect(source).toContain('dashboardApi.createPipeline');
+    expect(source).toContain('Launch Workflow');
+    expect(source).toContain('dashboardApi.createWorkflow');
   });
 });
 
@@ -367,7 +367,7 @@ describe('FR-427: dashboard navigation and layout', () => {
 
   it('layout includes navigation links to all major sections', () => {
     const source = readComponent('components/layout.tsx');
-    expect(source).toContain('/pipelines');
+    expect(source).toContain('/workflows');
     expect(source).toContain('/projects');
     expect(source).toContain('/templates');
     expect(source).toContain('/workers');
@@ -415,37 +415,37 @@ describe('operator information architecture', () => {
     expect(source).toContain('export function GovernancePage');
     expect(source).toContain('getRetentionPolicy');
     expect(source).toContain('setTaskLegalHold');
-    expect(source).toContain('setPipelineLegalHold');
+    expect(source).toContain('setWorkflowLegalHold');
     expect(source).toContain('listAuditLogs');
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FR-429: Pipeline list view with filters
+// FR-429: Workflow list view with filters
 // ─────────────────────────────────────────────────────────────────────────────
-describe('FR-429: pipeline list view with filters', () => {
-  it('pipeline-list-page renders the pipeline table with state-based filtering capability', () => {
-    const source = readComponent('pages/pipeline-list-page.tsx');
-    expect(source).toContain('PipelineListPage');
+describe('FR-429: workflow list view with filters', () => {
+  it('workflow-list-page renders the workflow table with state-based filtering capability', () => {
+    const source = readComponent('pages/workflow-list-page.tsx');
+    expect(source).toContain('WorkflowListPage');
     // State column enables client-side filtering
     expect(source).toContain('state');
   });
 
-  it('listTasks API supports pipeline_id filter for scoped task view', () => {
+  it('listTasks API supports workflow_id filter for scoped task view', () => {
     const source = readComponent('lib/api.ts');
     expect(source).toContain('listTasks');
     expect(source).toContain('filters');
   });
 
-  it('pipeline-list-page subscribes to SSE to refresh list on pipeline events', () => {
-    const source = readComponent('pages/pipeline-list-page.tsx');
+  it('workflow-list-page subscribes to SSE to refresh list on workflow events', () => {
+    const source = readComponent('pages/workflow-list-page.tsx');
     expect(source).toContain('subscribeToEvents');
-    expect(source).toContain('pipeline.');
+    expect(source).toContain('workflow.');
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FR-755: Quickstart docs for 15-minute first pipeline
+// FR-755: Quickstart docs for 15-minute first workflow
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-755: quickstart documentation', () => {
   it('README.md exists at the repo root', () => {
@@ -462,7 +462,7 @@ describe('FR-755: quickstart documentation', () => {
       lower.includes('getting started') ||
       lower.includes('installation') ||
       lower.includes('setup') ||
-      lower.includes('first pipeline');
+      lower.includes('first workflow');
     expect(hasQuickstart).toBe(true);
   });
 });

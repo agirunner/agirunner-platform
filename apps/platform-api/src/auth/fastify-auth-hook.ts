@@ -7,7 +7,7 @@ import { parseBearerToken, verifyApiKey, verifyJwtApiKeyIdentity, type ApiKeyIde
 import { verifyJwt } from './jwt.js';
 import { enforceScope, type ApiKeyScope } from './scope.js';
 
-const ACCESS_COOKIE_NAME = 'agentbaton_access_token';
+const ACCESS_COOKIE_NAME = 'agirunner_access_token';
 
 /**
  * Authenticate the request using either the Authorization header (Bearer token)

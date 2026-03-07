@@ -14,7 +14,7 @@ import {
 
 import { agents } from './agents.js';
 import { taskPriorityEnum, taskStateEnum, taskTypeEnum } from './enums.js';
-import { pipelines } from './pipelines.js';
+import { workflows } from './workflows.js';
 import { projects } from './projects.js';
 import { tenants } from './tenants.js';
 import { workers } from './workers.js';
@@ -26,7 +26,7 @@ export const tasks = pgTable(
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id),
-    pipelineId: uuid('pipeline_id').references(() => pipelines.id),
+    workflowId: uuid('workflow_id').references(() => workflows.id),
     projectId: uuid('project_id').references(() => projects.id),
     title: text('title').notNull(),
     type: taskTypeEnum('type').notNull().default('custom'),
@@ -66,7 +66,7 @@ export const tasks = pgTable(
   },
   (table) => [
     index('idx_tasks_tenant').on(table.tenantId),
-    index('idx_tasks_pipeline').on(table.pipelineId),
+    index('idx_tasks_workflow').on(table.workflowId),
     index('idx_tasks_project').on(table.projectId),
     index('idx_tasks_claimable')
       .on(table.tenantId, table.priority, table.createdAt)

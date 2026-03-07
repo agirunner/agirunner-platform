@@ -17,7 +17,7 @@ describe('webhook task trigger routes', () => {
   let app: Awaited<ReturnType<typeof buildApp>>;
   let adminKey: string;
   let projectId: string;
-  let pipelineId: string;
+  let workflowId: string;
   const previousEnv: Record<string, string | undefined> = {};
 
   beforeAll(async () => {
@@ -56,11 +56,11 @@ describe('webhook task trigger routes', () => {
       )
     ).rows[0].id;
 
-    pipelineId = randomUUID();
+    workflowId = randomUUID();
     await db.pool.query(
-      `INSERT INTO pipelines (id, tenant_id, project_id, name, state)
-       VALUES ($1,$2,$3,'trigger-pipeline','active')`,
-      [pipelineId, tenantId, projectId],
+      `INSERT INTO workflows (id, tenant_id, project_id, name, state)
+       VALUES ($1,$2,$3,'trigger-workflow','active')`,
+      [workflowId, tenantId, projectId],
     );
 
     adminKey = (
@@ -97,7 +97,7 @@ describe('webhook task trigger routes', () => {
         name: 'github-pr-trigger',
         source: 'github',
         project_id: projectId,
-        pipeline_id: pipelineId,
+        workflow_id: workflowId,
         event_header: 'x-github-event',
         event_types: ['pull_request'],
         signature_header: 'x-hub-signature-256',
@@ -158,7 +158,7 @@ describe('webhook task trigger routes', () => {
     });
 
     const createdTask = await db.pool.query(
-      `SELECT title, type, priority, role, metadata, input, pipeline_id, project_id
+      `SELECT title, type, priority, role, metadata, input, workflow_id, project_id
          FROM tasks
         WHERE tenant_id = $1
         ORDER BY created_at DESC
@@ -170,7 +170,7 @@ describe('webhook task trigger routes', () => {
       type: 'review',
       priority: 'high',
       role: 'reviewer',
-      pipeline_id: pipelineId,
+      workflow_id: workflowId,
       project_id: projectId,
     });
     expect(createdTask.rows[0].metadata.trigger).toMatchObject({

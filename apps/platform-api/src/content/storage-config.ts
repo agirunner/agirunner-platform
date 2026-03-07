@@ -29,7 +29,7 @@ export type ArtifactStorageEnv = Partial<
 export function buildArtifactStorageConfig(env: ArtifactStorageEnv): ArtifactStorageConfig {
   return {
     backend: env.ARTIFACT_STORAGE_BACKEND ?? 'local',
-    localRoot: env.ARTIFACT_LOCAL_ROOT ?? '/tmp/agentbaton-platform-artifacts',
+    localRoot: env.ARTIFACT_LOCAL_ROOT ?? '/tmp/agirunner-platform-artifacts',
     s3:
       env.ARTIFACT_STORAGE_BACKEND === 's3'
         ? {

@@ -37,14 +37,14 @@ export async function runIt3Webhooks(_live: LiveContext): Promise<ScenarioExecut
 
   try {
     const created = (await tenant.adminClient.registerWebhook({
-      url: 'https://example.com/hooks/agentbaton',
-      event_types: ['task.completed', 'pipeline.completed'],
+      url: 'https://example.com/hooks/agirunner',
+      event_types: ['task.completed', 'workflow.completed'],
       secret: 'very-secret-webhook-key',
     })) as { id: string; url: string; event_types: string[]; is_active: boolean; secret: string };
 
     validations.push('webhook_registered');
 
-    if (!created.id || created.url !== 'https://example.com/hooks/agentbaton') {
+    if (!created.id || created.url !== 'https://example.com/hooks/agirunner') {
       throw new Error('IT-3 webhook registration returned invalid payload');
     }
 

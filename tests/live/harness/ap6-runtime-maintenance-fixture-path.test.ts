@@ -7,16 +7,16 @@ import { resolveAp6TodoFixtureRepo } from '../scenarios/ap6-runtime-maintenance.
 test('AP-6 resolves todo-app fixture path from LIVE_FIXTURE_ROOT at runtime', () => {
   const previous = process.env.LIVE_FIXTURE_ROOT;
 
-  process.env.LIVE_FIXTURE_ROOT = '/tmp/agentbaton-live-runtime-a/fixtures';
+  process.env.LIVE_FIXTURE_ROOT = '/tmp/agirunner-live-runtime-a/fixtures';
   assert.equal(
     resolveAp6TodoFixtureRepo(),
-    path.join('/tmp/agentbaton-live-runtime-a/fixtures', 'todo-app'),
+    path.join('/tmp/agirunner-live-runtime-a/fixtures', 'todo-app'),
   );
 
-  process.env.LIVE_FIXTURE_ROOT = '/tmp/agentbaton-live-runtime-b/fixtures';
+  process.env.LIVE_FIXTURE_ROOT = '/tmp/agirunner-live-runtime-b/fixtures';
   assert.equal(
     resolveAp6TodoFixtureRepo(),
-    path.join('/tmp/agentbaton-live-runtime-b/fixtures', 'todo-app'),
+    path.join('/tmp/agirunner-live-runtime-b/fixtures', 'todo-app'),
   );
 
   if (previous === undefined) {

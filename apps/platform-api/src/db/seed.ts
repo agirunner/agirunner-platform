@@ -27,7 +27,7 @@ export const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 export const DEFAULT_API_KEY_EXPIRY = new Date('2099-12-31T23:59:59Z');
 
 /** Fixed prefix used to detect whether the default key was already created. */
-export const DEFAULT_ADMIN_KEY_PREFIX = 'ab_admin_def';
+export const DEFAULT_ADMIN_KEY_PREFIX = 'ar_admin_def';
 
 /**
  * Optional override for deterministic bootstrap in docker-compose deployments.
@@ -114,10 +114,10 @@ async function seedDefaultAdminKey(pool: pg.Pool, source: NodeJS.ProcessEnv = pr
   }
 
   // Print the key exactly once so the operator can bootstrap their first
-  // pipeline without any additional configuration (FR-754).
+  // workflow without any additional configuration (FR-754).
   console.info('');
   console.info('┌─────────────────────────────────────────────────────┐');
-  console.info('│  AgentBaton — Zero-Config First Run                 │');
+  console.info('│  Agirunner — Zero-Config First Run                 │');
   console.info('│                                                     │');
   console.info(`│  Default Admin API Key:                             │`);
   console.info(`│  ${apiKey.padEnd(51)}│`);

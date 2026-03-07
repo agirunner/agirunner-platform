@@ -1,7 +1,7 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
-import { validateTemplateSchema } from '../orchestration/pipeline-engine.js';
+import { validateTemplateSchema } from '../orchestration/workflow-engine.js';
 import { EventService } from './event-service.js';
 import type { CreateTemplateInput, UpdateTemplateInput } from './template-service.types.js';
 
@@ -94,13 +94,13 @@ export class TemplateWriteService {
   }
 
   async softDeleteTemplate(identity: ApiKeyIdentity, templateId: string) {
-    const activePipelines = await this.deps.pool.query(
-      `SELECT id FROM pipelines
+    const activeWorkflows = await this.deps.pool.query(
+      `SELECT id FROM workflows
        WHERE tenant_id = $1 AND template_id = $2 AND state IN ('pending','active','paused')
        LIMIT 1`,
       [identity.tenantId, templateId],
     );
-    if (activePipelines.rowCount) throw new ConflictError('Cannot delete template while active pipelines exist');
+    if (activeWorkflows.rowCount) throw new ConflictError('Cannot delete template while active workflows exist');
 
     const result = await this.deps.pool.query(
       `UPDATE templates

@@ -11,7 +11,7 @@ import { ArtifactRetentionService } from './artifact-retention-service.js';
 interface ArtifactRow {
   id: string;
   tenant_id: string;
-  pipeline_id: string | null;
+  workflow_id: string | null;
   project_id: string | null;
   task_id: string;
   logical_path: string;
@@ -29,9 +29,9 @@ interface ArtifactRow {
 interface TaskScopeRow {
   id: string;
   tenant_id: string;
-  pipeline_id: string | null;
+  workflow_id: string | null;
   project_id: string | null;
-  pipeline_metadata: Record<string, unknown> | null;
+  workflow_metadata: Record<string, unknown> | null;
 }
 
 export interface ArtifactUploadInput {
@@ -58,7 +58,7 @@ export class ArtifactService {
     const relativePath = sanitizeArtifactPath(input.path);
     const payload = decodeArtifactPayload(input.contentBase64);
     const artifactId = randomUUID();
-    const scopeId = task.pipeline_id ?? `task-${task.id}`;
+    const scopeId = task.workflow_id ?? `task-${task.id}`;
     const logicalPath = `artifact:${scopeId}/${relativePath}`;
     const storageKey = buildStorageKey(identity.tenantId, scopeId, artifactId, relativePath);
     const stored = await this.storage.putObject(
@@ -66,18 +66,18 @@ export class ArtifactService {
       payload,
       input.contentType ?? DEFAULT_ARTIFACT_CONTENT_TYPE,
     );
-    const retention = resolveRetentionPolicy(task.pipeline_metadata);
+    const retention = resolveRetentionPolicy(task.workflow_metadata);
 
     const result = await this.pool.query<ArtifactRow>(
-      `INSERT INTO pipeline_artifacts
-       (id, tenant_id, pipeline_id, project_id, task_id, logical_path, storage_backend, storage_key, content_type,
+      `INSERT INTO workflow_artifacts
+       (id, tenant_id, workflow_id, project_id, task_id, logical_path, storage_backend, storage_key, content_type,
         size_bytes, checksum_sha256, metadata, retention_policy, expires_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14)
        RETURNING *`,
       [
         artifactId,
         identity.tenantId,
-        task.pipeline_id,
+        task.workflow_id,
         task.project_id,
         task.id,
         logicalPath,
@@ -100,7 +100,7 @@ export class ArtifactService {
     await this.loadTask(tenantId, taskId);
     const rows = await this.pool.query<ArtifactRow>(
       `SELECT *
-       FROM pipeline_artifacts
+       FROM workflow_artifacts
        WHERE tenant_id = $1
          AND task_id = $2
          AND ($3::text IS NULL OR logical_path LIKE $3 || '%')
@@ -125,7 +125,7 @@ export class ArtifactService {
     await this.retention.purgeExpiredArtifacts(identity.tenantId);
     const row = await this.loadArtifact(identity.tenantId, taskId, artifactId);
     await this.storage.deleteObject(row.storage_key);
-    await this.pool.query('DELETE FROM pipeline_artifacts WHERE tenant_id = $1 AND id = $2', [
+    await this.pool.query('DELETE FROM workflow_artifacts WHERE tenant_id = $1 AND id = $2', [
       identity.tenantId,
       artifactId,
     ]);
@@ -135,13 +135,13 @@ export class ArtifactService {
     const result = await this.pool.query<TaskScopeRow>(
       `SELECT tasks.id,
               tasks.tenant_id,
-              tasks.pipeline_id,
+              tasks.workflow_id,
               tasks.project_id,
-              pipelines.metadata AS pipeline_metadata
+              workflows.metadata AS workflow_metadata
          FROM tasks
-         LEFT JOIN pipelines
-           ON pipelines.tenant_id = tasks.tenant_id
-          AND pipelines.id = tasks.pipeline_id
+         LEFT JOIN workflows
+           ON workflows.tenant_id = tasks.tenant_id
+          AND workflows.id = tasks.workflow_id
         WHERE tasks.tenant_id = $1
           AND tasks.id = $2`,
       [tenantId, taskId],
@@ -159,7 +159,7 @@ export class ArtifactService {
     artifactId: string,
   ): Promise<ArtifactRow> {
     const result = await this.pool.query<ArtifactRow>(
-      'SELECT * FROM pipeline_artifacts WHERE tenant_id = $1 AND task_id = $2 AND id = $3',
+      'SELECT * FROM workflow_artifacts WHERE tenant_id = $1 AND task_id = $2 AND id = $3',
       [tenantId, taskId, artifactId],
     );
     const artifact = result.rows[0];
@@ -173,7 +173,7 @@ export class ArtifactService {
     const access = await this.storage.createAccessUrl(row.storage_key, this.accessUrlTtlSeconds);
     return {
       id: row.id,
-      pipeline_id: row.pipeline_id,
+      workflow_id: row.workflow_id,
       project_id: row.project_id,
       task_id: row.task_id,
       logical_path: row.logical_path,
@@ -247,7 +247,7 @@ function resolveRetentionPolicy(metadata: Record<string, unknown> | null) {
     };
   }
   return {
-    policy: { mode: 'ephemeral', destroy_on_pipeline_complete: true },
+    policy: { mode: 'ephemeral', destroy_on_workflow_complete: true },
     expiresAt: null,
   };
 }

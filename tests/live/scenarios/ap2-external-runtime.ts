@@ -1,5 +1,5 @@
 /**
- * AP-2: External Worker SDLC Pipeline
+ * AP-2: External Worker SDLC Workflow
  *
  * The live test harness acts as the external worker runtime:
  * - registers a polling external worker
@@ -14,8 +14,8 @@ import type { LiveContext, ScenarioDeliveryEvidence, ScenarioExecutionResult } f
 import {
   assertAllTasksCompleted,
   assertDependencyOrder,
-  assertInitialPipelineState,
-  assertPipelineTerminal,
+  assertInitialWorkflowState,
+  assertWorkflowTerminal,
   assertTaskOutputsPresent,
   assertTaskRoles,
 } from './assertions.js';
@@ -27,7 +27,7 @@ import {
   workerMatches,
 } from './external-worker-utils.js';
 import { loadConfig } from '../config.js';
-import { pollPipelineUntil } from './poll.js';
+import { pollWorkflowUntil } from './poll.js';
 import { sdlcTemplateSchema } from './templates.js';
 import { createTenantBootstrap, registerWorkerAgent } from './tenant.js';
 
@@ -91,7 +91,7 @@ export async function runAp2ExternalRuntime(live: LiveContext): Promise<Scenario
     });
     validations.push('template_created');
 
-    const pipeline = await tenant.adminClient.createPipeline({
+    const workflow = await tenant.adminClient.createWorkflow({
       template_id: template.id,
       name: `AP-2 calc-api ${live.runId}`,
       parameters: {
@@ -99,16 +99,16 @@ export async function runAp2ExternalRuntime(live: LiveContext): Promise<Scenario
         goal: 'Add a multiply endpoint to the calculator API',
       },
     });
-    validations.push('pipeline_created');
+    validations.push('workflow_created');
 
-    assertTaskRoles(pipeline, SDLC_ROLES);
-    assertInitialPipelineState(pipeline);
+    assertTaskRoles(workflow, SDLC_ROLES);
+    assertInitialWorkflowState(workflow);
     validations.push('initial_state_valid');
 
     const handledRoles: string[] = [];
 
     for (const expectedRole of SDLC_ROLES) {
-      const claimed = await claimTaskWithPolling(externalHarness, pipeline.id);
+      const claimed = await claimTaskWithPolling(externalHarness, workflow.id);
 
       if (claimed.role !== expectedRole) {
         throw new Error(`Expected ${expectedRole} task, claimed ${claimed.role ?? claimed.type}`);
@@ -130,23 +130,23 @@ export async function runAp2ExternalRuntime(live: LiveContext): Promise<Scenario
     }
     validations.push('routing_all_tasks_external');
 
-    const completed = await pollPipelineUntil(
+    const completed = await pollWorkflowUntil(
       tenant.adminClient,
-      pipeline.id,
+      workflow.id,
       ['completed', 'failed'],
-      config.pipelineTimeoutMs,
+      config.workflowTimeoutMs,
     );
 
-    assertPipelineTerminal(completed, 'completed', 4);
+    assertWorkflowTerminal(completed, 'completed', 4);
     assertAllTasksCompleted(completed);
     assertTaskOutputsPresent(completed);
     assertDependencyOrder(completed);
-    validations.push('pipeline_completed');
+    validations.push('workflow_completed');
 
     authenticityEvidence = [
       {
-        pipelineId: completed.id,
-        pipelineState: completed.state,
+        workflowId: completed.id,
+        workflowState: completed.state,
         acceptanceCriteria: [
           'All SDLC roles complete in sequence under external runtime mode',
           'Each completed task output carries deterministic synthetic signature fields',

@@ -11,7 +11,7 @@ export function IntegrationsPage(): JSX.Element {
     queryFn: () => dashboardApi.listIntegrations() as Promise<DashboardIntegrationRecord[]>,
   });
   const [kind, setKind] = useState<DashboardIntegrationRecord['kind']>('webhook');
-  const [subscriptions, setSubscriptions] = useState('pipeline.completed');
+  const [subscriptions, setSubscriptions] = useState('workflow.completed');
   const [configText, setConfigText] = useState('{\n  "url": "https://example.com/webhook"\n}');
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

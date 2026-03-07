@@ -12,7 +12,7 @@ interface TaskWriteDependencies {
   hasOrchestratorPermission: (
     tenantId: string,
     agentId: string,
-    pipelineId: string,
+    workflowId: string,
     permission: string,
   ) => Promise<boolean>;
   subtaskPermission: string;
@@ -22,7 +22,7 @@ interface TaskWriteDependencies {
 
 interface ParentTaskRow {
   id: string;
-  pipeline_id: string | null;
+  workflow_id: string | null;
   project_id: string | null;
   assigned_agent_id: string | null;
   assigned_worker_id: string | null;
@@ -65,14 +65,14 @@ export class TaskWriteService {
 
     const insertResult = await this.deps.pool.query(
       `INSERT INTO tasks (
-        tenant_id, pipeline_id, project_id, title, type, role, priority, state, depends_on,
+        tenant_id, workflow_id, project_id, title, type, role, priority, state, depends_on,
         requires_approval, input, context, capabilities_required, role_config, environment,
         resource_bindings, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, metadata
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::uuid[],$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
       RETURNING *`,
       [
         identity.tenantId,
-        normalizedInput.pipeline_id ?? null,
+        normalizedInput.workflow_id ?? null,
         normalizedInput.project_id ?? null,
         normalizedInput.title,
         normalizedInput.type,
@@ -118,14 +118,14 @@ export class TaskWriteService {
 
     return {
       ...input,
-      pipeline_id: input.pipeline_id ?? parentTask.pipeline_id ?? undefined,
+      workflow_id: input.workflow_id ?? parentTask.workflow_id ?? undefined,
       project_id: input.project_id ?? parentTask.project_id ?? undefined,
     };
   }
 
   private async loadParentTask(tenantId: string, parentId: string): Promise<ParentTaskRow> {
     const result = await this.deps.pool.query<ParentTaskRow>(
-      `SELECT id, pipeline_id, project_id, assigned_agent_id, assigned_worker_id, metadata->>'parent_id' AS parent_id
+      `SELECT id, workflow_id, project_id, assigned_agent_id, assigned_worker_id, metadata->>'parent_id' AS parent_id
          FROM tasks
         WHERE tenant_id = $1
           AND id = $2`,
@@ -196,11 +196,11 @@ export class TaskWriteService {
     if (
       identity.scope === 'agent' &&
       identity.ownerId &&
-      parentTask.pipeline_id &&
+      parentTask.workflow_id &&
       (await this.deps.hasOrchestratorPermission(
         identity.tenantId,
         identity.ownerId,
-        parentTask.pipeline_id,
+        parentTask.workflow_id,
         this.deps.subtaskPermission,
       ))
     ) {

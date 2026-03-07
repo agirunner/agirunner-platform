@@ -5,7 +5,7 @@
 - Started: 2026-03-05T23:23:17.554Z
 - Finished: 2026-03-05T23:25:58.271Z
 - Command: `pnpm test:core:all`
-- Stdout log: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/stages/core/stdout.log
-- Stderr log: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/stages/core/stderr.log
-- Lane artifacts root: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/lanes/core/artifacts
-- Lane results path: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/lanes/core/results.v1.json
+- Stdout log: /root/.openclaw/agents/engineer/workspace/projects/agirunner-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/stages/core/stdout.log
+- Stderr log: /root/.openclaw/agents/engineer/workspace/projects/agirunner-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/stages/core/stderr.log
+- Lane artifacts root: /root/.openclaw/agents/engineer/workspace/projects/agirunner-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/lanes/core/artifacts
+- Lane results path: /root/.openclaw/agents/engineer/workspace/projects/agirunner-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/lanes/core/results.v1.json

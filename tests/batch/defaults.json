@@ -13,7 +13,7 @@
     "dashboardBase": 3140
   },
   "compose": {
-    "projectPrefix": "agentbaton-batch"
+    "projectPrefix": "agirunner-batch"
   },
   "stages": {
     "unit": {

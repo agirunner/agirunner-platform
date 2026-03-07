@@ -27,7 +27,7 @@ describe('runtime customization gate summary', () => {
       state: 'gated',
       manifest: {
         template: 'node',
-        base_image: 'ghcr.io/agentbaton/runtime@sha256:1234',
+        base_image: 'ghcr.io/agirunner/runtime@sha256:1234',
       },
       link_ready: false,
       gates: [

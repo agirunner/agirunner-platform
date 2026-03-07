@@ -53,7 +53,7 @@ importers:
 
   apps/dashboard:
     dependencies:
-      '@agentbaton/sdk':
+      '@agirunner/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
       '@tanstack/react-query':
@@ -178,7 +178,7 @@ importers:
 
   packages/mcp-server:
     dependencies:
-      '@agentbaton/sdk':
+      '@agirunner/sdk':
         specifier: workspace:*
         version: link:../sdk
       zod:

@@ -363,7 +363,7 @@ test('buildBatchResultsReport emits results.v1-compatible shape without batch-on
     const scenarioDefinition = {
       id: 'AP-1',
       key: 'sdlc-happy',
-      title: 'Built-in Worker — SDLC Pipeline',
+      title: 'Built-in Worker — SDLC Workflow',
       planRef: '§2 AP-1',
     };
 

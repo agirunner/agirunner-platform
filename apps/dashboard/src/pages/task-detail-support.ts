@@ -1,4 +1,4 @@
-import type { Task } from '@agentbaton/sdk';
+import type { Task } from '@agirunner/sdk';
 
 export interface ClarificationEntry {
   feedback?: string;

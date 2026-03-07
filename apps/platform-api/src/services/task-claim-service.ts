@@ -19,7 +19,7 @@ export class TaskClaimService {
 
   async claimTask(
     identity: ApiKeyIdentity,
-    payload: { agent_id: string; worker_id?: string; capabilities: string[]; pipeline_id?: string; include_context?: boolean },
+    payload: { agent_id: string; worker_id?: string; capabilities: string[]; workflow_id?: string; include_context?: boolean },
   ): Promise<Record<string, unknown> | null> {
     const client = await this.deps.pool.connect();
     try {
@@ -31,9 +31,9 @@ export class TaskClaimService {
           WHERE tenant_id = $1
             AND state = 'pending'
             AND metadata ? 'retry_available_at'
-            AND ($2::uuid IS NULL OR pipeline_id = $2::uuid)
+            AND ($2::uuid IS NULL OR workflow_id = $2::uuid)
             AND (metadata->>'retry_available_at')::timestamptz <= now()`,
-        [identity.tenantId, payload.pipeline_id ?? null],
+        [identity.tenantId, payload.workflow_id ?? null],
       );
 
       const agentRes = await client.query('SELECT * FROM agents WHERE tenant_id = $1 AND id = $2 FOR UPDATE', [
@@ -69,12 +69,12 @@ export class TaskClaimService {
 
       const taskRes = await client.query(
         `SELECT tasks.* FROM tasks
-         LEFT JOIN pipelines ON pipelines.tenant_id = tasks.tenant_id AND pipelines.id = tasks.pipeline_id
+         LEFT JOIN workflows ON workflows.tenant_id = tasks.tenant_id AND workflows.id = tasks.workflow_id
          WHERE tasks.tenant_id = $1
            AND tasks.state = 'ready'
            AND tasks.capabilities_required <@ $2::text[]
-           AND ($3::uuid IS NULL OR tasks.pipeline_id = $3::uuid)
-           AND (pipelines.id IS NULL OR pipelines.state <> 'paused')
+           AND ($3::uuid IS NULL OR tasks.workflow_id = $3::uuid)
+           AND (workflows.id IS NULL OR workflows.state <> 'paused')
            AND (
              NOT (tasks.metadata ? 'preferred_agent_id')
              OR NULLIF(tasks.metadata->>'preferred_agent_id', '') IS NULL
@@ -92,7 +92,7 @@ export class TaskClaimService {
            tasks.created_at ASC
          LIMIT 25
          FOR UPDATE OF tasks SKIP LOCKED`,
-        [identity.tenantId, payload.capabilities, payload.pipeline_id ?? null, payload.agent_id, payload.worker_id ?? null],
+        [identity.tenantId, payload.capabilities, payload.workflow_id ?? null, payload.agent_id, payload.worker_id ?? null],
       );
 
       if (!taskRes.rowCount) {

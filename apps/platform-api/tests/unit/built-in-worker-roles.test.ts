@@ -234,7 +234,7 @@ describe('FR-750: capabilities limited to LLM API', () => {
     const workerConfig = buildWorkerConfigFromRoles(
       {
         apiBaseUrl: 'http://localhost:8080',
-        adminApiKey: 'ab_admin_test',
+        adminApiKey: 'ar_admin_test',
         name: 'test-built-in-worker',
         heartbeatIntervalSeconds: 30,
       },
@@ -249,7 +249,7 @@ describe('FR-750: capabilities limited to LLM API', () => {
     const workerConfig = buildWorkerConfigFromRoles(
       {
         apiBaseUrl: 'http://localhost:8080',
-        adminApiKey: 'ab_admin_test',
+        adminApiKey: 'ar_admin_test',
         name: 'test-built-in-worker',
         heartbeatIntervalSeconds: 30,
       },

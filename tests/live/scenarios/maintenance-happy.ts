@@ -1,12 +1,12 @@
 /**
- * Maintenance Happy Path — delegates to AP-5 (autonomous maintenance pipeline).
+ * Maintenance Happy Path — delegates to AP-5 (autonomous maintenance workflow).
  *
  * This is the entry point called by the existing runner for the
  * "maintenance-happy" scenario name.
  */
 
 import type { LiveContext, ScenarioExecutionResult } from '../harness/types.js';
-import { runAp5SingleBug } from './ap5-maintenance-pipeline.js';
+import { runAp5SingleBug } from './ap5-maintenance-workflow.js';
 
 export async function runMaintenanceHappyScenario(
   live: LiveContext,

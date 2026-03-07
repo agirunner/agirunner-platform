@@ -7,7 +7,7 @@ test.describe('dashboard auth', () => {
     await gotoDashboard(page, '/');
     await tryLogin(page);
     await expectDashboardShell(page);
-    await expectOneOfHeadings(page, ['Pipelines', 'Pipeline Detail']);
+    await expectOneOfHeadings(page, ['Workflows', 'Workflow Detail']);
 
     const logoutButton = page.locator('button:has-text("Logout"), button:has-text("Sign out")').first();
     if ((await logoutButton.count()) > 0) {
@@ -42,14 +42,14 @@ test.describe('dashboard auth', () => {
   test('expired token path renders sane fallback', async ({ page, context }) => {
     await context.addCookies([
       {
-        name: 'agentbaton_access_token',
+        name: 'agirunner_access_token',
         value: 'expired-token',
         url: 'http://127.0.0.1:3000',
       },
     ]);
     await gotoDashboard(page, '/');
 
-    const loginHeading = page.getByRole('heading', { name: 'AgentBaton Dashboard' }).first();
+    const loginHeading = page.getByRole('heading', { name: 'Agirunner Dashboard' }).first();
     if ((await loginHeading.count()) > 0 && (await loginHeading.isVisible())) {
       await expectLoginPage(page);
       return;

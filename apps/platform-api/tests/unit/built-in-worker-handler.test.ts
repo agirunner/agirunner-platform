@@ -30,12 +30,12 @@ const runtimeArtifactPath = `/workspace/artifacts/${runtimeArtifactName}`;
 
 const mockRegistration: WorkerRegistration = {
   workerId: 'worker-123',
-  workerApiKey: 'ab_worker_testkey',
+  workerApiKey: 'ar_worker_testkey',
   websocketUrl: '/ws/workers',
   heartbeatIntervalSeconds: defaultHeartbeatIntervalSeconds,
   agent: {
     agentId: 'agent-123',
-    agentApiKey: 'ab_agent_testkey',
+    agentApiKey: 'ar_agent_testkey',
     name: 'built-in-worker-agent',
     capabilities: ['general'],
   },
@@ -43,7 +43,7 @@ const mockRegistration: WorkerRegistration = {
 
 const minimalConfig: BuiltInWorkerConfig = {
   apiBaseUrl: testApiBaseUrl,
-  adminApiKey: 'ab_admin_deftest',
+  adminApiKey: 'ar_admin_deftest',
   capabilities: ['general'],
   name: 'test-built-in-worker',
   heartbeatIntervalSeconds: defaultHeartbeatIntervalSeconds,

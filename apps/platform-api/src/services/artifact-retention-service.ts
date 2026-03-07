@@ -16,7 +16,7 @@ export class ArtifactRetentionService {
     return this.deleteArtifacts(
       client ?? this.pool,
       `SELECT id, storage_key
-         FROM pipeline_artifacts
+         FROM workflow_artifacts
         WHERE tenant_id = $1
           AND expires_at IS NOT NULL
           AND expires_at <= now()`,
@@ -24,22 +24,22 @@ export class ArtifactRetentionService {
     );
   }
 
-  async purgePipelineArtifactsOnTerminalState(
+  async purgeWorkflowArtifactsOnTerminalState(
     tenantId: string,
-    pipelineId: string,
+    workflowId: string,
     client?: DatabaseClient,
   ): Promise<number> {
     return this.deleteArtifacts(
       client ?? this.pool,
       `SELECT id, storage_key
-         FROM pipeline_artifacts
+         FROM workflow_artifacts
         WHERE tenant_id = $1
-          AND pipeline_id = $2
+          AND workflow_id = $2
           AND (
             retention_policy ->> 'mode' = 'ephemeral'
-            OR COALESCE((retention_policy ->> 'destroy_on_pipeline_complete')::boolean, false)
+            OR COALESCE((retention_policy ->> 'destroy_on_workflow_complete')::boolean, false)
           )`,
-      [tenantId, pipelineId],
+      [tenantId, workflowId],
     );
   }
 
@@ -58,7 +58,7 @@ export class ArtifactRetentionService {
     }
 
     await db.query(
-      `DELETE FROM pipeline_artifacts
+      `DELETE FROM workflow_artifacts
         WHERE id = ANY($1::uuid[])`,
       [artifacts.rows.map((artifact) => artifact.id)],
     );

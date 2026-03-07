@@ -8,7 +8,7 @@ interface A2ATaskPayload {
   description?: string;
   type?: string;
   priority?: string;
-  pipeline_id?: string;
+  workflow_id?: string;
   project_id?: string;
   role?: string;
   input?: Record<string, unknown>;
@@ -22,8 +22,8 @@ export function buildAgentCard(baseUrl: string) {
   return {
     protocol: 'a2a',
     protocol_version: A2A_PROTOCOL_VERSION,
-    name: 'AgentBaton',
-    description: 'A2A ingress and query facade over the AgentBaton task broker.',
+    name: 'Agirunner',
+    description: 'A2A ingress and query facade over the Agirunner task broker.',
     authentication: {
       type: 'bearer_api_key',
       header: 'Authorization',
@@ -47,7 +47,7 @@ export function mapA2ATaskToCreateInput(task: A2ATaskPayload): CreateTaskInput {
     type: normalizeTaskType(task.type),
     description: task.description,
     priority: normalizePriority(task.priority),
-    pipeline_id: task.pipeline_id,
+    workflow_id: task.workflow_id,
     project_id: task.project_id,
     role: task.role,
     input: task.input ?? {},
@@ -75,7 +75,7 @@ export function buildA2ATaskResponse(task: Record<string, unknown>) {
     metadata: {
       ...(asRecord(task.metadata).protocol_ingress ? { protocol_ingress: asRecord(task.metadata).protocol_ingress } : {}),
       task_id: task.id,
-      pipeline_id: task.pipeline_id,
+      workflow_id: task.workflow_id,
       project_id: task.project_id,
     },
   };

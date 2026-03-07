@@ -16,8 +16,8 @@ export interface LiveConfig {
   postgresUrl: string;
   /** Maximum time to wait for a single task to complete (ms) */
   taskTimeoutMs: number;
-  /** Maximum time to wait for a full pipeline to complete (ms) */
-  pipelineTimeoutMs: number;
+  /** Maximum time to wait for a full workflow to complete (ms) */
+  workflowTimeoutMs: number;
   /** Polling interval when checking state (ms) */
   pollIntervalMs: number;
   /** Max wait while polling for a claimable task (ms) */
@@ -147,7 +147,7 @@ function resolveLivePostgresUrl(): string {
   }
 
   const postgresPort = process.env.POSTGRES_PORT ?? '5432';
-  return `postgresql://agentbaton:agentbaton@127.0.0.1:${postgresPort}/agentbaton`;
+  return `postgresql://agirunner:agirunner@127.0.0.1:${postgresPort}/agirunner`;
 }
 
 export function loadConfig(): LiveConfig {
@@ -156,7 +156,7 @@ export function loadConfig(): LiveConfig {
     dashboardBaseUrl: resolveLiveDashboardBaseUrl(),
     postgresUrl: resolveLivePostgresUrl(),
     taskTimeoutMs: Number(process.env.LIVE_TASK_TIMEOUT_MS ?? 300_000),
-    pipelineTimeoutMs: Number(process.env.LIVE_PIPELINE_TIMEOUT_MS ?? 1_800_000),
+    workflowTimeoutMs: Number(process.env.LIVE_WORKFLOW_TIMEOUT_MS ?? 1_800_000),
     pollIntervalMs: Number(process.env.LIVE_POLL_INTERVAL_MS ?? 2_000),
     claimPollTimeoutMs: Number(process.env.LIVE_CLAIM_POLL_TIMEOUT_MS ?? 60_000),
     healthTimeoutMs: Number(process.env.LIVE_HEALTH_TIMEOUT_MS ?? 300_000),
@@ -166,7 +166,7 @@ export function loadConfig(): LiveConfig {
       process.env.LIVE_AP7_REQUIRE_PROVIDED_AGENT_API_URL,
       true,
     ),
-    composeProject: process.env.COMPOSE_PROJECT_NAME ?? 'agentbaton-platform',
+    composeProject: process.env.COMPOSE_PROJECT_NAME ?? 'agirunner-platform',
     skipStackSetup: parseBooleanEnv(process.env.LIVE_SKIP_STACK_SETUP),
     evaluationMode: parseEvaluationMode(process.env.LIVE_EVALUATION_MODE),
     evaluationProvider: process.env.LIVE_EVALUATION_PROVIDER?.trim() ?? '',

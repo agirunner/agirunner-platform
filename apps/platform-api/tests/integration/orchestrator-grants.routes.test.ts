@@ -13,7 +13,7 @@ describe('orchestrator grant routes', () => {
   let app: Awaited<ReturnType<typeof buildApp>>;
   let adminKey: string;
   let agentId: string;
-  let pipelineId: string;
+  let workflowId: string;
   const previousEnv: Record<string, string | undefined> = {};
 
   beforeAll(async () => {
@@ -44,7 +44,7 @@ describe('orchestrator grant routes', () => {
     process.env.RATE_LIMIT_MAX_PER_MINUTE = '200';
 
     agentId = randomUUID();
-    pipelineId = randomUUID();
+    workflowId = randomUUID();
 
     await db.pool.query(
       `INSERT INTO agents (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds)
@@ -52,9 +52,9 @@ describe('orchestrator grant routes', () => {
       [agentId, tenantId],
     );
     await db.pool.query(
-      `INSERT INTO pipelines (id, tenant_id, name, state)
-       VALUES ($1,$2,'grant-pipeline','active')`,
-      [pipelineId, tenantId],
+      `INSERT INTO workflows (id, tenant_id, name, state)
+       VALUES ($1,$2,'grant-workflow','active')`,
+      [workflowId, tenantId],
     );
 
     adminKey = (
@@ -88,7 +88,7 @@ describe('orchestrator grant routes', () => {
       headers: { authorization: `Bearer ${adminKey}` },
       payload: {
         agent_id: agentId,
-        pipeline_id: pipelineId,
+        workflow_id: workflowId,
         permissions: ['create_subtasks'],
       },
     });
@@ -96,13 +96,13 @@ describe('orchestrator grant routes', () => {
     expect(create.statusCode).toBe(201);
     expect(create.json().data).toMatchObject({
       agent_id: agentId,
-      pipeline_id: pipelineId,
+      workflow_id: workflowId,
       permissions: ['create_subtasks'],
     });
 
     const list = await app.inject({
       method: 'GET',
-      url: `/api/v1/orchestrator-grants?pipeline_id=${pipelineId}`,
+      url: `/api/v1/orchestrator-grants?workflow_id=${workflowId}`,
       headers: { authorization: `Bearer ${adminKey}` },
     });
 
@@ -110,7 +110,7 @@ describe('orchestrator grant routes', () => {
     expect(list.json().data).toEqual([
       expect.objectContaining({
         agent_id: agentId,
-        pipeline_id: pipelineId,
+        workflow_id: workflowId,
       }),
     ]);
 

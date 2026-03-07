@@ -125,8 +125,8 @@ export function sdlcTemplateSchema(params?: {
       { name: 'git_token', type: 'string', required: false, default: '' },
       { name: 'git_ssh_private_key', type: 'string', required: false, default: '' },
       { name: 'git_ssh_known_hosts', type: 'string', required: false, default: '' },
-      { name: 'git_user_name', type: 'string', required: false, default: 'AgentBaton' },
-      { name: 'git_user_email', type: 'string', required: false, default: 'agentbaton@example.com' },
+      { name: 'git_user_name', type: 'string', required: false, default: 'Agirunner' },
+      { name: 'git_user_email', type: 'string', required: false, default: 'agirunner@example.com' },
     ],
     tasks: [
       {

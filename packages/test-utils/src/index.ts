@@ -15,7 +15,7 @@ const DEFAULT_TEST_IDENTITY: TestIdentity = {
   scope: 'admin',
   ownerType: 'user',
   ownerId: null,
-  keyPrefix: 'ab_admin_tst',
+  keyPrefix: 'ar_admin_tst',
 };
 
 export function createTestIdentity(overrides: Partial<TestIdentity> = {}): TestIdentity {

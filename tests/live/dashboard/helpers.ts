@@ -22,7 +22,7 @@ async function isVisible(locator: ReturnType<Page['locator']>): Promise<boolean>
 
 async function hasAuthenticatedDashboardShell(
   page: Page,
-  pipelinesLink: ReturnType<Page['getByRole']>,
+  workflowsLink: ReturnType<Page['getByRole']>,
   apiKeyInput: ReturnType<Page['getByLabel']>,
 ): Promise<boolean> {
   if (page.url().includes('/login')) {
@@ -33,22 +33,22 @@ async function hasAuthenticatedDashboardShell(
     return false;
   }
 
-  return await isVisible(pipelinesLink);
+  return await isVisible(workflowsLink);
 }
 
 async function verifyProtectedNavigation(
   page: Page,
-  pipelinesLink: ReturnType<Page['getByRole']>,
+  workflowsLink: ReturnType<Page['getByRole']>,
   apiKeyInput: ReturnType<Page['getByLabel']>,
 ): Promise<boolean> {
-  await gotoDashboard(page, '/pipelines');
+  await gotoDashboard(page, '/workflows');
   await page.waitForTimeout(500);
-  return await hasAuthenticatedDashboardShell(page, pipelinesLink, apiKeyInput);
+  return await hasAuthenticatedDashboardShell(page, workflowsLink, apiKeyInput);
 }
 
 async function waitForLoginResult(
   page: Page,
-  pipelinesLink: ReturnType<Page['getByRole']>,
+  workflowsLink: ReturnType<Page['getByRole']>,
   apiKeyInput: ReturnType<Page['getByLabel']>,
 ): Promise<'authenticated' | 'invalid-api-key' | 'timeout'> {
   const loginError = page.getByText('Invalid API key or server unavailable').first();
@@ -59,7 +59,7 @@ async function waitForLoginResult(
       return 'invalid-api-key';
     }
 
-    if (await hasAuthenticatedDashboardShell(page, pipelinesLink, apiKeyInput)) {
+    if (await hasAuthenticatedDashboardShell(page, workflowsLink, apiKeyInput)) {
       return 'authenticated';
     }
 
@@ -76,10 +76,10 @@ export async function tryLogin(page: Page): Promise<void> {
     process.env.LIVE_DASHBOARD_PASSWORD ??
     '';
 
-  const pipelinesLink = page.getByRole('link', { name: 'Pipelines' }).first();
+  const workflowsLink = page.getByRole('link', { name: 'Workflows' }).first();
   const apiKeyInput = page.getByLabel('API Key').first();
 
-  if (await verifyProtectedNavigation(page, pipelinesLink, apiKeyInput)) {
+  if (await verifyProtectedNavigation(page, workflowsLink, apiKeyInput)) {
     return;
   }
 
@@ -100,9 +100,9 @@ export async function tryLogin(page: Page): Promise<void> {
     await submit.waitFor({ state: 'visible', timeout: 10_000 });
     await submit.click();
 
-    lastOutcome = await waitForLoginResult(page, pipelinesLink, apiKeyInput);
+    lastOutcome = await waitForLoginResult(page, workflowsLink, apiKeyInput);
     if (lastOutcome === 'authenticated') {
-      if (await verifyProtectedNavigation(page, pipelinesLink, apiKeyInput)) {
+      if (await verifyProtectedNavigation(page, workflowsLink, apiKeyInput)) {
         return;
       }
 
@@ -118,13 +118,13 @@ export async function tryLogin(page: Page): Promise<void> {
 }
 
 export async function expectLoginPage(page: Page): Promise<void> {
-  await expect(page.getByRole('heading', { name: 'AgentBaton Dashboard' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Agirunner Dashboard' })).toBeVisible();
   await expect(page.getByLabel('API Key')).toBeVisible();
   await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
 }
 
 export async function expectDashboardShell(page: Page): Promise<void> {
-  await expect(page.getByRole('link', { name: 'Pipelines' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('link', { name: 'Workflows' })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole('link', { name: 'Workers' })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole('link', { name: 'System Metrics' })).toBeVisible({ timeout: 15_000 });
 }

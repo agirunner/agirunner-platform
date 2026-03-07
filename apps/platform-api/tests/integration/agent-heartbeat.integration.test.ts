@@ -70,7 +70,7 @@ describe('agent heartbeat enum handling', () => {
       scope: 'agent' as const,
       ownerType: 'agent' as const,
       ownerId: agentId,
-      keyPrefix: 'ab_agent_hb_service',
+      keyPrefix: 'ar_agent_hb_service',
     };
 
     const response = await agentService.heartbeat(identity, agentId);
@@ -102,7 +102,7 @@ describe('agent heartbeat enum handling', () => {
       scope: 'agent' as const,
       ownerType: 'agent' as const,
       ownerId: agentId,
-      keyPrefix: 'ab_agent_hb_busy',
+      keyPrefix: 'ar_agent_hb_busy',
     };
 
     const response = await agentService.heartbeat(identity, agentId);

@@ -1,4 +1,4 @@
-const THEME_KEY = 'agentbaton.theme';
+const THEME_KEY = 'agirunner.theme';
 
 export type ThemeMode = 'light' | 'dark';
 

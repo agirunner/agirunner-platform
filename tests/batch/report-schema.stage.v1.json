@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agentbaton.dev/schemas/test-batch/stage-report.v1.json",
-  "title": "AgentBaton Batch Stage Report v1",
+  "$id": "https://agirunner.dev/schemas/test-batch/stage-report.v1.json",
+  "title": "Agirunner Batch Stage Report v1",
   "type": "object",
   "required": [
     "version",

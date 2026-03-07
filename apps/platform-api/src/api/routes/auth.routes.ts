@@ -8,9 +8,9 @@ import { issueAccessToken, issueRefreshToken, verifyJwt } from '../../auth/jwt.j
 import { UnauthorizedError } from '../../errors/domain-errors.js';
 
 const tokenExchangeSchema = z.object({ api_key: z.string().min(1) });
-const ACCESS_COOKIE_NAME = 'agentbaton_access_token';
-const REFRESH_COOKIE_NAME = 'agentbaton_refresh_token';
-const CSRF_COOKIE_NAME = 'agentbaton_csrf_token';
+const ACCESS_COOKIE_NAME = 'agirunner_access_token';
+const REFRESH_COOKIE_NAME = 'agirunner_refresh_token';
+const CSRF_COOKIE_NAME = 'agirunner_csrf_token';
 const CSRF_HEADER_NAME = 'x-csrf-token';
 
 interface RefreshTokenClaims {

@@ -22,7 +22,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { DatabaseQueryable } from '../../src/db/database.js';
 import { TenantScopedRepository } from '../../src/db/tenant-scoped-repository.js';
 import { isBuiltInAgentReplaceable } from '../../src/orchestration/capability-matcher.js';
-import { assertNoPatternNesting, validateTemplateSchema } from '../../src/orchestration/pipeline-engine.js';
+import { assertNoPatternNesting, validateTemplateSchema } from '../../src/orchestration/workflow-engine.js';
 import { isOriginAllowed } from '../../src/bootstrap/websocket.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -56,12 +56,12 @@ describe('FR-150 & FR-761: all DB queries must filter by tenant_id', () => {
     const db = { query: mockQuery } as unknown as DatabaseQueryable;
     const repo = new TenantScopedRepository(db, 'tenant-xyz');
 
-    await repo.findById('pipelines', 'id, status', 'pipeline-1');
+    await repo.findById('workflows', 'id, status', 'workflow-1');
 
     const [sql, values] = mockQuery.mock.calls[0] as [string, unknown[]];
     expect(sql).toContain('tenant_id = $1');
     expect(values[0]).toBe('tenant-xyz');
-    expect(values[1]).toBe('pipeline-1');
+    expect(values[1]).toBe('workflow-1');
   });
 
   it('TenantScopedRepository.count prepends tenant filter before extra conditions', async () => {
@@ -320,7 +320,7 @@ describe('FR-754: zero-config first run creates default tenant and API key', () 
   it('default key prefix is deterministic to allow idempotent detection', () => {
     // FR-754: fixed prefix prevents duplicate key creation across restarts
     const source = readSrc('db/seed.ts');
-    expect(source).toContain("DEFAULT_ADMIN_KEY_PREFIX = 'ab_admin_def'");
+    expect(source).toContain("DEFAULT_ADMIN_KEY_PREFIX = 'ar_admin_def'");
   });
 
   it('seed prints the API key only on first creation', () => {

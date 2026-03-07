@@ -8,7 +8,7 @@ import { EventService } from './event-service.js';
 interface CreateSessionInput {
   agent_id: string;
   worker_id?: string;
-  pipeline_id?: string;
+  workflow_id?: string;
   transport: 'stdio' | 'http' | 'websocket';
   mode: 'run' | 'session';
   workspace_path?: string;
@@ -29,7 +29,7 @@ export class AcpSessionService {
   async createOrReuseSession(identity: ApiKeyIdentity, input: CreateSessionInput) {
     const agent = await this.loadAcpAgent(identity, input.agent_id);
     const existing = input.mode === 'session'
-      ? await this.findReusableSession(identity.tenantId, input.agent_id, input.pipeline_id)
+      ? await this.findReusableSession(identity.tenantId, input.agent_id, input.workflow_id)
       : null;
 
     if (existing) {
@@ -38,7 +38,7 @@ export class AcpSessionService {
 
     const result = await this.pool.query<Record<string, unknown>>(
       `INSERT INTO acp_sessions (
-         id, tenant_id, agent_id, worker_id, pipeline_id, transport, mode, status, workspace_path, metadata, last_heartbeat_at
+         id, tenant_id, agent_id, worker_id, workflow_id, transport, mode, status, workspace_path, metadata, last_heartbeat_at
        ) VALUES ($1,$2,$3,$4,$5,$6,$7,'initializing',$8,$9,NOW())
        RETURNING *`,
       [
@@ -46,7 +46,7 @@ export class AcpSessionService {
         identity.tenantId,
         input.agent_id,
         input.worker_id ?? null,
-        input.pipeline_id ?? null,
+        input.workflow_id ?? null,
         input.transport,
         input.mode,
         input.workspace_path ?? null,
@@ -66,7 +66,7 @@ export class AcpSessionService {
       entityId: input.agent_id,
       actorType: identity.scope,
       actorId: identity.keyPrefix,
-      data: { session_id: session.id, pipeline_id: input.pipeline_id ?? null, mode: input.mode },
+      data: { session_id: session.id, workflow_id: input.workflow_id ?? null, mode: input.mode },
     });
     return { ...session, reused: false };
   }
@@ -147,18 +147,18 @@ export class AcpSessionService {
     return agent;
   }
 
-  private async findReusableSession(tenantId: string, agentId: string, pipelineId?: string) {
+  private async findReusableSession(tenantId: string, agentId: string, workflowId?: string) {
     const result = await this.pool.query<Record<string, unknown>>(
       `SELECT *
          FROM acp_sessions
         WHERE tenant_id = $1
           AND agent_id = $2
-          AND COALESCE(pipeline_id::text, '') = COALESCE($3::text, '')
+          AND COALESCE(workflow_id::text, '') = COALESCE($3::text, '')
           AND mode = 'session'
           AND status IN ('initializing', 'active', 'idle')
         ORDER BY updated_at DESC
         LIMIT 1`,
-      [tenantId, agentId, pipelineId ?? null],
+      [tenantId, agentId, workflowId ?? null],
     );
     return result.rowCount ? toSessionResponse(result.rows[0]) : null;
   }
@@ -183,7 +183,7 @@ function toSessionResponse(row: Record<string, unknown>) {
     id: String(row.id),
     agent_id: String(row.agent_id),
     worker_id: readString(row.worker_id),
-    pipeline_id: readString(row.pipeline_id),
+    workflow_id: readString(row.workflow_id),
     transport: String(row.transport),
     mode: String(row.mode),
     status: String(row.status),

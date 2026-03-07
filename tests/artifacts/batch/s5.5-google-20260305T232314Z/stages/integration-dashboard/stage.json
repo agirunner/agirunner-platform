@@ -24,14 +24,14 @@
     "platformApi": 8142,
     "dashboard": 3142
   },
-  "composeProjectName": "agentbaton-batch-2026-03-05t23-23-15-182z-integration-dashboard",
+  "composeProjectName": "agirunner-batch-2026-03-05t23-23-15-182z-integration-dashboard",
   "logs": {
-    "stdout": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/stages/integration-dashboard/stdout.log",
-    "stderr": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/stages/integration-dashboard/stderr.log"
+    "stdout": "/root/.openclaw/agents/engineer/workspace/projects/agirunner-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/stages/integration-dashboard/stdout.log",
+    "stderr": "/root/.openclaw/agents/engineer/workspace/projects/agirunner-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/stages/integration-dashboard/stderr.log"
   },
   "artifacts": {
-    "laneArtifactsRoot": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/lanes/integration-dashboard/artifacts",
-    "laneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/lanes/integration-dashboard/results.v1.json"
+    "laneArtifactsRoot": "/root/.openclaw/agents/engineer/workspace/projects/agirunner-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/lanes/integration-dashboard/artifacts",
+    "laneResultsPath": "/root/.openclaw/agents/engineer/workspace/projects/agirunner-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/lanes/integration-dashboard/results.v1.json"
   },
   "errorExcerpt": ""
 }

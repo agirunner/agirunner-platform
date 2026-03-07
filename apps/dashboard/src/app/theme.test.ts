@@ -40,17 +40,17 @@ describe('FR-428: readTheme', () => {
   });
 
   it('returns "dark" when "dark" is persisted in localStorage', () => {
-    mockLocalStorage({ 'agentbaton.theme': 'dark' });
+    mockLocalStorage({ 'agirunner.theme': 'dark' });
     expect(readTheme()).toBe('dark');
   });
 
   it('returns "light" when an unrecognised value is stored', () => {
-    mockLocalStorage({ 'agentbaton.theme': 'solarized' });
+    mockLocalStorage({ 'agirunner.theme': 'solarized' });
     expect(readTheme()).toBe('light');
   });
 
   it('returns "light" for an empty string stored value', () => {
-    mockLocalStorage({ 'agentbaton.theme': '' });
+    mockLocalStorage({ 'agirunner.theme': '' });
     expect(readTheme()).toBe('light');
   });
 });
@@ -68,7 +68,7 @@ describe('FR-428 / FR-SM-006: applyTheme', () => {
     applyTheme('dark');
 
     expect(attrs.get('data-theme')).toBe('dark');
-    expect(store.get('agentbaton.theme')).toBe('dark');
+    expect(store.get('agirunner.theme')).toBe('dark');
   });
 
   it('sets data-theme on documentElement when applying light mode', () => {
@@ -78,7 +78,7 @@ describe('FR-428 / FR-SM-006: applyTheme', () => {
     applyTheme('light');
 
     expect(attrs.get('data-theme')).toBe('light');
-    expect(store.get('agentbaton.theme')).toBe('light');
+    expect(store.get('agirunner.theme')).toBe('light');
   });
 
   it('persists the applied theme so readTheme returns the same value', () => {
@@ -87,7 +87,7 @@ describe('FR-428 / FR-SM-006: applyTheme', () => {
 
     applyTheme('dark');
     // Re-read from the same store
-    const storedTheme = (store.get('agentbaton.theme') ?? 'light') as ThemeMode;
+    const storedTheme = (store.get('agirunner.theme') ?? 'light') as ThemeMode;
     expect(storedTheme).toBe('dark');
   });
 });

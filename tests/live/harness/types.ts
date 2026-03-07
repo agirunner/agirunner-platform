@@ -78,8 +78,8 @@ export interface ScenarioDeliveryEvidenceTask {
 }
 
 export interface ScenarioDeliveryEvidence {
-  pipelineId: string;
-  pipelineState: string;
+  workflowId: string;
+  workflowState: string;
   tasks: ScenarioDeliveryEvidenceTask[];
   acceptanceCriteria: string[];
   requiresGitDiffEvidence?: boolean;
@@ -95,7 +95,7 @@ export interface ScenarioExecutionResult {
   authenticityEvidence?: ScenarioDeliveryEvidence[];
 }
 
-export interface PipelineSnapshot {
+export interface WorkflowSnapshot {
   id: string;
   state: string;
   tasks: Array<{ id: string; state: string; role?: string }>;

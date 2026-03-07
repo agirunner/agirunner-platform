@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { EventService } from '../../src/services/event-service.js';
-import { PipelineService } from '../../src/services/pipeline-service.js';
+import { WorkflowService } from '../../src/services/workflow-service.js';
 import { TaskService } from '../../src/services/task-service.js';
 import { TemplateService } from '../../src/services/template-service.js';
 import { startTestDatabase, stopTestDatabase, type TestDatabase } from '../helpers/postgres.js';
@@ -27,21 +27,21 @@ describe('context and memory coverage', () => {
   let db: TestDatabase;
   let taskService: TaskService;
   let templateService: TemplateService;
-  let pipelineService: PipelineService;
+  let workflowService: WorkflowService;
 
   beforeAll(async () => {
     db = await startTestDatabase();
     const eventService = new EventService(db.pool);
     taskService = new TaskService(db.pool, eventService, config);
     templateService = new TemplateService(db.pool, eventService);
-    pipelineService = new PipelineService(db.pool, eventService, config);
+    workflowService = new WorkflowService(db.pool, eventService, config);
   });
 
   afterAll(async () => {
     await stopTestDatabase(db);
   });
 
-  it('covers FR-178/FR-179/FR-180 project entity + grouping pipelines by project', async () => {
+  it('covers FR-178/FR-179/FR-180 project entity + grouping workflows by project', async () => {
     const projectId = randomUUID();
     await db.pool.query(
       `INSERT INTO projects (id, tenant_id, name, slug, description, memory)
@@ -55,18 +55,18 @@ describe('context and memory coverage', () => {
       schema: { tasks: [{ id: 'a', title_template: 'A', type: 'code' }] },
     });
 
-    const p1 = await pipelineService.createPipeline(admin, {
+    const p1 = await workflowService.createWorkflow(admin, {
       template_id: template.id as string,
       name: 'p1',
       project_id: projectId,
     });
-    const p2 = await pipelineService.createPipeline(admin, {
+    const p2 = await workflowService.createWorkflow(admin, {
       template_id: template.id as string,
       name: 'p2',
       project_id: projectId,
     });
 
-    const listed = await pipelineService.listPipelines(tenantId, {
+    const listed = await workflowService.listWorkflows(tenantId, {
       page: 1,
       per_page: 10,
       project_id: projectId,
@@ -74,7 +74,7 @@ describe('context and memory coverage', () => {
     expect(listed.data.map((row) => row.id)).toEqual(expect.arrayContaining([p1.id, p2.id]));
   });
 
-  it('covers FR-181/FR-182/FR-183/FR-184/FR-185 context stack includes project memory, pipeline context, agent profile and upstream outputs', async () => {
+  it('covers FR-181/FR-182/FR-183/FR-184/FR-185 context stack includes project memory, workflow context, agent profile and upstream outputs', async () => {
     const projectId = randomUUID();
     await db.pool.query(
       `INSERT INTO projects (id, tenant_id, name, slug, memory)
@@ -98,28 +98,28 @@ describe('context and memory coverage', () => {
       },
     });
 
-    const pipeline = await pipelineService.createPipeline(admin, {
+    const workflow = await workflowService.createWorkflow(admin, {
       template_id: template.id as string,
-      name: 'context-pipeline',
+      name: 'context-workflow',
       project_id: projectId,
       parameters: { feature: 'context' },
       metadata: { context_version: 2 },
     });
 
     await db.pool.query(
-      `UPDATE pipelines SET context = $3::jsonb WHERE tenant_id = $1 AND id = $2`,
-      [tenantId, pipeline.id, JSON.stringify({ notes: 'pipeline' })],
+      `UPDATE workflows SET context = $3::jsonb WHERE tenant_id = $1 AND id = $2`,
+      [tenantId, workflow.id, JSON.stringify({ notes: 'workflow' })],
     );
 
-    const tasks = pipeline.tasks as Array<Record<string, unknown>>;
+    const tasks = workflow.tasks as Array<Record<string, unknown>>;
     const upstream = tasks[0].id as string;
     const downstream = tasks[1].id as string;
 
     await db.pool.query(
-      `UPDATE tasks SET context = $4::jsonb WHERE tenant_id = $1 AND pipeline_id = $2 AND id = $3`,
+      `UPDATE tasks SET context = $4::jsonb WHERE tenant_id = $1 AND workflow_id = $2 AND id = $3`,
       [
         tenantId,
-        pipeline.id,
+        workflow.id,
         downstream,
         JSON.stringify({ failure_mode: 'deterministic_impossible' }),
       ],
@@ -145,8 +145,8 @@ describe('context and memory coverage', () => {
     expect((context.project as { memory: Record<string, unknown> }).memory).toEqual({
       handbook: 'v1',
     });
-    expect((context.pipeline as { context: Record<string, unknown> }).context).toEqual({
-      notes: 'pipeline',
+    expect((context.workflow as { context: Record<string, unknown> }).context).toEqual({
+      notes: 'workflow',
     });
     expect((context.agent as { metadata: Record<string, unknown> }).metadata).toEqual({
       role: 'engineer',
@@ -182,23 +182,23 @@ describe('context and memory coverage', () => {
       schema: { tasks: [{ id: 'a', title_template: 'A', type: 'code' }] },
     });
 
-    const p1 = await pipelineService.createPipeline(admin, {
+    const p1 = await workflowService.createWorkflow(admin, {
       template_id: template.id as string,
       name: 'm1',
       project_id: projectId,
     });
-    const p2 = await pipelineService.createPipeline(admin, {
+    const p2 = await workflowService.createWorkflow(admin, {
       template_id: template.id as string,
       name: 'm2',
       project_id: projectId,
     });
 
     await db.pool.query(
-      `UPDATE pipelines SET context = $3::jsonb WHERE tenant_id = $1 AND id = $2`,
+      `UPDATE workflows SET context = $3::jsonb WHERE tenant_id = $1 AND id = $2`,
       [tenantId, p1.id, JSON.stringify({ log: ['entry-1'], version: 1 })],
     );
     await db.pool.query(
-      `UPDATE pipelines SET context = $3::jsonb WHERE tenant_id = $1 AND id = $2`,
+      `UPDATE workflows SET context = $3::jsonb WHERE tenant_id = $1 AND id = $2`,
       [tenantId, p2.id, JSON.stringify({ log: ['entry-2'], version: 2 })],
     );
 
@@ -207,11 +207,11 @@ describe('context and memory coverage', () => {
         'SELECT memory, memory_max_bytes FROM projects WHERE tenant_id = $1 AND id = $2',
         [tenantId, projectId],
       ),
-      db.pool.query('SELECT context FROM pipelines WHERE tenant_id = $1 AND id = $2', [
+      db.pool.query('SELECT context FROM workflows WHERE tenant_id = $1 AND id = $2', [
         tenantId,
         p1.id,
       ]),
-      db.pool.query('SELECT context FROM pipelines WHERE tenant_id = $1 AND id = $2', [
+      db.pool.query('SELECT context FROM workflows WHERE tenant_id = $1 AND id = $2', [
         tenantId,
         p2.id,
       ]),
@@ -223,7 +223,7 @@ describe('context and memory coverage', () => {
     expect(p2Row.rows[0].context).toEqual({ log: ['entry-2'], version: 2 });
   });
 
-  it('covers FR-724/FR-725/FR-731 by carrying run summaries into the next pipeline context', async () => {
+  it('covers FR-724/FR-725/FR-731 by carrying run summaries into the next workflow context', async () => {
     const projectId = randomUUID();
     const agentId = randomUUID();
     await db.pool.query(
@@ -248,12 +248,12 @@ describe('context and memory coverage', () => {
       },
     });
 
-    const firstPipeline = await pipelineService.createPipeline(admin, {
+    const firstWorkflow = await workflowService.createWorkflow(admin, {
       template_id: template.id as string,
       name: 'continuity-1',
       project_id: projectId,
     });
-    const firstTaskId = (firstPipeline.tasks as Array<Record<string, unknown>>)[0].id as string;
+    const firstTaskId = (firstWorkflow.tasks as Array<Record<string, unknown>>)[0].id as string;
     const agentIdentity = {
       id: 'agent',
       tenantId,
@@ -266,7 +266,7 @@ describe('context and memory coverage', () => {
     await taskService.claimTask(agentIdentity, {
       agent_id: agentId,
       capabilities: ['workflow'],
-      pipeline_id: firstPipeline.id as string,
+      workflow_id: firstWorkflow.id as string,
     });
     await taskService.startTask(agentIdentity, firstTaskId, { agent_id: agentId });
     await taskService.completeTask(agentIdentity, firstTaskId, {
@@ -274,16 +274,16 @@ describe('context and memory coverage', () => {
       output: { accepted: true },
       git_info: { commit_hash: 'abc123' },
     });
-    await pipelineService.actOnPhaseGate(admin, firstPipeline.id as string, 'planning', {
+    await workflowService.actOnPhaseGate(admin, firstWorkflow.id as string, 'planning', {
       action: 'approve',
     });
 
-    const secondPipeline = await pipelineService.createPipeline(admin, {
+    const secondWorkflow = await workflowService.createWorkflow(admin, {
       template_id: template.id as string,
       name: 'continuity-2',
       project_id: projectId,
     });
-    const secondTaskId = (secondPipeline.tasks as Array<Record<string, unknown>>)[0].id as string;
+    const secondTaskId = (secondWorkflow.tasks as Array<Record<string, unknown>>)[0].id as string;
 
     const context = await taskService.getTaskContext(tenantId, secondTaskId, agentId);
     const projectMemory = (context.project as { memory: Record<string, unknown> }).memory;
@@ -293,13 +293,13 @@ describe('context and memory coverage', () => {
     expect(projectMemory.last_run_summary).toEqual(
       expect.objectContaining({
         kind: 'run_summary',
-        pipeline_id: firstPipeline.id,
+        workflow_id: firstWorkflow.id,
       }),
     );
     expect(runSummaries[0]).toEqual(
       expect.objectContaining({
         kind: 'run_summary',
-        pipeline_id: firstPipeline.id,
+        workflow_id: firstWorkflow.id,
         produced_artifacts: expect.arrayContaining([
           expect.objectContaining({ kind: 'commit', commit_hash: 'abc123' }),
         ]),
@@ -320,9 +320,9 @@ describe('context and memory coverage', () => {
       slug: 'subtask-template',
       schema: { tasks: [{ id: 'root', title_template: 'Root', type: 'code' }] },
     });
-    const pipeline = await pipelineService.createPipeline(admin, {
+    const workflow = await workflowService.createWorkflow(admin, {
       template_id: template.id as string,
-      name: 'subtask-pipeline',
+      name: 'subtask-workflow',
       project_id: projectId,
     });
 
@@ -338,7 +338,7 @@ describe('context and memory coverage', () => {
       {
         title: 'parent-task',
         type: 'code',
-        pipeline_id: pipeline.id as string,
+        workflow_id: workflow.id as string,
         project_id: projectId,
       },
     );
@@ -356,13 +356,13 @@ describe('context and memory coverage', () => {
         title: 'child-task',
         type: 'test',
         parent_id: parent.id as string,
-        pipeline_id: parent.pipeline_id as string,
+        workflow_id: parent.workflow_id as string,
         project_id: parent.project_id as string,
       },
     );
 
     expect(child.parent_id).toBe(parent.id);
-    expect(child.pipeline_id).toBe(parent.pipeline_id);
+    expect(child.workflow_id).toBe(parent.workflow_id);
     expect(child.project_id).toBe(parent.project_id);
 
     const tasks = await taskService.listTasks(tenantId, {

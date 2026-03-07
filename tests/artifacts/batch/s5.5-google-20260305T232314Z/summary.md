@@ -9,10 +9,10 @@
 - Final exit code: 0
 - Duration: 993402ms
 - Totals: pass=4, fail=0, infraFail=0, skipped=0
-- Run manifest: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/run-manifest.json
-- Summary JSON: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/summary.json
-- Summary Markdown: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/summary.md
-- Canonical batch results JSON: /root/.openclaw/agents/engineer/workspace/projects/agentbaton-platform/tests/reports/batch-results.v1.json
+- Run manifest: /root/.openclaw/agents/engineer/workspace/projects/agirunner-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/run-manifest.json
+- Summary JSON: /root/.openclaw/agents/engineer/workspace/projects/agirunner-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/summary.json
+- Summary Markdown: /root/.openclaw/agents/engineer/workspace/projects/agirunner-platform/tests/artifacts/batch/s5.5-google-20260305T232314Z/summary.md
+- Canonical batch results JSON: /root/.openclaw/agents/engineer/workspace/projects/agirunner-platform/tests/reports/batch-results.v1.json
 
 | Stage | Status | Exit | Duration(ms) | Not run reason |
 |---|---:|---:|---:|---|

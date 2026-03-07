@@ -6,10 +6,10 @@ set -euo pipefail
 # Builds runtime image from a local runtime repository, tags it for private
 # registry publishing, and writes an OCI tarball fallback artifact.
 
-RUNTIME_REPO_PATH="${RUNTIME_REPO_PATH:-../agentbaton-runtime}"
+RUNTIME_REPO_PATH="${RUNTIME_REPO_PATH:-../agirunner-runtime}"
 RUNTIME_DOCKERFILE="${RUNTIME_DOCKERFILE:-Dockerfile}"
-LOCAL_RUNTIME_IMAGE="${LOCAL_RUNTIME_IMAGE:-agentbaton-runtime:local}"
-RUNTIME_IMAGE_REPO="${RUNTIME_IMAGE_REPO:-ghcr.io/agirunner/agentbaton-runtime}"
+LOCAL_RUNTIME_IMAGE="${LOCAL_RUNTIME_IMAGE:-agirunner-runtime:local}"
+RUNTIME_IMAGE_REPO="${RUNTIME_IMAGE_REPO:-ghcr.io/agirunner/agirunner-runtime}"
 RUNTIME_IMAGE_TAG="${RUNTIME_IMAGE_TAG:-}"
 PUSH_IMAGE="${PUSH_IMAGE:-false}"
 RELEASE_ENFORCE="${RELEASE_ENFORCE:-false}"
@@ -28,11 +28,11 @@ if [[ -z "$RUNTIME_IMAGE_TAG" ]]; then
 fi
 
 RUNTIME_IMAGE_REF="${RUNTIME_IMAGE_REPO}:${RUNTIME_IMAGE_TAG}"
-TAR_PATH="${OUT_DIR}/agentbaton-runtime-${RUNTIME_IMAGE_TAG}.tar"
-MANIFEST_PATH="${OUT_DIR}/agentbaton-runtime-${RUNTIME_IMAGE_TAG}.manifest.json"
-COSIGN_OUTPUT_PATH="${OUT_DIR}/agentbaton-runtime-${RUNTIME_IMAGE_TAG}.cosign.txt"
-SBOM_OUTPUT_PATH="${OUT_DIR}/agentbaton-runtime-${RUNTIME_IMAGE_TAG}.sbom.txt"
-SCAN_OUTPUT_PATH="${OUT_DIR}/agentbaton-runtime-${RUNTIME_IMAGE_TAG}.scan.txt"
+TAR_PATH="${OUT_DIR}/agirunner-runtime-${RUNTIME_IMAGE_TAG}.tar"
+MANIFEST_PATH="${OUT_DIR}/agirunner-runtime-${RUNTIME_IMAGE_TAG}.manifest.json"
+COSIGN_OUTPUT_PATH="${OUT_DIR}/agirunner-runtime-${RUNTIME_IMAGE_TAG}.cosign.txt"
+SBOM_OUTPUT_PATH="${OUT_DIR}/agirunner-runtime-${RUNTIME_IMAGE_TAG}.sbom.txt"
+SCAN_OUTPUT_PATH="${OUT_DIR}/agirunner-runtime-${RUNTIME_IMAGE_TAG}.scan.txt"
 
 mkdir -p "$OUT_DIR"
 

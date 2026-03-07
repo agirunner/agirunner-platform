@@ -16,7 +16,7 @@ interface ArtifactLookupRow {
   content_type: string;
 }
 
-interface PipelineDocumentRow {
+interface WorkflowDocumentRow {
   id: string;
   logical_name: string;
   source: DocumentSource;
@@ -30,7 +30,7 @@ interface PipelineDocumentRow {
   created_at: Date;
 }
 
-interface PipelineScopeRow {
+interface WorkflowScopeRow {
   project_id: string | null;
   project_spec_version: number | null;
 }
@@ -41,7 +41,7 @@ interface ProjectSpecRow {
 
 export interface ResolvedDocumentReference {
   logical_name: string;
-  scope: 'project' | 'pipeline';
+  scope: 'project' | 'workflow';
   source: DocumentSource;
   title?: string;
   description?: string;
@@ -82,39 +82,39 @@ export function validateProjectDocumentRegistry(spec: Record<string, unknown>): 
   }
 }
 
-export async function listPipelineDocuments(
+export async function listWorkflowDocuments(
   db: DatabaseQueryable,
   tenantId: string,
-  pipelineId: string,
+  workflowId: string,
 ): Promise<ResolvedDocumentReference[]> {
-  const pipeline = await loadPipelineScope(db, tenantId, pipelineId);
+  const workflow = await loadWorkflowScope(db, tenantId, workflowId);
   const documents = new Map<string, ResolvedDocumentReference>();
 
-  if (pipeline.project_id) {
+  if (workflow.project_id) {
     const projectDocuments = await loadProjectDocuments(
       db,
       tenantId,
-      pipeline.project_id,
-      pipeline.project_spec_version,
+      workflow.project_id,
+      workflow.project_spec_version,
     );
     for (const document of projectDocuments) {
       documents.set(document.logical_name, document);
     }
   }
 
-  const pipelineRows = await db.query<PipelineDocumentRow>(
+  const workflowRows = await db.query<WorkflowDocumentRow>(
     `SELECT id, logical_name, source, location, artifact_id, content_type, title, description, metadata, task_id, created_at
-       FROM pipeline_documents
+       FROM workflow_documents
       WHERE tenant_id = $1
-        AND pipeline_id = $2
+        AND workflow_id = $2
       ORDER BY created_at ASC`,
-    [tenantId, pipelineId],
+    [tenantId, workflowId],
   );
 
-  for (const row of pipelineRows.rows) {
+  for (const row of workflowRows.rows) {
     documents.set(
       row.logical_name,
-      buildPipelineDocumentReference(row),
+      buildWorkflowDocumentReference(row),
     );
   }
 
@@ -128,9 +128,9 @@ export async function listTaskDocuments(
   tenantId: string,
   task: Record<string, unknown>,
 ): Promise<ResolvedDocumentReference[]> {
-  const pipelineId = asOptionalString(task.pipeline_id);
-  if (pipelineId) {
-    return listPipelineDocuments(db, tenantId, pipelineId);
+  const workflowId = asOptionalString(task.workflow_id);
+  if (workflowId) {
+    return listWorkflowDocuments(db, tenantId, workflowId);
   }
 
   const projectId = asOptionalString(task.project_id);
@@ -147,8 +147,8 @@ export async function registerTaskOutputDocuments(
   task: Record<string, unknown>,
   output: unknown,
 ): Promise<void> {
-  const pipelineId = asOptionalString(task.pipeline_id);
-  if (!pipelineId) {
+  const workflowId = asOptionalString(task.workflow_id);
+  if (!workflowId) {
     return;
   }
 
@@ -158,7 +158,7 @@ export async function registerTaskOutputDocuments(
   }
 
   await db.query(
-    'DELETE FROM pipeline_documents WHERE tenant_id = $1 AND task_id = $2',
+    'DELETE FROM workflow_documents WHERE tenant_id = $1 AND task_id = $2',
     [tenantId, task.id],
   );
 
@@ -167,13 +167,13 @@ export async function registerTaskOutputDocuments(
     const artifact = await resolveArtifactReference(db, tenantId, task, normalized);
 
     await db.query(
-      `INSERT INTO pipeline_documents (
-         tenant_id, pipeline_id, project_id, task_id, logical_name, source, location,
+      `INSERT INTO workflow_documents (
+         tenant_id, workflow_id, project_id, task_id, logical_name, source, location,
          artifact_id, content_type, title, description, metadata
        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)`,
       [
         tenantId,
-        pipelineId,
+        workflowId,
         asOptionalString(task.project_id),
         task.id,
         logicalName,
@@ -189,20 +189,20 @@ export async function registerTaskOutputDocuments(
   }
 }
 
-async function loadPipelineScope(
+async function loadWorkflowScope(
   db: DatabaseQueryable,
   tenantId: string,
-  pipelineId: string,
-): Promise<PipelineScopeRow> {
-  const result = await db.query<PipelineScopeRow>(
+  workflowId: string,
+): Promise<WorkflowScopeRow> {
+  const result = await db.query<WorkflowScopeRow>(
     `SELECT project_id, project_spec_version
-       FROM pipelines
+       FROM workflows
       WHERE tenant_id = $1
         AND id = $2`,
-    [tenantId, pipelineId],
+    [tenantId, workflowId],
   );
   if (!result.rowCount) {
-    throw new NotFoundError('Pipeline not found');
+    throw new NotFoundError('Workflow not found');
   }
   return result.rows[0];
 }
@@ -294,13 +294,13 @@ function buildProjectDocumentReference(
   };
 }
 
-function buildPipelineDocumentReference(
-  row: PipelineDocumentRow,
+function buildWorkflowDocumentReference(
+  row: WorkflowDocumentRow,
 ): ResolvedDocumentReference {
   const metadata = asRecord(row.metadata);
   const base: ResolvedDocumentReference = {
     logical_name: row.logical_name,
-    scope: 'pipeline',
+    scope: 'workflow',
     source: row.source,
     metadata,
     created_at: row.created_at.toISOString(),
@@ -322,7 +322,7 @@ function buildPipelineDocumentReference(
     };
   }
   if (!row.artifact_id || !row.task_id) {
-    throw new ValidationError(`Pipeline document '${row.logical_name}' is missing artifact linkage`);
+    throw new ValidationError(`Workflow document '${row.logical_name}' is missing artifact linkage`);
   }
   return {
     ...base,
@@ -347,30 +347,30 @@ async function resolveArtifactReference(
   }
 
   const taskId = asOptionalString(task.id);
-  const pipelineId = asOptionalString(task.pipeline_id);
+  const workflowId = asOptionalString(task.workflow_id);
   const artifactId = document.artifact_id;
   const logicalPath = document.logical_path;
 
-  if (!taskId || !pipelineId) {
-    throw new ValidationError('Artifact-backed document registration requires a persisted pipeline task');
+  if (!taskId || !workflowId) {
+    throw new ValidationError('Artifact-backed document registration requires a persisted workflow task');
   }
 
   const result = await db.query<ArtifactLookupRow>(
     `SELECT id, task_id, logical_path, content_type
-       FROM pipeline_artifacts
+       FROM workflow_artifacts
       WHERE tenant_id = $1
-        AND pipeline_id = $2
+        AND workflow_id = $2
         AND (
           ($3::uuid IS NOT NULL AND id = $3::uuid)
           OR ($4::text IS NOT NULL AND logical_path = $4)
         )
       ORDER BY created_at DESC
       LIMIT 1`,
-    [tenantId, pipelineId, artifactId ?? null, logicalPath ?? null],
+    [tenantId, workflowId, artifactId ?? null, logicalPath ?? null],
   );
 
   if (!result.rowCount) {
-    throw new ValidationError('Artifact-backed document references must point to an existing pipeline artifact');
+    throw new ValidationError('Artifact-backed document references must point to an existing workflow artifact');
   }
 
   return result.rows[0];

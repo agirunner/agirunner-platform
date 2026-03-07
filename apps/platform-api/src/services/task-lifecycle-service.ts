@@ -7,7 +7,7 @@ import type { ArtifactService } from './artifact-service.js';
 import { applyTaskCompletionSideEffects } from './task-completion-side-effects.js';
 import { registerTaskOutputDocuments } from './document-reference-service.js';
 import { EventService } from './event-service.js';
-import { PipelineStateService } from './pipeline-state-service.js';
+import { WorkflowStateService } from './workflow-state-service.js';
 import { applyOutputStateDeclarations } from './task-output-storage.js';
 import {
   calculateRetryBackoffSeconds,
@@ -44,7 +44,7 @@ interface TransitionOptions {
 interface TaskLifecycleDependencies {
   pool: DatabasePool;
   eventService: EventService;
-  pipelineStateService: PipelineStateService;
+  workflowStateService: WorkflowStateService;
   defaultTaskTimeoutMinutes: number;
   loadTaskOrThrow: (
     tenantId: string,
@@ -223,7 +223,7 @@ export class TaskLifecycleService {
       let metadataExpression = 'metadata';
       if (options.clearLifecycleControlMetadata) {
         metadataExpression =
-          "(metadata - 'cancel_signal_requested_at' - 'cancel_force_fail_at' - 'cancel_signal_id' - 'cancel_reason' - 'timeout_cancel_requested_at' - 'timeout_force_fail_at' - 'timeout_signal_id' - 'pipeline_cancel_requested_at' - 'pipeline_cancel_force_at' - 'pipeline_cancel_signal_id')";
+          "(metadata - 'cancel_signal_requested_at' - 'cancel_force_fail_at' - 'cancel_signal_id' - 'cancel_reason' - 'timeout_cancel_requested_at' - 'timeout_force_fail_at' - 'timeout_signal_id' - 'workflow_cancel_requested_at' - 'workflow_cancel_force_at' - 'workflow_cancel_signal_id')";
       }
       if (options.clearEscalationMetadata) {
         metadataExpression = `${metadataExpression} - 'escalation_status' - 'escalation_task_id'`;
@@ -293,10 +293,10 @@ export class TaskLifecycleService {
         await options.afterUpdate(updatedTask, client);
       }
 
-      if (task.pipeline_id) {
-        await this.deps.pipelineStateService.recomputePipelineState(
+      if (task.workflow_id) {
+        await this.deps.workflowStateService.recomputeWorkflowState(
           identity.tenantId,
-          task.pipeline_id as string,
+          task.workflow_id as string,
           client,
           {
             actorType: 'system',
@@ -894,7 +894,7 @@ export class TaskLifecycleService {
     const escalationTaskInput = buildEscalationTaskInput(task, escalation, failure);
     const escalationInsert = await client.query(
       `INSERT INTO tasks (
-         tenant_id, pipeline_id, project_id, title, type, role, priority, state, depends_on,
+         tenant_id, workflow_id, project_id, title, type, role, priority, state, depends_on,
          requires_approval, input, context, capabilities_required, role_config, environment,
          resource_bindings, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, metadata
        ) VALUES (
@@ -903,7 +903,7 @@ export class TaskLifecycleService {
        RETURNING *`,
       [
         identity.tenantId,
-        escalationTaskInput.pipeline_id ?? null,
+        escalationTaskInput.workflow_id ?? null,
         escalationTaskInput.project_id ?? null,
         escalationTaskInput.title,
         escalationTaskInput.type,
@@ -1074,7 +1074,7 @@ function buildEscalationTaskInput(
     type: escalation.task_type,
     role: escalation.role,
     priority: 'high',
-    pipeline_id: task.pipeline_id as string | undefined,
+    workflow_id: task.workflow_id as string | undefined,
     project_id: task.project_id as string | undefined,
     parent_id: task.id as string,
     input: {
@@ -1085,7 +1085,7 @@ function buildEscalationTaskInput(
       error: task.error ?? null,
       review_feedback: asRecord(task.metadata).review_feedback ?? null,
       retry_count: task.retry_count ?? 0,
-      allowed_actions: ['retry_modified', 'reassign', 'skip', 'fail_pipeline'],
+      allowed_actions: ['retry_modified', 'reassign', 'skip', 'fail_workflow'],
     },
     context: {
       escalation: true,

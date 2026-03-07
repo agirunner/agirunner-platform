@@ -8,8 +8,8 @@ import { Client } from 'pg';
 const shouldRun = process.env.RUN_DOCKER_E2E === 'true';
 const describeIf = shouldRun ? describe : describe.skip;
 
-const workerKey = 'ab_worker_docker_compose_worker_key_1234567890';
-const agentKey = 'ab_agent_docker_compose_agent_key_1234567890';
+const workerKey = 'ar_worker_docker_compose_worker_key_1234567890';
+const agentKey = 'ar_agent_docker_compose_agent_key_1234567890';
 const tenantId = '00000000-0000-0000-0000-000000000001';
 
 describeIf('docker-compose API lifecycle', () => {
@@ -17,7 +17,7 @@ describeIf('docker-compose API lifecycle', () => {
     execSync('docker compose up -d postgres platform-api', { stdio: 'inherit' });
 
     const db = new Client({
-      connectionString: process.env.DATABASE_URL ?? 'postgresql://agentbaton:agentbaton@localhost:5432/agentbaton',
+      connectionString: process.env.DATABASE_URL ?? 'postgresql://agirunner:agirunner@localhost:5432/agirunner',
     });
 
     await db.connect();

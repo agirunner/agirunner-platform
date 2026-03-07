@@ -9,19 +9,19 @@
  * 5. IT-1 (SDK), IT-2 (MCP), SI-1 (Tenant isolation)
  */
 
-export { runAp1SdlcPipeline } from './ap1-sdlc-pipeline.js';
+export { runAp1SdlcWorkflow } from './ap1-sdlc-workflow.js';
 export { runAp2ExternalRuntime } from './ap2-external-runtime.js';
 export { runAp3StandaloneWorker } from './ap3-standalone-worker.js';
 export { runAp4MixedWorkers } from './ap4-mixed-workers.js';
-export { runAp5MaintenancePipeline, runAp5SingleBug } from './ap5-maintenance-pipeline.js';
+export { runAp5MaintenanceWorkflow, runAp5SingleBug } from './ap5-maintenance-workflow.js';
 export { runAp6RuntimeMaintenance } from './ap6-runtime-maintenance.js';
 export { runAp7FailureRecovery } from './ap7-failure-recovery.js';
 export { runOt1DependencyCascade } from './ot1-dependency-cascade.js';
 export { runOt2TaskRouting } from './ot2-task-routing.js';
-export { runOt3PipelineState } from './ot3-pipeline-state.js';
+export { runOt3WorkflowState } from './ot3-workflow-state.js';
 export { runOt4WorkerHealth } from './ot4-worker-health.js';
 export { runHl1ApprovalFlow } from './hl1-approval-flow.js';
-export { runHl2PipelineControls } from './hl2-pipeline-controls.js';
+export { runHl2WorkflowControls } from './hl2-workflow-controls.js';
 export { runIt1Sdk } from './it1-sdk.js';
 export { runIt2Mcp } from './it2-mcp.js';
 export { runIt3Webhooks } from './it3-webhooks.js';

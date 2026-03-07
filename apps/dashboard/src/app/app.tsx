@@ -8,8 +8,8 @@ import { ApiKeyManagementPage } from '../pages/api-key-management-page.js';
 import { GovernancePage } from '../pages/governance-page.js';
 import { IntegrationsPage } from '../pages/integrations-page.js';
 import { LoginPage } from '../pages/login-page.js';
-import { PipelineDetailPage } from '../pages/pipeline-detail-page.js';
-import { PipelineListPage } from '../pages/pipeline-list-page.js';
+import { WorkflowDetailPage } from '../pages/workflow-detail-page.js';
+import { WorkflowListPage } from '../pages/workflow-list-page.js';
 import { ProjectsPage } from '../pages/projects-page.js';
 import { RuntimeCustomizationPage } from '../pages/runtime-customization-page.js';
 import { SystemMetricsPage } from '../pages/system-metrics-page.js';
@@ -33,9 +33,9 @@ export function App(): JSX.Element {
       <Route path="/login" element={<LoginPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<DashboardLayout onToggleTheme={toggleTheme} />}>
-          <Route path="/" element={<Navigate to="/pipelines" replace />} />
-          <Route path="/pipelines" element={<PipelineListPage />} />
-          <Route path="/pipelines/:id" element={<PipelineDetailPage />} />
+          <Route path="/" element={<Navigate to="/workflows" replace />} />
+          <Route path="/workflows" element={<WorkflowListPage />} />
+          <Route path="/workflows/:id" element={<WorkflowDetailPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/templates" element={<TemplateBrowserPage />} />
           <Route path="/tasks/:id" element={<TaskDetailPage />} />
@@ -48,7 +48,7 @@ export function App(): JSX.Element {
           <Route path="/metrics" element={<SystemMetricsPage />} />
         </Route>
       </Route>
-      <Route path="*" element={<Navigate to="/pipelines" replace />} />
+      <Route path="*" element={<Navigate to="/workflows" replace />} />
     </Routes>
   );
 }

@@ -37,15 +37,15 @@ import { runMaintenanceSadScenario } from '../scenarios/maintenance-sad.js';
 import { runAp2ExternalRuntime } from '../scenarios/ap2-external-runtime.js';
 import { runAp3StandaloneWorker } from '../scenarios/ap3-standalone-worker.js';
 import { runAp4MixedWorkers } from '../scenarios/ap4-mixed-workers.js';
-import { runAp5MaintenancePipeline } from '../scenarios/ap5-maintenance-pipeline.js';
+import { runAp5MaintenanceWorkflow } from '../scenarios/ap5-maintenance-workflow.js';
 import { runAp6RuntimeMaintenance } from '../scenarios/ap6-runtime-maintenance.js';
 import { runAp7FailureRecovery } from '../scenarios/ap7-failure-recovery.js';
 import { runOt1DependencyCascade } from '../scenarios/ot1-dependency-cascade.js';
 import { runOt2TaskRouting } from '../scenarios/ot2-task-routing.js';
-import { runOt3PipelineState } from '../scenarios/ot3-pipeline-state.js';
+import { runOt3WorkflowState } from '../scenarios/ot3-workflow-state.js';
 import { runOt4WorkerHealth } from '../scenarios/ot4-worker-health.js';
 import { runHl1ApprovalFlow } from '../scenarios/hl1-approval-flow.js';
-import { runHl2PipelineControls } from '../scenarios/hl2-pipeline-controls.js';
+import { runHl2WorkflowControls } from '../scenarios/hl2-workflow-controls.js';
 import { runIt1Sdk } from '../scenarios/it1-sdk.js';
 import { runIt2Mcp } from '../scenarios/it2-mcp.js';
 import { runIt3Webhooks } from '../scenarios/it3-webhooks.js';
@@ -74,7 +74,7 @@ type ScenarioName =
   | 'ot3-state'
   | 'ot4-health'
   | 'hl1-approval-flow'
-  | 'hl2-pipeline-controls'
+  | 'hl2-workflow-controls'
   | 'it1-sdk'
   | 'it2-mcp'
   | 'it3-webhooks'
@@ -99,7 +99,7 @@ export const ALL_SCENARIOS: ScenarioName[] = [
   'ot3-state',
   'ot4-health',
   'hl1-approval-flow',
-  'hl2-pipeline-controls',
+  'hl2-workflow-controls',
   'it1-sdk',
   'it2-mcp',
   'it3-webhooks',
@@ -122,7 +122,7 @@ const CORE_SCENARIOS: ScenarioName[] = [
   'ot3-state',
   'ot4-health',
   'hl1-approval-flow',
-  'hl2-pipeline-controls',
+  'hl2-workflow-controls',
   'it1-sdk',
   'it2-mcp',
   'it3-webhooks',
@@ -449,7 +449,7 @@ async function runScenarioByName(
     case 'maintenance-sad':
       return runMaintenanceSadScenario(live);
     case 'ap5-full':
-      return runAp5MaintenancePipeline(live);
+      return runAp5MaintenanceWorkflow(live);
     case 'ap6-runtime-maintenance':
       return runAp6RuntimeMaintenance(live);
     case 'ap7-failure-recovery':
@@ -459,13 +459,13 @@ async function runScenarioByName(
     case 'ot2-routing':
       return runOt2TaskRouting(live);
     case 'ot3-state':
-      return runOt3PipelineState(live);
+      return runOt3WorkflowState(live);
     case 'ot4-health':
       return runOt4WorkerHealth(live);
     case 'hl1-approval-flow':
       return runHl1ApprovalFlow(live);
-    case 'hl2-pipeline-controls':
-      return runHl2PipelineControls(live);
+    case 'hl2-workflow-controls':
+      return runHl2WorkflowControls(live);
     case 'it1-sdk':
       return runIt1Sdk(live);
     case 'it2-mcp':

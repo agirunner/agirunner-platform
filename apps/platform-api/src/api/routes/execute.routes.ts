@@ -57,14 +57,14 @@ function deriveRole(payload: ExecuteRequestBody): string {
   );
 }
 
-function derivePipelineId(payload: ExecuteRequestBody): string | null {
+function deriveWorkflowId(payload: ExecuteRequestBody): string | null {
   const context = asRecord(payload.context);
   const task = asRecord(context.task);
-  const pipeline = asRecord(context.pipeline);
+  const workflow = asRecord(context.workflow);
   return (
-    readString(context.pipeline_id) ??
-    readString(task.pipeline_id) ??
-    readString(pipeline.id) ??
+    readString(context.workflow_id) ??
+    readString(task.workflow_id) ??
+    readString(workflow.id) ??
     null
   );
 }
@@ -79,7 +79,7 @@ function buildSimulatedExecutionOutput(payload: ExecuteRequestBody): Record<stri
   return {
     scenario: deriveScenario(payload),
     task_id: readString(payload.task_id) ?? 'unknown-task',
-    pipeline_id: derivePipelineId(payload),
+    workflow_id: deriveWorkflowId(payload),
     role,
     handled_by: 'platform-api-execute-endpoint',
     execution_mode: 'simulated-not-executed',
@@ -316,7 +316,7 @@ async function buildExecutionBackedOutput(
   }
 
   const prompt = [
-    'You are executing one SDLC task inside an autonomous software delivery pipeline.',
+    'You are executing one SDLC task inside an autonomous software delivery workflow.',
     'Return strict JSON only.',
     'Be concrete, implementation-focused, and evidence-backed.',
     'Do not use placeholders, TODO/TBD text, template tokens like {{...}}, or mock/dummy language.',
@@ -343,7 +343,7 @@ async function buildExecutionBackedOutput(
         {
           role: 'system',
           content:
-            'You are an autonomous software engineer returning structured JSON task outputs for a pipeline worker.',
+            'You are an autonomous software engineer returning structured JSON task outputs for a workflow worker.',
         },
         {
           role: 'user',
@@ -440,7 +440,7 @@ async function buildExecutionBackedOutput(
   return {
     scenario: deriveScenario(payload),
     task_id: readString(payload.task_id) ?? 'unknown-task',
-    pipeline_id: derivePipelineId(payload),
+    workflow_id: deriveWorkflowId(payload),
     role: deriveRole(payload),
     handled_by: 'platform-api-live-executor',
     execution_mode: 'live-agent-api',

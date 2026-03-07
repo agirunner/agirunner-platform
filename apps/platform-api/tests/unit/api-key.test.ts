@@ -10,7 +10,7 @@ function makePool(queryImpl: ReturnType<typeof vi.fn>) {
 }
 
 describe('createApiKey', () => {
-  it('generates API keys in canonical ab_{scope}_{random} format with entropy-preserving key_prefix', async () => {
+  it('generates API keys in canonical ar_{scope}_{random} format with entropy-preserving key_prefix', async () => {
     const query = vi.fn().mockResolvedValue({ rowCount: 1, rows: [] });
     const pool = makePool(query);
 
@@ -23,7 +23,7 @@ describe('createApiKey', () => {
       expiresAt: new Date(Date.now() + 60_000),
     });
 
-    expect(apiKey.startsWith('ab_worker_')).toBe(true);
+    expect(apiKey.startsWith('ar_worker_')).toBe(true);
     expect(apiKey.length).toBeGreaterThan(20);
     expect(keyPrefix).toHaveLength(12);
     expect(keyPrefix).toMatch(/^k[A-Za-z0-9_-]{11}$/);
@@ -76,7 +76,7 @@ describe('createApiKey', () => {
 
 describe('verifyApiKey', () => {
   it('accepts canonical keys with new prefix canonicalization and legacy compatibility fallback', async () => {
-    const canonical = 'ab_admin_ABCDEFGHIJKLMNOPQRSTUV';
+    const canonical = 'ar_admin_ABCDEFGHIJKLMNOPQRSTUV';
     const canonicalHash = await bcrypt.hash(canonical, 4);
 
     const queryNewPrefix = vi.fn().mockImplementation(async (_sql: string, params: unknown[]) => {
@@ -162,8 +162,8 @@ describe('verifyApiKey', () => {
   });
 
   it('derives distinct canonical lookup prefixes even when legacy first-12 prefix collides', async () => {
-    const keyA = 'ab_worker_AA1234567890abcdefghijkl';
-    const keyB = 'ab_worker_AAabcdefghij1234567890';
+    const keyA = 'ar_worker_AA1234567890abcdefghijkl';
+    const keyB = 'ar_worker_AAabcdefghij1234567890';
 
     const queryA = vi.fn().mockResolvedValue({ rowCount: 0, rows: [] });
     const queryB = vi.fn().mockResolvedValue({ rowCount: 0, rows: [] });

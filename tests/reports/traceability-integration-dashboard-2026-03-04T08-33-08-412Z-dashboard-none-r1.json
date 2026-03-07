@@ -32,12 +32,12 @@
     {
       "key": "sdlc-happy",
       "id": "AP-1",
-      "title": "Built-in Worker — SDLC Pipeline",
+      "title": "Built-in Worker — SDLC Workflow",
       "statusFromRunReport": "PASS",
       "statusFromPlaywrightTags": "PASS",
       "taggedEvidenceCount": 1,
       "taggedEvidenceTitles": [
-        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:sdlc-happy] pipeline creation and execution surfaces"
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:sdlc-happy] workflow creation and execution surfaces"
       ],
       "taggedEvidenceErrors": [],
       "taggedDurationMsTotal": 751
@@ -45,7 +45,7 @@
     {
       "key": "ap2-external-runtime",
       "id": "AP-2",
-      "title": "External Runtime — SDLC Pipeline",
+      "title": "External Runtime — SDLC Workflow",
       "statusFromRunReport": "PASS",
       "statusFromPlaywrightTags": "PASS",
       "taggedEvidenceCount": 1,
@@ -58,7 +58,7 @@
     {
       "key": "ap3-standalone-worker",
       "id": "AP-3",
-      "title": "Standalone Worker Runtime — SDLC Pipeline",
+      "title": "Standalone Worker Runtime — SDLC Workflow",
       "statusFromRunReport": "PASS",
       "statusFromPlaywrightTags": "PASS",
       "taggedEvidenceCount": 1,
@@ -71,7 +71,7 @@
     {
       "key": "ap4-mixed-workers",
       "id": "AP-4",
-      "title": "Mixed Workers — SDLC Pipeline",
+      "title": "Mixed Workers — SDLC Workflow",
       "statusFromRunReport": "PASS",
       "statusFromPlaywrightTags": "PASS",
       "taggedEvidenceCount": 1,
@@ -84,7 +84,7 @@
     {
       "key": "maintenance-happy",
       "id": "AP-5",
-      "title": "Built-in Worker — Maintenance Pipeline",
+      "title": "Built-in Worker — Maintenance Workflow",
       "statusFromRunReport": "PASS",
       "statusFromPlaywrightTags": "PASS",
       "taggedEvidenceCount": 1,
@@ -97,7 +97,7 @@
     {
       "key": "ap6-runtime-maintenance",
       "id": "AP-6",
-      "title": "External Runtime — Maintenance Pipeline",
+      "title": "External Runtime — Maintenance Workflow",
       "statusFromRunReport": "PASS",
       "statusFromPlaywrightTags": "PASS",
       "taggedEvidenceCount": 1,
@@ -110,7 +110,7 @@
     {
       "key": "ap7-failure-recovery",
       "id": "AP-7",
-      "title": "Pipeline Failure and Recovery",
+      "title": "Workflow Failure and Recovery",
       "statusFromRunReport": "PASS",
       "statusFromPlaywrightTags": "PASS",
       "taggedEvidenceCount": 1,
@@ -128,7 +128,7 @@
       "statusFromPlaywrightTags": "PASS",
       "taggedEvidenceCount": 1,
       "taggedEvidenceTitles": [
-        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:ot1-cascade] dependency cascade pipeline visibility"
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:ot1-cascade] dependency cascade workflow visibility"
       ],
       "taggedEvidenceErrors": [],
       "taggedDurationMsTotal": 764
@@ -149,12 +149,12 @@
     {
       "key": "ot3-state",
       "id": "OT-3",
-      "title": "Pipeline State Derivation",
+      "title": "Workflow State Derivation",
       "statusFromRunReport": "PASS",
       "statusFromPlaywrightTags": "PASS",
       "taggedEvidenceCount": 1,
       "taggedEvidenceTitles": [
-        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:ot3-state] pipeline state dashboard surfaces"
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:ot3-state] workflow state dashboard surfaces"
       ],
       "taggedEvidenceErrors": [],
       "taggedDurationMsTotal": 770
@@ -186,14 +186,14 @@
       "taggedDurationMsTotal": 807
     },
     {
-      "key": "hl2-pipeline-controls",
+      "key": "hl2-workflow-controls",
       "id": "HL-2",
-      "title": "Pipeline/Task Control Plane",
+      "title": "Workflow/Task Control Plane",
       "statusFromRunReport": "PASS",
       "statusFromPlaywrightTags": "PASS",
       "taggedEvidenceCount": 1,
       "taggedEvidenceTitles": [
-        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:hl2-pipeline-controls] pipeline pause/resume/cancel control surfaces"
+        "integration-traceability.spec.ts › dashboard integration traceability scenarios › [scenario:hl2-workflow-controls] workflow pause/resume/cancel control surfaces"
       ],
       "taggedEvidenceErrors": [],
       "taggedDurationMsTotal": 808
@@ -402,7 +402,7 @@
         "validations": 1,
         "screenshots": []
       },
-      "hl2-pipeline-controls": {
+      "hl2-workflow-controls": {
         "status": "pass",
         "duration": "0.81s",
         "cost": "$0.0000",

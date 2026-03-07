@@ -1,4 +1,4 @@
-import type { PlatformApiClient } from '@agentbaton/sdk';
+import type { PlatformApiClient } from '@agirunner/sdk';
 
 import { createToolHandlers, TOOL_DEFINITIONS, TOOL_SCHEMAS } from './tools.js';
 import type { JsonRpcRequest, JsonRpcResponse } from './transport.js';
@@ -34,7 +34,7 @@ export class McpStdioServer {
   }
 
   private initializePayload() {
-    return { protocolVersion: '2024-11-05', serverInfo: { name: 'agentbaton-mcp-server', version: '0.1.0' }, capabilities: { tools: {} } };
+    return { protocolVersion: '2024-11-05', serverInfo: { name: 'agirunner-mcp-server', version: '0.1.0' }, capabilities: { tools: {} } };
   }
 
   private ok(id: JsonRpcRequest['id'], result: unknown): JsonRpcResponse {

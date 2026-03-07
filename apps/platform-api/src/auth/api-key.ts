@@ -65,8 +65,8 @@ function isExpired(expiresAt: Date): boolean {
   return new Date(expiresAt) <= new Date();
 }
 
-const CANONICAL_API_KEY_PATTERN = /^ab_(admin|agent|worker)_[A-Za-z0-9_-]{16,}$/;
-const LEGACY_API_KEY_PATTERN = /^ab_[A-Za-z0-9_-]{6,}_(admin|agent|worker)_[A-Za-z0-9_-]{16,}$/;
+const CANONICAL_API_KEY_PATTERN = /^ar_(admin|agent|worker)_[A-Za-z0-9_-]{16,}$/;
+const LEGACY_API_KEY_PATTERN = /^(?:ar|ab)_[A-Za-z0-9_-]{6,}_(admin|agent|worker)_[A-Za-z0-9_-]{16,}$/;
 
 function isCanonicalApiKeyFormat(apiKeyRaw: string): boolean {
   return CANONICAL_API_KEY_PATTERN.test(apiKeyRaw);
@@ -219,7 +219,7 @@ const API_KEY_INSERT_RETRY_LIMIT = 8;
 
 function generateApiKeyValue(scope: ApiKeyScope): string {
   const bodyEntropy = randomBytes(24).toString('base64url');
-  return `ab_${scope}_${bodyEntropy}`;
+  return `ar_${scope}_${bodyEntropy}`;
 }
 
 function isApiKeyPrefixConflict(error: unknown): boolean {

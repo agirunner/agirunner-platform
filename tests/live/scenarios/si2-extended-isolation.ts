@@ -2,7 +2,7 @@
  * SI-2: Extended Tenant/Security Isolation
  *
  * Additional path beyond SI-1:
- * - Tenant B must not be able to create a pipeline using Tenant A's template_id.
+ * - Tenant B must not be able to create a workflow using Tenant A's template_id.
  *
  * This validates that foreign resource identifiers cannot be reused cross-tenant
  * even when the caller has valid credentials in their own tenant.
@@ -52,13 +52,13 @@ export async function runSi2ExtendedIsolation(
     });
     validations.push('tenant_a_template_created');
 
-    await expectHttpStatus('cross-tenant pipeline create with foreign template_id', 404, () =>
-      ctxB.adminClient.createPipeline({
+    await expectHttpStatus('cross-tenant workflow create with foreign template_id', 404, () =>
+      ctxB.adminClient.createWorkflow({
         template_id: templateA.id,
         name: 'si2-cross-tenant-attempt',
       }),
     );
-    validations.push('foreign_template_pipeline_create_404');
+    validations.push('foreign_template_workflow_create_404');
   } finally {
     await ctxA.cleanup();
     await ctxB.cleanup();

@@ -39,7 +39,7 @@ export function ActivityFeedPage(): JSX.Element {
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <div>
           <h2>Activity Feed</h2>
-          <p className="muted">Live control-plane event stream across pipelines, tasks, workers, and agents.</p>
+          <p className="muted">Live control-plane event stream across workflows, tasks, workers, and agents.</p>
         </div>
         <div className="row">
           <label htmlFor="activity-type-filter">Entity</label>
@@ -49,7 +49,7 @@ export function ActivityFeedPage(): JSX.Element {
             onChange={(event) => setTypeFilter(event.target.value)}
           >
             <option value="all">All</option>
-            <option value="pipeline">Pipeline</option>
+            <option value="workflow">Workflow</option>
             <option value="task">Task</option>
             <option value="worker">Worker</option>
             <option value="agent">Agent</option>

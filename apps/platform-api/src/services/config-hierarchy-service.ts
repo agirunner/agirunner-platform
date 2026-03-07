@@ -14,7 +14,7 @@ interface ConfigPolicy {
   constraints: Record<string, ConfigConstraint>;
 }
 
-export interface ResolvedPipelineConfig {
+export interface ResolvedWorkflowConfig {
   resolved: RecordValue;
   layers: {
     template: RecordValue;
@@ -27,17 +27,17 @@ export interface InstructionConfig {
   suppress_layers: InstructionLayerName[];
 }
 
-export function resolvePipelineConfig(
+export function resolveWorkflowConfig(
   templateSchema: RecordValue,
   projectSpec: RecordValue,
   runOverrides: RecordValue,
-): ResolvedPipelineConfig {
+): ResolvedWorkflowConfig {
   const templateConfig = asRecord(templateSchema.config);
   const projectConfig = asRecord(projectSpec.config);
   const policy = readConfigPolicy(templateSchema);
 
   validateOverrides('project config', projectConfig, policy);
-  validateOverrides('pipeline config override', runOverrides, policy);
+  validateOverrides('workflow config override', runOverrides, policy);
 
   return {
     resolved: mergeRecords(mergeRecords(templateConfig, projectConfig), runOverrides),
@@ -62,7 +62,7 @@ export function resolveInstructionConfig(
 
 export function buildResolvedConfigView(
   resolved: RecordValue,
-  layers: ResolvedPipelineConfig['layers'],
+  layers: ResolvedWorkflowConfig['layers'],
   showLayers: boolean,
 ): RecordValue {
   if (!showLayers) {
@@ -120,7 +120,7 @@ function validateConstraint(path: string, value: unknown, constraint: ConfigCons
 
 function annotateSources(
   resolved: RecordValue,
-  layers: ResolvedPipelineConfig['layers'],
+  layers: ResolvedWorkflowConfig['layers'],
   prefix: string[],
 ): RecordValue {
   const annotated: RecordValue = {};
@@ -140,7 +140,7 @@ function annotateSources(
 
 function resolveSource(
   path: string[],
-  layers: ResolvedPipelineConfig['layers'],
+  layers: ResolvedWorkflowConfig['layers'],
 ): 'template' | 'project' | 'run' {
   if (hasValueAtPath(layers.run, path)) {
     return 'run';

@@ -6,7 +6,7 @@
   "provider": "google",
   "repeat": 1,
   "scenarios": {
-    "hl2-pipeline-controls": {
+    "hl2-workflow-controls": {
       "status": "pass",
       "duration": "2.17s",
       "cost": "$0.0000",
@@ -21,7 +21,7 @@
   "timing": {
     "setupMs": 16096,
     "scenarioMs": {
-      "hl2-pipeline-controls": 2174
+      "hl2-workflow-controls": 2174
     },
     "teardownMs": 3,
     "totalMs": 18346

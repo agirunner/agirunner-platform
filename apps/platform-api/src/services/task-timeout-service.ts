@@ -152,7 +152,7 @@ export class TaskTimeoutService {
     return affectedCount;
   }
 
-  async finalizeGracefulPipelineCancellations(now = new Date()): Promise<number> {
+  async finalizeGracefulWorkflowCancellations(now = new Date()): Promise<number> {
     const systemIdentity: ApiKeyIdentity = {
       id: 'system',
       tenantId: '00000000-0000-0000-0000-000000000001',
@@ -167,12 +167,12 @@ export class TaskTimeoutService {
       `SELECT id, tenant_id, metadata
          FROM tasks
         WHERE state IN ('claimed', 'running')
-          AND metadata ? 'pipeline_cancel_force_at'`,
+          AND metadata ? 'workflow_cancel_force_at'`,
     );
 
     for (const row of pendingCancellationTasks.rows) {
       const metadata = asRecord(row.metadata);
-      const forceCancelAt = parseIsoDate(metadata.pipeline_cancel_force_at);
+      const forceCancelAt = parseIsoDate(metadata.workflow_cancel_force_at);
       if (!forceCancelAt || now.getTime() < forceCancelAt.getTime()) {
         continue;
       }
@@ -182,7 +182,7 @@ export class TaskTimeoutService {
         expectedStates: ['claimed', 'running'],
         clearAssignment: true,
         clearLifecycleControlMetadata: true,
-        reason: 'pipeline_cancelled_after_grace',
+        reason: 'workflow_cancelled_after_grace',
       });
       affectedCount += 1;
     }

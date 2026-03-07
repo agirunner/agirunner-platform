@@ -26,11 +26,11 @@ function createAppConfig(overrides: Partial<FastifyInstance['config']> = {}): Fa
 describe('rate limit helpers', () => {
   it('scopes rate limit keys by route and token', () => {
     const request = createRequest({
-      headers: { authorization: 'Bearer ab_admin_def_local_dev_123456789012345' },
-      routeOptions: { url: '/api/v1/pipelines' } as FastifyRequest['routeOptions'],
+      headers: { authorization: 'Bearer ar_admin_def_local_dev_123456789012345' },
+      routeOptions: { url: '/api/v1/workflows' } as FastifyRequest['routeOptions'],
     });
 
-    expect(rateLimitKeyGenerator(request)).toBe('/api/v1/pipelines:key:ab_admin_def_local_dev_1');
+    expect(rateLimitKeyGenerator(request)).toBe('/api/v1/workflows:key:ar_admin_def_local_dev_1');
   });
 
   it('detects realtime transport routes for limiter allow-listing', () => {
@@ -45,7 +45,7 @@ describe('rate limit helpers', () => {
   it('does not classify standard API routes as realtime transport', () => {
     const app = createAppConfig();
     const request = createRequest({
-      routeOptions: { url: '/api/v1/pipelines' } as FastifyRequest['routeOptions'],
+      routeOptions: { url: '/api/v1/workflows' } as FastifyRequest['routeOptions'],
     });
 
     expect(isRealtimeTransportRoute(app, request)).toBe(false);

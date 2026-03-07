@@ -7,7 +7,7 @@ import { OrchestratorGrantService } from '../../services/orchestrator-grant-serv
 
 const createGrantSchema = z.object({
   agent_id: z.string().uuid(),
-  pipeline_id: z.string().uuid(),
+  workflow_id: z.string().uuid(),
   permissions: z.array(z.string().min(1)).min(1),
   expires_at: z.string().datetime().optional(),
 });
@@ -36,7 +36,7 @@ export const orchestratorGrantRoutes: FastifyPluginAsync = async (app) => {
     '/api/v1/orchestrator-grants',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request) => {
-      const query = request.query as { pipeline_id?: string; agent_id?: string };
+      const query = request.query as { workflow_id?: string; agent_id?: string };
       return grantService.listGrants(request.auth!.tenantId, query);
     },
   );

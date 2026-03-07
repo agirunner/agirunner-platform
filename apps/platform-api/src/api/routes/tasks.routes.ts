@@ -11,7 +11,7 @@ const taskCreateSchema = z.object({
   type: z.enum(['analysis', 'code', 'review', 'test', 'docs', 'orchestration', 'custom']),
   description: z.string().max(5000).optional(),
   priority: z.enum(['critical', 'high', 'normal', 'low']).optional(),
-  pipeline_id: z.string().uuid().optional(),
+  workflow_id: z.string().uuid().optional(),
   project_id: z.string().uuid().optional(),
   parent_id: z.string().uuid().optional(),
   role: z.string().max(120).optional(),
@@ -47,7 +47,7 @@ const claimSchema = z.object({
   agent_id: z.string().uuid(),
   worker_id: z.string().uuid().optional(),
   capabilities: z.array(z.string()).default([]),
-  pipeline_id: z.string().uuid().optional(),
+  workflow_id: z.string().uuid().optional(),
   include_context: z.boolean().optional(),
 });
 
@@ -157,7 +157,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
         project_id: query.project_id,
         assigned_agent_id: query.assigned_agent_id,
         parent_id: query.parent_id,
-        pipeline_id: query.pipeline_id,
+        workflow_id: query.workflow_id,
         page,
         per_page: perPage,
       });

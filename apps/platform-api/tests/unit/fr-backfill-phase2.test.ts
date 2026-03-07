@@ -6,16 +6,16 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { buildTaskContext } from '../../src/services/task-context-service.js';
-import { buildTemplateTaskIdMap } from '../../src/services/pipeline-instantiation.js';
+import { buildTemplateTaskIdMap } from '../../src/services/workflow-instantiation.js';
 import { selectLeastLoadedWorker } from '../../src/services/worker-dispatch-service.js';
 import {
-  derivePipelineState,
+  deriveWorkflowState,
   validateTemplateSchema,
-} from '../../src/orchestration/pipeline-engine.js';
+} from '../../src/orchestration/workflow-engine.js';
 import { registerWorker } from '../../src/services/worker-registration-service.js';
 import { TaskWriteService } from '../../src/services/task-write-service.js';
-import { PipelineStateService } from '../../src/services/pipeline-state-service.js';
-import { PipelineCancellationService } from '../../src/services/pipeline-cancellation-service.js';
+import { WorkflowStateService } from '../../src/services/workflow-state-service.js';
+import { WorkflowCancellationService } from '../../src/services/workflow-cancellation-service.js';
 import { authenticateApiKey, withScope } from '../../src/auth/fastify-auth-hook.js';
 import { loadEnv } from '../../src/config/env.js';
 import { templates } from '../../src/db/schema/templates.js';
@@ -40,7 +40,7 @@ describe('FR-192: context versioning', () => {
         return Promise.resolve({ rows: [] });
       }
       if (sql.includes('projects')) return Promise.resolve({ rows: [] });
-      if (sql.includes('pipelines')) return Promise.resolve({ rows: [] });
+      if (sql.includes('workflows')) return Promise.resolve({ rows: [] });
       if (sql.includes("state = 'completed'") || sql.includes('depends_on')) {
         return Promise.resolve({
           rows: [{ id: upstreamTaskId, output: { summary: 'done' } }],
@@ -101,9 +101,9 @@ describe('FR-208: max sub-task depth and count limits', () => {
 // FR-219: Granular permission grants for non-orchestrators
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-219: granular permission grants for non-orchestrators', () => {
-  it('orchestratorGrants schema has agentId and pipelineId columns', () => {
+  it('orchestratorGrants schema has agentId and workflowId columns', () => {
     expect(orchestratorGrants.agentId).toBeDefined();
-    expect(orchestratorGrants.pipelineId).toBeDefined();
+    expect(orchestratorGrants.workflowId).toBeDefined();
   });
 
   it('orchestratorGrants schema has permissions column', () => {
@@ -120,17 +120,17 @@ describe('FR-219: granular permission grants for non-orchestrators', () => {
 // FR-222: Orchestrator fallback on timeout
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-222: orchestrator fallback on timeout', () => {
-  it('pipeline-state-service derives pipeline state from task states', () => {
-    // derivePipelineState is the core logic used by recomputePipelineState
-    expect(derivePipelineState(['failed', 'completed'])).toBe('failed');
-    expect(derivePipelineState(['completed', 'completed'])).toBe('completed');
-    expect(derivePipelineState(['running', 'pending'])).toBe('active');
-    expect(derivePipelineState([])).toBe('pending');
+  it('workflow-state-service derives workflow state from task states', () => {
+    // deriveWorkflowState is the core logic used by recomputeWorkflowState
+    expect(deriveWorkflowState(['failed', 'completed'])).toBe('failed');
+    expect(deriveWorkflowState(['completed', 'completed'])).toBe('completed');
+    expect(deriveWorkflowState(['running', 'pending'])).toBe('active');
+    expect(deriveWorkflowState([])).toBe('pending');
   });
 
-  it('PipelineStateService is a real class with a recomputePipelineState method', () => {
-    expect(typeof PipelineStateService).toBe('function');
-    expect(typeof PipelineStateService.prototype.recomputePipelineState).toBe('function');
+  it('WorkflowStateService is a real class with a recomputeWorkflowState method', () => {
+    expect(typeof WorkflowStateService).toBe('function');
+    expect(typeof WorkflowStateService.prototype.recomputeWorkflowState).toBe('function');
   });
 
   it('lifecycle-monitor config requires LIFECYCLE_TASK_TIMEOUT_CHECK_INTERVAL_MS', () => {
@@ -232,7 +232,7 @@ describe('FR-405: output schema validation', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // FR-411: Inline role override at creation
 // ─────────────────────────────────────────────────────────────────────────────
-describe('FR-411: inline role override at pipeline instantiation', () => {
+describe('FR-411: inline role override at workflow instantiation', () => {
   it('buildTemplateTaskIdMap generates a UUID per task id', () => {
     const tasks = [
       { id: 'design', title_template: 'Design', type: 'analysis' as const },
@@ -395,9 +395,9 @@ describe('FR-708: phase parallel flag', () => {
 
   it('tasks with no depends_on start in ready state which enables parallel execution', () => {
     // Tasks with no deps are immediately ready — supporting parallel execution at the engine level
-    expect(derivePipelineState(['ready', 'ready'])).toBe('pending');
+    expect(deriveWorkflowState(['ready', 'ready'])).toBe('pending');
     // All running → active (parallel in progress)
-    expect(derivePipelineState(['running', 'running'])).toBe('active');
+    expect(deriveWorkflowState(['running', 'running'])).toBe('active');
   });
 });
 
@@ -405,12 +405,12 @@ describe('FR-708: phase parallel flag', () => {
 // FR-715: Phase-level cancellation
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-715: phase-level cancellation', () => {
-  it('PipelineCancellationService is a real exported class with cancelPipeline method', () => {
-    expect(typeof PipelineCancellationService).toBe('function');
-    expect(typeof PipelineCancellationService.prototype.cancelPipeline).toBe('function');
+  it('WorkflowCancellationService is a real exported class with cancelWorkflow method', () => {
+    expect(typeof WorkflowCancellationService).toBe('function');
+    expect(typeof WorkflowCancellationService.prototype.cancelWorkflow).toBe('function');
   });
 
-  it('cancelPipeline throws ConflictError for already-terminal pipeline states', async () => {
+  it('cancelWorkflow throws ConflictError for already-terminal workflow states', async () => {
     const { ConflictError } = await import('../../src/errors/domain-errors.js');
 
     const mockClient = {
@@ -421,13 +421,13 @@ describe('FR-715: phase-level cancellation', () => {
       connect: vi.fn().mockResolvedValue(mockClient),
     };
     const mockEventService = { emit: vi.fn() };
-    const mockStateService = { recomputePipelineState: vi.fn() };
-    const service = new PipelineCancellationService({
+    const mockStateService = { recomputeWorkflowState: vi.fn() };
+    const service = new WorkflowCancellationService({
       pool: mockPool as never,
       eventService: mockEventService as never,
       stateService: mockStateService as never,
       cancelSignalGracePeriodMs: 60000,
-      getPipeline: vi.fn().mockResolvedValue({ id: 'p1', state: 'completed', tasks: [] }),
+      getWorkflow: vi.fn().mockResolvedValue({ id: 'p1', state: 'completed', tasks: [] }),
     });
 
     const identity = {
@@ -436,9 +436,9 @@ describe('FR-715: phase-level cancellation', () => {
       id: 'k1',
       ownerType: 'system',
       ownerId: null,
-      keyPrefix: 'ab_',
+      keyPrefix: 'ar_',
     };
-    await expect(service.cancelPipeline(identity as never, 'p1')).rejects.toBeInstanceOf(
+    await expect(service.cancelWorkflow(identity as never, 'p1')).rejects.toBeInstanceOf(
       ConflictError,
     );
   });

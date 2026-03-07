@@ -233,7 +233,7 @@ test('deriveDashboardScenarioResults returns PASS for tagged canonical scenarios
           title: 'dashboard integration traceability',
           specs: [
             {
-              title: '[scenario:sdlc-happy] pipeline shell',
+              title: '[scenario:sdlc-happy] workflow shell',
               tests: [{ results: [{ status: 'passed', duration: 1250 }] }],
             },
           ],

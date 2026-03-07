@@ -92,34 +92,34 @@ function applyEnvOverrides(base: WorkerConfig, env: NodeJS.ProcessEnv): WorkerCo
     ...base,
     server: {
       ...base.server,
-      url: env.AGENTBATON_WORKER_SERVER_URL ?? base.server.url,
-      authToken: env.AGENTBATON_WORKER_AUTH_TOKEN ?? base.server.authToken,
+      url: env.AGIRUNNER_WORKER_SERVER_URL ?? base.server.url,
+      authToken: env.AGIRUNNER_WORKER_AUTH_TOKEN ?? base.server.authToken,
     },
     runtime: {
       ...base.runtime,
-      adapter: env.AGENTBATON_WORKER_RUNTIME_ADAPTER ?? base.runtime.adapter,
+      adapter: env.AGIRUNNER_WORKER_RUNTIME_ADAPTER ?? base.runtime.adapter,
     },
-    capabilities: parseCsv(env.AGENTBATON_WORKER_CAPABILITIES) ?? base.capabilities,
+    capabilities: parseCsv(env.AGIRUNNER_WORKER_CAPABILITIES) ?? base.capabilities,
     toolTags: {
-      required: parseCsv(env.AGENTBATON_WORKER_TOOL_TAGS_REQUIRED) ?? base.toolTags.required,
-      optional: parseCsv(env.AGENTBATON_WORKER_TOOL_TAGS_OPTIONAL) ?? base.toolTags.optional,
+      required: parseCsv(env.AGIRUNNER_WORKER_TOOL_TAGS_REQUIRED) ?? base.toolTags.required,
+      optional: parseCsv(env.AGIRUNNER_WORKER_TOOL_TAGS_OPTIONAL) ?? base.toolTags.optional,
     },
     connection: {
       ...base.connection,
-      mode: parseConnectionMode(env.AGENTBATON_WORKER_CONNECTION_MODE) ?? base.connection.mode,
+      mode: parseConnectionMode(env.AGIRUNNER_WORKER_CONNECTION_MODE) ?? base.connection.mode,
       heartbeatIntervalSeconds:
-        parseInteger(env.AGENTBATON_WORKER_HEARTBEAT_INTERVAL_SECONDS) ?? base.connection.heartbeatIntervalSeconds,
+        parseInteger(env.AGIRUNNER_WORKER_HEARTBEAT_INTERVAL_SECONDS) ?? base.connection.heartbeatIntervalSeconds,
       reconnect: {
-        minMs: parseInteger(env.AGENTBATON_WORKER_RECONNECT_MIN_MS) ?? base.connection.reconnect.minMs,
-        maxMs: parseInteger(env.AGENTBATON_WORKER_RECONNECT_MAX_MS) ?? base.connection.reconnect.maxMs,
+        minMs: parseInteger(env.AGIRUNNER_WORKER_RECONNECT_MIN_MS) ?? base.connection.reconnect.minMs,
+        maxMs: parseInteger(env.AGIRUNNER_WORKER_RECONNECT_MAX_MS) ?? base.connection.reconnect.maxMs,
       },
     },
     taskFilter: {
-      projectId: env.AGENTBATON_WORKER_FILTER_PROJECT_ID ?? base.taskFilter.projectId,
-      taskTypes: parseCsv(env.AGENTBATON_WORKER_FILTER_TASK_TYPES) ?? base.taskFilter.taskTypes,
+      projectId: env.AGIRUNNER_WORKER_FILTER_PROJECT_ID ?? base.taskFilter.projectId,
+      taskTypes: parseCsv(env.AGIRUNNER_WORKER_FILTER_TASK_TYPES) ?? base.taskFilter.taskTypes,
     },
     logging: {
-      level: parseLogLevel(env.AGENTBATON_WORKER_LOG_LEVEL) ?? base.logging.level,
+      level: parseLogLevel(env.AGIRUNNER_WORKER_LOG_LEVEL) ?? base.logging.level,
     },
   };
 }

@@ -11,7 +11,7 @@ const deliveryEvent = {
   entity_id: 'task-1',
   actor_type: 'system',
   actor_id: null,
-  data: { pipeline_id: 'pipeline-1' },
+  data: { workflow_id: 'workflow-1' },
   created_at: new Date().toISOString(),
 };
 
@@ -24,7 +24,7 @@ describe('IntegrationAdapterService', () => {
           {
             id: 'adapter-1',
             tenant_id: 'tenant-1',
-            pipeline_id: null,
+            workflow_id: null,
             kind: 'webhook',
             config: {
               url: 'https://example.com/hooks',
@@ -72,7 +72,7 @@ describe('IntegrationAdapterService', () => {
               {
                 id: 'adapter-1',
                 tenant_id: 'tenant-1',
-                pipeline_id: null,
+                workflow_id: null,
                 kind: 'webhook',
                 config: {
                   url: 'https://example.com/hooks',
@@ -113,7 +113,7 @@ describe('IntegrationAdapterService', () => {
         method: 'POST',
         headers: expect.objectContaining({
           'content-type': 'application/json',
-          'x-agentbaton-event': 'task.completed',
+          'x-agirunner-event': 'task.completed',
           'x-test': 'true',
         }),
       }),

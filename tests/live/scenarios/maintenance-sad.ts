@@ -1,7 +1,7 @@
 /**
- * Maintenance Sad Path — tests pipeline cancellation and cleanup.
+ * Maintenance Sad Path — tests workflow cancellation and cleanup.
  *
- * Creates a maintenance pipeline and immediately cancels it,
+ * Creates a maintenance workflow and immediately cancels it,
  * verifying the orchestrator correctly transitions all tasks.
  */
 
@@ -24,33 +24,33 @@ export async function runMaintenanceSadScenario(
   });
   validations.push('template_created');
 
-  // Create pipeline
-  const pipeline = await client.createPipeline({
+  // Create workflow
+  const workflow = await client.createWorkflow({
     template_id: template.id,
-    name: `Maint-sad pipeline ${live.runId}`,
+    name: `Maint-sad workflow ${live.runId}`,
     parameters: {
       repo: 'todo-app',
       issue: 'cancel-test',
-      description: 'Test cancellation of maintenance pipeline',
+      description: 'Test cancellation of maintenance workflow',
     },
   });
-  validations.push('pipeline_created');
+  validations.push('workflow_created');
 
   // Immediately cancel
-  const cancelled = await client.cancelPipeline(pipeline.id);
+  const cancelled = await client.cancelWorkflow(workflow.id);
   if (cancelled.state !== 'cancelled') {
     throw new Error(`Expected cancelled, got ${cancelled.state}`);
   }
-  validations.push('pipeline_cancelled');
+  validations.push('workflow_cancelled');
 
   // Verify all tasks are cancelled
   const snapshot = await pollUntilValue(
-    () => client.getPipeline(pipeline.id),
+    () => client.getWorkflow(workflow.id),
     (value) => (value.tasks ?? []).every((task) => task.state === 'cancelled'),
     {
       timeoutMs: 10_000,
       intervalMs: 250,
-      label: `maintenance-sad pipeline ${pipeline.id} tasks cancelled`,
+      label: `maintenance-sad workflow ${workflow.id} tasks cancelled`,
     },
   );
 

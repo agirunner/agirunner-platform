@@ -5,43 +5,43 @@
     {
       "key": "sdlc-happy",
       "id": "AP-1",
-      "title": "Built-in Worker — SDLC Pipeline",
+      "title": "Built-in Worker — SDLC Workflow",
       "planRef": "§2 AP-1"
     },
     {
       "key": "ap2-external-runtime",
       "id": "AP-2",
-      "title": "External Runtime — SDLC Pipeline",
+      "title": "External Runtime — SDLC Workflow",
       "planRef": "§2 AP-2"
     },
     {
       "key": "ap3-standalone-worker",
       "id": "AP-3",
-      "title": "Standalone Worker Runtime — SDLC Pipeline",
+      "title": "Standalone Worker Runtime — SDLC Workflow",
       "planRef": "§2 AP-3"
     },
     {
       "key": "ap4-mixed-workers",
       "id": "AP-4",
-      "title": "Mixed Workers — SDLC Pipeline",
+      "title": "Mixed Workers — SDLC Workflow",
       "planRef": "§2 AP-4"
     },
     {
       "key": "maintenance-happy",
       "id": "AP-5",
-      "title": "Built-in Worker — Maintenance Pipeline",
+      "title": "Built-in Worker — Maintenance Workflow",
       "planRef": "§2 AP-5"
     },
     {
       "key": "ap6-runtime-maintenance",
       "id": "AP-6",
-      "title": "External Runtime — Maintenance Pipeline",
+      "title": "External Runtime — Maintenance Workflow",
       "planRef": "§2 AP-6"
     },
     {
       "key": "ap7-failure-recovery",
       "id": "AP-7",
-      "title": "Pipeline Failure and Recovery",
+      "title": "Workflow Failure and Recovery",
       "planRef": "§2 AP-7"
     },
     {
@@ -59,7 +59,7 @@
     {
       "key": "ot3-state",
       "id": "OT-3",
-      "title": "Pipeline State Derivation",
+      "title": "Workflow State Derivation",
       "planRef": "§3 OT-3"
     },
     {
@@ -75,9 +75,9 @@
       "planRef": "§4 HL-1"
     },
     {
-      "key": "hl2-pipeline-controls",
+      "key": "hl2-workflow-controls",
       "id": "HL-2",
-      "title": "Pipeline/Task Control Plane",
+      "title": "Workflow/Task Control Plane",
       "planRef": "§4 HL-2"
     },
     {

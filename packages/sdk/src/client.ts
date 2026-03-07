@@ -4,11 +4,11 @@ import type {
   ApiListResponse,
   AuthTokenResponse,
   CreateTaskInput,
-  Pipeline,
+  Workflow,
   Project,
   ProjectTimelineEntry,
   ResolvedDocumentReference,
-  ResolvedPipelineConfig,
+  ResolvedWorkflowConfig,
   Task,
   TaskArtifact,
   Worker,
@@ -84,7 +84,7 @@ export class PlatformApiClient {
     agent_id: string;
     worker_id?: string;
     capabilities?: string[];
-    pipeline_id?: string;
+    workflow_id?: string;
     include_context?: boolean;
   }): Promise<Task | null> {
     const response = await this.request<Response | ApiDataResponse<Task>>('/api/v1/tasks/claim', {
@@ -116,65 +116,65 @@ export class PlatformApiClient {
     return response.data;
   }
 
-  async listPipelines(query: Query = {}): Promise<ApiListResponse<Pipeline>> {
-    return this.request<ApiListResponse<Pipeline>>(this.withQuery('/api/v1/pipelines', query));
+  async listWorkflows(query: Query = {}): Promise<ApiListResponse<Workflow>> {
+    return this.request<ApiListResponse<Workflow>>(this.withQuery('/api/v1/workflows', query));
   }
 
-  async getPipeline(pipelineId: string): Promise<Pipeline> {
-    const response = await this.request<ApiDataResponse<Pipeline>>(`/api/v1/pipelines/${pipelineId}`);
+  async getWorkflow(workflowId: string): Promise<Workflow> {
+    const response = await this.request<ApiDataResponse<Workflow>>(`/api/v1/workflows/${workflowId}`);
     return response.data;
   }
 
-  async getResolvedPipelineConfig(
-    pipelineId: string,
+  async getResolvedWorkflowConfig(
+    workflowId: string,
     showLayers = false,
-  ): Promise<ResolvedPipelineConfig> {
+  ): Promise<ResolvedWorkflowConfig> {
     const suffix = showLayers ? '?show_layers=true' : '';
-    const response = await this.request<ApiDataResponse<ResolvedPipelineConfig>>(
-      `/api/v1/pipelines/${pipelineId}/config/resolved${suffix}`,
+    const response = await this.request<ApiDataResponse<ResolvedWorkflowConfig>>(
+      `/api/v1/workflows/${workflowId}/config/resolved${suffix}`,
     );
     return response.data;
   }
 
-  async listPipelineDocuments(pipelineId: string): Promise<ResolvedDocumentReference[]> {
+  async listWorkflowDocuments(workflowId: string): Promise<ResolvedDocumentReference[]> {
     const response = await this.request<ApiDataResponse<ResolvedDocumentReference[]>>(
-      `/api/v1/pipelines/${pipelineId}/documents`,
+      `/api/v1/workflows/${workflowId}/documents`,
     );
     return response.data;
   }
 
-  async createPipeline(payload: {
+  async createWorkflow(payload: {
     template_id: string;
     name: string;
     project_id?: string;
     parameters?: Record<string, unknown>;
     metadata?: Record<string, unknown>;
-  }): Promise<Pipeline> {
-    const response = await this.request<ApiDataResponse<Pipeline>>('/api/v1/pipelines', {
+  }): Promise<Workflow> {
+    const response = await this.request<ApiDataResponse<Workflow>>('/api/v1/workflows', {
       method: 'POST',
       body: payload,
     });
     return response.data;
   }
 
-  async cancelPipeline(pipelineId: string): Promise<Pipeline> {
-    const response = await this.request<ApiDataResponse<Pipeline>>(`/api/v1/pipelines/${pipelineId}/cancel`, {
+  async cancelWorkflow(workflowId: string): Promise<Workflow> {
+    const response = await this.request<ApiDataResponse<Workflow>>(`/api/v1/workflows/${workflowId}/cancel`, {
       method: 'POST',
     });
     return response.data;
   }
 
   async actOnPhaseGate(
-    pipelineId: string,
+    workflowId: string,
     phaseName: string,
     payload: {
       action: 'approve' | 'reject' | 'request_changes';
       feedback?: string;
       override_input?: Record<string, unknown>;
     },
-  ): Promise<Pipeline> {
-    const response = await this.request<ApiDataResponse<Pipeline>>(
-      `/api/v1/pipelines/${pipelineId}/phases/${phaseName}/gate`,
+  ): Promise<Workflow> {
+    const response = await this.request<ApiDataResponse<Workflow>>(
+      `/api/v1/workflows/${workflowId}/phases/${phaseName}/gate`,
       {
         method: 'POST',
         body: payload,
@@ -183,9 +183,9 @@ export class PlatformApiClient {
     return response.data;
   }
 
-  async cancelPhase(pipelineId: string, phaseName: string): Promise<Pipeline> {
-    const response = await this.request<ApiDataResponse<Pipeline>>(
-      `/api/v1/pipelines/${pipelineId}/phases/${phaseName}/cancel`,
+  async cancelPhase(workflowId: string, phaseName: string): Promise<Workflow> {
+    const response = await this.request<ApiDataResponse<Workflow>>(
+      `/api/v1/workflows/${workflowId}/phases/${phaseName}/cancel`,
       {
         method: 'POST',
       },
@@ -220,12 +220,12 @@ export class PlatformApiClient {
     return response.data;
   }
 
-  async createPlanningPipeline(
+  async createPlanningWorkflow(
     projectId: string,
     payload: { brief: string; name?: string },
-  ): Promise<Pipeline> {
-    const response = await this.request<ApiDataResponse<Pipeline>>(
-      `/api/v1/projects/${projectId}/planning-pipeline`,
+  ): Promise<Workflow> {
+    const response = await this.request<ApiDataResponse<Workflow>>(
+      `/api/v1/projects/${projectId}/planning-workflow`,
       {
         method: 'POST',
         body: payload,

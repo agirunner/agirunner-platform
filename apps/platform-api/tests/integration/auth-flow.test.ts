@@ -69,14 +69,14 @@ describe('auth token flow', () => {
     const httpCookies = Array.isArray(httpResponse.headers['set-cookie'])
       ? httpResponse.headers['set-cookie']
       : [httpResponse.headers['set-cookie'] as string];
-    const httpRefreshCookie = httpCookies.find((c) => c.startsWith('agentbaton_refresh_token='))!;
-    expect(httpRefreshCookie).toContain('agentbaton_refresh_token=');
+    const httpRefreshCookie = httpCookies.find((c) => c.startsWith('agirunner_refresh_token='))!;
+    expect(httpRefreshCookie).toContain('agirunner_refresh_token=');
     expect(httpRefreshCookie).toContain('HttpOnly');
     expect(httpRefreshCookie).not.toContain('Secure');
     expect(httpRefreshCookie).toContain('SameSite=Strict');
     expect(httpRefreshCookie).toContain('Path=/api/v1/auth/refresh');
 
-    const httpAccessCookie = httpCookies.find((c) => c.startsWith('agentbaton_access_token='))!;
+    const httpAccessCookie = httpCookies.find((c) => c.startsWith('agirunner_access_token='))!;
     expect(httpAccessCookie).toContain('HttpOnly');
     expect(httpAccessCookie).not.toContain('Secure');
     expect(httpAccessCookie).toContain('Path=/');
@@ -92,8 +92,8 @@ describe('auth token flow', () => {
     const httpsCookies = Array.isArray(httpsResponse.headers['set-cookie'])
       ? httpsResponse.headers['set-cookie']
       : [httpsResponse.headers['set-cookie'] as string];
-    const httpsRefreshCookie = httpsCookies.find((c) => c.startsWith('agentbaton_refresh_token='))!;
-    const httpsAccessCookie = httpsCookies.find((c) => c.startsWith('agentbaton_access_token='))!;
+    const httpsRefreshCookie = httpsCookies.find((c) => c.startsWith('agirunner_refresh_token='))!;
+    const httpsAccessCookie = httpsCookies.find((c) => c.startsWith('agirunner_access_token='))!;
     expect(httpsRefreshCookie).toContain('Secure');
     expect(httpsAccessCookie).toContain('Secure');
   });
@@ -119,13 +119,13 @@ describe('auth token flow', () => {
     expect(response.statusCode).toBe(200);
     const token = response.json().data.token as string;
 
-    const pipelines = await app.inject({
+    const workflows = await app.inject({
       method: 'GET',
-      url: '/api/v1/pipelines?page=1&per_page=10',
+      url: '/api/v1/workflows?page=1&per_page=10',
       headers: { authorization: `Bearer ${token}` },
     });
 
-    expect(pipelines.statusCode).toBe(200);
+    expect(workflows.statusCode).toBe(200);
   });
 
   it('rejects previously issued access token after key revocation', async () => {
@@ -148,7 +148,7 @@ describe('auth token flow', () => {
 
     const beforeRevocation = await app.inject({
       method: 'GET',
-      url: '/api/v1/pipelines?page=1&per_page=10',
+      url: '/api/v1/workflows?page=1&per_page=10',
       headers: { authorization: `Bearer ${token}` },
     });
     expect(beforeRevocation.statusCode).toBe(200);
@@ -157,7 +157,7 @@ describe('auth token flow', () => {
 
     const afterRevocation = await app.inject({
       method: 'GET',
-      url: '/api/v1/pipelines?page=1&per_page=10',
+      url: '/api/v1/workflows?page=1&per_page=10',
       headers: { authorization: `Bearer ${token}` },
     });
     expect(afterRevocation.statusCode).toBe(401);
@@ -174,8 +174,8 @@ describe('auth token flow', () => {
     const authCookies = Array.isArray(authResponse.headers['set-cookie'])
       ? authResponse.headers['set-cookie']
       : [authResponse.headers['set-cookie'] as string];
-    const refreshCookie = authCookies.find((c) => c.startsWith('agentbaton_refresh_token='))!.split(';')[0];
-    const csrfCookie = authCookies.find((c) => c.startsWith('agentbaton_csrf_token='))!.split(';')[0];
+    const refreshCookie = authCookies.find((c) => c.startsWith('agirunner_refresh_token='))!.split(';')[0];
+    const csrfCookie = authCookies.find((c) => c.startsWith('agirunner_csrf_token='))!.split(';')[0];
     const csrfToken = csrfCookie.split('=')[1];
 
     await new Promise((resolve) => setTimeout(resolve, 1_200));
@@ -205,7 +205,7 @@ describe('auth token flow', () => {
         scope: 'admin',
         ownerType: 'user',
         ownerId: null,
-        keyPrefix: 'ab_admin_xxx',
+        keyPrefix: 'ar_admin_xxx',
         tokenType: 'refresh',
       },
       { expiresIn: '1s' },
@@ -216,7 +216,7 @@ describe('auth token flow', () => {
     const refresh = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/refresh',
-      headers: { cookie: `agentbaton_refresh_token=${shortLivedRefreshToken}` },
+      headers: { cookie: `agirunner_refresh_token=${shortLivedRefreshToken}` },
     });
 
     expect(refresh.statusCode).toBe(401);
@@ -226,7 +226,7 @@ describe('auth token flow', () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/v1/auth/token',
-      payload: { api_key: 'ab_admin_invalid_key_invalid_key' },
+      payload: { api_key: 'ar_admin_invalid_key_invalid_key' },
     });
 
     expect(response.statusCode).toBe(401);
@@ -271,8 +271,8 @@ describe('auth token flow', () => {
     const bindCookies = Array.isArray(response.headers['set-cookie'])
       ? response.headers['set-cookie']
       : [response.headers['set-cookie'] as string];
-    const refreshCookie = bindCookies.find((c) => c.startsWith('agentbaton_refresh_token='))!.split(';')[0];
-    const csrfCookie = bindCookies.find((c) => c.startsWith('agentbaton_csrf_token='))!.split(';')[0];
+    const refreshCookie = bindCookies.find((c) => c.startsWith('agirunner_refresh_token='))!.split(';')[0];
+    const csrfCookie = bindCookies.find((c) => c.startsWith('agirunner_csrf_token='))!.split(';')[0];
     const csrfToken = csrfCookie.split('=')[1];
     await db.pool.query('UPDATE api_keys SET is_revoked = true WHERE key_prefix = $1', [adminKeyPrefix]);
 

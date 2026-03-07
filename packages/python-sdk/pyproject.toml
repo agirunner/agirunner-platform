@@ -3,12 +3,12 @@ requires = ["setuptools>=69.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentbaton-sdk"
+name = "agirunner-sdk"
 version = "0.1.0"
-description = "Python SDK for AgentBaton platform APIs"
+description = "Python SDK for Agirunner platform APIs"
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [{ name = "AgentBaton" }]
+authors = [{ name = "Agirunner" }]
 license = { text = "MIT" }
 dependencies = []
 

@@ -643,7 +643,7 @@ describe('milestone d worker/events integration', () => {
 
     expect(received.length).toBeGreaterThan(0);
     const first = received[0];
-    const signature = first.headers['x-agentbaton-signature'] as string;
+    const signature = first.headers['x-agirunner-signature'] as string;
     expect(signature).toBe(createWebhookSignature(secret, first.body));
 
     webhookServer.close();

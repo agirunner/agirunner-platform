@@ -1,18 +1,18 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
 import { NotFoundError } from '../errors/domain-errors.js';
-import { validateTemplateSchema } from '../orchestration/pipeline-engine.js';
-import { PipelineService } from './pipeline-service.js';
+import { validateTemplateSchema } from '../orchestration/workflow-engine.js';
+import { WorkflowService } from './workflow-service.js';
 
 const PROJECT_PLANNING_TEMPLATE_SLUG = 'project-planning';
 
 export class ProjectPlanningService {
   constructor(
     private readonly pool: DatabasePool,
-    private readonly pipelineService: PipelineService,
+    private readonly workflowService: WorkflowService,
   ) {}
 
-  async createPlanningPipeline(
+  async createPlanningWorkflow(
     identity: ApiKeyIdentity,
     projectId: string,
     payload: { brief: string; name?: string },
@@ -44,7 +44,7 @@ export class ProjectPlanningService {
       ],
     );
 
-    return this.pipelineService.createPipeline(identity, {
+    return this.workflowService.createWorkflow(identity, {
       template_id: templateId,
       project_id: projectId,
       name: payload.name ?? `Planning: ${String(project.name)}`,
@@ -54,7 +54,7 @@ export class ProjectPlanningService {
         project_id: projectId,
       },
       metadata: {
-        planning_pipeline: true,
+        planning_workflow: true,
       },
     });
   }
@@ -119,7 +119,7 @@ export class ProjectPlanningService {
         tenantId,
         'Project Planning',
         PROJECT_PLANNING_TEMPLATE_SLUG,
-        'Built-in planning pipeline template',
+        'Built-in planning workflow template',
         schema,
       ],
     );

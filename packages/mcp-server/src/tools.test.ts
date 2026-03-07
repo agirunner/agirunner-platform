@@ -12,11 +12,11 @@ describe('mcp tools coverage', () => {
         'baton_create_task',
         'baton_claim_task',
         'baton_complete_task',
-        'baton_list_pipelines',
-        'baton_create_pipeline',
-        'baton_cancel_pipeline',
+        'baton_list_workflows',
+        'baton_create_workflow',
+        'baton_cancel_workflow',
         'list_tasks',
-        'cancel_pipeline',
+        'cancel_workflow',
       ]),
     );
   });
@@ -27,8 +27,8 @@ describe('mcp tools coverage', () => {
     expect(TOOL_SCHEMAS.baton_create_task.safeParse({ title: 'x', type: 'code' }).success).toBe(
       true,
     );
-    expect(TOOL_SCHEMAS.baton_cancel_pipeline.safeParse({ id: 'p1' }).success).toBe(true);
-    expect(TOOL_SCHEMAS.cancel_pipeline.safeParse({ id: 'p1' }).success).toBe(true);
+    expect(TOOL_SCHEMAS.baton_cancel_workflow.safeParse({ id: 'p1' }).success).toBe(true);
+    expect(TOOL_SCHEMAS.cancel_workflow.safeParse({ id: 'p1' }).success).toBe(true);
   });
 
   it('covers FR-038/FR-039 handlers delegate operations to sdk client (canonical + aliases)', async () => {
@@ -38,9 +38,9 @@ describe('mcp tools coverage', () => {
       createTask: vi.fn().mockResolvedValue({ id: 't2' }),
       claimTask: vi.fn().mockResolvedValue({ id: 't3' }),
       completeTask: vi.fn().mockResolvedValue({ id: 't4' }),
-      listPipelines: vi.fn().mockResolvedValue({ data: [] }),
-      createPipeline: vi.fn().mockResolvedValue({ id: 'p1' }),
-      cancelPipeline: vi.fn().mockResolvedValue({ id: 'p2' }),
+      listWorkflows: vi.fn().mockResolvedValue({ data: [] }),
+      createWorkflow: vi.fn().mockResolvedValue({ id: 'p1' }),
+      cancelWorkflow: vi.fn().mockResolvedValue({ id: 'p2' }),
     };
 
     const handlers = createToolHandlers(client as never);
@@ -50,19 +50,19 @@ describe('mcp tools coverage', () => {
     await handlers.baton_create_task({ title: 'Task', type: 'code' });
     await handlers.baton_claim_task({ agent_id: 'a1', capabilities: ['ts'] });
     await handlers.baton_complete_task({ id: 't1', output: { ok: true } });
-    await handlers.baton_list_pipelines({ page: 1, per_page: 10 });
-    await handlers.baton_create_pipeline({ template_id: 'tpl', name: 'pipe' });
-    await handlers.baton_cancel_pipeline({ id: 'p1' });
+    await handlers.baton_list_workflows({ page: 1, per_page: 10 });
+    await handlers.baton_create_workflow({ template_id: 'tpl', name: 'pipe' });
+    await handlers.baton_cancel_workflow({ id: 'p1' });
 
     await handlers.list_tasks({ state: 'ready' });
-    await handlers.cancel_pipeline({ id: 'p1' });
+    await handlers.cancel_workflow({ id: 'p1' });
 
     expect(client.listTasks).toHaveBeenCalledTimes(2);
     expect(client.getTask).toHaveBeenCalledWith('t1');
     expect(client.createTask).toHaveBeenCalledWith({ title: 'Task', type: 'code' });
     expect(client.claimTask).toHaveBeenCalledWith({ agent_id: 'a1', capabilities: ['ts'] });
     expect(client.completeTask).toHaveBeenCalledWith('t1', { ok: true });
-    expect(client.createPipeline).toHaveBeenCalledWith({ template_id: 'tpl', name: 'pipe' });
-    expect(client.cancelPipeline).toHaveBeenCalledTimes(2);
+    expect(client.createWorkflow).toHaveBeenCalledWith({ template_id: 'tpl', name: 'pipe' });
+    expect(client.cancelWorkflow).toHaveBeenCalledTimes(2);
   });
 });

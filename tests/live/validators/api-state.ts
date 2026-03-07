@@ -1,4 +1,4 @@
-interface ApiPipeline {
+interface ApiWorkflow {
   id: string;
   state: string;
 }
@@ -41,17 +41,17 @@ async function fetchJson<T>(url: string, key: string): Promise<T> {
   return payload as T;
 }
 
-export async function waitForPipelineState(
+export async function waitForWorkflowState(
   apiBaseUrl: string,
   apiKey: string,
-  pipelineId: string,
+  workflowId: string,
   expected: string[],
   timeoutMs = 90_000,
 ): Promise<string> {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
-    const payload = await fetchJson<{ data: ApiPipeline }>(
-      `${apiBaseUrl}/api/v1/pipelines/${pipelineId}`,
+    const payload = await fetchJson<{ data: ApiWorkflow }>(
+      `${apiBaseUrl}/api/v1/workflows/${workflowId}`,
       apiKey,
     );
     if (expected.includes(payload.data.state)) {
@@ -61,7 +61,7 @@ export async function waitForPipelineState(
   }
 
   throw new Error(
-    `Pipeline ${pipelineId} did not reach states [${expected.join(', ')}] within ${timeoutMs}ms`,
+    `Workflow ${workflowId} did not reach states [${expected.join(', ')}] within ${timeoutMs}ms`,
   );
 }
 
@@ -107,9 +107,9 @@ export function validateTaskTransitionPath(taskStates: string[]): string[] {
   return validations;
 }
 
-export function validatePipelineDerivedState(taskStates: string[]): string[] {
+export function validateWorkflowDerivedState(taskStates: string[]): string[] {
   if (taskStates.length === 0) {
-    throw new Error('Pipeline derived-state validation needs at least one task state');
+    throw new Error('Workflow derived-state validation needs at least one task state');
   }
 
   const hasRunning = taskStates.includes('running');
@@ -120,25 +120,25 @@ export function validatePipelineDerivedState(taskStates: string[]): string[] {
   const validations: string[] = [];
 
   if (allCompleted) {
-    validations.push('pipeline_state:completed');
+    validations.push('workflow_state:completed');
     return validations;
   }
 
   if (hasFailed) {
-    validations.push('pipeline_state:failed');
+    validations.push('workflow_state:failed');
     return validations;
   }
 
   if (hasCancelled) {
-    validations.push('pipeline_state:cancelled');
+    validations.push('workflow_state:cancelled');
     return validations;
   }
 
   if (hasRunning) {
-    validations.push('pipeline_state:running');
+    validations.push('workflow_state:running');
     return validations;
   }
 
-  validations.push('pipeline_state:active_non_terminal');
+  validations.push('workflow_state:active_non_terminal');
   return validations;
 }

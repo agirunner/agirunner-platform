@@ -1,8 +1,8 @@
 /**
- * AP-7: Pipeline Failure and Autonomous Recovery
+ * AP-7: Workflow Failure and Autonomous Recovery
  *
  * Tests failure handling and manual retry:
- * 1. Creates an SDLC pipeline with explicit deterministic failure_mode contract
+ * 1. Creates an SDLC workflow with explicit deterministic failure_mode contract
  * 2. The task should fail deterministically via execution-path contract enforcement
  * 3. Built-in worker's rework attempts should be exhausted
  * 4. Test harness retries with modified input
@@ -38,7 +38,7 @@ function normalizeRetryCount(task: { retry_count?: unknown }): number {
 }
 
 /**
- * Runs the AP-7 scenario: pipeline failure and recovery.
+ * Runs the AP-7 scenario: workflow failure and recovery.
  *
  * This scenario triggers a failure by giving the system a task it cannot
  * accomplish, then tests the retry mechanism.
@@ -69,8 +69,8 @@ export async function runAp7FailureRecovery(live: LiveContext): Promise<Scenario
   });
   validations.push('template_created');
 
-  // Create pipeline with AP-7 deterministic failure contract in task context
-  const pipeline = await client.createPipeline({
+  // Create workflow with AP-7 deterministic failure contract in task context
+  const workflow = await client.createWorkflow({
     template_id: template.id,
     name: `AP-7 impossible ${live.runId}`,
     parameters: {
@@ -78,17 +78,17 @@ export async function runAp7FailureRecovery(live: LiveContext): Promise<Scenario
       goal: 'Rewrite the entire Express calculator application in Rust with no JavaScript',
     },
   });
-  validations.push('pipeline_created');
+  validations.push('workflow_created');
 
   const finalSnapshot = await pollUntilValue(
-    () => client.getPipeline(pipeline.id),
+    () => client.getWorkflow(workflow.id),
     (snapshot) =>
       snapshot.state === 'completed' ||
       (snapshot.tasks ?? []).some((task) => task.state === 'failed'),
     {
-      timeoutMs: config.pipelineTimeoutMs,
+      timeoutMs: config.workflowTimeoutMs,
       intervalMs: config.pollIntervalMs,
-      label: `AP-7 failure observation for pipeline ${pipeline.id}`,
+      label: `AP-7 failure observation for workflow ${workflow.id}`,
     },
   );
   validations.push('resilience_no_hang_within_timeout');
@@ -97,7 +97,7 @@ export async function runAp7FailureRecovery(live: LiveContext): Promise<Scenario
 
   if (!failedTask) {
     throw new Error(
-      'AP-7 expected at least one failed task for impossible input, but pipeline completed without failure',
+      'AP-7 expected at least one failed task for impossible input, but workflow completed without failure',
     );
   }
 
@@ -171,7 +171,7 @@ export async function runAp7FailureRecovery(live: LiveContext): Promise<Scenario
   validations.push('resilience_retry_count_incremented');
 
   const postRetrySnapshot = await pollUntilValue(
-    () => client.getPipeline(pipeline.id),
+    () => client.getWorkflow(workflow.id),
     (snapshot) => {
       const task = (snapshot.tasks ?? []).find((candidate) => candidate.id === retried.id);
       if (!task) {
@@ -225,12 +225,12 @@ export async function runAp7FailureRecovery(live: LiveContext): Promise<Scenario
 
   const snapshotIntegritySummary = {
     preRetry: {
-      pipelineState: preRetrySnapshot.state,
+      workflowState: preRetrySnapshot.state,
       taskCount: preRetrySnapshotTaskStates.length,
       stateCounts: countTaskStates(preRetrySnapshotTaskStates),
     },
     postRetry: {
-      pipelineState: postRetrySnapshot.state,
+      workflowState: postRetrySnapshot.state,
       taskCount: postRetrySnapshotTaskStates.length,
       stateCounts: countTaskStates(postRetrySnapshotTaskStates),
     },
@@ -254,8 +254,8 @@ export async function runAp7FailureRecovery(live: LiveContext): Promise<Scenario
 
   const authenticityEvidence: ScenarioDeliveryEvidence[] = [
     {
-      pipelineId: postRetrySnapshot.id,
-      pipelineState: postRetrySnapshot.state,
+      workflowId: postRetrySnapshot.id,
+      workflowState: postRetrySnapshot.state,
       acceptanceCriteria: [
         'Deterministic resilience: timeout-bounded poll reaches observable state (no hang/crash)',
         'Deterministic resilience: explicit failure_mode contract surfaces deterministic failed task and retry control restores ready state',

@@ -27,18 +27,18 @@ describe('FR-030a / FR-423a: SSE buffer processing', () => {
   it('processes a complete SSE message and invokes the event callback', () => {
     const handler = vi.fn();
     const remaining = processSseBuffer(
-      'event: pipeline.state_changed\ndata: {"pipelineId":"abc"}\n\n',
+      'event: workflow.state_changed\ndata: {"workflowId":"abc"}\n\n',
       handler,
     );
     expect(handler).toHaveBeenCalledOnce();
-    expect(handler).toHaveBeenCalledWith('pipeline.state_changed', { pipelineId: 'abc' });
+    expect(handler).toHaveBeenCalledWith('workflow.state_changed', { workflowId: 'abc' });
     expect(remaining).toBe('');
   });
 
   it('dispatches multiple event types from one buffered stream', () => {
     const handler = vi.fn();
     const input = [
-      'event: pipeline.created\ndata: {"id":"p1"}\n\n',
+      'event: workflow.created\ndata: {"id":"p1"}\n\n',
       'event: task.state_changed\ndata: {"taskId":"t1"}\n\n',
       'event: worker.heartbeat\ndata: {"workerId":"w1"}\n\n',
     ].join('');

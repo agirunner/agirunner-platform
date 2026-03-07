@@ -1,4 +1,4 @@
-const TENANT_KEY = 'agentbaton.tenantId';
+const TENANT_KEY = 'agirunner.tenantId';
 
 let accessToken: string | null = null;
 

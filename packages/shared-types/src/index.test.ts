@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { isTaskState, isTaskStateChangedEvent } from './index.js';
 
-describe('@agentbaton/shared-types guards', () => {
+describe('@agirunner/shared-types guards', () => {
   it('validates known task states', () => {
     expect(isTaskState('running')).toBe(true);
     expect(isTaskState('unknown')).toBe(false);

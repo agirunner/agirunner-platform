@@ -2,10 +2,10 @@
  * Polling utilities for live test scenarios.
  *
  * Provides generic poll-until-condition helpers used by all scenarios
- * to wait for pipelines, tasks, and workers to reach expected states.
+ * to wait for workflows, tasks, and workers to reach expected states.
  */
 
-import type { ApiPipeline, ApiTask, LiveApiClient } from '../api-client.js';
+import type { ApiWorkflow, ApiTask, LiveApiClient } from '../api-client.js';
 import { loadConfig } from '../config.js';
 
 const config = loadConfig();
@@ -53,29 +53,29 @@ export async function pollUntilCondition(
 }
 
 /**
- * Polls the pipeline endpoint until the pipeline reaches one of the expected
+ * Polls the workflow endpoint until the workflow reaches one of the expected
  * terminal states, or the timeout expires.
  *
- * @returns The pipeline snapshot at the terminal state.
- * @throws If the timeout expires before the pipeline reaches a terminal state.
+ * @returns The workflow snapshot at the terminal state.
+ * @throws If the timeout expires before the workflow reaches a terminal state.
  */
-export async function pollPipelineUntil(
+export async function pollWorkflowUntil(
   client: LiveApiClient,
-  pipelineId: string,
+  workflowId: string,
   expectedStates: string[],
-  timeoutMs: number = config.pipelineTimeoutMs,
-): Promise<ApiPipeline> {
-  const pipeline = await pollUntilValue(
-    () => client.getPipeline(pipelineId),
+  timeoutMs: number = config.workflowTimeoutMs,
+): Promise<ApiWorkflow> {
+  const workflow = await pollUntilValue(
+    () => client.getWorkflow(workflowId),
     (value) => expectedStates.includes(value.state),
     {
       timeoutMs,
       intervalMs: config.pollIntervalMs,
-      label: `Pipeline ${pipelineId} expected state [${expectedStates.join(', ')}]`,
+      label: `Workflow ${workflowId} expected state [${expectedStates.join(', ')}]`,
     },
   );
 
-  return pipeline;
+  return workflow;
 }
 
 /**
@@ -101,18 +101,18 @@ export async function pollTaskUntil(
 }
 
 /**
- * Polls the pipeline and returns a snapshot with all task states for inspection.
+ * Polls the workflow and returns a snapshot with all task states for inspection.
  */
-export async function snapshotPipeline(
+export async function snapshotWorkflow(
   client: LiveApiClient,
-  pipelineId: string,
-): Promise<{ pipeline: ApiPipeline; taskStates: Record<string, string> }> {
-  const pipeline = await client.getPipeline(pipelineId);
+  workflowId: string,
+): Promise<{ workflow: ApiWorkflow; taskStates: Record<string, string> }> {
+  const workflow = await client.getWorkflow(workflowId);
   const taskStates: Record<string, string> = {};
-  for (const task of pipeline.tasks ?? []) {
+  for (const task of workflow.tasks ?? []) {
     taskStates[task.id] = task.state;
   }
-  return { pipeline, taskStates };
+  return { workflow, taskStates };
 }
 
 export function sleep(ms: number): Promise<void> {

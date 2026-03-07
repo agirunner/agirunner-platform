@@ -16,7 +16,7 @@ export function LoginPage(): JSX.Element {
 
     try {
       await dashboardApi.login(apiKey);
-      navigate('/pipelines');
+      navigate('/workflows');
     } catch {
       setError('Invalid API key or server unavailable');
     } finally {
@@ -26,8 +26,8 @@ export function LoginPage(): JSX.Element {
 
   return (
     <div style={{ maxWidth: 420, margin: '10vh auto' }} className="card">
-      <h1>AgentBaton Dashboard</h1>
-      <p className="muted">Sign in with an API key to start monitoring pipelines.</p>
+      <h1>Agirunner Dashboard</h1>
+      <p className="muted">Sign in with an API key to start monitoring workflows.</p>
       <form className="grid" onSubmit={onSubmit}>
         <label>
           API Key

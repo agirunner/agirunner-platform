@@ -46,7 +46,7 @@ function getLiveConfig() {
 }
 
 const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
-const DEFAULT_ADMIN_KEY_PREFIX = 'ab_admin_def';
+const DEFAULT_ADMIN_KEY_PREFIX = 'ar_admin_def';
 const DEFAULT_ADMIN_API_KEY_ENV = 'DEFAULT_ADMIN_API_KEY';
 const DEFAULT_ADMIN_KEY_EXPIRY = new Date('2099-12-31T23:59:59Z');
 const LIVE_RESET_EXCLUDED_TABLES = ['schema_migrations', 'tenants'] as const;

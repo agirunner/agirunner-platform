@@ -68,7 +68,7 @@ describe('dashboard api contracts', () => {
     });
   });
 
-  it('covers FR-030..FR-037 + FR-429 list/detail contracts for dashboard task and pipeline views', async () => {
+  it('covers FR-030..FR-037 + FR-429 list/detail contracts for dashboard task and workflow views', async () => {
     const template = await app.inject({
       method: 'POST',
       url: '/api/v1/templates',
@@ -78,35 +78,35 @@ describe('dashboard api contracts', () => {
     expect(template.statusCode).toBe(201);
 
     const templateId = template.json().data.id as string;
-    const pipeline = await app.inject({
+    const workflow = await app.inject({
       method: 'POST',
-      url: '/api/v1/pipelines',
+      url: '/api/v1/workflows',
       headers: { authorization: `Bearer ${adminKey}` },
-      payload: { template_id: templateId, name: 'Dash Pipeline' },
+      payload: { template_id: templateId, name: 'Dash Workflow' },
     });
-    expect(pipeline.statusCode).toBe(201);
+    expect(workflow.statusCode).toBe(201);
 
-    const pipelineId = pipeline.json().data.id as string;
-    const taskId = (pipeline.json().data.tasks[0] as { id: string }).id;
+    const workflowId = workflow.json().data.id as string;
+    const taskId = (workflow.json().data.tasks[0] as { id: string }).id;
 
-    const [tasks, taskDetail, pipelines, pipelineDetail] = await Promise.all([
+    const [tasks, taskDetail, workflows, workflowDetail] = await Promise.all([
       app.inject({ method: 'GET', url: '/api/v1/tasks?page=1&per_page=10', headers: { authorization: `Bearer ${agentKey}` } }),
       app.inject({ method: 'GET', url: `/api/v1/tasks/${taskId}`, headers: { authorization: `Bearer ${agentKey}` } }),
-      app.inject({ method: 'GET', url: '/api/v1/pipelines?page=1&per_page=10', headers: { authorization: `Bearer ${agentKey}` } }),
-      app.inject({ method: 'GET', url: `/api/v1/pipelines/${pipelineId}`, headers: { authorization: `Bearer ${agentKey}` } }),
+      app.inject({ method: 'GET', url: '/api/v1/workflows?page=1&per_page=10', headers: { authorization: `Bearer ${agentKey}` } }),
+      app.inject({ method: 'GET', url: `/api/v1/workflows/${workflowId}`, headers: { authorization: `Bearer ${agentKey}` } }),
     ]);
 
     expect(tasks.statusCode).toBe(200);
     expect(tasks.json().data.length).toBeGreaterThan(0);
     expect(taskDetail.statusCode).toBe(200);
     expect(taskDetail.json().data.id).toBe(taskId);
-    expect(pipelines.statusCode).toBe(200);
-    expect(pipelines.json().data.length).toBeGreaterThan(0);
-    expect(pipelineDetail.statusCode).toBe(200);
-    expect(pipelineDetail.json().data.tasks.length).toBeGreaterThan(0);
+    expect(workflows.statusCode).toBe(200);
+    expect(workflows.json().data.length).toBeGreaterThan(0);
+    expect(workflowDetail.statusCode).toBe(200);
+    expect(workflowDetail.json().data.tasks.length).toBeGreaterThan(0);
   });
 
-  it('covers FR-420/FR-424 template browser and pipeline launch form API backing', async () => {
+  it('covers FR-420/FR-424 template browser and workflow launch form API backing', async () => {
     const listTemplates = await app.inject({ method: 'GET', url: '/api/v1/templates?page=1&per_page=5', headers: { authorization: `Bearer ${adminKey}` } });
     expect(listTemplates.statusCode).toBe(200);
     expect(listTemplates.json().meta.page).toBe(1);

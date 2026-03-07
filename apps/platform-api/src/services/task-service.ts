@@ -7,7 +7,7 @@ import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { EventService } from './event-service.js';
 import { TaskClaimService } from './task-claim-service.js';
 import { TaskLifecycleService } from './task-lifecycle-service.js';
-import { PipelineStateService } from './pipeline-state-service.js';
+import { WorkflowStateService } from './workflow-state-service.js';
 import { ProjectTimelineService } from './project-timeline-service.js';
 import { TaskQueryService } from './task-query-service.js';
 import { TaskTimeoutService } from './task-timeout-service.js';
@@ -120,7 +120,7 @@ export class TaskService {
       createArtifactStorage(buildArtifactStorageConfig(config)),
       config.ARTIFACT_ACCESS_URL_TTL_SECONDS ?? 900,
     );
-    const pipelineStateService = new PipelineStateService(
+    const workflowStateService = new WorkflowStateService(
       pool,
       eventService,
       artifactRetentionService,
@@ -129,7 +129,7 @@ export class TaskService {
     this.lifecycleService = new TaskLifecycleService({
       pool,
       eventService,
-      pipelineStateService,
+      workflowStateService,
       defaultTaskTimeoutMinutes: config.TASK_DEFAULT_TIMEOUT_MINUTES,
       artifactService,
       loadTaskOrThrow: this.queryService.loadTaskOrThrow.bind(this.queryService),
@@ -177,7 +177,7 @@ export class TaskService {
       agent_id: string;
       worker_id?: string;
       capabilities: string[];
-      pipeline_id?: string;
+      workflow_id?: string;
       include_context?: boolean;
     },
   ) {
@@ -292,7 +292,7 @@ export class TaskService {
     return this.timeoutService.failTimedOutTasks(now);
   }
 
-  finalizeGracefulPipelineCancellations(now = new Date()) {
-    return this.timeoutService.finalizeGracefulPipelineCancellations(now);
+  finalizeGracefulWorkflowCancellations(now = new Date()) {
+    return this.timeoutService.finalizeGracefulWorkflowCancellations(now);
   }
 }

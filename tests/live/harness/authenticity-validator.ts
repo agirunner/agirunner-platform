@@ -181,25 +181,25 @@ function buildEvidenceCatalog(
 ): EvidenceItem[] {
   const catalog: EvidenceItem[] = [];
 
-  for (const pipeline of evidence) {
+  for (const workflow of evidence) {
     catalog.push({
-      ref: `pipeline:${pipeline.pipelineId}:state`,
-      location: `${pipeline.pipelineId}.state`,
-      text: String(pipeline.pipelineState),
+      ref: `workflow:${workflow.workflowId}:state`,
+      location: `${workflow.workflowId}.state`,
+      text: String(workflow.workflowState),
     });
 
-    for (const criterion of pipeline.acceptanceCriteria) {
+    for (const criterion of workflow.acceptanceCriteria) {
       catalog.push({
-        ref: `pipeline:${pipeline.pipelineId}:criterion:${catalog.length + 1}`,
-        location: `${pipeline.pipelineId}.acceptanceCriteria[]`,
+        ref: `workflow:${workflow.workflowId}:criterion:${catalog.length + 1}`,
+        location: `${workflow.workflowId}.acceptanceCriteria[]`,
         text: truncateText(criterion, maxChars),
       });
     }
 
-    for (const task of pipeline.tasks) {
+    for (const task of workflow.tasks) {
       catalog.push({
         ref: `task:${task.id}:state`,
-        location: `${pipeline.pipelineId}.tasks.${task.id}.state`,
+        location: `${workflow.workflowId}.tasks.${task.id}.state`,
         text: String(task.state),
       });
 
@@ -208,7 +208,7 @@ function buildEvidenceCatalog(
       if (strings.length > 0) {
         catalog.push({
           ref: `task:${task.id}:output`,
-          location: `${pipeline.pipelineId}.tasks.${task.id}.output`,
+          location: `${workflow.workflowId}.tasks.${task.id}.output`,
           text: truncateText(strings.join('\n'), maxChars),
         });
       }
@@ -264,7 +264,7 @@ export function runDeterministicResilienceValidator(
   const hasFailedTaskSignal =
     validations.has('resilience_failed_task_observed') ||
     validations.has('task_failure_detected') ||
-    evidence.some((pipeline) => pipeline.tasks.some((task) => task.state === 'failed'));
+    evidence.some((workflow) => workflow.tasks.some((task) => task.state === 'failed'));
 
   checks.push({
     checkId: 'resilience.failure-path-observed',
@@ -290,7 +290,7 @@ export function runDeterministicResilienceValidator(
   const retryReadyObserved =
     validations.has('resilience_retry_transition_ready') ||
     validations.has('retried_task_ready') ||
-    evidence.some((pipeline) => pipeline.tasks.some((task) => task.state === 'ready'));
+    evidence.some((workflow) => workflow.tasks.some((task) => task.state === 'ready'));
 
   checks.push({
     checkId: 'resilience.retry-transitions-ready',
@@ -354,32 +354,32 @@ export function runDeterministicAuthenticityValidator(
     });
   }
 
-  for (const pipeline of evidence) {
+  for (const workflow of evidence) {
     checks.push({
-      checkId: `acceptance-structure.pipeline:${pipeline.pipelineId}`,
+      checkId: `acceptance-structure.workflow:${workflow.workflowId}`,
       status:
-        pipeline.acceptanceCriteria.length > 0 &&
-        pipeline.tasks.length > 0 &&
-        Boolean(pipeline.pipelineState)
+        workflow.acceptanceCriteria.length > 0 &&
+        workflow.tasks.length > 0 &&
+        Boolean(workflow.workflowState)
           ? 'PASS'
           : 'NOT_PASS',
       rationale:
-        pipeline.acceptanceCriteria.length > 0 &&
-        pipeline.tasks.length > 0 &&
-        Boolean(pipeline.pipelineState)
-          ? 'Pipeline evidence includes acceptance criteria, task list, and terminal state snapshot'
-          : 'Pipeline evidence missing acceptance criteria, tasks, or state',
-      evidenceRefs: [`pipeline:${pipeline.pipelineId}:state`],
+        workflow.acceptanceCriteria.length > 0 &&
+        workflow.tasks.length > 0 &&
+        Boolean(workflow.workflowState)
+          ? 'Workflow evidence includes acceptance criteria, task list, and terminal state snapshot'
+          : 'Workflow evidence missing acceptance criteria, tasks, or state',
+      evidenceRefs: [`workflow:${workflow.workflowId}:state`],
     });
 
-    const completedTasks = pipeline.tasks.filter((task) => task.state === 'completed');
+    const completedTasks = workflow.tasks.filter((task) => task.state === 'completed');
     const completedOutputsOk = completedTasks.every(
       (task) =>
         task.output && typeof task.output === 'object' && Object.keys(task.output).length > 0,
     );
 
     checks.push({
-      checkId: `acceptance-structure.completed-task-output:${pipeline.pipelineId}`,
+      checkId: `acceptance-structure.completed-task-output:${workflow.workflowId}`,
       status: completedOutputsOk ? 'PASS' : 'NOT_PASS',
       rationale: completedOutputsOk
         ? `All ${completedTasks.length} completed tasks include non-empty output objects`
@@ -403,19 +403,19 @@ export function runDeterministicAuthenticityValidator(
         const record = output as Record<string, unknown>;
         const hasScenario = record.scenario === scenario;
         const hasTask = record.task_id === task.id;
-        const hasPipeline = record.pipeline_id === pipeline.pipelineId;
+        const hasWorkflow = record.workflow_id === workflow.workflowId;
         const hasRole = record.role === taskRole;
         const handledBy = typeof record.handled_by === 'string' ? record.handled_by : '';
         const hasAllowedHandler =
           allowedHandlers.size === 0 ? handledBy.length > 0 : allowedHandlers.has(handledBy);
 
-        if (!(hasScenario && hasTask && hasPipeline && hasRole && hasAllowedHandler)) {
+        if (!(hasScenario && hasTask && hasWorkflow && hasRole && hasAllowedHandler)) {
           invalidSignatureRefs.push(`task:${task.id}:output`);
         }
       }
 
       checks.push({
-        checkId: `synthetic-signature.integrity:${pipeline.pipelineId}`,
+        checkId: `synthetic-signature.integrity:${workflow.workflowId}`,
         status: invalidSignatureRefs.length === 0 ? 'PASS' : 'NOT_PASS',
         rationale:
           invalidSignatureRefs.length === 0
@@ -431,7 +431,7 @@ export function runDeterministicAuthenticityValidator(
     const placeholderRefs: string[] = [];
     const fallbackStubRefs: string[] = [];
 
-    for (const task of pipeline.tasks) {
+    for (const task of workflow.tasks) {
       const strings: string[] = [];
       flattenStrings(task.output, strings);
       for (const text of strings) {
@@ -456,29 +456,29 @@ export function runDeterministicAuthenticityValidator(
     }
 
     checks.push({
-      checkId: `placeholder-rejection.output-markers:${pipeline.pipelineId}`,
+      checkId: `placeholder-rejection.output-markers:${workflow.workflowId}`,
       status: placeholderRefs.length === 0 ? 'PASS' : 'NOT_PASS',
       rationale:
         placeholderRefs.length === 0
           ? 'No placeholder/template markers detected in delivery outputs'
           : 'Detected placeholder/template markers in task output',
       evidenceRefs:
-        placeholderRefs.length > 0 ? placeholderRefs : [`pipeline:${pipeline.pipelineId}:state`],
+        placeholderRefs.length > 0 ? placeholderRefs : [`workflow:${workflow.workflowId}:state`],
     });
 
     checks.push({
-      checkId: `placeholder-rejection.fallback-stub:${pipeline.pipelineId}`,
+      checkId: `placeholder-rejection.fallback-stub:${workflow.workflowId}`,
       status: fallbackStubRefs.length === 0 ? 'PASS' : 'NOT_PASS',
       rationale:
         fallbackStubRefs.length === 0
           ? 'No synthetic fallback stub output envelope detected'
           : 'Detected synthetic fallback stub output envelope (task_id + handled_by + status)',
       evidenceRefs:
-        fallbackStubRefs.length > 0 ? fallbackStubRefs : [`pipeline:${pipeline.pipelineId}:state`],
+        fallbackStubRefs.length > 0 ? fallbackStubRefs : [`workflow:${workflow.workflowId}:state`],
     });
 
     const simulationRefs: string[] = [];
-    for (const task of pipeline.tasks) {
+    for (const task of workflow.tasks) {
       const output = task.output;
       if (!output || typeof output !== 'object' || Array.isArray(output)) {
         continue;
@@ -503,32 +503,32 @@ export function runDeterministicAuthenticityValidator(
     }
 
     checks.push({
-      checkId: `simulation-rejection.execution-backed:${pipeline.pipelineId}`,
+      checkId: `simulation-rejection.execution-backed:${workflow.workflowId}`,
       status: simulationRefs.length === 0 ? 'PASS' : 'NOT_PASS',
       rationale:
         simulationRefs.length === 0
           ? 'No explicit simulation markers detected in task output envelopes'
           : 'Detected explicit simulation markers; authenticity gate must fail closed for non execution-backed outputs',
       evidenceRefs:
-        simulationRefs.length > 0 ? simulationRefs : [`pipeline:${pipeline.pipelineId}:state`],
+        simulationRefs.length > 0 ? simulationRefs : [`workflow:${workflow.workflowId}:state`],
     });
 
-    if (pipeline.requiresGitDiffEvidence) {
-      const outputBlob = pipeline.tasks.map((task) => JSON.stringify(task.output ?? {})).join('\n');
+    if (workflow.requiresGitDiffEvidence) {
+      const outputBlob = workflow.tasks.map((task) => JSON.stringify(task.output ?? {})).join('\n');
       const hasGitEvidence = CODE_EVIDENCE_PATTERN.test(outputBlob);
       checks.push({
-        checkId: `git-diff-linkage:${pipeline.pipelineId}`,
+        checkId: `git-diff-linkage:${workflow.workflowId}`,
         status: hasGitEvidence ? 'PASS' : 'NOT_PASS',
         rationale: hasGitEvidence
           ? 'Found git/diff or file-level change evidence in delivery outputs'
           : 'No git/diff or file-level change evidence found for a scenario requiring code-change linkage',
         evidenceRefs: hasGitEvidence
-          ? pipeline.tasks.map((task) => `task:${task.id}:output`)
-          : [`pipeline:${pipeline.pipelineId}:state`],
+          ? workflow.tasks.map((task) => `task:${task.id}:output`)
+          : [`workflow:${workflow.workflowId}:state`],
       });
     }
 
-    for (const requiredArtifactPath of pipeline.requiredArtifacts ?? []) {
+    for (const requiredArtifactPath of workflow.requiredArtifacts ?? []) {
       const exists = existsSync(requiredArtifactPath);
       const isFile = exists ? statSync(requiredArtifactPath).isFile() : false;
       const size = exists && isFile ? statSync(requiredArtifactPath).size : 0;
@@ -720,9 +720,9 @@ function normalizeCanonicalEvidenceAlias(
   validRefs: Set<string>,
   aliasMap: Map<string, string>,
 ): string | undefined {
-  const pipelineStateMatch = candidate.match(/^pipeline:([^:]+)$/);
-  if (pipelineStateMatch) {
-    const resolved = `pipeline:${pipelineStateMatch[1]}:state`;
+  const workflowStateMatch = candidate.match(/^workflow:([^:]+)$/);
+  if (workflowStateMatch) {
+    const resolved = `workflow:${workflowStateMatch[1]}:state`;
     if (validRefs.has(resolved)) {
       return resolved;
     }
@@ -730,10 +730,10 @@ function normalizeCanonicalEvidenceAlias(
 
   const placeholderWildcardMatch = candidate.match(/^placeholder-rejection\.\*:(.+)$/);
   if (placeholderWildcardMatch) {
-    const pipelineId = placeholderWildcardMatch[1];
+    const workflowId = placeholderWildcardMatch[1];
     const resolved =
-      aliasMap.get(`placeholder-rejection.output-markers:${pipelineId}`) ??
-      aliasMap.get(`placeholder-rejection.fallback-stub:${pipelineId}`) ??
+      aliasMap.get(`placeholder-rejection.output-markers:${workflowId}`) ??
+      aliasMap.get(`placeholder-rejection.fallback-stub:${workflowId}`) ??
       aliasMap.get('placeholder-rejection.output-markers') ??
       aliasMap.get('placeholder-rejection.fallback-stub');
     if (resolved && validRefs.has(resolved)) {
@@ -743,8 +743,8 @@ function normalizeCanonicalEvidenceAlias(
 
   const gitDiffLinkageMatch = candidate.match(/^git-diff-linkage:(.+)$/);
   if (gitDiffLinkageMatch) {
-    const pipelineId = gitDiffLinkageMatch[1];
-    const resolved = aliasMap.get(`git-diff-linkage:${pipelineId}`) ?? aliasMap.get('git-diff-linkage');
+    const workflowId = gitDiffLinkageMatch[1];
+    const resolved = aliasMap.get(`git-diff-linkage:${workflowId}`) ?? aliasMap.get('git-diff-linkage');
     if (resolved && validRefs.has(resolved)) {
       return resolved;
     }

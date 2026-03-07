@@ -22,7 +22,7 @@ export function workerMatches(worker: ApiWorker, workerId: string): boolean {
  */
 export async function claimTaskWithPolling(
   worker: HarnessWorker,
-  pipelineId: string,
+  workflowId: string,
 ): Promise<ApiTask> {
   const startedAt = Date.now();
 
@@ -31,7 +31,7 @@ export async function claimTaskWithPolling(
       agent_id: worker.agentId,
       worker_id: worker.workerId,
       capabilities: worker.capabilities,
-      pipeline_id: pipelineId,
+      workflow_id: workflowId,
     });
 
     if (claimed) {
@@ -66,7 +66,7 @@ export async function startAndCompleteTask(
     handled_by: worker.label,
     role: task.role ?? task.type,
     task_id: task.id,
-    pipeline_id: task.pipeline_id ?? null,
+    workflow_id: task.workflow_id ?? null,
   });
 }
 

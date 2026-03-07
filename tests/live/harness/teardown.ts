@@ -33,7 +33,7 @@ function composeBinary(): string {
 
 function resolveLiveTmpPrefix(): string {
   const override = process.env.LIVE_TMP_PREFIX?.trim();
-  return override && override.length > 0 ? override : '/tmp/agentbaton-live-';
+  return override && override.length > 0 ? override : '/tmp/agirunner-live-';
 }
 
 function listTempArtifacts(): string[] {
@@ -80,7 +80,7 @@ export function teardownLiveEnvironment(options: TeardownOptions = {}): {
   }
   safeExec('docker volume prune -f');
 
-  const projectName = process.env.COMPOSE_PROJECT_NAME ?? 'agentbaton-platform';
+  const projectName = process.env.COMPOSE_PROJECT_NAME ?? 'agirunner-platform';
   const leaked = safeExec(
     `docker ps -a --filter label=com.docker.compose.project=${projectName} --format '{{.ID}}'`,
   )

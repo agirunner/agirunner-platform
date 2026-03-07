@@ -1,11 +1,11 @@
 /**
  * IT-1: SDK Integration Tests
  *
- * Tests the @agentbaton/sdk package against the live Platform API:
+ * Tests the @agirunner/sdk package against the live Platform API:
  * - Client creation and authentication
  * - Task CRUD via SDK client
  * - Task claim and complete lifecycle
- * - Pipeline creation and retrieval
+ * - Workflow creation and retrieval
  * - Error handling for invalid inputs
  *
  * Test plan ref: Section 4, IT-1
@@ -134,14 +134,14 @@ async function testSdkClaimComplete(ctx: TenantContext): Promise<string[]> {
 }
 
 /**
- * Test: SDK can create and get a pipeline.
+ * Test: SDK can create and get a workflow.
  */
-async function testSdkPipeline(ctx: TenantContext): Promise<string[]> {
+async function testSdkWorkflow(ctx: TenantContext): Promise<string[]> {
   const validations: string[] = [];
 
   // Need admin client to create template (SDK doesn't have template ops)
   const template = await ctx.adminClient.createTemplate({
-    name: 'IT1-sdk-pipeline',
+    name: 'IT1-sdk-workflow',
     slug: `it1-sdk-pip-${Date.now()}`,
     schema: linearTemplateSchema(),
   });
@@ -151,16 +151,16 @@ async function testSdkPipeline(ctx: TenantContext): Promise<string[]> {
     accessToken: ctx.adminKey,
   });
 
-  const pipeline = await sdkClient.createPipeline({
+  const workflow = await sdkClient.createWorkflow({
     template_id: template.id,
-    name: 'IT1-sdk-pipeline-test',
+    name: 'IT1-sdk-workflow-test',
   });
-  if (!pipeline.id) throw new Error('SDK createPipeline returned no id');
-  validations.push('sdk_create_pipeline_ok');
+  if (!workflow.id) throw new Error('SDK createWorkflow returned no id');
+  validations.push('sdk_create_workflow_ok');
 
-  const retrieved = await sdkClient.getPipeline(pipeline.id);
-  if (retrieved.id !== pipeline.id) throw new Error('SDK getPipeline returned wrong pipeline');
-  validations.push('sdk_get_pipeline_ok');
+  const retrieved = await sdkClient.getWorkflow(workflow.id);
+  if (retrieved.id !== workflow.id) throw new Error('SDK getWorkflow returned wrong workflow');
+  validations.push('sdk_get_workflow_ok');
 
   return validations;
 }
@@ -202,7 +202,7 @@ export async function runIt1Sdk(
     allValidations.push(...await testSdkListTasks(ctx));
     allValidations.push(...await testSdkTaskCrud(ctx));
     allValidations.push(...await testSdkClaimComplete(ctx));
-    allValidations.push(...await testSdkPipeline(ctx));
+    allValidations.push(...await testSdkWorkflow(ctx));
     allValidations.push(...await testSdkErrorHandling(ctx));
   } finally {
     await ctx.cleanup();

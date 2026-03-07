@@ -2,8 +2,8 @@ import type { LiveContext, ScenarioDeliveryEvidence, ScenarioExecutionResult } f
 import {
   assertAllTasksCompleted,
   assertDependencyOrder,
-  assertInitialPipelineState,
-  assertPipelineTerminal,
+  assertInitialWorkflowState,
+  assertWorkflowTerminal,
   assertTaskOutputsPresent,
   assertTaskRoles,
 } from './assertions.js';
@@ -15,7 +15,7 @@ import {
   workerMatches,
 } from './external-worker-utils.js';
 import { loadConfig } from '../config.js';
-import { pollPipelineUntil } from './poll.js';
+import { pollWorkflowUntil } from './poll.js';
 import { sdlcTemplateSchema } from './templates.js';
 import { createTenantBootstrap, registerWorkerAgent } from './tenant.js';
 
@@ -68,7 +68,7 @@ export async function runAp3StandaloneWorker(live: LiveContext): Promise<Scenari
     });
     validations.push('template_created');
 
-    const pipeline = await tenant.adminClient.createPipeline({
+    const workflow = await tenant.adminClient.createWorkflow({
       template_id: template.id,
       name: `AP-3 calc-api ${live.runId}`,
       parameters: {
@@ -76,16 +76,16 @@ export async function runAp3StandaloneWorker(live: LiveContext): Promise<Scenari
         goal: 'Add a multiply endpoint to the calculator API',
       },
     });
-    validations.push('pipeline_created');
+    validations.push('workflow_created');
 
-    assertTaskRoles(pipeline, SDLC_ROLES);
-    assertInitialPipelineState(pipeline);
+    assertTaskRoles(workflow, SDLC_ROLES);
+    assertInitialWorkflowState(workflow);
     validations.push('initial_state_valid');
 
     const handledRoles: string[] = [];
 
     for (const expectedRole of SDLC_ROLES) {
-      const claimed = await claimTaskWithPolling(worker, pipeline.id);
+      const claimed = await claimTaskWithPolling(worker, workflow.id);
 
       if (claimed.role !== expectedRole) {
         throw new Error(`Expected ${expectedRole} task, claimed ${claimed.role ?? claimed.type}`);
@@ -105,23 +105,23 @@ export async function runAp3StandaloneWorker(live: LiveContext): Promise<Scenari
       throw new Error(`Unexpected role handling order: ${handledRoles.join(', ')}`);
     }
 
-    const completed = await pollPipelineUntil(
+    const completed = await pollWorkflowUntil(
       tenant.adminClient,
-      pipeline.id,
+      workflow.id,
       ['completed', 'failed'],
-      config.pipelineTimeoutMs,
+      config.workflowTimeoutMs,
     );
 
-    assertPipelineTerminal(completed, 'completed', 4);
+    assertWorkflowTerminal(completed, 'completed', 4);
     assertAllTasksCompleted(completed);
     assertTaskOutputsPresent(completed);
     assertDependencyOrder(completed);
-    validations.push('pipeline_completed');
+    validations.push('workflow_completed');
 
     authenticityEvidence = [
       {
-        pipelineId: completed.id,
-        pipelineState: completed.state,
+        workflowId: completed.id,
+        workflowState: completed.state,
         acceptanceCriteria: [
           'Standalone worker completes all SDLC tasks end-to-end',
           'Completed task outputs include deterministic synthetic execution signature fields',

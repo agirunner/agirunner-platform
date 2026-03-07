@@ -59,12 +59,12 @@ export function TemplateBrowserPage(): JSX.Element {
 
   async function handleLaunch(): Promise<void> {
     if (!form.templateId) {
-      setLaunchError('Select a template before launching a pipeline.');
+      setLaunchError('Select a template before launching a workflow.');
       return;
     }
 
     if (!form.name.trim()) {
-      setLaunchError('Pipeline name is required.');
+      setLaunchError('Workflow name is required.');
       return;
     }
 
@@ -72,7 +72,7 @@ export function TemplateBrowserPage(): JSX.Element {
       setIsLaunching(true);
       setLaunchError(null);
 
-      const pipeline = await dashboardApi.createPipeline({
+      const workflow = await dashboardApi.createWorkflow({
         template_id: form.templateId,
         name: form.name.trim(),
         parameters: {
@@ -83,10 +83,10 @@ export function TemplateBrowserPage(): JSX.Element {
         },
       });
 
-      await queryClient.invalidateQueries({ queryKey: ['pipelines'] });
-      navigate(`/pipelines/${String((pipeline as { id: string }).id)}`);
+      await queryClient.invalidateQueries({ queryKey: ['workflows'] });
+      navigate(`/workflows/${String((workflow as { id: string }).id)}`);
     } catch {
-      setLaunchError('Failed to launch pipeline. Check template and parameter values.');
+      setLaunchError('Failed to launch workflow. Check template and parameter values.');
     } finally {
       setIsLaunching(false);
     }
@@ -97,7 +97,7 @@ export function TemplateBrowserPage(): JSX.Element {
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <div>
           <h2>Templates</h2>
-          <p className="muted">Browse workflow templates and launch a pipeline with repo-specific parameters.</p>
+          <p className="muted">Browse workflow templates and launch a workflow with repo-specific parameters.</p>
         </div>
       </div>
 
@@ -132,7 +132,7 @@ export function TemplateBrowserPage(): JSX.Element {
       </div>
 
       <article className="card">
-        <h3>Launch Pipeline</h3>
+        <h3>Launch Workflow</h3>
         <div className="grid">
           <label htmlFor="template-select">Template</label>
           <select
@@ -147,45 +147,45 @@ export function TemplateBrowserPage(): JSX.Element {
             ))}
           </select>
 
-          <label htmlFor="pipeline-name">Pipeline name</label>
+          <label htmlFor="workflow-name">Workflow name</label>
           <input
-            id="pipeline-name"
+            id="workflow-name"
             className="input"
             value={form.name}
             onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
             placeholder="Fancy Hello World App"
           />
 
-          <label htmlFor="pipeline-repo">Repo</label>
+          <label htmlFor="workflow-repo">Repo</label>
           <input
-            id="pipeline-repo"
+            id="workflow-repo"
             className="input"
             value={form.repo}
             onChange={(event) => setForm((current) => ({ ...current, repo: event.target.value }))}
             placeholder="ssh://git@github.com:2222/mark/test.git"
           />
 
-          <label htmlFor="pipeline-goal">Goal</label>
+          <label htmlFor="workflow-goal">Goal</label>
           <textarea
-            id="pipeline-goal"
+            id="workflow-goal"
             className="input"
             value={form.goal}
             onChange={(event) => setForm((current) => ({ ...current, goal: event.target.value }))}
             placeholder="Create a fancy hello world app."
           />
 
-          <label htmlFor="pipeline-constraints">Constraints</label>
+          <label htmlFor="workflow-constraints">Constraints</label>
           <textarea
-            id="pipeline-constraints"
+            id="workflow-constraints"
             className="input"
             value={form.constraints}
             onChange={(event) => setForm((current) => ({ ...current, constraints: event.target.value }))}
             placeholder="Keep it small, readable, and easy to verify."
           />
 
-          <label htmlFor="pipeline-acceptance-criteria">Acceptance criteria</label>
+          <label htmlFor="workflow-acceptance-criteria">Acceptance criteria</label>
           <textarea
-            id="pipeline-acceptance-criteria"
+            id="workflow-acceptance-criteria"
             className="input"
             value={form.acceptanceCriteria}
             onChange={(event) => setForm((current) => ({ ...current, acceptanceCriteria: event.target.value }))}
@@ -197,7 +197,7 @@ export function TemplateBrowserPage(): JSX.Element {
 
         <div className="row" style={{ justifyContent: 'flex-end' }}>
           <button type="button" className="button primary" onClick={() => void handleLaunch()} disabled={isLaunching}>
-            {isLaunching ? 'Launching…' : 'Launch pipeline'}
+            {isLaunching ? 'Launching…' : 'Launch workflow'}
           </button>
         </div>
         <div className="card">

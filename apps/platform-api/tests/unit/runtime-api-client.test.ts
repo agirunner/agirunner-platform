@@ -73,7 +73,7 @@ describe('RuntimeApiClient', () => {
         const response = await client.submitTask(
           {
             id: 'task-runtime-1',
-            pipeline_id: 'pipe-1',
+            workflow_id: 'pipe-1',
             tenant_id: 'tenant-1',
             role: 'developer',
             input: { objective: 'ship S1' },
@@ -99,7 +99,7 @@ describe('RuntimeApiClient', () => {
     expect(observedAuthHeader).toBe('Bearer runtime-secret-token');
     expect(observedBody).toMatchObject({
       task_id: 'task-runtime-1',
-      pipeline_id: 'pipe-1',
+      workflow_id: 'pipe-1',
       tenant_id: 'tenant-1',
       role: 'developer',
       context_stack: { reviewer: { approved: true } },

@@ -30,7 +30,7 @@ describe('TaskLifecycleService concurrent state guard (maintenance-sad cancellat
       .mockResolvedValueOnce({
         id: 'task-1',
         state: 'claimed',
-        pipeline_id: null,
+        workflow_id: null,
         assigned_agent_id: 'agent-1',
         assigned_worker_id: null,
       })
@@ -38,18 +38,18 @@ describe('TaskLifecycleService concurrent state guard (maintenance-sad cancellat
       .mockResolvedValueOnce({
         id: 'task-1',
         state: 'cancelled',
-        pipeline_id: null,
+        workflow_id: null,
         assigned_agent_id: null,
         assigned_worker_id: null,
       });
 
     const eventService = { emit: vi.fn() };
-    const pipelineStateService = { recomputePipelineState: vi.fn() };
+    const workflowStateService = { recomputeWorkflowState: vi.fn() };
 
     const service = new TaskLifecycleService({
       pool: pool as never,
       eventService: eventService as never,
-      pipelineStateService: pipelineStateService as never,
+      workflowStateService: workflowStateService as never,
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow,
       toTaskResponse: (task) => task,
@@ -96,7 +96,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
               {
                 id: 'task-worker',
                 state: 'completed',
-                pipeline_id: null,
+                workflow_id: null,
                 assigned_agent_id: null,
                 assigned_worker_id: null,
                 metrics: { duration_seconds: 4 },
@@ -114,12 +114,12 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     const service = new TaskLifecycleService({
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: { emit: vi.fn() } as never,
-      pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-worker',
         state: 'running',
-        pipeline_id: null,
+        workflow_id: null,
         assigned_agent_id: 'agent-1',
         assigned_worker_id: 'worker-1',
         role_config: {},
@@ -160,7 +160,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
               {
                 id: 'task-review',
                 state: 'output_pending_review',
-                pipeline_id: null,
+                workflow_id: null,
                 assigned_agent_id: null,
                 assigned_worker_id: null,
                 output: { missing: true },
@@ -177,12 +177,12 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     const service = new TaskLifecycleService({
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: { emit: vi.fn() } as never,
-      pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-review',
         state: 'running',
-        pipeline_id: null,
+        workflow_id: null,
         assigned_agent_id: 'agent-1',
         assigned_worker_id: null,
         role_config: {
@@ -230,7 +230,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
                 state: 'cancelled',
                 assigned_agent_id: null,
                 assigned_worker_id: null,
-                pipeline_id: null,
+                workflow_id: null,
               },
             ],
           };
@@ -243,7 +243,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     const service = new TaskLifecycleService({
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: { emit: vi.fn() } as never,
-      pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-cancel',
@@ -287,7 +287,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
               {
                 id: 'task-review-loop',
                 state: 'ready',
-                pipeline_id: null,
+                workflow_id: null,
                 input: { review_feedback: 'Fix the failing assertions' },
                 metadata: { review_action: 'request_changes', preferred_agent_id: 'agent-2' },
               },
@@ -302,12 +302,12 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     const service = new TaskLifecycleService({
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: { emit: vi.fn() } as never,
-      pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-review-loop',
         state: 'output_pending_review',
-        pipeline_id: null,
+        workflow_id: null,
         input: { summary: 'old output' },
         rework_count: 0,
         metadata: {},
@@ -360,7 +360,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
               {
                 id: 'task-max-rework',
                 state: 'failed',
-                pipeline_id: 'pipe-1',
+                workflow_id: 'pipe-1',
                 title: 'Compile',
                 role: 'builder',
                 timeout_minutes: 15,
@@ -394,12 +394,12 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     const service = new TaskLifecycleService({
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: eventService as never,
-      pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-max-rework',
         state: 'output_pending_review',
-        pipeline_id: 'pipe-1',
+        workflow_id: 'pipe-1',
         title: 'Compile',
         role: 'builder',
         timeout_minutes: 15,
@@ -458,7 +458,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
               {
                 id: 'task-reassign',
                 state: 'ready',
-                pipeline_id: null,
+                workflow_id: null,
                 metadata: { preferred_worker_id: 'worker-3', review_action: 'reassign' },
               },
             ],
@@ -472,12 +472,12 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     const service = new TaskLifecycleService({
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: { emit: vi.fn() } as never,
-      pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-reassign',
         state: 'running',
-        pipeline_id: null,
+        workflow_id: null,
         assigned_worker_id: 'worker-2',
         metadata: {},
       }),
@@ -535,7 +535,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
               {
                 id: 'task-retry-policy',
                 state: 'pending',
-                pipeline_id: null,
+                workflow_id: null,
                 retry_count: 1,
                 metadata: {
                   retry_backoff_seconds: 5,
@@ -552,12 +552,12 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     const service = new TaskLifecycleService({
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: eventService as never,
-      pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-retry-policy',
         state: 'running',
-        pipeline_id: null,
+        workflow_id: null,
         assigned_agent_id: 'agent-1',
         assigned_worker_id: null,
         retry_count: 0,
@@ -610,7 +610,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
               {
                 id: 'task-escalate',
                 state: 'failed',
-                pipeline_id: 'pipe-1',
+                workflow_id: 'pipe-1',
                 title: 'Compile',
                 role: 'builder',
                 timeout_minutes: 20,
@@ -644,12 +644,12 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     const service = new TaskLifecycleService({
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: eventService as never,
-      pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-escalate',
         state: 'running',
-        pipeline_id: 'pipe-1',
+        workflow_id: 'pipe-1',
         project_id: null,
         title: 'Compile',
         role: 'builder',
@@ -728,7 +728,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     const service = new TaskLifecycleService({
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: { emit: vi.fn() } as never,
-      pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow,
       toTaskResponse: (task) => task,

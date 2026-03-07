@@ -102,7 +102,7 @@
       "validations": 11,
       "screenshots": []
     },
-    "hl2-pipeline-controls": {
+    "hl2-workflow-controls": {
       "status": "pass",
       "duration": "2.03s",
       "cost": "$0.0000",
@@ -185,7 +185,7 @@
       "ot3-state": 7840,
       "ot4-health": 1850,
       "hl1-approval-flow": 3852,
-      "hl2-pipeline-controls": 2033,
+      "hl2-workflow-controls": 2033,
       "it1-sdk": 2748,
       "it2-mcp": 2336,
       "it3-webhooks": 502,

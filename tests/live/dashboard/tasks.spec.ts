@@ -8,8 +8,8 @@ test.describe('dashboard tasks', () => {
     await tryLogin(page);
     await gotoDashboard(page, '/tasks');
 
-    await expect(page).toHaveURL(/\/(tasks|pipelines)(\/|$)/);
+    await expect(page).toHaveURL(/\/(tasks|workflows)(\/|$)/);
     await expectDashboardShell(page);
-    await expectOneOfHeadings(page, ['Task Detail', 'Pipelines']);
+    await expectOneOfHeadings(page, ['Task Detail', 'Workflows']);
   });
 });

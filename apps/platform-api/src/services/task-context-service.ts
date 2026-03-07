@@ -23,23 +23,23 @@ export async function buildTaskContext(
     agent = assignedAgentRes.rows[0] ?? null;
   }
 
-  const [projectRes, pipelineRes, depsRes, documents] = await Promise.all([
+  const [projectRes, workflowRes, depsRes, documents] = await Promise.all([
     task.project_id
       ? db.query(
           'SELECT id, name, description, memory FROM projects WHERE tenant_id = $1 AND id = $2',
           [tenantId, task.project_id],
         )
       : Promise.resolve({ rows: [] }),
-    task.pipeline_id
+    task.workflow_id
       ? db.query(
           `SELECT p.id, p.name, p.context, p.git_branch, p.parameters, p.resolved_config, p.instruction_config,
                   p.project_spec_version,
                   t.id AS template_id, t.slug AS template_slug, t.name AS template_name,
                   t.version AS template_version, t.schema AS template_schema
-           FROM pipelines p
+           FROM workflows p
            LEFT JOIN templates t ON t.tenant_id = p.tenant_id AND t.id = p.template_id
            WHERE p.tenant_id = $1 AND p.id = $2`,
-          [tenantId, task.pipeline_id],
+          [tenantId, task.workflow_id],
         )
       : Promise.resolve({ rows: [] }),
     (task.depends_on as string[]).length > 0
@@ -55,10 +55,10 @@ export async function buildTaskContext(
     depsRes.rows.map((row) => [row.role ?? row.type ?? row.id, row.output ?? {}]),
   );
 
-  const pipelineRow = pipelineRes.rows[0] as Record<string, unknown> | undefined;
+  const workflowRow = workflowRes.rows[0] as Record<string, unknown> | undefined;
   const templateSchema =
-    (pipelineRow?.template_schema as Record<string, unknown> | undefined) ?? {};
-  const projectInstructions = await loadProjectInstructions(db, tenantId, task, pipelineRow);
+    (workflowRow?.template_schema as Record<string, unknown> | undefined) ?? {};
+  const projectInstructions = await loadProjectInstructions(db, tenantId, task, workflowRow);
   const platformInstructions = await loadPlatformInstructions(db, tenantId);
   const instructionLayers = buildInstructionLayers({
     platformInstructions,
@@ -67,24 +67,24 @@ export async function buildTaskContext(
     taskInput: asRecord(task.input),
     taskId: String(task.id ?? ''),
     projectId: asOptionalString(task.project_id),
-    projectSpecVersion: asOptionalNumber(pipelineRow?.project_spec_version),
+    projectSpecVersion: asOptionalNumber(workflowRow?.project_spec_version),
     role: asOptionalString(task.role),
-    suppressLayers: readSuppressedLayers(pipelineRow?.instruction_config),
+    suppressLayers: readSuppressedLayers(workflowRow?.instruction_config),
   });
   const flatInstructions = readFlatInstructions(asRecord(task.role_config), agent?.metadata);
-  const pipelineContext = pipelineRow
+  const workflowContext = workflowRow
     ? {
-        id: pipelineRow.id,
-        name: pipelineRow.name,
-        context: pipelineRow.context,
-        git_branch: pipelineRow.git_branch,
-        resolved_config: pipelineRow.resolved_config ?? {},
-        variables: pipelineRow.parameters ?? {},
+        id: workflowRow.id,
+        name: workflowRow.name,
+        context: workflowRow.context,
+        git_branch: workflowRow.git_branch,
+        resolved_config: workflowRow.resolved_config ?? {},
+        variables: workflowRow.parameters ?? {},
         template: {
-          id: pipelineRow.template_id,
-          slug: pipelineRow.template_slug,
-          name: pipelineRow.template_name,
-          version: pipelineRow.template_version,
+          id: workflowRow.template_id,
+          slug: workflowRow.template_slug,
+          name: workflowRow.template_name,
+          version: workflowRow.template_version,
           metadata: templateSchema.metadata ?? {},
         },
       }
@@ -93,7 +93,7 @@ export async function buildTaskContext(
   return {
     agent,
     project: projectRes.rows[0] ?? null,
-    pipeline: pipelineContext,
+    workflow: workflowContext,
     documents,
     instructions: flatInstructions,
     instruction_layers: instructionLayers,
@@ -125,10 +125,10 @@ async function loadProjectInstructions(
   db: DatabaseQueryable,
   tenantId: string,
   task: Record<string, unknown>,
-  pipelineRow?: Record<string, unknown>,
+  workflowRow?: Record<string, unknown>,
 ) {
   const projectId = asOptionalString(task.project_id);
-  const projectSpecVersion = asOptionalNumber(pipelineRow?.project_spec_version);
+  const projectSpecVersion = asOptionalNumber(workflowRow?.project_spec_version);
   if (!projectId || !projectSpecVersion || projectSpecVersion <= 0) {
     return undefined;
   }

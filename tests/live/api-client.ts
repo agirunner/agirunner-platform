@@ -23,7 +23,7 @@ export interface ApiTask {
   type: string;
   title: string;
   role?: string;
-  pipeline_id?: string;
+  workflow_id?: string;
   output?: Record<string, unknown>;
   error?: Record<string, unknown>;
   context?: Record<string, unknown>;
@@ -35,7 +35,7 @@ export interface ApiTask {
   [key: string]: unknown;
 }
 
-export interface ApiPipeline {
+export interface ApiWorkflow {
   id: string;
   state: string;
   template_id: string;
@@ -109,23 +109,23 @@ export class LiveApiClient {
     return this.get<ApiTemplate>(`/api/v1/templates/${id}`);
   }
 
-  // -- Pipelines --
+  // -- Workflows --
 
-  async createPipeline(body: {
+  async createWorkflow(body: {
     template_id: string;
     name: string;
     parameters?: Record<string, unknown>;
     metadata?: Record<string, unknown>;
-  }): Promise<ApiPipeline> {
-    return this.post<ApiPipeline>('/api/v1/pipelines', body);
+  }): Promise<ApiWorkflow> {
+    return this.post<ApiWorkflow>('/api/v1/workflows', body);
   }
 
-  async getPipeline(id: string): Promise<ApiPipeline> {
-    return this.get<ApiPipeline>(`/api/v1/pipelines/${id}`);
+  async getWorkflow(id: string): Promise<ApiWorkflow> {
+    return this.get<ApiWorkflow>(`/api/v1/workflows/${id}`);
   }
 
-  async cancelPipeline(id: string): Promise<ApiPipeline> {
-    return this.post<ApiPipeline>(`/api/v1/pipelines/${id}/cancel`, {});
+  async cancelWorkflow(id: string): Promise<ApiWorkflow> {
+    return this.post<ApiWorkflow>(`/api/v1/workflows/${id}/cancel`, {});
   }
 
   // -- Tasks --
@@ -134,7 +134,7 @@ export class LiveApiClient {
     title: string;
     type: string;
     description?: string;
-    pipeline_id?: string;
+    workflow_id?: string;
     depends_on?: string[];
     capabilities_required?: string[];
     role?: string;
@@ -159,7 +159,7 @@ export class LiveApiClient {
     agent_id: string;
     worker_id?: string;
     capabilities?: string[];
-    pipeline_id?: string;
+    workflow_id?: string;
   }): Promise<ApiTask | null> {
     const res = await fetch(`${this.baseUrl}/api/v1/tasks/claim`, {
       method: 'POST',

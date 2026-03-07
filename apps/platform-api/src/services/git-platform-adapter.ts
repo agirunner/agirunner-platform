@@ -70,7 +70,7 @@ export function mapGitEventType(
   if (
     identity.eventType === 'status' ||
     identity.eventType === 'check_run' ||
-    identity.eventType === 'pipeline'
+    identity.eventType === 'workflow'
   ) {
     return 'task.git.ci_status_updated';
   }
@@ -183,7 +183,7 @@ function normalizeCiStatus(
     return compactRecord({
       provider: 'gitlab',
       state: attrs.status,
-      pipeline_id: attrs.id,
+      workflow_id: attrs.id,
       sha: attrs.sha,
       ref: attrs.ref,
       web_url: attrs.url,

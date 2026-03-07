@@ -36,7 +36,7 @@ export interface TaskIssueSnapshot {
   type: string;
   state: string;
   priority: string;
-  pipelineId: string | null;
+  workflowId: string | null;
   input: Record<string, unknown>;
 }
 
@@ -136,13 +136,13 @@ function buildIssueBaseUrl(target: GitHubIssuesTarget): string {
 function buildIssueBody(task: TaskIssueSnapshot): string {
   const summary = readTaskSummary(task.input);
   const lines = [
-    `AgentBaton task: ${task.id}`,
+    `Agirunner task: ${task.id}`,
     `State: ${task.state}`,
     `Type: ${task.type}`,
     `Priority: ${task.priority}`,
   ];
-  if (task.pipelineId) {
-    lines.push(`Pipeline: ${task.pipelineId}`);
+  if (task.workflowId) {
+    lines.push(`Workflow: ${task.workflowId}`);
   }
   if (summary) {
     lines.push('', summary);
@@ -169,7 +169,7 @@ function buildHeaders(token: string): Record<string, string> {
     authorization: `Bearer ${token}`,
     accept: 'application/vnd.github+json',
     'content-type': 'application/json',
-    'user-agent': 'AgentBaton',
+    'user-agent': 'Agirunner',
   };
 }
 

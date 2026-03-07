@@ -55,8 +55,8 @@ describe('platform foundation e2e', () => {
     const setCookies = Array.isArray(exchange.headers['set-cookie'])
       ? exchange.headers['set-cookie']
       : [exchange.headers['set-cookie'] as string];
-    const refreshCookie = setCookies.find((c) => c.startsWith('agentbaton_refresh_token='))!.split(';')[0];
-    const csrfCookie = setCookies.find((c) => c.startsWith('agentbaton_csrf_token='))!.split(';')[0];
+    const refreshCookie = setCookies.find((c) => c.startsWith('agirunner_refresh_token='))!.split(';')[0];
+    const csrfCookie = setCookies.find((c) => c.startsWith('agirunner_csrf_token='))!.split(';')[0];
     const csrfToken = csrfCookie.split('=')[1];
 
     const refresh = await app.inject({

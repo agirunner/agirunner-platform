@@ -14,12 +14,12 @@ describe('worker-runtime contract builders', () => {
     const submission = buildRuntimeTaskSubmission(
       {
         id: 'task-runtime-1',
-        pipeline_id: 'pipeline-123',
+        workflow_id: 'workflow-123',
         tenant_id: 'tenant-abc',
         role: 'developer',
         input: { objective: 'ship s4' },
         context_stack: {
-          pipeline: { id: 'pipeline-123' },
+          workflow: { id: 'workflow-123' },
           agent: { id: 'agent-1' },
         },
         upstream_outputs: {
@@ -28,7 +28,7 @@ describe('worker-runtime contract builders', () => {
         resource_bindings: [
           {
             type: 'git_repository',
-            url: 'https://github.com/agirunner/agentbaton-platform.git',
+            url: 'https://github.com/agirunner/agirunner-platform.git',
             credentials: {
               token: 'git-token-from-resource',
               ssh_private_key: 'ssh-private-key-from-resource',
@@ -60,12 +60,12 @@ describe('worker-runtime contract builders', () => {
 
     expect(submission).toMatchObject({
       task_id: 'task-runtime-1',
-      pipeline_id: 'pipeline-123',
+      workflow_id: 'workflow-123',
       tenant_id: 'tenant-abc',
       role: 'developer',
       input: { objective: 'ship s4', description: 'ship s4', acceptance_criteria: [] },
       context_stack: {
-        pipeline: { id: 'pipeline-123' },
+        workflow: { id: 'workflow-123' },
         agent: { id: 'agent-1' },
       },
       upstream_outputs: {

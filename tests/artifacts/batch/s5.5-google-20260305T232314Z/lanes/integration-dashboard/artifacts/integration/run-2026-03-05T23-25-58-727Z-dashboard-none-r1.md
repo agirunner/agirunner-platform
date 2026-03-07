@@ -23,7 +23,7 @@ Total cost: $0.0000
 - ot3-state: PASS | duration=1.71s | cost=$0.0000 | validations=1 | artifacts=1
 - ot4-health: PASS | duration=1.73s | cost=$0.0000 | validations=1 | artifacts=1
 - hl1-approval-flow: PASS | duration=1.72s | cost=$0.0000 | validations=1 | artifacts=1
-- hl2-pipeline-controls: PASS | duration=1.77s | cost=$0.0000 | validations=1 | artifacts=1
+- hl2-workflow-controls: PASS | duration=1.77s | cost=$0.0000 | validations=1 | artifacts=1
 - it1-sdk: PASS | duration=1.75s | cost=$0.0000 | validations=1 | artifacts=1
 - it2-mcp: PASS | duration=1.74s | cost=$0.0000 | validations=1 | artifacts=1
 - it3-webhooks: PASS | duration=1.70s | cost=$0.0000 | validations=1 | artifacts=1

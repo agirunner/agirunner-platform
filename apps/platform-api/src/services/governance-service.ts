@@ -67,8 +67,8 @@ export class GovernanceService {
     return this.setLegalHold(identity, 'tasks', taskId, enabled, 'task');
   }
 
-  async setPipelineLegalHold(identity: ApiKeyIdentity, pipelineId: string, enabled: boolean) {
-    return this.setLegalHold(identity, 'pipelines', pipelineId, enabled, 'pipeline');
+  async setWorkflowLegalHold(identity: ApiKeyIdentity, workflowId: string, enabled: boolean) {
+    return this.setLegalHold(identity, 'workflows', workflowId, enabled, 'workflow');
   }
 
   async enforceRetentionPolicies(): Promise<{ archivedTasks: number; deletedTasks: number; deletedAuditLogs: number }> {
@@ -89,10 +89,10 @@ export class GovernanceService {
 
   private async setLegalHold(
     identity: ApiKeyIdentity,
-    table: 'tasks' | 'pipelines',
+    table: 'tasks' | 'workflows',
     resourceId: string,
     enabled: boolean,
-    resourceType: 'task' | 'pipeline',
+    resourceType: 'task' | 'workflow',
   ) {
     const result = await this.pool.query<HoldTargetRow>(
       `UPDATE ${table}
@@ -161,9 +161,9 @@ export class GovernanceService {
     const deletable = await this.pool.query<{ id: string }>(
       `SELECT t.id
        FROM tasks t
-       LEFT JOIN pipelines p
+       LEFT JOIN workflows p
          ON p.tenant_id = t.tenant_id
-        AND p.id = t.pipeline_id
+        AND p.id = t.workflow_id
        WHERE t.tenant_id = $1
          AND t.legal_hold = false
          AND COALESCE(p.legal_hold, false) = false

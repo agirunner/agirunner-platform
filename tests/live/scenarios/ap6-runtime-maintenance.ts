@@ -1,5 +1,5 @@
 /**
- * AP-6: External Worker Maintenance Pipeline (todo-app fixture)
+ * AP-6: External Worker Maintenance Workflow (todo-app fixture)
  *
  * Harness-managed external runtime scenario for maintenance flow:
  * triage -> fix -> verify -> close
@@ -11,8 +11,8 @@ import type { LiveContext, ScenarioExecutionResult } from '../harness/types.js';
 import {
   assertAllTasksCompleted,
   assertDependencyOrder,
-  assertInitialPipelineState,
-  assertPipelineTerminal,
+  assertInitialWorkflowState,
+  assertWorkflowTerminal,
   assertTaskOutputsPresent,
   assertTaskRoles,
 } from './assertions.js';
@@ -24,7 +24,7 @@ import {
   workerMatches,
 } from './external-worker-utils.js';
 import { loadConfig } from '../config.js';
-import { pollPipelineUntil } from './poll.js';
+import { pollWorkflowUntil } from './poll.js';
 import { maintenanceTemplateSchema } from './templates.js';
 import { createTenantBootstrap, registerWorkerAgent } from './tenant.js';
 import { resolveFixtureRepoPath } from '../harness/repo-factory.js';
@@ -83,7 +83,7 @@ export async function runAp6RuntimeMaintenance(
     });
     validations.push('template_created');
 
-    const pipeline = await tenant.adminClient.createPipeline({
+    const workflow = await tenant.adminClient.createWorkflow({
       template_id: template.id,
       name: `AP-6 todo-app ${live.runId}`,
       parameters: {
@@ -92,16 +92,16 @@ export async function runAp6RuntimeMaintenance(
         description: 'Page 2 shows same items as page 1 — off-by-one in pagination slice',
       },
     });
-    validations.push('pipeline_created');
+    validations.push('workflow_created');
 
-    assertTaskRoles(pipeline, MAINTENANCE_ROLES);
-    assertInitialPipelineState(pipeline);
+    assertTaskRoles(workflow, MAINTENANCE_ROLES);
+    assertInitialWorkflowState(workflow);
     validations.push('initial_state_valid');
 
     const handledRoles: string[] = [];
 
     for (const expectedRole of MAINTENANCE_ROLES) {
-      const claimed = await claimTaskWithPolling(externalHarness, pipeline.id);
+      const claimed = await claimTaskWithPolling(externalHarness, workflow.id);
 
       if (claimed.role !== expectedRole) {
         throw new Error(`Expected ${expectedRole} task, claimed ${claimed.role ?? claimed.type}`);
@@ -123,18 +123,18 @@ export async function runAp6RuntimeMaintenance(
     }
     validations.push('routing_all_tasks_external');
 
-    const completed = await pollPipelineUntil(
+    const completed = await pollWorkflowUntil(
       tenant.adminClient,
-      pipeline.id,
+      workflow.id,
       ['completed', 'failed'],
-      config.pipelineTimeoutMs,
+      config.workflowTimeoutMs,
     );
 
-    assertPipelineTerminal(completed, 'completed', 4);
+    assertWorkflowTerminal(completed, 'completed', 4);
     assertAllTasksCompleted(completed);
     assertTaskOutputsPresent(completed);
     assertDependencyOrder(completed);
-    validations.push('pipeline_completed');
+    validations.push('workflow_completed');
     validations.push('maintenance_output_present');
 
     await tenant.adminClient.deleteWorker(externalHarness.workerId);

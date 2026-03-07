@@ -15,7 +15,7 @@ interface BreadcrumbItem {
 }
 
 const SECTION_LABELS: Record<string, string> = {
-  pipelines: 'Pipelines',
+  workflows: 'Workflows',
   projects: 'Projects',
   templates: 'Templates',
   tasks: 'Tasks',
@@ -59,7 +59,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
 
       if (event.altKey && event.key === '1') {
         event.preventDefault();
-        navigate('/pipelines');
+        navigate('/workflows');
       } else if (event.altKey && event.key === '2') {
         event.preventDefault();
         navigate('/projects');
@@ -114,7 +114,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
     <div className="layout">
       <aside className="sidebar">
         <div className="row" style={{ justifyContent: 'space-between' }}>
-          <strong>AgentBaton</strong>
+          <strong>Agirunner</strong>
           <button className="button" type="button" onClick={onToggleTheme}>
             Theme
           </button>
@@ -133,7 +133,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
               id="dashboard-search"
               ref={searchInputRef}
               className="input"
-              placeholder="Search pipelines, tasks, workers, agents (/ to focus)"
+              placeholder="Search workflows, tasks, workers, agents (/ to focus)"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
             />
@@ -165,7 +165,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
           ) : null}
         </form>
         <nav>
-          <NavLink to="/pipelines">Pipelines</NavLink>
+          <NavLink to="/workflows">Workflows</NavLink>
           <NavLink to="/projects">Projects</NavLink>
           <NavLink to="/templates">Templates</NavLink>
           <NavLink to="/workers">Workers</NavLink>
@@ -214,7 +214,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
 export function buildBreadcrumbs(pathname: string): BreadcrumbItem[] {
   const segments = pathname.split('/').filter(Boolean);
   if (segments.length === 0) {
-    return [{ label: 'Pipelines', href: '/pipelines' }];
+    return [{ label: 'Workflows', href: '/workflows' }];
   }
 
   const crumbs: BreadcrumbItem[] = [];

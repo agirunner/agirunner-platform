@@ -14,7 +14,7 @@ async function streamEvents(app: FastifyInstance, request: FastifyRequest, reply
     entity_type?: string;
     entity_id?: string;
     project_id?: string;
-    pipeline_id?: string;
+    workflow_id?: string;
   };
 
   reply.raw.setHeader('Content-Type', 'text/event-stream');
@@ -31,7 +31,7 @@ async function streamEvents(app: FastifyInstance, request: FastifyRequest, reply
       entityTypes: parseCsv(query.entity_type),
       entityId: query.entity_id,
       projectId: query.project_id,
-      pipelineId: query.pipeline_id,
+      workflowId: query.workflow_id,
     },
     (event) => {
       reply.raw.write(`id: ${event.id}\n`);
@@ -60,7 +60,7 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       entity_type?: string;
       entity_id?: string;
       project_id?: string;
-      pipeline_id?: string;
+      workflow_id?: string;
       page?: string;
       per_page?: string;
     };
@@ -78,7 +78,7 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       [query.entity_type, 'entity_type'],
       [query.entity_id, 'entity_id'],
       [query.project_id, "COALESCE(data->>'project_id', '')"],
-      [query.pipeline_id, "COALESCE(data->>'pipeline_id', '')"],
+      [query.workflow_id, "COALESCE(data->>'workflow_id', '')"],
     ];
 
     exactFilters.forEach(([value, column]) => {

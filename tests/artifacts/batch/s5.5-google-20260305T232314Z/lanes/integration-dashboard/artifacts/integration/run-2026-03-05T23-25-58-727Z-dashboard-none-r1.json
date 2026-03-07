@@ -110,7 +110,7 @@
       "validations": 1,
       "screenshots": []
     },
-    "hl2-pipeline-controls": {
+    "hl2-workflow-controls": {
       "status": "pass",
       "duration": "1.77s",
       "cost": "$0.0000",

@@ -6,7 +6,7 @@ export interface CreateTaskInput {
   type: string;
   description?: string;
   priority?: string;
-  pipeline_id?: string;
+  workflow_id?: string;
   project_id?: string;
   parent_id?: string;
   role?: string;
@@ -33,7 +33,7 @@ export interface ListTaskQuery {
   project_id?: string;
   assigned_agent_id?: string;
   parent_id?: string;
-  pipeline_id?: string;
+  workflow_id?: string;
   page: number;
   per_page: number;
 }

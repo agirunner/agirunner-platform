@@ -24,10 +24,10 @@ describe('worker config end-to-end merge integration (FR-294, FR-295)', () => {
     const config = loadWorkerConfig({
       filePath,
       env: {
-        AGENTBATON_WORKER_SERVER_URL: 'https://env-platform.test',
-        AGENTBATON_WORKER_RUNTIME_ADAPTER: 'openclaw',
-        AGENTBATON_WORKER_CONNECTION_MODE: 'websocket',
-        AGENTBATON_WORKER_HEARTBEAT_INTERVAL_SECONDS: '10',
+        AGIRUNNER_WORKER_SERVER_URL: 'https://env-platform.test',
+        AGIRUNNER_WORKER_RUNTIME_ADAPTER: 'openclaw',
+        AGIRUNNER_WORKER_CONNECTION_MODE: 'websocket',
+        AGIRUNNER_WORKER_HEARTBEAT_INTERVAL_SECONDS: '10',
       },
     });
 

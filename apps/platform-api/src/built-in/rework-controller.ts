@@ -13,7 +13,7 @@
  */
 
 export interface ReworkContext {
-  /** Original task input provided by the pipeline. */
+  /** Original task input provided by the workflow. */
   originalInput: Record<string, unknown>;
   /** Feedback from the failed attempt (validation error or reviewer rejection). */
   feedback: string;
@@ -38,7 +38,7 @@ export interface ReworkDecision {
  *   2. A reviewer explicitly rejects the output.
  *
  * Rework is denied when the attempt limit is reached — the task is then
- * permanently failed so the pipeline can escalate or terminate.
+ * permanently failed so the workflow can escalate or terminate.
  *
  * @param attemptsSoFar  - Number of rework attempts already completed (0 on first failure).
  * @param maxAttempts    - Maximum rework attempts from config (FR-749: configurable).

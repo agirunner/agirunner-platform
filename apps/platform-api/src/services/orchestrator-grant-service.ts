@@ -9,7 +9,7 @@ interface GrantRow {
   id: string;
   tenant_id: string;
   agent_id: string;
-  pipeline_id: string;
+  workflow_id: string;
   permissions: string[];
   granted_at: Date;
   expires_at: Date | null;
@@ -18,7 +18,7 @@ interface GrantRow {
 
 export interface CreateGrantInput {
   agent_id: string;
-  pipeline_id: string;
+  workflow_id: string;
   permissions: string[];
   expires_at?: string;
 }
@@ -34,22 +34,22 @@ export class OrchestratorGrantService {
     const expiresAt = parseExpiresAt(input.expires_at);
 
     await this.assertAgentInTenant(identity.tenantId, input.agent_id);
-    await this.assertPipelineInTenant(identity.tenantId, input.pipeline_id);
+    await this.assertWorkflowInTenant(identity.tenantId, input.workflow_id);
 
     const result = await this.pool.query<GrantRow>(
-      `INSERT INTO orchestrator_grants (tenant_id, agent_id, pipeline_id, permissions, expires_at)
+      `INSERT INTO orchestrator_grants (tenant_id, agent_id, workflow_id, permissions, expires_at)
        VALUES ($1,$2,$3,$4::text[],$5)
-       ON CONFLICT (agent_id, pipeline_id) WHERE revoked_at IS NULL
+       ON CONFLICT (agent_id, workflow_id) WHERE revoked_at IS NULL
        DO UPDATE SET permissions = EXCLUDED.permissions, expires_at = EXCLUDED.expires_at, revoked_at = NULL
        RETURNING *`,
-      [identity.tenantId, input.agent_id, input.pipeline_id, permissions, expiresAt],
+      [identity.tenantId, input.agent_id, input.workflow_id, permissions, expiresAt],
     );
 
     await this.eventService.emit({
       tenantId: identity.tenantId,
       type: 'orchestrator.grant_created',
-      entityType: 'pipeline',
-      entityId: input.pipeline_id,
+      entityType: 'workflow',
+      entityId: input.workflow_id,
       actorType: identity.scope,
       actorId: identity.keyPrefix,
       data: {
@@ -61,13 +61,13 @@ export class OrchestratorGrantService {
     return toGrantResponse(result.rows[0]);
   }
 
-  async listGrants(tenantId: string, query: { pipeline_id?: string; agent_id?: string }) {
+  async listGrants(tenantId: string, query: { workflow_id?: string; agent_id?: string }) {
     const conditions: string[] = ['tenant_id = $1', 'revoked_at IS NULL'];
     const values: unknown[] = [tenantId];
 
-    if (query.pipeline_id) {
-      values.push(query.pipeline_id);
-      conditions.push(`pipeline_id = $${values.length}`);
+    if (query.workflow_id) {
+      values.push(query.workflow_id);
+      conditions.push(`workflow_id = $${values.length}`);
     }
 
     if (query.agent_id) {
@@ -76,7 +76,7 @@ export class OrchestratorGrantService {
     }
 
     const result = await this.pool.query<GrantRow>(
-      `SELECT id, tenant_id, agent_id, pipeline_id, permissions, granted_at, expires_at, revoked_at
+      `SELECT id, tenant_id, agent_id, workflow_id, permissions, granted_at, expires_at, revoked_at
          FROM orchestrator_grants
         WHERE ${conditions.join(' AND ')}
         ORDER BY granted_at ASC`,
@@ -103,8 +103,8 @@ export class OrchestratorGrantService {
     await this.eventService.emit({
       tenantId: identity.tenantId,
       type: 'orchestrator.grant_revoked',
-      entityType: 'pipeline',
-      entityId: result.rows[0].pipeline_id,
+      entityType: 'workflow',
+      entityId: result.rows[0].workflow_id,
       actorType: identity.scope,
       actorId: identity.keyPrefix,
       data: {
@@ -119,7 +119,7 @@ export class OrchestratorGrantService {
   async hasPermission(
     tenantId: string,
     agentId: string,
-    pipelineId: string,
+    workflowId: string,
     permission: string,
     db: DatabaseQueryable = this.pool,
   ): Promise<boolean> {
@@ -128,12 +128,12 @@ export class OrchestratorGrantService {
          FROM orchestrator_grants
         WHERE tenant_id = $1
           AND agent_id = $2
-          AND pipeline_id = $3
+          AND workflow_id = $3
           AND revoked_at IS NULL
           AND (expires_at IS NULL OR expires_at > now())
           AND $4 = ANY(permissions)
         LIMIT 1`,
-      [tenantId, agentId, pipelineId, permission],
+      [tenantId, agentId, workflowId, permission],
     );
     return (result.rowCount ?? 0) > 0;
   }
@@ -152,13 +152,13 @@ export class OrchestratorGrantService {
     }
   }
 
-  private async assertPipelineInTenant(tenantId: string, pipelineId: string) {
+  private async assertWorkflowInTenant(tenantId: string, workflowId: string) {
     const result = await this.pool.query(
-      'SELECT id FROM pipelines WHERE tenant_id = $1 AND id = $2',
-      [tenantId, pipelineId],
+      'SELECT id FROM workflows WHERE tenant_id = $1 AND id = $2',
+      [tenantId, workflowId],
     );
     if (!result.rowCount) {
-      throw new NotFoundError('Pipeline not found');
+      throw new NotFoundError('Workflow not found');
     }
   }
 }
@@ -189,7 +189,7 @@ function toGrantResponse(row: GrantRow) {
   return {
     id: row.id,
     agent_id: row.agent_id,
-    pipeline_id: row.pipeline_id,
+    workflow_id: row.workflow_id,
     permissions: row.permissions,
     granted_at: row.granted_at.toISOString(),
     expires_at: row.expires_at?.toISOString() ?? null,

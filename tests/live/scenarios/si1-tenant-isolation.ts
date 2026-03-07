@@ -4,7 +4,7 @@
  * Verifies that data created in one tenant is not accessible from another:
  * - Templates in tenant A are invisible from tenant B
  * - Tasks in tenant A cannot be claimed/written from tenant B (404)
- * - Pipelines in tenant A are invisible from tenant B
+ * - Workflows in tenant A are invisible from tenant B
  * - Workers in tenant A are invisible from tenant B
  * - Deactivated tenant requests are unauthorized (401)
  * - SSE stream only emits events for the authenticated tenant
@@ -194,34 +194,34 @@ async function testCrossTenantWrite404(
 }
 
 /**
- * Test: Pipeline isolation — tenant A's pipelines invisible to tenant B.
+ * Test: Workflow isolation — tenant A's workflows invisible to tenant B.
  */
-async function testPipelineIsolation(
+async function testWorkflowIsolation(
   ctxA: TenantContext,
   ctxB: TenantContext,
 ): Promise<string[]> {
   const validations: string[] = [];
 
   const template = await ctxA.adminClient.createTemplate({
-    name: 'SI1-pipeline-isolation',
+    name: 'SI1-workflow-isolation',
     slug: `si1-pip-${Date.now()}`,
     schema: linearTemplateSchema(),
   });
 
-  const pipeline = await ctxA.adminClient.createPipeline({
+  const workflow = await ctxA.adminClient.createWorkflow({
     template_id: template.id,
-    name: 'SI1-pipeline-a',
+    name: 'SI1-workflow-a',
   });
-  validations.push('tenant_a_pipeline_created');
+  validations.push('tenant_a_workflow_created');
 
-  const bPipeline = await ctxB.agentClient
-    .getPipeline(pipeline.id)
+  const bWorkflow = await ctxB.agentClient
+    .getWorkflow(workflow.id)
     .catch(() => null);
 
-  if (bPipeline === null) {
-    validations.push('pipeline_isolation_enforced');
+  if (bWorkflow === null) {
+    validations.push('workflow_isolation_enforced');
   } else {
-    throw new Error('Tenant B can see Tenant A pipeline — isolation breach');
+    throw new Error('Tenant B can see Tenant A workflow — isolation breach');
   }
 
   return validations;
@@ -328,7 +328,7 @@ export async function runSi1TenantIsolation(
     allValidations.push(...await testTemplateIsolation(ctxA, ctxB));
     allValidations.push(...await testTaskIsolation(ctxA, ctxB));
     allValidations.push(...await testCrossTenantWrite404(ctxA, ctxB));
-    allValidations.push(...await testPipelineIsolation(ctxA, ctxB));
+    allValidations.push(...await testWorkflowIsolation(ctxA, ctxB));
     allValidations.push(...await testWorkerIsolation(ctxA, ctxB));
     allValidations.push(...await testSseIsolation(ctxA, ctxB));
     allValidations.push(...await testDeactivatedTenant401(ctxA));

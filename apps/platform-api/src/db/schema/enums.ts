@@ -53,7 +53,7 @@ export const apiKeyScopeEnum = pgEnum('api_key_scope', ['agent', 'worker', 'admi
 
 export const eventEntityTypeEnum = pgEnum('event_entity_type', [
   'task',
-  'pipeline',
+  'workflow',
   'agent',
   'worker',
   'project',
@@ -61,7 +61,7 @@ export const eventEntityTypeEnum = pgEnum('event_entity_type', [
   'system',
 ]);
 
-export const pipelineStateEnum = pgEnum('pipeline_state', [
+export const workflowStateEnum = pgEnum('workflow_state', [
   'pending',
   'active',
   'completed',

@@ -9,7 +9,7 @@ import { TaskService } from '../../services/task-service.js';
 const sessionSchema = z.object({
   agent_id: z.string().uuid(),
   worker_id: z.string().uuid().optional(),
-  pipeline_id: z.string().uuid().optional(),
+  workflow_id: z.string().uuid().optional(),
   transport: z.enum(['stdio', 'http', 'websocket']),
   mode: z.enum(['run', 'session']),
   workspace_path: z.string().min(1).max(2000).optional(),
@@ -20,7 +20,7 @@ const claimSchema = z.object({
   agent_id: z.string().uuid(),
   worker_id: z.string().uuid().optional(),
   capabilities: z.array(z.string().min(1)).optional(),
-  pipeline_id: z.string().uuid().optional(),
+  workflow_id: z.string().uuid().optional(),
   include_context: z.boolean().optional(),
   session: sessionSchema.omit({ agent_id: true }),
 });
@@ -78,7 +78,7 @@ export const acpRoutes: FastifyPluginAsync = async (app) => {
       agent_id: body.agent_id,
       worker_id: body.worker_id,
       capabilities: body.capabilities ?? ['acp'],
-      pipeline_id: body.pipeline_id,
+      workflow_id: body.workflow_id,
       include_context: body.include_context ?? true,
     });
     if (!claimed) {
@@ -93,7 +93,7 @@ export const acpRoutes: FastifyPluginAsync = async (app) => {
     const session = await sessionService.createOrReuseSession(request.auth!, {
       agent_id: body.agent_id,
       worker_id: body.worker_id,
-      pipeline_id: (claimed.pipeline_id as string | null) ?? body.pipeline_id,
+      workflow_id: (claimed.workflow_id as string | null) ?? body.workflow_id,
       transport: body.session.transport,
       mode: body.session.mode,
       workspace_path:

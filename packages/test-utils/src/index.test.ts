@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createBearerHeader, createTestIdentity } from './index.js';
 
-describe('@agentbaton/test-utils exports', () => {
+describe('@agirunner/test-utils exports', () => {
   it('creates default test identities with optional overrides', () => {
     const identity = createTestIdentity({ scope: 'worker', ownerType: 'worker', ownerId: 'worker-1' });
 
@@ -13,6 +13,6 @@ describe('@agentbaton/test-utils exports', () => {
   });
 
   it('creates bearer authorization headers', () => {
-    expect(createBearerHeader('ab_worker_token')).toEqual({ authorization: 'Bearer ab_worker_token' });
+    expect(createBearerHeader('ar_worker_token')).toEqual({ authorization: 'Bearer ar_worker_token' });
   });
 });

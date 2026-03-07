@@ -87,8 +87,8 @@ describe('auth and webhook coverage', () => {
     const cookies = Array.isArray(tokenRes.headers['set-cookie'])
       ? tokenRes.headers['set-cookie']
       : [tokenRes.headers['set-cookie'] as string];
-    const accessCookie = cookies.find((c) => c.startsWith('agentbaton_access_token='));
-    const refreshCookie = cookies.find((c) => c.startsWith('agentbaton_refresh_token='));
+    const accessCookie = cookies.find((c) => c.startsWith('agirunner_access_token='));
+    const refreshCookie = cookies.find((c) => c.startsWith('agirunner_refresh_token='));
     expect(accessCookie).toContain('HttpOnly');
     expect(refreshCookie).toContain('HttpOnly');
 
@@ -96,7 +96,7 @@ describe('auth and webhook coverage', () => {
     expect(forbidden.statusCode).toBe(403);
 
     const refreshCookieValue = refreshCookie!.split(';')[0];
-    const csrfCookieValue = cookies.find((c) => c.startsWith('agentbaton_csrf_token='))!.split(';')[0];
+    const csrfCookieValue = cookies.find((c) => c.startsWith('agirunner_csrf_token='))!.split(';')[0];
     const csrfToken = csrfCookieValue.split('=')[1];
     const refresh = await app.inject({
       method: 'POST',
@@ -115,7 +115,7 @@ describe('auth and webhook coverage', () => {
     const cookies = Array.isArray(tokenRes.headers['set-cookie'])
       ? tokenRes.headers['set-cookie']
       : [tokenRes.headers['set-cookie'] as string];
-    const accessCookie = cookies.find((c) => c.startsWith('agentbaton_access_token='))!.split(';')[0];
+    const accessCookie = cookies.find((c) => c.startsWith('agirunner_access_token='))!.split(';')[0];
 
     const meRes = await app.inject({
       method: 'GET',
