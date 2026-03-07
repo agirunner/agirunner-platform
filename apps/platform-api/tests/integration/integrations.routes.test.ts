@@ -1,0 +1,275 @@
+import http from 'node:http';
+import { randomUUID } from 'node:crypto';
+
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import { createApiKey } from '../../src/auth/api-key.js';
+import { buildApp } from '../../src/bootstrap/app.js';
+import { startTestDatabase, stopTestDatabase, type TestDatabase } from '../helpers/postgres.js';
+
+const tenantId = '00000000-0000-0000-0000-000000000001';
+const testPort = '8094';
+const testJwtSecret = 'x'.repeat(64);
+const testWebhookSecret = 'k'.repeat(64);
+const integrationSecret = 'adapter-secret-token';
+const routePipelineName = 'integration-pipeline';
+
+interface CapturedRequest {
+  headers: http.IncomingHttpHeaders;
+  body: string;
+}
+
+async function waitForDeliveryRecord(
+  db: TestDatabase,
+  tenantId: string,
+  adapterId: string,
+): Promise<{ status: string; attempts: number; last_status_code: number | null }> {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const result = await db.pool.query<{
+      status: string;
+      attempts: number;
+      last_status_code: number | null;
+    }>(
+      `SELECT status, attempts, last_status_code
+         FROM integration_adapter_deliveries
+        WHERE tenant_id = $1
+          AND adapter_id = $2
+        ORDER BY created_at DESC
+        LIMIT 1`,
+      [tenantId, adapterId],
+    );
+
+    if (result.rowCount && result.rows[0].status !== 'pending') {
+      return result.rows[0];
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+
+  throw new Error('Timed out waiting for integration delivery record');
+}
+
+function waitForRequest(server: http.Server): Promise<CapturedRequest> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('Timed out waiting for integration delivery'));
+    }, 5_000);
+
+    server.once('request', (request, response) => {
+      const chunks: Buffer[] = [];
+      request.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+      request.on('end', () => {
+        response.statusCode = 202;
+        response.end('ok', () => {
+          clearTimeout(timeout);
+          setImmediate(() => {
+            resolve({
+              headers: request.headers,
+              body: Buffer.concat(chunks).toString('utf8'),
+            });
+          });
+        });
+      });
+      request.on('error', (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+    });
+  });
+}
+
+describe('integration adapter routes', () => {
+  let db: TestDatabase;
+  let app: Awaited<ReturnType<typeof buildApp>>;
+  let adminKey: string;
+  let pipelineId: string;
+  let deliveryServer: http.Server;
+  let deliveryBaseUrl: string;
+  const previousEnv: Record<string, string | undefined> = {};
+
+  beforeAll(async () => {
+    db = await startTestDatabase();
+
+    for (const key of [
+      'NODE_ENV',
+      'PORT',
+      'DATABASE_URL',
+      'JWT_SECRET',
+      'WEBHOOK_ENCRYPTION_KEY',
+      'JWT_EXPIRES_IN',
+      'JWT_REFRESH_EXPIRES_IN',
+      'LOG_LEVEL',
+      'RATE_LIMIT_MAX_PER_MINUTE',
+    ]) {
+      previousEnv[key] = process.env[key];
+    }
+
+    process.env.NODE_ENV = 'test';
+    process.env.PORT = testPort;
+    process.env.DATABASE_URL = db.databaseUrl;
+    process.env.JWT_SECRET = testJwtSecret;
+    process.env.WEBHOOK_ENCRYPTION_KEY = testWebhookSecret;
+    process.env.JWT_EXPIRES_IN = '5m';
+    process.env.JWT_REFRESH_EXPIRES_IN = '1h';
+    process.env.LOG_LEVEL = 'error';
+    process.env.RATE_LIMIT_MAX_PER_MINUTE = '200';
+
+    pipelineId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO pipelines (id, tenant_id, name, metadata, state)
+       VALUES ($1,$2,$3,'{}'::jsonb,'active')`,
+      [pipelineId, tenantId, routePipelineName],
+    );
+
+    adminKey = (
+      await createApiKey(db.pool, {
+        tenantId,
+        scope: 'admin',
+        ownerType: 'user',
+        expiresAt: new Date(Date.now() + 600_000),
+      })
+    ).apiKey;
+
+    deliveryServer = http.createServer();
+    await new Promise<void>((resolve) => {
+      deliveryServer.listen(0, '127.0.0.1', () => resolve());
+    });
+    const address = deliveryServer.address();
+    if (!address || typeof address === 'string') {
+      throw new Error('Failed to bind delivery test server');
+    }
+    deliveryBaseUrl = `http://127.0.0.1:${address.port}`;
+
+    app = await buildApp();
+  });
+
+  afterAll(async () => {
+    if (app) {
+      await app.close();
+    }
+    if (deliveryServer) {
+      await new Promise<void>((resolve, reject) => {
+        deliveryServer.close((error) => (error ? reject(error) : resolve()));
+      });
+    }
+    if (db) {
+      await stopTestDatabase(db);
+    }
+
+    Object.entries(previousEnv).forEach(([key, value]) => {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    });
+  });
+
+  it('creates, lists, updates, and deletes integration adapters without exposing secrets', async () => {
+    const createResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/integrations',
+      headers: { authorization: `Bearer ${adminKey}` },
+      payload: {
+        kind: 'webhook',
+        pipeline_id: pipelineId,
+        subscriptions: ['task.*'],
+        config: {
+          url: `${deliveryBaseUrl}/events`,
+          secret: integrationSecret,
+          headers: { 'x-source': 'integration-test' },
+        },
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(201);
+    const created = createResponse.json().data;
+    expect(created.config).toEqual({
+      url: `${deliveryBaseUrl}/events`,
+      headers: { 'x-source': 'integration-test' },
+      secret_configured: true,
+    });
+
+    const listResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/integrations',
+      headers: { authorization: `Bearer ${adminKey}` },
+    });
+
+    expect(listResponse.statusCode).toBe(200);
+    expect(listResponse.json().data).toEqual([
+      expect.objectContaining({
+        id: created.id,
+        pipeline_id: pipelineId,
+        subscriptions: ['task.*'],
+        config: created.config,
+      }),
+    ]);
+
+    const patchResponse = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/integrations/${created.id}`,
+      headers: { authorization: `Bearer ${adminKey}` },
+      payload: { subscriptions: ['pipeline.*'], is_active: false },
+    });
+
+    expect(patchResponse.statusCode).toBe(200);
+    expect(patchResponse.json().data.subscriptions).toEqual(['pipeline.*']);
+    expect(patchResponse.json().data.is_active).toBe(false);
+
+    const deleteResponse = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/integrations/${created.id}`,
+      headers: { authorization: `Bearer ${adminKey}` },
+    });
+
+    expect(deleteResponse.statusCode).toBe(204);
+  });
+
+  it('dispatches matching events through the event stream and records delivered attempts', async () => {
+    const createResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/integrations',
+      headers: { authorization: `Bearer ${adminKey}` },
+      payload: {
+        kind: 'webhook',
+        pipeline_id: pipelineId,
+        subscriptions: ['task.completed'],
+        config: {
+          url: `${deliveryBaseUrl}/events`,
+          secret: integrationSecret,
+          headers: { 'x-source': 'integration-test' },
+        },
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(201);
+    const adapterId = createResponse.json().data.id as string;
+    const requestPromise = waitForRequest(deliveryServer);
+
+    await app.eventService.emit({
+      tenantId,
+      type: 'task.completed',
+      entityType: 'task',
+      entityId: randomUUID(),
+      actorType: 'system',
+      data: { pipeline_id: pipelineId },
+    });
+
+    const delivered = await requestPromise;
+    const parsed = JSON.parse(delivered.body) as { pipeline_id?: string; type?: string };
+
+    expect(delivered.headers['x-agentbaton-event']).toBe('task.completed');
+    expect(delivered.headers['x-agentbaton-signature']).toBeTypeOf('string');
+    expect(parsed.pipeline_id).toBe(pipelineId);
+    expect(parsed.type).toBe('task.completed');
+
+    const deliveryRecord = await waitForDeliveryRecord(db, tenantId, adapterId);
+
+    expect(deliveryRecord).toEqual({
+      status: 'delivered',
+      attempts: 1,
+      last_status_code: 202,
+    });
+  });
+});

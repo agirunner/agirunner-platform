@@ -13,6 +13,8 @@ import { registerRequestContext } from '../observability/request-context.js';
 import { AgentService } from '../services/agent-service.js';
 import { EventStreamService } from '../services/event-stream-service.js';
 import { EventService } from '../services/event-service.js';
+import { IntegrationAdapterService } from '../services/integration-adapter-service.js';
+import { startIntegrationDispatcher } from '../services/integration-dispatcher.js';
 import { TaskService } from '../services/task-service.js';
 import { WorkerConnectionHub } from '../services/worker-connection-hub.js';
 import { WorkerService } from '../services/worker-service.js';
@@ -74,6 +76,7 @@ export async function buildApp() {
   const eventService = new EventService(pool);
   const eventStreamService = new EventStreamService(pool);
   await eventStreamService.start();
+  const integrationAdapterService = new IntegrationAdapterService(pool, config);
 
   const workerConnectionHub = new WorkerConnectionHub();
   const workerService = new WorkerService(pool, eventService, workerConnectionHub, config);
@@ -84,6 +87,7 @@ export async function buildApp() {
   app.decorate('pgPool', pool);
   app.decorate('eventService', eventService);
   app.decorate('eventStreamService', eventStreamService);
+  app.decorate('integrationAdapterService', integrationAdapterService);
   app.decorate('workerConnectionHub', workerConnectionHub);
   app.decorate('workerService', workerService);
   app.decorate('webhookService', webhookService);
@@ -107,8 +111,14 @@ export async function buildApp() {
   const agentService = new AgentService(pool, eventService, config);
   const taskService = new TaskService(pool, eventService, config, workerConnectionHub);
   const lifecycleMonitor = startLifecycleMonitor(app.log, config, agentService, taskService, workerService);
+  const integrationDispatcher = startIntegrationDispatcher(
+    app.log,
+    integrationAdapterService,
+    eventStreamService,
+  );
 
   app.addHook('onClose', async () => {
+    integrationDispatcher.stop();
     lifecycleMonitor.stop();
     await eventStreamService.stop();
     await pool.end();
