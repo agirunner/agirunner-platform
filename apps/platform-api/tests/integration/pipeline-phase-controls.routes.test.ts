@@ -395,6 +395,10 @@ describe('pipeline phase control routes', () => {
       headers: { authorization: `Bearer ${agentKey}` },
       payload: {
         agent_id: agentId,
+        git_info: {
+          commit_hash: 'plan123',
+          linked_prs: [{ number: 42, title: 'Plan sprint one' }],
+        },
         output: {
           suggested_plan: {
             template: executionTemplate.json().data.id,
@@ -462,7 +466,10 @@ describe('pipeline phase control routes', () => {
       timelineResponse.json().data.some(
         (entry: Record<string, unknown>) =>
           entry.pipeline_id === planningPipelineId &&
-          (entry.chain as Record<string, unknown>).child_pipeline_ids?.includes(chainedPipelineId),
+          (
+            ((entry.chain as Record<string, unknown>).child_pipeline_ids as string[] | undefined) ??
+            []
+          ).includes(chainedPipelineId),
       ),
     ).toBe(true);
     expect(
@@ -472,5 +479,27 @@ describe('pipeline phase control routes', () => {
           (entry.chain as Record<string, unknown>).source_pipeline_id === planningPipelineId,
       ),
     ).toBe(true);
+
+    const planningSummary = (timelineResponse.json().data as Array<Record<string, unknown>>).find(
+      (entry) => entry.pipeline_id === planningPipelineId,
+    ) as Record<string, unknown>;
+    expect(planningSummary.kind).toBe('run_summary');
+    expect(planningSummary.phase_metrics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'planning',
+          task_counts: expect.objectContaining({ completed: 1, total: 1 }),
+          gate_history: expect.arrayContaining([
+            expect.objectContaining({ action: 'approved' }),
+          ]),
+        }),
+      ]),
+    );
+    expect(planningSummary.produced_artifacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'commit', commit_hash: 'plan123' }),
+        expect.objectContaining({ kind: 'pull_request' }),
+      ]),
+    );
   });
 });

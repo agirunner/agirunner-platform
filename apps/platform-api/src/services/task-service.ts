@@ -8,22 +8,20 @@ import { EventService } from './event-service.js';
 import { TaskClaimService } from './task-claim-service.js';
 import { TaskLifecycleService } from './task-lifecycle-service.js';
 import { PipelineStateService } from './pipeline-state-service.js';
+import { ProjectTimelineService } from './project-timeline-service.js';
 import { TaskQueryService } from './task-query-service.js';
 import { TaskTimeoutService } from './task-timeout-service.js';
 import type { CreateTaskInput, ListTaskQuery, TaskServiceConfig } from './task-service.types.js';
 import type { WorkerConnectionHub } from './worker-connection-hub.js';
 import { TaskWriteService } from './task-write-service.js';
 import { OrchestratorGrantService } from './orchestrator-grant-service.js';
-
 const DEFAULT_CANCEL_SIGNAL_GRACE_PERIOD_MS = 60_000;
-
 export class TaskService {
   private readonly queryService: TaskQueryService;
   private readonly writeService: TaskWriteService;
   private readonly lifecycleService: TaskLifecycleService;
   private readonly claimService: TaskClaimService;
   private readonly timeoutService: TaskTimeoutService;
-
   constructor(
     pool: DatabasePool,
     eventService: EventService,
@@ -116,6 +114,7 @@ export class TaskService {
       pool,
       createArtifactStorage(buildArtifactStorageConfig(config)),
     );
+    const projectTimelineService = new ProjectTimelineService(pool);
     const artifactService = new ArtifactService(
       pool,
       createArtifactStorage(buildArtifactStorageConfig(config)),
@@ -125,6 +124,7 @@ export class TaskService {
       pool,
       eventService,
       artifactRetentionService,
+      projectTimelineService,
     );
     this.lifecycleService = new TaskLifecycleService({
       pool,
@@ -159,23 +159,18 @@ export class TaskService {
   listTasks(tenantId: string, query: ListTaskQuery) {
     return this.queryService.listTasks(tenantId, query);
   }
-
   getTask(tenantId: string, taskId: string) {
     return this.queryService.getTask(tenantId, taskId);
   }
-
   getTaskGitActivity(tenantId: string, taskId: string) {
     return this.queryService.getTaskGitActivity(tenantId, taskId);
   }
-
   updateTask(tenantId: string, taskId: string, payload: Record<string, unknown>) {
     return this.writeService.updateTask(tenantId, taskId, payload);
   }
-
   getTaskContext(tenantId: string, taskId: string, agentId?: string) {
     return this.queryService.getTaskContext(tenantId, taskId, agentId);
   }
-
   claimTask(
     identity: ApiKeyIdentity,
     payload: {
@@ -188,7 +183,6 @@ export class TaskService {
   ) {
     return this.claimService.claimTask(identity, payload);
   }
-
   startTask(
     identity: ApiKeyIdentity,
     taskId: string,
@@ -196,7 +190,6 @@ export class TaskService {
   ) {
     return this.lifecycleService.startTask(identity, taskId, payload);
   }
-
   completeTask(
     identity: ApiKeyIdentity,
     taskId: string,

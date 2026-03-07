@@ -1,9 +1,12 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import type { StoredWorkflowDefinition } from '../orchestration/workflow-model.js';
 import { readStoredWorkflow, readWorkflowRuntimeState, deriveWorkflowView } from '../orchestration/workflow-runtime.js';
+import { buildRunSummary, buildRunSummaryFallback } from './project-run-summary.js';
 
 const PROJECT_TIMELINE_KEY = 'project_timeline';
 const PROJECT_LAST_SUMMARY_KEY = 'last_pipeline_summary';
+const PROJECT_RUN_SUMMARIES_KEY = 'run_summaries';
+const PROJECT_LAST_RUN_SUMMARY_KEY = 'last_run_summary';
 
 export class ProjectTimelineService {
   constructor(private readonly pool: DatabasePool) {}
@@ -31,7 +34,41 @@ export class ProjectTimelineService {
       [tenantId, pipelineId],
     );
     const tasks = tasksResult.rows.map((row) => row as Record<string, unknown>);
-    const summary = buildPipelineSummary(pipeline, tasks);
+    const artifactsResult = await db.query(
+      `SELECT id, task_id, logical_path, content_type, size_bytes, created_at
+         FROM pipeline_artifacts
+        WHERE tenant_id = $1
+          AND pipeline_id = $2
+        ORDER BY created_at ASC`,
+      [tenantId, pipelineId],
+    );
+    const eventsResult = await db.query(
+      `SELECT type, actor_type, actor_id, data, created_at
+         FROM events
+        WHERE tenant_id = $1
+          AND entity_type = 'pipeline'
+          AND entity_id = $2
+          AND type = ANY($3::text[])
+        ORDER BY created_at ASC`,
+      [
+        tenantId,
+        pipelineId,
+        [
+          'phase.started',
+          'phase.completed',
+          'phase.gate.awaiting_approval',
+          'phase.gate.approved',
+          'phase.gate.rejected',
+          'phase.gate.request_changes',
+        ],
+      ],
+    );
+    const summary = buildPipelineSummary(
+      pipeline,
+      tasks,
+      artifactsResult.rows as Array<Record<string, unknown>>,
+      eventsResult.rows as Array<Record<string, unknown>>,
+    );
 
     await db.query(
       `UPDATE pipelines
@@ -39,7 +76,7 @@ export class ProjectTimelineService {
               updated_at = now()
         WHERE tenant_id = $1
           AND id = $2`,
-      [tenantId, pipelineId, { timeline_summary: summary }],
+      [tenantId, pipelineId, { timeline_summary: summary, run_summary: summary }],
     );
 
     const projectResult = await db.query(
@@ -72,6 +109,8 @@ export class ProjectTimelineService {
           ...currentMemory,
           [PROJECT_TIMELINE_KEY]: nextTimeline,
           [PROJECT_LAST_SUMMARY_KEY]: summary,
+          [PROJECT_RUN_SUMMARIES_KEY]: nextTimeline,
+          [PROJECT_LAST_RUN_SUMMARY_KEY]: summary,
         },
       ],
     );
@@ -91,7 +130,11 @@ export class ProjectTimelineService {
 
     return pipelinesResult.rows.map((row) => {
       const metadata = asRecord(row.metadata);
-      return metadata.timeline_summary ?? buildTimelineFallback(row as Record<string, unknown>);
+      return (
+        metadata.run_summary ??
+        metadata.timeline_summary ??
+        buildTimelineFallback(row as Record<string, unknown>)
+      );
     });
   }
 }
@@ -99,67 +142,38 @@ export class ProjectTimelineService {
 function buildPipelineSummary(
   pipeline: Record<string, unknown>,
   tasks: Array<Record<string, unknown>>,
+  artifacts: Array<Record<string, unknown>>,
+  events: Array<Record<string, unknown>>,
 ) {
   const metadata = asRecord(pipeline.metadata);
   const workflow = readStoredWorkflow(metadata.workflow) as StoredWorkflowDefinition | null;
   const workflowRuntime = readWorkflowRuntimeState(metadata.workflow_runtime);
   const workflowView = deriveWorkflowView(workflow, tasks, workflowRuntime);
-  const byState = countBy(tasks.map((task) => String(task.state)));
-  const totalRework = tasks.reduce((sum, task) => sum + Number(task.rework_count ?? 0), 0);
-
-  return {
-    pipeline_id: String(pipeline.id),
-    name: String(pipeline.name),
-    state: String(pipeline.state),
-    created_at: pipeline.created_at,
-    started_at: pipeline.started_at ?? null,
-    completed_at: pipeline.completed_at ?? null,
-    task_counts: byState,
-    rework_cycles: totalRework,
-    phase_progression: workflowView.phases.map((phase) => ({
-      name: phase.name,
-      status: phase.status,
-      gate_status: phase.gate_status,
-      completed_tasks: phase.progress.completed_tasks,
-      total_tasks: phase.progress.total_tasks,
+  return buildRunSummary({
+    pipeline,
+    tasks,
+    workflow,
+    workflowView,
+    artifacts: artifacts.map((row) => ({
+      id: String(row.id),
+      task_id: String(row.task_id),
+      logical_path: String(row.logical_path),
+      content_type: String(row.content_type),
+      size_bytes: Number(row.size_bytes ?? 0),
+      created_at: new Date(String(row.created_at)),
     })),
-    chain: {
-      source_pipeline_id: metadata.chain_source_pipeline_id ?? null,
-      child_pipeline_ids: Array.isArray(metadata.child_pipeline_ids)
-        ? metadata.child_pipeline_ids
-        : [],
-    },
-    link: `/pipelines/${String(pipeline.id)}`,
-  };
+    events: events.map((row) => ({
+      type: String(row.type),
+      actor_type: String(row.actor_type),
+      actor_id: typeof row.actor_id === 'string' ? row.actor_id : null,
+      data: asRecord(row.data),
+      created_at: new Date(String(row.created_at)),
+    })),
+  });
 }
 
 function buildTimelineFallback(pipeline: Record<string, unknown>) {
-  const metadata = asRecord(pipeline.metadata);
-  return {
-    pipeline_id: String(pipeline.id),
-    name: String(pipeline.name),
-    state: String(pipeline.state),
-    created_at: pipeline.created_at,
-    started_at: pipeline.started_at ?? null,
-    completed_at: pipeline.completed_at ?? null,
-    task_counts: {},
-    rework_cycles: 0,
-    phase_progression: [],
-    chain: {
-      source_pipeline_id: metadata.chain_source_pipeline_id ?? null,
-      child_pipeline_ids: Array.isArray(metadata.child_pipeline_ids)
-        ? metadata.child_pipeline_ids
-        : [],
-    },
-    link: `/pipelines/${String(pipeline.id)}`,
-  };
-}
-
-function countBy(values: string[]) {
-  return values.reduce<Record<string, number>>((acc, value) => {
-    acc[value] = (acc[value] ?? 0) + 1;
-    return acc;
-  }, {});
+  return buildRunSummaryFallback(pipeline);
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

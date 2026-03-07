@@ -223,6 +223,90 @@ describe('context and memory coverage', () => {
     expect(p2Row.rows[0].context).toEqual({ log: ['entry-2'], version: 2 });
   });
 
+  it('covers FR-724/FR-725/FR-731 by carrying run summaries into the next pipeline context', async () => {
+    const projectId = randomUUID();
+    const agentId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO projects (id, tenant_id, name, slug, memory)
+       VALUES ($1,$2,'Continuity Project','continuity-project',$3::jsonb)`,
+      [projectId, tenantId, JSON.stringify({ handbook: 'v2' })],
+    );
+    await db.pool.query(
+      `INSERT INTO agents (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds)
+       VALUES ($1,$2,'continuity-agent',ARRAY['workflow'],'idle',30)`,
+      [agentId, tenantId],
+    );
+
+    const template = await templateService.createTemplate(admin, {
+      name: 'continuity-template',
+      slug: `continuity-template-${Date.now()}`,
+      schema: {
+        tasks: [{ id: 'plan', title_template: 'Plan', type: 'orchestration' }],
+        workflow: {
+          phases: [{ name: 'planning', gate: 'manual', tasks: ['plan'] }],
+        },
+      },
+    });
+
+    const firstPipeline = await pipelineService.createPipeline(admin, {
+      template_id: template.id as string,
+      name: 'continuity-1',
+      project_id: projectId,
+    });
+    const firstTaskId = (firstPipeline.tasks as Array<Record<string, unknown>>)[0].id as string;
+    const agentIdentity = {
+      id: 'agent',
+      tenantId,
+      scope: 'agent' as const,
+      ownerType: 'agent',
+      ownerId: agentId,
+      keyPrefix: 'agent',
+    };
+
+    await taskService.claimTask(agentIdentity, {
+      agent_id: agentId,
+      capabilities: ['workflow'],
+      pipeline_id: firstPipeline.id as string,
+    });
+    await taskService.startTask(agentIdentity, firstTaskId, { agent_id: agentId });
+    await taskService.completeTask(agentIdentity, firstTaskId, {
+      agent_id: agentId,
+      output: { accepted: true },
+      git_info: { commit_hash: 'abc123' },
+    });
+    await pipelineService.actOnPhaseGate(admin, firstPipeline.id as string, 'planning', {
+      action: 'approve',
+    });
+
+    const secondPipeline = await pipelineService.createPipeline(admin, {
+      template_id: template.id as string,
+      name: 'continuity-2',
+      project_id: projectId,
+    });
+    const secondTaskId = (secondPipeline.tasks as Array<Record<string, unknown>>)[0].id as string;
+
+    const context = await taskService.getTaskContext(tenantId, secondTaskId, agentId);
+    const projectMemory = (context.project as { memory: Record<string, unknown> }).memory;
+    const runSummaries = projectMemory.run_summaries as Array<Record<string, unknown>>;
+
+    expect(projectMemory.handbook).toBe('v2');
+    expect(projectMemory.last_run_summary).toEqual(
+      expect.objectContaining({
+        kind: 'run_summary',
+        pipeline_id: firstPipeline.id,
+      }),
+    );
+    expect(runSummaries[0]).toEqual(
+      expect.objectContaining({
+        kind: 'run_summary',
+        pipeline_id: firstPipeline.id,
+        produced_artifacts: expect.arrayContaining([
+          expect.objectContaining({ kind: 'commit', commit_hash: 'abc123' }),
+        ]),
+      }),
+    );
+  });
+
   it('covers FR-206/FR-207/FR-208/FR-209 sub-task inheritance and parent completion cascade basis', async () => {
     const projectId = randomUUID();
     await db.pool.query(

@@ -2,12 +2,17 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 import { PipelineService } from './pipeline-service.js';
+import { ProjectTimelineService } from './project-timeline-service.js';
 
 export class PipelineChainingService {
+  private readonly projectTimelineService: ProjectTimelineService;
+
   constructor(
     private readonly pool: DatabasePool,
     private readonly pipelineService: PipelineService,
-  ) {}
+  ) {
+    this.projectTimelineService = new ProjectTimelineService(pool);
+  }
 
   async chainPipelineFromSuggestedPlan(
     identity: ApiKeyIdentity,
@@ -75,6 +80,12 @@ export class PipelineChainingService {
         },
       ],
     );
+    if (isTerminalPipelineState(sourcePipeline.state)) {
+      await this.projectTimelineService.recordPipelineTerminalState(
+        identity.tenantId,
+        sourcePipelineId,
+      );
+    }
 
     return nextPipeline;
   }
@@ -115,4 +126,8 @@ function asRecord(value: unknown): Record<string, unknown> {
     return {};
   }
   return value as Record<string, unknown>;
+}
+
+function isTerminalPipelineState(value: unknown) {
+  return value === 'completed' || value === 'failed' || value === 'cancelled';
 }
