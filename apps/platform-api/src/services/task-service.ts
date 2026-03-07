@@ -279,6 +279,14 @@ export class TaskService {
     return this.lifecycleService.escalateTask(identity, taskId, payload);
   }
 
+  respondToEscalation(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: { instructions: string; context?: Record<string, unknown> },
+  ) {
+    return this.lifecycleService.respondToEscalation(identity, taskId, payload);
+  }
+
   overrideTaskOutput(
     identity: ApiKeyIdentity,
     taskId: string,

@@ -27,6 +27,7 @@ interface TransitionOptions {
   verification?: Record<string, unknown>;
   reason?: string;
   retryIncrement?: boolean;
+  reworkIncrement?: boolean;
   clearAssignment?: boolean;
   clearExecutionData?: boolean;
   clearLifecycleControlMetadata?: boolean;
@@ -236,6 +237,7 @@ export class TaskLifecycleService {
       }
 
       if (options.retryIncrement) updateFragments.push('retry_count = retry_count + 1');
+      if (options.reworkIncrement) updateFragments.push('rework_count = rework_count + 1');
       if (options.clearAssignment)
         updateFragments.push(
           'assigned_agent_id = NULL',
@@ -592,6 +594,68 @@ export class TaskLifecycleService {
       ...asRecord(task.input),
       review_feedback: payload.feedback,
     };
+    const lifecyclePolicy = readPersistedLifecyclePolicy(task.metadata);
+    const nextReworkCount = Number(task.rework_count ?? 0) + 1;
+    const maxReworkCount = lifecyclePolicy?.rework?.max_cycles ?? 3;
+
+    if (nextReworkCount > maxReworkCount) {
+      return this.applyStateTransition(identity, taskId, 'failed', {
+        expectedStates: [
+          'awaiting_approval',
+          'output_pending_review',
+          'completed',
+          'failed',
+          'cancelled',
+        ],
+        clearAssignment: true,
+        clearLifecycleControlMetadata: true,
+        reworkIncrement: true,
+        metadataPatch: {
+          review_feedback: payload.feedback,
+          review_action: 'request_changes',
+          review_updated_at: new Date().toISOString(),
+          max_rework_exceeded_at: new Date().toISOString(),
+          ...(payload.preferred_agent_id ? { preferred_agent_id: payload.preferred_agent_id } : {}),
+          ...(payload.preferred_worker_id
+            ? { preferred_worker_id: payload.preferred_worker_id }
+            : {}),
+        },
+        error: {
+          category: 'max_rework_exceeded',
+          message: payload.feedback,
+          recoverable: false,
+        },
+        afterUpdate: async (updatedTask, client) => {
+          await this.deps.eventService.emit(
+            {
+              tenantId: identity.tenantId,
+              type: 'task.max_rework_exceeded',
+              entityType: 'task',
+              entityId: taskId,
+              actorType: identity.scope,
+              actorId: identity.keyPrefix,
+              data: {
+                rework_count: updatedTask.rework_count,
+                max_rework_count: maxReworkCount,
+              },
+            },
+            client,
+          );
+          await this.maybeCreateEscalationTask(
+            identity,
+            updatedTask,
+            lifecyclePolicy,
+            {
+              category: 'max_rework_exceeded',
+              retryable: false,
+              recoverable: false,
+            },
+            client,
+          );
+        },
+        reason: 'max_rework_exceeded',
+      });
+    }
 
     return this.applyStateTransition(identity, taskId, 'ready', {
       expectedStates: [
@@ -605,6 +669,7 @@ export class TaskLifecycleService {
       clearExecutionData: true,
       clearLifecycleControlMetadata: true,
       clearEscalationMetadata: true,
+      reworkIncrement: true,
       retryIncrement: true,
       overrideInput: nextInput,
       metadataPatch: {
@@ -741,6 +806,73 @@ export class TaskLifecycleService {
     });
   }
 
+  async respondToEscalation(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: { instructions: string; context?: Record<string, unknown> },
+  ) {
+    const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
+    const metadata = asRecord(task.metadata);
+    const escalationTaskId =
+      typeof metadata.escalation_task_id === 'string' ? metadata.escalation_task_id : null;
+    if (!escalationTaskId) {
+      throw new ConflictError('Task does not have a pending escalation task');
+    }
+
+    const escalationTask = await this.deps.loadTaskOrThrow(identity.tenantId, escalationTaskId);
+    const nextInput = {
+      ...asRecord(escalationTask.input),
+      human_escalation_response: {
+        instructions: payload.instructions,
+        context: payload.context ?? {},
+        responded_at: new Date().toISOString(),
+        responded_by: identity.keyPrefix,
+      },
+    };
+
+    const client = await this.deps.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `UPDATE tasks
+            SET input = $3::jsonb,
+                metadata = metadata || $4::jsonb,
+                updated_at = now()
+          WHERE tenant_id = $1
+            AND id = $2`,
+        [
+          identity.tenantId,
+          escalationTaskId,
+          nextInput,
+          {
+            human_escalation_response_at: new Date().toISOString(),
+          },
+        ],
+      );
+      await this.deps.eventService.emit(
+        {
+          tenantId: identity.tenantId,
+          type: 'task.escalation_response_recorded',
+          entityType: 'task',
+          entityId: taskId,
+          actorType: identity.scope,
+          actorId: identity.keyPrefix,
+          data: {
+            escalation_task_id: escalationTaskId,
+          },
+        },
+        client,
+      );
+      await client.query('COMMIT');
+      return this.deps.toTaskResponse(await this.deps.loadTaskOrThrow(identity.tenantId, escalationTaskId));
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   private async maybeCreateEscalationTask(
     identity: ApiKeyIdentity,
     task: Record<string, unknown>,
@@ -826,6 +958,22 @@ export class TaskLifecycleService {
       {
         tenantId: identity.tenantId,
         type: 'task.escalated',
+        entityType: 'task',
+        entityId: String(task.id),
+        actorType: 'system',
+        actorId: 'lifecycle_policy',
+        data: {
+          escalation_task_id: escalationTask.id,
+          failure,
+          role: escalation.role,
+        },
+      },
+      client,
+    );
+    await this.deps.eventService.emit(
+      {
+        tenantId: identity.tenantId,
+        type: 'task.escalation',
         entityType: 'task',
         entityId: String(task.id),
         actorType: 'system',

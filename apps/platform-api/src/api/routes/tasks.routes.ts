@@ -105,6 +105,11 @@ const escalateSchema = z.object({
   escalation_target: z.string().max(255).optional(),
 });
 
+const escalationResponseSchema = z.object({
+  instructions: z.string().min(1).max(4000),
+  context: z.record(z.unknown()).optional(),
+});
+
 const overrideOutputSchema = z.object({
   output: z.unknown(),
   reason: z.string().min(1).max(4000),
@@ -343,6 +348,17 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(escalateSchema.safeParse(request.body));
       const task = await taskService.escalateTask(request.auth!, params.id, body);
+      return { data: task };
+    },
+  );
+
+  app.post(
+    '/api/v1/tasks/:id/escalation-response',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(escalationResponseSchema.safeParse(request.body));
+      const task = await taskService.respondToEscalation(request.auth!, params.id, body);
       return { data: task };
     },
   );

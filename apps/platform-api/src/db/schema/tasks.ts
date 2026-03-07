@@ -54,6 +54,7 @@ export const tasks = pgTable(
     autoRetry: boolean('auto_retry').notNull().default(false),
     maxRetries: integer('max_retries').notNull().default(0),
     retryCount: integer('retry_count').notNull().default(0),
+    reworkCount: integer('rework_count').notNull().default(0),
     completedAt: timestamp('completed_at', { withTimezone: true }),
     metrics: jsonb('metrics'),
     gitInfo: jsonb('git_info'),

@@ -309,6 +309,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         state: 'output_pending_review',
         pipeline_id: null,
         input: { summary: 'old output' },
+        rework_count: 0,
         metadata: {},
       }),
       toTaskResponse: (task) => task,
@@ -344,6 +345,104 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         expect.objectContaining({ review_feedback: 'Fix the failing assertions' }),
         expect.objectContaining({ review_action: 'request_changes', preferred_agent_id: 'agent-2' }),
       ]),
+    );
+  });
+
+  it('fails and escalates when request-changes exceeds the configured max rework count', async () => {
+    const eventService = { emit: vi.fn() };
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-max-rework',
+                state: 'failed',
+                pipeline_id: 'pipe-1',
+                title: 'Compile',
+                role: 'builder',
+                timeout_minutes: 15,
+                rework_count: 3,
+                metadata: {
+                  lifecycle_policy: {
+                    rework: { max_cycles: 2 },
+                    escalation: {
+                      enabled: true,
+                      role: 'orchestrator',
+                      task_type: 'orchestration',
+                      title_template: 'Escalation: {{task_title}}',
+                    },
+                  },
+                },
+              },
+            ],
+          };
+        }
+        if (sql.startsWith('INSERT INTO tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{ id: 'escalation-2' }],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-max-rework',
+        state: 'output_pending_review',
+        pipeline_id: 'pipe-1',
+        title: 'Compile',
+        role: 'builder',
+        timeout_minutes: 15,
+        rework_count: 2,
+        input: {},
+        metadata: {
+          lifecycle_policy: {
+            rework: { max_cycles: 2 },
+            escalation: {
+              enabled: true,
+              role: 'orchestrator',
+              task_type: 'orchestration',
+              title_template: 'Escalation: {{task_title}}',
+            },
+          },
+        },
+      }),
+      toTaskResponse: (task) => task,
+    });
+
+    const result = await service.requestTaskChanges(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'task-max-rework',
+      {
+        feedback: 'Still broken',
+      },
+    );
+
+    expect(result.state).toBe('failed');
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'task.max_rework_exceeded' }),
+      expect.anything(),
+    );
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'task.escalation' }),
+      expect.anything(),
     );
   });
 
@@ -595,5 +694,66 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       expect.objectContaining({ type: 'task.escalated' }),
       expect.anything(),
     );
+  });
+
+  it('records structured human escalation input onto the escalation task', async () => {
+    const loadTaskOrThrow = vi
+      .fn()
+      .mockResolvedValueOnce({
+        id: 'source-task',
+        metadata: { escalation_task_id: 'escalation-task' },
+      })
+      .mockResolvedValueOnce({
+        id: 'escalation-task',
+        input: { source_task_id: 'source-task' },
+        metadata: {},
+      })
+      .mockResolvedValueOnce({
+        id: 'escalation-task',
+        input: {
+          source_task_id: 'source-task',
+          human_escalation_response: { instructions: 'Need a product decision' },
+        },
+        metadata: {},
+      });
+
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        return { rows: [], rowCount: 1 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      pipelineStateService: { recomputePipelineState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow,
+      toTaskResponse: (task) => task,
+    });
+
+    const result = await service.respondToEscalation(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'source-task',
+      {
+        instructions: 'Need a product decision',
+        context: { requested_by: 'ops' },
+      },
+    );
+
+    expect(result.input).toMatchObject({
+      human_escalation_response: {
+        instructions: 'Need a product decision',
+      },
+    });
   });
 });

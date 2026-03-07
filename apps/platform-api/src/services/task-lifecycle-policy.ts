@@ -19,9 +19,14 @@ export interface EscalationPolicy {
   enabled: boolean;
 }
 
+export interface ReworkPolicy {
+  max_cycles: number;
+}
+
 export interface LifecyclePolicy {
   retry_policy?: RetryPolicy;
   escalation?: EscalationPolicy;
+  rework?: ReworkPolicy;
 }
 
 const allowedStrategies = new Set<RetryBackoffStrategy>(['fixed', 'linear', 'exponential']);
@@ -37,12 +42,14 @@ export function readTemplateLifecyclePolicy(value: unknown, fieldName: string): 
 
   const retryPolicy = normalizeRetryPolicy(value.retry_policy, `${fieldName}.retry_policy`);
   const escalation = normalizeEscalationPolicy(value.escalation, `${fieldName}.escalation`);
-  if (!retryPolicy && !escalation) {
+  const rework = normalizeReworkPolicy(value.rework, `${fieldName}.rework`);
+  if (!retryPolicy && !escalation && !rework) {
     return undefined;
   }
   return {
     ...(retryPolicy ? { retry_policy: retryPolicy } : {}),
     ...(escalation ? { escalation } : {}),
+    ...(rework ? { rework } : {}),
   };
 }
 
@@ -57,8 +64,10 @@ export function mergeLifecyclePolicy(
   return {
     ...(base?.retry_policy ? { retry_policy: cloneRetryPolicy(base.retry_policy) } : {}),
     ...(base?.escalation ? { escalation: cloneEscalationPolicy(base.escalation) } : {}),
+    ...(base?.rework ? { rework: cloneReworkPolicy(base.rework) } : {}),
     ...(override?.retry_policy ? { retry_policy: cloneRetryPolicy(override.retry_policy) } : {}),
     ...(override?.escalation ? { escalation: cloneEscalationPolicy(override.escalation) } : {}),
+    ...(override?.rework ? { rework: cloneReworkPolicy(override.rework) } : {}),
   };
 }
 
@@ -154,6 +163,26 @@ function cloneEscalationPolicy(policy: EscalationPolicy): EscalationPolicy {
   return {
     ...policy,
   };
+}
+
+function normalizeReworkPolicy(value: unknown, fieldName: string): ReworkPolicy | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (!isRecord(value)) {
+    throw new ValidationError(`${fieldName} must be an object`);
+  }
+
+  const maxCycles = Number(value.max_cycles ?? 3);
+  if (!Number.isInteger(maxCycles) || maxCycles < 1) {
+    throw new ValidationError(`${fieldName}.max_cycles must be a positive integer`);
+  }
+
+  return { max_cycles: maxCycles };
+}
+
+function cloneReworkPolicy(policy: ReworkPolicy): ReworkPolicy {
+  return { ...policy };
 }
 
 function isRecord(value: unknown): value is RecordValue {
