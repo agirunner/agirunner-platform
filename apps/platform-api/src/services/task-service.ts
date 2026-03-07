@@ -1,4 +1,5 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
+import { ArtifactService } from './artifact-service.js';
 import { buildArtifactStorageConfig } from '../content/storage-config.js';
 import { createArtifactStorage } from '../content/storage-factory.js';
 import type { DatabasePool } from '../db/database.js';
@@ -111,6 +112,11 @@ export class TaskService {
       pool,
       createArtifactStorage(buildArtifactStorageConfig(config)),
     );
+    const artifactService = new ArtifactService(
+      pool,
+      createArtifactStorage(buildArtifactStorageConfig(config)),
+      config.ARTIFACT_ACCESS_URL_TTL_SECONDS ?? 900,
+    );
     const pipelineStateService = new PipelineStateService(
       pool,
       eventService,
@@ -120,6 +126,7 @@ export class TaskService {
       pool,
       eventService,
       pipelineStateService,
+      artifactService,
       loadTaskOrThrow: this.queryService.loadTaskOrThrow.bind(this.queryService),
       toTaskResponse: this.queryService.toTaskResponse.bind(this.queryService),
       queueWorkerCancelSignal,

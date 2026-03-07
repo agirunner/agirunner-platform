@@ -1,7 +1,13 @@
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { EventService } from '../../src/services/event-service.js';
 import { PipelineService } from '../../src/services/pipeline-service.js';
+import { TaskService } from '../../src/services/task-service.js';
 import { TemplateService } from '../../src/services/template-service.js';
 import { validateTemplateSchema } from '../../src/orchestration/pipeline-engine.js';
 import { startTestDatabase, stopTestDatabase, type TestDatabase } from '../helpers/postgres.js';
@@ -12,6 +18,7 @@ const config = {
   TASK_DEFAULT_TIMEOUT_MINUTES: 30,
   TASK_DEFAULT_AUTO_RETRY: false,
   TASK_DEFAULT_MAX_RETRIES: 0,
+  ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
 };
 
 const admin = {
@@ -27,15 +34,26 @@ describe('pipeline + template full coverage', () => {
   let db: TestDatabase;
   let templateService: TemplateService;
   let pipelineService: PipelineService;
+  let taskService: TaskService;
+  let artifactRoot: string;
 
   beforeAll(async () => {
     db = await startTestDatabase();
+    artifactRoot = await mkdtemp(path.join(os.tmpdir(), 'agentbaton-platform-state-'));
     const eventService = new EventService(db.pool);
     templateService = new TemplateService(db.pool, eventService);
-    pipelineService = new PipelineService(db.pool, eventService, config);
+    pipelineService = new PipelineService(db.pool, eventService, {
+      ...config,
+      ARTIFACT_LOCAL_ROOT: artifactRoot,
+    });
+    taskService = new TaskService(db.pool, eventService, {
+      ...config,
+      ARTIFACT_LOCAL_ROOT: artifactRoot,
+    });
   });
 
   afterAll(async () => {
+    await rm(artifactRoot, { recursive: true, force: true });
     await stopTestDatabase(db);
   });
 
@@ -127,6 +145,110 @@ describe('pipeline + template full coverage', () => {
       [tenantId, pipeline.id],
     );
     expect(eventRows.rows.some((row) => row.type === 'pipeline.created')).toBe(true);
+  });
+
+  it('persists output_state declarations and enforces artifact/git/diff storage on completion', async () => {
+    const template = await templateService.createTemplate(admin, {
+      name: 'state-declaration-template',
+      slug: 'state-declaration-template',
+      schema: {
+        tasks: [
+          {
+            id: 'developer',
+            title_template: 'Developer task',
+            type: 'code',
+            output_state: {
+              report: { mode: 'artifact', path: 'reports/report.json' },
+              branch: { mode: 'git', summary: 'workspace branch' },
+              patch: { mode: 'diff' },
+            },
+          },
+        ],
+      },
+    });
+
+    const pipeline = await pipelineService.createPipeline(admin, {
+      template_id: template.id as string,
+      name: 'state-declaration-pipeline',
+      metadata: {
+        artifact_retention: { mode: 'days', days: 7 },
+      },
+    });
+
+    const [task] = pipeline.tasks as Array<Record<string, unknown>>;
+    expect((task.metadata as Record<string, unknown>).output_state).toMatchObject({
+      report: { mode: 'artifact', path: 'reports/report.json' },
+      branch: { mode: 'git', summary: 'workspace branch' },
+      patch: { mode: 'diff' },
+    });
+
+    const agentId = randomUUID();
+
+    await db.pool.query(
+      `INSERT INTO agents (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds, current_task_id)
+       VALUES ($1,$2,'state-agent',ARRAY['typescript'],'busy',30,$3)`,
+      [agentId, tenantId, task.id],
+    );
+    await db.pool.query(
+      `UPDATE tasks
+          SET state = 'running',
+              assigned_agent_id = $3,
+              started_at = now(),
+              claimed_at = now()
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [tenantId, task.id, agentId],
+    );
+
+    const completed = await taskService.completeTask(
+      {
+        id: 'state-key',
+        tenantId,
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: agentId,
+        keyPrefix: 'st',
+      },
+      task.id as string,
+      {
+        output: {
+          report: { ok: true, score: 1 },
+          branch: 'baton/task-123',
+          patch:
+            'diff --git a/src/app.ts b/src/app.ts\nindex 1111111..2222222 100644\n--- a/src/app.ts\n+++ b/src/app.ts\n@@ -1 +1,2 @@\n+console.log("ok");\n',
+        },
+        git_info: {
+          branch: 'baton/task-123',
+          commit_hash: 'abc123',
+        },
+      },
+    );
+
+    expect((completed.output as Record<string, unknown>).report).toMatchObject({
+      type: 'artifact',
+      location: expect.stringContaining('artifact:'),
+    });
+    expect((completed.output as Record<string, unknown>).branch).toMatchObject({
+      type: 'git',
+      location: 'git:commit:abc123',
+    });
+    expect((completed.output as Record<string, unknown>).patch).toMatchObject({
+      type: 'diff',
+      location: expect.stringContaining(`diff:${task.id as string}/patch`),
+    });
+    expect((completed.git_info as Record<string, unknown>).declared_outputs).toMatchObject({
+      branch: 'baton/task-123',
+    });
+    expect((completed.git_info as Record<string, unknown>).declared_diffs).toMatchObject({
+      patch: expect.stringContaining('diff --git'),
+    });
+
+    const artifacts = await db.pool.query(
+      'SELECT logical_path FROM pipeline_artifacts WHERE tenant_id = $1 AND task_id = $2',
+      [tenantId, task.id],
+    );
+    expect(artifacts.rowCount).toBe(1);
+    expect(artifacts.rows[0].logical_path).toContain('reports/report.json');
   });
 
   it('covers FR-173/FR-400/FR-404/FR-700/FR-716 template validation rejects invalid dags and accepts metadata blocks', () => {

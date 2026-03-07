@@ -1,7 +1,19 @@
-import { ConflictError, CycleDetectedError, SchemaValidationFailedError } from '../errors/domain-errors.js';
+import {
+  ConflictError,
+  CycleDetectedError,
+  SchemaValidationFailedError,
+} from '../errors/domain-errors.js';
 import { parseTemplateVariables, type TemplateVariableDefinition } from './template-variables.js';
 
 export type PipelineState = 'pending' | 'active' | 'completed' | 'failed' | 'cancelled' | 'paused';
+export type OutputStorageMode = 'inline' | 'artifact' | 'git' | 'diff';
+
+export interface OutputStateDeclaration {
+  mode: OutputStorageMode;
+  path?: string;
+  media_type?: string;
+  summary?: string;
+}
 
 export interface TemplateTaskDefinition {
   id: string;
@@ -15,6 +27,7 @@ export interface TemplateTaskDefinition {
   capabilities_required?: string[];
   role_config?: Record<string, unknown>;
   environment?: Record<string, unknown>;
+  output_state?: Record<string, OutputStateDeclaration>;
   timeout_minutes?: number;
   auto_retry?: boolean;
   max_retries?: number;
@@ -88,6 +101,7 @@ const allowedTaskTypes = new Set([
   'orchestration',
   'custom',
 ]);
+const allowedOutputStorageModes = new Set<OutputStorageMode>(['inline', 'artifact', 'git', 'diff']);
 
 export function derivePipelineState(taskStates: string[]): PipelineState {
   if (taskStates.length === 0) {
@@ -172,6 +186,71 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
+function normalizeOutputStateDeclaration(
+  taskId: string,
+  rawValue: unknown,
+): Record<string, OutputStateDeclaration> | undefined {
+  if (rawValue === undefined) {
+    return undefined;
+  }
+  if (!isObject(rawValue)) {
+    throw new SchemaValidationFailedError(
+      `Task '${taskId}' field 'output_state' must be an object`,
+    );
+  }
+
+  const normalized: Record<string, OutputStateDeclaration> = {};
+  for (const [field, declaration] of Object.entries(rawValue)) {
+    if (typeof field !== 'string' || field.trim().length === 0) {
+      throw new SchemaValidationFailedError(
+        `Task '${taskId}' field 'output_state' contains an invalid key`,
+      );
+    }
+
+    const normalizedDeclaration =
+      typeof declaration === 'string'
+        ? { mode: declaration }
+        : isObject(declaration)
+          ? declaration
+          : null;
+    if (!normalizedDeclaration) {
+      throw new SchemaValidationFailedError(
+        `Task '${taskId}' output_state declaration for '${field}' must be a string mode or object`,
+      );
+    }
+
+    if (
+      typeof normalizedDeclaration.mode !== 'string' ||
+      !allowedOutputStorageModes.has(normalizedDeclaration.mode as OutputStorageMode)
+    ) {
+      throw new SchemaValidationFailedError(
+        `Task '${taskId}' output_state declaration for '${field}' has invalid mode '${String(normalizedDeclaration.mode)}'`,
+      );
+    }
+
+    normalized[field] = {
+      mode: normalizedDeclaration.mode as OutputStorageMode,
+      path:
+        typeof normalizedDeclaration.path === 'string' &&
+        normalizedDeclaration.path.trim().length > 0
+          ? normalizedDeclaration.path
+          : undefined,
+      media_type:
+        typeof normalizedDeclaration.media_type === 'string' &&
+        normalizedDeclaration.media_type.trim().length > 0
+          ? normalizedDeclaration.media_type
+          : undefined,
+      summary:
+        typeof normalizedDeclaration.summary === 'string' &&
+        normalizedDeclaration.summary.trim().length > 0
+          ? normalizedDeclaration.summary
+          : undefined,
+    };
+  }
+
+  return normalized;
+}
+
 export function validateTemplateSchema(input: unknown): TemplateSchema {
   assertObject(input, 'Template schema must be an object');
 
@@ -222,6 +301,7 @@ export function validateTemplateSchema(input: unknown): TemplateSchema {
         : undefined,
       role_config: isObject(rawTask.role_config) ? rawTask.role_config : undefined,
       environment: isObject(rawTask.environment) ? rawTask.environment : undefined,
+      output_state: normalizeOutputStateDeclaration(rawTask.id, rawTask.output_state),
       timeout_minutes:
         typeof rawTask.timeout_minutes === 'number' ? rawTask.timeout_minutes : undefined,
       auto_retry: rawTask.auto_retry === true,

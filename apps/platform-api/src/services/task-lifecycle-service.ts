@@ -3,9 +3,11 @@ import { validateOutputSchema } from '../built-in/output-validator.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ConflictError, ForbiddenError } from '../errors/domain-errors.js';
 import { assertValidTransition, type TaskState } from '../orchestration/task-state-machine.js';
+import type { ArtifactService } from './artifact-service.js';
 import { applyTaskCompletionSideEffects } from './task-completion-side-effects.js';
 import { EventService } from './event-service.js';
 import { PipelineStateService } from './pipeline-state-service.js';
+import { applyOutputStateDeclarations } from './task-output-storage.js';
 
 interface TransitionOptions {
   expectedStates: TaskState[];
@@ -35,6 +37,7 @@ interface TaskLifecycleDependencies {
     client?: DatabaseClient,
   ) => Promise<Record<string, unknown>>;
   toTaskResponse: (task: Record<string, unknown>) => Record<string, unknown>;
+  artifactService?: Pick<ArtifactService, 'uploadTaskArtifact' | 'deleteTaskArtifact'>;
   queueWorkerCancelSignal?: (
     identity: ApiKeyIdentity,
     workerId: string,
@@ -89,7 +92,11 @@ export class TaskLifecycleService {
 
   private extractOutputSchema(task: Record<string, unknown>): Record<string, unknown> | undefined {
     const explicitOutputSchema = task.output_schema;
-    if (explicitOutputSchema && typeof explicitOutputSchema === 'object' && !Array.isArray(explicitOutputSchema)) {
+    if (
+      explicitOutputSchema &&
+      typeof explicitOutputSchema === 'object' &&
+      !Array.isArray(explicitOutputSchema)
+    ) {
       return explicitOutputSchema as Record<string, unknown>;
     }
 
@@ -298,10 +305,7 @@ export class TaskLifecycleService {
       expectedStates: ['claimed'],
       requireAssignment: assignment,
       reason: 'task_started',
-      startedAt:
-        startedAt && Number.isFinite(startedAt.getTime())
-          ? startedAt
-          : undefined,
+      startedAt: startedAt && Number.isFinite(startedAt.getTime()) ? startedAt : undefined,
     });
   }
 
@@ -321,32 +325,58 @@ export class TaskLifecycleService {
     const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
     const outputValidation = validateOutputSchema(payload.output, this.extractOutputSchema(task));
     const verificationPassed = this.readVerificationPassed(payload.verification, payload.metrics);
+    const persisted = this.deps.artifactService
+      ? await applyOutputStateDeclarations(
+          this.deps.artifactService,
+          identity,
+          task,
+          payload.output,
+          payload.git_info,
+        )
+      : {
+          output: payload.output,
+          gitInfo: payload.git_info,
+          cleanupArtifactIds: [],
+        };
 
     const shouldMoveToOutputReview = !outputValidation.valid || verificationPassed === false;
 
-    return shouldMoveToOutputReview
-      ? this.applyStateTransition(identity, taskId, 'output_pending_review', {
-          expectedStates: ['running'],
-          requireAssignment: assignment,
-          output: payload.output,
-          metrics: payload.metrics,
-          gitInfo: payload.git_info,
-          verification: payload.verification,
-          clearAssignment: true,
-          clearLifecycleControlMetadata: true,
-          reason: !outputValidation.valid ? 'output_schema_review_required' : 'verification_review_required',
-        })
-      : this.applyStateTransition(identity, taskId, 'completed', {
-          expectedStates: ['running'],
-          requireAssignment: assignment,
-          output: payload.output,
-          metrics: payload.metrics,
-          gitInfo: payload.git_info,
-          verification: payload.verification,
-          clearAssignment: true,
-          clearLifecycleControlMetadata: true,
-          reason: 'task_completed',
-        });
+    try {
+      return shouldMoveToOutputReview
+        ? await this.applyStateTransition(identity, taskId, 'output_pending_review', {
+            expectedStates: ['running'],
+            requireAssignment: assignment,
+            output: persisted.output,
+            metrics: payload.metrics,
+            gitInfo: persisted.gitInfo,
+            verification: payload.verification,
+            clearAssignment: true,
+            clearLifecycleControlMetadata: true,
+            reason: !outputValidation.valid
+              ? 'output_schema_review_required'
+              : 'verification_review_required',
+          })
+        : await this.applyStateTransition(identity, taskId, 'completed', {
+            expectedStates: ['running'],
+            requireAssignment: assignment,
+            output: persisted.output,
+            metrics: payload.metrics,
+            gitInfo: persisted.gitInfo,
+            verification: payload.verification,
+            clearAssignment: true,
+            clearLifecycleControlMetadata: true,
+            reason: 'task_completed',
+          });
+    } catch (error) {
+      if (this.deps.artifactService) {
+        for (const artifactId of persisted.cleanupArtifactIds) {
+          await this.deps.artifactService
+            .deleteTaskArtifact(identity, taskId, artifactId)
+            .catch(() => undefined);
+        }
+      }
+      throw error;
+    }
   }
 
   async failTask(
@@ -401,7 +431,15 @@ export class TaskLifecycleService {
   ) {
     const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
     const expectedStates: TaskState[] = payload.force
-      ? ['failed', 'cancelled', 'completed', 'ready', 'pending', 'awaiting_approval', 'output_pending_review']
+      ? [
+          'failed',
+          'cancelled',
+          'completed',
+          'ready',
+          'pending',
+          'awaiting_approval',
+          'output_pending_review',
+        ]
       : ['failed'];
 
     if (!expectedStates.includes(task.state as TaskState)) {
@@ -475,18 +513,27 @@ export class TaskLifecycleService {
   async requestTaskChanges(
     identity: ApiKeyIdentity,
     taskId: string,
-    payload: { feedback: string; override_input?: Record<string, unknown>; preferred_agent_id?: string; preferred_worker_id?: string },
+    payload: {
+      feedback: string;
+      override_input?: Record<string, unknown>;
+      preferred_agent_id?: string;
+      preferred_worker_id?: string;
+    },
   ) {
     const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
-    const nextInput =
-      payload.override_input
-      ?? {
-        ...asRecord(task.input),
-        review_feedback: payload.feedback,
-      };
+    const nextInput = payload.override_input ?? {
+      ...asRecord(task.input),
+      review_feedback: payload.feedback,
+    };
 
     return this.applyStateTransition(identity, taskId, 'ready', {
-      expectedStates: ['awaiting_approval', 'output_pending_review', 'completed', 'failed', 'cancelled'],
+      expectedStates: [
+        'awaiting_approval',
+        'output_pending_review',
+        'completed',
+        'failed',
+        'cancelled',
+      ],
       clearAssignment: true,
       clearExecutionData: true,
       clearLifecycleControlMetadata: true,
@@ -497,7 +544,9 @@ export class TaskLifecycleService {
         review_action: 'request_changes',
         review_updated_at: new Date().toISOString(),
         ...(payload.preferred_agent_id ? { preferred_agent_id: payload.preferred_agent_id } : {}),
-        ...(payload.preferred_worker_id ? { preferred_worker_id: payload.preferred_worker_id } : {}),
+        ...(payload.preferred_worker_id
+          ? { preferred_worker_id: payload.preferred_worker_id }
+          : {}),
       },
       reason: 'review_requested_changes',
     });
@@ -505,7 +554,14 @@ export class TaskLifecycleService {
 
   async skipTask(identity: ApiKeyIdentity, taskId: string, payload: { reason: string }) {
     return this.applyStateTransition(identity, taskId, 'completed', {
-      expectedStates: ['pending', 'ready', 'awaiting_approval', 'output_pending_review', 'failed', 'cancelled'],
+      expectedStates: [
+        'pending',
+        'ready',
+        'awaiting_approval',
+        'output_pending_review',
+        'failed',
+        'cancelled',
+      ],
       clearAssignment: true,
       clearLifecycleControlMetadata: true,
       output: {
@@ -542,7 +598,16 @@ export class TaskLifecycleService {
     }
 
     return this.applyStateTransition(identity, taskId, 'ready', {
-      expectedStates: ['pending', 'ready', 'claimed', 'running', 'awaiting_approval', 'output_pending_review', 'failed', 'cancelled'],
+      expectedStates: [
+        'pending',
+        'ready',
+        'claimed',
+        'running',
+        'awaiting_approval',
+        'output_pending_review',
+        'failed',
+        'cancelled',
+      ],
       clearAssignment: true,
       clearExecutionData: task.state === 'output_pending_review' || task.state === 'failed',
       clearLifecycleControlMetadata: true,
@@ -557,7 +622,11 @@ export class TaskLifecycleService {
     });
   }
 
-  async escalateTask(identity: ApiKeyIdentity, taskId: string, payload: { reason: string; escalation_target?: string }) {
+  async escalateTask(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: { reason: string; escalation_target?: string },
+  ) {
     const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
     const existingEscalations = Array.isArray(asRecord(task.metadata).escalations)
       ? (asRecord(task.metadata).escalations as unknown[])
@@ -582,7 +651,11 @@ export class TaskLifecycleService {
     });
   }
 
-  async overrideTaskOutput(identity: ApiKeyIdentity, taskId: string, payload: { output: unknown; reason: string }) {
+  async overrideTaskOutput(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: { output: unknown; reason: string },
+  ) {
     return this.applyStateTransition(identity, taskId, 'completed', {
       expectedStates: ['output_pending_review', 'failed', 'cancelled', 'completed'],
       clearAssignment: true,

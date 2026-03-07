@@ -40,6 +40,7 @@ export interface ListTaskQuery {
 export type TaskServiceConfig = Pick<
   AppEnv,
   'TASK_DEFAULT_TIMEOUT_MINUTES' | 'TASK_DEFAULT_AUTO_RETRY' | 'TASK_DEFAULT_MAX_RETRIES'
-> & {
-  TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS?: number;
-} & ArtifactStorageEnv;
+> &
+  Partial<Pick<AppEnv, 'ARTIFACT_ACCESS_URL_TTL_SECONDS'>> & {
+    TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS?: number;
+  } & ArtifactStorageEnv;

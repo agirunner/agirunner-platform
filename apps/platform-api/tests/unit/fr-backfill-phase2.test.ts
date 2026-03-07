@@ -8,7 +8,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildTaskContext } from '../../src/services/task-context-service.js';
 import { buildTemplateTaskIdMap } from '../../src/services/pipeline-instantiation.js';
 import { selectLeastLoadedWorker } from '../../src/services/worker-dispatch-service.js';
-import { derivePipelineState, validateTemplateSchema } from '../../src/orchestration/pipeline-engine.js';
+import {
+  derivePipelineState,
+  validateTemplateSchema,
+} from '../../src/orchestration/pipeline-engine.js';
 import { registerWorker } from '../../src/services/worker-registration-service.js';
 import { TaskWriteService } from '../../src/services/task-write-service.js';
 import { PipelineStateService } from '../../src/services/pipeline-state-service.js';
@@ -46,15 +49,15 @@ describe('FR-192: context versioning', () => {
       return Promise.resolve({ rows: [] });
     });
 
-    const context = await buildTaskContext(
-      { query: mockQuery } as never,
-      tenantId,
-      { id: currentTaskId, depends_on: [upstreamTaskId], tenant_id: tenantId },
-    );
+    const context = await buildTaskContext({ query: mockQuery } as never, tenantId, {
+      id: currentTaskId,
+      depends_on: [upstreamTaskId],
+      tenant_id: tenantId,
+    });
 
     // context.task.upstream_outputs is built from completed upstream tasks
     expect(context).toHaveProperty('task');
-    expect((context.task as Record<string, unknown>)).toHaveProperty('upstream_outputs');
+    expect(context.task as Record<string, unknown>).toHaveProperty('upstream_outputs');
   });
 });
 
@@ -151,13 +154,27 @@ describe('FR-285: localhost bypass in dev mode', () => {
   });
 
   it('loadEnv accepts NODE_ENV values and defaults to development', () => {
-    const devEnv = loadEnv({ DATABASE_URL: 'postgres://x', JWT_SECRET: 'a'.repeat(32), WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32) });
+    const devEnv = loadEnv({
+      DATABASE_URL: 'postgres://x',
+      JWT_SECRET: 'a'.repeat(32),
+      WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32),
+    });
     expect(devEnv.NODE_ENV).toBe('development');
 
-    const testEnv = loadEnv({ DATABASE_URL: 'postgres://x', JWT_SECRET: 'a'.repeat(32), WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32), NODE_ENV: 'test' });
+    const testEnv = loadEnv({
+      DATABASE_URL: 'postgres://x',
+      JWT_SECRET: 'a'.repeat(32),
+      WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32),
+      NODE_ENV: 'test',
+    });
     expect(testEnv.NODE_ENV).toBe('test');
 
-    const prodEnv = loadEnv({ DATABASE_URL: 'postgres://x', JWT_SECRET: 'a'.repeat(32), WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32), NODE_ENV: 'production' });
+    const prodEnv = loadEnv({
+      DATABASE_URL: 'postgres://x',
+      JWT_SECRET: 'a'.repeat(32),
+      WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32),
+      NODE_ENV: 'production',
+    });
     expect(prodEnv.NODE_ENV).toBe('production');
   });
 });
@@ -202,7 +219,11 @@ describe('FR-405: output schema validation', () => {
   });
 
   it('loadEnv provides sensible defaults for all output-relevant config fields', () => {
-    const env = loadEnv({ DATABASE_URL: 'postgres://x', JWT_SECRET: 'a'.repeat(32), WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32) });
+    const env = loadEnv({
+      DATABASE_URL: 'postgres://x',
+      JWT_SECRET: 'a'.repeat(32),
+      WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32),
+    });
     // The config exists and is parseable without error
     expect(env.DATABASE_URL).toBe('postgres://x');
   });
@@ -268,6 +289,34 @@ describe('FR-SM-004: template state profile declaration', () => {
     });
     expect((schema.metadata as Record<string, unknown>)?.state_profile).toBe('sdlc');
   });
+
+  it('validateTemplateSchema accepts per-field output_state declarations', () => {
+    const schema = validateTemplateSchema({
+      tasks: [
+        {
+          id: 'task-1',
+          title_template: 'Task',
+          type: 'code',
+          output_state: {
+            report: { mode: 'artifact', path: 'reports/report.json' },
+            branch: 'git',
+            patch: { mode: 'diff' },
+          },
+        },
+      ],
+    });
+
+    expect(schema.tasks[0].output_state).toEqual({
+      report: {
+        mode: 'artifact',
+        path: 'reports/report.json',
+        media_type: undefined,
+        summary: undefined,
+      },
+      branch: { mode: 'git', path: undefined, media_type: undefined, summary: undefined },
+      patch: { mode: 'diff', path: undefined, media_type: undefined, summary: undefined },
+    });
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -277,7 +326,12 @@ describe('FR-705: cross-phase depends_on', () => {
   it('buildTemplateTaskIdMap maps all task ids including cross-phase references', () => {
     const tasks = [
       { id: 'phase1.design', title_template: 'Design', type: 'analysis' as const },
-      { id: 'phase2.build', title_template: 'Build', type: 'code' as const, depends_on: ['phase1.design'] },
+      {
+        id: 'phase2.build',
+        title_template: 'Build',
+        type: 'code' as const,
+        depends_on: ['phase1.design'],
+      },
     ];
     const idMap = buildTemplateTaskIdMap(tasks);
     expect(idMap.has('phase1.design')).toBe(true);
@@ -288,7 +342,12 @@ describe('FR-705: cross-phase depends_on', () => {
     const schema = validateTemplateSchema({
       tasks: [
         { id: 'phase1-design', title_template: 'Design', type: 'analysis' },
-        { id: 'phase2-build', title_template: 'Build', type: 'code', depends_on: ['phase1-design'] },
+        {
+          id: 'phase2-build',
+          title_template: 'Build',
+          type: 'code',
+          depends_on: ['phase1-design'],
+        },
         { id: 'phase2-test', title_template: 'Test', type: 'test', depends_on: ['phase2-build'] },
       ],
     });
@@ -320,11 +379,16 @@ describe('FR-708: phase parallel flag', () => {
       ],
       metadata: {
         workflow: {
-          phases: [{ id: 'verify', parallel: true, tasks: ['lint', 'unit-test'], gate: 'all_complete' }],
+          phases: [
+            { id: 'verify', parallel: true, tasks: ['lint', 'unit-test'], gate: 'all_complete' },
+          ],
         },
       },
     });
-    const workflow = (schema.metadata as Record<string, unknown>)?.workflow as Record<string, unknown>;
+    const workflow = (schema.metadata as Record<string, unknown>)?.workflow as Record<
+      string,
+      unknown
+    >;
     const phases = workflow?.phases as Array<Record<string, unknown>>;
     expect(phases[0].parallel).toBe(true);
   });
@@ -365,8 +429,17 @@ describe('FR-715: phase-level cancellation', () => {
       getPipeline: vi.fn().mockResolvedValue({ id: 'p1', state: 'completed', tasks: [] }),
     });
 
-    const identity = { tenantId: 't1', scope: 'admin', id: 'k1', ownerType: 'system', ownerId: null, keyPrefix: 'ab_' };
-    await expect(service.cancelPipeline(identity as never, 'p1')).rejects.toBeInstanceOf(ConflictError);
+    const identity = {
+      tenantId: 't1',
+      scope: 'admin',
+      id: 'k1',
+      ownerType: 'system',
+      ownerId: null,
+      keyPrefix: 'ab_',
+    };
+    await expect(service.cancelPipeline(identity as never, 'p1')).rejects.toBeInstanceOf(
+      ConflictError,
+    );
   });
 });
 
@@ -376,8 +449,18 @@ describe('FR-715: phase-level cancellation', () => {
 describe('FR-744: BYOK model for built-in worker', () => {
   it('selectLeastLoadedWorker picks least loaded eligible worker by capability', () => {
     const workers = [
-      { id: 'heavy', status: 'online' as const, capabilities: ['typescript', 'openclaw'], currentLoad: 10 },
-      { id: 'light', status: 'online' as const, capabilities: ['typescript', 'openclaw'], currentLoad: 2 },
+      {
+        id: 'heavy',
+        status: 'online' as const,
+        capabilities: ['typescript', 'openclaw'],
+        currentLoad: 10,
+      },
+      {
+        id: 'light',
+        status: 'online' as const,
+        capabilities: ['typescript', 'openclaw'],
+        currentLoad: 2,
+      },
       { id: 'no-cap', status: 'online' as const, capabilities: ['python'], currentLoad: 0 },
     ];
     const selected = selectLeastLoadedWorker(workers, ['openclaw']);
@@ -397,7 +480,11 @@ describe('FR-744: BYOK model for built-in worker', () => {
   });
 
   it('loadEnv provides WORKER_API_KEY_TTL_MS with a positive default', () => {
-    const env = loadEnv({ DATABASE_URL: 'postgres://x', JWT_SECRET: 'a'.repeat(32), WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32) });
+    const env = loadEnv({
+      DATABASE_URL: 'postgres://x',
+      JWT_SECRET: 'a'.repeat(32),
+      WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32),
+    });
     expect(env.WORKER_API_KEY_TTL_MS).toBeGreaterThan(0);
   });
 });
@@ -412,7 +499,9 @@ describe('FR-819: external worker deliverable validation', () => {
   });
 
   it('acknowledgeTaskAssignment is a real exported function that checks worker assignment', async () => {
-    const { acknowledgeTaskAssignment } = await import('../../src/services/worker-dispatch-repository.js');
+    const { acknowledgeTaskAssignment } = await import(
+      '../../src/services/worker-dispatch-repository.js'
+    );
     expect(typeof acknowledgeTaskAssignment).toBe('function');
   });
 
@@ -475,7 +564,12 @@ describe('FR-822: template environment section for managed workers', () => {
 
   it('buildTemplateTaskIdMap preserves all task ids including environment-configured tasks', () => {
     const taskList = [
-      { id: 'build', title_template: 'Build', type: 'code' as const, environment: { runtime: 'node' } },
+      {
+        id: 'build',
+        title_template: 'Build',
+        type: 'code' as const,
+        environment: { runtime: 'node' },
+      },
     ];
     const idMap = buildTemplateTaskIdMap(taskList);
     expect(idMap.has('build')).toBe(true);
@@ -517,6 +611,10 @@ describe('FR-824: environment declaration validation at template creation', () =
         },
       ],
     });
-    expect(schema.tasks[0].environment).toEqual({ image: 'node:22-alpine', cpu: 1, memory_mb: 256 });
+    expect(schema.tasks[0].environment).toEqual({
+      image: 'node:22-alpine',
+      cpu: 1,
+      memory_mb: 256,
+    });
   });
 });

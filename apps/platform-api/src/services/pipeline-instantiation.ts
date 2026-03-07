@@ -83,6 +83,9 @@ export async function insertTaskFromTemplate(params: {
     ? substituteTemplateVariables(task.role_config, parameters)
     : null;
   const metadata = task.metadata ? substituteTemplateVariables(task.metadata, parameters) : {};
+  if (task.output_state) {
+    metadata.output_state = substituteTemplateVariables(task.output_state, parameters);
+  }
 
   const created = await client.query(
     `INSERT INTO tasks (
