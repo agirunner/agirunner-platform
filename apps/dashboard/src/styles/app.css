@@ -55,6 +55,14 @@ a { color: var(--accent); text-decoration: none; }
 .phase-lane { display: grid; gap: 0.75rem; align-content: start; }
 .phase-task-card { display: grid; gap: 0.35rem; padding: 0.75rem; }
 .timeline-entry { display: grid; gap: 0.5rem; }
+.structured-record { display: grid; gap: 0.75rem; margin: 0; }
+.structured-record-row { display: grid; gap: 0.35rem; padding-top: 0.35rem; border-top: 1px solid var(--border); }
+.structured-record-row:first-child { border-top: none; padding-top: 0; }
+.structured-record dt { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); }
+.structured-record dd { margin: 0; }
+.structured-list { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.25rem; }
+.structured-stack { display: grid; gap: 0.5rem; }
+.structured-subsection { display: grid; gap: 0.35rem; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; }
 
 @media (max-width: 960px) {
   .layout { grid-template-columns: 1fr; }

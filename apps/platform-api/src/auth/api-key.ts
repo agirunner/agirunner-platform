@@ -3,6 +3,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 
 import type { DatabaseQueryable } from '../db/database.js';
+import { DEFAULT_ADMIN_KEY_PREFIX } from '../db/seed.js';
 import { UnauthorizedError } from '../errors/domain-errors.js';
 import { createLogger } from '../observability/logger.js';
 import type { ApiKeyScope } from './scope.js';
@@ -96,6 +97,10 @@ function deriveApiKeyLookupPrefixes(apiKeyRaw: string): string[] {
 
 export async function verifyApiKey(pool: DatabaseQueryable, apiKeyRaw: string): Promise<ApiKeyIdentity> {
   if (!isSupportedApiKeyFormat(apiKeyRaw)) {
+    const bootstrapIdentity = await verifyBootstrapApiKey(pool, apiKeyRaw);
+    if (bootstrapIdentity) {
+      return bootstrapIdentity;
+    }
     throw new UnauthorizedError('Invalid API key format');
   }
 
@@ -138,6 +143,39 @@ export async function verifyApiKey(pool: DatabaseQueryable, apiKeyRaw: string): 
   }
 
   throw new UnauthorizedError('Invalid API key');
+}
+
+async function verifyBootstrapApiKey(
+  pool: DatabaseQueryable,
+  apiKeyRaw: string,
+): Promise<ApiKeyIdentity | null> {
+  const result = await pool.query<ApiKeyRow>(
+    `SELECT k.id, k.tenant_id, k.scope, k.owner_type, k.owner_id, k.key_prefix, k.key_hash, k.expires_at, k.is_revoked,
+            t.is_active AS tenant_is_active
+     FROM api_keys k
+     JOIN tenants t ON t.id = k.tenant_id
+     WHERE k.key_prefix = $1
+     LIMIT 1`,
+    [DEFAULT_ADMIN_KEY_PREFIX],
+  );
+
+  if (!result.rowCount) {
+    await bcrypt.compare(apiKeyRaw, DUMMY_API_KEY_HASH);
+    return null;
+  }
+
+  const key = result.rows[0];
+  const hashMatches = await bcrypt.compare(apiKeyRaw, key.key_hash);
+
+  if (!hashMatches || key.is_revoked || isExpired(key.expires_at) || !key.tenant_is_active) {
+    return null;
+  }
+
+  void pool
+    .query('UPDATE api_keys SET last_used_at = now() WHERE id = $1', [key.id])
+    .catch((error) => logger.error({ err: error, keyId: key.id }, 'api_key_last_used_at_update_failed'));
+
+  return toIdentity(key);
 }
 
 export async function verifyApiKeyById(pool: DatabaseQueryable, keyId: string): Promise<ApiKeyIdentity> {

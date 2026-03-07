@@ -30,6 +30,8 @@ export const runtimeTaskSubmissionSchema = z.object({
       llm_provider: z.string().min(1).optional(),
       llm_model: z.string().min(1).optional(),
       git_token: z.string().min(1).optional(),
+      git_ssh_private_key: z.string().min(1).optional(),
+      git_ssh_known_hosts: z.string().min(1).optional(),
     })
     .default({}),
   role_config: recordSchema.default({}),
@@ -45,6 +47,13 @@ function asNonEmptyString(value: unknown): string | undefined {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function asNonEmptyRawString(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  return value.trim().length > 0 ? value : undefined;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -87,19 +96,50 @@ function asOptionalStringArray(value: unknown): string[] | undefined {
 }
 
 function extractGitToken(resourceBindings: Record<string, unknown>[]): string | undefined {
+  return extractGitCredential(resourceBindings, ['git_token', 'token', 'access_token']);
+}
+
+function extractGitCredential(
+  resourceBindings: Record<string, unknown>[],
+  candidates: string[],
+): string | undefined {
   for (const binding of resourceBindings) {
-    const bindingToken = asNonEmptyString(binding['git_token']);
-    if (bindingToken) {
-      return bindingToken;
+    for (const candidate of candidates) {
+      const bindingValue = asNonEmptyString(binding[candidate]);
+      if (bindingValue) {
+        return bindingValue;
+      }
     }
 
     const credentials = asRecord(binding['credentials']);
-    const nestedToken =
-      asNonEmptyString(credentials['git_token']) ??
-      asNonEmptyString(credentials['token']) ??
-      asNonEmptyString(credentials['access_token']);
-    if (nestedToken) {
-      return nestedToken;
+    for (const candidate of candidates) {
+      const nestedValue = asNonEmptyString(credentials[candidate]);
+      if (nestedValue) {
+        return nestedValue;
+      }
+    }
+  }
+  return undefined;
+}
+
+function extractRawGitCredential(
+  resourceBindings: Record<string, unknown>[],
+  candidates: string[],
+): string | undefined {
+  for (const binding of resourceBindings) {
+    for (const candidate of candidates) {
+      const bindingValue = asNonEmptyRawString(binding[candidate]);
+      if (bindingValue) {
+        return bindingValue;
+      }
+    }
+
+    const credentials = asRecord(binding['credentials']);
+    for (const candidate of candidates) {
+      const nestedValue = asNonEmptyRawString(credentials[candidate]);
+      if (nestedValue) {
+        return nestedValue;
+      }
     }
   }
   return undefined;
@@ -187,6 +227,7 @@ export function buildRuntimeTaskSubmission(
   const resourceBindings = asRecordArray(task.resource_bindings);
   const role = asNonEmptyString(task.role) ?? 'developer';
   const input = asRecord(task.input);
+  const inputCredentials = asRecord(input.credentials);
   const mergedRoleConfig = mergeRoleConfig(role, asRecord(task.role_config), options.defaultRoleConfigs ?? {});
 
   const submission = {
@@ -202,7 +243,18 @@ export function buildRuntimeTaskSubmission(
       llm_api_key: asNonEmptyString(options.llmApiKey),
       llm_provider: asNonEmptyString(options.llmProvider),
       llm_model: asNonEmptyString(options.llmModel),
-      git_token: asNonEmptyString(options.gitToken) ?? extractGitToken(resourceBindings),
+      git_token:
+        asNonEmptyString(options.gitToken) ??
+        asNonEmptyString(inputCredentials.git_token) ??
+        extractGitToken(resourceBindings),
+      git_ssh_private_key:
+        asNonEmptyRawString(inputCredentials.git_ssh_private_key) ??
+        asNonEmptyRawString(inputCredentials.ssh_private_key) ??
+        extractRawGitCredential(resourceBindings, ['git_ssh_private_key', 'ssh_private_key', 'private_key']),
+      git_ssh_known_hosts:
+        asNonEmptyRawString(inputCredentials.git_ssh_known_hosts) ??
+        asNonEmptyRawString(inputCredentials.ssh_known_hosts) ??
+        extractRawGitCredential(resourceBindings, ['git_ssh_known_hosts', 'ssh_known_hosts', 'known_hosts']),
     },
     role_config: mergedRoleConfig,
     environment: asRecord(task.environment),

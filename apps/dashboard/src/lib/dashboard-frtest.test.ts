@@ -72,8 +72,11 @@ describe('FR-030: modern SPA structure', () => {
   it('app includes route definitions covering all major pages', () => {
     const source = readComponent('app/app.tsx');
     expect(source).toContain('/pipelines');
+    expect(source).toContain('/projects');
     expect(source).toContain('/templates');
     expect(source).toContain('/workers');
+    expect(source).toContain('/integrations');
+    expect(source).toContain('/governance');
     expect(source).toContain('/runtime-customization');
     expect(source).toContain('/metrics');
     expect(source).toContain('/login');
@@ -163,9 +166,10 @@ describe('FR-033 / FR-034 / FR-035 / FR-035a / FR-036 / FR-213: task detail page
     expect(source).toContain('useQuery');
   });
 
-  it('task-detail-page renders JSON data view for task inspection', () => {
+  it('task-detail-page renders structured task inspection views', () => {
     const source = readComponent('pages/task-detail-page.tsx');
-    expect(source).toContain('JSON.stringify');
+    expect(source).toContain('StructuredRecordView');
+    expect(source).toContain('Execution Summary');
   });
 
   it('task-detail-page surfaces clarification and rework details beyond raw JSON', () => {
@@ -364,14 +368,55 @@ describe('FR-427: dashboard navigation and layout', () => {
   it('layout includes navigation links to all major sections', () => {
     const source = readComponent('components/layout.tsx');
     expect(source).toContain('/pipelines');
+    expect(source).toContain('/projects');
     expect(source).toContain('/templates');
     expect(source).toContain('/workers');
+    expect(source).toContain('/integrations');
+    expect(source).toContain('/governance');
     expect(source).toContain('/metrics');
+  });
+
+  it('layout includes keyboard shortcuts for the expanded operator sections', () => {
+    const source = readComponent('components/layout.tsx');
+    expect(source).toContain("event.altKey && event.key === '1'");
+    expect(source).toContain("event.altKey && event.key === '2'");
+    expect(source).toContain("event.altKey && event.key === '3'");
+    expect(source).toContain("event.altKey && event.key === '4'");
+    expect(source).toContain("event.altKey && event.key === '5'");
+    expect(source).toContain("event.altKey && event.key === '6'");
   });
 
   it('layout includes a logout control', () => {
     const source = readComponent('components/layout.tsx');
     expect(source).toContain('logout');
+  });
+});
+
+describe('operator information architecture', () => {
+  it('projects page exposes project continuity controls', () => {
+    const source = readComponent('pages/projects-page.tsx');
+    expect(source).toContain('export function ProjectsPage');
+    expect(source).toContain('Project Timeline');
+    expect(source).toContain('Run Summary');
+    expect(source).toContain('createProject');
+    expect(source).toContain('StructuredRecordView data={toolsQuery.data?.data}');
+  });
+
+  it('integrations page exposes integration lifecycle controls', () => {
+    const source = readComponent('pages/integrations-page.tsx');
+    expect(source).toContain('export function IntegrationsPage');
+    expect(source).toContain('createIntegration');
+    expect(source).toContain('updateIntegration');
+    expect(source).toContain('deleteIntegration');
+  });
+
+  it('governance page exposes retention, legal holds, and audit controls', () => {
+    const source = readComponent('pages/governance-page.tsx');
+    expect(source).toContain('export function GovernancePage');
+    expect(source).toContain('getRetentionPolicy');
+    expect(source).toContain('setTaskLegalHold');
+    expect(source).toContain('setPipelineLegalHold');
+    expect(source).toContain('listAuditLogs');
   });
 });
 

@@ -15,6 +15,7 @@ import {
   groupTasksByPhase,
   parseOverrideInput,
   parseMemoryValue,
+  readPhaseActionDraft,
   readPipelineCurrentPhase,
   readPipelinePhases,
   readPipelineProjectId,
@@ -22,8 +23,8 @@ import {
   readPipelineRunSummary,
   shouldInvalidatePipelineRealtimeEvent,
   summarizeTasks,
+  updatePhaseActionDraft,
   type DashboardPipelineTaskRow,
-  type MissionControlSummary,
 } from './pipeline-detail-support.js';
 import {
   MissionControlCard,
@@ -34,6 +35,7 @@ import {
 } from './pipeline-detail-sections.js';
 import { PipelineDocumentsCard, ProjectMemoryCard } from './pipeline-detail-content.js';
 import { invalidatePipelineQueries } from './pipeline-detail-query.js';
+import { StructuredRecordView } from '../components/structured-data.js';
 
 interface TaskListResult {
   data: DashboardPipelineTaskRow[];
@@ -44,9 +46,11 @@ export function PipelineDetailPage(): JSX.Element {
   const pipelineId = params.id ?? '';
   const queryClient = useQueryClient();
   const [feedback, setFeedback] = useState('Manual pipeline rework requested.');
-  const [phaseFeedback, setPhaseFeedback] = useState('Clarify the current phase requirements.');
-  const [overrideInput, setOverrideInput] = useState('{\n  "clarification_answers": {}\n}');
-  const [overrideError, setOverrideError] = useState<string | null>(null);
+  const [phaseDrafts, setPhaseDrafts] = useState<Record<string, {
+    feedback: string;
+    overrideInput: string;
+    overrideError: string | null;
+  }>>({});
   const [memoryKey, setMemoryKey] = useState('last_operator_note');
   const [memoryValue, setMemoryValue] = useState('{\n  "summary": ""\n}');
   const [memoryError, setMemoryError] = useState<string | null>(null);
@@ -134,15 +138,16 @@ export function PipelineDetailPage(): JSX.Element {
     phaseName: string,
     action: 'approve' | 'reject' | 'request_changes',
   ) {
-    const parsed = parseOverrideInput(overrideInput);
+    const draft = readPhaseActionDraft(phaseDrafts, phaseName);
+    const parsed = parseOverrideInput(draft.overrideInput);
     if (action === 'request_changes' && parsed.error) {
-      setOverrideError(parsed.error);
+      setPhaseDrafts((current) => updatePhaseActionDraft(current, phaseName, { overrideError: parsed.error }));
       return;
     }
-    setOverrideError(null);
+    setPhaseDrafts((current) => updatePhaseActionDraft(current, phaseName, { overrideError: null }));
     await dashboardApi.actOnPhaseGate(pipelineId, phaseName, {
       action,
-      feedback: phaseFeedback || undefined,
+      feedback: draft.feedback || undefined,
       override_input: action === 'request_changes' ? parsed.value : undefined,
     });
     await invalidatePipelineQueries(queryClient, pipelineId, projectId);
@@ -193,7 +198,10 @@ export function PipelineDetailPage(): JSX.Element {
                   <span className="status-badge">Current phase: {currentPhase}</span>
                 ) : null}
               </div>
-              <pre className="muted">{JSON.stringify(pipelineQuery.data.context ?? {}, null, 2)}</pre>
+              <StructuredRecordView
+                data={pipelineQuery.data.context}
+                emptyMessage="No pipeline context is available yet."
+              />
             </div>
           ) : null}
         </div>
@@ -215,11 +223,15 @@ export function PipelineDetailPage(): JSX.Element {
       <WorkflowSwimlanesCard
         phases={phases}
         phaseGroups={phaseGroups}
-        phaseFeedback={phaseFeedback}
-        overrideInput={overrideInput}
-        overrideError={overrideError}
-        onPhaseFeedbackChange={setPhaseFeedback}
-        onOverrideInputChange={setOverrideInput}
+        getPhaseFeedback={(phaseName) => readPhaseActionDraft(phaseDrafts, phaseName).feedback}
+        getOverrideInput={(phaseName) => readPhaseActionDraft(phaseDrafts, phaseName).overrideInput}
+        getOverrideError={(phaseName) => readPhaseActionDraft(phaseDrafts, phaseName).overrideError}
+        onPhaseFeedbackChange={(phaseName, value) =>
+          setPhaseDrafts((current) => updatePhaseActionDraft(current, phaseName, { feedback: value }))
+        }
+        onOverrideInputChange={(phaseName, value) =>
+          setPhaseDrafts((current) => updatePhaseActionDraft(current, phaseName, { overrideInput: value }))
+        }
         onApprove={(phaseName) => void handlePhaseAction(phaseName, 'approve')}
         onReject={(phaseName) => void handlePhaseAction(phaseName, 'reject')}
         onRequestChanges={(phaseName) => void handlePhaseAction(phaseName, 'request_changes')}
@@ -232,13 +244,23 @@ export function PipelineDetailPage(): JSX.Element {
           <p className="muted">Merged template, project, and run configuration for this pipeline.</p>
           {configQuery.isLoading ? <p>Loading config...</p> : null}
           {configQuery.error ? <p style={{ color: '#dc2626' }}>Failed to load resolved config.</p> : null}
-          {configQuery.data ? <pre>{JSON.stringify(configQuery.data, null, 2)}</pre> : null}
+          {configQuery.data ? (
+            <StructuredRecordView
+              data={configQuery.data}
+              emptyMessage="No resolved configuration available."
+            />
+          ) : null}
         </div>
 
         <div className="card">
           <h3>Run Summary</h3>
           <p className="muted">Continuity summary written into project memory at terminal pipeline state.</p>
-          {runSummary ? <pre>{JSON.stringify(runSummary, null, 2)}</pre> : <p className="muted">Run summary becomes available after the pipeline reaches terminal state.</p>}
+          {runSummary ? (
+            <StructuredRecordView
+              data={runSummary}
+              emptyMessage="Run summary becomes available after the pipeline reaches terminal state."
+            />
+          ) : <p className="muted">Run summary becomes available after the pipeline reaches terminal state.</p>}
         </div>
       </div>
 

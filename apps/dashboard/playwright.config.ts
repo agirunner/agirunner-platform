@@ -7,7 +7,7 @@ export default defineConfig({
     headless: true,
   },
   webServer: {
-    command: 'pnpm vite --host 127.0.0.1 --port 4173',
+    command: 'corepack pnpm exec vite --host 127.0.0.1 --port 4173',
     port: 4173,
     reuseExistingServer: true,
   },

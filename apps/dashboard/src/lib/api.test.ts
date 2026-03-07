@@ -700,7 +700,7 @@ describe('dashboard global search', () => {
     ]);
     expect(results[0].href).toBe('/pipelines/pipeline-1');
     expect(results[1].href).toBe('/tasks/task-1');
-    expect(results[2].href).toBe('/pipelines');
+    expect(results[2].href).toBe('/projects');
     expect(results[3].href).toBe('/templates');
     expect(results[4].href).toBe('/workers');
   });

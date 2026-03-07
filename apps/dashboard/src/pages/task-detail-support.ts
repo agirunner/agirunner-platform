@@ -52,6 +52,14 @@ export function readHumanEscalationResponse(task: Task | null) {
   return asRecord(input.human_escalation_response);
 }
 
+export function readExecutionSummary(task: Task | null) {
+  return {
+    metrics: asRecord((task as Task & { metrics?: unknown } | null)?.metrics),
+    verification: asRecord((task as Task & { verification?: unknown } | null)?.verification),
+    metadata: asRecord(task?.metadata),
+  };
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)

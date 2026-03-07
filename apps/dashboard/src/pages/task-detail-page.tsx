@@ -13,9 +13,11 @@ import {
   parseJsonObject,
   readClarificationAnswers,
   readClarificationHistory,
+  readExecutionSummary,
   readHumanEscalationResponse,
   readReworkDetails,
 } from './task-detail-support.js';
+import { StructuredRecordView } from '../components/structured-data.js';
 
 export function TaskDetailPage(): JSX.Element {
   const params = useParams<{ id: string }>();
@@ -84,6 +86,7 @@ export function TaskDetailPage(): JSX.Element {
   const clarificationAnswers = useMemo(() => readClarificationAnswers(taskData), [taskData]);
   const reworkDetails = useMemo(() => readReworkDetails(taskData), [taskData]);
   const humanEscalationResponse = useMemo(() => readHumanEscalationResponse(taskData), [taskData]);
+  const executionSummary = useMemo(() => readExecutionSummary(taskData), [taskData]);
 
   async function runAction(handler: () => Promise<unknown>, successMessage: string) {
     setActionError(null);
@@ -104,6 +107,14 @@ export function TaskDetailPage(): JSX.Element {
       {query.error ? <p style={{ color: '#dc2626' }}>Failed to load task</p> : null}
       {taskData ? (
         <>
+          <div className="card">
+            <div className="row" style={{ justifyContent: 'space-between' }}>
+              <strong>{taskData.title}</strong>
+              <span className={`status-badge status-${taskData.state}`}>{taskData.state}</span>
+            </div>
+            <p className="muted">Task id: {taskData.id}</p>
+          </div>
+
           <BuiltInCapabilityBadge task={taskData} />
 
           <div className="card">
@@ -227,15 +238,15 @@ export function TaskDetailPage(): JSX.Element {
               </div>
               {reworkDetails.reviewFeedback ? <p>{reworkDetails.reviewFeedback}</p> : null}
               <h4>Clarification Answers</h4>
-              <pre>{JSON.stringify(clarificationAnswers, null, 2)}</pre>
+              <StructuredRecordView data={clarificationAnswers} emptyMessage="No clarification answers recorded." />
               <h4>Clarification History</h4>
-              <pre>{JSON.stringify(clarificationHistory, null, 2)}</pre>
+              <StructuredRecordView data={{ entries: clarificationHistory }} emptyMessage="No clarification history recorded." />
             </div>
 
             <div className="card">
               <h3>Escalation Response</h3>
               <p className="muted">Latest structured human or orchestrator escalation guidance.</p>
-              <pre>{JSON.stringify(humanEscalationResponse, null, 2)}</pre>
+              <StructuredRecordView data={humanEscalationResponse} emptyMessage="No escalation response recorded." />
             </div>
           </div>
 
@@ -266,7 +277,7 @@ export function TaskDetailPage(): JSX.Element {
 
           <div className="card">
             <h3>Execution Summary</h3>
-            <pre>{JSON.stringify({ metrics: (taskData as Task & { metrics?: unknown }).metrics ?? null, verification: (taskData as Task & { verification?: unknown }).verification ?? null, metadata: taskData.metadata ?? {} }, null, 2)}</pre>
+            <StructuredRecordView data={executionSummary} emptyMessage="No execution summary available." />
           </div>
 
           <div className="card">
@@ -278,13 +289,11 @@ export function TaskDetailPage(): JSX.Element {
                 <li key={event.id}>
                   <strong>{event.type}</strong>
                   <span className="muted"> {new Date(event.created_at).toLocaleString()}</span>
-                  <pre>{JSON.stringify(event.data ?? {}, null, 2)}</pre>
+                  <StructuredRecordView data={event.data} emptyMessage="No event payload." />
                 </li>
               ))}
             </ul>
           </div>
-
-          <pre>{JSON.stringify(taskData, null, 2)}</pre>
         </>
       ) : null}
     </section>

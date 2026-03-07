@@ -27,7 +27,7 @@ export const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 export const DEFAULT_API_KEY_EXPIRY = new Date('2099-12-31T23:59:59Z');
 
 /** Fixed prefix used to detect whether the default key was already created. */
-const DEFAULT_ADMIN_KEY_PREFIX = 'ab_admin_def';
+export const DEFAULT_ADMIN_KEY_PREFIX = 'ab_admin_def';
 
 /**
  * Optional override for deterministic bootstrap in docker-compose deployments.
@@ -72,10 +72,19 @@ async function seedDefaultAdminKey(pool: pg.Pool, source: NodeJS.ProcessEnv = pr
     if (configuredKey) {
       const matches = await bcrypt.compare(configuredKey, existing.rows[0].key_hash);
       if (!matches) {
-        throw new Error(
-          `${DEFAULT_ADMIN_API_KEY_ENV} does not match the existing default admin key in the database. `
-          + 'Use the original key or reset the database volume before changing it.',
+        await pool.query(
+          `UPDATE api_keys
+           SET key_hash = $1,
+               expires_at = $2,
+               is_revoked = false
+           WHERE id = $3`,
+          [
+            await bcrypt.hash(configuredKey, 12),
+            DEFAULT_API_KEY_EXPIRY,
+            existing.rows[0].id,
+          ],
         );
+        console.info(`[seed] Default admin key rotated from ${DEFAULT_ADMIN_API_KEY_ENV}.`);
       }
     }
 
@@ -125,14 +134,8 @@ function getConfiguredDefaultAdminKey(source: NodeJS.ProcessEnv = process.env): 
   }
 
   const key = raw.trim();
-  if (!key.startsWith(DEFAULT_ADMIN_KEY_PREFIX)) {
-    throw new Error(
-      `${DEFAULT_ADMIN_API_KEY_ENV} must start with ${DEFAULT_ADMIN_KEY_PREFIX} to match bootstrap key format.`,
-    );
-  }
-
-  if (key.length < 20) {
-    throw new Error(`${DEFAULT_ADMIN_API_KEY_ENV} must be at least 20 characters.`);
+  if (key.length < 1) {
+    throw new Error(`${DEFAULT_ADMIN_API_KEY_ENV} must not be empty.`);
   }
 
   return key;

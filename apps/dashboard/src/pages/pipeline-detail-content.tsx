@@ -2,6 +2,7 @@ import type {
   DashboardProjectRecord,
   DashboardResolvedDocumentReference,
 } from '../lib/api.js';
+import { StructuredRecordView } from '../components/structured-data.js';
 import type { DashboardProjectMemoryEntry } from './pipeline-detail-support.js';
 
 export function PipelineDocumentsCard(props: {
@@ -67,7 +68,7 @@ export function ProjectMemoryCard(props: {
               <strong>{entry.key}</strong>
               <span className="status-badge">memory</span>
             </div>
-            <pre>{JSON.stringify(entry.value, null, 2)}</pre>
+            <StructuredRecordView data={entry.value} emptyMessage="No memory payload." />
           </article>
         ))}
         {props.entries.length === 0 && !props.isLoading && !props.hasError ? (

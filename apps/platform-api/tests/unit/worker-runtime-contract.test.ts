@@ -31,6 +31,8 @@ describe('worker-runtime contract builders', () => {
             url: 'https://github.com/agirunner/agentbaton-platform.git',
             credentials: {
               token: 'git-token-from-resource',
+              ssh_private_key: 'ssh-private-key-from-resource',
+              known_hosts: 'github.com ssh-ed25519 AAAA',
             },
           },
         ],
@@ -76,6 +78,8 @@ describe('worker-runtime contract builders', () => {
         llm_provider: 'openai',
         llm_model: 'gpt-4o-mini',
         git_token: 'git-token-from-resource',
+        git_ssh_private_key: 'ssh-private-key-from-resource',
+        git_ssh_known_hosts: 'github.com ssh-ed25519 AAAA',
       },
       role_config: {
         planning_mode: true,
@@ -83,6 +87,26 @@ describe('worker-runtime contract builders', () => {
         tools: ['file_read', 'file_write'],
       },
     });
+  });
+
+  it('preserves multiline ssh credentials without trimming terminal newlines', () => {
+    const privateKey = '-----BEGIN OPENSSH PRIVATE KEY-----\nkey-body\n-----END OPENSSH PRIVATE KEY-----\n';
+    const knownHosts = 'git.example.test ssh-ed25519 AAAA\n';
+
+    const submission = buildRuntimeTaskSubmission({
+      id: 'task-runtime-ssh',
+      role: 'developer',
+      input: {
+        objective: 'ship s4',
+        credentials: {
+          git_ssh_private_key: privateKey,
+          git_ssh_known_hosts: knownHosts,
+        },
+      },
+    });
+
+    expect(submission.credentials.git_ssh_private_key).toBe(privateKey);
+    expect(submission.credentials.git_ssh_known_hosts).toBe(knownHosts);
   });
 
   it('normalizes string acceptance criteria to the runtime array contract', () => {

@@ -1,3 +1,4 @@
+import { StructuredRecordView } from '../components/structured-data.js';
 import { Link } from 'react-router-dom';
 
 import type { DashboardProjectTimelineEntry } from '../lib/api.js';
@@ -62,11 +63,11 @@ export function MissionControlCard(props: {
 export function WorkflowSwimlanesCard(props: {
   phases: DashboardPipelinePhaseRow[];
   phaseGroups: Array<{ phaseName: string; tasks: DashboardPipelineTaskRow[] }>;
-  phaseFeedback: string;
-  overrideInput: string;
-  overrideError: string | null;
-  onPhaseFeedbackChange(value: string): void;
-  onOverrideInputChange(value: string): void;
+  getPhaseFeedback(phaseName: string): string;
+  getOverrideInput(phaseName: string): string;
+  getOverrideError(phaseName: string): string | null;
+  onPhaseFeedbackChange(phaseName: string, value: string): void;
+  onOverrideInputChange(phaseName: string, value: string): void;
   onApprove(phaseName: string): void;
   onReject(phaseName: string): void;
   onRequestChanges(phaseName: string): void;
@@ -99,18 +100,18 @@ export function WorkflowSwimlanesCard(props: {
                   id={`phase-feedback-${phase.name}`}
                   className="input"
                   rows={3}
-                  value={props.phaseFeedback}
-                  onChange={(event) => props.onPhaseFeedbackChange(event.target.value)}
+                  value={props.getPhaseFeedback(phase.name)}
+                  onChange={(event) => props.onPhaseFeedbackChange(phase.name, event.target.value)}
                 />
                 <label htmlFor={`phase-override-${phase.name}`}>Clarification override JSON</label>
                 <textarea
                   id={`phase-override-${phase.name}`}
                   className="input"
                   rows={6}
-                  value={props.overrideInput}
-                  onChange={(event) => props.onOverrideInputChange(event.target.value)}
+                  value={props.getOverrideInput(phase.name)}
+                  onChange={(event) => props.onOverrideInputChange(phase.name, event.target.value)}
                 />
-                {props.overrideError ? <p style={{ color: '#dc2626' }}>{props.overrideError}</p> : null}
+                {props.getOverrideError(phase.name) ? <p style={{ color: '#dc2626' }}>{props.getOverrideError(phase.name)}</p> : null}
                 <div className="row" style={{ justifyContent: 'flex-end' }}>
                   <button type="button" className="button" onClick={() => props.onReject(phase.name)}>Reject</button>
                   <button type="button" className="button" onClick={() => props.onRequestChanges(phase.name)}>Request Changes</button>
@@ -188,13 +189,13 @@ export function PipelineHistoryCard(props: {
       {props.hasError ? <p style={{ color: '#dc2626' }}>Failed to load pipeline history.</p> : null}
       <ul className="search-results">
         {props.events.map((event) => (
-          <li key={event.id}>
-            <strong>{event.type}</strong>
-            <span className="muted"> {new Date(event.created_at).toLocaleString()}</span>
-            <pre>{JSON.stringify(event.data ?? {}, null, 2)}</pre>
-          </li>
-        ))}
-      </ul>
+              <li key={event.id}>
+                <strong>{event.type}</strong>
+                <span className="muted"> {new Date(event.created_at).toLocaleString()}</span>
+                <StructuredRecordView data={event.data} emptyMessage="No event payload." />
+              </li>
+            ))}
+          </ul>
     </div>
   );
 }

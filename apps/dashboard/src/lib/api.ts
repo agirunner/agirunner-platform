@@ -102,6 +102,60 @@ export interface DashboardProjectRecord {
   updated_at?: string;
 }
 
+export interface DashboardProjectSpecRecord {
+  project_id: string;
+  version?: number;
+  resources?: Record<string, unknown>;
+  documents?: Record<string, unknown>;
+  tools?: Record<string, unknown>;
+  config?: Record<string, unknown>;
+  instructions?: Record<string, unknown>;
+  updated_at?: string;
+}
+
+export interface DashboardProjectResourceRecord {
+  id?: string;
+  type?: string;
+  name?: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface DashboardProjectToolCatalog {
+  available?: unknown[];
+  blocked?: unknown[];
+  [key: string]: unknown;
+}
+
+export interface DashboardIntegrationRecord {
+  id: string;
+  kind: 'webhook' | 'slack' | 'otlp_http' | 'github_issues';
+  pipeline_id?: string | null;
+  subscriptions: string[];
+  is_active: boolean;
+  config: Record<string, unknown>;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DashboardGovernanceRetentionPolicy {
+  task_archive_after_days: number;
+  task_delete_after_days: number;
+  audit_log_retention_days: number;
+}
+
+export interface DashboardAuditLogRecord {
+  id: string;
+  actor_type: string;
+  actor_id?: string | null;
+  action: string;
+  resource_type: string;
+  resource_id?: string | null;
+  details?: Record<string, unknown>;
+  created_at: string;
+}
+
 export interface DashboardResolvedDocumentReference {
   logical_name: string;
   scope: 'project' | 'pipeline';
@@ -326,7 +380,16 @@ export interface DashboardApi {
   logout(): Promise<void>;
   listPipelines(): Promise<unknown>;
   listProjects(): Promise<{ data: DashboardProjectRecord[]; meta?: Record<string, unknown> }>;
+  createProject(payload: {
+    name: string;
+    slug: string;
+    description?: string;
+    repository_url?: string;
+  }): Promise<DashboardProjectRecord>;
   getProject(projectId: string): Promise<DashboardProjectRecord>;
+  getProjectSpec(projectId: string): Promise<DashboardProjectSpecRecord>;
+  listProjectResources(projectId: string): Promise<{ data: DashboardProjectResourceRecord[] }>;
+  listProjectTools(projectId: string): Promise<{ data: DashboardProjectToolCatalog }>;
   patchProjectMemory(
     projectId: string,
     payload: { key: string; value: unknown },
@@ -393,6 +456,29 @@ export interface DashboardApi {
     projectId: string,
     payload: { brief: string; name?: string },
   ): Promise<unknown>;
+  listIntegrations(): Promise<DashboardIntegrationRecord[]>;
+  createIntegration(payload: {
+    kind: DashboardIntegrationRecord['kind'];
+    pipeline_id?: string;
+    subscriptions?: string[];
+    config: Record<string, unknown>;
+  }): Promise<DashboardIntegrationRecord>;
+  updateIntegration(
+    integrationId: string,
+    payload: {
+      subscriptions?: string[];
+      is_active?: boolean;
+      config?: Record<string, unknown>;
+    },
+  ): Promise<DashboardIntegrationRecord>;
+  deleteIntegration(integrationId: string): Promise<void>;
+  getRetentionPolicy(): Promise<DashboardGovernanceRetentionPolicy>;
+  updateRetentionPolicy(
+    payload: Partial<DashboardGovernanceRetentionPolicy>,
+  ): Promise<DashboardGovernanceRetentionPolicy>;
+  setTaskLegalHold(taskId: string, enabled: boolean): Promise<unknown>;
+  setPipelineLegalHold(pipelineId: string, enabled: boolean): Promise<unknown>;
+  listAuditLogs(filters?: Record<string, string>): Promise<{ data: DashboardAuditLogRecord[]; pagination?: Record<string, unknown> }>;
   listEvents(
     filters?: Record<string, string>,
   ): Promise<{ data: DashboardEventRecord[]; meta?: Record<string, unknown> }>;
@@ -480,7 +566,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
   async function requestJson<T>(
     path: string,
     options: {
-      method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+      method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
       body?: Record<string, unknown>;
       includeAuth?: boolean;
     } = {},
@@ -511,7 +597,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
   async function requestData<T>(
     path: string,
     options: {
-      method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+      method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
       body?: Record<string, unknown>;
     } = {},
   ): Promise<T> {
@@ -544,9 +630,33 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
             meta?: Record<string, unknown>;
           }>,
       ),
+    createProject: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardProjectRecord>('/api/v1/projects', {
+          body: payload as Record<string, unknown>,
+        }),
+      ),
     getProject: (projectId) =>
       withRefresh(() =>
         requestData<DashboardProjectRecord>(`/api/v1/projects/${projectId}`, {
+          method: 'GET',
+        }),
+      ),
+    getProjectSpec: (projectId) =>
+      withRefresh(() =>
+        requestData<DashboardProjectSpecRecord>(`/api/v1/projects/${projectId}/spec`, {
+          method: 'GET',
+        }),
+      ),
+    listProjectResources: (projectId) =>
+      withRefresh(() =>
+        requestJson<{ data: DashboardProjectResourceRecord[] }>(`/api/v1/projects/${projectId}/resources`, {
+          method: 'GET',
+        }),
+      ),
+    listProjectTools: (projectId) =>
+      withRefresh(() =>
+        requestJson<{ data: DashboardProjectToolCatalog }>(`/api/v1/projects/${projectId}/tools`, {
           method: 'GET',
         }),
       ),
@@ -636,6 +746,63 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         requestJson(`/api/v1/projects/${projectId}/planning-pipeline`, {
           body: payload,
         }),
+      ),
+    listIntegrations: () =>
+      withRefresh(() =>
+        requestData<DashboardIntegrationRecord[]>('/api/v1/integrations', {
+          method: 'GET',
+        }),
+      ),
+    createIntegration: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardIntegrationRecord>('/api/v1/integrations', {
+          body: payload as Record<string, unknown>,
+        }),
+      ),
+    updateIntegration: (integrationId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardIntegrationRecord>(`/api/v1/integrations/${integrationId}`, {
+          method: 'PATCH',
+          body: payload as Record<string, unknown>,
+        }),
+      ),
+    deleteIntegration: (integrationId) =>
+      withRefresh(async () => {
+        await requestJson(`/api/v1/integrations/${integrationId}`, { method: 'DELETE' });
+      }),
+    getRetentionPolicy: () =>
+      withRefresh(() =>
+        requestData<DashboardGovernanceRetentionPolicy>('/api/v1/governance/retention-policy', {
+          method: 'GET',
+        }),
+      ),
+    updateRetentionPolicy: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardGovernanceRetentionPolicy>('/api/v1/governance/retention-policy', {
+          method: 'PUT',
+          body: payload as Record<string, unknown>,
+        }),
+      ),
+    setTaskLegalHold: (taskId, enabled) =>
+      withRefresh(() =>
+        requestJson(`/api/v1/governance/legal-holds/tasks/${taskId}`, {
+          method: 'PUT',
+          body: { enabled },
+        }),
+      ),
+    setPipelineLegalHold: (pipelineId, enabled) =>
+      withRefresh(() =>
+        requestJson(`/api/v1/governance/legal-holds/pipelines/${pipelineId}`, {
+          method: 'PUT',
+          body: { enabled },
+        }),
+      ),
+    listAuditLogs: (filters) =>
+      withRefresh(() =>
+        requestJson<{ data: DashboardAuditLogRecord[]; pagination?: Record<string, unknown> }>(
+          `/api/v1/audit/logs${buildQueryString(filters)}`,
+          { method: 'GET' },
+        ),
       ),
     listEvents: (filters) =>
       withRefresh(() =>
@@ -825,7 +992,7 @@ export function buildSearchResults(
     id: item.id,
     label: item.name ?? item.id,
     subtitle: item.status ?? 'project',
-    href: '/pipelines',
+    href: '/projects',
   }));
 
   const templateMatches = filterRecords(collections.templates, normalizedQuery).map((item) => ({

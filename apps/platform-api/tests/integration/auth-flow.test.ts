@@ -22,6 +22,7 @@ describe('auth token flow', () => {
     process.env.JWT_REFRESH_EXPIRES_IN = '30s'; // long enough to avoid timing flakiness from bcrypt overhead
     process.env.LOG_LEVEL = 'error';
     process.env.RATE_LIMIT_MAX_PER_MINUTE = '100';
+    process.env.DEFAULT_ADMIN_API_KEY = 'test';
 
     const adminKeyResult = await createApiKey(db.pool, {
       tenantId: '00000000-0000-0000-0000-000000000001',
@@ -95,6 +96,17 @@ describe('auth token flow', () => {
     const httpsAccessCookie = httpsCookies.find((c) => c.startsWith('agentbaton_access_token='))!;
     expect(httpsRefreshCookie).toContain('Secure');
     expect(httpsAccessCookie).toContain('Secure');
+  });
+
+  it('accepts the configured bootstrap admin api key even when it is not in canonical format', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/token',
+      payload: { api_key: 'test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.scope).toBe('admin');
   });
 
   it('allows JWT access token from /auth/token on protected API routes', async () => {

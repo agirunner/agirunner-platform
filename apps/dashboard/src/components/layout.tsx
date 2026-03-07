@@ -16,9 +16,12 @@ interface BreadcrumbItem {
 
 const SECTION_LABELS: Record<string, string> = {
   pipelines: 'Pipelines',
+  projects: 'Projects',
   templates: 'Templates',
   tasks: 'Tasks',
   workers: 'Workers',
+  integrations: 'Integrations',
+  governance: 'Governance',
   'runtime-customization': 'Runtime Customization',
   activity: 'Activity Feed',
   'api-keys': 'API Keys',
@@ -59,14 +62,17 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
         navigate('/pipelines');
       } else if (event.altKey && event.key === '2') {
         event.preventDefault();
-        navigate('/workers');
+        navigate('/projects');
       } else if (event.altKey && event.key === '3') {
         event.preventDefault();
-        navigate('/activity');
+        navigate('/workers');
       } else if (event.altKey && event.key === '4') {
         event.preventDefault();
-        navigate('/metrics');
+        navigate('/integrations');
       } else if (event.altKey && event.key === '5') {
+        event.preventDefault();
+        navigate('/governance');
+      } else if (event.altKey && event.key === '6') {
         event.preventDefault();
         navigate('/runtime-customization');
       } else if (event.shiftKey && event.key.toLowerCase() === 'r') {
@@ -160,15 +166,18 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
         </form>
         <nav>
           <NavLink to="/pipelines">Pipelines</NavLink>
+          <NavLink to="/projects">Projects</NavLink>
           <NavLink to="/templates">Templates</NavLink>
           <NavLink to="/workers">Workers</NavLink>
+          <NavLink to="/integrations">Integrations</NavLink>
+          <NavLink to="/governance">Governance</NavLink>
           <NavLink to="/runtime-customization">Runtime Customization</NavLink>
           <NavLink to="/activity">Activity Feed</NavLink>
           <NavLink to="/api-keys">API Keys</NavLink>
           <NavLink to="/metrics">System Metrics</NavLink>
         </nav>
         <p className="muted shortcut-hint">
-          Shortcuts: Alt+1/2/3/4/5 navigate · Shift+R refresh · Shift+T theme
+          Shortcuts: Alt+1/2/3/4/5/6 navigate · Shift+R refresh · Shift+T theme
         </p>
         <button
           className="button"

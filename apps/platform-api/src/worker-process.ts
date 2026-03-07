@@ -32,7 +32,7 @@ import { resolveSecretEnv } from './config/secret-env.js';
 resolveSecretEnv(
   process.env,
   [
-    { envName: 'PLATFORM_API_KEY', required: true, minLength: 20, requireFileInProduction: true },
+    { envName: 'PLATFORM_API_KEY', required: true, minLength: 1, requireFileInProduction: true },
     { envName: 'RUNTIME_API_KEY', minLength: 20, requireFileInProduction: true },
     { envName: 'AGENT_API_KEY', requireFileInProduction: true },
     { envName: 'OPENAI_API_KEY', requireFileInProduction: true },

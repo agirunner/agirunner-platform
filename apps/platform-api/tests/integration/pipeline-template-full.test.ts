@@ -30,6 +30,287 @@ const admin = {
   keyPrefix: 'admin',
 };
 
+const architectDocumentPath = 'handoffs/architect/architecture-design.md';
+const developerHandoffPath = 'handoffs/developer/implementation-handoff.md';
+const reviewerReportPath = 'handoffs/reviewer/review-report.md';
+const qaReportPath = 'handoffs/qa/validation-report.md';
+
+function sdlcOutputContractTemplate(): Record<string, unknown> {
+  return {
+    variables: [
+      { name: 'repo', type: 'string', required: true },
+      { name: 'goal', type: 'string', required: true },
+      { name: 'branch', type: 'string', required: false, default: 'main' },
+      { name: 'git_token', type: 'string', required: false, default: '' },
+      { name: 'git_ssh_private_key', type: 'string', required: false, default: '' },
+      { name: 'git_ssh_known_hosts', type: 'string', required: false, default: '' },
+      { name: 'git_user_name', type: 'string', required: false, default: 'AgentBaton' },
+      { name: 'git_user_email', type: 'string', required: false, default: 'agentbaton@example.com' },
+    ],
+    tasks: [
+      {
+        id: 'architect',
+        title_template: 'Architecture: {{goal}}',
+        type: 'analysis',
+        role: 'architect',
+        input_template: {
+          repo: '{{repo}}',
+          goal: '{{goal}}',
+          credentials: {
+            git_token: '{{git_token}}',
+            git_ssh_private_key: '{{git_ssh_private_key}}',
+            git_ssh_known_hosts: '{{git_ssh_known_hosts}}',
+          },
+          instruction:
+            `Design {{goal}} in {{repo}}. Do not implement, commit, or push. Produce a structured architecture handoff and set design_document to markdown content that the platform will persist at ${architectDocumentPath} for the developer stage.`,
+        },
+        environment: {
+          repository_url: '{{repo}}',
+          branch: '{{branch}}',
+          git_user_name: '{{git_user_name}}',
+          git_user_email: '{{git_user_email}}',
+        },
+        role_config: {
+          tools: ['file_read', 'file_list', 'git_status', 'git_diff'],
+          system_prompt:
+            'Return JSON only. Stay in design mode. Do not implement code, modify application source files, ' +
+            'create commits, or push branches. Use only read-only analysis tools. Produce ' +
+            'architecture_summary, design_decisions, implementation_handoff, and design_document. Set design_document ' +
+            'to the markdown content for the design artifact; the platform persists it automatically at ' +
+            `${architectDocumentPath}. The developer stage consumes ` +
+            'architecture_summary, design_decisions, implementation_handoff, and the persisted design_document ' +
+            'from that path as its source of truth.',
+          output_schema: {
+            type: 'object',
+            required: [
+              'architecture_summary',
+              'design_decisions',
+              'implementation_handoff',
+              'design_document',
+            ],
+            properties: {
+              architecture_summary: { type: 'string', minLength: 1 },
+              design_decisions: { type: 'array', items: { type: 'string', minLength: 1 } },
+              implementation_handoff: { type: 'string', minLength: 1 },
+              design_document: { type: 'string', minLength: 1 },
+            },
+            additionalProperties: false,
+          },
+        },
+        output_state: {
+          architecture_summary: 'inline',
+          design_decisions: 'inline',
+          implementation_handoff: 'inline',
+          design_document: {
+            mode: 'artifact',
+            path: architectDocumentPath,
+            media_type: 'text/markdown; charset=utf-8',
+          },
+        },
+      },
+      {
+        id: 'developer',
+        title_template: 'Develop: {{goal}}',
+        type: 'code',
+        role: 'developer',
+        depends_on: ['architect'],
+        input_template: {
+          repo: '{{repo}}',
+          goal: '{{goal}}',
+          credentials: {
+            git_token: '{{git_token}}',
+            git_ssh_private_key: '{{git_ssh_private_key}}',
+            git_ssh_known_hosts: '{{git_ssh_known_hosts}}',
+          },
+          instruction:
+            `Implement {{goal}} in {{repo}} using the architect handoff and persisted design document as the source of truth. Set implementation_handoff to markdown content that the platform will persist at ${developerHandoffPath} for reviewer and QA consumption.`,
+        },
+        environment: {
+          repository_url: '{{repo}}',
+          branch: '{{branch}}',
+          git_user_name: '{{git_user_name}}',
+          git_user_email: '{{git_user_email}}',
+        },
+        context_template: {
+          handoff_contract: {
+            architect: [
+              'architecture_summary',
+              'design_decisions',
+              'implementation_handoff',
+              'design_document',
+            ],
+          },
+        },
+        role_config: {
+          system_prompt:
+            'Return JSON only. Read upstream_outputs.architect.architecture_summary, ' +
+            'upstream_outputs.architect.design_decisions, upstream_outputs.architect.implementation_handoff, ' +
+            `and upstream_outputs.architect.design_document from ${architectDocumentPath}. Produce ` +
+            'implementation_summary, files_changed, branch, change_diff, and implementation_handoff. Set ' +
+            `implementation_handoff to markdown content that the platform will persist at ${developerHandoffPath}. The reviewer stage ` +
+            `consumes implementation_summary, files_changed, branch, change_diff, and ${developerHandoffPath}; ` +
+            `the QA stage also consumes ${developerHandoffPath}.`,
+          output_schema: {
+            type: 'object',
+            required: [
+              'implementation_summary',
+              'files_changed',
+              'branch',
+              'change_diff',
+              'implementation_handoff',
+            ],
+            properties: {
+              implementation_summary: { type: 'string', minLength: 1 },
+              files_changed: { type: 'array', items: { type: 'string', minLength: 1 } },
+              branch: { type: 'string', minLength: 1 },
+              change_diff: { type: 'string', minLength: 1 },
+              implementation_handoff: { type: 'string', minLength: 1 },
+            },
+            additionalProperties: false,
+          },
+        },
+        output_state: {
+          implementation_summary: 'inline',
+          files_changed: 'inline',
+          branch: { mode: 'git' },
+          change_diff: { mode: 'diff' },
+          implementation_handoff: {
+            mode: 'artifact',
+            path: developerHandoffPath,
+            media_type: 'text/markdown; charset=utf-8',
+          },
+        },
+      },
+      {
+        id: 'reviewer',
+        title_template: 'Review: {{goal}}',
+        type: 'review',
+        role: 'reviewer',
+        depends_on: ['developer'],
+        input_template: {
+          repo: '{{repo}}',
+          goal: '{{goal}}',
+          credentials: {
+            git_token: '{{git_token}}',
+            git_ssh_private_key: '{{git_ssh_private_key}}',
+            git_ssh_known_hosts: '{{git_ssh_known_hosts}}',
+          },
+          instruction:
+            `Review the developer implementation for {{goal}} in {{repo}}. Consume the implementation handoff from ${developerHandoffPath} and set review_report to markdown content that the platform will persist at ${reviewerReportPath} for QA.`,
+        },
+        environment: {
+          repository_url: '{{repo}}',
+          branch: '{{branch}}',
+          git_user_name: '{{git_user_name}}',
+          git_user_email: '{{git_user_email}}',
+        },
+        context_template: {
+          handoff_contract: {
+            developer: [
+              'implementation_summary',
+              'files_changed',
+              'branch',
+              'change_diff',
+              'implementation_handoff',
+            ],
+          },
+        },
+        role_config: {
+          system_prompt:
+            'Return JSON only. Review upstream_outputs.developer.implementation_summary, files_changed, ' +
+            `branch, change_diff, and implementation_handoff from ${developerHandoffPath}. Produce ` +
+            `review_outcome, review_summary, blocking_issues, and review_report. Set review_report to markdown content that the platform will persist at ${reviewerReportPath}. ` +
+            `The QA stage consumes review_outcome, review_summary, blocking_issues, and ${reviewerReportPath}.`,
+          output_schema: {
+            type: 'object',
+            required: ['review_outcome', 'review_summary', 'blocking_issues', 'review_report'],
+            properties: {
+              review_outcome: { enum: ['approved', 'changes_requested', 'rejected'] },
+              review_summary: { type: 'string', minLength: 1 },
+              blocking_issues: { type: 'array', items: { type: 'string', minLength: 1 } },
+              review_report: { type: 'string', minLength: 1 },
+            },
+            additionalProperties: false,
+          },
+        },
+        output_state: {
+          review_outcome: 'inline',
+          review_summary: 'inline',
+          blocking_issues: 'inline',
+          review_report: {
+            mode: 'artifact',
+            path: reviewerReportPath,
+            media_type: 'text/markdown; charset=utf-8',
+          },
+        },
+      },
+      {
+        id: 'qa',
+        title_template: 'QA: {{goal}}',
+        type: 'test',
+        role: 'qa',
+        depends_on: ['reviewer'],
+        input_template: {
+          repo: '{{repo}}',
+          goal: '{{goal}}',
+          credentials: {
+            git_token: '{{git_token}}',
+            git_ssh_private_key: '{{git_ssh_private_key}}',
+            git_ssh_known_hosts: '{{git_ssh_known_hosts}}',
+          },
+          instruction:
+            `Validate {{goal}} in {{repo}} using the developer handoff at ${developerHandoffPath} and the reviewer report at ${reviewerReportPath}. Set validation_report to markdown content that the platform will persist at ${qaReportPath}.`,
+        },
+        environment: {
+          repository_url: '{{repo}}',
+          branch: '{{branch}}',
+          git_user_name: '{{git_user_name}}',
+          git_user_email: '{{git_user_email}}',
+        },
+        context_template: {
+          handoff_contract: {
+            developer: [
+              'implementation_summary',
+              'files_changed',
+              'branch',
+              'change_diff',
+              'implementation_handoff',
+            ],
+            reviewer: ['review_outcome', 'review_summary', 'blocking_issues', 'review_report'],
+          },
+        },
+        role_config: {
+          system_prompt:
+            'Return JSON only. Validate upstream_outputs.developer and upstream_outputs.reviewer. Consume the ' +
+            `developer implementation handoff from ${developerHandoffPath} and the reviewer report from ${reviewerReportPath}. ` +
+            `Produce qa_outcome, validation_summary, executed_checks, and validation_report. Set validation_report to markdown content that the platform will persist at ${qaReportPath} as the final stage output.`,
+          output_schema: {
+            type: 'object',
+            required: ['qa_outcome', 'validation_summary', 'executed_checks', 'validation_report'],
+            properties: {
+              qa_outcome: { enum: ['passed', 'failed', 'blocked'] },
+              validation_summary: { type: 'string', minLength: 1 },
+              executed_checks: { type: 'array', items: { type: 'string', minLength: 1 } },
+              validation_report: { type: 'string', minLength: 1 },
+            },
+            additionalProperties: false,
+          },
+        },
+        output_state: {
+          qa_outcome: 'inline',
+          validation_summary: 'inline',
+          executed_checks: 'inline',
+          validation_report: {
+            mode: 'artifact',
+            path: qaReportPath,
+            media_type: 'text/markdown; charset=utf-8',
+          },
+        },
+      },
+    ],
+  };
+}
+
 describe('pipeline + template full coverage', () => {
   let db: TestDatabase;
   let templateService: TemplateService;
@@ -251,6 +532,157 @@ describe('pipeline + template full coverage', () => {
     expect(artifacts.rows[0].logical_path).toContain('reports/report.json');
   });
 
+  it('instantiates the SDLC output contract and exposes architect handoff via output_state and documents', async () => {
+    const template = await templateService.createTemplate(admin, {
+      name: 'sdlc-output-contract-template',
+      slug: 'sdlc-output-contract-template',
+      schema: sdlcOutputContractTemplate(),
+    });
+
+    const pipeline = await pipelineService.createPipeline(admin, {
+      template_id: template.id as string,
+      name: 'sdlc-output-contract-pipeline',
+      parameters: {
+        repo: 'playground-repo',
+        goal: 'Add explicit SDLC handoffs',
+      },
+      metadata: {
+        artifact_retention: { mode: 'days', days: 7 },
+      },
+    });
+
+    const tasks = pipeline.tasks as Array<Record<string, unknown>>;
+    const architectTask = tasks.find((task) => task.role === 'architect');
+    const developerTask = tasks.find((task) => task.role === 'developer');
+    const reviewerTask = tasks.find((task) => task.role === 'reviewer');
+    const qaTask = tasks.find((task) => task.role === 'qa');
+
+    expect(architectTask?.metadata).toMatchObject({
+      output_state: {
+        design_document: { mode: 'artifact', path: architectDocumentPath },
+      },
+    });
+    expect(developerTask?.metadata).toMatchObject({
+      output_state: {
+        branch: { mode: 'git' },
+        change_diff: { mode: 'diff' },
+        implementation_handoff: { mode: 'artifact', path: developerHandoffPath },
+      },
+    });
+    expect(reviewerTask?.metadata).toMatchObject({
+      output_state: {
+        review_report: { mode: 'artifact', path: reviewerReportPath },
+      },
+    });
+    expect(qaTask?.metadata).toMatchObject({
+      output_state: {
+        validation_report: { mode: 'artifact', path: qaReportPath },
+      },
+    });
+
+    expect((architectTask?.role_config as Record<string, unknown>).output_schema).toBeDefined();
+    expect((architectTask?.role_config as Record<string, unknown>).tools).toEqual([
+      'file_read',
+      'file_list',
+      'git_status',
+      'git_diff',
+    ]);
+    expect((architectTask?.role_config as Record<string, unknown>).system_prompt).toEqual(
+      expect.stringContaining('Do not implement code, modify application source files, create commits, or push branches'),
+    );
+    expect((architectTask?.role_config as Record<string, unknown>).system_prompt).toEqual(
+      expect.stringContaining('Set design_document to the markdown content'),
+    );
+    expect((developerTask?.role_config as Record<string, unknown>).system_prompt).toEqual(
+      expect.stringContaining(developerHandoffPath),
+    );
+    expect((developerTask?.role_config as Record<string, unknown>).system_prompt).toEqual(
+      expect.stringContaining('reviewer stage consumes'),
+    );
+    expect((reviewerTask?.role_config as Record<string, unknown>).system_prompt).toEqual(
+      expect.stringContaining(reviewerReportPath),
+    );
+    expect((reviewerTask?.role_config as Record<string, unknown>).system_prompt).toEqual(
+      expect.stringContaining('QA stage consumes'),
+    );
+    expect((qaTask?.role_config as Record<string, unknown>).system_prompt).toEqual(
+      expect.stringContaining(developerHandoffPath),
+    );
+    expect((qaTask?.role_config as Record<string, unknown>).system_prompt).toEqual(
+      expect.stringContaining(reviewerReportPath),
+    );
+    expect((developerTask?.context as Record<string, unknown>).handoff_contract).toEqual({
+      architect: [
+        'architecture_summary',
+        'design_decisions',
+        'implementation_handoff',
+        'design_document',
+      ],
+    });
+
+    const architectAgentId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO agents (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds, current_task_id)
+       VALUES ($1,$2,'architect-agent',ARRAY['architect'],'busy',30,$3)`,
+      [architectAgentId, tenantId, architectTask?.id],
+    );
+    await db.pool.query(
+      `UPDATE tasks
+          SET state = 'running',
+              assigned_agent_id = $3,
+              started_at = now(),
+              claimed_at = now()
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [tenantId, architectTask?.id, architectAgentId],
+    );
+
+    await taskService.completeTask(
+      {
+        id: 'architect-agent-key',
+        tenantId,
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: architectAgentId,
+        keyPrefix: 'arc',
+      },
+      architectTask?.id as string,
+      {
+        output: {
+          architecture_summary: 'Use explicit artifact-backed handoffs.',
+          design_decisions: ['Persist the design doc as an artifact', 'Keep summaries inline'],
+          implementation_handoff: 'Developer should follow the persisted architecture design.',
+          design_document: '# Architecture\n\nUse output_state-backed handoffs.\n',
+        },
+      },
+    );
+
+    const developerAgentId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO agents (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds, current_task_id)
+       VALUES ($1,$2,'developer-agent',ARRAY['developer'],'busy',30,$3)`,
+      [developerAgentId, tenantId, developerTask?.id],
+    );
+
+    const developerContext = await taskService.getTaskContext(
+      tenantId,
+      developerTask?.id as string,
+      developerAgentId,
+    );
+
+    expect(
+      (developerContext.task as { upstream_outputs: Record<string, Record<string, unknown>> }).upstream_outputs
+        .architect,
+    ).toMatchObject({
+      architecture_summary: 'Use explicit artifact-backed handoffs.',
+      implementation_handoff: 'Developer should follow the persisted architecture design.',
+      design_document: {
+        type: 'artifact',
+        location: expect.stringContaining(architectDocumentPath),
+      },
+    });
+  });
+
   it('covers FR-173/FR-400/FR-404/FR-700/FR-716 template validation rejects invalid dags and accepts metadata blocks', () => {
     expect(() =>
       validateTemplateSchema({
@@ -395,5 +827,43 @@ describe('pipeline + template full coverage', () => {
 
     expect(task.role_config).toEqual({ instruction: 'execute script' });
     expect(task.environment).toEqual({ RUNTIME: 'openclaw' });
+  });
+
+  it('substitutes template variables inside task environment declarations', async () => {
+    const template = await templateService.createTemplate(admin, {
+      name: 'environment-variable-template',
+      slug: 'environment-variable-template',
+      schema: {
+        variables: [
+          { name: 'repo', type: 'string', required: true },
+          { name: 'branch', type: 'string', required: false, default: 'main' },
+        ],
+        tasks: [
+          {
+            id: 'developer',
+            title_template: 'Implement {{repo}}',
+            type: 'code',
+            environment: {
+              repository_url: '{{repo}}',
+              branch: '{{branch}}',
+            },
+          },
+        ],
+      },
+    });
+
+    const pipeline = await pipelineService.createPipeline(admin, {
+      template_id: template.id as string,
+      name: 'environment-variable-pipeline',
+      parameters: {
+        repo: 'https://github.com/octocat/Hello-World.git',
+      },
+    });
+
+    const [task] = pipeline.tasks as Array<Record<string, unknown>>;
+    expect(task.environment).toEqual({
+      repository_url: 'https://github.com/octocat/Hello-World.git',
+      branch: 'main',
+    });
   });
 });

@@ -30,6 +30,15 @@ export interface DashboardProjectMemoryEntry {
   value: unknown;
 }
 
+export interface DashboardPhaseActionDraft {
+  feedback: string;
+  overrideInput: string;
+  overrideError: string | null;
+}
+
+const DEFAULT_PHASE_FEEDBACK = 'Clarify the current phase requirements.';
+const DEFAULT_PHASE_OVERRIDE_INPUT = '{\n  "clarification_answers": {}\n}';
+
 export function readPipelineProjectId(pipeline: unknown): string | undefined {
   const record = asRecord(pipeline);
   return readNonEmptyString(record.project_id);
@@ -119,6 +128,31 @@ export function readProjectMemoryEntries(project: unknown): DashboardProjectMemo
   return Object.entries(asRecord(asRecord(project).memory))
     .map(([key, value]) => ({ key, value }))
     .sort((left, right) => left.key.localeCompare(right.key));
+}
+
+export function readPhaseActionDraft(
+  drafts: Record<string, DashboardPhaseActionDraft>,
+  phaseName: string,
+): DashboardPhaseActionDraft {
+  return drafts[phaseName] ?? {
+    feedback: DEFAULT_PHASE_FEEDBACK,
+    overrideInput: DEFAULT_PHASE_OVERRIDE_INPUT,
+    overrideError: null,
+  };
+}
+
+export function updatePhaseActionDraft(
+  drafts: Record<string, DashboardPhaseActionDraft>,
+  phaseName: string,
+  updates: Partial<DashboardPhaseActionDraft>,
+): Record<string, DashboardPhaseActionDraft> {
+  return {
+    ...drafts,
+    [phaseName]: {
+      ...readPhaseActionDraft(drafts, phaseName),
+      ...updates,
+    },
+  };
 }
 
 export function shouldInvalidatePipelineRealtimeEvent(

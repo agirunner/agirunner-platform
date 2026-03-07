@@ -5,9 +5,12 @@ import { DashboardLayout } from '../components/layout.js';
 import { clearSession, readSession } from '../lib/session.js';
 import { ActivityFeedPage } from '../pages/activity-feed-page.js';
 import { ApiKeyManagementPage } from '../pages/api-key-management-page.js';
+import { GovernancePage } from '../pages/governance-page.js';
+import { IntegrationsPage } from '../pages/integrations-page.js';
 import { LoginPage } from '../pages/login-page.js';
 import { PipelineDetailPage } from '../pages/pipeline-detail-page.js';
 import { PipelineListPage } from '../pages/pipeline-list-page.js';
+import { ProjectsPage } from '../pages/projects-page.js';
 import { RuntimeCustomizationPage } from '../pages/runtime-customization-page.js';
 import { SystemMetricsPage } from '../pages/system-metrics-page.js';
 import { TaskDetailPage } from '../pages/task-detail-page.js';
@@ -33,9 +36,12 @@ export function App(): JSX.Element {
           <Route path="/" element={<Navigate to="/pipelines" replace />} />
           <Route path="/pipelines" element={<PipelineListPage />} />
           <Route path="/pipelines/:id" element={<PipelineDetailPage />} />
+          <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/templates" element={<TemplateBrowserPage />} />
           <Route path="/tasks/:id" element={<TaskDetailPage />} />
           <Route path="/workers" element={<WorkerStatusPage />} />
+          <Route path="/integrations" element={<IntegrationsPage />} />
+          <Route path="/governance" element={<GovernancePage />} />
           <Route path="/runtime-customization" element={<RuntimeCustomizationPage />} />
           <Route path="/activity" element={<ActivityFeedPage />} />
           <Route path="/api-keys" element={<ApiKeyManagementPage />} />

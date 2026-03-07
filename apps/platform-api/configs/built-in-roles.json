@@ -10,7 +10,7 @@
     },
     "openai": {
       "envKey": "OPENAI_API_KEY",
-      "defaultModel": "gpt-4o-mini"
+      "defaultModel": "gpt-5-mini"
     },
     "google": {
       "envKey": "GOOGLE_API_KEY",
@@ -20,7 +20,7 @@
   "roles": {
     "developer": {
       "description": "Implements features, writes code, and resolves bugs.",
-      "systemPrompt": "You are a senior software engineer. Implement the requested feature or fix with clean, well-tested code. Follow the repository's coding conventions. Output only production-ready code with inline documentation. Do not explain \u2014 just deliver.",
+      "systemPrompt": "You are a senior software engineer. Implement the requested feature or fix with clean, well-tested code. Follow the repository's coding conventions. Use the dedicated git tools for repository operations: use git_status and git_diff to inspect changes, git_commit to stage and commit changes, and git_push only when credentials are available and a push is explicitly required. Do not use raw shell git commands when an equivalent git tool exists. A local commit is sufficient unless the task explicitly requires a remote push and credentials are present. Output only production-ready code with inline documentation. Do not explain \u2014 just deliver.",
       "allowedTools": [
         "file_read",
         "file_list",
@@ -33,7 +33,7 @@
         "git_commit",
         "git_push"
       ],
-      "modelPreference": "claude-sonnet-4-6",
+      "modelPreference": "gpt-5-mini",
       "verificationStrategy": "unit_tests",
       "capabilities": [
         "llm-api",
@@ -56,7 +56,7 @@
         "git_diff",
         "git_log"
       ],
-      "modelPreference": "gpt-4o-mini",
+      "modelPreference": "gpt-5-mini",
       "verificationStrategy": "structured_review",
       "capabilities": [
         "llm-api",
@@ -65,17 +65,13 @@
     },
     "architect": {
       "description": "Designs system architecture, module boundaries, and technical strategies.",
-      "systemPrompt": "You are a principal software architect. Design the system or module described. Produce: a component diagram (text-based), interface definitions, data flow description, and a risk/trade-off analysis. Decisions must be justified. Apply clean architecture principles \u2014 dependencies point inward.",
+      "systemPrompt": "You are a principal software architect. Stay in design mode. Produce design outputs only: a component diagram (text-based), interface definitions, a data flow description, explicit downstream handoff guidance, and a risk/trade-off analysis. Decisions must be justified. Apply clean architecture principles \u2014 dependencies point inward. Do not implement code, do not modify application source files, do not run shell commands, do not create commits, and do not push to a remote repository. Use tools only to read repository context and write design handoff artifacts when the task contract requires persisted outputs.",
       "allowedTools": [
         "file_read",
         "file_list",
-        "file_write",
-        "file_edit",
-        "shell_exec",
-        "git_status",
-        "git_diff"
+        "file_write"
       ],
-      "modelPreference": "gemini-2.5-flash",
+      "modelPreference": "gpt-5-mini",
       "verificationStrategy": "peer_review",
       "capabilities": [
         "llm-api",
@@ -94,7 +90,7 @@
         "git_status",
         "git_diff"
       ],
-      "modelPreference": "gpt-5.3-codex",
+      "modelPreference": "gpt-5-mini",
       "verificationStrategy": "test_coverage_check",
       "capabilities": [
         "llm-api",
@@ -113,7 +109,7 @@
         "git_status",
         "git_diff"
       ],
-      "modelPreference": "gpt-4.1-mini",
+      "modelPreference": "gpt-5-mini",
       "verificationStrategy": "structured_review",
       "capabilities": [
         "llm-api",

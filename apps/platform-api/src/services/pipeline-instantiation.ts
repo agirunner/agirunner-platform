@@ -120,6 +120,9 @@ export async function insertTaskFromTemplate(params: {
   const roleConfig = task.role_config
     ? substituteTemplateVariables(task.role_config, parameters)
     : null;
+  const environment = task.environment
+    ? substituteTemplateVariables(task.environment, parameters)
+    : null;
   const metadata = task.metadata ? substituteTemplateVariables(task.metadata, parameters) : {};
   const lifecyclePolicy = mergeLifecyclePolicy(params.pipelineLifecycle, task.lifecycle);
   if (lifecyclePolicy) {
@@ -153,7 +156,7 @@ export async function insertTaskFromTemplate(params: {
       context,
       task.capabilities_required ?? [],
       roleConfig,
-      task.environment ?? null,
+      environment,
       task.timeout_minutes ?? config.TASK_DEFAULT_TIMEOUT_MINUTES,
       task.auto_retry ?? config.TASK_DEFAULT_AUTO_RETRY,
       task.max_retries ?? config.TASK_DEFAULT_MAX_RETRIES,

@@ -137,5 +137,6 @@ test('renders task detail payload for a valid task id', async ({ page }) => {
   await expect(
     page.getByRole('status', { name: 'Built-in worker can handle this task' }),
   ).toBeVisible();
-  await expect(page.locator('pre')).toContainText('"title": "Implement thing"');
+  await expect(page.getByText('Implement thing').first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Execution Summary' })).toBeVisible();
 });
