@@ -26,6 +26,16 @@ const registerSchema = z.discriminatedUnion('kind', [
       icon_emoji: z.string().min(1).optional(),
     }),
   }),
+  z.object({
+    kind: z.literal('otlp_http'),
+    pipeline_id: z.string().uuid().optional(),
+    subscriptions: z.array(z.string().min(1)).default([]),
+    config: z.object({
+      endpoint: z.string().url(),
+      headers: z.record(z.string()).optional(),
+      service_name: z.string().min(1).optional(),
+    }),
+  }),
 ]);
 
 const updateSchema = z

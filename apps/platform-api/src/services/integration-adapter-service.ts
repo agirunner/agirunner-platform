@@ -6,6 +6,12 @@ import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import type { StreamEvent } from './event-stream-service.js';
 import type { IntegrationActionService } from './integration-action-service.js';
 import {
+  deliverOtlpEvent,
+  normalizeStoredOtlpConfig,
+  toOtlpDeliveryTarget,
+  toPublicOtlpConfig,
+} from './integration-adapter-otlp.js';
+import {
   deliverSlackEvent,
   normalizeStoredSlackConfig,
   toPublicSlackConfig,
@@ -21,7 +27,7 @@ import {
   type DeliveryAttempt,
 } from './integration-adapter-webhook.js';
 
-type IntegrationAdapterKind = 'webhook' | 'slack';
+type IntegrationAdapterKind = 'webhook' | 'slack' | 'otlp_http';
 
 interface IntegrationAdapterRow {
   id: string;
@@ -151,10 +157,8 @@ export class IntegrationAdapterService {
         continue;
       }
 
-      if (row.kind !== 'webhook') {
-        if (row.kind !== 'slack') {
-          continue;
-        }
+      if (row.kind !== 'webhook' && row.kind !== 'slack' && row.kind !== 'otlp_http') {
+        continue;
       }
 
       const deliveryId = await this.insertPendingDelivery(event.tenant_id, row.id, event.id);
@@ -168,12 +172,19 @@ export class IntegrationAdapterService {
               event.type,
               payload,
             )
-          : await deliverSlackEvent(
-              this.fetchFn,
-              this.config,
-              toSlackDeliveryTarget(row.config),
-              payload,
-            );
+          : row.kind === 'slack'
+            ? await deliverSlackEvent(
+                this.fetchFn,
+                this.config,
+                toSlackDeliveryTarget(row.config),
+                payload,
+              )
+            : await deliverOtlpEvent(
+                this.fetchFn,
+                this.config,
+                toOtlpDeliveryTarget(row.config),
+                event,
+              );
       await this.finishDelivery(deliveryId, attempt);
     }
   }
@@ -279,6 +290,9 @@ export class IntegrationAdapterService {
     if (kind === 'slack') {
       return toPublicSlackConfig(config);
     }
+    if (kind === 'otlp_http') {
+      return toPublicOtlpConfig(config);
+    }
     throw new ValidationError(`Unsupported integration adapter kind '${kind}'`);
   }
 
@@ -299,6 +313,9 @@ export class IntegrationAdapterService {
     }
     if (kind === 'slack') {
       return normalizeStoredSlackConfig(currentConfig, nextConfig);
+    }
+    if (kind === 'otlp_http') {
+      return normalizeStoredOtlpConfig(currentConfig, nextConfig);
     }
     throw new ValidationError(`Unsupported integration adapter kind '${kind}'`);
   }

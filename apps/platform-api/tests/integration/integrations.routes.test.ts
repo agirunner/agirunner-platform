@@ -395,4 +395,76 @@ describe('integration adapter routes', () => {
     });
     expect(deleteResponse.statusCode).toBe(204);
   });
+
+  it('exports lifecycle events through otlp_http adapters as trace envelopes', async () => {
+    const createResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/integrations',
+      headers: { authorization: `Bearer ${adminKey}` },
+      payload: {
+        kind: 'otlp_http',
+        pipeline_id: pipelineId,
+        subscriptions: ['task.state_changed'],
+        config: {
+          endpoint: `${deliveryBaseUrl}/otlp`,
+          headers: { authorization: 'Bearer collector-token' },
+          service_name: 'agentbaton-platform-test',
+        },
+      },
+    });
+
+    expect(createResponse.statusCode).toBe(201);
+    const adapterId = createResponse.json().data.id as string;
+    const requestPromise = waitForRequest(deliveryServer);
+
+    await app.eventService.emit({
+      tenantId,
+      type: 'task.state_changed',
+      entityType: 'task',
+      entityId: randomUUID(),
+      actorType: 'system',
+      data: {
+        pipeline_id: pipelineId,
+        to_state: 'running',
+        task_type: 'code',
+        agent_id: 'agent-1',
+        agent_framework: 'codex',
+        gen_ai_system: 'openai',
+        gen_ai_model: 'gpt-5',
+      },
+    });
+
+    const delivered = await requestPromise;
+    const payload = JSON.parse(delivered.body) as {
+      resourceSpans?: Array<{
+        resource?: { attributes?: Array<{ key?: string; value?: { stringValue?: string } }> };
+        scopeSpans?: Array<{
+          spans?: Array<{ name?: string; traceId?: string; attributes?: Array<{ key?: string; value?: { stringValue?: string } }> }>;
+        }>;
+      }>;
+    };
+
+    expect(delivered.headers.authorization).toBe('Bearer collector-token');
+    expect(payload.resourceSpans?.[0]?.resource?.attributes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'service.name', value: { stringValue: 'agentbaton-platform-test' } }),
+      ]),
+    );
+    expect(payload.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0]?.name).toBe('task.state_changed');
+    expect(payload.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0]?.traceId).toHaveLength(32);
+    expect(payload.resourceSpans?.[0]?.scopeSpans?.[0]?.spans?.[0]?.attributes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: 'agentbaton.pipeline.id', value: { stringValue: pipelineId } }),
+        expect.objectContaining({ key: 'agentbaton.task.type', value: { stringValue: 'code' } }),
+        expect.objectContaining({ key: 'gen_ai.system', value: { stringValue: 'openai' } }),
+      ]),
+    );
+
+    const deleteResponse = await app.inject({
+      method: 'DELETE',
+      url: `/api/v1/integrations/${adapterId}`,
+      headers: { authorization: `Bearer ${adminKey}` },
+    });
+    expect(deleteResponse.statusCode).toBe(204);
+  });
 });
