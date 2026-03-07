@@ -3,6 +3,7 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
 import { validateProjectDocumentRegistry } from './document-reference-service.js';
+import { normalizeInstructionDocument } from './instruction-policy.js';
 import { readProjectToolTags, validateProjectToolTags } from './tool-tag-service.js';
 
 type ResourceType =
@@ -220,6 +221,7 @@ export class ProjectSpecService {
 
     validateProjectDocumentRegistry(spec);
     validateProjectToolTags(spec);
+    normalizeInstructionDocument(spec.instructions, 'project instructions', 20_000);
   }
 
   private validateBinding(type: ResourceType, logicalName: string, binding: Record<string, unknown>): void {

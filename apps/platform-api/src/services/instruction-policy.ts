@@ -1,0 +1,82 @@
+import { ValidationError } from '../errors/domain-errors.js';
+
+export type InstructionFormat = 'text' | 'markdown';
+export type InstructionLayerName = 'platform' | 'project' | 'role' | 'task';
+
+export interface InstructionDocument {
+  content: string;
+  format: InstructionFormat;
+}
+
+const TEMPLATE_DELIMITER_PATTERN = /{{|}}/;
+const allowedFormats = new Set<InstructionFormat>(['text', 'markdown']);
+
+export function normalizeInstructionDocument(
+  value: unknown,
+  fieldName: string,
+  maxLength: number,
+): InstructionDocument | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    return validateInstructionDocument({ content: value, format: 'text' }, fieldName, maxLength);
+  }
+
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new ValidationError(`${fieldName} must be a string or object`);
+  }
+
+  const content = typeof (value as Record<string, unknown>).content === 'string'
+    ? String((value as Record<string, unknown>).content)
+    : '';
+  const format = ((value as Record<string, unknown>).format ?? 'text') as InstructionFormat;
+  return validateInstructionDocument({ content, format }, fieldName, maxLength);
+}
+
+function validateInstructionDocument(
+  value: InstructionDocument,
+  fieldName: string,
+  maxLength: number,
+): InstructionDocument | null {
+  const content = value.content.trim();
+  if (content.length === 0) {
+    return null;
+  }
+  if (content.length > maxLength) {
+    throw new ValidationError(`${fieldName} exceeds ${maxLength} characters`);
+  }
+  if (!allowedFormats.has(value.format)) {
+    throw new ValidationError(`${fieldName} format must be text or markdown`);
+  }
+  if (TEMPLATE_DELIMITER_PATTERN.test(content)) {
+    throw new ValidationError(`${fieldName} must not contain template delimiters`);
+  }
+  return { content, format: value.format };
+}
+
+export function normalizeSuppressedLayers(value: unknown): InstructionLayerName[] {
+  if (value === undefined || value === null) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    throw new ValidationError('instruction_config.suppress_layers must be an array');
+  }
+
+  const normalized = new Set<InstructionLayerName>();
+  for (const entry of value) {
+    if (
+      entry === 'platform' ||
+      entry === 'project' ||
+      entry === 'role' ||
+      entry === 'task'
+    ) {
+      normalized.add(entry);
+      continue;
+    }
+    throw new ValidationError(`Unsupported suppressed instruction layer '${String(entry)}'`);
+  }
+
+  return [...normalized];
+}

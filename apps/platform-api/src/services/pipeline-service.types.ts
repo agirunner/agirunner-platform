@@ -7,6 +7,8 @@ export interface CreatePipelineInput {
   name: string;
   parameters?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
+  config_overrides?: Record<string, unknown>;
+  instruction_config?: Record<string, unknown>;
 }
 
 export interface ListPipelineQuery {

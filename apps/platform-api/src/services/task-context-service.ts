@@ -1,5 +1,6 @@
 import type { DatabaseQueryable } from '../db/database.js';
 import { listTaskDocuments } from './document-reference-service.js';
+import { normalizeInstructionDocument } from './instruction-policy.js';
 
 export async function buildTaskContext(
   db: DatabaseQueryable,
@@ -31,7 +32,8 @@ export async function buildTaskContext(
       : Promise.resolve({ rows: [] }),
     task.pipeline_id
       ? db.query(
-          `SELECT p.id, p.name, p.context, p.git_branch, p.parameters,
+          `SELECT p.id, p.name, p.context, p.git_branch, p.parameters, p.resolved_config, p.instruction_config,
+                  p.project_spec_version,
                   t.id AS template_id, t.slug AS template_slug, t.name AS template_name,
                   t.version AS template_version, t.schema AS template_schema
            FROM pipelines p
@@ -56,12 +58,27 @@ export async function buildTaskContext(
   const pipelineRow = pipelineRes.rows[0] as Record<string, unknown> | undefined;
   const templateSchema =
     (pipelineRow?.template_schema as Record<string, unknown> | undefined) ?? {};
+  const projectInstructions = await loadProjectInstructions(db, tenantId, task, pipelineRow);
+  const platformInstructions = await loadPlatformInstructions(db, tenantId);
+  const instructionLayers = buildInstructionLayers({
+    platformInstructions,
+    projectInstructions,
+    roleConfig: asRecord(task.role_config),
+    taskInput: asRecord(task.input),
+    taskId: String(task.id ?? ''),
+    projectId: asOptionalString(task.project_id),
+    projectSpecVersion: asOptionalNumber(pipelineRow?.project_spec_version),
+    role: asOptionalString(task.role),
+    suppressLayers: readSuppressedLayers(pipelineRow?.instruction_config),
+  });
+  const flatInstructions = readFlatInstructions(asRecord(task.role_config), agent?.metadata);
   const pipelineContext = pipelineRow
     ? {
         id: pipelineRow.id,
         name: pipelineRow.name,
         context: pipelineRow.context,
         git_branch: pipelineRow.git_branch,
+        resolved_config: pipelineRow.resolved_config ?? {},
         variables: pipelineRow.parameters ?? {},
         template: {
           id: pipelineRow.template_id,
@@ -78,6 +95,8 @@ export async function buildTaskContext(
     project: projectRes.rows[0] ?? null,
     pipeline: pipelineContext,
     documents,
+    instructions: flatInstructions,
+    instruction_layers: instructionLayers,
     task: {
       id: task.id,
       input: task.input,
@@ -90,4 +109,162 @@ export async function buildTaskContext(
       upstream_outputs: upstreamOutputs,
     },
   };
+}
+
+async function loadPlatformInstructions(db: DatabaseQueryable, tenantId: string) {
+  const result = await db.query(
+    `SELECT tenant_id, version, content, format
+       FROM platform_instructions
+      WHERE tenant_id = $1`,
+    [tenantId],
+  );
+  return result.rows[0] as Record<string, unknown> | undefined;
+}
+
+async function loadProjectInstructions(
+  db: DatabaseQueryable,
+  tenantId: string,
+  task: Record<string, unknown>,
+  pipelineRow?: Record<string, unknown>,
+) {
+  const projectId = asOptionalString(task.project_id);
+  const projectSpecVersion = asOptionalNumber(pipelineRow?.project_spec_version);
+  if (!projectId || !projectSpecVersion || projectSpecVersion <= 0) {
+    return undefined;
+  }
+
+  const result = await db.query<{ spec: Record<string, unknown> }>(
+    `SELECT spec
+       FROM project_spec_versions
+      WHERE tenant_id = $1 AND project_id = $2 AND version = $3`,
+    [tenantId, projectId, projectSpecVersion],
+  );
+  return result.rows[0]?.spec as Record<string, unknown> | undefined;
+}
+
+function buildInstructionLayers(params: {
+  platformInstructions?: Record<string, unknown>;
+  projectInstructions?: Record<string, unknown>;
+  roleConfig: Record<string, unknown>;
+  taskInput: Record<string, unknown>;
+  taskId: string;
+  projectId?: string;
+  projectSpecVersion?: number;
+  role?: string;
+  suppressLayers: string[];
+}) {
+  const suppressed = new Set(params.suppressLayers);
+  const layers: Record<string, unknown> = {};
+
+  const platformDocument = normalizeInstructionDocument(
+    params.platformInstructions
+      ? {
+          content: params.platformInstructions.content,
+          format: params.platformInstructions.format,
+        }
+      : undefined,
+    'platform instructions',
+    10_000,
+  );
+  if (platformDocument && !suppressed.has('platform')) {
+    layers.platform = {
+      ...platformDocument,
+      source: {
+        tenant_id: params.platformInstructions?.tenant_id ?? null,
+        version: params.platformInstructions?.version ?? 0,
+      },
+    };
+  }
+
+  const projectDocument = normalizeInstructionDocument(
+    params.projectInstructions?.instructions,
+    'project instructions',
+    20_000,
+  );
+  if (projectDocument && !suppressed.has('project')) {
+    layers.project = {
+      ...projectDocument,
+      source: {
+        project_id: params.projectId ?? null,
+        version: params.projectSpecVersion ?? 0,
+      },
+    };
+  }
+
+  const roleDocument = normalizeInstructionDocument(
+    params.roleConfig.system_prompt ?? params.roleConfig.instructions,
+    'role instructions',
+    10_000,
+  );
+  if (roleDocument && !suppressed.has('role')) {
+    layers.role = {
+      ...roleDocument,
+      source: {
+        role: params.role ?? null,
+        task_id: params.taskId,
+      },
+    };
+  }
+
+  const taskDocument = normalizeInstructionDocument(
+    params.taskInput.instructions,
+    'task instructions',
+    1_048_576,
+  );
+  if (taskDocument && !suppressed.has('task')) {
+    layers.task = {
+      ...taskDocument,
+      source: {
+        task_id: params.taskId,
+      },
+    };
+  }
+
+  return layers;
+}
+
+function readSuppressedLayers(value: unknown): string[] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return [];
+  }
+  return Array.isArray((value as Record<string, unknown>).suppress_layers)
+    ? ((value as Record<string, unknown>).suppress_layers as unknown[])
+        .filter((entry): entry is string => typeof entry === 'string')
+    : [];
+}
+
+function readAgentProfileInstructions(value: unknown): string {
+  const metadata = asRecord(value);
+  const profile = asRecord(metadata.profile);
+  if (typeof profile.instructions === 'string' && profile.instructions.trim().length > 0) {
+    return profile.instructions;
+  }
+  if (typeof metadata.instructions === 'string' && metadata.instructions.trim().length > 0) {
+    return metadata.instructions;
+  }
+  return '';
+}
+
+function readFlatInstructions(roleConfig: Record<string, unknown>, agentMetadata: unknown): string {
+  const roleInstructions = normalizeInstructionDocument(
+    roleConfig.system_prompt ?? roleConfig.instructions,
+    'role instructions',
+    10_000,
+  );
+  return roleInstructions?.content ?? readAgentProfileInstructions(agentMetadata);
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
+}
+
+function asOptionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function asOptionalNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }

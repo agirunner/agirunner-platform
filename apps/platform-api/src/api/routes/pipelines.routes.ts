@@ -14,6 +14,8 @@ const pipelineCreateSchema = z.object({
   name: z.string().min(1).max(255),
   parameters: z.record(z.unknown()).optional(),
   metadata: z.record(z.unknown()).optional(),
+  config_overrides: z.record(z.unknown()).optional(),
+  instruction_config: z.record(z.unknown()).optional(),
 });
 
 const manualReworkSchema = z.object({
@@ -63,6 +65,14 @@ export const pipelineRoutes: FastifyPluginAsync = async (app) => {
     const params = request.params as { id: string };
     const documents = await listPipelineDocuments(app.pgPool, request.auth!.tenantId, params.id);
     return { data: documents };
+  });
+
+  app.get('/api/v1/pipelines/:id/config/resolved', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
+    const params = request.params as { id: string };
+    const query = request.query as { show_layers?: string };
+    const showLayers = query.show_layers === 'true';
+    const config = await pipelineService.getResolvedConfig(request.auth!.tenantId, params.id, showLayers);
+    return { data: config };
   });
 
   app.post('/api/v1/pipelines/:id/cancel', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {

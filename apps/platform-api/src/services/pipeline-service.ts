@@ -4,6 +4,7 @@ import { createArtifactStorage } from '../content/storage-factory.js';
 import type { DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
+import { buildResolvedConfigView } from './config-hierarchy-service.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { PipelineCancellationService } from './pipeline-cancellation-service.js';
 import { PipelineControlService } from './pipeline-control-service.js';
@@ -121,6 +122,32 @@ export class PipelineService {
     );
 
     return { ...pipeline, tasks } as Record<string, unknown>;
+  }
+
+  async getResolvedConfig(tenantId: string, pipelineId: string, showLayers = false) {
+    const repo = new TenantScopedRepository(this.pool, tenantId);
+    const pipeline = await repo.findById<Record<string, unknown> & { tenant_id: string }>(
+      'pipelines',
+      'id, resolved_config, config_layers',
+      pipelineId,
+    );
+    if (!pipeline) {
+      throw new NotFoundError('Pipeline not found');
+    }
+
+    const resolved = ((pipeline.resolved_config ?? {}) as Record<string, unknown>) ?? {};
+    const rawLayers = ((pipeline.config_layers ?? {}) as Record<string, unknown>) ?? {};
+    const layers = {
+      template: ((rawLayers.template ?? {}) as Record<string, unknown>) ?? {},
+      project: ((rawLayers.project ?? {}) as Record<string, unknown>) ?? {},
+      run: ((rawLayers.run ?? {}) as Record<string, unknown>) ?? {},
+    };
+
+    return {
+      pipeline_id: pipelineId,
+      resolved_config: buildResolvedConfigView(resolved, layers, showLayers),
+      ...(showLayers ? { config_layers: layers } : {}),
+    };
   }
 
   async deletePipeline(identity: ApiKeyIdentity, pipelineId: string) {

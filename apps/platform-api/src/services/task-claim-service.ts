@@ -20,7 +20,7 @@ export class TaskClaimService {
   async claimTask(
     identity: ApiKeyIdentity,
     payload: { agent_id: string; worker_id?: string; capabilities: string[]; pipeline_id?: string; include_context?: boolean },
-  ) {
+  ): Promise<Record<string, unknown> | null> {
     const client = await this.deps.pool.connect();
     try {
       await client.query('BEGIN');
@@ -150,14 +150,27 @@ export class TaskClaimService {
 
       await client.query('COMMIT');
       const claimedTask = this.deps.toTaskResponse(updatedTaskRes.rows[0] as Record<string, unknown>);
+      const { context: _taskContext, ...claimedTaskBase } = claimedTask as Record<string, unknown>;
+      const instructionContext = (await this.deps.getTaskContext(
+        identity.tenantId,
+        task.id as string,
+        payload.agent_id,
+      )) as Record<string, unknown>;
+      const instructions =
+        typeof instructionContext.instructions === 'string' ? instructionContext.instructions : '';
       if ((payload.include_context ?? true) === false) {
-        return claimedTask;
+        return {
+          ...claimedTaskBase,
+          tools: toolMatch,
+          instructions,
+        };
       }
 
       return {
-        ...claimedTask,
+        ...claimedTaskBase,
         tools: toolMatch,
-        context: await this.deps.getTaskContext(identity.tenantId, task.id as string, payload.agent_id),
+        instructions,
+        context: instructionContext,
       };
     } catch (error) {
       await client.query('ROLLBACK');

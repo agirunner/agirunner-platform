@@ -37,6 +37,9 @@ export interface TemplateTaskDefinition {
 export interface TemplateSchema {
   variables?: TemplateVariableDefinition[];
   tasks: TemplateTaskDefinition[];
+  config?: Record<string, unknown>;
+  config_policy?: Record<string, unknown>;
+  default_instruction_config?: Record<string, unknown>;
   /**
    * Workflow patterns map (reserved for v1.1).  Present here so the
    * no-nesting constraint (FR-712) can be validated at creation time even
@@ -347,6 +350,11 @@ export function validateTemplateSchema(input: unknown): TemplateSchema {
   return {
     variables: parseTemplateVariables(input.variables),
     tasks,
+    config: isObject(input.config) ? input.config : undefined,
+    config_policy: isObject(input.config_policy) ? input.config_policy : undefined,
+    default_instruction_config: isObject(input.default_instruction_config)
+      ? input.default_instruction_config
+      : undefined,
     patterns: validatedPatterns,
     metadata: isObject(input.metadata) ? input.metadata : undefined,
   };

@@ -3,6 +3,7 @@ import type { DatabasePool } from '../db/database.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 import { validateTemplateSchema } from '../orchestration/pipeline-engine.js';
 import { resolveTemplateVariables } from '../orchestration/template-variables.js';
+import { resolveInstructionConfig, resolvePipelineConfig } from './config-hierarchy-service.js';
 import { buildTemplateTaskIdMap, insertTaskFromTemplate, loadTemplateOrThrow } from './pipeline-instantiation.js';
 import type { CreatePipelineInput, PipelineServiceConfig } from './pipeline-service.types.js';
 import { EventService } from './event-service.js';
@@ -26,6 +27,7 @@ export class PipelineCreationService {
       const template = await loadTemplateOrThrow(identity.tenantId, input.template_id, client);
       const schema = validateTemplateSchema(template.schema as unknown);
       let projectSpecVersion: number | null = null;
+      let projectSpec: Record<string, unknown> = {};
 
       if (input.project_id) {
         const project = await client.query<{ id: string; current_spec_version: number }>(
@@ -34,12 +36,35 @@ export class PipelineCreationService {
         );
         if (!project.rowCount) throw new NotFoundError('Project not found');
         projectSpecVersion = project.rows[0].current_spec_version;
+
+        if (projectSpecVersion > 0) {
+          const specResult = await client.query<{ spec: Record<string, unknown> }>(
+            `SELECT spec
+               FROM project_spec_versions
+              WHERE tenant_id = $1 AND project_id = $2 AND version = $3`,
+            [identity.tenantId, input.project_id, projectSpecVersion],
+          );
+          projectSpec = (specResult.rows[0]?.spec ?? {}) as Record<string, unknown>;
+        }
       }
 
       const parameters = resolveTemplateVariables(schema.variables, input.parameters);
+      const templateSchema = template.schema as Record<string, unknown>;
+      const resolvedConfig = resolvePipelineConfig(
+        templateSchema,
+        projectSpec,
+        input.config_overrides ?? {},
+      );
+      const instructionConfig = resolveInstructionConfig(
+        templateSchema,
+        input.instruction_config,
+      );
       const pipelineRes = await client.query(
-        `INSERT INTO pipelines (tenant_id, project_id, template_id, template_version, project_spec_version, name, parameters, metadata, state)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending')
+        `INSERT INTO pipelines (
+            tenant_id, project_id, template_id, template_version, project_spec_version,
+            name, parameters, metadata, resolved_config, config_layers, instruction_config, state
+         )
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending')
          RETURNING *`,
         [
           identity.tenantId,
@@ -50,6 +75,9 @@ export class PipelineCreationService {
           input.name,
           parameters,
           input.metadata ?? {},
+          resolvedConfig.resolved,
+          resolvedConfig.layers,
+          instructionConfig,
         ],
       );
 
