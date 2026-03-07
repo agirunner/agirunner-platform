@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { AgentService } from '../../src/services/agent-service.js';
 import { EventService } from '../../src/services/event-service.js';
+import { PipelineService } from '../../src/services/pipeline-service.js';
 import { TaskService } from '../../src/services/task-service.js';
 import { startTestDatabase, stopTestDatabase, type TestDatabase } from '../helpers/postgres.js';
 
@@ -24,12 +25,14 @@ describe('task lifecycle integration', () => {
   let db: TestDatabase;
   let taskService: TaskService;
   let agentService: AgentService;
+  let pipelineService: PipelineService;
 
   beforeAll(async () => {
     db = await startTestDatabase();
     const eventService = new EventService(db.pool);
     taskService = new TaskService(db.pool, eventService, testConfig);
     agentService = new AgentService(db.pool, eventService, testConfig);
+    pipelineService = new PipelineService(db.pool, eventService, testConfig);
   });
 
   afterAll(async () => {
@@ -450,5 +453,136 @@ describe('task lifecycle integration', () => {
 
     const stored = await db.pool.query('SELECT output FROM tasks WHERE tenant_id = $1 AND id = $2', [tenantId, taskId]);
     expect(stored.rows[0].output).toMatchObject({ note: 'missing summary' });
+  });
+
+  it('registers pipeline document outputs and injects them into downstream task context', async () => {
+    const adminIdentity = {
+      id: 'admin',
+      tenantId,
+      scope: 'admin' as const,
+      ownerType: 'user',
+      ownerId: null,
+      keyPrefix: 'admin',
+    };
+    const project = await db.pool.query<{ id: string }>(
+      `INSERT INTO projects (tenant_id, name, slug, current_spec_version)
+       VALUES ($1,'docs-project','docs-project',1)
+       RETURNING id`,
+      [tenantId],
+    );
+    const projectId = project.rows[0].id;
+
+    await db.pool.query(
+      `INSERT INTO project_spec_versions (tenant_id, project_id, version, spec, created_by_type, created_by_id)
+       VALUES ($1,$2,1,$3::jsonb,'admin','admin')`,
+      [
+        tenantId,
+        projectId,
+        JSON.stringify({
+          documents: {
+            design_brief: {
+              source: 'repository',
+              path: 'docs/design-brief.md',
+            },
+          },
+        }),
+      ],
+    );
+
+    const template = await db.pool.query<{ id: string }>(
+      `INSERT INTO templates (tenant_id, name, slug, version, schema)
+       VALUES ($1,'docs-template','docs-template',1,$2::jsonb)
+       RETURNING id`,
+      [
+        tenantId,
+        JSON.stringify({
+          tasks: [
+            { id: 'writer', title_template: 'Write docs', type: 'docs' },
+            { id: 'reviewer', title_template: 'Review docs', type: 'review', depends_on: ['writer'] },
+          ],
+        }),
+      ],
+    );
+
+    const pipeline = await pipelineService.createPipeline(adminIdentity, {
+      template_id: template.rows[0].id,
+      project_id: projectId,
+      name: 'docs-pipeline',
+    });
+
+    const [writerTask, reviewerTask] = pipeline.tasks as Array<Record<string, unknown>>;
+    const agentId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO agents (id, tenant_id, name, capabilities, status, heartbeat_interval_seconds, current_task_id)
+       VALUES ($1,$2,'docs-agent',ARRAY['docs'],'busy',30,$3)`,
+      [agentId, tenantId, writerTask.id],
+    );
+    await db.pool.query(
+      `UPDATE tasks
+          SET state = 'running',
+              assigned_agent_id = $3,
+              started_at = now(),
+              claimed_at = now()
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [tenantId, writerTask.id, agentId],
+    );
+
+    await taskService.completeTask(
+      {
+        id: 'docs-agent-key',
+        tenantId,
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: agentId,
+        keyPrefix: 'da',
+      },
+      writerTask.id as string,
+      {
+        output: {
+          summary: 'writer finished',
+          documents: {
+            implementation_notes: {
+              source: 'repository',
+              path: 'docs/implementation-notes.md',
+              title: 'Implementation Notes',
+            },
+          },
+        },
+      },
+    );
+
+    const pipelineDocuments = await db.pool.query(
+      `SELECT logical_name, source, location
+         FROM pipeline_documents
+        WHERE tenant_id = $1
+          AND pipeline_id = $2
+        ORDER BY logical_name ASC`,
+      [tenantId, pipeline.id],
+    );
+    expect(pipelineDocuments.rows).toEqual([
+      {
+        logical_name: 'implementation_notes',
+        source: 'repository',
+        location: 'docs/implementation-notes.md',
+      },
+    ]);
+
+    const context = await taskService.getTaskContext(tenantId, reviewerTask.id as string, agentId);
+    expect((context as Record<string, unknown>).documents).toEqual([
+      expect.objectContaining({
+        logical_name: 'design_brief',
+        scope: 'project',
+        source: 'repository',
+        path: 'docs/design-brief.md',
+      }),
+      expect.objectContaining({
+        logical_name: 'implementation_notes',
+        scope: 'pipeline',
+        source: 'repository',
+        path: 'docs/implementation-notes.md',
+        title: 'Implementation Notes',
+      }),
+    ]);
   });
 });

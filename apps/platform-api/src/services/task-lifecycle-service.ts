@@ -5,6 +5,7 @@ import { ConflictError, ForbiddenError } from '../errors/domain-errors.js';
 import { assertValidTransition, type TaskState } from '../orchestration/task-state-machine.js';
 import type { ArtifactService } from './artifact-service.js';
 import { applyTaskCompletionSideEffects } from './task-completion-side-effects.js';
+import { registerTaskOutputDocuments } from './document-reference-service.js';
 import { EventService } from './event-service.js';
 import { PipelineStateService } from './pipeline-state-service.js';
 import { applyOutputStateDeclarations } from './task-output-storage.js';
@@ -25,6 +26,10 @@ interface TransitionOptions {
   startedAt?: Date;
   overrideInput?: Record<string, unknown>;
   metadataPatch?: Record<string, unknown>;
+  afterUpdate?: (
+    updatedTask: Record<string, unknown>,
+    client: DatabaseClient,
+  ) => Promise<void>;
 }
 
 interface TaskLifecycleDependencies {
@@ -270,6 +275,9 @@ export class TaskLifecycleService {
       if (nextState === 'completed') {
         await applyTaskCompletionSideEffects(this.deps.eventService, identity, updatedTask, client);
       }
+      if (options.afterUpdate) {
+        await options.afterUpdate(updatedTask, client);
+      }
 
       if (task.pipeline_id) {
         await this.deps.pipelineStateService.recomputePipelineState(
@@ -365,6 +373,9 @@ export class TaskLifecycleService {
             verification: payload.verification,
             clearAssignment: true,
             clearLifecycleControlMetadata: true,
+            afterUpdate: async (updatedTask, client) => {
+              await registerTaskOutputDocuments(client, identity.tenantId, updatedTask, persisted.output);
+            },
             reason: 'task_completed',
           });
     } catch (error) {

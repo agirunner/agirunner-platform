@@ -5,6 +5,7 @@ import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { EventService } from '../../services/event-service.js';
+import { listPipelineDocuments } from '../../services/document-reference-service.js';
 import { PipelineService } from '../../services/pipeline-service.js';
 
 const pipelineCreateSchema = z.object({
@@ -56,6 +57,12 @@ export const pipelineRoutes: FastifyPluginAsync = async (app) => {
     const params = request.params as { id: string };
     const pipeline = await pipelineService.getPipeline(request.auth!.tenantId, params.id);
     return { data: pipeline };
+  });
+
+  app.get('/api/v1/pipelines/:id/documents', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
+    const params = request.params as { id: string };
+    const documents = await listPipelineDocuments(app.pgPool, request.auth!.tenantId, params.id);
+    return { data: documents };
   });
 
   app.post('/api/v1/pipelines/:id/cancel', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {

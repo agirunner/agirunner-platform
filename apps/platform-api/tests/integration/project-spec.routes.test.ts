@@ -130,6 +130,13 @@ describe('project spec routes', () => {
             },
           },
         },
+        documents: {
+          api_spec: {
+            source: 'repository',
+            path: 'docs/api/openapi.yaml',
+            repository: 'source_repo',
+          },
+        },
       },
     });
 
@@ -144,6 +151,7 @@ describe('project spec routes', () => {
 
     expect(getLatest.statusCode).toBe(200);
     expect(getLatest.json().data.spec.resources.source_repo.type).toBe('repository');
+    expect(getLatest.json().data.spec.documents.api_spec.path).toBe('docs/api/openapi.yaml');
 
     const putNext = await app.inject({
       method: 'PUT',
@@ -252,5 +260,94 @@ describe('project spec routes', () => {
 
     expect(putSpec.statusCode).toBe(400);
     expect(putSpec.json().error.message).toMatch(/credential-like field/i);
+  });
+
+  it('rejects invalid document references in the project spec', async () => {
+    const putSpec = await app.inject({
+      method: 'PUT',
+      url: `/api/v1/projects/${projectId}/spec`,
+      headers: { authorization: `Bearer ${adminKey}` },
+      payload: {
+        documents: {
+          broken_doc: {
+            source: 'artifact',
+          },
+        },
+      },
+    });
+
+    expect(putSpec.statusCode).toBe(400);
+    expect(putSpec.json().error.message).toMatch(/artifact_id or logical_path/i);
+  });
+
+  it('lists project-spec document references through the pipeline documents endpoint', async () => {
+    const putSpec = await app.inject({
+      method: 'PUT',
+      url: `/api/v1/projects/${projectId}/spec`,
+      headers: { authorization: `Bearer ${adminKey}` },
+      payload: {
+        resources: {
+          source_repo: {
+            type: 'repository',
+            binding: {
+              url: 'git@github.com:org/repo.git',
+              branch: 'main',
+              provider: 'github',
+            },
+          },
+        },
+        documents: {
+          architecture: {
+            source: 'repository',
+            repository: 'source_repo',
+            path: 'docs/architecture.md',
+            title: 'Architecture Overview',
+          },
+          runbook: {
+            source: 'external',
+            url: 'https://example.com/runbook',
+          },
+        },
+      },
+    });
+
+    expect(putSpec.statusCode).toBe(200);
+
+    const pipelineCreate = await app.inject({
+      method: 'POST',
+      url: '/api/v1/pipelines',
+      headers: { authorization: `Bearer ${adminKey}` },
+      payload: {
+        template_id: templateId,
+        project_id: projectId,
+        name: 'document-pipeline',
+      },
+    });
+
+    expect(pipelineCreate.statusCode).toBe(201);
+    const pipelineId = pipelineCreate.json().data.id as string;
+
+    const documents = await app.inject({
+      method: 'GET',
+      url: `/api/v1/pipelines/${pipelineId}/documents`,
+      headers: { authorization: `Bearer ${agentKey}` },
+    });
+
+    expect(documents.statusCode).toBe(200);
+    expect(documents.json().data).toEqual([
+      expect.objectContaining({
+        logical_name: 'architecture',
+        scope: 'project',
+        source: 'repository',
+        path: 'docs/architecture.md',
+        repository: 'source_repo',
+      }),
+      expect.objectContaining({
+        logical_name: 'runbook',
+        scope: 'project',
+        source: 'external',
+        url: 'https://example.com/runbook',
+      }),
+    ]);
   });
 });

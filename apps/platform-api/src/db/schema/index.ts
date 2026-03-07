@@ -14,6 +14,7 @@ export * from './worker-signals.js';
 export * from './webhooks.js';
 export * from './webhook-deliveries.js';
 export * from './pipeline-artifacts.js';
+export * from './pipeline-documents.js';
 export * from './integration-adapters.js';
 export * from './integration-adapter-deliveries.js';
 export * from './integration-actions.js';

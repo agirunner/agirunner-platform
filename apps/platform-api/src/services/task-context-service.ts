@@ -1,4 +1,5 @@
 import type { DatabaseQueryable } from '../db/database.js';
+import { listTaskDocuments } from './document-reference-service.js';
 
 export async function buildTaskContext(
   db: DatabaseQueryable,
@@ -21,7 +22,7 @@ export async function buildTaskContext(
     agent = assignedAgentRes.rows[0] ?? null;
   }
 
-  const [projectRes, pipelineRes, depsRes] = await Promise.all([
+  const [projectRes, pipelineRes, depsRes, documents] = await Promise.all([
     task.project_id
       ? db.query(
           'SELECT id, name, description, memory FROM projects WHERE tenant_id = $1 AND id = $2',
@@ -45,6 +46,7 @@ export async function buildTaskContext(
           [tenantId, task.depends_on],
         )
       : Promise.resolve({ rows: [] }),
+    listTaskDocuments(db, tenantId, task),
   ]);
 
   const upstreamOutputs = Object.fromEntries(
@@ -75,6 +77,7 @@ export async function buildTaskContext(
     agent,
     project: projectRes.rows[0] ?? null,
     pipeline: pipelineContext,
+    documents,
     task: {
       id: task.id,
       input: task.input,
