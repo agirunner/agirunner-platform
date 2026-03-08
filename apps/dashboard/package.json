@@ -8,8 +8,7 @@
     "build": "vite build",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run src/**/*.test.ts",
-    "test:e2e": "playwright test"
+    "test": "vitest run src/**/*.test.ts"
   },
   "dependencies": {
     "@agirunner/sdk": "workspace:*",
