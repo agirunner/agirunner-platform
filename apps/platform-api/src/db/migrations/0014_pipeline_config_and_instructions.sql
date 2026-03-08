@@ -1,4 +1,4 @@
-ALTER TABLE pipelines
+ALTER TABLE workflows
   ADD COLUMN IF NOT EXISTS resolved_config JSONB NOT NULL DEFAULT '{}'::jsonb,
   ADD COLUMN IF NOT EXISTS config_layers JSONB NOT NULL DEFAULT '{}'::jsonb,
   ADD COLUMN IF NOT EXISTS instruction_config JSONB;

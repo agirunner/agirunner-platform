@@ -16,16 +16,16 @@ class PlatformApiClientTests(unittest.TestCase):
             if path == "/api/v1/projects/project-1/memory":
                 return {"data": {"id": "project-1", "memory": {"last_run_summary": {}}}}
             if path == "/api/v1/projects/project-1/timeline":
-                return {"data": [{"pipeline_id": "pipe-1"}]}
-            if path == "/api/v1/pipelines/pipe-1/config/resolved?show_layers=true":
-                return {"data": {"pipeline_id": "pipe-1", "resolved_config": {"retries": 2}}}
-            if path == "/api/v1/pipelines/pipe-1/documents":
+                return {"data": [{"workflow_id": "pipe-1"}]}
+            if path == "/api/v1/workflows/pipe-1/config/resolved?show_layers=true":
+                return {"data": {"workflow_id": "pipe-1", "resolved_config": {"retries": 2}}}
+            if path == "/api/v1/workflows/pipe-1/documents":
                 return {"data": [{"logical_name": "brief"}]}
-            if path == "/api/v1/projects/project-1/planning-pipeline":
+            if path == "/api/v1/projects/project-1/planning-workflow":
                 return {"data": {"id": "pipe-1"}}
-            if path == "/api/v1/pipelines/pipe-1/phases/review/gate":
+            if path == "/api/v1/workflows/pipe-1/phases/review/gate":
                 return {"data": {"id": "pipe-1", "current_phase": "review"}}
-            if path == "/api/v1/pipelines/pipe-1/phases/review/cancel":
+            if path == "/api/v1/workflows/pipe-1/phases/review/cancel":
                 return {"data": {"id": "pipe-1", "state": "cancelled"}}
             if path == "/api/v1/tasks/task-1/artifacts":
                 return {"data": [{"id": "artifact-1"}]}
@@ -39,14 +39,14 @@ class PlatformApiClientTests(unittest.TestCase):
             client.patch_project_memory("project-1", "last_run_summary", {})["memory"],
             {"last_run_summary": {}},
         )
-        self.assertEqual(client.get_project_timeline("project-1")[0]["pipeline_id"], "pipe-1")
+        self.assertEqual(client.get_project_timeline("project-1")[0]["workflow_id"], "pipe-1")
         self.assertEqual(
-            client.get_resolved_pipeline_config("pipe-1", True)["resolved_config"],
+            client.get_resolved_workflow_config("pipe-1", True)["resolved_config"],
             {"retries": 2},
         )
-        self.assertEqual(client.list_pipeline_documents("pipe-1")[0]["logical_name"], "brief")
+        self.assertEqual(client.list_workflow_documents("pipe-1")[0]["logical_name"], "brief")
         self.assertEqual(
-            client.create_planning_pipeline("project-1", "Plan next run")["id"],
+            client.create_planning_workflow("project-1", "Plan next run")["id"],
             "pipe-1",
         )
         self.assertEqual(

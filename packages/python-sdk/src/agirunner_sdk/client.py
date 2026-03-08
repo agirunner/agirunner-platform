@@ -36,34 +36,34 @@ class PlatformApiClient:
     def get_task(self, task_id: str) -> dict[str, Any]:
         return self._request_data(f"/api/v1/tasks/{task_id}")
 
-    def list_pipelines(self, query: dict[str, Any] | None = None) -> dict[str, Any]:
-        return self._request(self._with_query("/api/v1/pipelines", query))
+    def list_workflows(self, query: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self._request(self._with_query("/api/v1/workflows", query))
 
-    def get_pipeline(self, pipeline_id: str) -> dict[str, Any]:
-        return self._request_data(f"/api/v1/pipelines/{pipeline_id}")
+    def get_workflow(self, workflow_id: str) -> dict[str, Any]:
+        return self._request_data(f"/api/v1/workflows/{workflow_id}")
 
-    def create_pipeline(self, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request_data("/api/v1/pipelines", method="POST", body=payload)
+    def create_workflow(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._request_data("/api/v1/workflows", method="POST", body=payload)
 
-    def cancel_pipeline(self, pipeline_id: str) -> dict[str, Any]:
-        return self._request_data(f"/api/v1/pipelines/{pipeline_id}/cancel", method="POST")
+    def cancel_workflow(self, workflow_id: str) -> dict[str, Any]:
+        return self._request_data(f"/api/v1/workflows/{workflow_id}/cancel", method="POST")
 
-    def act_on_phase_gate(self, pipeline_id: str, phase_name: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def act_on_phase_gate(self, workflow_id: str, phase_name: str, payload: dict[str, Any]) -> dict[str, Any]:
         return self._request_data(
-            f"/api/v1/pipelines/{pipeline_id}/phases/{phase_name}/gate",
+            f"/api/v1/workflows/{workflow_id}/phases/{phase_name}/gate",
             method="POST",
             body=payload,
         )
 
-    def cancel_phase(self, pipeline_id: str, phase_name: str) -> dict[str, Any]:
-        return self._request_data(f"/api/v1/pipelines/{pipeline_id}/phases/{phase_name}/cancel", method="POST")
+    def cancel_phase(self, workflow_id: str, phase_name: str) -> dict[str, Any]:
+        return self._request_data(f"/api/v1/workflows/{workflow_id}/phases/{phase_name}/cancel", method="POST")
 
-    def get_resolved_pipeline_config(self, pipeline_id: str, show_layers: bool = False) -> dict[str, Any]:
+    def get_resolved_workflow_config(self, workflow_id: str, show_layers: bool = False) -> dict[str, Any]:
         suffix = "?show_layers=true" if show_layers else ""
-        return self._request_data(f"/api/v1/pipelines/{pipeline_id}/config/resolved{suffix}")
+        return self._request_data(f"/api/v1/workflows/{workflow_id}/config/resolved{suffix}")
 
-    def list_pipeline_documents(self, pipeline_id: str) -> list[dict[str, Any]]:
-        return self._request_data(f"/api/v1/pipelines/{pipeline_id}/documents")
+    def list_workflow_documents(self, workflow_id: str) -> list[dict[str, Any]]:
+        return self._request_data(f"/api/v1/workflows/{workflow_id}/documents")
 
     def list_projects(self, query: dict[str, Any] | None = None) -> dict[str, Any]:
         return self._request(self._with_query("/api/v1/projects", query))
@@ -81,11 +81,11 @@ class PlatformApiClient:
     def get_project_timeline(self, project_id: str) -> list[dict[str, Any]]:
         return self._request_data(f"/api/v1/projects/{project_id}/timeline")
 
-    def create_planning_pipeline(self, project_id: str, brief: str, name: str | None = None) -> dict[str, Any]:
+    def create_planning_workflow(self, project_id: str, brief: str, name: str | None = None) -> dict[str, Any]:
         body: dict[str, Any] = {"brief": brief}
         if name:
             body["name"] = name
-        return self._request_data(f"/api/v1/projects/{project_id}/planning-pipeline", method="POST", body=body)
+        return self._request_data(f"/api/v1/projects/{project_id}/planning-workflow", method="POST", body=body)
 
     def list_task_artifacts(self, task_id: str) -> list[dict[str, Any]]:
         return self._request_data(f"/api/v1/tasks/{task_id}/artifacts")

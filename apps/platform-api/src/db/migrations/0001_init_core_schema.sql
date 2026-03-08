@@ -9,8 +9,8 @@ DO $$ BEGIN CREATE TYPE worker_status AS ENUM ('online','degraded','offline'); E
 DO $$ BEGIN CREATE TYPE worker_connection_mode AS ENUM ('websocket','sse','polling'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE worker_runtime_type AS ENUM ('internal','openclaw','claude_code','codex','acp','custom','external'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE TYPE api_key_scope AS ENUM ('agent','worker','admin'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-DO $$ BEGIN CREATE TYPE event_entity_type AS ENUM ('task','pipeline','agent','worker','project','template','system'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-DO $$ BEGIN CREATE TYPE pipeline_state AS ENUM ('pending','active','completed','failed','cancelled','paused'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE event_entity_type AS ENUM ('task','workflow','agent','worker','project','template','system'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE TYPE workflow_state AS ENUM ('pending','active','completed','failed','cancelled','paused'); EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE TABLE IF NOT EXISTS tenants (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -54,14 +54,14 @@ CREATE TABLE IF NOT EXISTS templates (
   CONSTRAINT uq_template_tenant_slug_version UNIQUE (tenant_id, slug, version)
 );
 
-CREATE TABLE IF NOT EXISTS pipelines (
+CREATE TABLE IF NOT EXISTS workflows (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id UUID NOT NULL REFERENCES tenants(id),
   project_id UUID REFERENCES projects(id),
   template_id UUID REFERENCES templates(id),
   template_version INTEGER,
   name TEXT NOT NULL,
-  state pipeline_state NOT NULL DEFAULT 'pending',
+  state workflow_state NOT NULL DEFAULT 'pending',
   parameters JSONB NOT NULL DEFAULT '{}',
   context JSONB NOT NULL DEFAULT '{}',
   context_size_bytes INTEGER NOT NULL DEFAULT 0,
@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS agents (
 CREATE TABLE IF NOT EXISTS tasks (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id UUID NOT NULL REFERENCES tenants(id),
-  pipeline_id UUID REFERENCES pipelines(id),
+  workflow_id UUID REFERENCES workflows(id),
   project_id UUID REFERENCES projects(id),
   title TEXT NOT NULL,
   type task_type NOT NULL DEFAULT 'custom',
@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS orchestrator_grants (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id UUID NOT NULL REFERENCES tenants(id),
   agent_id UUID NOT NULL REFERENCES agents(id),
-  pipeline_id UUID NOT NULL REFERENCES pipelines(id),
+  workflow_id UUID NOT NULL REFERENCES workflows(id),
   permissions TEXT[] NOT NULL,
   granted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   expires_at TIMESTAMPTZ,
@@ -202,13 +202,13 @@ CREATE INDEX IF NOT EXISTS idx_projects_tenant ON projects(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_templates_tenant ON templates(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_templates_built_in ON templates(is_built_in) WHERE is_built_in = true;
 
-CREATE INDEX IF NOT EXISTS idx_pipelines_tenant ON pipelines(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_pipelines_project ON pipelines(project_id);
-CREATE INDEX IF NOT EXISTS idx_pipelines_state ON pipelines(tenant_id, state);
-CREATE INDEX IF NOT EXISTS idx_pipelines_template ON pipelines(template_id);
+CREATE INDEX IF NOT EXISTS idx_workflows_tenant ON workflows(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_workflows_project ON workflows(project_id);
+CREATE INDEX IF NOT EXISTS idx_workflows_state ON workflows(tenant_id, state);
+CREATE INDEX IF NOT EXISTS idx_workflows_template ON workflows(template_id);
 
 CREATE INDEX IF NOT EXISTS idx_tasks_tenant ON tasks(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_tasks_pipeline ON tasks(pipeline_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_workflow ON tasks(workflow_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_claimable ON tasks(tenant_id, priority DESC, created_at ASC) WHERE state = 'ready';
 CREATE INDEX IF NOT EXISTS idx_tasks_state ON tasks(tenant_id, state);
@@ -225,7 +225,7 @@ CREATE INDEX IF NOT EXISTS idx_agents_current_task ON agents(current_task_id) WH
 CREATE INDEX IF NOT EXISTS idx_workers_tenant ON workers(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_workers_status ON workers(tenant_id, status);
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_orchestrator_grants_agent_pipeline ON orchestrator_grants(agent_id, pipeline_id) WHERE revoked_at IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orchestrator_grants_agent_workflow ON orchestrator_grants(agent_id, workflow_id) WHERE revoked_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_orchestrator_grants_tenant ON orchestrator_grants(tenant_id);
 
 CREATE INDEX IF NOT EXISTS idx_events_tenant_time ON events(tenant_id, created_at DESC);
@@ -237,7 +237,7 @@ CREATE INDEX IF NOT EXISTS idx_worker_signals_pending ON worker_signals(worker_i
 CREATE OR REPLACE FUNCTION notify_event() RETURNS trigger AS $$
 BEGIN
   PERFORM pg_notify(
-    'agentbaton_events',
+    'agirunner_events',
     json_build_object('id', NEW.id, 'type', NEW.type, 'entity_type', NEW.entity_type, 'entity_id', NEW.entity_id, 'tenant_id', NEW.tenant_id)::text
   );
   RETURN NEW;
@@ -257,7 +257,7 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS trg_tenants_updated_at ON tenants;
 DROP TRIGGER IF EXISTS trg_projects_updated_at ON projects;
 DROP TRIGGER IF EXISTS trg_templates_updated_at ON templates;
-DROP TRIGGER IF EXISTS trg_pipelines_updated_at ON pipelines;
+DROP TRIGGER IF EXISTS trg_workflows_updated_at ON workflows;
 DROP TRIGGER IF EXISTS trg_tasks_updated_at ON tasks;
 DROP TRIGGER IF EXISTS trg_agents_updated_at ON agents;
 DROP TRIGGER IF EXISTS trg_workers_updated_at ON workers;
@@ -265,7 +265,7 @@ DROP TRIGGER IF EXISTS trg_workers_updated_at ON workers;
 CREATE TRIGGER trg_tenants_updated_at BEFORE UPDATE ON tenants FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_projects_updated_at BEFORE UPDATE ON projects FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_templates_updated_at BEFORE UPDATE ON templates FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-CREATE TRIGGER trg_pipelines_updated_at BEFORE UPDATE ON pipelines FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_workflows_updated_at BEFORE UPDATE ON workflows FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_tasks_updated_at BEFORE UPDATE ON tasks FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_agents_updated_at BEFORE UPDATE ON agents FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_workers_updated_at BEFORE UPDATE ON workers FOR EACH ROW EXECUTE FUNCTION update_updated_at();

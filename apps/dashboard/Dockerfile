@@ -8,7 +8,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 ARG VITE_PLATFORM_API_URL=http://localhost:8080
 ENV VITE_PLATFORM_API_URL=${VITE_PLATFORM_API_URL}
-RUN pnpm --filter @agentbaton/dashboard build
+RUN pnpm --filter @agirunner/dashboard build
 
 FROM nginx:1.27-alpine AS runtime
 COPY apps/dashboard/nginx.conf /etc/nginx/conf.d/default.conf

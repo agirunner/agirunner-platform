@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS webhook_task_triggers (
   name TEXT NOT NULL,
   source TEXT NOT NULL,
   project_id UUID REFERENCES projects(id),
-  pipeline_id UUID REFERENCES pipelines(id),
+  workflow_id UUID REFERENCES workflows(id),
   event_header TEXT,
   event_types TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   signature_header TEXT NOT NULL,

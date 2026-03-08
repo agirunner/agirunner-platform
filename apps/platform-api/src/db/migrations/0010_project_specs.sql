@@ -1,7 +1,7 @@
 ALTER TABLE projects
   ADD COLUMN IF NOT EXISTS current_spec_version INTEGER NOT NULL DEFAULT 0;
 
-ALTER TABLE pipelines
+ALTER TABLE workflows
   ADD COLUMN IF NOT EXISTS project_spec_version INTEGER;
 
 CREATE TABLE IF NOT EXISTS project_spec_versions (

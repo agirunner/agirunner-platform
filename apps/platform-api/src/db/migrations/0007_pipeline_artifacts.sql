@@ -1,7 +1,7 @@
-CREATE TABLE IF NOT EXISTS pipeline_artifacts (
+CREATE TABLE IF NOT EXISTS workflow_artifacts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id UUID NOT NULL REFERENCES tenants(id),
-  pipeline_id UUID REFERENCES pipelines(id),
+  workflow_id UUID REFERENCES workflows(id),
   project_id UUID REFERENCES projects(id),
   task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
   logical_path TEXT NOT NULL,
@@ -16,11 +16,11 @@ CREATE TABLE IF NOT EXISTS pipeline_artifacts (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_pipeline_artifacts_tenant_task
-  ON pipeline_artifacts (tenant_id, task_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_artifacts_tenant_task
+  ON workflow_artifacts (tenant_id, task_id);
 
-CREATE INDEX IF NOT EXISTS idx_pipeline_artifacts_tenant_pipeline
-  ON pipeline_artifacts (tenant_id, pipeline_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_artifacts_tenant_workflow
+  ON workflow_artifacts (tenant_id, workflow_id);
 
-CREATE INDEX IF NOT EXISTS idx_pipeline_artifacts_tenant_path
-  ON pipeline_artifacts (tenant_id, logical_path);
+CREATE INDEX IF NOT EXISTS idx_workflow_artifacts_tenant_path
+  ON workflow_artifacts (tenant_id, logical_path);

@@ -1,13 +1,13 @@
-CREATE TABLE IF NOT EXISTS pipeline_documents (
+CREATE TABLE IF NOT EXISTS workflow_documents (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id UUID NOT NULL REFERENCES tenants(id),
-  pipeline_id UUID NOT NULL REFERENCES pipelines(id),
+  workflow_id UUID NOT NULL REFERENCES workflows(id),
   project_id UUID REFERENCES projects(id),
   task_id UUID REFERENCES tasks(id),
   logical_name TEXT NOT NULL,
   source TEXT NOT NULL,
   location TEXT NOT NULL,
-  artifact_id UUID REFERENCES pipeline_artifacts(id),
+  artifact_id UUID REFERENCES workflow_artifacts(id),
   content_type TEXT,
   title TEXT,
   description TEXT,
@@ -15,11 +15,11 @@ CREATE TABLE IF NOT EXISTS pipeline_documents (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_pipeline_documents_tenant_pipeline
-  ON pipeline_documents(tenant_id, pipeline_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_workflow_documents_tenant_workflow
+  ON workflow_documents(tenant_id, workflow_id, created_at ASC);
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_pipeline_documents_pipeline_logical_name
-  ON pipeline_documents(tenant_id, pipeline_id, logical_name);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_workflow_documents_workflow_logical_name
+  ON workflow_documents(tenant_id, workflow_id, logical_name);
 
-CREATE INDEX IF NOT EXISTS idx_pipeline_documents_tenant_task
-  ON pipeline_documents(tenant_id, task_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_documents_tenant_task
+  ON workflow_documents(tenant_id, task_id);

@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS integration_adapters (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id UUID NOT NULL REFERENCES tenants(id),
-  pipeline_id UUID REFERENCES pipelines(id),
+  workflow_id UUID REFERENCES workflows(id),
   kind TEXT NOT NULL,
   config JSONB NOT NULL DEFAULT '{}'::jsonb,
   subscriptions TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS integration_adapters (
 CREATE INDEX IF NOT EXISTS idx_integration_adapters_tenant
   ON integration_adapters(tenant_id, is_active);
 
-CREATE INDEX IF NOT EXISTS idx_integration_adapters_pipeline
-  ON integration_adapters(tenant_id, pipeline_id);
+CREATE INDEX IF NOT EXISTS idx_integration_adapters_workflow
+  ON integration_adapters(tenant_id, workflow_id);
 
 CREATE TABLE IF NOT EXISTS integration_adapter_deliveries (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
