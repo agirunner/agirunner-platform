@@ -9,6 +9,7 @@ import { RoleDefinitionService } from '../services/role-definition-service.js';
 import { RuntimeDefaultsService } from '../services/runtime-defaults-service.js';
 import { UserService } from '../services/user-service.js';
 import { DEFAULT_TENANT_ID } from '../db/seed.js';
+import { seedDefaultTemplates } from './template-seed.js';
 
 /**
  * Seeds configuration tables from the file-based config on first run.
@@ -20,6 +21,12 @@ import { DEFAULT_TENANT_ID } from '../db/seed.js';
  * Idempotent — skips seeding if roles already exist for the default tenant.
  */
 export async function seedConfigTables(pool: pg.Pool): Promise<void> {
+  await seedRolesAndDefaults(pool);
+  await seedAdminUser(pool);
+  await seedDefaultTemplates(pool);
+}
+
+async function seedRolesAndDefaults(pool: pg.Pool): Promise<void> {
   const roleService = new RoleDefinitionService(pool);
   const defaultsService = new RuntimeDefaultsService(pool);
 
@@ -40,8 +47,6 @@ export async function seedConfigTables(pool: pg.Pool): Promise<void> {
   await seedRuntimeDefaults(defaultsService, rolesConfig);
 
   console.info('[config-seed] Configuration tables seeded from built-in-roles.json.');
-
-  await seedAdminUser(pool);
 }
 
 async function seedRoleDefinitions(
