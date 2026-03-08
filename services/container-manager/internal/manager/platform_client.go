@@ -195,6 +195,75 @@ func (c *PlatformClient) ReportSecurityEvent(event SecurityEvent) error {
 	return nil
 }
 
+type runtimeTargetsResponse struct {
+	Data []RuntimeTarget `json:"data"`
+}
+
+// FetchRuntimeTargets retrieves current fleet runtime targets from the platform.
+func (c *PlatformClient) FetchRuntimeTargets() ([]RuntimeTarget, error) {
+	url := fmt.Sprintf("%s/api/v1/fleet/runtime-targets", c.baseURL)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create runtime targets request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("runtime targets request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("runtime targets API returned HTTP %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result runtimeTargetsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode runtime targets response: %w", err)
+	}
+	return result.Data, nil
+}
+
+type heartbeatsResponse struct {
+	Data []RuntimeHeartbeat `json:"data"`
+}
+
+// FetchHeartbeats retrieves runtime heartbeat data from the platform.
+func (c *PlatformClient) FetchHeartbeats() ([]RuntimeHeartbeat, error) {
+	url := fmt.Sprintf("%s/api/v1/fleet/status", c.baseURL)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create heartbeats request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("heartbeats request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("heartbeats API returned HTTP %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result heartbeatsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode heartbeats response: %w", err)
+	}
+	return result.Data, nil
+}
+
+// RecordFleetEvent logs a fleet event locally (no upstream API endpoint yet).
+func (c *PlatformClient) RecordFleetEvent(_ FleetEvent) error {
+	return nil
+}
+
 // ReportCircuitBreakerOutcome reports a task outcome for quality scoring.
 func (c *PlatformClient) ReportCircuitBreakerOutcome(workerID, outcome, reason string) error {
 	payload := map[string]string{

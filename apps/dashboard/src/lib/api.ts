@@ -375,6 +375,43 @@ export interface DashboardCustomizationExportResponse {
   error?: string;
 }
 
+export interface FleetStatusResponse {
+  total_runtimes: number;
+  global_max: number;
+  running: number;
+  idle: number;
+  executing: number;
+  draining: number;
+  templates: Array<{
+    template_id: string;
+    template_name: string;
+    pool_mode: 'warm' | 'cold';
+    max_runtimes: number;
+    runtime_count: number;
+    running: number;
+    idle: number;
+    executing: number;
+    draining: number;
+    pending_tasks: number;
+    active_workflows: number;
+  }>;
+}
+
+export interface FleetEventRecord {
+  id: string;
+  timestamp: string;
+  type: string;
+  level: 'info' | 'warning' | 'error';
+  runtime_id: string;
+  template_id?: string;
+  details: string;
+}
+
+export interface QueueDepthResponse {
+  total: number;
+  by_template?: Record<string, number>;
+}
+
 export interface DashboardApi {
   login(apiKey: string): Promise<void>;
   logout(): Promise<void>;
@@ -496,6 +533,9 @@ export interface DashboardApi {
   }): Promise<{ api_key: string; key_prefix: string }>;
   revokeApiKey(id: string): Promise<unknown>;
   search(query: string): Promise<DashboardSearchResult[]>;
+  fetchFleetStatus(): Promise<FleetStatusResponse>;
+  fetchFleetEvents(filters?: Record<string, string>): Promise<{ data: FleetEventRecord[]; total: number }>;
+  fetchQueueDepth(templateId?: string): Promise<QueueDepthResponse>;
   getMetrics(): Promise<string>;
   getCustomizationStatus(): Promise<DashboardCustomizationStatusResponse>;
   validateCustomization(payload: {
@@ -861,6 +901,26 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           projects: extractListResult(projects),
           templates: extractListResult(templates),
         });
+      }),
+    fetchFleetStatus: () =>
+      withRefresh(() =>
+        requestData<FleetStatusResponse>('/api/v1/fleet/status', {
+          method: 'GET',
+        }),
+      ),
+    fetchFleetEvents: (filters) =>
+      withRefresh(() =>
+        requestJson<{ data: FleetEventRecord[]; total: number }>(
+          `/api/v1/fleet/events${buildQueryString(filters)}`,
+          { method: 'GET' },
+        ),
+      ),
+    fetchQueueDepth: (templateId) =>
+      withRefresh(() => {
+        const path = templateId
+          ? `/api/v1/tasks/queue-depth?template_id=${encodeURIComponent(templateId)}`
+          : '/api/v1/tasks/queue-depth';
+        return requestData<QueueDepthResponse>(path, { method: 'GET' });
       }),
     getMetrics: () =>
       withRefresh(async () => {

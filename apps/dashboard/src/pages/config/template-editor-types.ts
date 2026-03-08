@@ -51,6 +51,30 @@ export interface LifecyclePolicy {
   };
 }
 
+export type PullPolicy = 'always' | 'if-not-present' | 'never';
+export type PoolMode = 'warm' | 'cold';
+
+export interface RuntimeConfig {
+  pool_mode: PoolMode;
+  max_runtimes: number;
+  priority: number;
+  idle_timeout: number;
+  grace_period: number;
+  image: string;
+  pull_policy: PullPolicy;
+  cpu_limit: string;
+  memory_limit: string;
+}
+
+export interface TaskContainerConfig {
+  pool_mode: PoolMode;
+  warm_pool_size: number;
+  image: string;
+  pull_policy: PullPolicy;
+  cpu_limit: string;
+  memory_limit: string;
+}
+
 export interface TemplateDefinition {
   id: string;
   name: string;
@@ -64,6 +88,8 @@ export interface TemplateDefinition {
   variables: TemplateVariable[];
   config_policy: ConfigPolicyField[];
   lifecycle: LifecyclePolicy;
+  runtime: RuntimeConfig;
+  task_container: TaskContainerConfig;
 }
 
 export function createEmptyLifecycle(): LifecyclePolicy {
@@ -85,6 +111,31 @@ export function createEmptyLifecycle(): LifecyclePolicy {
   };
 }
 
+export function createEmptyRuntimeConfig(): RuntimeConfig {
+  return {
+    pool_mode: 'warm',
+    max_runtimes: 2,
+    priority: 50,
+    idle_timeout: 300,
+    grace_period: 30,
+    image: 'agirunner-runtime:local',
+    pull_policy: 'if-not-present',
+    cpu_limit: '1.0',
+    memory_limit: '512m',
+  };
+}
+
+export function createEmptyTaskContainerConfig(): TaskContainerConfig {
+  return {
+    pool_mode: 'warm',
+    warm_pool_size: 1,
+    image: 'ubuntu:22.04',
+    pull_policy: 'if-not-present',
+    cpu_limit: '0.5',
+    memory_limit: '256m',
+  };
+}
+
 export function createEmptyTemplate(id: string): TemplateDefinition {
   return {
     id,
@@ -97,5 +148,7 @@ export function createEmptyTemplate(id: string): TemplateDefinition {
     variables: [],
     config_policy: [],
     lifecycle: createEmptyLifecycle(),
+    runtime: createEmptyRuntimeConfig(),
+    task_container: createEmptyTaskContainerConfig(),
   };
 }

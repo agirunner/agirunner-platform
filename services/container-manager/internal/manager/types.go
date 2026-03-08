@@ -81,3 +81,40 @@ type ContainerResourceMetrics struct {
 	NetworkRxBytes   int64   `json:"network_rx_bytes"`
 	NetworkTxBytes   int64   `json:"network_tx_bytes"`
 }
+
+// RuntimeTarget describes the desired runtime fleet configuration for a template.
+type RuntimeTarget struct {
+	TemplateID         string `json:"template_id"`
+	TemplateName       string `json:"template_name"`
+	PoolMode           string `json:"pool_mode"`
+	MaxRuntimes        int    `json:"max_runtimes"`
+	Priority           int    `json:"priority"`
+	IdleTimeoutSeconds int    `json:"idle_timeout_seconds"`
+	GracePeriodSeconds int    `json:"grace_period_seconds"`
+	Image              string `json:"image"`
+	PullPolicy         string `json:"pull_policy"`
+	CPU                string `json:"cpu"`
+	Memory             string `json:"memory"`
+	PendingTasks       int    `json:"pending_tasks"`
+	ActiveWorkflows    int    `json:"active_workflows"`
+}
+
+// RuntimeHeartbeat represents a runtime's last known heartbeat state.
+type RuntimeHeartbeat struct {
+	RuntimeID       string `json:"runtime_id"`
+	TemplateID      string `json:"template_id"`
+	State           string `json:"state"`
+	LastHeartbeatAt string `json:"last_heartbeat_at"`
+}
+
+// FleetEvent records a fleet management event for auditing.
+type FleetEvent struct {
+	EventType   string                 `json:"event_type"`
+	Level       string                 `json:"level"`
+	RuntimeID   string                 `json:"runtime_id,omitempty"`
+	TemplateID  string                 `json:"template_id,omitempty"`
+	TaskID      string                 `json:"task_id,omitempty"`
+	WorkflowID  string                 `json:"workflow_id,omitempty"`
+	ContainerID string                 `json:"container_id,omitempty"`
+	Payload     map[string]interface{} `json:"payload,omitempty"`
+}

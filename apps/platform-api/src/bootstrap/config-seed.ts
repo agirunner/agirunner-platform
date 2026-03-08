@@ -88,6 +88,20 @@ async function seedRuntimeDefaults(
     configType: 'number',
     description: 'Maximum number of rework attempts before permanently failing a task',
   });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'global_max_runtimes',
+    configValue: '10',
+    configType: 'number',
+    description: 'Hard ceiling on total dynamically managed runtime containers',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'default_runtime_image',
+    configValue: 'agirunner-runtime:local',
+    configType: 'string',
+    description: 'Default Docker image for runtime containers when template does not specify',
+  });
 }
 
 async function seedAdminUser(pool: pg.Pool): Promise<void> {

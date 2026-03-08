@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import type { DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
-import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
+import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 
 const createDesiredStateSchema = z.object({
   workerName: z.string().min(1).max(200),
@@ -286,4 +286,383 @@ export class FleetService {
       [repository, tag, digest, sizeBytes],
     );
   }
+
+  // --- Dynamic Container Management ---
+
+  async getQueueDepth(tenantId: string, templateId?: string): Promise<QueueDepthResult> {
+    const baseQuery = `
+      SELECT t.workflow_id, w.template_id
+      FROM tasks t
+      JOIN workflows w ON w.id = t.workflow_id AND w.tenant_id = t.tenant_id
+      WHERE t.tenant_id = $1
+        AND t.state = 'ready'
+        AND w.state NOT IN ('cancelled', 'failed', 'completed')`;
+
+    const params: unknown[] = [tenantId];
+    const templateFilter = templateId
+      ? ` AND w.template_id = $${params.push(templateId)}`
+      : '';
+
+    const result = await this.pool.query<{ template_id: string }>(
+      `SELECT template_id, COUNT(*)::int AS count
+       FROM (${baseQuery}${templateFilter}) sub
+       GROUP BY template_id`,
+      params,
+    );
+
+    const byTemplate: Record<string, number> = {};
+    let totalPending = 0;
+    for (const row of result.rows) {
+      const count = (row as unknown as Record<string, number>).count;
+      byTemplate[row.template_id] = count;
+      totalPending += count;
+    }
+
+    return { total_pending: totalPending, by_template: byTemplate };
+  }
+
+  async getRuntimeTargets(tenantId: string): Promise<RuntimeTarget[]> {
+    const result = await this.pool.query<RuntimeTargetRow>(
+      `SELECT
+         t.id AS template_id,
+         t.name AS template_name,
+         t.schema AS schema,
+         (SELECT COUNT(*)::int FROM workflows w
+          WHERE w.tenant_id = t.tenant_id AND w.template_id = t.id
+            AND w.state NOT IN ('cancelled', 'failed', 'completed')) AS active_workflows,
+         (SELECT COUNT(*)::int FROM tasks tk
+          JOIN workflows w2 ON w2.id = tk.workflow_id AND w2.tenant_id = tk.tenant_id
+          WHERE tk.tenant_id = t.tenant_id AND w2.template_id = t.id
+            AND tk.state = 'ready'
+            AND w2.state NOT IN ('cancelled', 'failed', 'completed')) AS pending_tasks
+       FROM templates t
+       WHERE t.tenant_id = $1
+         AND t.deleted_at IS NULL
+         AND t.is_published = true
+         AND t.schema::jsonb ? 'runtime'`,
+      [tenantId],
+    );
+
+    return result.rows.map((row) => {
+      const schema = row.schema as Record<string, unknown>;
+      const runtime = (schema.runtime ?? {}) as Record<string, unknown>;
+
+      return {
+        template_id: row.template_id,
+        template_name: row.template_name,
+        pool_mode: (runtime.pool_mode as string) ?? 'warm',
+        max_runtimes: (runtime.max_runtimes as number) ?? 1,
+        priority: (runtime.priority as number) ?? 0,
+        idle_timeout_seconds: (runtime.idle_timeout_seconds as number) ?? 300,
+        grace_period_seconds: (runtime.grace_period_seconds as number) ?? 180,
+        image: (runtime.image as string) ?? 'agirunner-runtime:local',
+        pull_policy: (runtime.pull_policy as string) ?? 'if-not-present',
+        cpu: (runtime.cpu as string) ?? '1.0',
+        memory: (runtime.memory as string) ?? '512m',
+        pending_tasks: row.pending_tasks,
+        active_workflows: row.active_workflows,
+      };
+    });
+  }
+
+  async recordHeartbeat(
+    tenantId: string,
+    payload: HeartbeatPayload,
+  ): Promise<{ should_drain: boolean }> {
+    const validStates = ['idle', 'executing', 'draining'];
+    if (!validStates.includes(payload.state)) {
+      throw new ValidationError(`Invalid heartbeat state: ${payload.state}`);
+    }
+
+    const result = await this.pool.query<{ drain_requested: boolean }>(
+      `INSERT INTO runtime_heartbeats (
+         runtime_id, tenant_id, template_id, state, task_id,
+         uptime_seconds, last_claim_at, image, last_heartbeat_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+       ON CONFLICT (runtime_id) DO UPDATE SET
+         state = $4, task_id = $5, uptime_seconds = $6,
+         last_claim_at = COALESCE($7, runtime_heartbeats.last_claim_at),
+         last_heartbeat_at = NOW()
+       RETURNING drain_requested`,
+      [
+        payload.runtime_id,
+        tenantId,
+        payload.template_id,
+        payload.state,
+        payload.task_id ?? null,
+        payload.uptime_seconds ?? 0,
+        payload.last_claim_at ?? null,
+        payload.image ?? 'agirunner-runtime:local',
+      ],
+    );
+
+    const drainRequested = result.rows[0]?.drain_requested ?? false;
+    return { should_drain: drainRequested };
+  }
+
+  async getFleetStatus(tenantId: string): Promise<FleetStatus> {
+    const globalMaxResult = await this.pool.query<{ config_value: string }>(
+      `SELECT config_value FROM runtime_defaults
+       WHERE tenant_id = $1 AND config_key = 'global_max_runtimes'`,
+      [tenantId],
+    );
+    const globalMaxRuntimes = globalMaxResult.rows[0]
+      ? parseInt(globalMaxResult.rows[0].config_value, 10)
+      : 10;
+
+    const heartbeats = await this.pool.query<HeartbeatRow>(
+      `SELECT rh.*, t.name AS template_name
+       FROM runtime_heartbeats rh
+       JOIN templates t ON t.id = rh.template_id
+       WHERE rh.tenant_id = $1`,
+      [tenantId],
+    );
+
+    let totalRunning = 0;
+    let totalIdle = 0;
+    let totalExecuting = 0;
+    let totalDraining = 0;
+    const templateMap = new Map<string, TemplateFleetSummary>();
+
+    for (const hb of heartbeats.rows) {
+      totalRunning++;
+      if (hb.state === 'idle') totalIdle++;
+      else if (hb.state === 'executing') totalExecuting++;
+      else if (hb.state === 'draining') totalDraining++;
+
+      let summary = templateMap.get(hb.template_id);
+      if (!summary) {
+        summary = {
+          template_id: hb.template_id,
+          template_name: hb.template_name,
+          max_runtimes: 0,
+          running: 0,
+          idle: 0,
+          executing: 0,
+          pending_tasks: 0,
+          active_workflows: 0,
+        };
+        templateMap.set(hb.template_id, summary);
+      }
+      summary.running++;
+      if (hb.state === 'idle') summary.idle++;
+      else if (hb.state === 'executing') summary.executing++;
+    }
+
+    const targets = await this.getRuntimeTargets(tenantId);
+    for (const target of targets) {
+      const summary = templateMap.get(target.template_id);
+      if (summary) {
+        summary.max_runtimes = target.max_runtimes;
+        summary.pending_tasks = target.pending_tasks;
+        summary.active_workflows = target.active_workflows;
+      } else {
+        templateMap.set(target.template_id, {
+          template_id: target.template_id,
+          template_name: target.template_name,
+          max_runtimes: target.max_runtimes,
+          running: 0,
+          idle: 0,
+          executing: 0,
+          pending_tasks: target.pending_tasks,
+          active_workflows: target.active_workflows,
+        });
+      }
+    }
+
+    return {
+      global_max_runtimes: globalMaxRuntimes,
+      total_running: totalRunning,
+      total_idle: totalIdle,
+      total_executing: totalExecuting,
+      total_draining: totalDraining,
+      by_template: [...templateMap.values()],
+    };
+  }
+
+  async listFleetEvents(
+    tenantId: string,
+    filters: FleetEventFilters,
+  ): Promise<{ events: FleetEventRow[]; total: number }> {
+    const conditions = ['fe.tenant_id = $1'];
+    const params: unknown[] = [tenantId];
+    let paramIndex = 2;
+
+    if (filters.template_id) {
+      conditions.push(`fe.template_id = $${paramIndex++}`);
+      params.push(filters.template_id);
+    }
+    if (filters.runtime_id) {
+      conditions.push(`fe.runtime_id = $${paramIndex++}`);
+      params.push(filters.runtime_id);
+    }
+    if (filters.since) {
+      conditions.push(`fe.created_at >= $${paramIndex++}`);
+      params.push(filters.since);
+    }
+    if (filters.until) {
+      conditions.push(`fe.created_at <= $${paramIndex++}`);
+      params.push(filters.until);
+    }
+
+    const whereClause = conditions.join(' AND ');
+    const limit = filters.limit ?? 50;
+    const offset = filters.offset ?? 0;
+
+    const countResult = await this.pool.query<{ count: number }>(
+      `SELECT COUNT(*)::int AS count FROM fleet_events fe WHERE ${whereClause}`,
+      params,
+    );
+
+    const eventsResult = await this.pool.query<FleetEventRow>(
+      `SELECT fe.* FROM fleet_events fe
+       WHERE ${whereClause}
+       ORDER BY fe.created_at DESC
+       LIMIT $${paramIndex++} OFFSET $${paramIndex}`,
+      [...params, limit, offset],
+    );
+
+    return {
+      events: eventsResult.rows,
+      total: countResult.rows[0]?.count ?? 0,
+    };
+  }
+
+  async drainRuntime(tenantId: string, runtimeId: string): Promise<void> {
+    const result = await this.pool.query(
+      `UPDATE runtime_heartbeats SET drain_requested = true
+       WHERE tenant_id = $1 AND runtime_id = $2`,
+      [tenantId, runtimeId],
+    );
+    if (!result.rowCount) {
+      throw new NotFoundError(`Runtime heartbeat not found: ${runtimeId}`);
+    }
+  }
+
+  async recordFleetEvent(tenantId: string, event: RecordFleetEventInput): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO fleet_events (
+         tenant_id, event_type, level, runtime_id, template_id,
+         task_id, workflow_id, container_id, payload
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [
+        tenantId,
+        event.event_type,
+        event.level ?? 'info',
+        event.runtime_id ?? null,
+        event.template_id ?? null,
+        event.task_id ?? null,
+        event.workflow_id ?? null,
+        event.container_id ?? null,
+        JSON.stringify(event.payload ?? {}),
+      ],
+    );
+  }
+}
+
+// --- DCM Types ---
+
+export interface QueueDepthResult {
+  total_pending: number;
+  by_template: Record<string, number>;
+}
+
+export interface RuntimeTarget {
+  template_id: string;
+  template_name: string;
+  pool_mode: string;
+  max_runtimes: number;
+  priority: number;
+  idle_timeout_seconds: number;
+  grace_period_seconds: number;
+  image: string;
+  pull_policy: string;
+  cpu: string;
+  memory: string;
+  pending_tasks: number;
+  active_workflows: number;
+}
+
+interface RuntimeTargetRow {
+  [key: string]: unknown;
+  template_id: string;
+  template_name: string;
+  schema: unknown;
+  active_workflows: number;
+  pending_tasks: number;
+}
+
+export interface HeartbeatPayload {
+  runtime_id: string;
+  template_id: string;
+  state: string;
+  task_id?: string | null;
+  uptime_seconds?: number;
+  last_claim_at?: string | null;
+  image?: string;
+}
+
+interface HeartbeatRow {
+  [key: string]: unknown;
+  runtime_id: string;
+  tenant_id: string;
+  template_id: string;
+  template_name: string;
+  state: string;
+  task_id: string | null;
+}
+
+interface TemplateFleetSummary {
+  template_id: string;
+  template_name: string;
+  max_runtimes: number;
+  running: number;
+  idle: number;
+  executing: number;
+  pending_tasks: number;
+  active_workflows: number;
+}
+
+export interface FleetStatus {
+  global_max_runtimes: number;
+  total_running: number;
+  total_idle: number;
+  total_executing: number;
+  total_draining: number;
+  by_template: TemplateFleetSummary[];
+}
+
+export interface FleetEventFilters {
+  template_id?: string;
+  runtime_id?: string;
+  since?: string;
+  until?: string;
+  limit?: number;
+  offset?: number;
+}
+
+interface FleetEventRow {
+  [key: string]: unknown;
+  id: string;
+  tenant_id: string;
+  event_type: string;
+  level: string;
+  runtime_id: string | null;
+  template_id: string | null;
+  task_id: string | null;
+  workflow_id: string | null;
+  container_id: string | null;
+  payload: Record<string, unknown>;
+  created_at: Date;
+}
+
+export interface RecordFleetEventInput {
+  event_type: string;
+  level?: string;
+  runtime_id?: string;
+  template_id?: string;
+  task_id?: string;
+  workflow_id?: string;
+  container_id?: string;
+  payload?: Record<string, unknown>;
 }

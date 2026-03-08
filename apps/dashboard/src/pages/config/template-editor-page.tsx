@@ -11,6 +11,7 @@ import { CodeTab } from './template-editor-code-tab.js';
 import { VariablesTab } from './template-editor-variables-tab.js';
 import { ConfigPolicyTab } from './template-editor-config-policy-tab.js';
 import { LifecycleTab } from './template-editor-lifecycle-tab.js';
+import { RuntimeTab } from './template-editor-runtime-tab.js';
 import { PreviewTab } from './template-editor-preview-tab.js';
 
 export function TemplateEditorPage(): JSX.Element {
@@ -109,6 +110,7 @@ export function TemplateEditorPage(): JSX.Element {
           <TabsTrigger value="variables">Variables</TabsTrigger>
           <TabsTrigger value="config-policy">Config Policy</TabsTrigger>
           <TabsTrigger value="lifecycle">Lifecycle</TabsTrigger>
+          <TabsTrigger value="runtime">Runtime</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
         </TabsList>
 
@@ -126,6 +128,9 @@ export function TemplateEditorPage(): JSX.Element {
         </TabsContent>
         <TabsContent value="lifecycle">
           <LifecycleTab template={localTemplate} onChange={handleChange} />
+        </TabsContent>
+        <TabsContent value="runtime">
+          <RuntimeTab template={localTemplate} onChange={handleChange} />
         </TabsContent>
         <TabsContent value="preview">
           <PreviewTab template={localTemplate} />

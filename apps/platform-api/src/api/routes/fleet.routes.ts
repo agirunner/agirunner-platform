@@ -5,6 +5,8 @@ import {
   FleetService,
   type CreateDesiredStateInput,
   type UpdateDesiredStateInput,
+  type HeartbeatPayload,
+  type FleetEventFilters,
 } from '../../services/fleet-service.js';
 
 export const fleetRoutes: FastifyPluginAsync = async (app) => {
@@ -142,6 +144,62 @@ export const fleetRoutes: FastifyPluginAsync = async (app) => {
       await service.requestImagePull(body.repository, body.tag);
       reply.status(202);
       return { data: { repository: body.repository, tag: body.tag } };
+    },
+  );
+
+  // --- Dynamic Container Management ---
+
+  app.get(
+    '/api/v1/tasks/queue-depth',
+    { preHandler: [authenticateApiKey, withScope('worker')] },
+    async (request) => {
+      const query = request.query as { template_id?: string };
+      return { data: await service.getQueueDepth(request.auth!.tenantId, query.template_id) };
+    },
+  );
+
+  app.get(
+    '/api/v1/fleet/runtime-targets',
+    { preHandler: [authenticateApiKey, withScope('worker')] },
+    async (request) => {
+      return { data: await service.getRuntimeTargets(request.auth!.tenantId) };
+    },
+  );
+
+  app.post(
+    '/api/v1/fleet/heartbeat',
+    { preHandler: [authenticateApiKey, withScope('worker')] },
+    async (request) => {
+      const body = request.body as HeartbeatPayload;
+      const result = await service.recordHeartbeat(request.auth!.tenantId, body);
+      return result;
+    },
+  );
+
+  app.get(
+    '/api/v1/fleet/status',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      return { data: await service.getFleetStatus(request.auth!.tenantId) };
+    },
+  );
+
+  app.get(
+    '/api/v1/fleet/events',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const query = request.query as FleetEventFilters;
+      return { data: await service.listFleetEvents(request.auth!.tenantId, query) };
+    },
+  );
+
+  app.post(
+    '/api/v1/fleet/runtimes/:id/drain',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      await service.drainRuntime(request.auth!.tenantId, params.id);
+      reply.status(204);
     },
   );
 };

@@ -42,10 +42,33 @@ export interface TemplateTaskDefinition {
   metadata?: Record<string, unknown>;
 }
 
+export interface RuntimeConfig {
+  pool_mode?: 'warm' | 'cold';
+  max_runtimes?: number;
+  priority?: number;
+  idle_timeout_seconds?: number;
+  grace_period_seconds?: number;
+  image?: string;
+  pull_policy?: 'always' | 'if-not-present' | 'never';
+  cpu?: string;
+  memory?: string;
+}
+
+export interface TaskContainerConfig {
+  pool_mode?: 'warm' | 'cold';
+  warm_pool_size?: number;
+  image?: string;
+  pull_policy?: 'always' | 'if-not-present' | 'never';
+  cpu?: string;
+  memory?: string;
+}
+
 export interface TemplateSchema {
   variables?: TemplateVariableDefinition[];
   tasks: TemplateTaskDefinition[];
   workflow?: WorkflowDefinition;
+  runtime?: RuntimeConfig;
+  task_container?: TaskContainerConfig;
   config?: Record<string, unknown>;
   config_policy?: Record<string, unknown>;
   default_instruction_config?: Record<string, unknown>;
@@ -103,6 +126,155 @@ export function assertNoPatternNesting(patterns: Record<string, unknown>): void 
       }
     }
   }
+}
+
+const allowedPoolModes = new Set(['warm', 'cold']);
+const allowedPullPolicies = new Set(['always', 'if-not-present', 'never']);
+
+function validateRuntimeConfig(raw: unknown): RuntimeConfig | undefined {
+  if (raw === undefined) return undefined;
+  if (!isObject(raw)) {
+    throw new SchemaValidationFailedError("Template field 'runtime' must be an object");
+  }
+
+  const config: RuntimeConfig = {};
+
+  if (raw.pool_mode !== undefined) {
+    if (typeof raw.pool_mode !== 'string' || !allowedPoolModes.has(raw.pool_mode)) {
+      throw new SchemaValidationFailedError(
+        `runtime.pool_mode must be 'warm' or 'cold', got '${String(raw.pool_mode)}'`,
+      );
+    }
+    config.pool_mode = raw.pool_mode as RuntimeConfig['pool_mode'];
+  }
+
+  if (raw.max_runtimes !== undefined) {
+    if (typeof raw.max_runtimes !== 'number' || !Number.isInteger(raw.max_runtimes) || raw.max_runtimes < 1) {
+      throw new SchemaValidationFailedError('runtime.max_runtimes must be a positive integer');
+    }
+    config.max_runtimes = raw.max_runtimes;
+  }
+
+  if (raw.priority !== undefined) {
+    if (typeof raw.priority !== 'number' || !Number.isInteger(raw.priority) || raw.priority < 0) {
+      throw new SchemaValidationFailedError('runtime.priority must be a non-negative integer');
+    }
+    config.priority = raw.priority;
+  }
+
+  if (raw.idle_timeout_seconds !== undefined) {
+    if (typeof raw.idle_timeout_seconds !== 'number' || !Number.isInteger(raw.idle_timeout_seconds) || raw.idle_timeout_seconds < 0) {
+      throw new SchemaValidationFailedError('runtime.idle_timeout_seconds must be a non-negative integer');
+    }
+    config.idle_timeout_seconds = raw.idle_timeout_seconds;
+  }
+
+  if (raw.grace_period_seconds !== undefined) {
+    if (typeof raw.grace_period_seconds !== 'number' || !Number.isInteger(raw.grace_period_seconds) || raw.grace_period_seconds < 0) {
+      throw new SchemaValidationFailedError('runtime.grace_period_seconds must be a non-negative integer');
+    }
+    config.grace_period_seconds = raw.grace_period_seconds;
+  }
+
+  if (raw.image !== undefined) {
+    if (typeof raw.image !== 'string' || raw.image.trim().length === 0) {
+      throw new SchemaValidationFailedError('runtime.image must be a non-empty string');
+    }
+    config.image = raw.image;
+  }
+
+  if (raw.pull_policy !== undefined) {
+    if (typeof raw.pull_policy !== 'string' || !allowedPullPolicies.has(raw.pull_policy)) {
+      throw new SchemaValidationFailedError(
+        `runtime.pull_policy must be 'always', 'if-not-present', or 'never', got '${String(raw.pull_policy)}'`,
+      );
+    }
+    config.pull_policy = raw.pull_policy as RuntimeConfig['pull_policy'];
+  }
+
+  if (raw.cpu !== undefined) {
+    if (typeof raw.cpu !== 'string' || raw.cpu.trim().length === 0) {
+      throw new SchemaValidationFailedError('runtime.cpu must be a non-empty string');
+    }
+    config.cpu = raw.cpu;
+  }
+
+  if (raw.memory !== undefined) {
+    if (typeof raw.memory !== 'string' || raw.memory.trim().length === 0) {
+      throw new SchemaValidationFailedError('runtime.memory must be a non-empty string');
+    }
+    config.memory = raw.memory;
+  }
+
+  return config;
+}
+
+function validateTaskContainerConfig(
+  raw: unknown,
+  runtimeConfig: RuntimeConfig | undefined,
+): TaskContainerConfig | undefined {
+  if (raw === undefined) return undefined;
+  if (!isObject(raw)) {
+    throw new SchemaValidationFailedError("Template field 'task_container' must be an object");
+  }
+
+  const config: TaskContainerConfig = {};
+
+  if (raw.pool_mode !== undefined) {
+    if (typeof raw.pool_mode !== 'string' || !allowedPoolModes.has(raw.pool_mode)) {
+      throw new SchemaValidationFailedError(
+        `task_container.pool_mode must be 'warm' or 'cold', got '${String(raw.pool_mode)}'`,
+      );
+    }
+    if (raw.pool_mode === 'warm') {
+      const runtimePoolMode = runtimeConfig?.pool_mode ?? 'warm';
+      if (runtimePoolMode === 'cold') {
+        throw new SchemaValidationFailedError(
+          "task_container.pool_mode cannot be 'warm' when runtime.pool_mode is 'cold'",
+        );
+      }
+    }
+    config.pool_mode = raw.pool_mode as TaskContainerConfig['pool_mode'];
+  }
+
+  if (raw.warm_pool_size !== undefined) {
+    if (typeof raw.warm_pool_size !== 'number' || !Number.isInteger(raw.warm_pool_size) || raw.warm_pool_size < 0) {
+      throw new SchemaValidationFailedError('task_container.warm_pool_size must be a non-negative integer');
+    }
+    config.warm_pool_size = raw.warm_pool_size;
+  }
+
+  if (raw.image !== undefined) {
+    if (typeof raw.image !== 'string') {
+      throw new SchemaValidationFailedError('task_container.image must be a string');
+    }
+    config.image = raw.image;
+  }
+
+  if (raw.pull_policy !== undefined) {
+    if (typeof raw.pull_policy !== 'string' || !allowedPullPolicies.has(raw.pull_policy)) {
+      throw new SchemaValidationFailedError(
+        `task_container.pull_policy must be 'always', 'if-not-present', or 'never', got '${String(raw.pull_policy)}'`,
+      );
+    }
+    config.pull_policy = raw.pull_policy as TaskContainerConfig['pull_policy'];
+  }
+
+  if (raw.cpu !== undefined) {
+    if (typeof raw.cpu !== 'string' || raw.cpu.trim().length === 0) {
+      throw new SchemaValidationFailedError('task_container.cpu must be a non-empty string');
+    }
+    config.cpu = raw.cpu;
+  }
+
+  if (raw.memory !== undefined) {
+    if (typeof raw.memory !== 'string' || raw.memory.trim().length === 0) {
+      throw new SchemaValidationFailedError('task_container.memory must be a non-empty string');
+    }
+    config.memory = raw.memory;
+  }
+
+  return config;
 }
 
 const allowedTaskTypes = new Set([
@@ -407,10 +579,15 @@ export function validateTemplateSchema(input: unknown): TemplateSchema {
     });
   }
 
+  const runtimeConfig = validateRuntimeConfig(input.runtime);
+  const taskContainerConfig = validateTaskContainerConfig(input.task_container, runtimeConfig);
+
   return {
     variables: parseTemplateVariables(input.variables),
     tasks,
     workflow,
+    runtime: runtimeConfig,
+    task_container: taskContainerConfig,
     config: isObject(input.config) ? input.config : undefined,
     config_policy: isObject(input.config_policy) ? input.config_policy : undefined,
     default_instruction_config: isObject(input.default_instruction_config)

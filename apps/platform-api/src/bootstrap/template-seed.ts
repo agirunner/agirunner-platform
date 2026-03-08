@@ -183,6 +183,25 @@ function sdlcTemplateSchema() {
         requires_approval: false,
       },
     ],
+    runtime: {
+      pool_mode: 'warm' as const,
+      max_runtimes: 1,
+      priority: 0,
+      idle_timeout_seconds: 300,
+      grace_period_seconds: 180,
+      image: 'agirunner-runtime:local',
+      pull_policy: 'if-not-present' as const,
+      cpu: '1.0',
+      memory: '512m',
+    },
+    task_container: {
+      pool_mode: 'cold' as const,
+      warm_pool_size: 0,
+      image: '',
+      pull_policy: 'if-not-present' as const,
+      cpu: '0.5',
+      memory: '256m',
+    },
     workflow: {
       phases: [
         { name: 'design', gate: 'none', tasks: ['architect'], parallel: false },

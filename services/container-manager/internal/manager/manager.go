@@ -36,15 +36,19 @@ type ContainerSpec struct {
 	MemoryLimit string
 	Environment map[string]string
 	Labels      map[string]string
+	NetworkName string
 }
 
 // Config holds container manager configuration.
 type Config struct {
-	PlatformAPIURL    string
-	PlatformAPIKey    string
-	DockerHost        string
-	ReconcileInterval time.Duration
-	StopTimeout       time.Duration
+	PlatformAPIURL      string
+	PlatformAPIKey      string
+	PlatformAdminAPIKey string
+	DockerHost          string
+	ReconcileInterval   time.Duration
+	StopTimeout         time.Duration
+	GlobalMaxRuntimes   int
+	RuntimeNetwork      string
 }
 
 // PlatformAPI abstracts communication with the platform API.
@@ -52,6 +56,9 @@ type PlatformAPI interface {
 	FetchDesiredState() ([]DesiredState, error)
 	ReportActualState(state ActualState) error
 	ReportImage(image ContainerImage) error
+	FetchRuntimeTargets() ([]RuntimeTarget, error)
+	FetchHeartbeats() ([]RuntimeHeartbeat, error)
+	RecordFleetEvent(event FleetEvent) error
 }
 
 // Manager implements the desired-state reconciliation loop.
@@ -87,19 +94,31 @@ func NewWithPlatform(cfg Config, docker DockerClient, platform PlatformAPI, logg
 func (m *Manager) Run(ctx context.Context) error {
 	m.logger.Info("container-manager started", "interval", m.config.ReconcileInterval)
 
+	if err := m.startupSweep(ctx); err != nil {
+		m.logger.Error("startup sweep failed", "error", err)
+	}
+
 	ticker := time.NewTicker(m.config.ReconcileInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			m.logger.Info("container-manager stopped")
+			m.logger.Info("container-manager stopping, running shutdown cascade")
+			m.shutdownCascade()
 			return ctx.Err()
 		case <-ticker.C:
-			if err := m.reconcileOnce(ctx); err != nil {
-				m.logger.Error("reconcile cycle failed", "error", err)
-			}
+			m.runReconcileCycle(ctx)
 		}
+	}
+}
+
+func (m *Manager) runReconcileCycle(ctx context.Context) {
+	if err := m.reconcileOnce(ctx); err != nil {
+		m.logger.Error("WDS reconcile cycle failed", "error", err)
+	}
+	if err := m.reconcileDCM(ctx); err != nil {
+		m.logger.Error("DCM reconcile cycle failed", "error", err)
 	}
 }
 

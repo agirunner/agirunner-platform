@@ -1,0 +1,139 @@
+package manager
+
+import (
+	"context"
+	"fmt"
+	"time"
+)
+
+const defaultGracePeriodSeconds = 180
+
+// startupSweep adopts or removes DCM-managed containers based on current targets.
+func (m *Manager) startupSweep(ctx context.Context) error {
+	containers, err := m.listAllDCMContainers(ctx)
+	if err != nil {
+		return fmt.Errorf("list DCM containers on startup: %w", err)
+	}
+
+	if len(containers) == 0 {
+		m.logger.Info("startup sweep: no DCM containers found")
+		return nil
+	}
+
+	targets, err := m.platform.FetchRuntimeTargets()
+	if err != nil {
+		return fmt.Errorf("fetch runtime targets on startup: %w", err)
+	}
+
+	targetMap := buildTargetMap(targets)
+	m.adoptOrRemoveRuntimes(ctx, containers, targetMap)
+	m.removeOrphanTasksOnStartup(ctx, containers)
+	return nil
+}
+
+// listAllDCMContainers returns all containers with the DCM managed label.
+func (m *Manager) listAllDCMContainers(ctx context.Context) ([]ContainerInfo, error) {
+	all, err := m.docker.ListContainers(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("docker list containers: %w", err)
+	}
+
+	var dcm []ContainerInfo
+	for _, c := range all {
+		if c.Labels[labelDCMManaged] == "true" {
+			dcm = append(dcm, c)
+		}
+	}
+	return dcm, nil
+}
+
+// buildTargetMap creates a lookup from template ID to RuntimeTarget.
+func buildTargetMap(targets []RuntimeTarget) map[string]RuntimeTarget {
+	m := make(map[string]RuntimeTarget, len(targets))
+	for _, t := range targets {
+		m[t.TemplateID] = t
+	}
+	return m
+}
+
+// adoptOrRemoveRuntimes keeps runtimes with matching targets, removes the rest.
+func (m *Manager) adoptOrRemoveRuntimes(
+	ctx context.Context,
+	containers []ContainerInfo,
+	targetMap map[string]RuntimeTarget,
+) {
+	for _, c := range containers {
+		if c.Labels[labelDCMTier] != tierRuntime {
+			continue
+		}
+		templateID := c.Labels[labelDCMTemplateID]
+		if _, hasTarget := targetMap[templateID]; hasTarget {
+			m.logger.Info("startup: adopting runtime", "container", c.ID, "template", templateID)
+			continue
+		}
+		gracePeriod := gracePeriodForContainer(c)
+		m.logger.Info("startup: removing stale runtime", "container", c.ID, "template", templateID)
+		m.stopAndRemove(ctx, c.ID, gracePeriod)
+	}
+}
+
+// gracePeriodForContainer returns a stop timeout based on container labels or default.
+func gracePeriodForContainer(c ContainerInfo) time.Duration {
+	_ = c
+	return time.Duration(defaultGracePeriodSeconds) * time.Second
+}
+
+// removeOrphanTasksOnStartup destroys task containers with dead parent runtimes.
+func (m *Manager) removeOrphanTasksOnStartup(ctx context.Context, containers []ContainerInfo) {
+	runtimeIDs := collectRuntimeIDs(containers)
+	orphans := findOrphanTasks(containers, runtimeIDs)
+
+	for _, orphan := range orphans {
+		m.logger.Info("startup: removing orphan task", "container", orphan.ID)
+		m.stopAndRemove(ctx, orphan.ID, m.config.StopTimeout)
+	}
+}
+
+// shutdownCascade gracefully stops all DCM-managed containers on manager shutdown.
+func (m *Manager) shutdownCascade() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	m.logger.Info("shutdown cascade: stopping runtime containers")
+	m.shutdownRuntimes(ctx)
+
+	m.logger.Info("shutdown cascade: cleaning up orphan task containers")
+	m.shutdownOrphanTasks(ctx)
+
+	m.logger.Info("shutdown cascade: complete")
+}
+
+// shutdownRuntimes stops all DCM runtime containers with appropriate grace periods.
+func (m *Manager) shutdownRuntimes(ctx context.Context) {
+	containers, err := m.listDCMRuntimeContainers(ctx)
+	if err != nil {
+		m.logger.Error("shutdown: failed to list runtime containers", "error", err)
+		return
+	}
+
+	for _, c := range containers {
+		gracePeriod := gracePeriodForContainer(c)
+		m.logger.Info("shutdown: stopping runtime", "container", c.ID)
+		m.stopAndRemove(ctx, c.ID, gracePeriod)
+	}
+}
+
+// shutdownOrphanTasks removes any remaining task containers after runtimes are stopped.
+func (m *Manager) shutdownOrphanTasks(ctx context.Context) {
+	all, err := m.docker.ListContainers(ctx)
+	if err != nil {
+		m.logger.Error("shutdown: failed to list containers for task cleanup", "error", err)
+		return
+	}
+
+	tasks := filterByLabels(all, labelDCMManaged, "true", labelDCMTier, tierTask)
+	for _, t := range tasks {
+		m.logger.Info("shutdown: removing task container", "container", t.ID)
+		m.stopAndRemove(ctx, t.ID, m.config.StopTimeout)
+	}
+}

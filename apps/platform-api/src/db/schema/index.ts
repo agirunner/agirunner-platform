@@ -34,3 +34,5 @@ export * from './worker-actual-state.js';
 export * from './container-images.js';
 export * from './users.js';
 export * from './user-identities.js';
+export * from './runtime-heartbeats.js';
+export * from './fleet-events.js';

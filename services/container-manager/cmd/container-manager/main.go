@@ -18,11 +18,14 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 	cfg := manager.Config{
-		PlatformAPIURL:    envOrDefault("PLATFORM_API_URL", "http://platform-api:8080"),
-		PlatformAPIKey:    envOrFileOrDefault("PLATFORM_API_KEY", "PLATFORM_API_KEY_FILE", ""),
-		DockerHost:        envOrDefault("DOCKER_HOST", "tcp://socket-proxy:2375"),
-		ReconcileInterval: parseDuration("RECONCILE_INTERVAL_SECONDS", 5),
-		StopTimeout:       parseDuration("STOP_TIMEOUT_SECONDS", 30),
+		PlatformAPIURL:      envOrDefault("PLATFORM_API_URL", "http://platform-api:8080"),
+		PlatformAPIKey:      envOrFileOrDefault("PLATFORM_API_KEY", "PLATFORM_API_KEY_FILE", ""),
+		PlatformAdminAPIKey: envOrFileOrDefault("PLATFORM_ADMIN_API_KEY", "PLATFORM_ADMIN_API_KEY_FILE", ""),
+		DockerHost:          envOrDefault("DOCKER_HOST", "tcp://socket-proxy:2375"),
+		ReconcileInterval:   parseDuration("RECONCILE_INTERVAL_SECONDS", 5),
+		StopTimeout:         parseDuration("STOP_TIMEOUT_SECONDS", 30),
+		GlobalMaxRuntimes:   parseInt("GLOBAL_MAX_RUNTIMES", 10),
+		RuntimeNetwork:      envOrDefault("RUNTIME_NETWORK", ""),
 	}
 
 	if cfg.PlatformAPIKey == "" {
@@ -73,6 +76,18 @@ func envOrFileOrDefault(envKey, fileEnvKey, defaultValue string) string {
 		}
 	}
 	return defaultValue
+}
+
+func parseInt(envKey string, defaultValue int) int {
+	v := os.Getenv(envKey)
+	if v == "" {
+		return defaultValue
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return defaultValue
+	}
+	return n
 }
 
 func parseDuration(envKey string, defaultSeconds int) time.Duration {

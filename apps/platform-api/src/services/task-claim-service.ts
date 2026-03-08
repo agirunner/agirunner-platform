@@ -21,7 +21,7 @@ export class TaskClaimService {
 
   async claimTask(
     identity: ApiKeyIdentity,
-    payload: { agent_id: string; worker_id?: string; capabilities: string[]; workflow_id?: string; include_context?: boolean },
+    payload: { agent_id: string; worker_id?: string; capabilities: string[]; workflow_id?: string; template_id?: string; include_context?: boolean },
   ): Promise<Record<string, unknown> | null> {
     const client = await this.deps.pool.connect();
     try {
@@ -76,6 +76,7 @@ export class TaskClaimService {
            AND tasks.state = 'ready'
            AND tasks.capabilities_required <@ $2::text[]
            AND ($3::uuid IS NULL OR tasks.workflow_id = $3::uuid)
+           AND ($6::uuid IS NULL OR workflows.template_id = $6::uuid)
            AND (workflows.id IS NULL OR workflows.state <> 'paused')
            AND (
              NOT (tasks.metadata ? 'preferred_agent_id')
@@ -94,7 +95,7 @@ export class TaskClaimService {
            tasks.created_at ASC
          LIMIT 25
          FOR UPDATE OF tasks SKIP LOCKED`,
-        [identity.tenantId, payload.capabilities, payload.workflow_id ?? null, payload.agent_id, payload.worker_id ?? null],
+        [identity.tenantId, payload.capabilities, payload.workflow_id ?? null, payload.agent_id, payload.worker_id ?? null, payload.template_id ?? null],
       );
 
       if (!taskRes.rowCount) {

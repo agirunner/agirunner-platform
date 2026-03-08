@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 )
 
@@ -83,7 +84,16 @@ func (d *RealDockerClient) CreateContainer(ctx context.Context, spec ContainerSp
 		},
 	}
 
-	resp, err := d.cli.ContainerCreate(ctx, cfg, hostCfg, nil, nil, spec.Name)
+	var netCfg *network.NetworkingConfig
+	if spec.NetworkName != "" {
+		netCfg = &network.NetworkingConfig{
+			EndpointsConfig: map[string]*network.EndpointSettings{
+				spec.NetworkName: {},
+			},
+		}
+	}
+
+	resp, err := d.cli.ContainerCreate(ctx, cfg, hostCfg, netCfg, nil, spec.Name)
 	if err != nil {
 		return "", fmt.Errorf("docker create container %q: %w", spec.Name, err)
 	}

@@ -85,9 +85,14 @@ func (m *mockDockerClient) GetContainerStats(_ context.Context, containerID stri
 // mockPlatformClient records calls and returns preconfigured results.
 type mockPlatformClient struct {
 	desiredStates    []DesiredState
+	runtimeTargets   []RuntimeTarget
+	heartbeats       []RuntimeHeartbeat
 	fetchErr         error
+	fetchTargetsErr  error
+	fetchHBErr       error
 	reportedStates   []ActualState
 	reportedImages   []ContainerImage
+	reportedEvents   []FleetEvent
 	reportStateErr   error
 	reportImageErr   error
 }
@@ -112,6 +117,25 @@ func (m *mockPlatformClient) ReportImage(img ContainerImage) error {
 		return m.reportImageErr
 	}
 	m.reportedImages = append(m.reportedImages, img)
+	return nil
+}
+
+func (m *mockPlatformClient) FetchRuntimeTargets() ([]RuntimeTarget, error) {
+	if m.fetchTargetsErr != nil {
+		return nil, m.fetchTargetsErr
+	}
+	return m.runtimeTargets, nil
+}
+
+func (m *mockPlatformClient) FetchHeartbeats() ([]RuntimeHeartbeat, error) {
+	if m.fetchHBErr != nil {
+		return nil, m.fetchHBErr
+	}
+	return m.heartbeats, nil
+}
+
+func (m *mockPlatformClient) RecordFleetEvent(event FleetEvent) error {
+	m.reportedEvents = append(m.reportedEvents, event)
 	return nil
 }
 

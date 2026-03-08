@@ -41,6 +41,7 @@ const WorkerListPage = lazy(() => import('../pages/fleet/worker-list-page.js').t
 const AgentListPage = lazy(() => import('../pages/fleet/agent-list-page.js').then((m) => ({ default: m.AgentListPage })));
 const DockerPage = lazy(() => import('../pages/fleet/docker-page.js').then((m) => ({ default: m.DockerPage })));
 const WarmPoolsPage = lazy(() => import('../pages/fleet/warm-pools-page.js').then((m) => ({ default: m.WarmPoolsPage })));
+const FleetStatusPage = lazy(() => import('../pages/fleet/fleet-status-page.js').then((m) => ({ default: m.FleetStatusPage })));
 
 const AuditLogPage = lazy(() => import('../pages/governance/audit-log-page.js').then((m) => ({ default: m.AuditLogPage })));
 const ApiKeyPage = lazy(() => import('../pages/governance/api-key-page.js').then((m) => ({ default: m.ApiKeyPage })));
@@ -114,6 +115,7 @@ export function App(): JSX.Element {
             <Route path="/fleet/agents" element={<AgentListPage />} />
             <Route path="/fleet/docker" element={<DockerPage />} />
             <Route path="/fleet/warm-pools" element={<WarmPoolsPage />} />
+            <Route path="/fleet/status" element={<FleetStatusPage />} />
 
             {/* Governance */}
             <Route path="/governance/audit" element={<AuditLogPage />} />
