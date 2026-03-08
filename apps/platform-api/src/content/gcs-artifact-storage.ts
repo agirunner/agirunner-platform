@@ -1,7 +1,5 @@
 import { createHash } from 'node:crypto';
 
-import { Storage, type StorageOptions } from '@google-cloud/storage';
-
 import { DEFAULT_ARTIFACT_CONTENT_TYPE } from './storage-config.js';
 import type {
   ArtifactAccessUrl,
@@ -41,15 +39,30 @@ interface GcsLikeStorage {
 export class GcsArtifactStorage implements ArtifactStorageAdapter {
   readonly backend = 'gcs' as const;
 
-  private readonly bucket: GcsLikeBucket;
+  private readonly config: GcsArtifactStorageConfig;
+  private bucketInstance: GcsLikeBucket | null = null;
 
   constructor(config: GcsArtifactStorageConfig, storage?: GcsLikeStorage) {
-    const client = storage ?? new Storage(buildStorageOptions(config));
-    this.bucket = client.bucket(config.bucket);
+    this.config = config;
+    if (storage) {
+      this.bucketInstance = storage.bucket(config.bucket);
+    }
+  }
+
+  private async getBucket(): Promise<GcsLikeBucket> {
+    if (this.bucketInstance) return this.bucketInstance;
+    // Dynamic path variable prevents Vite from statically resolving this optional dependency.
+    const gcsModule = '@google-cloud/storage';
+    const { Storage } = await import(/* @vite-ignore */ gcsModule);
+    const client = new Storage(buildStorageOptions(this.config));
+    const bucket = client.bucket(this.config.bucket) as GcsLikeBucket;
+    this.bucketInstance = bucket;
+    return bucket;
   }
 
   async putObject(key: string, data: Buffer, contentType: string): Promise<StoredArtifact> {
-    await this.bucket.file(key).save(data, { resumable: false, contentType });
+    const bucket = await this.getBucket();
+    await bucket.file(key).save(data, { resumable: false, contentType });
     return {
       backend: this.backend,
       storageKey: key,
@@ -60,7 +73,8 @@ export class GcsArtifactStorage implements ArtifactStorageAdapter {
   }
 
   async getObject(key: string): Promise<ArtifactDownload> {
-    const file = this.bucket.file(key);
+    const bucket = await this.getBucket();
+    const file = bucket.file(key);
     const [[metadata], [data]] = await Promise.all([file.getMetadata(), file.download()]);
     return {
       contentType: stringValue(metadata.contentType) ?? DEFAULT_ARTIFACT_CONTENT_TYPE,
@@ -69,16 +83,19 @@ export class GcsArtifactStorage implements ArtifactStorageAdapter {
   }
 
   async deleteObject(key: string): Promise<void> {
-    await this.bucket.file(key).delete({ ignoreNotFound: true });
+    const bucket = await this.getBucket();
+    await bucket.file(key).delete({ ignoreNotFound: true });
   }
 
   async exists(key: string): Promise<boolean> {
-    const [exists] = await this.bucket.file(key).exists();
+    const bucket = await this.getBucket();
+    const [exists] = await bucket.file(key).exists();
     return exists;
   }
 
   async list(prefix: string): Promise<ArtifactObject[]> {
-    const [files] = await this.bucket.getFiles({ prefix });
+    const bucket = await this.getBucket();
+    const [files] = await bucket.getFiles({ prefix });
     return files.map((file) => ({
       key: file.name,
       sizeBytes: Number(file.metadata?.size ?? 0),
@@ -86,8 +103,9 @@ export class GcsArtifactStorage implements ArtifactStorageAdapter {
   }
 
   async createAccessUrl(key: string, ttlSeconds: number): Promise<ArtifactAccessUrl> {
+    const bucket = await this.getBucket();
     const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
-    const [url] = await this.bucket.file(key).getSignedUrl({
+    const [url] = await bucket.file(key).getSignedUrl({
       version: 'v4',
       action: 'read',
       expires: expiresAt.getTime(),
@@ -96,8 +114,8 @@ export class GcsArtifactStorage implements ArtifactStorageAdapter {
   }
 }
 
-function buildStorageOptions(config: GcsArtifactStorageConfig): StorageOptions {
-  const options: StorageOptions = {};
+function buildStorageOptions(config: GcsArtifactStorageConfig): Record<string, unknown> {
+  const options: Record<string, unknown> = {};
   if (config.projectId) {
     options.projectId = config.projectId;
   }
@@ -105,7 +123,7 @@ function buildStorageOptions(config: GcsArtifactStorageConfig): StorageOptions {
     options.keyFilename = config.keyFilename;
   }
   if (config.credentialsJson) {
-    options.credentials = JSON.parse(config.credentialsJson) as StorageOptions['credentials'];
+    options.credentials = JSON.parse(config.credentialsJson);
   }
   return options;
 }

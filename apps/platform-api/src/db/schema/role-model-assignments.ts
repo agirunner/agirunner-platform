@@ -12,7 +12,6 @@ export const roleModelAssignments = pgTable(
       .references(() => tenants.id),
     roleName: text('role_name').notNull(),
     primaryModelId: uuid('primary_model_id').references(() => llmModels.id),
-    fallbackModelId: uuid('fallback_model_id').references(() => llmModels.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

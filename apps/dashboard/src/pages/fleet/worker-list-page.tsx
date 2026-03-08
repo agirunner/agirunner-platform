@@ -17,10 +17,13 @@ import {
   PowerOff,
   Activity,
   Cpu,
+  Loader2 as Loader2Icon,
   MemoryStick,
+  Trash2,
 } from 'lucide-react';
 import { dashboardApi } from '../../lib/api.js';
 import { readSession } from '../../lib/session.js';
+import { toast } from '../../lib/toast.js';
 import { cn } from '../../lib/utils.js';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../../components/ui/card.js';
 import { Skeleton } from '../../components/ui/skeleton.js';
@@ -118,6 +121,17 @@ async function drainWorker(workerId: string): Promise<unknown> {
     throw new Error(`HTTP ${resp.status}`);
   }
   return resp.json();
+}
+
+async function deleteWorker(workerId: string): Promise<void> {
+  const session = readSession();
+  const resp = await fetch(`${API_BASE_URL}/api/v1/workers/${workerId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${session?.accessToken}` },
+  });
+  if (!resp.ok) {
+    throw new Error(`HTTP ${resp.status}`);
+  }
 }
 
 async function restartWorker(workerId: string): Promise<unknown> {
@@ -327,6 +341,18 @@ export function WorkerListPage(): JSX.Element {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: deleteWorker,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workers'] });
+      queryClient.invalidateQueries({ queryKey: ['fleet-workers'] });
+      toast.success('Worker deleted');
+    },
+    onError: () => {
+      toast.error('Failed to delete worker');
+    },
+  });
+
   const isLoading = basicQuery.isLoading && fleetQuery.isLoading;
   const hasError = basicQuery.isError && fleetQuery.isError;
 
@@ -441,6 +467,16 @@ export function WorkerListPage(): JSX.Element {
                 >
                   <Power className="h-3.5 w-3.5" />
                   Restart
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={deleteMutation.isPending}
+                  onClick={() => deleteMutation.mutate(worker.id)}
+                  data-testid={`delete-worker-${worker.name}`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete
                 </Button>
               </CardFooter>
             </Card>

@@ -9,7 +9,6 @@ interface ReadyTaskRow {
 export interface DispatchWorkerCandidate {
   id: string;
   capabilities: string[];
-  runtime_type: string;
   task_load: number;
   quality_score: number;
   created_at: Date;
@@ -51,9 +50,7 @@ export async function findDispatchCandidateWorker(
 }
 
 /**
- * Returns all dispatch-eligible worker candidates sorted by load (ascending).
- * Each entry includes the worker's capabilities and runtime_type so the caller
- * can apply external-worker preference via isBuiltInAgentReplaceable.
+ * Returns all dispatch-eligible worker candidates sorted by quality and load.
  */
 export async function findDispatchCandidateWorkers(
   pool: DatabasePool,
@@ -64,7 +61,6 @@ export async function findDispatchCandidateWorkers(
   const result = await pool.query<DispatchWorkerCandidate>(
     `SELECT w.id,
             w.capabilities,
-            w.runtime_type,
             w.quality_score,
             w.created_at,
             COUNT(t.id) FILTER (WHERE t.state IN ('claimed','running')) AS task_load

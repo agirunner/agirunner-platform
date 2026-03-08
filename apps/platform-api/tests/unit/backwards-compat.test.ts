@@ -93,8 +93,8 @@ describe('backwards compatibility', () => {
 
       const now = new Date();
       const selected = selectWorkerForDispatch([
-        { id: 'w1', runtime_type: 'external', capabilities: ['llm-api'], task_load: 2, quality_score: 1, created_at: now },
-        { id: 'w2', runtime_type: 'external', capabilities: ['llm-api'], task_load: 1, quality_score: 1, created_at: now },
+        { id: 'w1', capabilities: ['llm-api'], task_load: 2, quality_score: 1, created_at: now },
+        { id: 'w2', capabilities: ['llm-api'], task_load: 1, quality_score: 1, created_at: now },
       ]);
 
       // With equal quality, lower load wins (w2 has task_load=1)

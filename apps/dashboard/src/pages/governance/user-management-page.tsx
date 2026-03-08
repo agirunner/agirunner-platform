@@ -46,7 +46,6 @@ interface User {
 
 interface CreateUserPayload {
   email: string;
-  password: string;
   display_name: string;
   role: string;
 }
@@ -135,7 +134,6 @@ function CreateUserDialog({
 }): JSX.Element {
   const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [role, setRole] = useState<UserRole>('viewer');
 
@@ -153,7 +151,6 @@ function CreateUserDialog({
 
   function resetAndClose(): void {
     setEmail('');
-    setPassword('');
     setDisplayName('');
     setRole('viewer');
     onClose();
@@ -161,10 +158,9 @@ function CreateUserDialog({
 
   function handleSubmit(e: React.FormEvent): void {
     e.preventDefault();
-    if (!email.trim() || !password.trim() || !displayName.trim()) return;
+    if (!email.trim() || !displayName.trim()) return;
     mutation.mutate({
       email: email.trim(),
-      password: password.trim(),
       display_name: displayName.trim(),
       role,
     });
@@ -181,10 +177,6 @@ function CreateUserDialog({
           <div className="space-y-2">
             <label htmlFor="user-email" className="text-sm font-medium">Email</label>
             <Input id="user-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@example.com" required />
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="user-password" className="text-sm font-medium">Password</label>
-            <Input id="user-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimum 8 characters" required />
           </div>
           <div className="space-y-2">
             <label htmlFor="user-name" className="text-sm font-medium">Display Name</label>

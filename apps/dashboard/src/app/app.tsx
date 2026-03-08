@@ -32,6 +32,10 @@ const IntegrationsPage = lazy(() => import('../pages/config/integrations-page.js
 const PlatformInstructionsPage = lazy(() => import('../pages/config/platform-instructions-page.js').then((m) => ({ default: m.PlatformInstructionsPage })));
 const AiConfigAssistantPage = lazy(() => import('../pages/config/ai-config-assistant-page.js').then((m) => ({ default: m.AiConfigAssistantPage })));
 const TemplateEditorPage = lazy(() => import('../pages/config/template-editor-page.js').then((m) => ({ default: m.TemplateEditorPage })));
+const RuntimeDefaultsPage = lazy(() => import('../pages/config/runtime-defaults-page.js').then((m) => ({ default: m.RuntimeDefaultsPage })));
+const ToolsPage = lazy(() => import('../pages/config/tools-page.js').then((m) => ({ default: m.ToolsPage })));
+const WebhooksPage = lazy(() => import('../pages/config/webhooks-page.js').then((m) => ({ default: m.WebhooksPage })));
+const TaskTriggersPage = lazy(() => import('../pages/config/task-triggers-page.js').then((m) => ({ default: m.TaskTriggersPage })));
 
 const WorkerListPage = lazy(() => import('../pages/fleet/worker-list-page.js').then((m) => ({ default: m.WorkerListPage })));
 const AgentListPage = lazy(() => import('../pages/fleet/agent-list-page.js').then((m) => ({ default: m.AgentListPage })));
@@ -100,6 +104,10 @@ export function App(): JSX.Element {
             <Route path="/config/integrations" element={<IntegrationsPage />} />
             <Route path="/config/instructions" element={<PlatformInstructionsPage />} />
             <Route path="/config/assistant" element={<AiConfigAssistantPage />} />
+            <Route path="/config/runtime-defaults" element={<RuntimeDefaultsPage />} />
+            <Route path="/config/tools" element={<ToolsPage />} />
+            <Route path="/config/webhooks" element={<WebhooksPage />} />
+            <Route path="/config/task-triggers" element={<TaskTriggersPage />} />
 
             {/* Fleet */}
             <Route path="/fleet/workers" element={<WorkerListPage />} />

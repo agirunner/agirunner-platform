@@ -1,5 +1,4 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import argon2 from 'argon2';
 
 import { UserService } from '../../src/services/user-service.js';
 
@@ -62,55 +61,30 @@ describe('UserService', () => {
   });
 
   describe('createUser', () => {
-    it('creates user with hashed password', async () => {
-      pool.query
-        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-        .mockResolvedValueOnce({ rows: [{ ...sampleUserRow, role: 'operator' }], rowCount: 1 });
-
-      const result = await service.createUser(TENANT_ID, {
-        email: 'dev@example.com',
-        password: 'securepass123',
-        displayName: 'Dev User',
-        role: 'operator',
-      });
-
-      expect(result.email).toBe('dev@example.com');
-      const insertCall = pool.query.mock.calls[1];
-      const passwordHash = insertCall[1][2] as string;
-      expect(passwordHash).toMatch(/^\$argon2id\$/);
-    });
-
-    it('creates user without password for SSO-only', async () => {
+    it('creates user without password', async () => {
       pool.query
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
         .mockResolvedValueOnce({ rows: [sampleUserRow], rowCount: 1 });
 
       const result = await service.createUser(TENANT_ID, {
-        email: 'sso@example.com',
+        email: 'dev@example.com',
+        displayName: 'Dev User',
       });
 
       expect(result.email).toBe('dev@example.com');
-      const insertCall = pool.query.mock.calls[1];
-      expect(insertCall[1][2]).toBeNull();
     });
 
     it('throws ConflictError when email already exists', async () => {
       pool.query.mockResolvedValueOnce({ rows: [{ id: 'existing' }], rowCount: 1 });
 
       await expect(
-        service.createUser(TENANT_ID, { email: 'dev@example.com', password: 'pass12345678' }),
+        service.createUser(TENANT_ID, { email: 'dev@example.com' }),
       ).rejects.toThrow('Email already registered');
     });
 
     it('rejects invalid email', async () => {
       await expect(
-        service.createUser(TENANT_ID, { email: 'not-an-email', password: 'pass12345678' }),
-      ).rejects.toThrow();
-    });
-
-    it('rejects password shorter than 8 characters', async () => {
-      await expect(
-        service.createUser(TENANT_ID, { email: 'dev@example.com', password: 'short' }),
+        service.createUser(TENANT_ID, { email: 'not-an-email' }),
       ).rejects.toThrow();
     });
   });
@@ -154,64 +128,6 @@ describe('UserService', () => {
       pool.query.mockResolvedValueOnce({ rowCount: 0 });
 
       await expect(service.deactivateUser(TENANT_ID, 'missing')).rejects.toThrow('User not found');
-    });
-  });
-
-  describe('verifyPassword', () => {
-    it('returns user on correct password', async () => {
-      const hash = await argon2.hash('correctpass', { type: argon2.argon2id });
-      const userWithHash = { ...sampleUserRow, password_hash: hash };
-      pool.query
-        .mockResolvedValueOnce({ rows: [userWithHash], rowCount: 1 })
-        .mockResolvedValueOnce({ rowCount: 1 });
-
-      const result = await service.verifyPassword(TENANT_ID, 'dev@example.com', 'correctpass');
-
-      expect(result.email).toBe('dev@example.com');
-    });
-
-    it('throws on wrong password', async () => {
-      const hash = await argon2.hash('correctpass', { type: argon2.argon2id });
-      const userWithHash = { ...sampleUserRow, password_hash: hash };
-      pool.query.mockResolvedValueOnce({ rows: [userWithHash], rowCount: 1 });
-
-      await expect(
-        service.verifyPassword(TENANT_ID, 'dev@example.com', 'wrongpass'),
-      ).rejects.toThrow('Invalid credentials');
-    });
-
-    it('throws on non-existent user (timing safe)', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-
-      await expect(
-        service.verifyPassword(TENANT_ID, 'nobody@example.com', 'anything'),
-      ).rejects.toThrow('Invalid credentials');
-    });
-
-    it('throws on inactive user', async () => {
-      const hash = await argon2.hash('correctpass', { type: argon2.argon2id });
-      const inactiveUser = { ...sampleUserRow, password_hash: hash, is_active: false };
-      pool.query.mockResolvedValueOnce({ rows: [inactiveUser], rowCount: 1 });
-
-      await expect(
-        service.verifyPassword(TENANT_ID, 'dev@example.com', 'correctpass'),
-      ).rejects.toThrow('Invalid credentials');
-    });
-  });
-
-  describe('changePassword', () => {
-    it('updates password hash', async () => {
-      pool.query.mockResolvedValueOnce({ rowCount: 1 });
-
-      await service.changePassword(TENANT_ID, USER_ID, 'newpassword123');
-
-      const insertCall = pool.query.mock.calls[0];
-      const newHash = insertCall[1][0] as string;
-      expect(newHash).toMatch(/^\$argon2id\$/);
-    });
-
-    it('rejects short password', async () => {
-      await expect(service.changePassword(TENANT_ID, USER_ID, 'short')).rejects.toThrow();
     });
   });
 

@@ -45,16 +45,16 @@ describe('resolveSecretEnv', () => {
     ).toThrow('PLATFORM_API_KEY and PLATFORM_API_KEY_FILE must match');
   });
 
-  it('fails closed in production when file-backed secrets are required', () => {
-    expect(() =>
-      resolveSecretEnv(
-        {
-          NODE_ENV: 'production',
-          PLATFORM_API_KEY: 'ar_admin_def_local_dev_123456789012345',
-        },
-        [{ envName: 'PLATFORM_API_KEY', required: true, requireFileInProduction: true }],
-      ),
-    ).toThrow('PLATFORM_API_KEY_FILE is required for PLATFORM_API_KEY when NODE_ENV=production');
+  it('accepts inline secrets in production when requireFileInProduction is set (deprecated)', () => {
+    const resolved = resolveSecretEnv(
+      {
+        NODE_ENV: 'production',
+        PLATFORM_API_KEY: 'ar_admin_def_local_dev_123456789012345',
+      },
+      [{ envName: 'PLATFORM_API_KEY', required: true, requireFileInProduction: true }],
+    );
+
+    expect(resolved.PLATFORM_API_KEY).toBe('ar_admin_def_local_dev_123456789012345');
   });
 
   it('allows inline secrets outside production when file backing is unavailable', () => {

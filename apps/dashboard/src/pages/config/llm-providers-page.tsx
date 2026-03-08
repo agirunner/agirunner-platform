@@ -4,12 +4,14 @@ import {
   Loader2,
   Plus,
   BrainCog,
-  Eye,
-  Wrench,
   Globe,
   Trash2,
+  Search,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { readSession } from '../../lib/session.js';
+import { toast } from '../../lib/toast.js';
 import { Button } from '../../components/ui/button.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Input } from '../../components/ui/input.js';
@@ -40,13 +42,25 @@ import {
   TableHead,
   TableCell,
 } from '../../components/ui/table.js';
+import { Switch } from '../../components/ui/switch.js';
+
+/* ─── Types ─────────────────────────────────────────────────────────────── */
+
+type ProviderType = 'openai' | 'anthropic' | 'google' | 'openai-compatible';
+
+interface ReasoningConfigSchema {
+  type: 'reasoning_effort' | 'effort' | 'thinking_level' | 'thinking_budget';
+  options?: string[];
+  min?: number;
+  max?: number;
+  default: string | number;
+}
 
 interface LlmProvider {
   id: string;
   name: string;
   base_url?: string;
-  type: string;
-  status?: string;
+  metadata?: { providerType?: ProviderType };
   model_count?: number;
 }
 
@@ -56,31 +70,82 @@ interface LlmModel {
   provider_id?: string;
   provider_name?: string;
   context_window?: number;
-  max_output_tokens?: number;
-  supports_tools?: boolean;
-  supports_vision?: boolean;
+  endpoint_type?: string;
+  reasoning_config?: ReasoningConfigSchema | null;
+  is_enabled?: boolean;
+}
+
+interface RoleAssignment {
+  role_name: string;
+  primary_model_id?: string | null;
+  reasoning_config?: Record<string, unknown> | null;
 }
 
 interface AddProviderForm {
+  providerType: ProviderType;
   name: string;
-  base_url: string;
-  api_key: string;
-  type: string;
+  baseUrl: string;
+  apiKeySecretRef: string;
 }
+
+/* ─── Constants ─────────────────────────────────────────────────────────── */
 
 const API_BASE_URL =
   import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 
-function getAuthHeaders(): Record<string, string> {
+const PROVIDER_TYPE_DEFAULTS: Record<ProviderType, { name: string; baseUrl: string }> = {
+  openai: { name: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
+  anthropic: { name: 'Anthropic', baseUrl: 'https://api.anthropic.com/v1' },
+  google: { name: 'Google', baseUrl: 'https://generativelanguage.googleapis.com/v1beta' },
+  'openai-compatible': { name: '', baseUrl: 'http://localhost:11434/v1' },
+};
+
+const ROLE_NAMES = ['architect', 'developer', 'reviewer', 'qa', 'project-manager'] as const;
+
+const INITIAL_FORM: AddProviderForm = {
+  providerType: 'openai',
+  name: 'OpenAI',
+  baseUrl: 'https://api.openai.com/v1',
+  apiKeySecretRef: '',
+};
+
+/* ─── Helpers ───────────────────────────────────────────────────────────── */
+
+function getAuthHeaders(includeContentType = false): Record<string, string> {
   const session = readSession();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
+  const headers: Record<string, string> = {};
+  if (includeContentType) {
+    headers['Content-Type'] = 'application/json';
+  }
   if (session?.accessToken) {
     headers.Authorization = `Bearer ${session.accessToken}`;
   }
   return headers;
 }
+
+export function formatContextWindow(n?: number): string {
+  if (n === undefined || n === null) return '-';
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(n % 1_000 === 0 ? 0 : 1)}K`;
+  return String(n);
+}
+
+export function reasoningLabel(config?: ReasoningConfigSchema | null): string {
+  if (!config) return 'none';
+  if (config.options) return `${config.type} (${config.default})`;
+  return `${config.type} (${config.default})`;
+}
+
+export function reasoningBadgeVariant(config?: ReasoningConfigSchema | null): 'secondary' | 'default' | 'warning' {
+  if (!config) return 'secondary';
+  return 'default';
+}
+
+export function getProviderTypeDefaults(providerType: ProviderType) {
+  return PROVIDER_TYPE_DEFAULTS[providerType];
+}
+
+/* ─── API Functions ─────────────────────────────────────────────────────── */
 
 async function fetchProviders(): Promise<LlmProvider[]> {
   const response = await fetch(
@@ -102,16 +167,43 @@ async function fetchModels(): Promise<LlmModel[]> {
   return body.data ?? body;
 }
 
-async function createProvider(
-  payload: AddProviderForm,
-): Promise<LlmProvider> {
+async function fetchAssignments(): Promise<RoleAssignment[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/config/llm/assignments`,
+    { headers: getAuthHeaders(), credentials: 'include' },
+  );
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const body = await response.json();
+  return body.data ?? body;
+}
+
+async function createProvider(payload: AddProviderForm): Promise<LlmProvider> {
   const response = await fetch(
     `${API_BASE_URL}/api/v1/config/llm/providers`,
     {
       method: 'POST',
+      headers: getAuthHeaders(true),
+      credentials: 'include',
+      body: JSON.stringify({
+        name: payload.name,
+        baseUrl: payload.baseUrl,
+        apiKeySecretRef: payload.apiKeySecretRef,
+        metadata: { providerType: payload.providerType },
+      }),
+    },
+  );
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const body = await response.json();
+  return body.data ?? body;
+}
+
+async function discoverModels(providerId: string): Promise<unknown[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/config/llm/providers/${providerId}/discover`,
+    {
+      method: 'POST',
       headers: getAuthHeaders(),
       credentials: 'include',
-      body: JSON.stringify(payload),
     },
   );
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -131,39 +223,70 @@ async function deleteProvider(providerId: string): Promise<void> {
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
 }
 
-function statusVariant(status?: string) {
-  if (status === 'active' || status === 'healthy') return 'success' as const;
-  if (status === 'degraded') return 'warning' as const;
-  if (status === 'error' || status === 'down') return 'destructive' as const;
-  return 'secondary' as const;
+async function updateAssignment(
+  roleName: string,
+  payload: { primaryModelId?: string; reasoningConfig?: Record<string, unknown> | null },
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/config/llm/assignments/${roleName}`,
+    {
+      method: 'PUT',
+      headers: getAuthHeaders(true),
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    },
+  );
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
 }
 
-function formatNumber(n?: number): string {
-  if (n === undefined || n === null) return '-';
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-  return String(n);
+async function updateModel(
+  modelId: string,
+  payload: Record<string, unknown>,
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/config/llm/models/${modelId}`,
+    {
+      method: 'PUT',
+      headers: getAuthHeaders(true),
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    },
+  );
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
 }
 
-const INITIAL_FORM: AddProviderForm = {
-  name: '',
-  base_url: '',
-  api_key: '',
-  type: 'openai-compatible',
-};
+/* ─── Add Provider Dialog ───────────────────────────────────────────────── */
 
 function AddProviderDialog(): JSX.Element {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [form, setForm] = useState<AddProviderForm>(INITIAL_FORM);
 
+  function handleProviderTypeChange(providerType: ProviderType) {
+    const defaults = PROVIDER_TYPE_DEFAULTS[providerType];
+    setForm((prev) => ({
+      ...prev,
+      providerType,
+      name: defaults.name,
+      baseUrl: defaults.baseUrl,
+    }));
+  }
+
   const mutation = useMutation({
-    mutationFn: () => createProvider(form),
-    onSuccess: () => {
+    mutationFn: async () => {
+      const provider = await createProvider(form);
+      await discoverModels(provider.id);
+      return provider;
+    },
+    onSuccess: (provider) => {
       queryClient.invalidateQueries({ queryKey: ['llm-providers'] });
       queryClient.invalidateQueries({ queryKey: ['llm-models'] });
+      toast.success(`Provider "${provider.name}" created and models discovered.`);
       setForm(INITIAL_FORM);
       setIsOpen(false);
+    },
+    onError: (error) => {
+      toast.error(`Failed to add provider: ${String(error)}`);
     },
   });
 
@@ -185,6 +308,23 @@ function AddProviderDialog(): JSX.Element {
           }}
         >
           <div className="space-y-2">
+            <label className="text-sm font-medium">Provider Type</label>
+            <Select
+              value={form.providerType}
+              onValueChange={(v) => handleProviderTypeChange(v as ProviderType)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="openai">OpenAI</SelectItem>
+                <SelectItem value="anthropic">Anthropic</SelectItem>
+                <SelectItem value="google">Google</SelectItem>
+                <SelectItem value="openai-compatible">OpenAI-Compatible (Ollama, vLLM, etc.)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
             <label className="text-sm font-medium">Name</label>
             <Input
               placeholder="My Provider"
@@ -198,45 +338,30 @@ function AddProviderDialog(): JSX.Element {
           <div className="space-y-2">
             <label className="text-sm font-medium">Base URL</label>
             <Input
-              placeholder="https://api.openai.com/v1"
-              value={form.base_url}
+              placeholder={form.providerType === 'openai-compatible' ? 'http://localhost:11434/v1' : 'https://api.openai.com/v1'}
+              value={form.baseUrl}
               onChange={(e) =>
-                setForm((prev) => ({ ...prev, base_url: e.target.value }))
+                setForm((prev) => ({ ...prev, baseUrl: e.target.value }))
               }
               required
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">API Key</label>
+            <label className="text-sm font-medium">
+              API Key
+              {form.providerType === 'openai-compatible' && (
+                <span className="ml-1 text-xs font-normal text-muted">(optional)</span>
+              )}
+            </label>
             <Input
               type="password"
-              placeholder="sk-..."
-              value={form.api_key}
+              placeholder={form.providerType === 'openai-compatible' ? 'Optional' : 'sk-...'}
+              value={form.apiKeySecretRef}
               onChange={(e) =>
-                setForm((prev) => ({ ...prev, api_key: e.target.value }))
+                setForm((prev) => ({ ...prev, apiKeySecretRef: e.target.value }))
               }
-              required
+              required={form.providerType !== 'openai-compatible'}
             />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Provider Type</label>
-            <Select
-              value={form.type}
-              onValueChange={(v) =>
-                setForm((prev) => ({ ...prev, type: v }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="openai-compatible">
-                  OpenAI Compatible
-                </SelectItem>
-                <SelectItem value="anthropic">Anthropic</SelectItem>
-                <SelectItem value="google">Google</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
           {mutation.error && (
             <p className="text-sm text-red-600">
@@ -264,21 +389,29 @@ function AddProviderDialog(): JSX.Element {
   );
 }
 
+/* ─── Provider Card ─────────────────────────────────────────────────────── */
+
 function ProviderCard({
   provider,
+  modelCount,
   onDelete,
+  onDiscover,
+  isDiscovering,
 }: {
   provider: LlmProvider;
+  modelCount: number;
   onDelete: (id: string) => void;
+  onDiscover: (id: string) => void;
+  isDiscovering: boolean;
 }): JSX.Element {
+  const providerType = provider.metadata?.providerType ?? 'unknown';
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">{provider.name}</CardTitle>
-          <Badge variant={statusVariant(provider.status)}>
-            {provider.status ?? 'unknown'}
-          </Badge>
+          <Badge variant="outline">{providerType}</Badge>
         </div>
       </CardHeader>
       <CardContent>
@@ -292,17 +425,26 @@ function ProviderCard({
             </div>
           )}
           <div className="flex items-center justify-between">
-            <span className="text-muted">Type</span>
-            <Badge variant="outline">{provider.type}</Badge>
-          </div>
-          <div className="flex items-center justify-between">
             <span className="text-muted">Models</span>
             <span className="font-medium">
-              {provider.model_count ?? 0}
+              {modelCount}
             </span>
           </div>
         </dl>
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onDiscover(provider.id)}
+            disabled={isDiscovering}
+          >
+            {isDiscovering ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Search className="h-3.5 w-3.5" />
+            )}
+            Discover Models
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -317,8 +459,294 @@ function ProviderCard({
   );
 }
 
+/* ─── Role Assignment Row ───────────────────────────────────────────────── */
+
+function buildReasoningValue(
+  schema: ReasoningConfigSchema,
+  value: string | number,
+): Record<string, unknown> {
+  return { [schema.type]: value };
+}
+
+function extractReasoningValue(
+  schema: ReasoningConfigSchema | null | undefined,
+  config: Record<string, unknown> | null | undefined,
+): string | number | null {
+  if (!schema || !config) return null;
+  const val = config[schema.type];
+  return val !== undefined ? (val as string | number) : null;
+}
+
+function ReasoningControl({
+  schema,
+  value,
+  onChange,
+}: {
+  schema: ReasoningConfigSchema | null | undefined;
+  value: string | number | null;
+  onChange: (v: Record<string, unknown> | null) => void;
+}): JSX.Element | null {
+  if (!schema) {
+    return <span className="text-sm text-muted">N/A</span>;
+  }
+
+  if (schema.options) {
+    const current = (value as string) ?? '__default__';
+    return (
+      <Select
+        value={current}
+        onValueChange={(v) => {
+          if (v === '__default__') {
+            onChange(null);
+          } else {
+            onChange(buildReasoningValue(schema, v));
+          }
+        }}
+      >
+        <SelectTrigger className="w-[180px]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__default__">Default ({String(schema.default)})</SelectItem>
+          {schema.options.map((opt) => (
+            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+  }
+
+  const numValue = (value as number) ?? schema.default;
+  const min = schema.min ?? 0;
+  const max = schema.max ?? 128000;
+
+  return (
+    <div className="flex items-center gap-2">
+      <Input
+        type="number"
+        min={min}
+        max={max}
+        value={numValue}
+        onChange={(e) => {
+          const n = parseInt(e.target.value, 10);
+          if (!isNaN(n)) {
+            onChange(buildReasoningValue(schema, Math.max(min, Math.min(max, n))));
+          }
+        }}
+        className="w-[120px]"
+      />
+      <span className="text-xs text-muted">Thinking budget</span>
+    </div>
+  );
+}
+
+function RoleAssignmentRow({
+  role,
+  assignment,
+  enabledModels,
+}: {
+  role: string;
+  assignment?: RoleAssignment;
+  enabledModels: LlmModel[];
+}): JSX.Element {
+  const queryClient = useQueryClient();
+  const [primaryModelId, setPrimaryModelId] = useState(assignment?.primary_model_id ?? '__none__');
+  const [reasoningConfig, setReasoningConfig] = useState<Record<string, unknown> | null>(
+    assignment?.reasoning_config ?? null,
+  );
+
+  const selectedModel = enabledModels.find((m) => m.id === primaryModelId);
+  const modelReasoningSchema = selectedModel?.reasoning_config ?? null;
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      updateAssignment(role, {
+        primaryModelId: primaryModelId === '__none__' ? undefined : primaryModelId,
+        reasoningConfig: modelReasoningSchema ? reasoningConfig : null,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['llm-assignments'] });
+      toast.success(`Assignment for "${role}" saved.`);
+    },
+    onError: (error) => {
+      toast.error(`Failed to save assignment: ${String(error)}`);
+    },
+  });
+
+  return (
+    <TableRow>
+      <TableCell className="font-medium">{role}</TableCell>
+      <TableCell>
+        <Select
+          value={primaryModelId}
+          onValueChange={(v) => {
+            setPrimaryModelId(v);
+            setReasoningConfig(null);
+          }}
+        >
+          <SelectTrigger className="w-[220px]">
+            <SelectValue placeholder="Select model" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">None</SelectItem>
+            {enabledModels.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {m.model_id}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell>
+        <ReasoningControl
+          schema={modelReasoningSchema}
+          value={extractReasoningValue(modelReasoningSchema, reasoningConfig)}
+          onChange={setReasoningConfig}
+        />
+      </TableCell>
+      <TableCell>
+        <Button
+          size="sm"
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending}
+        >
+          {mutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          Save
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+/* ─── Model Catalog (collapsible by provider) ──────────────────────────── */
+
+function ModelCatalog({
+  models,
+  providers,
+  onToggleEnabled,
+}: {
+  models: LlmModel[];
+  providers: LlmProvider[];
+  onToggleEnabled: (modelId: string, isEnabled: boolean) => void;
+}): JSX.Element {
+  const [expandedProviders, setExpandedProviders] = useState<Set<string>>(new Set());
+
+  if (models.length === 0) {
+    return (
+      <div>
+        <h2 className="text-lg font-semibold mb-4">Model Catalog</h2>
+        <p className="text-sm text-muted">
+          No models registered. Models appear when providers are configured and discovery is run.
+        </p>
+      </div>
+    );
+  }
+
+  const grouped = new Map<string, { providerName: string; models: LlmModel[] }>();
+  for (const model of models) {
+    const pid = model.provider_id ?? 'unknown';
+    if (!grouped.has(pid)) {
+      const providerName = model.provider_name
+        ?? providers.find((p) => p.id === pid)?.name
+        ?? 'Unknown';
+      grouped.set(pid, { providerName, models: [] });
+    }
+    grouped.get(pid)!.models.push(model);
+  }
+
+  function toggleProvider(providerId: string) {
+    setExpandedProviders((prev) => {
+      const next = new Set(prev);
+      if (next.has(providerId)) {
+        next.delete(providerId);
+      } else {
+        next.add(providerId);
+      }
+      return next;
+    });
+  }
+
+  return (
+    <div>
+      <h2 className="text-lg font-semibold mb-4">
+        Model Catalog
+        <span className="ml-2 text-sm font-normal text-muted">({models.length} models)</span>
+      </h2>
+      <div className="space-y-2">
+        {[...grouped.entries()].map(([providerId, group]) => {
+          const isExpanded = expandedProviders.has(providerId);
+          const enabledCount = group.models.filter((m) => m.is_enabled !== false).length;
+          return (
+            <div key={providerId} className="border rounded-md">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+                onClick={() => toggleProvider(providerId)}
+              >
+                <div className="flex items-center gap-2">
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4 text-muted" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted" />
+                  )}
+                  <span className="font-medium">{group.providerName}</span>
+                  <Badge variant="outline">{enabledCount}/{group.models.length} enabled</Badge>
+                </div>
+              </button>
+              {isExpanded && (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Model ID</TableHead>
+                      <TableHead>Context Window</TableHead>
+                      <TableHead>Endpoint</TableHead>
+                      <TableHead>Enabled</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[...group.models].sort((a, b) => {
+                      const ae = a.is_enabled !== false ? 0 : 1;
+                      const be = b.is_enabled !== false ? 0 : 1;
+                      return ae - be;
+                    }).map((model) => (
+                      <TableRow key={model.id ?? model.model_id}>
+                        <TableCell className="font-mono text-sm">
+                          {model.model_id}
+                        </TableCell>
+                        <TableCell>
+                          {formatContextWindow(model.context_window)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {model.endpoint_type ?? '-'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Switch
+                            checked={model.is_enabled !== false}
+                            onCheckedChange={(checked) =>
+                              onToggleEnabled(model.id, checked)
+                            }
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main Page ─────────────────────────────────────────────────────────── */
+
 export function LlmProvidersPage(): JSX.Element {
   const queryClient = useQueryClient();
+  const [discoveringId, setDiscoveringId] = useState<string | null>(null);
 
   const providersQuery = useQuery({
     queryKey: ['llm-providers'],
@@ -330,15 +758,54 @@ export function LlmProvidersPage(): JSX.Element {
     queryFn: fetchModels,
   });
 
+  const assignmentsQuery = useQuery({
+    queryKey: ['llm-assignments'],
+    queryFn: fetchAssignments,
+  });
+
   const deleteMutation = useMutation({
     mutationFn: deleteProvider,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['llm-providers'] });
       queryClient.invalidateQueries({ queryKey: ['llm-models'] });
+      toast.success('Provider deleted.');
+    },
+    onError: (error) => {
+      toast.error(`Failed to delete provider: ${String(error)}`);
     },
   });
 
-  const isLoading = providersQuery.isLoading || modelsQuery.isLoading;
+  const discoverMutation = useMutation({
+    mutationFn: discoverModels,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['llm-providers'] });
+      queryClient.invalidateQueries({ queryKey: ['llm-models'] });
+      setDiscoveringId(null);
+      toast.success('Model discovery complete.');
+    },
+    onError: (error) => {
+      setDiscoveringId(null);
+      toast.error(`Discovery failed: ${String(error)}`);
+    },
+  });
+
+  const toggleModelEnabled = useMutation({
+    mutationFn: ({ modelId, isEnabled }: { modelId: string; isEnabled: boolean }) =>
+      updateModel(modelId, { isEnabled }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['llm-models'] });
+    },
+    onError: (error) => {
+      toast.error(`Failed to update model: ${String(error)}`);
+    },
+  });
+
+  function handleDiscover(providerId: string) {
+    setDiscoveringId(providerId);
+    discoverMutation.mutate(providerId);
+  }
+
+  const isLoading = providersQuery.isLoading || modelsQuery.isLoading || assignmentsQuery.isLoading;
 
   if (isLoading) {
     return (
@@ -348,42 +815,35 @@ export function LlmProvidersPage(): JSX.Element {
     );
   }
 
-  const hasError = providersQuery.error || modelsQuery.error;
+  const hasError = providersQuery.error || modelsQuery.error || assignmentsQuery.error;
   if (hasError) {
     return (
       <div className="p-6">
         <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           Failed to load LLM configuration:{' '}
-          {String(providersQuery.error ?? modelsQuery.error)}
+          {String(providersQuery.error ?? modelsQuery.error ?? assignmentsQuery.error)}
         </div>
       </div>
     );
   }
 
-  const providers = Array.isArray(providersQuery.data)
-    ? providersQuery.data
-    : [];
-  const models = Array.isArray(modelsQuery.data)
-    ? modelsQuery.data
-    : [];
+  const providers = Array.isArray(providersQuery.data) ? providersQuery.data : [];
+  const models = Array.isArray(modelsQuery.data) ? modelsQuery.data : [];
+  const assignments = Array.isArray(assignmentsQuery.data) ? assignmentsQuery.data : [];
+  const enabledModels = models.filter((m) => m.is_enabled !== false);
 
   return (
     <div className="p-6 space-y-8">
+      {/* ── Providers Section ──────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">LLM Providers</h1>
           <p className="text-sm text-muted">
-            Manage language model providers and the model catalog.
+            Manage language model providers, the model catalog, and role assignments.
           </p>
         </div>
         <AddProviderDialog />
       </div>
-
-      {deleteMutation.error && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          Failed to delete provider: {String(deleteMutation.error)}
-        </div>
-      )}
 
       {providers.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-muted">
@@ -399,71 +859,47 @@ export function LlmProvidersPage(): JSX.Element {
             <ProviderCard
               key={provider.id}
               provider={provider}
+              modelCount={models.filter((m) => m.provider_id === provider.id).length}
               onDelete={(id) => deleteMutation.mutate(id)}
+              onDiscover={handleDiscover}
+              isDiscovering={discoveringId === provider.id}
             />
           ))}
         </div>
       )}
 
+      {/* ── Model Catalog Section ──────────────────────────────────────── */}
+      <ModelCatalog
+        models={models}
+        providers={providers}
+        onToggleEnabled={(modelId, isEnabled) =>
+          toggleModelEnabled.mutate({ modelId, isEnabled })
+        }
+      />
+
+      {/* ── Role Assignments Section ───────────────────────────────────── */}
       <div>
-        <h2 className="text-lg font-semibold mb-4">Model Catalog</h2>
-        {models.length === 0 ? (
-          <p className="text-sm text-muted">
-            No models registered. Models appear when providers are
-            configured.
-          </p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Model ID</TableHead>
-                <TableHead>Provider</TableHead>
-                <TableHead>Context Window</TableHead>
-                <TableHead>Max Output</TableHead>
-                <TableHead>Tool Use</TableHead>
-                <TableHead>Vision</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {models.map((model) => (
-                <TableRow key={model.id ?? model.model_id}>
-                  <TableCell className="font-mono text-sm">
-                    {model.model_id}
-                  </TableCell>
-                  <TableCell className="text-muted">
-                    {model.provider_name ?? model.provider_id ?? '-'}
-                  </TableCell>
-                  <TableCell>
-                    {formatNumber(model.context_window)}
-                  </TableCell>
-                  <TableCell>
-                    {formatNumber(model.max_output_tokens)}
-                  </TableCell>
-                  <TableCell>
-                    {model.supports_tools ? (
-                      <Badge variant="success">
-                        <Wrench className="h-3 w-3 mr-1" />
-                        Yes
-                      </Badge>
-                    ) : (
-                      <span className="text-muted">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {model.supports_vision ? (
-                      <Badge variant="success">
-                        <Eye className="h-3 w-3 mr-1" />
-                        Yes
-                      </Badge>
-                    ) : (
-                      <span className="text-muted">-</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
+        <h2 className="text-lg font-semibold mb-4">Role Model Assignments</h2>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Role</TableHead>
+              <TableHead>Model</TableHead>
+              <TableHead>Reasoning</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {ROLE_NAMES.map((role) => (
+              <RoleAssignmentRow
+                key={role}
+                role={role}
+                assignment={assignments.find((a) => a.role_name === role)}
+                enabledModels={enabledModels}
+              />
+            ))}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

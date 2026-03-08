@@ -109,9 +109,12 @@ async function verifyUserJwtIdentity(request: FastifyRequest, claims: UserJwtCla
   const user = result.rows[0];
 
   if (claims.iat) {
-    const tokenIssuedAt = new Date(claims.iat * 1000);
+    // JWT iat is truncated to seconds; add 2s tolerance to avoid
+    // false positives when the token is issued in the same second
+    // the user record was created or updated.
+    const tokenIssuedAt = new Date(claims.iat * 1000 + 2000);
     if (user.updated_at > tokenIssuedAt) {
-      throw new UnauthorizedError('Token invalidated by password change');
+      throw new UnauthorizedError('Token invalidated by account update');
     }
   }
 

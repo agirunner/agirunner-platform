@@ -56,10 +56,8 @@ export function resolveSecretEnv(
       delete target[binding.envName];
     }
 
-    const expectsConfiguredValue = binding.required || Boolean(inlineValue);
-    if (binding.requireFileInProduction && nodeEnv === 'production' && expectsConfiguredValue && !filePath) {
-      throw new Error(`${fileEnvName} is required for ${binding.envName} when NODE_ENV=production.`);
-    }
+    // requireFileInProduction is deprecated — direct env vars are now the standard.
+    // Kept for backward compatibility but no longer enforced.
 
     if (binding.required && !resolvedValue) {
       throw new Error(`Missing required secret ${formatSourceHint(binding)}.`);

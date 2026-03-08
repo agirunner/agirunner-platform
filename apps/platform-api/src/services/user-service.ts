@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import argon2 from 'argon2';
 
 import type { DatabasePool } from '../db/database.js';
 import type { RbacRole } from '../auth/rbac.js';
@@ -9,7 +8,6 @@ const emailSchema = z.string().email().max(255);
 
 const createUserSchema = z.object({
   email: emailSchema,
-  password: z.string().min(8).max(128).optional(),
   displayName: z.string().min(1).max(200).optional(),
   role: z.enum(['viewer', 'operator', 'agent_admin', 'workflow_admin', 'org_admin']).default('viewer'),
 });
@@ -92,14 +90,10 @@ export class UserService {
     );
     if (existing.rowCount) throw new ConflictError('Email already registered');
 
-    const passwordHash = validated.password
-      ? await argon2.hash(validated.password, { type: argon2.argon2id })
-      : null;
-
     const result = await this.pool.query<UserRow>(
-      `INSERT INTO users (tenant_id, email, password_hash, display_name, role)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [tenantId, validated.email, passwordHash, validated.displayName ?? null, validated.role],
+      `INSERT INTO users (tenant_id, email, display_name, role)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [tenantId, validated.email, validated.displayName ?? null, validated.role],
     );
     return toSafeUser(result.rows[0]);
   }
@@ -141,48 +135,6 @@ export class UserService {
     const result = await this.pool.query(
       'UPDATE users SET is_active = false, updated_at = NOW() WHERE tenant_id = $1 AND id = $2',
       [tenantId, userId],
-    );
-    if (!result.rowCount) throw new NotFoundError('User not found');
-  }
-
-  async verifyPassword(tenantId: string, email: string, password: string): Promise<SafeUser> {
-    const result = await this.pool.query<UserRow>(
-      'SELECT * FROM users WHERE tenant_id = $1 AND email = $2',
-      [tenantId, email],
-    );
-
-    if (!result.rowCount || !result.rows[0].password_hash) {
-      await argon2.hash(password, { type: argon2.argon2id });
-      throw new NotFoundError('Invalid credentials');
-    }
-
-    const user = result.rows[0];
-
-    if (!user.is_active) {
-      await argon2.hash(password, { type: argon2.argon2id });
-      throw new NotFoundError('Invalid credentials');
-    }
-
-    const valid = await argon2.verify(user.password_hash!, password);
-    if (!valid) {
-      throw new NotFoundError('Invalid credentials');
-    }
-
-    await this.pool.query(
-      'UPDATE users SET last_login_at = NOW() WHERE id = $1',
-      [user.id],
-    );
-
-    return toSafeUser(user);
-  }
-
-  async changePassword(tenantId: string, userId: string, newPassword: string): Promise<void> {
-    z.string().min(8).max(128).parse(newPassword);
-
-    const passwordHash = await argon2.hash(newPassword, { type: argon2.argon2id });
-    const result = await this.pool.query(
-      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE tenant_id = $2 AND id = $3',
-      [passwordHash, tenantId, userId],
     );
     if (!result.rowCount) throw new NotFoundError('User not found');
   }

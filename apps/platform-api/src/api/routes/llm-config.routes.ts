@@ -8,9 +8,11 @@ import {
   type CreateModelInput,
   type UpdateModelInput,
 } from '../../services/model-catalog-service.js';
+import { LlmDiscoveryService } from '../../services/llm-discovery-service.js';
 
 export const llmConfigRoutes: FastifyPluginAsync = async (app) => {
   const service = new ModelCatalogService(app.pgPool);
+  const discoveryService = new LlmDiscoveryService();
 
   // --- Providers ---
 
@@ -138,15 +140,79 @@ export const llmConfigRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request) => {
       const params = request.params as { roleName: string };
-      const body = request.body as { primaryModelId?: string | null; fallbackModelId?: string | null };
+      const body = request.body as {
+        primaryModelId?: string | null;
+        reasoningConfig?: Record<string, unknown> | null;
+      };
       return {
         data: await service.upsertAssignment(
           request.auth!.tenantId,
           params.roleName,
           body.primaryModelId ?? null,
-          body.fallbackModelId ?? null,
+          body.reasoningConfig ?? null,
         ),
       };
+    },
+  );
+
+  // --- Discovery ---
+
+  app.post(
+    '/api/v1/config/llm/providers/:id/discover',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const provider = await service.getProvider(request.auth!.tenantId, params.id);
+
+      const providerType = (provider.metadata as Record<string, unknown>)?.providerType as string | undefined;
+      const apiKey = provider.api_key_secret_ref ?? '';
+
+      if (!providerType) {
+        reply.status(400);
+        return { error: 'Provider must have providerType in metadata.' };
+      }
+
+      if (!apiKey && providerType !== 'openai-compatible') {
+        reply.status(400);
+        return { error: 'Provider must have an API key configured.' };
+      }
+
+      const discovered = await discoveryService.validateAndDiscover(
+        providerType,
+        provider.base_url,
+        apiKey,
+      );
+
+      const enableAll = providerType === 'openai-compatible';
+      const created = await service.bulkCreateModels(
+        request.auth!.tenantId,
+        params.id,
+        discovered,
+        enableAll,
+      );
+
+      return { data: { discovered, created } };
+    },
+  );
+
+  // --- Resolve ---
+
+  app.get(
+    '/api/v1/config/llm/resolve/:roleName',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request, reply) => {
+      const params = request.params as { roleName: string };
+      const config = await service.resolveRoleConfig(
+        request.auth!.tenantId,
+        params.roleName,
+      );
+
+      if (!config) {
+        reply.status(404);
+        return { error: 'No model configured for role' };
+      }
+
+      return { data: config };
     },
   );
 };

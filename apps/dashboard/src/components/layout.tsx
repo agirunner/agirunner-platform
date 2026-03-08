@@ -25,13 +25,17 @@ import {
   ScrollText,
   Search,
   Server,
+  Settings2,
   Shield,
   Sparkles,
   Sun,
   Timer,
   Users,
+  Webhook,
   Workflow,
+  Wrench,
   X,
+  Zap,
 } from 'lucide-react';
 
 import { dashboardApi, type DashboardSearchResult } from '../lib/api.js';
@@ -88,6 +92,10 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'LLM Providers', href: '/config/llm', icon: Cog },
       { label: 'Runtimes', href: '/config/runtimes', icon: Server },
       { label: 'Integrations', href: '/config/integrations', icon: Link2 },
+      { label: 'Runtime Defaults', href: '/config/runtime-defaults', icon: Settings2 },
+      { label: 'Tools', href: '/config/tools', icon: Wrench },
+      { label: 'Webhooks', href: '/config/webhooks', icon: Webhook },
+      { label: 'Task Triggers', href: '/config/task-triggers', icon: Zap },
       { label: 'AI Assistant', href: '/config/assistant', icon: Sparkles },
     ],
   },

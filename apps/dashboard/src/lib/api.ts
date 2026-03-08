@@ -576,9 +576,11 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     } = {},
   ): Promise<T> {
     const activeSession = readSession();
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
+    const headers: Record<string, string> = {};
+
+    if (options.body) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if ((options.includeAuth ?? true) && activeSession?.accessToken) {
       headers.Authorization = `Bearer ${activeSession.accessToken}`;

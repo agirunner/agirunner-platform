@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { randomUUID } from 'node:crypto';
+import { ZodError } from 'zod';
 
 import { DomainError } from './domain-errors.js';
 import { mapErrorToHttpStatus } from './http-errors.js';
@@ -19,6 +20,23 @@ function fallbackCodeForStatus(statusCode: number): string {
 export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((error, request, reply) => {
     const requestId = request.id ?? randomUUID();
+
+    if (error instanceof ZodError) {
+      request.log.warn({ err: error, requestId }, 'validation_failed');
+      void reply.status(400).send({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: { issues: error.flatten() },
+        },
+        meta: {
+          request_id: requestId,
+          timestamp: new Date().toISOString(),
+        },
+      });
+      return;
+    }
+
     const statusCode = mapErrorToHttpStatus(error);
     const domainError = error instanceof DomainError ? (error as DomainError) : null;
 

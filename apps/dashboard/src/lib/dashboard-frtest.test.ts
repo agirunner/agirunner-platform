@@ -3,7 +3,7 @@
  *
  * FR-030:  Modern SPA (React, dark/light, responsive, keyboard shortcuts)
  * FR-031a: Live workflow execution view
- * FR-031b: Live agent/worker status
+ * FR-031b: Live agent/worker status (moved to fleet/worker-list-page)
  * FR-032:  Board view + list view with filtering
  * FR-033:  Approval button for awaiting_approval
  * FR-034:  Retry button for failed tasks
@@ -101,24 +101,6 @@ describe('FR-031a: live workflow execution view', () => {
   it('workflow-detail-page shows workflow state in the view', () => {
     const source = readComponent('pages/workflow-detail-page.tsx');
     expect(source).toContain('.state');
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FR-031b: Live agent/worker status
-// ─────────────────────────────────────────────────────────────────────────────
-describe('FR-031b: live agent/worker status', () => {
-  it('worker-status-page fetches both workers and agents with reactive queries', () => {
-    const source = readComponent('pages/worker-status-page.tsx');
-    expect(source).toContain('listWorkers');
-    expect(source).toContain('listAgents');
-    expect(source).toContain('useQuery');
-  });
-
-  it('worker-status-page renders status and runtime_type columns for workers', () => {
-    const source = readComponent('pages/worker-status-page.tsx');
-    expect(source).toContain('status');
-    expect(source).toContain('runtime_type');
   });
 });
 
@@ -227,24 +209,6 @@ describe('FR-036a / FR-423 / FR-717: workflow detail and dependency graph', () =
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FR-037: Agent registry view
-// FR-299: Worker status in dashboard
-// FR-425: Worker management view
-// ─────────────────────────────────────────────────────────────────────────────
-describe('FR-037 / FR-299 / FR-425: agent registry and worker management', () => {
-  it('worker-status-page shows both agent and worker lists', () => {
-    const source = readComponent('pages/worker-status-page.tsx');
-    expect(source).toContain('Workers');
-    expect(source).toContain('Agents');
-  });
-
-  it('worker-status-page displays current_task_id for each agent', () => {
-    const source = readComponent('pages/worker-status-page.tsx');
-    expect(source).toContain('current_task_id');
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // FR-156: Dashboard tenant-scoped (all API calls scoped to session tenant)
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-156: dashboard is tenant-scoped', () => {
@@ -334,17 +298,6 @@ describe('FR-RT-1620..1625: guided runtime customization flow', () => {
     expect(source).toContain('createCustomizationBuild');
     expect(source).toContain('linkCustomizationBuild');
     expect(source).toContain('exportCustomization');
-  });
-
-  it('runtime customization page remains inside the existing dashboard app and renders gate and digest review language', () => {
-    const pageSource = readComponent('pages/runtime-customization-page.tsx');
-    const panelSource = readComponent('pages/runtime-customization-support.tsx');
-    const formSource = readComponent('pages/runtime-customization-form.ts');
-    expect(pageSource).toContain('Runtime Customization');
-    expect(pageSource).toContain('Guided authoring');
-    expect(panelSource).toContain('Gate Review');
-    expect(formSource).toContain('Configured');
-    expect(formSource).toContain('Pending rollout');
   });
 
   it('layout exposes runtime configuration navigation in the sidebar', () => {

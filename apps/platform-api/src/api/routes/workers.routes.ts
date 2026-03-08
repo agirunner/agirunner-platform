@@ -8,7 +8,7 @@ import { TaskService } from '../../services/task-service.js';
 
 const registerSchema = z.object({
   name: z.string().min(1).max(200),
-  runtime_type: z.enum(['internal', 'openclaw', 'claude_code', 'codex', 'acp', 'custom', 'external']).optional(),
+  runtime_type: z.enum(['openclaw', 'claude_code', 'codex', 'acp', 'custom', 'external']).optional(),
   connection_mode: z.enum(['websocket', 'sse', 'polling']).optional(),
   capabilities: z.array(z.string().min(1)).default([]),
   host_info: z.record(z.unknown()).optional(),

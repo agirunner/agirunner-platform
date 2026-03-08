@@ -42,6 +42,7 @@ describe('artifact storage factory', () => {
     });
 
     expect(storage).toBeInstanceOf(GcsArtifactStorage);
+    expect(storage.backend).toBe('gcs');
   });
 
   it('creates the Azure backend when configured', () => {

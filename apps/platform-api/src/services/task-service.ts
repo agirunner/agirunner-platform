@@ -5,6 +5,7 @@ import { createArtifactStorage } from '../content/storage-factory.js';
 import type { DatabasePool } from '../db/database.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { EventService } from './event-service.js';
+import { ModelCatalogService } from './model-catalog-service.js';
 import { TaskClaimService } from './task-claim-service.js';
 import { TaskLifecycleService } from './task-lifecycle-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
@@ -137,11 +138,13 @@ export class TaskService {
       queueWorkerCancelSignal,
     });
 
+    const modelCatalog = new ModelCatalogService(pool);
     this.claimService = new TaskClaimService({
       pool,
       eventService,
       toTaskResponse: this.queryService.toTaskResponse.bind(this.queryService),
       getTaskContext: this.queryService.getTaskContext.bind(this.queryService),
+      resolveRoleConfig: modelCatalog.resolveRoleConfig.bind(modelCatalog),
     });
 
     this.timeoutService = new TaskTimeoutService(

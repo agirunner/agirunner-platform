@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
+import { type DiscoveredModel, isDefaultEnabledModel } from './llm-discovery-service.js';
 
 const createProviderSchema = z.object({
   name: z.string().min(1).max(100),
@@ -15,6 +16,14 @@ const createProviderSchema = z.object({
 
 const updateProviderSchema = createProviderSchema.partial();
 
+const reasoningConfigSchema = z.object({
+  type: z.enum(['reasoning_effort', 'effort', 'thinking_level', 'thinking_budget']),
+  options: z.array(z.string()).optional(),
+  min: z.number().optional(),
+  max: z.number().optional(),
+  default: z.union([z.string(), z.number()]),
+}).nullable().default(null);
+
 const createModelSchema = z.object({
   providerId: z.string().uuid(),
   modelId: z.string().min(1).max(200),
@@ -25,6 +34,8 @@ const createModelSchema = z.object({
   inputCostPerMillionUsd: z.number().nonnegative().optional(),
   outputCostPerMillionUsd: z.number().nonnegative().optional(),
   isEnabled: z.boolean().default(true),
+  endpointType: z.string().optional(),
+  reasoningConfig: reasoningConfigSchema,
 });
 
 const updateModelSchema = createModelSchema.partial().omit({ providerId: true });
@@ -61,6 +72,8 @@ interface ModelRow {
   input_cost_per_million_usd: string | null;
   output_cost_per_million_usd: string | null;
   is_enabled: boolean;
+  endpoint_type: string | null;
+  reasoning_config: Record<string, unknown> | null;
   created_at: Date;
 }
 
@@ -70,7 +83,7 @@ interface AssignmentRow {
   tenant_id: string;
   role_name: string;
   primary_model_id: string | null;
-  fallback_model_id: string | null;
+  reasoning_config: Record<string, unknown> | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -93,8 +106,17 @@ export class ModelCatalogService {
   async createProvider(tenantId: string, input: CreateProviderInput): Promise<ProviderRow> {
     const validated = createProviderSchema.parse(input);
 
+    const existing = await this.pool.query<ProviderRow>(
+      'SELECT * FROM llm_providers WHERE tenant_id = $1 AND name = $2',
+      [tenantId, validated.name],
+    );
+    if (existing.rows.length > 0) {
+      throw new ConflictError(`Provider "${validated.name}" already exists`);
+    }
+
     const result = await this.pool.query<ProviderRow>(
-      `INSERT INTO llm_providers (tenant_id, name, base_url, api_key_secret_ref, is_enabled, rate_limit_rpm, metadata)
+      `INSERT INTO llm_providers
+        (tenant_id, name, base_url, api_key_secret_ref, is_enabled, rate_limit_rpm, metadata)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
       [
@@ -146,13 +168,18 @@ export class ModelCatalogService {
   }
 
   async deleteProvider(tenantId: string, id: string): Promise<void> {
-    const modelCount = await this.pool.query(
-      'SELECT COUNT(*) as count FROM llm_models WHERE tenant_id = $1 AND provider_id = $2',
+    await this.pool.query(
+      `UPDATE role_model_assignments SET primary_model_id = NULL
+       WHERE tenant_id = $1 AND primary_model_id IN (
+         SELECT id FROM llm_models WHERE tenant_id = $1 AND provider_id = $2
+       )`,
       [tenantId, id],
     );
-    if (Number(modelCount.rows[0].count) > 0) {
-      throw new ConflictError('Cannot delete provider with active models');
-    }
+
+    await this.pool.query(
+      'DELETE FROM llm_models WHERE tenant_id = $1 AND provider_id = $2',
+      [tenantId, id],
+    );
 
     const result = await this.pool.query(
       'DELETE FROM llm_providers WHERE tenant_id = $1 AND id = $2',
@@ -184,8 +211,9 @@ export class ModelCatalogService {
     const result = await this.pool.query<ModelRow>(
       `INSERT INTO llm_models (
         tenant_id, provider_id, model_id, context_window, max_output_tokens,
-        supports_tool_use, supports_vision, input_cost_per_million_usd, output_cost_per_million_usd, is_enabled
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        supports_tool_use, supports_vision, input_cost_per_million_usd,
+        output_cost_per_million_usd, is_enabled, endpoint_type, reasoning_config
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *`,
       [
         tenantId,
@@ -198,6 +226,8 @@ export class ModelCatalogService {
         validated.inputCostPerMillionUsd ?? null,
         validated.outputCostPerMillionUsd ?? null,
         validated.isEnabled,
+        validated.endpointType ?? null,
+        validated.reasoningConfig ? JSON.stringify(validated.reasoningConfig) : null,
       ],
     );
     return result.rows[0];
@@ -218,6 +248,10 @@ export class ModelCatalogService {
       ['input_cost_per_million_usd', validated.inputCostPerMillionUsd],
       ['output_cost_per_million_usd', validated.outputCostPerMillionUsd],
       ['is_enabled', validated.isEnabled],
+      ['endpoint_type', validated.endpointType],
+      ['reasoning_config', validated.reasoningConfig !== undefined
+        ? (validated.reasoningConfig ? JSON.stringify(validated.reasoningConfig) : null)
+        : undefined],
     ];
 
     for (const [column, value] of fields) {
@@ -255,16 +289,154 @@ export class ModelCatalogService {
     tenantId: string,
     roleName: string,
     primaryModelId: string | null,
-    fallbackModelId: string | null,
+    reasoningConfig: Record<string, unknown> | null = null,
   ): Promise<AssignmentRow> {
     const result = await this.pool.query<AssignmentRow>(
-      `INSERT INTO role_model_assignments (tenant_id, role_name, primary_model_id, fallback_model_id)
+      `INSERT INTO role_model_assignments
+        (tenant_id, role_name, primary_model_id, reasoning_config)
        VALUES ($1, $2, $3, $4)
        ON CONFLICT (tenant_id, role_name)
-       DO UPDATE SET primary_model_id = $3, fallback_model_id = $4, updated_at = NOW()
+       DO UPDATE SET primary_model_id = $3,
+                     reasoning_config = $4, updated_at = NOW()
        RETURNING *`,
-      [tenantId, roleName, primaryModelId, fallbackModelId],
+      [tenantId, roleName, primaryModelId,
+       reasoningConfig ? JSON.stringify(reasoningConfig) : null],
     );
     return result.rows[0];
   }
+
+  async bulkCreateModels(
+    tenantId: string,
+    providerId: string,
+    models: DiscoveredModel[],
+    enableAll = false,
+  ): Promise<ModelRow[]> {
+    const created: ModelRow[] = [];
+
+    for (const model of models) {
+      const result = await this.pool.query<ModelRow>(
+        `INSERT INTO llm_models (
+          tenant_id, provider_id, model_id, context_window,
+          max_output_tokens, endpoint_type, reasoning_config, is_enabled
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT (tenant_id, model_id) DO UPDATE SET
+          context_window = EXCLUDED.context_window,
+          max_output_tokens = EXCLUDED.max_output_tokens,
+          endpoint_type = EXCLUDED.endpoint_type,
+          reasoning_config = EXCLUDED.reasoning_config
+        RETURNING *`,
+        [
+          tenantId,
+          providerId,
+          model.modelId,
+          model.contextWindow,
+          model.maxOutputTokens,
+          model.endpointType,
+          model.reasoningConfig ? JSON.stringify(model.reasoningConfig) : null,
+          enableAll || isDefaultEnabledModel(model.modelId),
+        ],
+      );
+      if (result.rows[0]) created.push(result.rows[0]);
+    }
+
+    return created;
+  }
+
+  async resolveRoleConfig(
+    tenantId: string,
+    roleName: string,
+  ): Promise<ResolvedRoleConfig | null> {
+    const modelId = await this.findModelIdForRole(tenantId, roleName);
+    if (!modelId) return null;
+
+    return this.buildResolvedConfig(tenantId, roleName, modelId);
+  }
+
+  private async findModelIdForRole(
+    tenantId: string,
+    roleName: string,
+  ): Promise<string | null> {
+    const assignment = await this.findAssignment(tenantId, roleName);
+    if (assignment?.primary_model_id) return assignment.primary_model_id;
+
+    return this.findDefaultModelId(tenantId);
+  }
+
+  private async findAssignment(
+    tenantId: string,
+    roleName: string,
+  ): Promise<AssignmentRow | null> {
+    const repo = new TenantScopedRepository(this.pool, tenantId);
+    const rows = await repo.findAll<AssignmentRow>(
+      'role_model_assignments',
+      '*',
+      ['role_name = $2'],
+      [roleName],
+    );
+    return rows[0] ?? null;
+  }
+
+  private async findDefaultModelId(tenantId: string): Promise<string | null> {
+    const repo = new TenantScopedRepository(this.pool, tenantId);
+    const rows = await repo.findAll<{ config_value: string; [key: string]: unknown; tenant_id: string }>(
+      'runtime_defaults',
+      'config_value',
+      ['config_key = $2'],
+      ['default_model_id'],
+    );
+    return rows[0]?.config_value ?? null;
+  }
+
+  private async buildResolvedConfig(
+    tenantId: string,
+    roleName: string,
+    modelId: string,
+  ): Promise<ResolvedRoleConfig> {
+    const model = await this.getModel(tenantId, modelId);
+    const provider = await this.getProvider(tenantId, model.provider_id);
+    const assignment = await this.findAssignment(tenantId, roleName);
+
+    const reasoningConfig = assignment?.reasoning_config ?? this.buildDefaultReasoningValue(model);
+
+    return {
+      provider: {
+        name: provider.name,
+        baseUrl: provider.base_url,
+        apiKeySecretRef: provider.api_key_secret_ref,
+      },
+      model: {
+        modelId: model.model_id,
+        contextWindow: model.context_window,
+        endpointType: model.endpoint_type,
+        reasoningConfig: model.reasoning_config,
+      },
+      reasoningConfig,
+    };
+  }
+
+  private buildDefaultReasoningValue(
+    model: ModelRow,
+  ): Record<string, unknown> | null {
+    const schema = model.reasoning_config as Record<string, unknown> | null;
+    if (!schema) return null;
+
+    const type = schema.type as string;
+    const defaultValue = schema.default;
+    return { [type]: defaultValue };
+  }
+}
+
+export interface ResolvedRoleConfig {
+  provider: {
+    name: string;
+    baseUrl: string;
+    apiKeySecretRef: string | null;
+  };
+  model: {
+    modelId: string;
+    contextWindow: number | null;
+    endpointType: string | null;
+    reasoningConfig: Record<string, unknown> | null;
+  };
+  reasoningConfig: Record<string, unknown> | null;
 }

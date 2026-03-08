@@ -86,7 +86,7 @@ export class TaskWriteService {
         normalizedInput.capabilities_required ?? [],
         normalizedInput.role_config ?? null,
         normalizedInput.environment ?? null,
-        normalizedInput.resource_bindings ?? [],
+        JSON.stringify(normalizedInput.resource_bindings ?? []),
         normalizedInput.timeout_minutes ?? this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES,
         normalizedInput.token_budget ?? null,
         normalizedInput.cost_cap_usd ?? null,

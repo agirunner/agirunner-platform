@@ -1,16 +1,16 @@
 /**
- * Unit tests for all 9 previously-missing (❌) FRs.
+ * Unit tests for previously-missing (❌) FRs.
  *
  * FRs covered:
  *   FR-150 — All entities scoped to tenant (DB query filtering)
  *   FR-152 — Tenant filter at data-access layer (TenantScopedRepository)
  *   FR-712 — No pattern nesting constraint (validateTemplateSchema)
- *   FR-741 — Built-in worker separate from server (worker-process entry point)
- *   FR-752 — Built-in agent replaceable by external (isBuiltInAgentReplaceable)
  *   FR-754 — Zero-config first run (seedDefaultTenant creates default API key)
- *   FR-756 — Built-in agents have no exclusive capabilities (same system)
  *   FR-761 — All entities tenant-scoped (TenantScopedRepository comprehensive)
  *   FR-820 — External workers run anywhere (isOriginAllowed / WORKER_ALLOWED_ORIGINS)
+ *
+ * FR-741, FR-752, FR-756 removed: built-in Node.js worker replaced by Go
+ * runtime connected mode (worker/runtime container merge).
  */
 
 import fs from 'node:fs';
@@ -21,7 +21,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { DatabaseQueryable } from '../../src/db/database.js';
 import { TenantScopedRepository } from '../../src/db/tenant-scoped-repository.js';
-import { isBuiltInAgentReplaceable } from '../../src/orchestration/capability-matcher.js';
 import { assertNoPatternNesting, validateTemplateSchema } from '../../src/orchestration/workflow-engine.js';
 import { isOriginAllowed } from '../../src/bootstrap/websocket.js';
 
@@ -213,97 +212,6 @@ describe('FR-712: no pattern nesting constraint', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FR-741: Built-in worker separate from server
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('FR-741: built-in worker launchable independently from the API server', () => {
-  it('worker-process.ts entry point exists as a standalone module', () => {
-    // FR-741: verify the file exists (the process is launched independently)
-    const workerProcessPath = path.join(srcDir, 'worker-process.ts');
-    expect(fs.existsSync(workerProcessPath)).toBe(true);
-  });
-
-  it('worker-process.ts does not import the API server bootstrap', () => {
-    // FR-741: worker process must not depend on server startup
-    const source = readSrc('worker-process.ts');
-    expect(source).not.toContain("from './bootstrap/app");
-    expect(source).not.toContain("from './bootstrap/server");
-    expect(source).not.toContain('startServer');
-    expect(source).not.toContain('buildApp');
-  });
-
-  it('bootstrap/built-in-worker.ts provides registerBuiltInWorker and connectBuiltInWorkerWebSocket', () => {
-    // FR-741: worker lifecycle functions are available independently
-    const source = readSrc('bootstrap/built-in-worker.ts');
-    expect(source).toContain('registerBuiltInWorker');
-    expect(source).toContain('connectBuiltInWorkerWebSocket');
-  });
-
-  it('platform-api package.json exposes a worker script', () => {
-    // FR-741: operator can start the worker with pnpm worker
-    const pkgPath = path.resolve(__dirname, '../../package.json');
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) as { scripts: Record<string, string> };
-    expect(pkg.scripts).toHaveProperty('worker');
-    expect(pkg.scripts.worker).toContain('worker-process');
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FR-752: Built-in agent replaceable by external agent
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('FR-752: built-in agent replaceable by external agent with same capabilities', () => {
-  it('returns true when an external active agent covers all built-in capabilities', () => {
-    // FR-752
-    const result = isBuiltInAgentReplaceable(['code', 'typescript'], [
-      { capabilities: ['code', 'typescript', 'testing'], status: 'online', isBuiltIn: false },
-    ]);
-    expect(result).toBe(true);
-  });
-
-  it('returns false when no external agent covers all capabilities', () => {
-    // FR-752
-    const result = isBuiltInAgentReplaceable(['code', 'typescript', 'security'], [
-      { capabilities: ['code', 'typescript'], status: 'online', isBuiltIn: false },
-    ]);
-    expect(result).toBe(false);
-  });
-
-  it('returns false when matching agent is itself built-in', () => {
-    // FR-752: another built-in does not count as an external replacement
-    const result = isBuiltInAgentReplaceable(['code'], [
-      { capabilities: ['code', 'testing'], status: 'online', isBuiltIn: true },
-    ]);
-    expect(result).toBe(false);
-  });
-
-  it('returns false when matching external agent is offline', () => {
-    // FR-752: offline agents cannot replace the built-in
-    const result = isBuiltInAgentReplaceable(['analysis'], [
-      { capabilities: ['analysis'], status: 'offline', isBuiltIn: false },
-    ]);
-    expect(result).toBe(false);
-  });
-
-  it('returns false when matching external agent is draining', () => {
-    // FR-752: draining agents are not valid replacements
-    const result = isBuiltInAgentReplaceable(['analysis'], [
-      { capabilities: ['analysis'], status: 'draining', isBuiltIn: false },
-    ]);
-    expect(result).toBe(false);
-  });
-
-  it('returns true with multiple candidates when at least one qualifies', () => {
-    // FR-752
-    const result = isBuiltInAgentReplaceable(['review'], [
-      { capabilities: ['code'], status: 'online', isBuiltIn: false },
-      { capabilities: ['review', 'code'], status: 'online', isBuiltIn: false },
-    ]);
-    expect(result).toBe(true);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // FR-754: Zero-config first run — default tenant + default API key
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -340,72 +248,27 @@ describe('FR-754: zero-config first run creates default tenant and API key', () 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FR-756: Built-in agents have no exclusive capabilities
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('FR-756: built-in agents use same capability system as external agents', () => {
-  it('built-in-worker registration payload uses the standard capabilities field', () => {
-    // FR-756: no proprietary fields — same protocol as external workers
-    const source = readSrc('bootstrap/built-in-worker.ts');
-    expect(source).toContain('capabilities: config.capabilities');
-    expect(source).toContain("connection_mode: 'websocket'");
-    // Must NOT use any special scope or privilege field
-    expect(source).not.toContain('exclusive_capabilities');
-    expect(source).not.toContain('admin_scope');
-    expect(source).not.toContain('bypass_capability_check');
-  });
-
-  it('isBuiltInAgentReplaceable uses isCapabilitySubset — same matching logic for all agents', () => {
-    // FR-756: built-in capability check uses the same function external agents use
-    const source = readSrc('orchestration/capability-matcher.ts');
-    expect(source).toContain('isBuiltInAgentReplaceable');
-    expect(source).toContain('isCapabilitySubset');
-    // The replaceability function must delegate to the shared matcher
-    const fnBody = source.slice(source.indexOf('isBuiltInAgentReplaceable'));
-    expect(fnBody).toContain('isCapabilitySubset');
-  });
-
-  it('built-in worker runtime_type is internal but capabilities are open', () => {
-    // FR-756: runtime_type distinguishes origin but does not restrict capabilities.
-    // 'internal' is the DB enum value for built-in (platform-managed) workers.
-    const source = readSrc('bootstrap/built-in-worker.ts');
-    expect(source).toContain("runtime_type: 'internal'");
-    // capabilities come from config — not hardcoded
-    expect(source).toContain('capabilities: config.capabilities');
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // FR-820: External workers run anywhere (network-transparent protocol)
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('FR-820: external workers connect via network-transparent protocol', () => {
   it('isOriginAllowed allows any origin when config is *', () => {
-    // FR-820: tests the actual production function — no inline re-implementation
     expect(isOriginAllowed('https://worker.example.com', '*')).toBe(true);
     expect(isOriginAllowed(undefined, '*')).toBe(true);
     expect(isOriginAllowed('http://any-host.internal', '*')).toBe(true);
   });
 
   it('isOriginAllowed permits only listed origins when config is restrictive', () => {
-    // FR-820: operators CAN restrict origins; default is open
     const config = 'https://workers.corp.example.com, http://localhost:3000';
     expect(isOriginAllowed('https://workers.corp.example.com', config)).toBe(true);
     expect(isOriginAllowed('https://attacker.example.com', config)).toBe(false);
-    expect(isOriginAllowed(undefined, config)).toBe(true); // native clients OK
+    expect(isOriginAllowed(undefined, config)).toBe(true);
   });
 
-  it('built-in-worker connects via standard WebSocket URL — no host lock-in', () => {
-    // FR-820: worker derives the URL from PLATFORM_API_URL at runtime
-    const source = readSrc('bootstrap/built-in-worker.ts');
-    expect(source).toContain('apiBaseUrl.replace');
-    expect(source).toContain("replace(/^http/, 'ws')");
-  });
-
-  it('worker-process.ts reads PLATFORM_API_URL from env — works with any host', () => {
-    // FR-820: external workers can point at any platform host
-    const source = readSrc('worker-process.ts');
-    expect(source).toContain('PLATFORM_API_URL');
-    expect(source).toContain('process.env');
+  it('worker registration route accepts standard connection modes', () => {
+    const source = readSrc('api/routes/workers.routes.ts');
+    expect(source).toContain("'websocket'");
+    expect(source).toContain("'polling'");
+    expect(source).toContain("'sse'");
   });
 });

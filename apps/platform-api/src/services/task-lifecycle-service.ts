@@ -1,5 +1,5 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
-import { validateOutputSchema } from '../built-in/output-validator.js';
+import { validateOutputSchema } from '../validation/output-validator.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ConflictError, ForbiddenError } from '../errors/domain-errors.js';
 import { assertValidTransition, type TaskState } from '../orchestration/task-state-machine.js';

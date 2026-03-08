@@ -83,7 +83,7 @@ describe('RuntimeConfigService', () => {
       .mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 }) // fetchRoles
       .mockResolvedValueOnce({ rows: [sampleDefault], rowCount: 1 }) // fetchDefaults
       .mockResolvedValueOnce({ // fetchModelAssignment
-        rows: [{ primary_model_id: 'model-1', fallback_model_id: null }],
+        rows: [{ primary_model_id: 'model-1' }],
         rowCount: 1,
       })
       .mockResolvedValueOnce({ rows: [modelRow], rowCount: 1 }); // fetchModelWithProvider
@@ -93,7 +93,7 @@ describe('RuntimeConfigService', () => {
     expect(result.primaryModel).not.toBeNull();
     expect(result.primaryModel!.modelId).toBe('claude-sonnet-4-6');
     expect(result.primaryModel!.providerName).toBe('anthropic');
-    expect(result.fallbackModel).toBeNull();
+    expect(result).not.toHaveProperty('fallbackModel');
   });
 
   it('returns all active roles when worker has no role capabilities', async () => {

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 
-import { shouldRejectImpossibleScopeTask } from '../../built-in/impossible-scope.js';
+import { shouldRejectImpossibleScopeTask } from '../../validation/impossible-scope.js';
 
 interface ExecuteRequestBody {
   task_id?: unknown;

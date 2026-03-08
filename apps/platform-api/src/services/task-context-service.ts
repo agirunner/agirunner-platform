@@ -52,7 +52,7 @@ export async function buildTaskContext(
   ]);
 
   const upstreamOutputs = Object.fromEntries(
-    depsRes.rows.map((row) => [row.role ?? row.type ?? row.id, row.output ?? {}]),
+    depsRes.rows.map((row) => [row.role ?? row.type ?? row.id, truncateOutput(row.output ?? {})]),
   );
 
   const workflowRow = workflowRes.rows[0] as Record<string, unknown> | undefined;
@@ -267,4 +267,14 @@ function asOptionalString(value: unknown): string | undefined {
 
 function asOptionalNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+const UPSTREAM_OUTPUT_MAX_BYTES = 102400;
+
+function truncateOutput(output: unknown): unknown {
+  const serialized = JSON.stringify(output);
+  if (serialized.length <= UPSTREAM_OUTPUT_MAX_BYTES) {
+    return output;
+  }
+  return { _truncated: true, _original_size: serialized.length, summary: serialized.slice(0, UPSTREAM_OUTPUT_MAX_BYTES) };
 }

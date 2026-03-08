@@ -1,4 +1,4 @@
--- Migration 0021: Fleet management tables for reconciler
+-- Migration 0021: Fleet management tables for container-manager
 -- Tracks desired container state, actual container state, and available images.
 
 -- Desired state for worker containers
@@ -29,7 +29,7 @@ CREATE TABLE worker_desired_state (
 CREATE INDEX idx_worker_desired_state_tenant ON worker_desired_state(tenant_id);
 CREATE INDEX idx_worker_desired_state_enabled ON worker_desired_state(tenant_id, enabled);
 
--- Actual state reported by reconciler
+-- Actual state reported by container-manager
 CREATE TABLE worker_actual_state (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     desired_state_id UUID NOT NULL REFERENCES worker_desired_state(id) ON DELETE CASCADE,
@@ -45,7 +45,7 @@ CREATE TABLE worker_actual_state (
 
 CREATE INDEX idx_worker_actual_state_desired ON worker_actual_state(desired_state_id);
 
--- Available Docker images reported by reconciler
+-- Available Docker images reported by container-manager
 CREATE TABLE container_images (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     repository TEXT NOT NULL,

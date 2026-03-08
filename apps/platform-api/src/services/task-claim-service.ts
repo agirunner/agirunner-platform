@@ -3,6 +3,7 @@ import type { DatabasePool } from '../db/database.js';
 import { AgentBusyError, ForbiddenError, NotFoundError } from '../errors/domain-errors.js';
 import { assertValidTransition } from '../orchestration/task-state-machine.js';
 import { EventService } from './event-service.js';
+import type { ResolvedRoleConfig } from './model-catalog-service.js';
 import { computeToolMatch, readAgentToolRequirements, resolveProjectToolTags } from './tool-tag-service.js';
 
 const priorityCase = "CASE priority WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END";
@@ -12,6 +13,7 @@ interface TaskClaimDependencies {
   eventService: EventService;
   toTaskResponse: (task: Record<string, unknown>) => Record<string, unknown>;
   getTaskContext: (tenantId: string, taskId: string, agentId?: string) => Promise<unknown>;
+  resolveRoleConfig?: (tenantId: string, roleName: string) => Promise<ResolvedRoleConfig | null>;
 }
 
 export class TaskClaimService {
@@ -161,7 +163,11 @@ export class TaskClaimService {
 
       await client.query('COMMIT');
       const claimedTask = this.deps.toTaskResponse(updatedTaskRes.rows[0] as Record<string, unknown>);
-      const { context: _taskContext, ...claimedTaskBase } = claimedTask as Record<string, unknown>;
+      const enrichedTask = await this.enrichWithLLMCredentials(
+        identity.tenantId,
+        claimedTask,
+      );
+      const { context: _taskContext, ...claimedTaskBase } = enrichedTask as Record<string, unknown>;
       const instructionContext = (await this.deps.getTaskContext(
         identity.tenantId,
         task.id as string,
@@ -189,5 +195,38 @@ export class TaskClaimService {
     } finally {
       client.release();
     }
+  }
+
+  private async enrichWithLLMCredentials(
+    tenantId: string,
+    task: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    if (!this.deps.resolveRoleConfig) return task;
+
+    const roleName = (task.role as string) || (task.type as string) || '';
+    if (!roleName) return task;
+
+    const resolved = await this.deps.resolveRoleConfig(tenantId, roleName);
+    if (!resolved) return task;
+
+    const existingRoleConfig = (task.role_config ?? {}) as Record<string, unknown>;
+    const llmFields: Record<string, unknown> = {
+      llm_provider: resolved.provider.name,
+      llm_model: resolved.model.modelId,
+    };
+    if (resolved.provider.apiKeySecretRef) {
+      llmFields.llm_api_key = resolved.provider.apiKeySecretRef;
+    }
+    if (resolved.provider.baseUrl) {
+      llmFields.llm_base_url = resolved.provider.baseUrl;
+    }
+    if (resolved.model.endpointType) {
+      llmFields.llm_endpoint_type = resolved.model.endpointType;
+    }
+
+    return {
+      ...task,
+      role_config: { ...existingRoleConfig, ...llmFields },
+    };
   }
 }

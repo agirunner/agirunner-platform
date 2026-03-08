@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Loader2, Copy, Download, Pencil, Plus, LayoutTemplate, GitCompare } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Loader2, Copy, Download, Pencil, Plus, LayoutTemplate, GitCompare, Trash2 } from 'lucide-react';
 import { dashboardApi, type DashboardTemplate } from '../../lib/api.js';
+import { readSession } from '../../lib/session.js';
+import { toast } from '../../lib/toast.js';
 import { Button } from '../../components/ui/button.js';
 import { Badge } from '../../components/ui/badge.js';
 import {
@@ -43,9 +45,142 @@ function exportTemplate(template: DashboardTemplate) {
   URL.revokeObjectURL(url);
 }
 
+const API_BASE_URL =
+  import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
+
+async function deleteTemplate(id: string): Promise<void> {
+  const session = readSession();
+  const headers: Record<string, string> = {};
+  if (session?.accessToken) {
+    headers.Authorization = `Bearer ${session.accessToken}`;
+  }
+  const response = await fetch(`${API_BASE_URL}/api/v1/templates/${id}`, {
+    method: 'DELETE',
+    headers,
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+}
+
+function DeleteTemplateDialog({
+  template,
+  onClose,
+}: {
+  template: DashboardTemplate;
+  onClose: () => void;
+}): JSX.Element {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: () => deleteTemplate(template.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['templates'] });
+      onClose();
+      toast.success('Template deleted');
+    },
+    onError: () => {
+      toast.error('Failed to delete template');
+    },
+  });
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete Template</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted">
+          Are you sure you want to delete &quot;{template.name}&quot;? This action cannot be undone.
+        </p>
+        {mutation.error && (
+          <p className="text-sm text-red-600">{String(mutation.error)}</p>
+        )}
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending}
+            data-testid="confirm-delete"
+          >
+            {mutation.isPending && (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            )}
+            Delete
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function buildDiffText(template: DashboardTemplate, version: number): string {
   const header = `Template: ${template.name}\nVersion: ${version}\n`;
   return header + JSON.stringify(template.schema, null, 2);
+}
+
+function TemplateActions({ template, onDiff }: { template: DashboardTemplate; onDiff: () => void }): JSX.Element {
+  const [showDelete, setShowDelete] = useState(false);
+
+  return (
+    <>
+      <div className="flex items-center gap-1">
+        <Button
+          size="icon"
+          variant="ghost"
+          title="Edit template"
+          onClick={() => {
+            window.location.assign(`/config/templates/${template.id}/edit`);
+          }}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          title="Clone template"
+        >
+          <Copy className="h-4 w-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          title="Export as JSON"
+          onClick={() => exportTemplate(template)}
+        >
+          <Download className="h-4 w-4" />
+        </Button>
+        {template.version > 1 && (
+          <Button
+            size="icon"
+            variant="ghost"
+            title="View diff with previous version"
+            onClick={onDiff}
+          >
+            <GitCompare className="h-4 w-4" />
+          </Button>
+        )}
+        {!template.is_built_in && (
+          <Button
+            size="icon"
+            variant="ghost"
+            title="Delete template"
+            onClick={() => setShowDelete(true)}
+            data-testid={`delete-template-${template.slug}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+      {showDelete && (
+        <DeleteTemplateDialog
+          template={template}
+          onClose={() => setShowDelete(false)}
+        />
+      )}
+    </>
+  );
 }
 
 export function TemplateListPage(): JSX.Element {
@@ -132,43 +267,10 @@ export function TemplateListPage(): JSX.Element {
                   )}
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      title="Edit template"
-                      onClick={() => {
-                        window.location.assign(`/config/templates/${template.id}/edit`);
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      title="Clone template"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      title="Export as JSON"
-                      onClick={() => exportTemplate(template)}
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    {template.version > 1 && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        title="View diff with previous version"
-                        onClick={() => setDiffTemplate(template)}
-                      >
-                        <GitCompare className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
+                  <TemplateActions
+                    template={template}
+                    onDiff={() => setDiffTemplate(template)}
+                  />
                 </TableCell>
               </TableRow>
             ))}

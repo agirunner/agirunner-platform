@@ -5,7 +5,7 @@ import {
   hasDeterministicImpossibleFailureMode,
   isImpossibleRewriteObjective,
   shouldRejectImpossibleScopeTask,
-} from '../../src/built-in/impossible-scope.js';
+} from '../../src/validation/impossible-scope.js';
 
 describe('isImpossibleRewriteObjective', () => {
   it('matches AP-7 style impossible rewrite objective', () => {

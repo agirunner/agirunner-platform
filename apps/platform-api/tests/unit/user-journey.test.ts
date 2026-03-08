@@ -35,7 +35,7 @@ describe('user journey simulation', () => {
             id: 'admin-uuid',
             tenant_id: 'tenant-uuid',
             email: 'admin@example.com',
-            password_hash: '$2a$12$hash',
+            password_hash: null,
             display_name: 'Admin',
             role: 'org_admin',
             is_active: true,
@@ -49,7 +49,6 @@ describe('user journey simulation', () => {
 
     const admin = await service.createUser('tenant-uuid', {
       email: 'admin@example.com',
-      password: 'securepassword123',
       role: 'org_admin',
     });
 

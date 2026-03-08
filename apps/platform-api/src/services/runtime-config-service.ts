@@ -31,7 +31,6 @@ export interface RuntimeConfig {
   workerName: string;
   roles: RuntimeConfigRole[];
   primaryModel: RuntimeConfigModel | null;
-  fallbackModel: RuntimeConfigModel | null;
   defaults: RuntimeConfigDefault[];
   version: string;
 }
@@ -84,13 +83,11 @@ export class RuntimeConfigService {
     ]);
 
     let primaryModel: RuntimeConfigModel | null = null;
-    let fallbackModel: RuntimeConfigModel | null = null;
 
     if (roleCaps.length > 0) {
       const assignment = await this.fetchModelAssignment(tenantId, roleCaps[0]);
       if (assignment) {
         primaryModel = assignment.primary;
-        fallbackModel = assignment.fallback;
       }
     }
 
@@ -100,7 +97,6 @@ export class RuntimeConfigService {
       workerName: worker.name,
       roles,
       primaryModel,
-      fallbackModel,
       defaults,
       version: maxUpdatedAt.toISOString(),
     };
@@ -165,21 +161,19 @@ export class RuntimeConfigService {
   private async fetchModelAssignment(
     tenantId: string,
     roleName: string,
-  ): Promise<{ primary: RuntimeConfigModel | null; fallback: RuntimeConfigModel | null } | null> {
+  ): Promise<{ primary: RuntimeConfigModel | null } | null> {
     const result = await this.pool.query<{
       primary_model_id: string | null;
-      fallback_model_id: string | null;
     }>(
-      'SELECT primary_model_id, fallback_model_id FROM role_model_assignments WHERE tenant_id = $1 AND role_name = $2',
+      'SELECT primary_model_id FROM role_model_assignments WHERE tenant_id = $1 AND role_name = $2',
       [tenantId, roleName],
     );
     if (!result.rowCount) return null;
 
     const row = result.rows[0];
     const primary = row.primary_model_id ? await this.fetchModelWithProvider(row.primary_model_id) : null;
-    const fallback = row.fallback_model_id ? await this.fetchModelWithProvider(row.fallback_model_id) : null;
 
-    return { primary, fallback };
+    return { primary };
   }
 
   private async fetchModelWithProvider(modelId: string): Promise<RuntimeConfigModel | null> {

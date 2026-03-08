@@ -1,12 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import { randomBytes, randomUUID } from 'node:crypto';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
-import { withRole } from '../../auth/rbac.js';
-import { roleToScope } from '../../auth/rbac.js';
+import { authenticateApiKey } from '../../auth/fastify-auth-hook.js';
+import { withRole, roleToScope } from '../../auth/rbac.js';
 import { issueUserAccessToken, issueUserRefreshToken } from '../../auth/jwt.js';
 import { DEFAULT_TENANT_ID } from '../../db/seed.js';
-import { UnauthorizedError } from '../../errors/domain-errors.js';
+import { ForbiddenError, UnauthorizedError } from '../../errors/domain-errors.js';
 import { UserService, type CreateUserInput, type UpdateUserInput } from '../../services/user-service.js';
 
 export async function userRoutes(app: FastifyInstance): Promise<void> {
@@ -19,64 +18,6 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
       const input = request.body as CreateUserInput;
       const user = await userService.createUser(request.auth!.tenantId, input);
       return reply.status(201).send({ data: user });
-    },
-  );
-
-  app.post<{ Body: { email: string; password: string; tenantId?: string } }>(
-    '/api/v1/auth/login/password',
-    {
-      config: {
-        rateLimit: {
-          max: 10,
-          timeWindow: '5 minutes',
-          keyGenerator: (request: import('fastify').FastifyRequest) => {
-            const body = request.body as { email?: string } | undefined;
-            const email = body?.email ?? 'unknown';
-            return `login:${request.ip}:${email}`;
-          },
-        },
-      },
-    },
-    async (request, reply) => {
-      const { email, password, tenantId } = request.body;
-      const effectiveTenantId = tenantId ?? DEFAULT_TENANT_ID;
-
-      const user = await userService.verifyPassword(effectiveTenantId, email, password);
-
-      const scope = roleToScope(user.role);
-      const tokenId = randomUUID();
-
-      const accessToken = await issueUserAccessToken(app, {
-        userId: user.id,
-        tenantId: user.tenantId,
-        role: user.role,
-        scope,
-        email: user.email,
-      });
-
-      const refreshToken = await issueUserRefreshToken(app, {
-        userId: user.id,
-        tenantId: user.tenantId,
-        role: user.role,
-        scope,
-        email: user.email,
-        tokenId,
-      });
-
-      reply.setCookie('agirunner_access_token', accessToken, {
-        httpOnly: true,
-        secure: app.config.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-      });
-
-      return reply.send({
-        data: {
-          accessToken,
-          refreshToken,
-          user,
-        },
-      });
     },
   );
 
@@ -192,26 +133,13 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  app.patch<{ Body: { currentPassword: string; newPassword: string } }>(
-    '/api/v1/users/me/password',
-    { preHandler: [authenticateApiKey] },
-    async (request, reply) => {
-      if (!request.auth?.userId) {
-        throw new UnauthorizedError('User authentication required');
-      }
-
-      const user = await userService.getUserById(request.auth.tenantId, request.auth.userId);
-      await userService.verifyPassword(request.auth.tenantId, user.email, request.body.currentPassword);
-      await userService.changePassword(request.auth.tenantId, request.auth.userId, request.body.newPassword);
-
-      return reply.send({ data: { message: 'Password changed' } });
-    },
-  );
-
   app.delete<{ Params: { id: string } }>(
     '/api/v1/users/:id',
     { preHandler: [authenticateApiKey, withRole('org_admin')] },
     async (request, reply) => {
+      if (request.auth?.userId === request.params.id) {
+        throw new ForbiddenError('Cannot deactivate your own account');
+      }
       await userService.deactivateUser(request.auth!.tenantId, request.params.id);
       return reply.status(204).send();
     },

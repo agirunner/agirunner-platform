@@ -66,7 +66,9 @@ describe('ModelCatalogService', () => {
     });
 
     it('creates a provider', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [sampleProvider], rowCount: 1 });
+      pool.query
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [sampleProvider], rowCount: 1 });
       const result = await service.createProvider(TENANT_ID, {
         name: 'anthropic',
         baseUrl: 'https://api.anthropic.com',
@@ -78,7 +80,12 @@ describe('ModelCatalogService', () => {
 
     it('rejects invalid provider input', async () => {
       await expect(
-        service.createProvider(TENANT_ID, { name: '', baseUrl: 'not-a-url', isEnabled: true, metadata: {} }),
+        service.createProvider(TENANT_ID, {
+          name: '',
+          baseUrl: 'not-a-url',
+          isEnabled: true,
+          metadata: {},
+        }),
       ).rejects.toThrow();
     });
 
@@ -89,20 +96,14 @@ describe('ModelCatalogService', () => {
       expect(result.name).toBe('updated-anthropic');
     });
 
-    it('deletes a provider with no models', async () => {
+    it('deletes a provider and cascades to models and assignments', async () => {
       pool.query
-        .mockResolvedValueOnce({ rows: [{ count: '0' }], rowCount: 1 }) // model count
-        .mockResolvedValueOnce({ rows: [], rowCount: 1 }); // DELETE
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // clear assignments
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // delete models
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }); // delete provider
 
       await expect(service.deleteProvider(TENANT_ID, PROVIDER_ID)).resolves.toBeUndefined();
-    });
-
-    it('throws ConflictError when deleting provider with models', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [{ count: '2' }], rowCount: 1 });
-
-      await expect(service.deleteProvider(TENANT_ID, PROVIDER_ID)).rejects.toThrow(
-        'Cannot delete provider with active models',
-      );
+      expect(pool.query).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -147,6 +148,7 @@ describe('ModelCatalogService', () => {
         inputCostPerMillionUsd: 3.0,
         outputCostPerMillionUsd: 15.0,
         isEnabled: true,
+        reasoningConfig: null,
       });
       expect(result).toEqual(sampleModel);
     });
@@ -164,7 +166,6 @@ describe('ModelCatalogService', () => {
         tenant_id: TENANT_ID,
         role_name: 'developer',
         primary_model_id: MODEL_ID,
-        fallback_model_id: null,
         created_at: new Date(),
         updated_at: new Date(),
       };
@@ -179,7 +180,6 @@ describe('ModelCatalogService', () => {
         tenant_id: TENANT_ID,
         role_name: 'developer',
         primary_model_id: MODEL_ID,
-        fallback_model_id: null,
         created_at: new Date(),
         updated_at: new Date(),
       };
