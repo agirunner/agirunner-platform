@@ -57,18 +57,22 @@ func (m *Manager) isStarved(templateID string) bool {
 
 // boostStarvedTargets adjusts the priority of starved targets so they are
 // scheduled ahead of non-starved templates during preemption planning. The
-// returned slice is a copy — the original targets are not modified.
-func (m *Manager) boostStarvedTargets(targets []RuntimeTarget) []RuntimeTarget {
-	boosted := make([]RuntimeTarget, len(targets))
-	copy(boosted, targets)
+// boost is computed relative to the highest priority across ALL templates
+// (not just the unsatisfied ones) so that the starved template can preempt
+// any lower-priority idle runtime. The returned slice is a copy — the
+// original targets are not modified.
+func (m *Manager) boostStarvedTargets(unsatisfied []RuntimeTarget, allTargets []RuntimeTarget) []RuntimeTarget {
+	boosted := make([]RuntimeTarget, len(unsatisfied))
+	copy(boosted, unsatisfied)
 
+	globalMax := maxPriorityIn(allTargets)
 	for i := range boosted {
 		if m.isStarved(boosted[i].TemplateID) {
 			m.logger.Warn("template starved, boosting priority for preemption",
 				"template", boosted[i].TemplateID,
 				"original_priority", boosted[i].Priority,
 			)
-			boosted[i].Priority = maxPriorityIn(targets) + 1
+			boosted[i].Priority = globalMax + 1
 		}
 	}
 

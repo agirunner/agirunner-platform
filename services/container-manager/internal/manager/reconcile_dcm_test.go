@@ -150,8 +150,15 @@ func TestDCMColdIdleTeardown(t *testing.T) {
 	target := makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 0, 10)
 	target.PoolMode = "cold"
 	target.IdleTimeoutSeconds = 60
+	// Heartbeats show both runtimes idle with timestamps older than the 60s
+	// timeout but within the 90s stale heartbeat threshold.
+	oldTimestamp := time.Now().Add(-65 * time.Second).UTC().Format(time.RFC3339)
 	platform := &mockPlatformClient{
 		runtimeTargets: []RuntimeTarget{target},
+		heartbeats: []RuntimeHeartbeat{
+			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: oldTimestamp},
+			{RuntimeID: "rt-2", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: oldTimestamp},
+		},
 	}
 	mgr := newDCMTestManager(docker, platform)
 
@@ -650,5 +657,101 @@ func TestDriftReplacementRespectsGlobalMax(t *testing.T) {
 	// Should create replacement (global was 9, destroyed 1 → 8, create 1 → 9).
 	if len(docker.createdSpecs) != 1 {
 		t.Errorf("expected 1 replacement, got %d", len(docker.createdSpecs))
+	}
+}
+
+// --- Idle timeout enforcement tests ---
+
+func TestIsIdlePastTimeoutReturnsTrueWhenExpired(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	heartbeats := map[string]RuntimeHeartbeat{
+		"rt-1": {RuntimeID: "rt-1", State: "idle", LastHeartbeatAt: now.Add(-90 * time.Second).Format(time.RFC3339)},
+	}
+
+	if !isIdlePastTimeout("rt-1", heartbeats, 60, func() time.Time { return now }) {
+		t.Error("expected idle runtime past 60s timeout to be expired")
+	}
+}
+
+func TestIsIdlePastTimeoutReturnsFalseWhenNotExpired(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	heartbeats := map[string]RuntimeHeartbeat{
+		"rt-1": {RuntimeID: "rt-1", State: "idle", LastHeartbeatAt: now.Add(-30 * time.Second).Format(time.RFC3339)},
+	}
+
+	if isIdlePastTimeout("rt-1", heartbeats, 60, func() time.Time { return now }) {
+		t.Error("expected idle runtime before 60s timeout to NOT be expired")
+	}
+}
+
+func TestIsIdlePastTimeoutReturnsFalseWhenExecuting(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	heartbeats := map[string]RuntimeHeartbeat{
+		"rt-1": {RuntimeID: "rt-1", State: "executing", LastHeartbeatAt: now.Add(-120 * time.Second).Format(time.RFC3339)},
+	}
+
+	if isIdlePastTimeout("rt-1", heartbeats, 60, func() time.Time { return now }) {
+		t.Error("expected executing runtime to NOT be idle-expired regardless of timestamp")
+	}
+}
+
+func TestIsIdlePastTimeoutReturnsFalseWhenNoHeartbeat(t *testing.T) {
+	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	heartbeats := map[string]RuntimeHeartbeat{}
+
+	if isIdlePastTimeout("rt-1", heartbeats, 60, func() time.Time { return now }) {
+		t.Error("expected runtime without heartbeat to NOT be expired")
+	}
+}
+
+func TestColdIdleNotDestroyedBeforeTimeout(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-1"),
+	}
+	target := makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 0, 10)
+	target.PoolMode = "cold"
+	target.IdleTimeoutSeconds = 300
+	// Heartbeat is only 30s old — well within the 300s timeout.
+	recentTimestamp := time.Now().Add(-30 * time.Second).UTC().Format(time.RFC3339)
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{target},
+		heartbeats: []RuntimeHeartbeat{
+			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: recentTimestamp},
+		},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.stoppedIDs) != 0 {
+		t.Errorf("expected 0 containers stopped (idle < timeout), got %d", len(docker.stoppedIDs))
+	}
+}
+
+func TestColdIdleNoHeartbeatNotDestroyed(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-1"),
+	}
+	target := makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 0, 10)
+	target.PoolMode = "cold"
+	target.IdleTimeoutSeconds = 60
+	// No heartbeats — newly created runtime, should NOT be destroyed.
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{target},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.stoppedIDs) != 0 {
+		t.Errorf("expected 0 containers stopped (no heartbeat = new runtime), got %d", len(docker.stoppedIDs))
 	}
 }

@@ -206,7 +206,7 @@ func TestStarvationBoostRaisesPriority(t *testing.T) {
 		makeRuntimeTarget("tmpl-starved", "img:v1", 3, 2, 1),
 	}
 
-	boosted := mgr.boostStarvedTargets(targets)
+	boosted := mgr.boostStarvedTargets(targets, targets)
 
 	// Starved template should now have priority > 100.
 	if boosted[0].TemplateID != "tmpl-starved" {
@@ -225,7 +225,7 @@ func TestStarvationBoostDoesNotAffectNonStarvedTargets(t *testing.T) {
 		makeRuntimeTarget("tmpl-b", "img:v1", 3, 2, 100),
 	}
 
-	boosted := mgr.boostStarvedTargets(targets)
+	boosted := mgr.boostStarvedTargets(targets, targets)
 
 	if boosted[0].TemplateID != "tmpl-b" {
 		t.Errorf("expected tmpl-b first (highest priority), got %s", boosted[0].TemplateID)

@@ -3,7 +3,6 @@ package manager
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -122,7 +121,7 @@ func (m *Manager) processTargetGroup(
 		}
 		running := grouped[target.TemplateID]
 		activeCount := countActiveContainers(running)
-		actions := m.planTargetActions(target, running, *totalRunning)
+		actions := m.planTargetActions(target, running, *totalRunning, heartbeats)
 		plans = append(plans, planned{target: target, actions: actions, activeCount: activeCount})
 	}
 
@@ -227,7 +226,7 @@ func (m *Manager) executePreemptions(
 	heartbeats map[string]RuntimeHeartbeat,
 	totalRunning int,
 ) {
-	boosted := m.boostStarvedTargets(unsatisfied)
+	boosted := m.boostStarvedTargets(unsatisfied, allTargets)
 	plans := planPreemptions(boosted, grouped, allTargets)
 	if len(plans) == 0 {
 		return
@@ -406,11 +405,12 @@ func (m *Manager) planTargetActions(
 	target RuntimeTarget,
 	running []ContainerInfo,
 	totalRunning int,
+	heartbeats map[string]RuntimeHeartbeat,
 ) targetActions {
 	capacity := m.config.GlobalMaxRuntimes - totalRunning
 	drifted := findImageDrift(target, running)
 	driftIDs := containerIDSet(drifted)
-	idle := excludeByID(findIdleForTeardown(target, running), driftIDs)
+	idle := excludeByID(findIdleForTeardown(target, running, heartbeats, m.nowFunc), driftIDs)
 
 	return targetActions{
 		toCreate:      computeScaleUp(target, len(running), capacity),
@@ -459,10 +459,10 @@ func computeScaleUp(target RuntimeTarget, runningCount, capacity int) int {
 }
 
 // findIdleForTeardown identifies idle containers that should be destroyed.
-func findIdleForTeardown(target RuntimeTarget, running []ContainerInfo) []ContainerInfo {
+func findIdleForTeardown(target RuntimeTarget, running []ContainerInfo, heartbeats map[string]RuntimeHeartbeat, now func() time.Time) []ContainerInfo {
 	switch target.PoolMode {
 	case "cold":
-		return findColdIdleExpired(target, running)
+		return findColdIdleExpired(target, running, heartbeats, now)
 	case "warm":
 		return findWarmNoWorkflows(target, running)
 	default:
@@ -470,14 +470,20 @@ func findIdleForTeardown(target RuntimeTarget, running []ContainerInfo) []Contai
 	}
 }
 
-// findColdIdleExpired returns containers idle past the timeout.
-func findColdIdleExpired(target RuntimeTarget, running []ContainerInfo) []ContainerInfo {
+// findColdIdleExpired returns containers idle past the configured timeout.
+// A container is considered idle-expired when its heartbeat state is "idle"
+// and the heartbeat timestamp is older than IdleTimeoutSeconds.
+func findColdIdleExpired(target RuntimeTarget, running []ContainerInfo, heartbeats map[string]RuntimeHeartbeat, now func() time.Time) []ContainerInfo {
 	if target.IdleTimeoutSeconds <= 0 {
 		return nil
 	}
 	var expired []ContainerInfo
 	for _, c := range running {
-		if !isDrainingContainer(c) && isIdlePastTimeout(c, target.IdleTimeoutSeconds) {
+		if isDrainingContainer(c) {
+			continue
+		}
+		runtimeID := c.Labels[labelDCMRuntimeID]
+		if isIdlePastTimeout(runtimeID, heartbeats, target.IdleTimeoutSeconds, now) {
 			expired = append(expired, c)
 		}
 	}
@@ -492,10 +498,27 @@ func findWarmNoWorkflows(target RuntimeTarget, running []ContainerInfo) []Contai
 	return running
 }
 
-// isIdlePastTimeout checks if a container is idle beyond the timeout threshold.
-func isIdlePastTimeout(c ContainerInfo, _ int) bool {
-	status := strings.ToLower(c.Status)
-	return strings.HasPrefix(status, "up") && !isDrainingContainer(c)
+// isIdlePastTimeout checks if a runtime has been idle longer than the
+// configured timeout by examining its heartbeat data. A runtime is
+// considered idle-expired when:
+//   - Heartbeat exists with state "idle"
+//   - The heartbeat timestamp is older than timeoutSeconds
+//
+// Runtimes without heartbeat data (newly created) are NOT considered expired.
+// Runtimes actively executing tasks are NOT considered expired.
+func isIdlePastTimeout(runtimeID string, heartbeats map[string]RuntimeHeartbeat, timeoutSeconds int, now func() time.Time) bool {
+	hb, ok := heartbeats[runtimeID]
+	if !ok {
+		return false
+	}
+	if hb.State != "idle" {
+		return false
+	}
+	heartbeatTime, err := time.Parse(time.RFC3339, hb.LastHeartbeatAt)
+	if err != nil {
+		return false
+	}
+	return now().Sub(heartbeatTime) >= time.Duration(timeoutSeconds)*time.Second
 }
 
 // isDrainingContainer checks whether a container has the draining label.
