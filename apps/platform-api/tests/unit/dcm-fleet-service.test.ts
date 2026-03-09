@@ -119,6 +119,44 @@ describe('FleetService DCM', () => {
       expect(result[0].pull_policy).toBe('if-not-present');
       expect(result[0].cpu).toBe('1.0');
       expect(result[0].memory).toBe('512m');
+      expect(result[0].task_image).toBe('');
+      expect(result[0].task_pull_policy).toBe('if-not-present');
+      expect(result[0].task_cpu).toBe('0.5');
+      expect(result[0].task_memory).toBe('256m');
+      expect(result[0].warm_pool_size).toBe(0);
+      expect(result[0].task_pool_mode).toBe('cold');
+    });
+
+    it('reads task_container fields from schema', async () => {
+      pool.query.mockResolvedValueOnce({
+        rows: [{
+          template_id: TEMPLATE_ID,
+          template_name: 'With Task Container',
+          schema: {
+            runtime: { pool_mode: 'warm' },
+            task_container: {
+              image: 'ubuntu:24.04',
+              pull_policy: 'always',
+              cpu: '1.0',
+              memory: '512m',
+              warm_pool_size: 3,
+              pool_mode: 'warm',
+            },
+          },
+          active_workflows: 0,
+          pending_tasks: 0,
+        }],
+        rowCount: 1,
+      });
+
+      const result = await service.getRuntimeTargets(TENANT_ID);
+
+      expect(result[0].task_image).toBe('ubuntu:24.04');
+      expect(result[0].task_pull_policy).toBe('always');
+      expect(result[0].task_cpu).toBe('1.0');
+      expect(result[0].task_memory).toBe('512m');
+      expect(result[0].warm_pool_size).toBe(3);
+      expect(result[0].task_pool_mode).toBe('warm');
     });
 
     it('returns empty array when no templates have runtime config', async () => {
@@ -264,6 +302,11 @@ describe('FleetService DCM', () => {
         }],
         rowCount: 1,
       });
+      // Fourth call: recent_events
+      pool.query.mockResolvedValueOnce({
+        rows: [{ id: 'evt-1', event_type: 'runtime.started', level: 'info', created_at: new Date() }],
+        rowCount: 1,
+      });
 
       const result = await service.getFleetStatus(TENANT_ID);
 
@@ -276,9 +319,12 @@ describe('FleetService DCM', () => {
       expect(result.by_template[0].running).toBe(2);
       expect(result.by_template[0].max_runtimes).toBe(3);
       expect(result.by_template[0].pending_tasks).toBe(2);
+      expect(result.recent_events).toHaveLength(1);
+      expect(result.recent_events[0].event_type).toBe('runtime.started');
     });
 
     it('uses default global_max_runtimes when not configured', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
@@ -287,6 +333,7 @@ describe('FleetService DCM', () => {
 
       expect(result.global_max_runtimes).toBe(10);
       expect(result.total_running).toBe(0);
+      expect(result.recent_events).toEqual([]);
     });
   });
 
@@ -428,6 +475,165 @@ describe('FleetService DCM', () => {
       }
 
       expect(pool.query).toHaveBeenCalledTimes(validLevels.length);
+    });
+  });
+
+  describe('validateRuntimeConfig', () => {
+    it('passes through valid config unchanged', () => {
+      const result = service.validateRuntimeConfig(
+        TEMPLATE_ID,
+        { pool_mode: 'warm', max_runtimes: 2, pull_policy: 'always' },
+        { pool_mode: 'cold', pull_policy: 'never' },
+      );
+
+      expect(result.runtime.pool_mode).toBe('warm');
+      expect(result.runtime.max_runtimes).toBe(2);
+      expect(result.runtime.pull_policy).toBe('always');
+      expect(result.taskContainer.pool_mode).toBe('cold');
+      expect(result.taskContainer.pull_policy).toBe('never');
+    });
+
+    it('defaults invalid runtime pool_mode to warm', () => {
+      const result = service.validateRuntimeConfig(
+        TEMPLATE_ID,
+        { pool_mode: 'hot' },
+      );
+
+      expect(result.runtime.pool_mode).toBe('warm');
+    });
+
+    it('defaults invalid max_runtimes to 1', () => {
+      const result = service.validateRuntimeConfig(
+        TEMPLATE_ID,
+        { max_runtimes: -5 },
+      );
+
+      expect(result.runtime.max_runtimes).toBe(1);
+    });
+
+    it('defaults non-integer max_runtimes to 1', () => {
+      const result = service.validateRuntimeConfig(
+        TEMPLATE_ID,
+        { max_runtimes: 2.5 },
+      );
+
+      expect(result.runtime.max_runtimes).toBe(1);
+    });
+
+    it('defaults zero max_runtimes to 1', () => {
+      const result = service.validateRuntimeConfig(
+        TEMPLATE_ID,
+        { max_runtimes: 0 },
+      );
+
+      expect(result.runtime.max_runtimes).toBe(1);
+    });
+
+    it('defaults invalid runtime pull_policy to if-not-present', () => {
+      const result = service.validateRuntimeConfig(
+        TEMPLATE_ID,
+        { pull_policy: 'sometimes' },
+      );
+
+      expect(result.runtime.pull_policy).toBe('if-not-present');
+    });
+
+    it('defaults invalid task_container pull_policy to if-not-present', () => {
+      const result = service.validateRuntimeConfig(
+        TEMPLATE_ID,
+        {},
+        { pull_policy: 'maybe' },
+      );
+
+      expect(result.taskContainer.pull_policy).toBe('if-not-present');
+    });
+
+    it('defaults invalid task_container pool_mode to cold', () => {
+      const result = service.validateRuntimeConfig(
+        TEMPLATE_ID,
+        {},
+        { pool_mode: 'lukewarm' },
+      );
+
+      expect(result.taskContainer.pool_mode).toBe('cold');
+    });
+
+    it('downgrades warm task_container to cold when runtime is cold', () => {
+      const result = service.validateRuntimeConfig(
+        TEMPLATE_ID,
+        { pool_mode: 'cold' },
+        { pool_mode: 'warm' },
+      );
+
+      expect(result.taskContainer.pool_mode).toBe('cold');
+    });
+
+    it('allows warm task_container when runtime is warm', () => {
+      const result = service.validateRuntimeConfig(
+        TEMPLATE_ID,
+        { pool_mode: 'warm' },
+        { pool_mode: 'warm' },
+      );
+
+      expect(result.taskContainer.pool_mode).toBe('warm');
+    });
+
+    it('returns empty taskContainer when none provided', () => {
+      const result = service.validateRuntimeConfig(
+        TEMPLATE_ID,
+        { pool_mode: 'warm' },
+      );
+
+      expect(result.taskContainer).toEqual({});
+    });
+
+    it('logs warnings for invalid values', () => {
+      const mockLogger = { warn: vi.fn() };
+      const loggedService = new FleetService(pool as never, mockLogger);
+
+      loggedService.validateRuntimeConfig(
+        TEMPLATE_ID,
+        { pool_mode: 'hot', max_runtimes: -1, pull_policy: 'sometimes' },
+        { pool_mode: 'lukewarm', pull_policy: 'maybe' },
+      );
+
+      expect(mockLogger.warn).toHaveBeenCalledTimes(5);
+    });
+  });
+
+  describe('getFleetStatus recent_events', () => {
+    it('includes recent fleet events in status response', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [{ config_value: '5' }], rowCount: 1 });
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      const events = [
+        { id: 'evt-1', event_type: 'runtime.started', level: 'info', created_at: new Date() },
+        { id: 'evt-2', event_type: 'runtime.shutdown', level: 'info', created_at: new Date() },
+      ];
+      pool.query.mockResolvedValueOnce({ rows: events, rowCount: 2 });
+
+      const result = await service.getFleetStatus(TENANT_ID);
+
+      expect(result.recent_events).toHaveLength(2);
+      expect(result.recent_events[0].id).toBe('evt-1');
+      expect(result.recent_events[1].event_type).toBe('runtime.shutdown');
+    });
+
+    it('queries fleet_events with correct tenant and limit', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+      await service.getFleetStatus(TENANT_ID);
+
+      const recentEventsCall = pool.query.mock.calls[3];
+      const sql = recentEventsCall[0] as string;
+      expect(sql).toContain('fleet_events');
+      expect(sql).toContain('ORDER BY created_at DESC');
+      expect(sql).toContain('LIMIT 20');
+      const params = recentEventsCall[1] as unknown[];
+      expect(params[0]).toBe(TENANT_ID);
     });
   });
 });

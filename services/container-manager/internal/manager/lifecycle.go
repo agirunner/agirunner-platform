@@ -3,6 +3,7 @@ package manager
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 )
 
@@ -77,10 +78,19 @@ func (m *Manager) adoptOrRemoveRuntimes(
 	}
 }
 
-// gracePeriodForContainer returns a stop timeout based on container labels or default.
+// gracePeriodForContainer returns a stop timeout based on the container's
+// grace_period label. Falls back to defaultGracePeriodSeconds when the label
+// is missing or cannot be parsed.
 func gracePeriodForContainer(c ContainerInfo) time.Duration {
-	_ = c
-	return time.Duration(defaultGracePeriodSeconds) * time.Second
+	raw, ok := c.Labels[labelDCMGracePeriod]
+	if !ok || raw == "" {
+		return time.Duration(defaultGracePeriodSeconds) * time.Second
+	}
+	seconds, err := strconv.Atoi(raw)
+	if err != nil || seconds <= 0 {
+		return time.Duration(defaultGracePeriodSeconds) * time.Second
+	}
+	return time.Duration(seconds) * time.Second
 }
 
 // removeOrphanTasksOnStartup destroys task containers with dead parent runtimes.

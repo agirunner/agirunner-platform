@@ -2,13 +2,20 @@ package manager
 
 import "sort"
 
-// sortTargetsByPriority sorts targets by priority descending, then pending tasks descending.
+// sortTargetsByPriority sorts targets by priority descending, then active
+// workflows (templates with active workflows before warm-pool-only), then
+// pending tasks descending.
 func sortTargetsByPriority(targets []RuntimeTarget) []RuntimeTarget {
 	sorted := make([]RuntimeTarget, len(targets))
 	copy(sorted, targets)
 	sort.Slice(sorted, func(i, j int) bool {
 		if sorted[i].Priority != sorted[j].Priority {
 			return sorted[i].Priority > sorted[j].Priority
+		}
+		iHasActive := sorted[i].ActiveWorkflows > 0
+		jHasActive := sorted[j].ActiveWorkflows > 0
+		if iHasActive != jHasActive {
+			return iHasActive
 		}
 		return sorted[i].PendingTasks > sorted[j].PendingTasks
 	})

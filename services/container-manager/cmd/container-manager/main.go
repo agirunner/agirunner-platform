@@ -26,7 +26,7 @@ func main() {
 		DockerHost:          envOrDefault("DOCKER_HOST", "tcp://socket-proxy:2375"),
 		ReconcileInterval:   parseDuration("RECONCILE_INTERVAL_SECONDS", 5),
 		StopTimeout:         parseDuration("STOP_TIMEOUT_SECONDS", 30),
-		GlobalMaxRuntimes:   parseInt("GLOBAL_MAX_RUNTIMES", 10),
+		GlobalMaxRuntimes:   parseIntWithAlias("AGIRUNNER_GLOBAL_MAX_RUNTIMES", "GLOBAL_MAX_RUNTIMES", 10),
 		RuntimeNetwork:      envOrDefault("RUNTIME_NETWORK", ""),
 	}
 
@@ -95,6 +95,27 @@ func parseInt(envKey string, defaultValue int) int {
 		return defaultValue
 	}
 	return n
+}
+
+// envWithAlias returns the value of the primary env var if set, otherwise
+// the fallback env var, otherwise the default. This supports the design's
+// canonical AGIRUNNER_ prefixed names alongside legacy short names.
+func envWithAlias(primary, fallback, defaultValue string) string {
+	if v := os.Getenv(primary); v != "" {
+		return v
+	}
+	return envOrDefault(fallback, defaultValue)
+}
+
+// parseIntWithAlias reads an integer from the primary env var, falling back
+// to the alias env var, then the default value.
+func parseIntWithAlias(primary, fallback string, defaultValue int) int {
+	if v := os.Getenv(primary); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
+	}
+	return parseInt(fallback, defaultValue)
 }
 
 func parseDuration(envKey string, defaultSeconds int) time.Duration {

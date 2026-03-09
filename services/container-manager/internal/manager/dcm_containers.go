@@ -3,6 +3,7 @@ package manager
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -75,6 +76,7 @@ func (m *Manager) buildDCMEnvironment(target RuntimeTarget, runtimeID string) ma
 		"AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY": m.config.PlatformAdminAPIKey,
 		"AGIRUNNER_RUNTIME_TEMPLATE_FILTER":        target.TemplateID,
 		"AGIRUNNER_RUNTIME_ID":                     runtimeID,
+		"AGIRUNNER_RUNTIME_IMAGE":                  target.Image,
 		"DOCKER_HOST":                              m.config.DockerHost,
 	}
 }
@@ -82,12 +84,13 @@ func (m *Manager) buildDCMEnvironment(target RuntimeTarget, runtimeID string) ma
 // buildDCMLabels creates labels for a DCM-managed runtime container.
 func buildDCMLabels(target RuntimeTarget, runtimeID string) map[string]string {
 	return map[string]string{
-		labelDCMManaged:    "true",
-		labelDCMTier:       tierRuntime,
-		labelDCMTemplateID: target.TemplateID,
-		labelDCMRuntimeID:  runtimeID,
-		labelDCMImage:      target.Image,
-		labelManagedBy:     "true",
+		labelDCMManaged:     "true",
+		labelDCMTier:        tierRuntime,
+		labelDCMTemplateID:  target.TemplateID,
+		labelDCMRuntimeID:   runtimeID,
+		labelDCMImage:       target.Image,
+		labelDCMGracePeriod: strconv.Itoa(target.GracePeriodSeconds),
+		labelManagedBy:      "true",
 	}
 }
 

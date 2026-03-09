@@ -4,6 +4,15 @@ import type { DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 
+const VALID_POOL_MODES = new Set(['warm', 'cold']);
+const VALID_PULL_POLICIES = new Set(['always', 'if-not-present', 'never']);
+
+interface FleetLogger {
+  warn(obj: Record<string, unknown>, msg: string): void;
+}
+
+const SILENT_LOGGER: FleetLogger = { warn: () => {} };
+
 const VALID_FLEET_EVENT_TYPES = new Set([
   'runtime.started',
   'runtime.task.claimed',
@@ -92,7 +101,14 @@ interface ContainerImageRow {
 }
 
 export class FleetService {
-  constructor(private readonly pool: DatabasePool) {}
+  private readonly logger: FleetLogger;
+
+  constructor(
+    private readonly pool: DatabasePool,
+    logger?: FleetLogger,
+  ) {
+    this.logger = logger ?? SILENT_LOGGER;
+  }
 
   async listWorkers(tenantId: string): Promise<FleetWorkerView[]> {
     const repo = new TenantScopedRepository(this.pool, tenantId);
@@ -305,6 +321,70 @@ export class FleetService {
 
   // --- Dynamic Container Management ---
 
+  validateRuntimeConfig(
+    templateId: string,
+    runtime: Record<string, unknown>,
+    taskContainer?: Record<string, unknown>,
+  ): { runtime: Record<string, unknown>; taskContainer: Record<string, unknown> } {
+    const validatedRuntime = { ...runtime };
+    const validatedTask = { ...(taskContainer ?? {}) };
+
+    if (validatedRuntime.pool_mode !== undefined && !VALID_POOL_MODES.has(validatedRuntime.pool_mode as string)) {
+      this.logger.warn(
+        { templateId, value: validatedRuntime.pool_mode },
+        'invalid_runtime_pool_mode_using_default',
+      );
+      validatedRuntime.pool_mode = 'warm';
+    }
+
+    if (validatedRuntime.max_runtimes !== undefined) {
+      const val = validatedRuntime.max_runtimes as number;
+      if (!Number.isInteger(val) || val < 1) {
+        this.logger.warn(
+          { templateId, value: val },
+          'invalid_max_runtimes_using_default',
+        );
+        validatedRuntime.max_runtimes = 1;
+      }
+    }
+
+    if (validatedRuntime.pull_policy !== undefined && !VALID_PULL_POLICIES.has(validatedRuntime.pull_policy as string)) {
+      this.logger.warn(
+        { templateId, value: validatedRuntime.pull_policy },
+        'invalid_runtime_pull_policy_using_default',
+      );
+      validatedRuntime.pull_policy = 'if-not-present';
+    }
+
+    if (validatedTask.pull_policy !== undefined && !VALID_PULL_POLICIES.has(validatedTask.pull_policy as string)) {
+      this.logger.warn(
+        { templateId, value: validatedTask.pull_policy },
+        'invalid_task_container_pull_policy_using_default',
+      );
+      validatedTask.pull_policy = 'if-not-present';
+    }
+
+    if (validatedTask.pool_mode !== undefined && !VALID_POOL_MODES.has(validatedTask.pool_mode as string)) {
+      this.logger.warn(
+        { templateId, value: validatedTask.pool_mode },
+        'invalid_task_container_pool_mode_using_default',
+      );
+      validatedTask.pool_mode = 'cold';
+    }
+
+    const runtimePoolMode = (validatedRuntime.pool_mode as string) ?? 'warm';
+    const taskPoolMode = validatedTask.pool_mode as string | undefined;
+    if (taskPoolMode === 'warm' && runtimePoolMode !== 'warm') {
+      this.logger.warn(
+        { templateId },
+        'task_container_warm_requires_runtime_warm_downgrading_to_cold',
+      );
+      validatedTask.pool_mode = 'cold';
+    }
+
+    return { runtime: validatedRuntime, taskContainer: validatedTask };
+  }
+
   async getQueueDepth(tenantId: string, templateId?: string): Promise<QueueDepthResult> {
     const baseQuery = `
       SELECT t.workflow_id, w.template_id
@@ -361,7 +441,16 @@ export class FleetService {
 
     return result.rows.map((row) => {
       const schema = row.schema as Record<string, unknown>;
-      const runtime = (schema.runtime ?? {}) as Record<string, unknown>;
+      const rawRuntime = (schema.runtime ?? {}) as Record<string, unknown>;
+      const rawTaskContainer = schema.task_container as Record<string, unknown> | undefined;
+
+      const validated = this.validateRuntimeConfig(
+        row.template_id,
+        rawRuntime,
+        rawTaskContainer,
+      );
+      const runtime = validated.runtime;
+      const taskContainer = validated.taskContainer;
 
       return {
         template_id: row.template_id,
@@ -375,6 +464,12 @@ export class FleetService {
         pull_policy: (runtime.pull_policy as string) ?? 'if-not-present',
         cpu: (runtime.cpu as string) ?? '1.0',
         memory: (runtime.memory as string) ?? '512m',
+        task_image: (taskContainer.image as string) ?? '',
+        task_pull_policy: (taskContainer.pull_policy as string) ?? 'if-not-present',
+        task_cpu: (taskContainer.cpu as string) ?? '0.5',
+        task_memory: (taskContainer.memory as string) ?? '256m',
+        warm_pool_size: (taskContainer.warm_pool_size as number) ?? 0,
+        task_pool_mode: (taskContainer.pool_mode as string) ?? 'cold',
         pending_tasks: row.pending_tasks,
         active_workflows: row.active_workflows,
       };
@@ -486,6 +581,14 @@ export class FleetService {
       }
     }
 
+    const recentEventsResult = await this.pool.query<FleetEventRow>(
+      `SELECT * FROM fleet_events
+       WHERE tenant_id = $1
+       ORDER BY created_at DESC
+       LIMIT 20`,
+      [tenantId],
+    );
+
     return {
       global_max_runtimes: globalMaxRuntimes,
       total_running: totalRunning,
@@ -493,6 +596,7 @@ export class FleetService {
       total_executing: totalExecuting,
       total_draining: totalDraining,
       by_template: [...templateMap.values()],
+      recent_events: recentEventsResult.rows,
     };
   }
 
@@ -601,6 +705,12 @@ export interface RuntimeTarget {
   pull_policy: string;
   cpu: string;
   memory: string;
+  task_image: string;
+  task_pull_policy: string;
+  task_cpu: string;
+  task_memory: string;
+  warm_pool_size: number;
+  task_pool_mode: string;
   pending_tasks: number;
   active_workflows: number;
 }
@@ -652,6 +762,7 @@ export interface FleetStatus {
   total_executing: number;
   total_draining: number;
   by_template: TemplateFleetSummary[];
+  recent_events: FleetEventRow[];
 }
 
 export interface FleetEventFilters {
@@ -663,7 +774,7 @@ export interface FleetEventFilters {
   offset?: number;
 }
 
-interface FleetEventRow {
+export interface FleetEventRow {
   [key: string]: unknown;
   id: string;
   tenant_id: string;

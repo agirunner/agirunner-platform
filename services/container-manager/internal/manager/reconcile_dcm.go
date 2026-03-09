@@ -54,8 +54,10 @@ func (m *Manager) reconcileDCM(ctx context.Context) error {
 	return nil
 }
 
-// processTargetsInPriorityOrder iterates sorted targets, scales each, and
-// returns targets that needed capacity but could not get it.
+// processTargetsInPriorityOrder iterates sorted targets grouped by priority
+// level. Within each priority group, available capacity is allocated
+// proportionally to pending task count so that templates with more pending
+// work receive a fair share of slots.
 func (m *Manager) processTargetsInPriorityOrder(
 	ctx context.Context,
 	sorted []RuntimeTarget,
@@ -66,23 +68,153 @@ func (m *Manager) processTargetsInPriorityOrder(
 ) []RuntimeTarget {
 	var unsatisfied []RuntimeTarget
 
-	for _, target := range sorted {
+	groups := groupByPriority(sorted)
+	for _, group := range groups {
+		unsatisfied = append(unsatisfied,
+			m.processTargetGroup(ctx, group, grouped, heartbeats, totalRunning, drainingCount)...,
+		)
+	}
+
+	return unsatisfied
+}
+
+// groupByPriority partitions an already-sorted slice of targets into groups
+// that share the same priority level. The input order is preserved within
+// each group.
+func groupByPriority(sorted []RuntimeTarget) [][]RuntimeTarget {
+	if len(sorted) == 0 {
+		return nil
+	}
+	var groups [][]RuntimeTarget
+	current := []RuntimeTarget{sorted[0]}
+	for i := 1; i < len(sorted); i++ {
+		if sorted[i].Priority != current[0].Priority {
+			groups = append(groups, current)
+			current = []RuntimeTarget{sorted[i]}
+		} else {
+			current = append(current, sorted[i])
+		}
+	}
+	groups = append(groups, current)
+	return groups
+}
+
+// processTargetGroup handles a group of targets that share the same priority.
+// Capacity is distributed proportionally to each target's pending task count.
+func (m *Manager) processTargetGroup(
+	ctx context.Context,
+	group []RuntimeTarget,
+	grouped map[string][]ContainerInfo,
+	heartbeats map[string]RuntimeHeartbeat,
+	totalRunning *int,
+	drainingCount int,
+) []RuntimeTarget {
+	// Pre-pull warm images and plan actions for every target in the group.
+	type planned struct {
+		target      RuntimeTarget
+		actions     targetActions
+		activeCount int
+	}
+	plans := make([]planned, 0, len(group))
+	for _, target := range group {
 		if target.PoolMode == "warm" {
 			m.prePullWarmImages(ctx, target)
 		}
 		running := grouped[target.TemplateID]
 		activeCount := countActiveContainers(running)
 		actions := m.planTargetActions(target, running, *totalRunning)
+		plans = append(plans, planned{target: target, actions: actions, activeCount: activeCount})
+	}
 
-		delta := m.executeTargetActions(ctx, target, actions, heartbeats, activeCount, drainingCount)
+	// Compute fair shares of available capacity. Capacity applies to
+	// creation slots; teardown and drift actions are always executed fully.
+	capacity := m.config.GlobalMaxRuntimes - *totalRunning
+	requested := make([]int, len(plans))
+	pendingCounts := make([]int, len(plans))
+	for i, p := range plans {
+		requested[i] = p.actions.toCreate
+		pendingCounts[i] = p.target.PendingTasks
+	}
+	fairShares := allocateProportionally(requested, pendingCounts, capacity)
+
+	var unsatisfied []RuntimeTarget
+	for i, p := range plans {
+		capped := p.actions
+		capped.toCreate = fairShares[i]
+
+		delta := m.executeTargetActions(ctx, p.target, capped, heartbeats, p.activeCount, drainingCount)
 		*totalRunning += delta
 
-		if target.PendingTasks > 0 && actions.toCreate <= 0 {
-			unsatisfied = append(unsatisfied, target)
+		if p.target.PendingTasks > 0 && capped.toCreate <= 0 {
+			unsatisfied = append(unsatisfied, p.target)
+		}
+	}
+	return unsatisfied
+}
+
+// allocateProportionally distributes capacity across targets proportional to
+// each target's requested creation count. When requests exceed capacity,
+// slots are divided by the ratio of each request to the total. Remainders
+// are assigned one at a time to the target with the largest unfulfilled
+// request, breaking ties by pending task count.
+func allocateProportionally(requested, pendingCounts []int, capacity int) []int {
+	shares := make([]int, len(requested))
+	totalRequested := 0
+	for _, r := range requested {
+		if r > 0 {
+			totalRequested += r
+		}
+	}
+	if totalRequested == 0 || capacity <= 0 {
+		return shares
+	}
+
+	// If there is enough capacity for everyone, give each what it asked for.
+	if totalRequested <= capacity {
+		for i, r := range requested {
+			if r > 0 {
+				shares[i] = r
+			}
+		}
+		return shares
+	}
+
+	// Proportional allocation with floor.
+	allocated := 0
+	for i, r := range requested {
+		if r > 0 {
+			shares[i] = (r * capacity) / totalRequested
+			allocated += shares[i]
 		}
 	}
 
-	return unsatisfied
+	// Distribute remainder one slot at a time to targets with the largest
+	// unfulfilled request, breaking ties by pending tasks.
+	remainder := capacity - allocated
+	for remainder > 0 {
+		bestIdx := -1
+		bestUnfulfilled := 0
+		bestPending := 0
+		for i, r := range requested {
+			unfulfilled := r - shares[i]
+			if unfulfilled <= 0 {
+				continue
+			}
+			if unfulfilled > bestUnfulfilled ||
+				(unfulfilled == bestUnfulfilled && pendingCounts[i] > bestPending) {
+				bestIdx = i
+				bestUnfulfilled = unfulfilled
+				bestPending = pendingCounts[i]
+			}
+		}
+		if bestIdx < 0 {
+			break
+		}
+		shares[bestIdx]++
+		remainder--
+	}
+
+	return shares
 }
 
 // executePreemptions stops idle containers from lower-priority templates and
@@ -111,9 +243,10 @@ func (m *Manager) executePreemptions(
 		}
 
 		victimTarget, ok := targetMap[plan.VictimTemplateID]
-		gracePeriod := m.config.StopTimeout
+		defaultGrace := time.Duration(defaultGracePeriodSeconds) * time.Second
+		gracePeriod := defaultGrace
 		if ok {
-			gracePeriod = gracePeriodDuration(victimTarget.GracePeriodSeconds, m.config.StopTimeout)
+			gracePeriod = gracePeriodDuration(victimTarget.GracePeriodSeconds, defaultGrace)
 		}
 
 		m.logger.Info("preempting idle runtime",
