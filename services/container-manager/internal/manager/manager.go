@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"strings"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // DockerClient abstracts Docker operations for the container manager.
@@ -17,6 +19,9 @@ type DockerClient interface {
 	RemoveContainer(ctx context.Context, containerID string) error
 	ListImages(ctx context.Context) ([]ContainerImage, error)
 	GetContainerStats(ctx context.Context, containerID string) (*ContainerStats, error)
+	UpdateContainerLabels(ctx context.Context, containerID string, labels map[string]string) error
+	InspectContainerHealth(ctx context.Context, containerID string) (*ContainerHealthStatus, error)
+	PullImage(ctx context.Context, image, policy string) error
 }
 
 // ContainerInfo represents a running container as reported by Docker.
@@ -59,23 +64,31 @@ type PlatformAPI interface {
 	FetchRuntimeTargets() ([]RuntimeTarget, error)
 	FetchHeartbeats() ([]RuntimeHeartbeat, error)
 	RecordFleetEvent(event FleetEvent) error
+	DrainRuntime(runtimeID string) error
+	FailTask(taskID, reason string) error
 }
 
 // Manager implements the desired-state reconciliation loop.
 type Manager struct {
-	platform PlatformAPI
-	docker   DockerClient
-	config   Config
-	logger   *slog.Logger
+	platform        PlatformAPI
+	docker          DockerClient
+	config          Config
+	logger          *slog.Logger
+	metrics         *FleetMetrics
+	starvationTrack map[string]time.Time
+	nowFunc         func() time.Time
 }
 
 // New creates a new Manager with a real PlatformClient.
 func New(cfg Config, docker DockerClient, logger *slog.Logger) *Manager {
 	return &Manager{
-		platform: NewPlatformClient(cfg.PlatformAPIURL, cfg.PlatformAPIKey),
-		docker:   docker,
-		config:   cfg,
-		logger:   logger,
+		platform:        NewPlatformClient(cfg.PlatformAPIURL, cfg.PlatformAPIKey),
+		docker:          docker,
+		config:          cfg,
+		logger:          logger,
+		metrics:         NewFleetMetrics(),
+		starvationTrack: make(map[string]time.Time),
+		nowFunc:         time.Now,
 	}
 }
 
@@ -83,11 +96,19 @@ func New(cfg Config, docker DockerClient, logger *slog.Logger) *Manager {
 // This is primarily useful for testing.
 func NewWithPlatform(cfg Config, docker DockerClient, platform PlatformAPI, logger *slog.Logger) *Manager {
 	return &Manager{
-		platform: platform,
-		docker:   docker,
-		config:   cfg,
-		logger:   logger,
+		platform:        platform,
+		docker:          docker,
+		config:          cfg,
+		logger:          logger,
+		metrics:         NewFleetMetrics(),
+		starvationTrack: make(map[string]time.Time),
+		nowFunc:         time.Now,
 	}
+}
+
+// MetricsRegistry returns the Prometheus registry for exposing fleet metrics.
+func (m *Manager) MetricsRegistry() *prometheus.Registry {
+	return m.metrics.Registry
 }
 
 // Run starts the reconcile loop and blocks until the context is cancelled.

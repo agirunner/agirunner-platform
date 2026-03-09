@@ -92,11 +92,13 @@ type RuntimeTarget struct {
 	IdleTimeoutSeconds int    `json:"idle_timeout_seconds"`
 	GracePeriodSeconds int    `json:"grace_period_seconds"`
 	Image              string `json:"image"`
+	TaskImage          string `json:"task_image"`
 	PullPolicy         string `json:"pull_policy"`
 	CPU                string `json:"cpu"`
 	Memory             string `json:"memory"`
 	PendingTasks       int    `json:"pending_tasks"`
 	ActiveWorkflows    int    `json:"active_workflows"`
+	WarmPoolSize       int    `json:"warm_pool_size"`
 }
 
 // RuntimeHeartbeat represents a runtime's last known heartbeat state.
@@ -105,6 +107,12 @@ type RuntimeHeartbeat struct {
 	TemplateID      string `json:"template_id"`
 	State           string `json:"state"`
 	LastHeartbeatAt string `json:"last_heartbeat_at"`
+	ActiveTaskID    string `json:"active_task_id,omitempty"`
+}
+
+// ContainerHealthStatus holds health inspection data from Docker.
+type ContainerHealthStatus struct {
+	Status string
 }
 
 // FleetEvent records a fleet management event for auditing.

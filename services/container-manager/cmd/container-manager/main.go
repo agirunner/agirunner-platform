@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"agirunner-container-manager/internal/manager"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -49,13 +51,18 @@ func main() {
 
 	m := manager.New(cfg, docker, logger)
 
+	metricsAddr := envOrDefault("METRICS_ADDR", ":9090")
+	metricsServer := startMetricsServer(metricsAddr, m, logger)
+
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 
 	if err := m.Run(ctx); err != nil && err != context.Canceled {
 		logger.Error("container-manager exited with error", "error", err)
+		_ = metricsServer.Shutdown(context.Background())
 		os.Exit(1)
 	}
+	_ = metricsServer.Shutdown(context.Background())
 }
 
 func envOrDefault(key, defaultValue string) string {
@@ -132,4 +139,38 @@ func (c *noopDockerClient) ListImages(_ context.Context) ([]manager.ContainerIma
 
 func (c *noopDockerClient) GetContainerStats(_ context.Context, _ string) (*manager.ContainerStats, error) {
 	return nil, nil
+}
+
+func (c *noopDockerClient) UpdateContainerLabels(_ context.Context, _ string, _ map[string]string) error {
+	return nil
+}
+
+func (c *noopDockerClient) InspectContainerHealth(_ context.Context, _ string) (*manager.ContainerHealthStatus, error) {
+	return nil, nil
+}
+
+func (c *noopDockerClient) PullImage(_ context.Context, image, policy string) error {
+	c.logger.Info("noop: would pull image", "image", image, "policy", policy)
+	return nil
+}
+
+// startMetricsServer launches an HTTP server serving Prometheus metrics on /metrics.
+func startMetricsServer(addr string, m *manager.Manager, logger *slog.Logger) *http.Server {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.HandlerFor(m.MetricsRegistry(), promhttp.HandlerOpts{}))
+
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	go func() {
+		logger.Info("metrics server listening", "addr", addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Error("metrics server failed", "error", err)
+		}
+	}()
+
+	return srv
 }

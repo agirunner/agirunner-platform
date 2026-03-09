@@ -367,3 +367,288 @@ func TestDCMComputeScaleUpZeroWhenNoPending(t *testing.T) {
 		t.Errorf("expected 0 (no pending), got %d", result)
 	}
 }
+
+// --- Rolling update (drain-and-replace) tests ---
+
+func makeDrainingDCMContainer(id, templateID, image, runtimeID string) ContainerInfo {
+	c := makeDCMContainer(id, templateID, image, runtimeID)
+	c.Labels[labelDCMDraining] = "true"
+	return c
+}
+
+func TestDriftIdleRuntimeDestroyedImmediately(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-1"),
+	}
+	// No heartbeat for rt-1 means idle.
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{
+			makeRuntimeTarget("tmpl-1", "runtime:v2", 5, 0, 10),
+		},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.stoppedIDs) != 1 || docker.stoppedIDs[0] != "c-1" {
+		t.Errorf("expected idle drifted container stopped, got %v", docker.stoppedIDs)
+	}
+	if len(platform.drainedRuntimes) != 0 {
+		t.Errorf("expected no drain API calls for idle runtime, got %v", platform.drainedRuntimes)
+	}
+	// Replacement should be created.
+	if len(docker.createdSpecs) != 1 {
+		t.Errorf("expected 1 replacement created, got %d", len(docker.createdSpecs))
+	}
+	if len(docker.createdSpecs) > 0 && docker.createdSpecs[0].Image != "runtime:v2" {
+		t.Errorf("expected replacement image runtime:v2, got %s", docker.createdSpecs[0].Image)
+	}
+}
+
+func TestDriftExecutingRuntimeDrainedNotDestroyed(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-1"),
+	}
+	recentHeartbeat := time.Now().UTC().Format(time.RFC3339)
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{
+			makeRuntimeTarget("tmpl-1", "runtime:v2", 5, 0, 10),
+		},
+		heartbeats: []RuntimeHeartbeat{
+			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "executing", LastHeartbeatAt: recentHeartbeat},
+		},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.stoppedIDs) != 0 {
+		t.Errorf("expected executing container NOT stopped, got %v", docker.stoppedIDs)
+	}
+	if len(platform.drainedRuntimes) != 1 || platform.drainedRuntimes[0] != "rt-1" {
+		t.Errorf("expected drain API called for rt-1, got %v", platform.drainedRuntimes)
+	}
+	if len(docker.updatedLabels) != 1 {
+		t.Fatalf("expected 1 label update, got %d", len(docker.updatedLabels))
+	}
+	if docker.updatedLabels[0].Labels[labelDCMDraining] != "true" {
+		t.Errorf("expected draining label set to true")
+	}
+}
+
+func TestDriftAlreadyDrainingContainerSkipped(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeDrainingDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-1"),
+	}
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{
+			makeRuntimeTarget("tmpl-1", "runtime:v2", 5, 0, 10),
+		},
+		heartbeats: []RuntimeHeartbeat{
+			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "executing"},
+		},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.stoppedIDs) != 0 {
+		t.Errorf("expected no stops for already-draining container, got %v", docker.stoppedIDs)
+	}
+	if len(platform.drainedRuntimes) != 0 {
+		t.Errorf("expected no drain calls for already-draining container, got %v", platform.drainedRuntimes)
+	}
+}
+
+func TestDriftMixedIdleAndExecuting(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeDCMContainer("c-idle", "tmpl-1", "runtime:v1", "rt-idle"),
+		makeDCMContainer("c-exec", "tmpl-1", "runtime:v1", "rt-exec"),
+	}
+	recentHeartbeat := time.Now().UTC().Format(time.RFC3339)
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{
+			makeRuntimeTarget("tmpl-1", "runtime:v2", 5, 0, 10),
+		},
+		heartbeats: []RuntimeHeartbeat{
+			{RuntimeID: "rt-exec", TemplateID: "tmpl-1", State: "executing", LastHeartbeatAt: recentHeartbeat},
+			{RuntimeID: "rt-idle", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: recentHeartbeat},
+		},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	// Idle should be destroyed (drift handling uses heartbeat state, not
+	// heartbeat freshness — rt-idle has a recent heartbeat with state "idle").
+	if len(docker.stoppedIDs) != 1 || docker.stoppedIDs[0] != "c-idle" {
+		t.Errorf("expected only idle container stopped, got %v", docker.stoppedIDs)
+	}
+	// Executing should be drained.
+	if len(platform.drainedRuntimes) != 1 || platform.drainedRuntimes[0] != "rt-exec" {
+		t.Errorf("expected drain for rt-exec, got %v", platform.drainedRuntimes)
+	}
+	// Replacement created only for the destroyed idle one.
+	if len(docker.createdSpecs) != 1 {
+		t.Errorf("expected 1 replacement for idle, got %d", len(docker.createdSpecs))
+	}
+}
+
+func TestDrainingContainerCountsTowardGlobalButNotTemplateActive(t *testing.T) {
+	// 1 active + 1 draining for tmpl-1. Global max = 4.
+	// Target wants max_runtimes=3 with pending_tasks=2.
+	// Active count for template is 1 (draining excluded), so scaleUp can add.
+	// But draining still counts toward globalMax.
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeDCMContainer("c-1", "tmpl-1", "runtime:v2", "rt-1"),
+		makeDrainingDCMContainer("c-2", "tmpl-1", "runtime:v1", "rt-2"),
+	}
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{
+			makeRuntimeTarget("tmpl-1", "runtime:v2", 3, 2, 10),
+		},
+	}
+	mgr := newDCMTestManager(docker, platform)
+	mgr.config.GlobalMaxRuntimes = 4
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	// Should create containers but respect global max.
+	// totalRunning=2, capacity=4-2=2, max_runtimes=3, running=2, toCreate=min(3-2,2,2)=1
+	if len(docker.createdSpecs) != 1 {
+		t.Errorf("expected 1 container created (respecting global max), got %d", len(docker.createdSpecs))
+	}
+}
+
+func TestBuildHeartbeatMap(t *testing.T) {
+	heartbeats := []RuntimeHeartbeat{
+		{RuntimeID: "rt-1", State: "idle"},
+		{RuntimeID: "rt-2", State: "executing"},
+	}
+
+	m := buildHeartbeatMap(heartbeats)
+
+	if len(m) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(m))
+	}
+	if m["rt-1"].State != "idle" {
+		t.Errorf("expected rt-1 state idle, got %s", m["rt-1"].State)
+	}
+	if m["rt-2"].State != "executing" {
+		t.Errorf("expected rt-2 state executing, got %s", m["rt-2"].State)
+	}
+}
+
+func TestIsExecutingRuntime(t *testing.T) {
+	hbMap := map[string]RuntimeHeartbeat{
+		"rt-exec": {RuntimeID: "rt-exec", State: "executing"},
+		"rt-idle": {RuntimeID: "rt-idle", State: "idle"},
+	}
+
+	if !isExecutingRuntime("rt-exec", hbMap) {
+		t.Error("expected rt-exec to be executing")
+	}
+	if isExecutingRuntime("rt-idle", hbMap) {
+		t.Error("expected rt-idle to not be executing")
+	}
+	if isExecutingRuntime("rt-unknown", hbMap) {
+		t.Error("expected unknown runtime to not be executing")
+	}
+}
+
+func TestCountDrainingContainers(t *testing.T) {
+	containers := []ContainerInfo{
+		makeDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-1"),
+		makeDrainingDCMContainer("c-2", "tmpl-1", "runtime:v1", "rt-2"),
+		makeDrainingDCMContainer("c-3", "tmpl-1", "runtime:v1", "rt-3"),
+	}
+
+	if count := countDrainingContainers(containers); count != 2 {
+		t.Errorf("expected 2 draining, got %d", count)
+	}
+}
+
+func TestCountActiveContainers(t *testing.T) {
+	containers := []ContainerInfo{
+		makeDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-1"),
+		makeDrainingDCMContainer("c-2", "tmpl-1", "runtime:v1", "rt-2"),
+		makeDCMContainer("c-3", "tmpl-1", "runtime:v1", "rt-3"),
+	}
+
+	if count := countActiveContainers(containers); count != 2 {
+		t.Errorf("expected 2 active, got %d", count)
+	}
+}
+
+func TestHeartbeatFetchErrorDoesNotBlockReconcile(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-1"),
+	}
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{
+			makeRuntimeTarget("tmpl-1", "runtime:v2", 5, 0, 10),
+		},
+		fetchHBErr: fmt.Errorf("heartbeat service down"),
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error despite heartbeat failure, got %v", err)
+	}
+	// Without heartbeats, drifted container treated as idle and destroyed.
+	if len(docker.stoppedIDs) != 1 {
+		t.Errorf("expected 1 container stopped (treated as idle), got %d", len(docker.stoppedIDs))
+	}
+}
+
+func TestDriftReplacementRespectsGlobalMax(t *testing.T) {
+	docker := newMockDockerClient()
+	// 9 containers already running, global max is 10.
+	// 1 is drifted and idle — destroy + replace should work (9-1+1=9).
+	existing := makeDCMContainers("tmpl-0", "other:v1", 8)
+	existing = append(existing, makeDCMContainer("c-drift", "tmpl-1", "runtime:v1", "rt-drift"))
+	docker.containers = existing
+
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{
+			makeRuntimeTarget("tmpl-1", "runtime:v2", 5, 0, 10),
+		},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.stoppedIDs) != 1 {
+		t.Errorf("expected 1 drifted stopped, got %d", len(docker.stoppedIDs))
+	}
+	// Should create replacement (global was 9, destroyed 1 → 8, create 1 → 9).
+	if len(docker.createdSpecs) != 1 {
+		t.Errorf("expected 1 replacement, got %d", len(docker.createdSpecs))
+	}
+}

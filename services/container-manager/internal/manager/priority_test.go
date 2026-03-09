@@ -13,7 +13,7 @@ func TestPriorityPreemptionSelectsLowestPriority(t *testing.T) {
 		makeRuntimeTarget("tmpl-low", "img:v1", 5, 0, 1),
 	}
 
-	plans := planPreemptions(targets, grouped, 10)
+	plans := planPreemptions(targets, grouped, targets)
 
 	if len(plans) != 1 {
 		t.Fatalf("expected 1 preemption plan, got %d", len(plans))
@@ -35,7 +35,7 @@ func TestPriorityNoPreemptionWhenSamePriority(t *testing.T) {
 		makeRuntimeTarget("tmpl-a", "img:v1", 5, 0, 10),
 	}
 
-	plans := planPreemptions(targets, grouped, 10)
+	plans := planPreemptions(targets, grouped, targets)
 
 	if len(plans) != 0 {
 		t.Errorf("expected 0 preemption plans (same priority), got %d", len(plans))
@@ -73,7 +73,7 @@ func TestPriorityPreemptionSkipsDrainingContainers(t *testing.T) {
 		makeRuntimeTarget("tmpl-low", "img:v1", 5, 0, 1),
 	}
 
-	plans := planPreemptions(targets, grouped, 10)
+	plans := planPreemptions(targets, grouped, targets)
 
 	if len(plans) != 0 {
 		t.Errorf("expected 0 plans (draining container), got %d", len(plans))

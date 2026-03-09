@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -13,6 +14,13 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+)
+
+// Pull policy constants control when images are fetched from a registry.
+const (
+	PullPolicyAlways       = "always"
+	PullPolicyIfNotPresent = "if-not-present"
+	PullPolicyNever        = "never"
 )
 
 // RealDockerClient implements DockerClient using the Docker Engine API
@@ -128,6 +136,61 @@ func (d *RealDockerClient) RemoveContainer(ctx context.Context, containerID stri
 	return nil
 }
 
+// UpdateContainerLabels applies label changes to a container. Docker does not
+// natively support label updates on running containers. This implementation
+// stops the container, commits a snapshot with the merged labels, removes the
+// old container, and creates a replacement from the committed image — keeping
+// the same name so the reconciler can track it.
+//
+// For the rolling-update drain use case this is best-effort — the platform
+// drain API is the authoritative signal, and the reconciler tracks draining
+// containers via heartbeat state.
+func (d *RealDockerClient) UpdateContainerLabels(ctx context.Context, containerID string, labels map[string]string) error {
+	inspect, err := d.cli.ContainerInspect(ctx, containerID)
+	if err != nil {
+		return fmt.Errorf("inspect container %s for label update: %w", containerID, err)
+	}
+
+	for k, v := range labels {
+		inspect.Config.Labels[k] = v
+	}
+
+	// Commit a snapshot that carries the updated labels in its config.
+	commitResp, err := d.cli.ContainerCommit(ctx, containerID, container.CommitOptions{
+		Config: inspect.Config,
+	})
+	if err != nil {
+		return fmt.Errorf("commit container %s for label update: %w", containerID, err)
+	}
+	snapshotImage := commitResp.ID
+
+	// Capture the original host config / networking before teardown.
+	name := ""
+	if len(inspect.Name) > 0 {
+		name = strings.TrimPrefix(inspect.Name, "/")
+	}
+
+	// Tear down the old container.
+	stopTimeout := 10
+	_ = d.cli.ContainerStop(ctx, containerID, container.StopOptions{Timeout: &stopTimeout})
+	_ = d.cli.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: true})
+
+	// Recreate with the same config but the snapshot image carrying new labels.
+	cfg := inspect.Config
+	cfg.Image = snapshotImage
+
+	resp, err := d.cli.ContainerCreate(ctx, cfg, inspect.HostConfig, nil, nil, name)
+	if err != nil {
+		return fmt.Errorf("recreate container %s with updated labels: %w", name, err)
+	}
+
+	if startErr := d.cli.ContainerStart(ctx, resp.ID, container.StartOptions{}); startErr != nil {
+		return fmt.Errorf("start relabeled container %s: %w", name, startErr)
+	}
+
+	return nil
+}
+
 // ListImages returns all available Docker images.
 func (d *RealDockerClient) ListImages(ctx context.Context) ([]ContainerImage, error) {
 	images, err := d.cli.ImageList(ctx, image.ListOptions{})
@@ -155,6 +218,54 @@ func (d *RealDockerClient) ListImages(ctx context.Context) ([]ContainerImage, er
 	return result, nil
 }
 
+// PullImage pulls an image according to the specified pull policy.
+// Supported policies: "always", "if-not-present", "never".
+func (d *RealDockerClient) PullImage(ctx context.Context, ref, policy string) error {
+	switch policy {
+	case PullPolicyNever:
+		return d.requireLocalImage(ctx, ref)
+	case PullPolicyIfNotPresent:
+		if d.imageExistsLocally(ctx, ref) {
+			return nil
+		}
+		return d.pullFromRegistry(ctx, ref)
+	case PullPolicyAlways, "":
+		return d.pullFromRegistry(ctx, ref)
+	default:
+		return fmt.Errorf("unknown pull policy %q for image %s", policy, ref)
+	}
+}
+
+// imageExistsLocally checks whether an image reference exists in the local store.
+func (d *RealDockerClient) imageExistsLocally(ctx context.Context, ref string) bool {
+	_, _, err := d.cli.ImageInspectWithRaw(ctx, ref)
+	return err == nil
+}
+
+// requireLocalImage returns an error if the image is not available locally.
+func (d *RealDockerClient) requireLocalImage(ctx context.Context, ref string) error {
+	if d.imageExistsLocally(ctx, ref) {
+		return nil
+	}
+	return fmt.Errorf("image %s not found locally and pull policy is %q", ref, PullPolicyNever)
+}
+
+// pullFromRegistry pulls an image from a remote registry and drains the
+// progress stream to completion.
+func (d *RealDockerClient) pullFromRegistry(ctx context.Context, ref string) error {
+	reader, err := d.cli.ImagePull(ctx, ref, image.PullOptions{})
+	if err != nil {
+		return fmt.Errorf("pull image %s: %w", ref, err)
+	}
+	defer reader.Close()
+
+	// Drain the pull progress stream — Docker requires reading to completion.
+	if _, err := io.Copy(io.Discard, reader); err != nil {
+		return fmt.Errorf("read pull progress for %s: %w", ref, err)
+	}
+	return nil
+}
+
 // GetContainerStats retrieves a single stats snapshot for the container.
 func (d *RealDockerClient) GetContainerStats(ctx context.Context, containerID string) (*ContainerStats, error) {
 	resp, err := d.cli.ContainerStatsOneShot(ctx, containerID)
@@ -177,6 +288,19 @@ func (d *RealDockerClient) GetContainerStats(ctx context.Context, containerID st
 		RxBytes:     rxBytes,
 		TxBytes:     txBytes,
 	}, nil
+}
+
+// InspectContainerHealth returns the Docker HEALTHCHECK status of a container.
+func (d *RealDockerClient) InspectContainerHealth(ctx context.Context, containerID string) (*ContainerHealthStatus, error) {
+	info, err := d.cli.ContainerInspect(ctx, containerID)
+	if err != nil {
+		return nil, fmt.Errorf("docker inspect container %s: %w", containerID, err)
+	}
+	status := ""
+	if info.State != nil && info.State.Health != nil {
+		status = info.State.Health.Status
+	}
+	return &ContainerHealthStatus{Status: status}, nil
 }
 
 // calculateCPUPercent computes CPU usage percentage from a stats snapshot.

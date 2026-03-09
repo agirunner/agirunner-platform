@@ -56,18 +56,20 @@ func sortCandidatesByPriority(candidates []preemptionCandidate) {
 	})
 }
 
-// planPreemptions determines which idle runtimes to preempt for higher-priority targets.
+// planPreemptions determines which idle runtimes to preempt for higher-priority
+// targets. beneficiaries are the templates that need capacity; allTargets
+// provides priority information for potential victim templates.
 func planPreemptions(
-	targets []RuntimeTarget,
+	beneficiaries []RuntimeTarget,
 	grouped map[string][]ContainerInfo,
-	globalMax int,
+	allTargets []RuntimeTarget,
 ) []preemptionPlan {
-	targetMap := make(map[string]RuntimeTarget, len(targets))
-	for _, t := range targets {
-		targetMap[t.TemplateID] = t
+	fullMap := make(map[string]RuntimeTarget, len(allTargets))
+	for _, t := range allTargets {
+		fullMap[t.TemplateID] = t
 	}
 
-	sorted := sortTargetsByPriority(targets)
+	sorted := sortTargetsByPriority(beneficiaries)
 	var plans []preemptionPlan
 
 	for _, target := range sorted {
@@ -82,10 +84,9 @@ func planPreemptions(
 		if needed <= 0 {
 			continue
 		}
-		candidates := findPreemptionCandidates(grouped, targetMap, target.Priority)
+		candidates := findPreemptionCandidates(grouped, fullMap, target.Priority)
 		plans = append(plans, buildPreemptionPlan(target, candidates, needed)...)
 	}
-	_ = globalMax
 	return plans
 }
 

@@ -4,6 +4,22 @@ import type { DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 
+const VALID_FLEET_EVENT_TYPES = new Set([
+  'runtime.started',
+  'runtime.task.claimed',
+  'runtime.task.completed',
+  'runtime.task.failed',
+  'runtime.idle',
+  'runtime.draining',
+  'runtime.shutdown',
+  'runtime.hung_detected',
+  'container.created',
+  'container.destroyed',
+  'orphan.cleaned',
+]);
+
+const VALID_FLEET_EVENT_LEVELS = new Set(['debug', 'info', 'warn', 'error']);
+
 const createDesiredStateSchema = z.object({
   workerName: z.string().min(1).max(200),
   role: z.string().min(1).max(100),
@@ -540,6 +556,12 @@ export class FleetService {
   }
 
   async recordFleetEvent(tenantId: string, event: RecordFleetEventInput): Promise<void> {
+    if (!VALID_FLEET_EVENT_TYPES.has(event.event_type)) {
+      throw new ValidationError(`Invalid fleet event type: ${event.event_type}`);
+    }
+    if (event.level && !VALID_FLEET_EVENT_LEVELS.has(event.level)) {
+      throw new ValidationError(`Invalid fleet event level: ${event.level}`);
+    }
     await this.pool.query(
       `INSERT INTO fleet_events (
          tenant_id, event_type, level, runtime_id, template_id,

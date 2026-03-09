@@ -375,5 +375,59 @@ describe('FleetService DCM', () => {
       const params = pool.query.mock.calls[0][1] as unknown[];
       expect(params[2]).toBe('info');
     });
+
+    it('rejects invalid event type', async () => {
+      await expect(
+        service.recordFleetEvent(TENANT_ID, {
+          event_type: 'invalid.event',
+        }),
+      ).rejects.toThrow(/Invalid fleet event type/);
+    });
+
+    it('rejects invalid event level', async () => {
+      await expect(
+        service.recordFleetEvent(TENANT_ID, {
+          event_type: 'runtime.started',
+          level: 'critical',
+        }),
+      ).rejects.toThrow(/Invalid fleet event level/);
+    });
+
+    it('accepts all valid event types', async () => {
+      const validTypes = [
+        'runtime.started',
+        'runtime.task.claimed',
+        'runtime.task.completed',
+        'runtime.task.failed',
+        'runtime.idle',
+        'runtime.draining',
+        'runtime.shutdown',
+        'runtime.hung_detected',
+        'container.created',
+        'container.destroyed',
+        'orphan.cleaned',
+      ];
+
+      for (const eventType of validTypes) {
+        pool.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+        await service.recordFleetEvent(TENANT_ID, { event_type: eventType });
+      }
+
+      expect(pool.query).toHaveBeenCalledTimes(validTypes.length);
+    });
+
+    it('accepts all valid event levels', async () => {
+      const validLevels = ['debug', 'info', 'warn', 'error'];
+
+      for (const level of validLevels) {
+        pool.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+        await service.recordFleetEvent(TENANT_ID, {
+          event_type: 'runtime.started',
+          level,
+        });
+      }
+
+      expect(pool.query).toHaveBeenCalledTimes(validLevels.length);
+    });
   });
 });

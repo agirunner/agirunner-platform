@@ -9,21 +9,38 @@ import (
 	"time"
 )
 
+// labelUpdate records a call to UpdateContainerLabels.
+type labelUpdate struct {
+	ContainerID string
+	Labels      map[string]string
+}
+
+// pullRecord captures the arguments passed to PullImage.
+type pullRecord struct {
+	Image  string
+	Policy string
+}
+
 // mockDockerClient records calls and returns preconfigured results.
 type mockDockerClient struct {
-	containers []ContainerInfo
-	images     []ContainerImage
-	stats      map[string]*ContainerStats
+	containers     []ContainerInfo
+	images         []ContainerImage
+	localImages    map[string]bool
+	stats          map[string]*ContainerStats
+	healthStatuses map[string]*ContainerHealthStatus
 
-	createdSpecs   []ContainerSpec
-	stoppedIDs     []string
-	removedIDs     []string
-	createErr      error
-	listErr        error
-	stopErr        error
-	removeErr      error
-	listImagesErr  error
-	statsErr       error
+	createdSpecs    []ContainerSpec
+	stoppedIDs      []string
+	removedIDs      []string
+	updatedLabels   []labelUpdate
+	pulledImages    []pullRecord
+	createErr       error
+	listErr         error
+	stopErr         error
+	removeErr       error
+	listImagesErr   error
+	statsErr        error
+	pullErr         error
 	nextContainerID int
 }
 
@@ -72,6 +89,28 @@ func (m *mockDockerClient) ListImages(_ context.Context) ([]ContainerImage, erro
 	return m.images, nil
 }
 
+func (m *mockDockerClient) UpdateContainerLabels(_ context.Context, containerID string, labels map[string]string) error {
+	m.updatedLabels = append(m.updatedLabels, labelUpdate{ContainerID: containerID, Labels: labels})
+	return nil
+}
+
+func (m *mockDockerClient) InspectContainerHealth(_ context.Context, containerID string) (*ContainerHealthStatus, error) {
+	if m.healthStatuses != nil {
+		if h, ok := m.healthStatuses[containerID]; ok {
+			return h, nil
+		}
+	}
+	return &ContainerHealthStatus{Status: ""}, nil
+}
+
+func (m *mockDockerClient) PullImage(_ context.Context, img, policy string) error {
+	m.pulledImages = append(m.pulledImages, pullRecord{Image: img, Policy: policy})
+	if m.pullErr != nil {
+		return m.pullErr
+	}
+	return nil
+}
+
 func (m *mockDockerClient) GetContainerStats(_ context.Context, containerID string) (*ContainerStats, error) {
 	if m.statsErr != nil {
 		return nil, m.statsErr
@@ -84,17 +123,26 @@ func (m *mockDockerClient) GetContainerStats(_ context.Context, containerID stri
 
 // mockPlatformClient records calls and returns preconfigured results.
 type mockPlatformClient struct {
-	desiredStates    []DesiredState
-	runtimeTargets   []RuntimeTarget
-	heartbeats       []RuntimeHeartbeat
-	fetchErr         error
-	fetchTargetsErr  error
-	fetchHBErr       error
-	reportedStates   []ActualState
-	reportedImages   []ContainerImage
-	reportedEvents   []FleetEvent
-	reportStateErr   error
-	reportImageErr   error
+	desiredStates   []DesiredState
+	runtimeTargets  []RuntimeTarget
+	heartbeats      []RuntimeHeartbeat
+	fetchErr        error
+	fetchTargetsErr error
+	fetchHBErr      error
+	reportedStates  []ActualState
+	reportedImages  []ContainerImage
+	reportedEvents  []FleetEvent
+	failedTasks     []failedTaskRecord
+	drainedRuntimes []string
+	reportStateErr  error
+	reportImageErr  error
+	failTaskErr     error
+}
+
+// failedTaskRecord captures a FailTask call for test assertions.
+type failedTaskRecord struct {
+	TaskID string
+	Reason string
 }
 
 func (m *mockPlatformClient) FetchDesiredState() ([]DesiredState, error) {
@@ -136,6 +184,19 @@ func (m *mockPlatformClient) FetchHeartbeats() ([]RuntimeHeartbeat, error) {
 
 func (m *mockPlatformClient) RecordFleetEvent(event FleetEvent) error {
 	m.reportedEvents = append(m.reportedEvents, event)
+	return nil
+}
+
+func (m *mockPlatformClient) DrainRuntime(runtimeID string) error {
+	m.drainedRuntimes = append(m.drainedRuntimes, runtimeID)
+	return nil
+}
+
+func (m *mockPlatformClient) FailTask(taskID, reason string) error {
+	if m.failTaskErr != nil {
+		return m.failTaskErr
+	}
+	m.failedTasks = append(m.failedTasks, failedTaskRecord{TaskID: taskID, Reason: reason})
 	return nil
 }
 

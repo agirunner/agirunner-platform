@@ -184,6 +184,26 @@ export const fleetRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  app.post(
+    '/api/v1/fleet/events',
+    { preHandler: [authenticateApiKey, withScope('worker')] },
+    async (request, reply) => {
+      const body = request.body as {
+        event_type: string;
+        level?: string;
+        runtime_id?: string;
+        template_id?: string;
+        task_id?: string;
+        workflow_id?: string;
+        container_id?: string;
+        payload?: Record<string, unknown>;
+      };
+      await service.recordFleetEvent(request.auth!.tenantId, body);
+      reply.status(201);
+      return { ok: true };
+    },
+  );
+
   app.get(
     '/api/v1/fleet/events',
     { preHandler: [authenticateApiKey, withScope('admin')] },

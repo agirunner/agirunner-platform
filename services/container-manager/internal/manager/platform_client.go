@@ -259,8 +259,82 @@ func (c *PlatformClient) FetchHeartbeats() ([]RuntimeHeartbeat, error) {
 	return result.Data, nil
 }
 
-// RecordFleetEvent logs a fleet event locally (no upstream API endpoint yet).
-func (c *PlatformClient) RecordFleetEvent(_ FleetEvent) error {
+// RecordFleetEvent posts a fleet event to the platform API for persistence.
+func (c *PlatformClient) RecordFleetEvent(event FleetEvent) error {
+	body, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("marshal fleet event: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/v1/fleet/events", c.baseURL)
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create fleet event request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("fleet event request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("fleet event API returned HTTP %d: %s", resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
+// DrainRuntime requests the platform to drain a runtime.
+func (c *PlatformClient) DrainRuntime(runtimeID string) error {
+	url := fmt.Sprintf("%s/api/v1/fleet/runtimes/%s/drain", c.baseURL, runtimeID)
+	req, err := http.NewRequest(http.MethodPost, url, nil)
+	if err != nil {
+		return fmt.Errorf("create drain request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("drain runtime request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("drain runtime API returned HTTP %d: %s", resp.StatusCode, string(body))
+	}
+	return nil
+}
+
+// FailTask marks a task as failed via the platform API.
+func (c *PlatformClient) FailTask(taskID, reason string) error {
+	payload := map[string]string{"error": reason}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal fail task payload: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/v1/tasks/%s/fail", c.baseURL, taskID)
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create fail task request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("fail task request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("fail task API returned HTTP %d: %s", resp.StatusCode, string(respBody))
+	}
 	return nil
 }
 
