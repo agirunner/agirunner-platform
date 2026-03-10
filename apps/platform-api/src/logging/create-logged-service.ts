@@ -51,23 +51,23 @@ export function createLoggedService<T extends object>(
 
           const entityId = isRecord(result) ? (result.id as string) : undefined;
           const entityName = isRecord(result) ? (result[config.nameField] as string) : undefined;
-          const projectId = isRecord(result) ? (result.projectId as string) : undefined;
-          const workflowId = isRecord(result) ? (result.workflowId as string) : undefined;
-          const taskId = isRecord(result) ? (result.taskId as string) : undefined;
+          const projectId = isRecord(result) ? ((result.projectId ?? result.project_id) as string) : undefined;
+          const workflowId = isRecord(result) ? ((result.workflowId ?? result.workflow_id) as string) : undefined;
+          const taskId = isRecord(result) ? ((result.taskId ?? result.task_id) as string) : undefined;
 
           const operation = `${config.category}.${config.entityType}.${methodToAction(prop)}`;
 
-          const metadata: Record<string, unknown> = {
+          const payload: Record<string, unknown> = {
             method: prop,
             action: methodToAction(prop),
           };
           if (isRecord(result)) {
-            if (result.status) metadata.entity_status = result.status;
+            if (result.status) payload.entity_status = result.status;
             if (result.error && isRecord(result.error)) {
-              metadata.error_category = result.error.category;
-              metadata.error_message = result.error.message;
+              payload.error_category = result.error.category;
+              payload.error_message = result.error.message;
             }
-            if (result.reason) metadata.reason = result.reason;
+            if (result.reason) payload.reason = result.reason;
           }
 
           void logService.insert({
@@ -80,7 +80,7 @@ export function createLoggedService<T extends object>(
             operation,
             status: 'completed',
             durationMs,
-            metadata,
+            payload,
             projectId: projectId ?? undefined,
             workflowId: workflowId ?? undefined,
             taskId: taskId ?? undefined,
@@ -108,7 +108,7 @@ export function createLoggedService<T extends object>(
             operation,
             status: 'failed',
             durationMs,
-            metadata: {
+            payload: {
               method: prop,
               action: methodToAction(prop),
               error_message: errorObj.message,

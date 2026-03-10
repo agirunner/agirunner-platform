@@ -44,7 +44,6 @@ export function buildAgentCard(baseUrl: string) {
 export function mapA2ATaskToCreateInput(task: A2ATaskPayload): CreateTaskInput {
   return {
     title: task.title,
-    type: normalizeTaskType(task.type),
     description: task.description,
     priority: normalizePriority(task.priority),
     workflow_id: task.workflow_id,
@@ -96,14 +95,6 @@ export function buildA2AStreamEvent(event: {
     created_at: event.created_at,
     data: event.data ?? {},
   };
-}
-
-function normalizeTaskType(value: string | undefined): CreateTaskInput['type'] {
-  const normalized = value?.trim().toLowerCase();
-  if (normalized === 'analysis' || normalized === 'code' || normalized === 'review' || normalized === 'test' || normalized === 'docs' || normalized === 'orchestration') {
-    return normalized;
-  }
-  return 'custom';
 }
 
 function normalizePriority(value: string | undefined): CreateTaskInput['priority'] {

@@ -14,9 +14,8 @@ import type {
   TemplateSchema,
   TemplateTaskDefinition,
   WorkflowPhaseDefinition,
-  WorkflowGateType,
 } from './template-editor-types.js';
-import { GATE_TYPES, createEmptyTask, createEmptyPhase } from './template-editor-types.js';
+import { createEmptyTask, createEmptyPhase } from './template-editor-types.js';
 import {
   Select,
   SelectContent,
@@ -219,24 +218,21 @@ function PhaseInspector({
       </FieldLabel>
 
       <FieldLabel label="Gate Type">
-        <Select value={phase.gate} onValueChange={(v) => onUpdate({ ...phase, gate: v as WorkflowGateType })}>
+        <Select
+          value={phase.gate === 'manual' ? 'manual' : 'automatic'}
+          onValueChange={(v) => onUpdate({ ...phase, gate: v === 'manual' ? 'manual' : 'all_complete' })}
+        >
           <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">None — no gate, tasks start immediately</SelectItem>
-            <SelectItem value="all_complete">All Complete — wait for all previous phase tasks</SelectItem>
+            <SelectItem value="automatic">Automatic — advances when all tasks complete</SelectItem>
             <SelectItem value="manual">Manual — requires human approval to proceed</SelectItem>
-            <SelectItem value="auto">Auto — system decides based on task results</SelectItem>
           </SelectContent>
         </Select>
-        <HelpText>Controls when tasks in this phase are allowed to start.</HelpText>
+        <HelpText>Controls when the next phase is allowed to start after this phase&apos;s tasks finish.</HelpText>
       </FieldLabel>
 
-      <div className="flex items-center justify-between">
-        <div>
-          <span className="text-xs font-medium">Parallel Execution</span>
-          <HelpText>When on, tasks in this phase run concurrently. When off, they run sequentially.</HelpText>
-        </div>
-        <Switch checked={phase.parallel} onCheckedChange={(v) => onUpdate({ ...phase, parallel: v })} />
+      <div className="rounded-md bg-border/20 px-3 py-2 text-[11px] text-muted">
+        Tasks with no dependencies run in parallel. Connect tasks with dependency edges to enforce sequential execution.
       </div>
 
       <div className="pt-2 space-y-1">

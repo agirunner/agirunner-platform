@@ -14,7 +14,7 @@ describe('logAuthEvent', () => {
       actorType: 'user',
       actorId: 'user-1',
       actorName: 'Mark Johnson',
-      metadata: { email: 'mark@example.com', ip: '192.168.1.10' },
+      payload: { email: 'mark@example.com', ip: '192.168.1.10' },
     });
 
     expect(logInsert).toHaveBeenCalledWith(
@@ -28,7 +28,7 @@ describe('logAuthEvent', () => {
         actorType: 'user',
         actorId: 'user-1',
         actorName: 'Mark Johnson',
-        metadata: expect.objectContaining({
+        payload: expect.objectContaining({
           auth_method: 'password',
           email: 'mark@example.com',
           ip: '192.168.1.10',
@@ -48,7 +48,7 @@ describe('logAuthEvent', () => {
       actorType: 'user',
       actorId: 'unknown',
       actorName: 'Unknown',
-      metadata: { failure_reason: 'invalid_credentials' },
+      payload: { failure_reason: 'invalid_credentials' },
     });
 
     expect(logInsert).toHaveBeenCalledWith(
@@ -93,7 +93,7 @@ describe('logAuthEvent', () => {
       actorType: 'user',
       actorId: 'user-3',
       actorName: 'Bob Smith',
-      metadata: { failure_reason: 'expired_token' },
+      payload: { failure_reason: 'expired_token' },
     });
 
     expect(logInsert).toHaveBeenCalledWith(

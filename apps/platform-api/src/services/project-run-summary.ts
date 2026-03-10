@@ -31,7 +31,7 @@ export function buildRunSummary(params: {
     .map((task) => ({
       task_id: String(task.id),
       role: asOptionalString(task.role),
-      type: String(task.type ?? ''),
+
       rework_count: Number(task.rework_count ?? 0),
     }));
 
@@ -126,7 +126,7 @@ function buildPhaseMetrics(params: {
       rework_by_task: phaseTasks.map((task) => ({
         task_id: String(task.id),
         role: asOptionalString(task.role),
-        type: String(task.type ?? ''),
+  
         rework_count: Number(task.rework_count ?? 0),
       })),
       timing,

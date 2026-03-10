@@ -26,7 +26,6 @@ export interface WorkerConfig {
   };
   taskFilter: {
     projectId?: string;
-    taskTypes: string[];
   };
   logging: {
     level: 'debug' | 'info' | 'warn' | 'error';
@@ -54,9 +53,7 @@ const DEFAULT_CONFIG: WorkerConfig = {
       maxMs: 10_000,
     },
   },
-  taskFilter: {
-    taskTypes: [],
-  },
+  taskFilter: {},
   logging: {
     level: 'info',
   },
@@ -116,7 +113,6 @@ function applyEnvOverrides(base: WorkerConfig, env: NodeJS.ProcessEnv): WorkerCo
     },
     taskFilter: {
       projectId: env.AGIRUNNER_WORKER_FILTER_PROJECT_ID ?? base.taskFilter.projectId,
-      taskTypes: parseCsv(env.AGIRUNNER_WORKER_FILTER_TASK_TYPES) ?? base.taskFilter.taskTypes,
     },
     logging: {
       level: parseLogLevel(env.AGIRUNNER_WORKER_LOG_LEVEL) ?? base.logging.level,

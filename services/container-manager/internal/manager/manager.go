@@ -83,6 +83,7 @@ type Manager struct {
 	pullFailCache        map[string]time.Time // tracks when an image pull last failed, keyed by image ref
 	idleSince            map[string]time.Time // tracks when each runtime first became idle
 	nowFunc              func() time.Time
+	cycleCount           uint64 // monotonic reconcile cycle counter
 }
 
 // New creates a new Manager with a real PlatformClient.
@@ -158,12 +159,31 @@ func (m *Manager) Run(ctx context.Context) error {
 	}
 }
 
+// heartbeatInterval controls how often (in cycles) the reconciler logs an
+// INFO-level heartbeat. At a 5-second reconcile interval this is ~60 seconds.
+const heartbeatInterval uint64 = 12
+
 func (m *Manager) runReconcileCycle(ctx context.Context) {
-	if err := m.reconcileOnce(ctx); err != nil {
-		m.logger.Error("WDS reconcile cycle failed", "error", err)
+	m.cycleCount++
+	start := time.Now()
+
+	var wdsErr, dcmErr error
+	if wdsErr = m.reconcileOnce(ctx); wdsErr != nil {
+		m.logger.Error("WDS reconcile cycle failed", "error", wdsErr)
 	}
-	if err := m.reconcileDCM(ctx); err != nil {
-		m.logger.Error("DCM reconcile cycle failed", "error", err)
+	if dcmErr = m.reconcileDCM(ctx); dcmErr != nil {
+		m.logger.Error("DCM reconcile cycle failed", "error", dcmErr)
+	}
+
+	elapsed := time.Since(start)
+
+	if m.cycleCount%heartbeatInterval == 0 {
+		m.logger.Info("reconcile heartbeat",
+			"cycle", m.cycleCount,
+			"elapsed_ms", elapsed.Milliseconds(),
+			"wds_ok", wdsErr == nil,
+			"dcm_ok", dcmErr == nil,
+		)
 	}
 }
 

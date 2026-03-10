@@ -23,7 +23,7 @@ const ingestEntrySchema = z.object({
   operation: z.string().min(1).max(500),
   status: z.enum(validStatuses),
   duration_ms: z.number().int().min(0).nullable().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  payload: z.record(z.unknown()).optional(),
   error: z
     .object({
       code: z.string().max(100).optional(),
@@ -34,6 +34,7 @@ const ingestEntrySchema = z.object({
     .optional(),
   project_id: z.string().uuid().nullable().optional(),
   workflow_id: z.string().uuid().nullable().optional(),
+  workflow_name: z.string().max(500).nullable().optional(),
   task_id: z.string().uuid().nullable().optional(),
   actor_type: z.string().max(50).optional(),
   actor_id: z.string().max(255).optional(),
@@ -82,10 +83,11 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
           operation: entry.operation,
           status: entry.status,
           durationMs: entry.duration_ms ?? null,
-          metadata: entry.metadata,
+          payload: entry.payload,
           error: entry.error ?? null,
           projectId: entry.project_id ?? null,
           workflowId: entry.workflow_id ?? null,
+          workflowName: entry.workflow_name ?? null,
           taskId: entry.task_id ?? null,
           actorType: entry.actor_type ?? null,
           actorId: entry.actor_id ?? null,
@@ -283,7 +285,7 @@ const CSV_COLUMNS = [
   'duration_ms', 'project_id', 'workflow_id', 'task_id',
   'actor_type', 'actor_id', 'actor_name',
   'resource_type', 'resource_id', 'resource_name',
-  'trace_id', 'span_id', 'error', 'metadata',
+  'trace_id', 'span_id', 'error', 'payload',
 ] as const;
 
 function csvHeader(): string {

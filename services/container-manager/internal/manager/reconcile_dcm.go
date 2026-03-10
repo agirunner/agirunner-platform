@@ -53,6 +53,20 @@ func (m *Manager) reconcileDCM(ctx context.Context) error {
 		m.metrics.UpdateRuntimeGauges(updatedContainers, heartbeatMap)
 	}
 
+	// Count total pending tasks across all targets for the cycle summary.
+	totalPending := 0
+	for _, t := range sorted {
+		totalPending += t.PendingTasks
+	}
+
+	m.logger.Debug("dcm reconcile cycle",
+		"targets", len(sorted),
+		"containers", totalRunning,
+		"draining", drainingCount,
+		"pending_tasks", totalPending,
+		"unsatisfied", len(unsatisfied),
+	)
+
 	return nil
 }
 

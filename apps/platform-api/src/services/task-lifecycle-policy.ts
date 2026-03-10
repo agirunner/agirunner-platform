@@ -13,7 +13,6 @@ export interface RetryPolicy {
 
 export interface EscalationPolicy {
   role: string;
-  task_type: 'orchestration' | 'review' | 'analysis' | 'custom';
   title_template: string;
   instructions?: string;
   enabled: boolean;
@@ -133,7 +132,6 @@ function normalizeEscalationPolicy(value: unknown, fieldName: string): Escalatio
   const role = typeof value.role === 'string' && value.role.trim().length > 0
     ? value.role
     : 'orchestrator';
-  const taskType = (value.task_type ?? 'orchestration') as EscalationPolicy['task_type'];
   const titleTemplate =
     typeof value.title_template === 'string' && value.title_template.trim().length > 0
       ? value.title_template
@@ -146,7 +144,6 @@ function normalizeEscalationPolicy(value: unknown, fieldName: string): Escalatio
   return {
     enabled,
     role,
-    task_type: taskType,
     title_template: titleTemplate,
     ...(instructions ? { instructions } : {}),
   };

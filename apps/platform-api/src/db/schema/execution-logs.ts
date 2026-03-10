@@ -46,7 +46,7 @@ export const executionLogs = pgTable(
     operation: text('operation').notNull(),
     status: executionLogStatusEnum('status').notNull(),
     durationMs: integer('duration_ms'),
-    metadata: jsonb('metadata').notNull().default({}),
+    payload: jsonb('payload').notNull().default({}),
     error: jsonb('error'),
     projectId: uuid('project_id'),
     workflowId: uuid('workflow_id'),

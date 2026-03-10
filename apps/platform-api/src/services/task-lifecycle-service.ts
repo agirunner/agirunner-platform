@@ -887,7 +887,7 @@ export class TaskLifecycleService {
     if (!escalation || !escalation.enabled) {
       return;
     }
-    if (task.type === 'orchestration' && asRecord(task.metadata).escalation_source_task_id) {
+    if (asRecord(task.metadata).escalation_source_task_id) {
       return;
     }
     if (asRecord(task.metadata).escalation_status === 'pending') {
@@ -897,11 +897,11 @@ export class TaskLifecycleService {
     const escalationTaskInput = buildEscalationTaskInput(task, escalation, failure);
     const escalationInsert = await client.query(
       `INSERT INTO tasks (
-         tenant_id, workflow_id, project_id, title, type, role, priority, state, depends_on,
+         tenant_id, workflow_id, project_id, title, role, priority, state, depends_on,
          requires_approval, input, context, capabilities_required, role_config, environment,
          resource_bindings, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, metadata
        ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,'ready',$8::uuid[],$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21
+         $1,$2,$3,$4,$5,$6,'ready',$7::uuid[],$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
        )
        RETURNING *`,
       [
@@ -909,7 +909,6 @@ export class TaskLifecycleService {
         escalationTaskInput.workflow_id ?? null,
         escalationTaskInput.project_id ?? null,
         escalationTaskInput.title,
-        escalationTaskInput.type,
         escalationTaskInput.role ?? null,
         escalationTaskInput.priority ?? 'normal',
         [],
@@ -1074,7 +1073,6 @@ function buildEscalationTaskInput(
   const title = escalation.title_template.replace('{{task_title}}', String(task.title ?? 'task'));
   return {
     title,
-    type: escalation.task_type,
     role: escalation.role,
     priority: 'high',
     workflow_id: task.workflow_id as string | undefined,

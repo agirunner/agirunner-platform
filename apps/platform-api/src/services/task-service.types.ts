@@ -3,7 +3,6 @@ import type { ArtifactStorageEnv } from '../content/storage-config.js';
 
 export interface CreateTaskInput {
   title: string;
-  type: string;
   description?: string;
   priority?: string;
   workflow_id?: string;
@@ -29,7 +28,6 @@ export interface CreateTaskInput {
 
 export interface ListTaskQuery {
   state?: string;
-  type?: string;
   project_id?: string;
   assigned_agent_id?: string;
   parent_id?: string;

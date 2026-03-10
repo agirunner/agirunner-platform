@@ -318,15 +318,6 @@ function StepConfigureParams({
 // Step 3: Review & Launch
 // ---------------------------------------------------------------------------
 
-const TASK_TYPE_ICONS: Record<string, string> = {
-  analysis: '\u{1F50D}',
-  code: '\u{1F4BB}',
-  review: '\u{1F4DD}',
-  test: '\u{2705}',
-  docs: '\u{1F4D6}',
-  orchestration: '\u{1F3AF}',
-  custom: '\u{2699}',
-};
 
 function StepReview({
   template,
@@ -391,18 +382,17 @@ function StepReview({
             <p className="text-xs font-semibold">
               {phase.name}
               <span className="text-[10px] text-muted ml-1 font-normal">
-                {phase.gate !== 'none' ? phase.gate : ''}{phase.parallel ? ' \u2016' : ''}
+                {phase.gate === 'manual' ? 'manual gate' : ''}{phase.parallel ? ' \u2016' : ''}
               </span>
             </p>
             <div className="ml-3 space-y-0.5 mt-1">
               {phase.tasks.map((tid) => {
                 const t = taskMap.get(tid);
                 if (!t) return null;
-                const icon = TASK_TYPE_ICONS[t.type] ?? '';
                 const deps = t.depends_on?.length ? ` \u2192 depends on ${t.depends_on.join(', ')}` : '';
                 return (
                   <p key={tid} className="text-xs text-muted">
-                    {icon} {t.title_template || t.id}
+                    {t.title_template || t.id}
                     {t.role && <span className="ml-1">({t.role})</span>}
                     {deps && <span className="text-[10px]">{deps}</span>}
                   </p>

@@ -14,7 +14,6 @@ import {
 } from 'lucide-react';
 import { Button } from '../../components/ui/button.js';
 import { Badge } from '../../components/ui/badge.js';
-import { Input } from '../../components/ui/input.js';
 import { toast } from '../../lib/toast.js';
 import type {
   TemplateEditorState,
@@ -25,7 +24,6 @@ import {
   createEmptyTemplate,
   createEmptyPhase,
   createEmptyTask,
-  TASK_TYPES,
 } from './template-editor-types.js';
 import {
   fetchTemplate,
@@ -120,9 +118,6 @@ function validateTemplate(state: TemplateEditorState): ValidationIssue[] {
       issues.push({ level: 'error', message: `Duplicate task ID: ${task.id}` });
     }
     taskIds.add(task.id);
-    if (!TASK_TYPES.includes(task.type)) {
-      issues.push({ level: 'error', message: `Invalid task type "${task.type}" on ${task.id}` });
-    }
     if (task.timeout_minutes !== undefined && task.timeout_minutes < 0) {
       issues.push({ level: 'error', message: `Negative timeout on task ${task.id}` });
     }
@@ -526,21 +521,21 @@ export function TemplateEditorPage(): JSX.Element {
           <Menu className="h-4 w-4" />
         </Button>
 
-        {/* Template identity */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <Input
-              value={state.name}
-              onChange={(e) => handleChange({ ...state, name: e.target.value })}
-              placeholder="Template name"
-              className="h-7 text-sm font-semibold border-none bg-transparent px-1 focus-visible:ring-1 max-w-xs"
-            />
-            <Badge variant="outline" className="text-[10px] shrink-0">v{state.version}</Badge>
-            <Badge variant={state.is_published ? 'success' : 'secondary'} className="shrink-0">
-              {state.is_published ? 'Published' : 'Draft'}
-            </Badge>
-          </div>
-          <p className="text-xs text-muted pl-1 truncate">{state.slug || 'no-slug'}</p>
+        {/* Template identity — read-only breadcrumb; edit name/slug in inspector */}
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          <button
+            type="button"
+            className="text-sm font-semibold truncate max-w-xs hover:text-accent transition-colors"
+            onClick={() => setSelected({ kind: 'template' })}
+            title="Click to edit in inspector"
+          >
+            {state.name || 'Untitled Template'}
+          </button>
+          <span className="text-xs text-muted truncate hidden sm:inline">{state.slug || 'no-slug'}</span>
+          <Badge variant="outline" className="text-[10px] shrink-0">v{state.version}</Badge>
+          <Badge variant={state.is_published ? 'success' : 'secondary'} className="shrink-0">
+            {state.is_published ? 'Published' : 'Draft'}
+          </Badge>
         </div>
 
         {/* Undo/redo */}

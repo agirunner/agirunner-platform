@@ -301,7 +301,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
       </aside>
 
       <main className="flex-1 overflow-y-auto bg-background pt-12 lg:pt-0">
-        <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 lg:px-8">
+        <div className="px-4 py-4 sm:px-6 lg:px-8">
           <Outlet />
         </div>
       </main>

@@ -93,7 +93,7 @@ export class LogStreamService {
     const result = await this.pool.query<LogRow>(
       `SELECT id, tenant_id, trace_id, span_id, parent_span_id,
               source, category, level, operation, status, duration_ms,
-              metadata, error,
+              payload, error,
               project_id, workflow_id, task_id,
               actor_type, actor_id, actor_name,
               resource_type, resource_id, resource_name,

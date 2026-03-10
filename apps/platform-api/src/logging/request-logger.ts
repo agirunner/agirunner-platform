@@ -59,7 +59,7 @@ export function registerRequestLogger(app: FastifyInstance, logService: LogServi
       operation: `api.${request.method.toLowerCase()}.${normalizeRoute(routePath)}`,
       status: status as 'completed' | 'failed',
       durationMs: duration,
-      metadata: {
+      payload: {
         method: request.method,
         path: request.url,
         route: routePath,

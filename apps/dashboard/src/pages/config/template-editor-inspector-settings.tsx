@@ -172,7 +172,6 @@ export function LifecycleInspector({
     const current: EscalationPolicy = esc ?? {
       enabled: true,
       role: 'orchestrator',
-      task_type: 'orchestration',
       title_template: 'Escalation: {{task_title}}',
     };
     onUpdate({ ...lc, escalation: { ...current, ...patch } });
@@ -258,21 +257,7 @@ export function LifecycleInspector({
               <HelpText>Agent role that receives escalated tasks (e.g. orchestrator, architect).</HelpText>
             </FieldLabel>
 
-            <FieldLabel label="Task Type">
-              <Select
-                value={esc.task_type ?? 'orchestration'}
-                onValueChange={(v) => updateEscalation({ task_type: v as EscalationPolicy['task_type'] })}
-              >
-                <SelectTrigger className="mt-1 h-7 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="orchestration">orchestration — coordinate other tasks</SelectItem>
-                  <SelectItem value="review">review — review and approve work</SelectItem>
-                  <SelectItem value="analysis">analysis — investigate and diagnose</SelectItem>
-                  <SelectItem value="custom">custom — freeform escalation</SelectItem>
-                </SelectContent>
-              </Select>
-              <HelpText>What kind of task the escalation creates.</HelpText>
-            </FieldLabel>
+            <HelpText>Escalation tasks inherit the role specified above. The role determines the agent's system prompt, tools, and model.</HelpText>
 
             <FieldLabel label="Title Template">
               <Input

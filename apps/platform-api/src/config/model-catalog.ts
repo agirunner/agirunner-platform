@@ -63,6 +63,18 @@ const ANTH_SONNET_46: ReasoningConfig = {
 const ANTH_OPUS_45: ReasoningConfig = {
   type: 'effort', options: ['low', 'medium', 'high'], default: 'high',
 };
+const ANTH_SONNET_45: ReasoningConfig = {
+  type: 'effort', options: ['low', 'medium', 'high'], default: 'high',
+};
+const ANTH_OPUS_41: ReasoningConfig = {
+  type: 'effort', options: ['low', 'medium', 'high'], default: 'high',
+};
+const ANTH_SONNET_4: ReasoningConfig = {
+  type: 'effort', options: ['low', 'medium', 'high'], default: 'high',
+};
+const ANTH_OPUS_4: ReasoningConfig = {
+  type: 'effort', options: ['low', 'medium', 'high'], default: 'high',
+};
 
 const GEM_31_PRO: ReasoningConfig = {
   type: 'thinking_level', options: ['low', 'medium', 'high'], default: 'high',
@@ -109,13 +121,13 @@ export const MODEL_CATALOG: Record<string, ModelCatalogEntry> = {
   'gpt-5.3-codex':      m(400000,  128000, 'responses', true, true, 1.75,  14,    OAI_XHIGH),
   'gpt-5.3-codex-spark':m(272000,  128000, 'responses', true, false, null, null,  null),
   /* OpenAI: GPT-5.2 */
-  'gpt-5.2':            m(1050000, 128000, 'responses', true, true, 0.875, 7,     OAI_GPT52_REASONING),
+  'gpt-5.2':            m(1050000, 128000, 'responses', true, true, 1.75,  14,    OAI_GPT52_REASONING),
   'gpt-5.2-pro':        m(1050000, 128000, 'responses', true, true, 10.5,  84,    OAI_XHIGH),
   'gpt-5.2-codex':      m(1050000, 128000, 'responses', true, true, 1.75,  14,    OAI_XHIGH),
   /* OpenAI: GPT-5.1 */
   'gpt-5.1-codex-max':  m(1050000, 128000, 'responses', true, true, 1.25,  10,    OAI_XHIGH),
   'gpt-5.1-codex':      m(1050000, 128000, 'responses', true, true, 1.25,  10,    OAI_O_SERIES),
-  'gpt-5.1':            m(1050000, 128000, 'responses', true, true, 0.625, 5,     OAI_GPT51_REASONING),
+  'gpt-5.1':            m(1050000, 128000, 'responses', true, true, 1.25,  10,    OAI_GPT51_REASONING),
   /* OpenAI: GPT-5 */
   'gpt-5-pro':          m(1050000, 128000, 'responses', true, true, 15,    120,   OAI_GPT5_PRO_REASONING),
   'gpt-5':              m(1050000, 128000, 'responses', true, true, 1.25,  10,    OAI_GPT5_REASONING),
@@ -123,27 +135,46 @@ export const MODEL_CATALOG: Record<string, ModelCatalogEntry> = {
   'gpt-5-mini':         m(400000,  128000, 'responses', true, true, 0.25,  2,     OAI_GPT5_REASONING),
   'gpt-5-nano':         m(1050000, 128000, 'responses', true, true, 0.05,  0.4,   OAI_GPT5_REASONING),
   'gpt-5-codex-mini':   m(262144,  128000, 'responses', true, false, null, null,  OAI_XHIGH),
-  /* OpenAI: GPT-4.x legacy */
+  /* OpenAI: GPT-4.1 */
   'gpt-4.1':            m(1047576, 32768,  'chat-completions', true, true, 2,     8,     null),
-  'gpt-4.1-mini':       m(1047576, 32768,  'chat-completions', true, true, 0.2,   0.8,   null),
+  'gpt-4.1-mini':       m(1047576, 32768,  'chat-completions', true, true, 0.4,   1.6,   null),
   'gpt-4.1-nano':       m(1047576, 32768,  'chat-completions', true, true, 0.1,   0.4,   null),
+  /* OpenAI: GPT-4o */
   'gpt-4o':             m(128000,  16384,  'chat-completions', true, true, 2.5,   10,    null),
   'gpt-4o-mini':        m(128000,  16384,  'chat-completions', true, true, 0.15,  0.6,   null),
+  'chatgpt-4o':         m(128000,  16384,  'chat-completions', true, true, 2.5,   10,    null),
+  /* OpenAI: GPT-4 Turbo / GPT-4 */
+  'gpt-4-turbo':        m(128000,  4096,   'chat-completions', true, true, 10,    30,    null),
+  'gpt-4':              m(8192,    8192,   'chat-completions', true, true, 30,    60,    null),
+  /* OpenAI: GPT-3.5 */
+  'gpt-3.5-turbo':      m(16385,   4096,   'chat-completions', true, false, 0.5,  1.5,   null),
   /* OpenAI: o-series */
+  'o4-mini':            m(200000,  100000, 'responses', true, true, 1.1,   4.4,   OAI_O_SERIES),
   'o3':                 m(200000,  100000, 'responses', true, true, 2,     8,     OAI_O_SERIES),
   'o3-pro':             m(200000,  100000, 'responses', true, true, 20,    80,    OAI_O_SERIES),
-  'o3-mini':            m(200000,  100000, 'responses', true, true, 0.55,  2.2,   OAI_O_SERIES),
-  'o4-mini':            m(200000,  100000, 'responses', true, true, 0.55,  2.2,   OAI_O_SERIES),
+  'o3-mini':            m(200000,  100000, 'responses', true, true, 1.1,   4.4,   OAI_O_SERIES),
+  'o1':                 m(200000,  100000, 'responses', true, true, 15,    60,    OAI_O_SERIES),
+  'o1-pro':             m(200000,  100000, 'responses', true, true, 150,   600,   OAI_O_SERIES),
+  'o1-mini':            m(128000,  65536,  'chat-completions', true, true, 1.1, 4.4, OAI_O_SERIES),
 
   /* Anthropic: Claude 4.6 */
   'claude-opus-4-6':    m(200000,  128000, 'messages', true, true, 5,     25,    ANTH_OPUS_46),
   'claude-sonnet-4-6':  m(200000,  64000,  'messages', true, true, 3,     15,    ANTH_SONNET_46),
   /* Anthropic: Claude 4.5 */
-  'claude-opus-4-5':    m(200000,  128000, 'messages', true, true, 5,     25,    ANTH_OPUS_45),
-  /* Anthropic: Claude 4 / Haiku */
-  'claude-sonnet-4':    m(200000,  64000,  'messages', true, true, 3,     15,    null),
+  'claude-opus-4-5':    m(200000,  64000,  'messages', true, true, 5,     25,    ANTH_OPUS_45),
+  'claude-sonnet-4-5':  m(200000,  64000,  'messages', true, true, 3,     15,    ANTH_SONNET_45),
+  /* Anthropic: Claude 4.1 */
+  'claude-opus-4-1':    m(200000,  32000,  'messages', true, true, 15,    75,    ANTH_OPUS_41),
+  /* Anthropic: Claude 4 */
+  'claude-sonnet-4':    m(200000,  64000,  'messages', true, true, 3,     15,    ANTH_SONNET_4),
+  'claude-opus-4':      m(200000,  32000,  'messages', true, true, 15,    75,    ANTH_OPUS_4),
+  /* Anthropic: Claude 3.x */
   'claude-haiku-4-5':   m(200000,  64000,  'messages', true, true, 1,     5,     null),
-  'claude-3-5-haiku-latest': m(200000, 8192, 'messages', true, true, 0.8,  4,     null),
+  'claude-3-5-sonnet':  m(200000,  8192,   'messages', true, true, 3,     15,    null),
+  'claude-3-5-haiku':   m(200000,  8192,   'messages', true, true, 0.8,   4,     null),
+  'claude-3-opus':      m(200000,  4096,   'messages', true, true, 15,    75,    null),
+  'claude-3-sonnet':    m(200000,  4096,   'messages', true, true, 3,     15,    null),
+  'claude-3-haiku':     m(200000,  4096,   'messages', true, true, 0.25,  1.25,  null),
 
   /* Google: Gemini 3.x */
   'gemini-3.1-pro-preview':       m(1048576, 65536, 'generate-content', true, true, 2,    12,   GEM_31_PRO),

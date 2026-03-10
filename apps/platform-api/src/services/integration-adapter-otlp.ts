@@ -138,7 +138,7 @@ function buildAttributes(event: StreamEvent, workflowId: string | null) {
   const attributes = [
     { key: 'agirunner.workflow.id', value: { stringValue: workflowId ?? '' } },
     { key: 'agirunner.task.id', value: { stringValue: event.entity_type === 'task' ? event.entity_id : '' } },
-    { key: 'agirunner.task.type', value: { stringValue: readStringField(event.data, 'task_type') ?? '' } },
+    { key: 'agirunner.task.role', value: { stringValue: readStringField(event.data, 'role') ?? '' } },
     { key: 'agirunner.task.state', value: { stringValue: readStringField(event.data, 'to_state') ?? '' } },
     { key: 'agirunner.agent.id', value: { stringValue: readStringField(event.data, 'agent_id') ?? '' } },
     {

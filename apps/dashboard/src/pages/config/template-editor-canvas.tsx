@@ -23,7 +23,6 @@ import type {
   TemplateSchema,
   TemplateTaskDefinition,
   WorkflowPhaseDefinition,
-  TaskType,
 } from './template-editor-types.js';
 import {
   createEmptyPhase,
@@ -49,21 +48,13 @@ interface CanvasProps {
 // Visual mode: build ReactFlow nodes/edges from schema
 // ---------------------------------------------------------------------------
 
-const PHASE_WIDTH = 260;
-const PHASE_GAP = 50;
 const TASK_HEIGHT = 56;
 const TASK_GAP = 8;
-const TASK_X = 16;
+const TASK_PADDING = 16;
+const PARALLEL_TASK_WIDTH = 160;
+const SEQUENTIAL_TASK_WIDTH = 228;
+const PHASE_HEADER = 44;
 
-const TASK_TYPE_ICONS: Record<TaskType, string> = {
-  analysis: '\u{1F50D}',
-  code: '\u{1F4BB}',
-  review: '\u{1F4DD}',
-  test: '\u{2705}',
-  docs: '\u{1F4D6}',
-  orchestration: '\u{1F3AF}',
-  custom: '\u{2699}',
-};
 
 function buildNodes(
   phases: WorkflowPhaseDefinition[],
@@ -76,15 +67,49 @@ function buildNodes(
 
   for (const phase of phases) {
     const phaseTasks = phase.tasks.map((id) => taskMap.get(id)).filter(Boolean) as TemplateTaskDefinition[];
-    const phaseHeight = Math.max(120, 56 + phaseTasks.length * (TASK_HEIGHT + TASK_GAP) + 20);
     const isPhaseSelected = selectedItem.kind === 'phase' && selectedItem.phaseName === phase.name;
+    const phaseTaskIds = new Set(phase.tasks);
+
+    // Build DAG rows: assign each task a row based on its longest dependency chain depth
+    // Tasks with no intra-phase deps go to row 0 (parallel). Tasks depending on row-0 tasks
+    // go to row 1, etc. Tasks in the same row are parallel with each other.
+    const rowOf = new Map<string, number>();
+    function getRow(taskId: string, visited: Set<string>): number {
+      if (rowOf.has(taskId)) return rowOf.get(taskId)!;
+      if (visited.has(taskId)) return 0; // cycle guard
+      visited.add(taskId);
+      const task = taskMap.get(taskId);
+      const internalDeps = (task?.depends_on ?? []).filter((d) => phaseTaskIds.has(d));
+      const row = internalDeps.length === 0
+        ? 0
+        : Math.max(...internalDeps.map((d) => getRow(d, visited))) + 1;
+      rowOf.set(taskId, row);
+      return row;
+    }
+    for (const t of phaseTasks) getRow(t.id, new Set());
+
+    // Group tasks by row
+    const rows: TemplateTaskDefinition[][] = [];
+    for (const t of phaseTasks) {
+      const r = rowOf.get(t.id) ?? 0;
+      while (rows.length <= r) rows.push([]);
+      rows[r].push(t);
+    }
+
+    // Calculate phase dimensions from the row layout
+    const maxCols = Math.max(1, ...rows.map((r) => r.length));
+    const numRows = rows.length;
+    const taskW = maxCols > 1 ? PARALLEL_TASK_WIDTH : SEQUENTIAL_TASK_WIDTH;
+    const phaseWidth = Math.max(260, TASK_PADDING * 2 + maxCols * taskW + Math.max(0, maxCols - 1) * TASK_GAP);
+    const phaseHeight = Math.max(120, PHASE_HEADER + numRows * (TASK_HEIGHT + TASK_GAP) + 12);
 
     nodes.push({
       id: `phase:${phase.name}`,
       type: 'group',
       position: { x: xOffset, y: 0 },
+      draggable: false,
       style: {
-        width: PHASE_WIDTH,
+        width: phaseWidth,
         height: phaseHeight,
         backgroundColor: isPhaseSelected
           ? 'rgba(37, 99, 235, 0.08)'
@@ -95,46 +120,53 @@ function buildNodes(
         borderRadius: '10px',
         padding: '8px',
       },
-      data: { label: `${phase.name}\n${phase.gate === 'none' ? '' : phase.gate}${phase.parallel ? ' \u2016 parallel' : ' \u2192 sequential'}` },
+      data: { label: `${phase.name}${phase.gate === 'manual' ? '\n\u{1F6D1} manual gate' : ''}` },
     });
 
-    phaseTasks.forEach((task, i) => {
-      const isTaskSelected = selectedItem.kind === 'task' && selectedItem.taskId === task.id;
-      const icon = TASK_TYPE_ICONS[task.type] ?? '';
-      const secondaryParts: string[] = [];
-      if (task.role) secondaryParts.push(task.role);
-      secondaryParts.push(task.type);
-      if (task.requires_approval) secondaryParts.push('\u2705');
-      const secondary = secondaryParts.join(' \u00B7 ');
+    for (let row = 0; row < rows.length; row++) {
+      const rowTasks = rows[row];
+      // Center the row's tasks within the phase width
+      const rowWidth = rowTasks.length * taskW + Math.max(0, rowTasks.length - 1) * TASK_GAP;
+      const rowStartX = Math.max(TASK_PADDING, (phaseWidth - rowWidth) / 2);
 
-      nodes.push({
-        id: `task:${task.id}`,
-        position: { x: TASK_X, y: 44 + i * (TASK_HEIGHT + TASK_GAP) },
-        parentId: `phase:${phase.name}`,
-        extent: 'parent' as const,
-        data: {
-          label: `${icon} ${task.title_template || task.id}\n${secondary}`,
-          role: task.role,
-          type: task.type,
-          icon,
-        },
-        style: {
-          width: PHASE_WIDTH - TASK_X * 2,
-          padding: '6px 10px',
-          backgroundColor: isTaskSelected ? 'rgba(37, 99, 235, 0.06)' : '#ffffff',
-          border: isTaskSelected
-            ? '2px solid rgba(37, 99, 235, 0.5)'
-            : '1px solid #e5e7eb',
-          borderRadius: '8px',
-          fontSize: '11px',
-          lineHeight: '1.4',
-          whiteSpace: 'pre-line',
-          cursor: 'pointer',
-        },
+      rowTasks.forEach((task, col) => {
+        const isTaskSelected = selectedItem.kind === 'task' && selectedItem.taskId === task.id;
+        const secondaryParts: string[] = [];
+        if (task.role) secondaryParts.push(task.role);
+        if (task.requires_approval) secondaryParts.push('\u2705');
+        const secondary = secondaryParts.join(' \u00B7 ');
+
+        nodes.push({
+          id: `task:${task.id}`,
+          position: {
+            x: rowStartX + col * (taskW + TASK_GAP),
+            y: PHASE_HEADER + row * (TASK_HEIGHT + TASK_GAP),
+          },
+          parentId: `phase:${phase.name}`,
+          extent: 'parent' as const,
+          draggable: false,
+          data: {
+            label: `${task.title_template || task.id}\n${secondary}`,
+            role: task.role,
+          },
+          style: {
+            width: taskW,
+            padding: '6px 10px',
+            backgroundColor: isTaskSelected ? 'rgba(37, 99, 235, 0.06)' : '#ffffff',
+            border: isTaskSelected
+              ? '2px solid rgba(37, 99, 235, 0.5)'
+              : '1px solid #e5e7eb',
+            borderRadius: '8px',
+            fontSize: '11px',
+            lineHeight: '1.4',
+            whiteSpace: 'pre-line',
+            cursor: 'pointer',
+          },
+        });
       });
-    });
+    }
 
-    xOffset += PHASE_WIDTH + PHASE_GAP;
+    xOffset += phaseWidth + 50;
   }
 
   return nodes;
@@ -149,6 +181,7 @@ function buildEdges(tasks: TemplateTaskDefinition[]): Edge[] {
         source: `task:${dep}`,
         target: `task:${task.id}`,
         animated: true,
+        selectable: true,
         style: { stroke: '#2563eb', strokeWidth: 1.5 },
       });
     }
@@ -163,7 +196,7 @@ function buildEdges(tasks: TemplateTaskDefinition[]): Edge[] {
 interface ContextMenuState {
   x: number;
   y: number;
-  type: 'task' | 'phase' | 'canvas';
+  type: 'task' | 'phase' | 'canvas' | 'edge';
   id: string;
 }
 
@@ -197,12 +230,34 @@ function VisualCanvasInner({
   }, [phases, tasks, selected]);
 
   const onNodesChange = useCallback(
-    (changes: NodeChange[]) => setNodes((nds) => applyNodeChanges(changes, nds)),
+    (changes: NodeChange[]) => {
+      // Filter out position changes — nodes use fixed auto-layout
+      const filtered = changes.filter((c) => c.type !== 'position');
+      if (filtered.length > 0) setNodes((nds) => applyNodeChanges(filtered, nds));
+    },
     [],
   );
   const onEdgesChange = useCallback(
-    (changes: EdgeChange[]) => setEdges((eds) => applyEdgeChanges(changes, eds)),
-    [],
+    (changes: EdgeChange[]) => {
+      // When edges are removed (via selection + Delete), update the schema
+      const removals = changes.filter((c) => c.type === 'remove');
+      if (removals.length > 0) {
+        const removedIds = new Set(removals.map((c) => c.id));
+        onSchemaChange((s) => ({
+          ...s,
+          tasks: (s.tasks ?? []).map((t) => {
+            const updated = (t.depends_on ?? []).filter(
+              (dep) => !removedIds.has(`edge:${dep}->${t.id}`),
+            );
+            return updated.length === (t.depends_on ?? []).length
+              ? t
+              : { ...t, depends_on: updated.length > 0 ? updated : undefined };
+          }),
+        }));
+      }
+      setEdges((eds) => applyEdgeChanges(changes, eds));
+    },
+    [onSchemaChange],
   );
 
   const onConnect = useCallback(
@@ -210,6 +265,20 @@ function VisualCanvasInner({
       if (!connection.source || !connection.target) return;
       const sourceId = connection.source.replace('task:', '');
       const targetId = connection.target.replace('task:', '');
+      // Self-loop
+      if (sourceId === targetId) return;
+      // Check if adding this edge would create a cycle:
+      // We're adding targetId depends_on sourceId. A cycle exists if
+      // sourceId already transitively depends on targetId.
+      const reachable = (from: string, goal: string, visited: Set<string>): boolean => {
+        if (from === goal) return true;
+        if (visited.has(from)) return false;
+        visited.add(from);
+        const t = tasks.find((task) => task.id === from);
+        return (t?.depends_on ?? []).some((dep) => reachable(dep, goal, visited));
+      };
+      if (reachable(sourceId, targetId, new Set())) return;
+
       onSchemaChange((s) => ({
         ...s,
         tasks: (s.tasks ?? []).map((t) =>
@@ -219,7 +288,7 @@ function VisualCanvasInner({
         ),
       }));
     },
-    [onSchemaChange],
+    [onSchemaChange, tasks],
   );
 
   const handleNodeClick = useCallback(
@@ -280,6 +349,14 @@ function VisualCanvasInner({
     [],
   );
 
+  const handleEdgeContextMenu = useCallback(
+    (e: React.MouseEvent, edge: Edge) => {
+      e.preventDefault();
+      setContextMenu({ x: e.clientX, y: e.clientY, type: 'edge', id: edge.id });
+    },
+    [],
+  );
+
   const handlePaneContextMenu = useCallback(
     (e: MouseEvent | React.MouseEvent) => {
       e.preventDefault();
@@ -335,36 +412,51 @@ function VisualCanvasInner({
     setRenaming(null);
   }, [renaming, onSchemaChange, onSelect]);
 
-  // Delete handler
+  // Delete handler — only for nodes (task/phase); edge deletion handled by onEdgesChange
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selected.kind === 'task') {
-          onSchemaChange((s) => ({
-            ...s,
-            tasks: (s.tasks ?? []).filter((t) => t.id !== selected.taskId),
-            workflow: {
-              ...s.workflow,
-              phases: (s.workflow?.phases ?? []).map((p) => ({
-                ...p,
-                tasks: p.tasks.filter((id) => id !== selected.taskId),
-              })),
-            },
-          }));
-          onSelect({ kind: 'template' });
-        } else if (selected.kind === 'phase') {
-          const phase = phases.find((p) => p.name === selected.phaseName);
-          const phaseTaskIds = new Set(phase?.tasks ?? []);
-          onSchemaChange((s) => ({
-            ...s,
-            tasks: (s.tasks ?? []).filter((t) => !phaseTaskIds.has(t.id)),
-            workflow: {
-              ...s.workflow,
-              phases: (s.workflow?.phases ?? []).filter((p) => p.name !== selected.phaseName),
-            },
-          }));
-          onSelect({ kind: 'template' });
-        }
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      if (selected.kind === 'task') {
+        // Also remove this task from other tasks' depends_on
+        const taskId = selected.taskId;
+        onSchemaChange((s) => ({
+          ...s,
+          tasks: (s.tasks ?? [])
+            .filter((t) => t.id !== taskId)
+            .map((t) => {
+              const deps = (t.depends_on ?? []).filter((d) => d !== taskId);
+              return deps.length === (t.depends_on ?? []).length
+                ? t
+                : { ...t, depends_on: deps.length > 0 ? deps : undefined };
+            }),
+          workflow: {
+            ...s.workflow,
+            phases: (s.workflow?.phases ?? []).map((p) => ({
+              ...p,
+              tasks: p.tasks.filter((id) => id !== taskId),
+            })),
+          },
+        }));
+        onSelect({ kind: 'template' });
+      } else if (selected.kind === 'phase') {
+        const phase = phases.find((p) => p.name === selected.phaseName);
+        const phaseTaskIds = new Set(phase?.tasks ?? []);
+        onSchemaChange((s) => ({
+          ...s,
+          tasks: (s.tasks ?? [])
+            .filter((t) => !phaseTaskIds.has(t.id))
+            .map((t) => {
+              const deps = (t.depends_on ?? []).filter((d) => !phaseTaskIds.has(d));
+              return deps.length === (t.depends_on ?? []).length
+                ? t
+                : { ...t, depends_on: deps.length > 0 ? deps : undefined };
+            }),
+          workflow: {
+            ...s.workflow,
+            phases: (s.workflow?.phases ?? []).filter((p) => p.name !== selected.phaseName),
+          },
+        }));
+        onSelect({ kind: 'template' });
       }
     },
     [selected, phases, onSchemaChange, onSelect],
@@ -381,11 +473,12 @@ function VisualCanvasInner({
         onNodeClick={handleNodeClick}
         onNodeDoubleClick={handleNodeDoubleClick}
         onNodeContextMenu={handleNodeContextMenu}
+        onEdgeContextMenu={handleEdgeContextMenu}
         onPaneClick={handlePaneClick}
         onPaneContextMenu={handlePaneContextMenu}
         fitView
         proOptions={{ hideAttribution: true }}
-        deleteKeyCode={null}
+        deleteKeyCode="Delete"
       >
         {showGrid && <Background />}
         <Controls />
@@ -544,6 +637,32 @@ function VisualCanvasInner({
                 }}
               ><Trash2 className="h-3 w-3" />Delete Phase</button>
             </>
+          )}
+          {contextMenu.type === 'edge' && (
+            <button
+              type="button"
+              className="w-full text-left px-3 py-1.5 hover:bg-border/30 flex items-center gap-2 text-red-600"
+              onClick={() => {
+                const edgeId = contextMenu.id;
+                // Parse edge id: "edge:sourceId->targetId"
+                const match = edgeId.match(/^edge:(.+)->(.+)$/);
+                if (match) {
+                  const [, sourceId, targetId] = match;
+                  onSchemaChange((s) => ({
+                    ...s,
+                    tasks: (s.tasks ?? []).map((t) =>
+                      t.id === targetId
+                        ? {
+                            ...t,
+                            depends_on: (t.depends_on ?? []).filter((d) => d !== sourceId),
+                          }
+                        : t,
+                    ),
+                  }));
+                }
+                setContextMenu(null);
+              }}
+            ><Trash2 className="h-3 w-3" />Remove dependency</button>
           )}
           {contextMenu.type === 'canvas' && (
             <>

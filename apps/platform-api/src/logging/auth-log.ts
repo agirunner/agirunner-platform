@@ -16,6 +16,7 @@ export interface AuthEventInput {
   actorType: string;
   actorId: string;
   actorName: string;
+  payload?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 }
 
@@ -31,7 +32,7 @@ export async function logAuthEvent(logService: LogService, event: AuthEventInput
     level: isFailed ? 'warn' : 'info',
     operation: `auth.${event.type}`,
     status: isFailed ? 'failed' : 'completed',
-    metadata: { auth_method: event.method, ...event.metadata },
+    payload: { auth_method: event.method, ...event.payload },
     actorType: event.actorType,
     actorId: event.actorId,
     actorName: event.actorName,

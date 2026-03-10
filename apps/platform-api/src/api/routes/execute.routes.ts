@@ -5,7 +5,6 @@ import { shouldRejectImpossibleScopeTask } from '../../validation/impossible-sco
 interface ExecuteRequestBody {
   task_id?: unknown;
   title?: unknown;
-  type?: unknown;
   input?: unknown;
   context?: unknown;
 }
@@ -35,24 +34,13 @@ function readString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 }
 
-function mapTaskTypeToRole(taskType: string | undefined): string | undefined {
-  if (!taskType) return undefined;
-  if (taskType === 'analysis') return 'architect';
-  if (taskType === 'code') return 'developer';
-  if (taskType === 'review') return 'reviewer';
-  if (taskType === 'test') return 'qa';
-  if (taskType === 'docs') return 'reviewer';
-  return taskType;
-}
-
 function deriveRole(payload: ExecuteRequestBody): string {
   const context = asRecord(payload.context);
   const task = asRecord(context.task);
 
   return (
-    mapTaskTypeToRole(readString(task.role)) ??
-    mapTaskTypeToRole(readString(context.role)) ??
-    mapTaskTypeToRole(readString(payload.type)) ??
+    readString(task.role) ??
+    readString(context.role) ??
     'developer'
   );
 }
@@ -325,7 +313,6 @@ async function buildExecutionBackedOutput(
     '',
     `Role: ${deriveRole(payload)}`,
     `Task title: ${readString(payload.title) ?? 'untitled'}`,
-    `Task type: ${readString(payload.type) ?? 'task'}`,
     `Task input: ${safeStringify(payload.input)}`,
     `Task context: ${safeStringify(payload.context)}`,
   ].join('\n');

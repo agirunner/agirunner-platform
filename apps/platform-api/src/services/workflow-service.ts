@@ -14,6 +14,7 @@ import { WorkflowCreationService } from './workflow-creation-service.js';
 import { EventService } from './event-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
 import { ProjectTimelineService } from './project-timeline-service.js';
+import type { LogService } from '../logging/log-service.js';
 import type { WorkerConnectionHub } from './worker-connection-hub.js';
 import type {
   CreateWorkflowInput,
@@ -32,6 +33,7 @@ export class WorkflowService {
     private readonly eventService: EventService,
     config: WorkflowServiceConfig,
     connectionHub?: WorkerConnectionHub,
+    logService?: LogService,
   ) {
     this.projectTimelineService = new ProjectTimelineService(pool);
     const artifactRetentionService = new ArtifactRetentionService(
@@ -43,6 +45,7 @@ export class WorkflowService {
       eventService,
       artifactRetentionService,
       this.projectTimelineService,
+      logService,
     );
     this.creationService = new WorkflowCreationService({
       pool,

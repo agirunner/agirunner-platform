@@ -13,7 +13,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 import { agents } from './agents.js';
-import { taskPriorityEnum, taskStateEnum, taskTypeEnum } from './enums.js';
+import { taskPriorityEnum, taskStateEnum } from './enums.js';
 import { workflows } from './workflows.js';
 import { projects } from './projects.js';
 import { tenants } from './tenants.js';
@@ -29,7 +29,6 @@ export const tasks = pgTable(
     workflowId: uuid('workflow_id').references(() => workflows.id),
     projectId: uuid('project_id').references(() => projects.id),
     title: text('title').notNull(),
-    type: taskTypeEnum('type').notNull().default('custom'),
     role: text('role'),
     priority: taskPriorityEnum('priority').notNull().default('normal'),
     state: taskStateEnum('state').notNull().default('pending'),

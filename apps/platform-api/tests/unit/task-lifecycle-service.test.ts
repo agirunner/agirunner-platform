@@ -371,7 +371,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
                     escalation: {
                       enabled: true,
                       role: 'orchestrator',
-                      task_type: 'orchestration',
+
                       title_template: 'Escalation: {{task_title}}',
                     },
                   },
@@ -411,7 +411,6 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
             escalation: {
               enabled: true,
               role: 'orchestrator',
-              task_type: 'orchestration',
               title_template: 'Escalation: {{task_title}}',
             },
           },
@@ -621,7 +620,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
                     escalation: {
                       enabled: true,
                       role: 'orchestrator',
-                      task_type: 'orchestration',
+
                       title_template: 'Escalation: {{task_title}}',
                     },
                   },
@@ -662,7 +661,6 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
             escalation: {
               enabled: true,
               role: 'orchestrator',
-              task_type: 'orchestration',
               title_template: 'Escalation: {{task_title}}',
             },
           },
@@ -688,7 +686,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
 
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO tasks'),
-      expect.arrayContaining(['Escalation: Compile', 'orchestration', 'orchestrator']),
+      expect.arrayContaining(['Escalation: Compile', 'orchestrator']),
     );
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'task.escalated' }),

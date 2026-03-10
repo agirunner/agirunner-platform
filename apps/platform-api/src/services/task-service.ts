@@ -13,6 +13,7 @@ import { ProjectTimelineService } from './project-timeline-service.js';
 import { TaskQueryService } from './task-query-service.js';
 import { TaskTimeoutService } from './task-timeout-service.js';
 import type { CreateTaskInput, ListTaskQuery, TaskServiceConfig } from './task-service.types.js';
+import type { LogService } from '../logging/log-service.js';
 import type { WorkerConnectionHub } from './worker-connection-hub.js';
 import { TaskWriteService } from './task-write-service.js';
 import { OrchestratorGrantService } from './orchestrator-grant-service.js';
@@ -28,6 +29,7 @@ export class TaskService {
     eventService: EventService,
     config: TaskServiceConfig,
     connectionHub?: WorkerConnectionHub,
+    logService?: LogService,
   ) {
     const cancelSignalGracePeriodMs =
       config.TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS ?? DEFAULT_CANCEL_SIGNAL_GRACE_PERIOD_MS;
@@ -126,6 +128,7 @@ export class TaskService {
       eventService,
       artifactRetentionService,
       projectTimelineService,
+      logService,
     );
     this.lifecycleService = new TaskLifecycleService({
       pool,

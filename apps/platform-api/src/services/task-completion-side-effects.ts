@@ -119,7 +119,7 @@ export async function applyTaskCompletionSideEffects(
 
   await advanceWorkflowWorkflow(eventService, identity, String(task.workflow_id), client);
 
-  const contextKey = (task.role as string | null) || (task.type as string);
+  const contextKey = (task.role as string | null) || 'default';
   await client.query(
     `UPDATE workflows
      SET context = jsonb_set(context, $2::text[], $3::jsonb, true),

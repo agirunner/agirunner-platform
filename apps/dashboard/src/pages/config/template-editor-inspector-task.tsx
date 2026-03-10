@@ -14,14 +14,15 @@ import {
 } from '../../components/ui/select.js';
 import { Switch } from '../../components/ui/switch.js';
 import { Trash2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { dashboardApi } from '../../lib/api.js';
 import type {
   TemplateTaskDefinition,
   LifecyclePolicy,
-  TaskType,
   OutputStateDeclaration,
   OutputStorageMode,
 } from './template-editor-types.js';
-import { TASK_TYPES, OUTPUT_STORAGE_MODES } from './template-editor-types.js';
+import { OUTPUT_STORAGE_MODES } from './template-editor-types.js';
 import {
   HelpText,
   FieldLabel,
@@ -51,6 +52,11 @@ export function TaskInspector({
   onDuplicate: () => void;
 }) {
   const otherTasks = allTasks.filter((t) => t.id !== task.id);
+  const { data: roles } = useQuery({
+    queryKey: ['role-definitions'],
+    queryFn: () => dashboardApi.listRoleDefinitions(),
+    staleTime: 60_000,
+  });
 
   return (
     <div className="space-y-4">
@@ -77,26 +83,16 @@ export function TaskInspector({
         <HelpText>Display name. Supports {'{{variable}}'} substitution from template variables.</HelpText>
       </FieldLabel>
 
-      <FieldLabel label="Type">
-        <Select value={task.type} onValueChange={(v) => onUpdate({ ...task, type: v as TaskType })}>
-          <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+      <FieldLabel label="Role">
+        <Select value={task.role ?? ''} onValueChange={(v) => onUpdate({ ...task, role: v || undefined })}>
+          <SelectTrigger className="mt-1"><SelectValue placeholder="Select role..." /></SelectTrigger>
           <SelectContent>
-            {TASK_TYPES.map((t) => (
-              <SelectItem key={t} value={t}>{t}</SelectItem>
+            {(roles ?? []).map((r: { name: string }) => (
+              <SelectItem key={r.name} value={r.name}>{r.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <HelpText>Determines which agent capabilities are used: analysis, code, review, test, docs, orchestration, or custom.</HelpText>
-      </FieldLabel>
-
-      <FieldLabel label="Role">
-        <Input
-          value={task.role ?? ''}
-          onChange={(e) => onUpdate({ ...task, role: e.target.value || undefined })}
-          placeholder="e.g. developer"
-          className="mt-1"
-        />
-        <HelpText>Agent role assigned to execute this task (e.g. developer, architect, reviewer).</HelpText>
+        <HelpText>Agent role assigned to execute this task. Defines system prompt, tools, and model.</HelpText>
       </FieldLabel>
 
       {/* Dependencies */}

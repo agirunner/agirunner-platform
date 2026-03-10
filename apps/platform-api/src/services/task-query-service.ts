@@ -35,7 +35,6 @@ export class TaskQueryService {
 
     const arrayFilters: Array<[string | undefined, string]> = [
       [query.state, 'state = ANY($%s::task_state[])'],
-      [query.type, 'type = ANY($%s::task_type[])'],
     ];
     for (const [filter, template] of arrayFilters) {
       if (!filter) continue;

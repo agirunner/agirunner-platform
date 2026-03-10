@@ -393,13 +393,12 @@ export class IntegrationAdapterService {
     const result = await this.pool.query<{
       id: string;
       title: string;
-      type: string;
       state: string;
       priority: string;
       workflow_id: string | null;
       input: Record<string, unknown> | null;
     }>(
-      `SELECT id, title, type, state, priority, workflow_id, input
+      `SELECT id, title, state, priority, workflow_id, input
        FROM tasks
        WHERE tenant_id = $1 AND id = $2`,
       [tenantId, taskId],
@@ -413,7 +412,6 @@ export class IntegrationAdapterService {
     return {
       id: row.id,
       title: row.title,
-      type: row.type,
       state: row.state,
       priority: row.priority,
       workflowId: row.workflow_id,

@@ -10,11 +10,8 @@
  */
 
 // ---------------------------------------------------------------------------
-// Task types
+// Task definitions
 // ---------------------------------------------------------------------------
-
-export type TaskType = 'analysis' | 'code' | 'review' | 'test' | 'docs' | 'orchestration' | 'custom';
-export const TASK_TYPES: TaskType[] = ['analysis', 'code', 'review', 'test', 'docs', 'orchestration', 'custom'];
 
 export type OutputStorageMode = 'inline' | 'artifact' | 'git' | 'diff';
 export const OUTPUT_STORAGE_MODES: OutputStorageMode[] = ['inline', 'artifact', 'git', 'diff'];
@@ -29,7 +26,6 @@ export interface OutputStateDeclaration {
 export interface TemplateTaskDefinition {
   id: string;
   title_template: string;
-  type: TaskType;
   role?: string;
   depends_on?: string[];
   blocked_by?: string[];
@@ -97,7 +93,6 @@ export interface RetryPolicy {
 
 export interface EscalationPolicy {
   role: string;
-  task_type: 'orchestration' | 'review' | 'analysis' | 'custom';
   title_template: string;
   instructions?: string;
   enabled: boolean;
@@ -217,7 +212,6 @@ export function createEmptyTask(phaseIndex: number, taskIndex: number): Template
   return {
     id: `task_${phaseIndex + 1}_${taskIndex + 1}`,
     title_template: 'New Task',
-    type: 'code',
     role: 'developer',
   };
 }

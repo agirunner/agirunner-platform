@@ -23,7 +23,7 @@ describe('worker config file support (FR-294)', () => {
           heartbeatIntervalSeconds: 15,
           reconnect: { minMs: 1000, maxMs: 4000 },
         },
-        taskFilter: { projectId: 'project-alpha', taskTypes: ['code', 'test'] },
+        taskFilter: { projectId: 'project-alpha',  },
         logging: { level: 'debug' },
       }),
       'utf8',
@@ -41,7 +41,7 @@ describe('worker config file support (FR-294)', () => {
         heartbeatIntervalSeconds: 15,
         reconnect: { minMs: 1000, maxMs: 4000 },
       },
-      taskFilter: { projectId: 'project-alpha', taskTypes: ['code', 'test'] },
+      taskFilter: { projectId: 'project-alpha',  },
       logging: { level: 'debug' },
     });
   });
@@ -68,7 +68,7 @@ describe('environment override precedence (FR-295)', () => {
         capabilities: ['file-capability'],
         toolTags: { required: ['file-required'], optional: ['file-optional'] },
         connection: { mode: 'polling', heartbeatIntervalSeconds: 30, reconnect: { minMs: 500, maxMs: 2000 } },
-        taskFilter: { projectId: 'project-file', taskTypes: ['analysis'] },
+        taskFilter: { projectId: 'project-file',  },
         logging: { level: 'warn' },
       }),
       'utf8',
@@ -88,7 +88,7 @@ describe('environment override precedence (FR-295)', () => {
         AGIRUNNER_WORKER_RECONNECT_MIN_MS: '1500',
         AGIRUNNER_WORKER_RECONNECT_MAX_MS: '3500',
         AGIRUNNER_WORKER_FILTER_PROJECT_ID: 'project-env',
-        AGIRUNNER_WORKER_FILTER_TASK_TYPES: 'code,test',
+
         AGIRUNNER_WORKER_LOG_LEVEL: 'error',
       },
     });
@@ -103,7 +103,7 @@ describe('environment override precedence (FR-295)', () => {
         heartbeatIntervalSeconds: 12,
         reconnect: { minMs: 1500, maxMs: 3500 },
       },
-      taskFilter: { projectId: 'project-env', taskTypes: ['code', 'test'] },
+      taskFilter: { projectId: 'project-env',  },
       logging: { level: 'error' },
     });
   });

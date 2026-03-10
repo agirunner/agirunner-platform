@@ -13,15 +13,6 @@ export const taskStateEnum = pgEnum('task_state', [
 ]);
 
 export const taskPriorityEnum = pgEnum('task_priority', ['critical', 'high', 'normal', 'low']);
-export const taskTypeEnum = pgEnum('task_type', [
-  'analysis',
-  'code',
-  'review',
-  'test',
-  'docs',
-  'orchestration',
-  'custom',
-]);
 
 export const agentStatusEnum = pgEnum('agent_status', [
   'active',

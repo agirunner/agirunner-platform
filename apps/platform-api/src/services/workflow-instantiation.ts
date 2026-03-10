@@ -135,11 +135,11 @@ export async function insertTaskFromTemplate(params: {
 
   const created = await client.query(
     `INSERT INTO tasks (
-      id, tenant_id, workflow_id, project_id, title, type, role, state, depends_on,
+      id, tenant_id, workflow_id, project_id, title, role, state, depends_on,
       requires_approval, input, context, capabilities_required, role_config, environment,
       timeout_minutes, auto_retry, max_retries, metadata
     ) VALUES (
-      $1,$2,$3,$4,$5,$6,$7,$8,$9::uuid[],$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
+      $1,$2,$3,$4,$5,$6,$7,$8::uuid[],$9,$10,$11,$12,$13,$14,$15,$16,$17,$18
     ) RETURNING *`,
     [
       taskId,
@@ -147,7 +147,6 @@ export async function insertTaskFromTemplate(params: {
       workflowId,
       projectId ?? null,
       title,
-      task.type,
       task.role ?? task.id,
       initialState,
       dependsOn,

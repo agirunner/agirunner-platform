@@ -1018,7 +1018,6 @@ interface AddTaskPayload {
   name: string;
   phase: string;
   role: string;
-  task_type: string;
   input_template: string;
   dependencies: string[];
 }
@@ -1040,7 +1039,6 @@ function AddTaskDialog({
   const [taskName, setTaskName] = useState('');
   const [selectedPhase, setSelectedPhase] = useState('');
   const [role, setRole] = useState('');
-  const [taskType, setTaskType] = useState('');
   const [inputTemplate, setInputTemplate] = useState('');
   const [selectedDeps, setSelectedDeps] = useState<string[]>([]);
 
@@ -1074,7 +1072,6 @@ function AddTaskDialog({
     setTaskName('');
     setSelectedPhase('');
     setRole('');
-    setTaskType('');
     setInputTemplate('');
     setSelectedDeps([]);
   }
@@ -1091,7 +1088,6 @@ function AddTaskDialog({
       name: taskName.trim(),
       phase: selectedPhase,
       role,
-      task_type: taskType,
       input_template: inputTemplate,
       dependencies: selectedDeps,
     });
@@ -1141,15 +1137,6 @@ function AddTaskDialog({
               placeholder="e.g. developer, reviewer"
               value={role}
               onChange={(e) => setRole(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Task Type</label>
-            <Input
-              placeholder="e.g. code, review, test"
-              value={taskType}
-              onChange={(e) => setTaskType(e.target.value)}
             />
           </div>
 

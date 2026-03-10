@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: parseLogLevel()}))
 
 	cfg := manager.Config{
 		PlatformAPIURL:      envOrDefault("PLATFORM_API_URL", "http://platform-api:8080"),
@@ -117,6 +117,19 @@ func parseIntWithAlias(primary, fallback string, defaultValue int) int {
 		}
 	}
 	return parseInt(fallback, defaultValue)
+}
+
+func parseLogLevel() slog.Level {
+	switch strings.ToLower(os.Getenv("LOG_LEVEL")) {
+	case "debug":
+		return slog.LevelDebug
+	case "warn", "warning":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
 }
 
 func parseDuration(envKey string, defaultSeconds int) time.Duration {

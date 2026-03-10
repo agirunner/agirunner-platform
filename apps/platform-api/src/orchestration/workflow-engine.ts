@@ -277,15 +277,6 @@ function validateTaskContainerConfig(
   return config;
 }
 
-const allowedTaskTypes = new Set([
-  'analysis',
-  'code',
-  'review',
-  'test',
-  'docs',
-  'orchestration',
-  'custom',
-]);
 const allowedOutputStorageModes = new Set<OutputStorageMode>(['inline', 'artifact', 'git', 'diff']);
 
 export function deriveWorkflowState(taskStates: string[]): WorkflowState {
@@ -457,11 +448,6 @@ export function validateTemplateSchema(input: unknown): TemplateSchema {
     if (typeof rawTask.title_template !== 'string' || !rawTask.title_template.trim()) {
       throw new SchemaValidationFailedError(
         `Task '${rawTask.id}' is missing required string field 'title_template'`,
-      );
-    }
-    if (typeof rawTask.type !== 'string' || !allowedTaskTypes.has(rawTask.type)) {
-      throw new SchemaValidationFailedError(
-        `Task '${rawTask.id}' has invalid type '${String(rawTask.type)}'`,
       );
     }
     if (rawTask.depends_on !== undefined && !Array.isArray(rawTask.depends_on)) {

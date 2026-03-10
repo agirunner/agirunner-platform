@@ -19,7 +19,6 @@ describe('a2a service mapping', () => {
     ).toEqual(
       expect.objectContaining({
         title: 'Review spec',
-        type: 'review',
         capabilities_required: ['docs'],
         metadata: {
           source: 'a2a-client',

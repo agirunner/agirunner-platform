@@ -33,7 +33,6 @@ export interface GitHubIssueLink {
 export interface TaskIssueSnapshot {
   id: string;
   title: string;
-  type: string;
   state: string;
   priority: string;
   workflowId: string | null;
@@ -138,7 +137,6 @@ function buildIssueBody(task: TaskIssueSnapshot): string {
   const lines = [
     `Agirunner task: ${task.id}`,
     `State: ${task.state}`,
-    `Type: ${task.type}`,
     `Priority: ${task.priority}`,
   ];
   if (task.workflowId) {

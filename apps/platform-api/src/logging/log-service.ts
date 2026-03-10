@@ -12,10 +12,11 @@ export interface ExecutionLogEntry {
   operation: string;
   status: 'started' | 'completed' | 'failed' | 'skipped';
   durationMs?: number | null;
-  metadata?: Record<string, unknown>;
+  payload?: Record<string, unknown>;
   error?: { code?: string; message: string; stack?: string } | null;
   projectId?: string | null;
   workflowId?: string | null;
+  workflowName?: string | null;
   taskId?: string | null;
   actorType?: string | null;
   actorId?: string | null;
@@ -38,10 +39,11 @@ export interface LogRow {
   operation: string;
   status: string;
   duration_ms: number | null;
-  metadata: Record<string, unknown>;
+  payload: Record<string, unknown>;
   error: { code?: string; message: string; stack?: string } | null;
   project_id: string | null;
   workflow_id: string | null;
+  workflow_name: string | null;
   task_id: string | null;
   actor_type: string | null;
   actor_id: string | null;
@@ -144,6 +146,7 @@ export interface LogLevelFilter {
 
 export class LogService {
   private levelFilter: LogLevelFilter | null = null;
+  private readonly workflowNameCache = new Map<string, { name: string; expiresAt: number }>();
 
   constructor(private readonly pool: DatabasePool) {}
 
@@ -152,18 +155,39 @@ export class LogService {
     this.levelFilter = filter;
   }
 
+  private async resolveWorkflowName(tenantId: string, workflowId: string): Promise<string | null> {
+    const cached = this.workflowNameCache.get(workflowId);
+    if (cached && cached.expiresAt > Date.now()) return cached.name;
+
+    const result = await this.pool.query<{ name: string }>(
+      'SELECT name FROM workflows WHERE tenant_id = $1 AND id = $2',
+      [tenantId, workflowId],
+    );
+    const name = result.rows[0]?.name ?? null;
+    if (name) {
+      this.workflowNameCache.set(workflowId, { name, expiresAt: Date.now() + 60_000 });
+      if (this.workflowNameCache.size > 500) {
+        const oldest = this.workflowNameCache.keys().next().value;
+        if (oldest) this.workflowNameCache.delete(oldest);
+      }
+    }
+    return name;
+  }
+
   async insert(entry: ExecutionLogEntry): Promise<void> {
     if (this.levelFilter) {
       const shouldWrite = await this.levelFilter.shouldWrite(entry.tenantId, entry.level);
       if (!shouldWrite) return;
     }
 
+    const workflowName = entry.workflowName ?? (entry.workflowId ? await this.resolveWorkflowName(entry.tenantId, entry.workflowId) : null);
+
     await this.pool.query(
       `INSERT INTO execution_logs (
         tenant_id, trace_id, span_id, parent_span_id,
         source, category, level, operation, status, duration_ms,
-        metadata, error,
-        project_id, workflow_id, task_id,
+        payload, error,
+        project_id, workflow_id, workflow_name, task_id,
         actor_type, actor_id, actor_name,
         resource_type, resource_id, resource_name,
         created_at
@@ -171,10 +195,10 @@ export class LogService {
         $1, $2, $3, $4,
         $5, $6, $7, $8, $9, $10,
         $11, $12,
-        $13, $14, $15,
-        $16, $17, $18,
-        $19, $20, $21,
-        COALESCE($22::timestamptz, now())
+        $13, $14, $15, $16,
+        $17, $18, $19,
+        $20, $21, $22,
+        COALESCE($23::timestamptz, now())
       )`,
       [
         entry.tenantId,
@@ -187,10 +211,11 @@ export class LogService {
         entry.operation,
         entry.status,
         entry.durationMs ?? null,
-        JSON.stringify(entry.metadata ?? {}),
+        JSON.stringify(entry.payload ?? {}),
         entry.error ? JSON.stringify(entry.error) : null,
         entry.projectId ?? null,
         entry.workflowId ?? null,
+        workflowName,
         entry.taskId ?? null,
         entry.actorType ?? null,
         entry.actorId ?? null,
@@ -214,7 +239,7 @@ export class LogService {
       try {
         await this.insert({
           ...entry,
-          metadata: redactMetadata(entry.metadata),
+          payload: redactPayload(entry.payload),
         });
         accepted += 1;
       } catch {
@@ -247,8 +272,8 @@ export class LogService {
     const result = await this.pool.query<LogRow>(
       `SELECT id, tenant_id, trace_id, span_id, parent_span_id,
               source, category, level, operation, status, duration_ms,
-              metadata, error,
-              project_id, workflow_id, task_id,
+              payload, error,
+              project_id, workflow_id, workflow_name, task_id,
               actor_type, actor_id, actor_name,
               resource_type, resource_id, resource_name,
               created_at
@@ -315,9 +340,9 @@ export class LogService {
         COUNT(*) FILTER (WHERE status = 'failed')::text AS error_count,
         SUM(duration_ms)::text AS total_duration_ms,
         AVG(duration_ms)::text AS avg_duration_ms,
-        SUM((metadata->>'input_tokens')::integer) FILTER (WHERE category = 'llm')::text AS total_input_tokens,
-        SUM((metadata->>'output_tokens')::integer) FILTER (WHERE category = 'llm')::text AS total_output_tokens,
-        SUM((metadata->>'cost_usd')::numeric) FILTER (WHERE category = 'llm')::text AS total_cost_usd
+        SUM((payload->>'input_tokens')::integer) FILTER (WHERE category = 'llm')::text AS total_input_tokens,
+        SUM((payload->>'output_tokens')::integer) FILTER (WHERE category = 'llm')::text AS total_output_tokens,
+        SUM((payload->>'cost_usd')::numeric) FILTER (WHERE category = 'llm')::text AS total_cost_usd
        FROM execution_logs
        WHERE ${whereClause}
        GROUP BY ${groupColumn}
@@ -461,7 +486,7 @@ export class LogService {
     if (filters.search) {
       values.push(filters.search);
       conditions.push(
-        `to_tsvector('english', operation || ' ' || COALESCE(metadata::text, '')) @@ plainto_tsquery('english', $${values.length})`,
+        `to_tsvector('english', operation || ' ' || COALESCE(payload::text, '')) @@ plainto_tsquery('english', $${values.length})`,
       );
     }
     if (filters.since) {
@@ -495,16 +520,16 @@ function validateGroupColumn(column: string): string {
 
 const SECRET_PATTERN = /(?:api[_-]?key|password|secret|(?:^|[_-])token(?!s)|authorization|bearer|credential|private[_-]?key)/i;
 
-function redactMetadata(metadata: Record<string, unknown> | undefined): Record<string, unknown> {
-  if (!metadata) return {};
+function redactPayload(payload: Record<string, unknown> | undefined): Record<string, unknown> {
+  if (!payload) return {};
   const redacted: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(metadata)) {
+  for (const [key, value] of Object.entries(payload)) {
     if (SECRET_PATTERN.test(key)) {
       redacted[key] = '[REDACTED]';
     } else if (typeof value === 'string' && SECRET_PATTERN.test(value)) {
       redacted[key] = '[REDACTED]';
     } else if (value && typeof value === 'object' && !Array.isArray(value)) {
-      redacted[key] = redactMetadata(value as Record<string, unknown>);
+      redacted[key] = redactPayload(value as Record<string, unknown>);
     } else {
       redacted[key] = value;
     }

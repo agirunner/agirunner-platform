@@ -205,7 +205,7 @@ export class TaskClaimService {
   ): Promise<Record<string, unknown>> {
     if (!this.deps.resolveRoleConfig) return task;
 
-    const roleName = (task.role as string) || (task.type as string) || '';
+    const roleName = (task.role as string) || '';
     if (!roleName) return task;
 
     const resolved = await this.deps.resolveRoleConfig(tenantId, roleName);

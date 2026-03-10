@@ -23,7 +23,7 @@ describe('LogService', () => {
         operation: 'api.get.projects',
         status: 'completed',
         durationMs: 45,
-        metadata: { method: 'GET', path: '/api/v1/projects' },
+        payload: { method: 'GET', path: '/api/v1/projects' },
         projectId: 'proj-1',
         workflowId: null,
         taskId: null,
@@ -83,7 +83,7 @@ describe('LogService', () => {
         level: 'info',
         operation: 'config.llm_config.created',
         status: 'completed',
-        metadata: { provider: 'openai', model: 'gpt-4.1-mini' },
+        payload: { provider: 'openai', model: 'gpt-4.1-mini' },
       });
 
       const [, params] = pool.query.mock.calls[0];
@@ -198,7 +198,7 @@ describe('LogService', () => {
         level: 'info' as const,
         operation: 'tool.shell_exec',
         status: 'completed' as const,
-        metadata: {
+        payload: {
           api_key: 'sk-secret-value',
           password: 'my-password',
           safe_field: 'visible',
@@ -210,15 +210,15 @@ describe('LogService', () => {
       }]);
 
       const [, params] = pool.query.mock.calls[0];
-      const metadata = JSON.parse(params[10] as string);
-      expect(metadata.api_key).toBe('[REDACTED]');
-      expect(metadata.password).toBe('[REDACTED]');
-      expect(metadata.safe_field).toBe('visible');
-      expect(metadata.tokens_in).toBe(200);
-      expect(metadata.tokens_out).toBe(150);
-      expect(metadata.total_tokens).toBe(350);
-      expect(metadata.nested.secret_token).toBe('[REDACTED]');
-      expect(metadata.nested.name).toBe('safe');
+      const payload = JSON.parse(params[10] as string);
+      expect(payload.api_key).toBe('[REDACTED]');
+      expect(payload.password).toBe('[REDACTED]');
+      expect(payload.safe_field).toBe('visible');
+      expect(payload.tokens_in).toBe(200);
+      expect(payload.tokens_out).toBe(150);
+      expect(payload.total_tokens).toBe(350);
+      expect(payload.nested.secret_token).toBe('[REDACTED]');
+      expect(payload.nested.name).toBe('safe');
     });
 
     it('redactsSecretValuesInMetadata', async () => {
@@ -234,16 +234,16 @@ describe('LogService', () => {
         level: 'info' as const,
         operation: 'tool.shell_exec',
         status: 'completed' as const,
-        metadata: {
+        payload: {
           input: 'export API_KEY=sk-abc123',
           output: 'success',
         },
       }]);
 
       const [, params] = pool.query.mock.calls[0];
-      const metadata = JSON.parse(params[10] as string);
-      expect(metadata.input).toBe('[REDACTED]');
-      expect(metadata.output).toBe('success');
+      const payload = JSON.parse(params[10] as string);
+      expect(payload.input).toBe('[REDACTED]');
+      expect(payload.output).toBe('success');
     });
   });
 

@@ -106,11 +106,17 @@ export async function buildApp() {
   const eventStreamService = new EventStreamService(pool);
   await eventStreamService.start();
 
+  const logService = new LogService(pool);
+  const logLevelCache = new LogLevelCache(pool, config.LOG_LEVEL);
+  logService.setLevelFilter(logLevelCache);
+  const logStreamService = new LogStreamService(pool);
+  await logStreamService.start();
+
   const workerConnectionHub = new WorkerConnectionHub();
   const workerService = new WorkerService(pool, eventService, workerConnectionHub, config);
   const webhookService = new WebhookService(pool, config);
   const migratedWebhookSecrets = await webhookService.migratePlaintextSecrets();
-  const taskService = new TaskService(pool, eventService, config, workerConnectionHub);
+  const taskService = new TaskService(pool, eventService, config, workerConnectionHub, logService);
   const governanceService = new GovernanceService(pool, auditService, config);
   const integrationActionService = new IntegrationActionService(pool, taskService, config);
   const integrationAdapterService = new IntegrationAdapterService(
@@ -121,19 +127,13 @@ export async function buildApp() {
   );
   const projectService = new ProjectService(pool, eventService, config);
   const templateService = new TemplateService(pool, eventService);
-  const workflowService = new WorkflowService(pool, eventService, config, workerConnectionHub);
+  const workflowService = new WorkflowService(pool, eventService, config, workerConnectionHub, logService);
   const userService = new UserService(pool);
   const apiKeyService = new ApiKeyService(pool);
   const roleDefinitionService = new RoleDefinitionService(pool);
   const runtimeDefaultsService = new RuntimeDefaultsService(pool);
   const fleetService = new FleetService(pool);
   const modelCatalogService = new ModelCatalogService(pool);
-
-  const logService = new LogService(pool);
-  const logLevelCache = new LogLevelCache(pool, config.LOG_LEVEL);
-  logService.setLevelFilter(logLevelCache);
-  const logStreamService = new LogStreamService(pool);
-  await logStreamService.start();
 
   app.decorate('config', config);
   app.decorate('pgPool', pool);

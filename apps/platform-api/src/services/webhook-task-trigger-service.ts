@@ -8,7 +8,6 @@ import { EventService } from './event-service.js';
 import { decryptWebhookSecret, encryptWebhookSecret } from './webhook-secret-crypto.js';
 
 type SignatureMode = 'hmac_sha256' | 'shared_secret';
-type TaskType = 'analysis' | 'code' | 'review' | 'test' | 'docs' | 'orchestration' | 'custom';
 type TaskPriority = 'critical' | 'high' | 'normal' | 'low';
 
 interface TriggerRow {
@@ -75,7 +74,6 @@ interface NormalizedInvocation {
   dedupeKey: string | null;
   createTaskInput: {
     title: string;
-    type: TaskType;
     priority?: TaskPriority;
     description?: string;
     role?: string;
@@ -87,15 +85,6 @@ interface NormalizedInvocation {
   };
 }
 
-const allowedTaskTypes = new Set<TaskType>([
-  'analysis',
-  'code',
-  'review',
-  'test',
-  'docs',
-  'orchestration',
-  'custom',
-]);
 const allowedPriorities = new Set<TaskPriority>(['critical', 'high', 'normal', 'low']);
 
 export class WebhookTaskTriggerService {
@@ -407,9 +396,6 @@ function validateTriggerDefinition(input: {
 }
 
 function validateDefaults(defaults: Record<string, unknown>): void {
-  if (defaults.type !== undefined && !allowedTaskTypes.has(defaults.type as TaskType)) {
-    throw new ValidationError('defaults.type must be a supported task type');
-  }
   if (defaults.priority !== undefined && !allowedPriorities.has(defaults.priority as TaskPriority)) {
     throw new ValidationError('defaults.priority must be a supported priority');
   }
@@ -479,7 +465,6 @@ function buildTriggeredTask(
     throw new ValidationError('Trigger field mappings did not produce a task title');
   }
 
-  const type = normalizeTaskType(resolveMapping(mappings.type, payload, eventType) ?? defaults.type);
   const priority = normalizePriority(resolveMapping(mappings.priority, payload, eventType) ?? defaults.priority);
   const description = asString(resolveMapping(mappings.description, payload, eventType) ?? defaults.description);
   const role = asString(resolveMapping(mappings.role, payload, eventType) ?? defaults.role);
@@ -508,7 +493,6 @@ function buildTriggeredTask(
     dedupeKey: dedupeKey ?? null,
     createTaskInput: {
       title,
-      type,
       ...(priority ? { priority } : {}),
       ...(description ? { description } : {}),
       ...(role ? { role } : {}),
@@ -569,14 +553,6 @@ function readPath(payload: Record<string, unknown>, path: string): unknown {
     }
     return (current as Record<string, unknown>)[segment];
   }, payload);
-}
-
-function normalizeTaskType(value: unknown): TaskType {
-  const fallback: TaskType = 'custom';
-  if (typeof value !== 'string') {
-    return fallback;
-  }
-  return allowedTaskTypes.has(value as TaskType) ? (value as TaskType) : fallback;
 }
 
 function normalizePriority(value: unknown): TaskPriority | undefined {

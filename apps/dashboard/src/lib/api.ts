@@ -529,6 +529,7 @@ export interface DashboardApi {
     projectId: string,
     payload: { brief: string; name?: string },
   ): Promise<unknown>;
+  listRoleDefinitions(): Promise<Array<{ id: string; name: string; description: string | null; is_active: boolean }>>;
   listIntegrations(): Promise<DashboardIntegrationRecord[]>;
   createIntegration(payload: {
     kind: DashboardIntegrationRecord['kind'];
@@ -840,6 +841,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(() =>
         requestJson(`/api/v1/projects/${projectId}/planning-workflow`, {
           body: payload,
+        }),
+      ),
+    listRoleDefinitions: () =>
+      withRefresh(() =>
+        requestData<Array<{ id: string; name: string; description: string | null; is_active: boolean }>>('/api/v1/config/roles', {
+          method: 'GET',
         }),
       ),
     listIntegrations: () =>

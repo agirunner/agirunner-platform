@@ -1,6 +1,9 @@
+import { randomUUID } from 'node:crypto';
+
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 
 import { NotFoundError } from '../errors/domain-errors.js';
+import type { LogService } from '../logging/log-service.js';
 import { deriveWorkflowState } from '../orchestration/workflow-engine.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { EventService } from './event-service.js';
@@ -12,6 +15,7 @@ export class WorkflowStateService {
     private readonly eventService: EventService,
     private readonly artifactRetentionService?: ArtifactRetentionService,
     private readonly projectTimelineService?: ProjectTimelineService,
+    private readonly logService?: LogService,
   ) {}
 
   async recomputeWorkflowState(
@@ -26,7 +30,11 @@ export class WorkflowStateService {
     const db = client ?? this.pool;
     const [workflowRes, taskStatesRes] = await Promise.all([
       db.query(
-        'SELECT id, state, started_at, completed_at, metadata FROM workflows WHERE tenant_id = $1 AND id = $2',
+        `SELECT w.id, w.state, w.started_at, w.completed_at, w.metadata, w.name, w.parameters,
+                t.name AS template_name, t.slug AS template_slug
+         FROM workflows w
+         LEFT JOIN templates t ON t.tenant_id = w.tenant_id AND t.id = w.template_id
+         WHERE w.tenant_id = $1 AND w.id = $2`,
         [tenantId, workflowId],
       ),
       db.query('SELECT state, metadata FROM tasks WHERE tenant_id = $1 AND workflow_id = $2', [
@@ -94,6 +102,39 @@ export class WorkflowStateService {
         },
         client,
       );
+
+      const workflowRow = workflowRes.rows[0];
+      const taskCount = taskStatesRes.rowCount ?? 0;
+      const failedCount = taskStatesRes.rows.filter((r) => String(r.state) === 'failed').length;
+      const isTerminal = ['completed', 'failed', 'cancelled'].includes(derivedState);
+
+      void this.logService?.insert({
+        tenantId,
+        traceId: randomUUID(),
+        spanId: randomUUID(),
+        source: 'platform',
+        category: 'task_lifecycle',
+        level: derivedState === 'failed' ? 'error' : 'info',
+        operation: `task_lifecycle.workflow.state_changed`,
+        status: isTerminal ? 'completed' : 'started',
+        payload: {
+          from_state: previousState,
+          to_state: derivedState,
+          workflow_name: workflowRow.name as string,
+          template_name: (workflowRow.template_name as string) ?? undefined,
+          template_slug: (workflowRow.template_slug as string) ?? undefined,
+          parameters: asRecord(workflowRow.parameters),
+          task_count: taskCount,
+          failed_task_count: failedCount,
+        },
+        workflowId,
+        workflowName: workflowRow.name as string,
+        actorType: actor.actorType,
+        actorId: actor.actorId,
+        resourceType: 'workflow',
+        resourceId: workflowId,
+        resourceName: workflowRow.name as string,
+      }).catch(() => undefined);
     }
 
     return derivedState;

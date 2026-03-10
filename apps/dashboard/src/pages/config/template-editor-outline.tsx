@@ -35,19 +35,8 @@ import type {
   TemplateEditorState,
   TemplateSchema,
   WorkflowPhaseDefinition,
-  TaskType,
 } from './template-editor-types.js';
 import { createEmptyPhase, createEmptyTask } from './template-editor-types.js';
-
-const TASK_TYPE_ICONS: Record<TaskType, string> = {
-  analysis: '\u{1F50D}',
-  code: '\u{1F4BB}',
-  review: '\u{1F4DD}',
-  test: '\u{2705}',
-  docs: '\u{1F4D6}',
-  orchestration: '\u{1F3AF}',
-  custom: '\u{2699}',
-};
 import type { SelectedItem } from './template-editor-page.js';
 
 // ---------------------------------------------------------------------------
@@ -300,7 +289,7 @@ export function OutlinePanel({
                             : 'text-muted hover:bg-border/30 hover:text-foreground'
                         }`}
                         onClick={() => onSelect({ kind: 'task', taskId: task.id })}
-                      >{TASK_TYPE_ICONS[task.type] ?? ''} {task.title_template || task.id}</button>
+                      >{task.title_template || task.id}</button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover/task:opacity-100 shrink-0">

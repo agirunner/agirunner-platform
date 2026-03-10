@@ -153,7 +153,6 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
 
       const result = await taskService.listTasks(request.auth!.tenantId, {
         state: query.state,
-        type: query.type,
         project_id: query.project_id,
         assigned_agent_id: query.assigned_agent_id,
         parent_id: query.parent_id,

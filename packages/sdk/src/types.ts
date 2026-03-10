@@ -1,6 +1,5 @@
 export type ApiScope = 'agent' | 'worker' | 'admin';
 
-export type TaskType = 'analysis' | 'code' | 'review' | 'test' | 'docs' | 'orchestration' | 'custom';
 export type TaskPriority = 'critical' | 'high' | 'normal' | 'low';
 export type TaskState =
   | 'pending'
@@ -167,7 +166,6 @@ export interface Task {
   parent_id: string | null;
   title: string;
   description: string | null;
-  type: TaskType;
   state: TaskState;
   priority: TaskPriority;
   capabilities_required: string[];
@@ -207,7 +205,6 @@ export interface PlatformEvent {
 
 export interface CreateTaskInput {
   title: string;
-  type: TaskType;
   description?: string;
   priority?: TaskPriority;
   workflow_id?: string;
