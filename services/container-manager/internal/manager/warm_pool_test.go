@@ -298,7 +298,7 @@ func TestIsWarmTaskContainer(t *testing.T) {
 func TestWarmPoolIntegrationWithDCMReconcile(t *testing.T) {
 	docker := newMockDockerClient()
 	target := makeWarmTarget("tmpl-1", "runtime:v1", "task:v1", 2)
-	target.PendingTasks = 1
+	target.ActiveWorkflows = 1
 	platform := &mockPlatformClient{
 		runtimeTargets: []RuntimeTarget{target},
 	}

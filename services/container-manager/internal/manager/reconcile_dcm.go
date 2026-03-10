@@ -511,7 +511,18 @@ func excludeByID(containers []ContainerInfo, exclude map[string]bool) []Containe
 }
 
 // computeScaleUp calculates how many runtimes to create for a target.
+// Cold mode: creates runtimes proportional to pending tasks.
+// Warm mode: maintains runtimes as long as there are active workflows,
+// regardless of pending task count.
 func computeScaleUp(target RuntimeTarget, runningCount, capacity int) int {
+	if target.PoolMode == "warm" {
+		return computeWarmScaleUp(target, runningCount, capacity)
+	}
+	return computeColdScaleUp(target, runningCount, capacity)
+}
+
+// computeColdScaleUp creates runtimes proportional to pending tasks.
+func computeColdScaleUp(target RuntimeTarget, runningCount, capacity int) int {
 	if target.PendingTasks <= 0 {
 		return 0
 	}
@@ -523,6 +534,28 @@ func computeScaleUp(target RuntimeTarget, runningCount, capacity int) int {
 	if toCreate > target.PendingTasks {
 		toCreate = target.PendingTasks
 	}
+	if toCreate < 0 {
+		return 0
+	}
+	return toCreate
+}
+
+// computeWarmScaleUp maintains runtimes while active workflows exist.
+// Unlike cold mode, creation is driven by active workflow count rather
+// than pending tasks. Each active workflow gets one runtime, up to
+// MaxRuntimes.
+func computeWarmScaleUp(target RuntimeTarget, runningCount, capacity int) int {
+	if target.ActiveWorkflows <= 0 {
+		return 0
+	}
+	desired := target.ActiveWorkflows
+	if desired > target.MaxRuntimes {
+		desired = target.MaxRuntimes
+	}
+	if runningCount+capacity < desired {
+		desired = runningCount + capacity
+	}
+	toCreate := desired - runningCount
 	if toCreate < 0 {
 		return 0
 	}

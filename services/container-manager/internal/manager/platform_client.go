@@ -336,6 +336,11 @@ func (c *PlatformClient) FailTask(taskID, reason string) error {
 	}
 	defer resp.Body.Close()
 
+	// 409 Conflict means the task is already in the target state (e.g.
+	// already failed). Treat this as success to avoid retry loops.
+	if resp.StatusCode == 409 {
+		return nil
+	}
 	if resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("fail task API returned HTTP %d: %s", resp.StatusCode, string(respBody))
