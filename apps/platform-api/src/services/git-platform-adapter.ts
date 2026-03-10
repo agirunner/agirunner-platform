@@ -11,6 +11,20 @@ interface NormalizedGitEvent {
   provider_event: Record<string, unknown>;
 }
 
+export function extractRepositoryUrl(
+  provider: 'github' | 'gitea' | 'gitlab',
+  payload: Record<string, unknown>,
+): string | undefined {
+  const repository = asRecord(payload.repository);
+  if (provider === 'gitlab') {
+    const url = repository['git_http_url'] ?? repository['url'] ?? repository['homepage'];
+    return typeof url === 'string' && url.length > 0 ? url : undefined;
+  }
+
+  const cloneUrl = repository['clone_url'] ?? repository['html_url'] ?? repository['url'];
+  return typeof cloneUrl === 'string' && cloneUrl.length > 0 ? cloneUrl : undefined;
+}
+
 export function extractTaskIdFromGitPayload(payload: Record<string, unknown>): string | undefined {
   const texts: string[] = [];
 

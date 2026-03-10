@@ -29,6 +29,11 @@ const projectUpdateSchema = z
     message: 'At least one field is required',
   });
 
+const gitWebhookConfigSchema = z.object({
+  provider: z.enum(['github', 'gitea', 'gitlab']),
+  secret: z.string().min(8),
+});
+
 const projectMemoryPatchSchema = z.object({
   key: z.string().min(1).max(256),
   value: z.unknown(),
@@ -166,6 +171,17 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
         body,
       );
       return reply.status(201).send({ data: workflow });
+    },
+  );
+
+  app.put(
+    '/api/v1/projects/:id/git-webhook',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(gitWebhookConfigSchema.safeParse(request.body));
+      const result = await projectService.setGitWebhookConfig(request.auth!, params.id, body);
+      return { data: result };
     },
   );
 

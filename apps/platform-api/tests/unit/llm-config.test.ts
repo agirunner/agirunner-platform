@@ -235,6 +235,10 @@ describe('ModelCatalogService — LLM config enhancements', () => {
           contextWindow: 200000,
           maxOutputTokens: 8192,
           endpointType: 'messages',
+          supportsToolUse: true,
+          supportsVision: true,
+          inputCostPerMillionUsd: 3,
+          outputCostPerMillionUsd: 15,
           reasoningConfig: sampleReasoningConfig,
         },
       ];
@@ -247,9 +251,11 @@ describe('ModelCatalogService — LLM config enhancements', () => {
       expect(sql).toContain('DO UPDATE');
       expect(sql).toContain('endpoint_type');
       expect(sql).toContain('reasoning_config');
+      expect(sql).toContain('supports_tool_use');
+      expect(sql).toContain('input_cost_per_million_usd');
       const params = pool.query.mock.calls[0][1] as unknown[];
-      expect(params).toHaveLength(8);
-      expect(params[7]).toBe(true); // claude-sonnet-4-6 is default-enabled
+      expect(params).toHaveLength(12);
+      expect(params[11]).toBe(true); // claude-sonnet-4-6 is default-enabled
     });
 
     it('returns upserted rows on re-discovery', async () => {
@@ -263,6 +269,10 @@ describe('ModelCatalogService — LLM config enhancements', () => {
           contextWindow: 200000,
           maxOutputTokens: 8192,
           endpointType: 'messages',
+          supportsToolUse: true,
+          supportsVision: true,
+          inputCostPerMillionUsd: 3,
+          outputCostPerMillionUsd: 15,
           reasoningConfig: sampleReasoningConfig,
         },
       ];
@@ -282,6 +292,10 @@ describe('ModelCatalogService — LLM config enhancements', () => {
           contextWindow: 100000,
           maxOutputTokens: null,
           endpointType: 'chat-completions',
+          supportsToolUse: true,
+          supportsVision: false,
+          inputCostPerMillionUsd: null,
+          outputCostPerMillionUsd: null,
           reasoningConfig: null,
         },
       ];
@@ -289,7 +303,7 @@ describe('ModelCatalogService — LLM config enhancements', () => {
       await service.bulkCreateModels(TENANT_ID, PROVIDER_ID, models, true);
 
       const params = pool.query.mock.calls[0][1] as unknown[];
-      expect(params[7]).toBe(true); // enableAll overrides default policy
+      expect(params[11]).toBe(true); // enableAll overrides default policy
     });
   });
 });

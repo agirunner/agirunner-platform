@@ -244,7 +244,11 @@ export const llmConfigRoutes: FastifyPluginAsync = async (app) => {
       contextWindow: m.contextWindow,
       maxOutputTokens: m.maxOutputTokens,
       endpointType: m.endpointType,
-      reasoningConfig: null,
+      supportsToolUse: m.supportsToolUse,
+      supportsVision: m.supportsVision,
+      inputCostPerMillionUsd: m.inputCostPerMillionUsd,
+      outputCostPerMillionUsd: m.outputCostPerMillionUsd,
+      reasoningConfig: m.reasoningConfig ?? null,
     }));
 
     const created = await service.bulkCreateModels(

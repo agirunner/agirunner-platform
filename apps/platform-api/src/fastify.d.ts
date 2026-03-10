@@ -2,6 +2,7 @@ import type pg from 'pg';
 
 import type { ApiKeyIdentity } from './auth/api-key.js';
 import type { AppEnv } from './config/schema.js';
+import type { LogLevelCache } from './logging/log-level-cache.js';
 import type { LogService } from './logging/log-service.js';
 import type { LogStreamService } from './logging/log-stream-service.js';
 import type { ApiKeyService } from './services/api-key-service.js';
@@ -29,6 +30,7 @@ declare module 'fastify' {
     config: AppEnv;
     pgPool: pg.Pool;
     logService: LogService;
+    logLevelCache: LogLevelCache;
     logStreamService: LogStreamService;
     auditService: AuditService;
     eventService: EventService;

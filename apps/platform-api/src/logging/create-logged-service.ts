@@ -57,6 +57,19 @@ export function createLoggedService<T extends object>(
 
           const operation = `${config.category}.${config.entityType}.${methodToAction(prop)}`;
 
+          const metadata: Record<string, unknown> = {
+            method: prop,
+            action: methodToAction(prop),
+          };
+          if (isRecord(result)) {
+            if (result.status) metadata.entity_status = result.status;
+            if (result.error && isRecord(result.error)) {
+              metadata.error_category = result.error.category;
+              metadata.error_message = result.error.message;
+            }
+            if (result.reason) metadata.reason = result.reason;
+          }
+
           void logService.insert({
             tenantId,
             traceId: ctx?.requestId ?? randomUUID(),
@@ -67,10 +80,7 @@ export function createLoggedService<T extends object>(
             operation,
             status: 'completed',
             durationMs,
-            metadata: {
-              method: prop,
-              action: methodToAction(prop),
-            },
+            metadata,
             projectId: projectId ?? undefined,
             workflowId: workflowId ?? undefined,
             taskId: taskId ?? undefined,
@@ -98,7 +108,11 @@ export function createLoggedService<T extends object>(
             operation,
             status: 'failed',
             durationMs,
-            metadata: { method: prop, action: methodToAction(prop) },
+            metadata: {
+              method: prop,
+              action: methodToAction(prop),
+              error_message: errorObj.message,
+            },
             error: {
               code: (errorObj as Error & { code?: string }).code ?? 'unknown',
               message: errorObj.message,

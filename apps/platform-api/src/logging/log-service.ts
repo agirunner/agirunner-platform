@@ -138,10 +138,26 @@ export function decodeCursor(cursor: string): { id: string; createdAt: string } 
   return { id: parsed.id, createdAt: parsed.created_at };
 }
 
+export interface LogLevelFilter {
+  shouldWrite(tenantId: string, level: string): Promise<boolean>;
+}
+
 export class LogService {
+  private levelFilter: LogLevelFilter | null = null;
+
   constructor(private readonly pool: DatabasePool) {}
 
+  /** Attach a write-side level filter. Entries below the tenant threshold are silently dropped. */
+  setLevelFilter(filter: LogLevelFilter): void {
+    this.levelFilter = filter;
+  }
+
   async insert(entry: ExecutionLogEntry): Promise<void> {
+    if (this.levelFilter) {
+      const shouldWrite = await this.levelFilter.shouldWrite(entry.tenantId, entry.level);
+      if (!shouldWrite) return;
+    }
+
     await this.pool.query(
       `INSERT INTO execution_logs (
         tenant_id, trace_id, span_id, parent_span_id,

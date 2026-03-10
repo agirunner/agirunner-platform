@@ -11,6 +11,7 @@ import { registerErrorHandler } from '../errors/error-handler.js';
 import { startLifecycleMonitor } from '../jobs/lifecycle-monitor.js';
 import { createLoggedService } from '../logging/create-logged-service.js';
 import { LogService } from '../logging/log-service.js';
+import { LogLevelCache } from '../logging/log-level-cache.js';
 import { LogStreamService } from '../logging/log-stream-service.js';
 import { registerRequestLogger } from '../logging/request-logger.js';
 import { registerRequestContext } from '../observability/request-context.js';
@@ -118,7 +119,7 @@ export async function buildApp() {
     undefined,
     integrationActionService,
   );
-  const projectService = new ProjectService(pool, eventService);
+  const projectService = new ProjectService(pool, eventService, config);
   const templateService = new TemplateService(pool, eventService);
   const workflowService = new WorkflowService(pool, eventService, config, workerConnectionHub);
   const userService = new UserService(pool);
@@ -129,12 +130,15 @@ export async function buildApp() {
   const modelCatalogService = new ModelCatalogService(pool);
 
   const logService = new LogService(pool);
+  const logLevelCache = new LogLevelCache(pool, config.LOG_LEVEL);
+  logService.setLevelFilter(logLevelCache);
   const logStreamService = new LogStreamService(pool);
   await logStreamService.start();
 
   app.decorate('config', config);
   app.decorate('pgPool', pool);
   app.decorate('logService', logService);
+  app.decorate('logLevelCache', logLevelCache);
   app.decorate('logStreamService', logStreamService);
   app.decorate('auditService', auditService);
   app.decorate('eventService', eventService);

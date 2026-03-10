@@ -98,6 +98,8 @@ export interface DashboardProjectRecord {
   repository_url?: string | null;
   is_active?: boolean;
   memory?: Record<string, unknown>;
+  git_webhook_provider?: string | null;
+  git_webhook_secret_configured?: boolean;
   created_at?: string;
   updated_at?: string;
 }
@@ -143,6 +145,11 @@ export interface DashboardGovernanceRetentionPolicy {
   task_archive_after_days: number;
   task_delete_after_days: number;
   audit_log_retention_days: number;
+  execution_log_retention_days: number;
+}
+
+export interface DashboardLoggingConfig {
+  level: 'debug' | 'info' | 'warn' | 'error';
 }
 
 export interface DashboardAuditLogRecord {
@@ -436,7 +443,7 @@ export interface FleetImageRecord {
 export interface DashboardApi {
   login(apiKey: string): Promise<void>;
   logout(): Promise<void>;
-  listWorkflows(): Promise<unknown>;
+  listWorkflows(filters?: Record<string, string>): Promise<unknown>;
   listProjects(): Promise<{ data: DashboardProjectRecord[]; meta?: Record<string, unknown> }>;
   createProject(payload: {
     name: string;
@@ -452,6 +459,10 @@ export interface DashboardApi {
     projectId: string,
     payload: { key: string; value: unknown },
   ): Promise<DashboardProjectRecord>;
+  configureGitWebhook(
+    projectId: string,
+    payload: { provider: string; secret: string },
+  ): Promise<Record<string, unknown>>;
   getWorkflow(id: string): Promise<unknown>;
   listWorkflowDocuments(workflowId: string): Promise<DashboardResolvedDocumentReference[]>;
   listTemplates(): Promise<{ data: DashboardTemplate[]; meta?: Record<string, unknown> }>;
@@ -538,6 +549,8 @@ export interface DashboardApi {
   updateRetentionPolicy(
     payload: Partial<DashboardGovernanceRetentionPolicy>,
   ): Promise<DashboardGovernanceRetentionPolicy>;
+  getLoggingConfig(): Promise<DashboardLoggingConfig>;
+  updateLoggingConfig(payload: DashboardLoggingConfig): Promise<DashboardLoggingConfig>;
   setTaskLegalHold(taskId: string, enabled: boolean): Promise<unknown>;
   setWorkflowLegalHold(workflowId: string, enabled: boolean): Promise<unknown>;
   listAuditLogs(filters?: Record<string, string>): Promise<{ data: DashboardAuditLogRecord[]; pagination?: Record<string, unknown> }>;
@@ -692,7 +705,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         clearSession();
       }
     },
-    listWorkflows: () => withRefresh(() => client.listWorkflows()),
+    listWorkflows: (filters) => withRefresh(() => client.listWorkflows(filters ?? {})),
     listProjects: () =>
       withRefresh(
         () =>
@@ -735,6 +748,13 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(() =>
         requestData<DashboardProjectRecord>(`/api/v1/projects/${projectId}/memory`, {
           method: 'PATCH',
+          body: payload as Record<string, unknown>,
+        }),
+      ),
+    configureGitWebhook: (projectId, payload) =>
+      withRefresh(() =>
+        requestData<Record<string, unknown>>(`/api/v1/projects/${projectId}/git-webhook`, {
+          method: 'PUT',
           body: payload as Record<string, unknown>,
         }),
       ),
@@ -854,6 +874,19 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     updateRetentionPolicy: (payload) =>
       withRefresh(() =>
         requestData<DashboardGovernanceRetentionPolicy>('/api/v1/governance/retention-policy', {
+          method: 'PUT',
+          body: payload as Record<string, unknown>,
+        }),
+      ),
+    getLoggingConfig: () =>
+      withRefresh(() =>
+        requestData<DashboardLoggingConfig>('/api/v1/governance/logging', {
+          method: 'GET',
+        }),
+      ),
+    updateLoggingConfig: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardLoggingConfig>('/api/v1/governance/logging', {
           method: 'PUT',
           body: payload as Record<string, unknown>,
         }),

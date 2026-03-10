@@ -1,8 +1,6 @@
-export interface ReasoningConfig {
-  type: string;
-  options?: string[];
-  default: string | number;
-}
+import type { ReasoningConfig } from './model-catalog.js';
+
+export type { ReasoningConfig };
 
 export interface OAuthStaticModel {
   modelId: string;
@@ -11,7 +9,9 @@ export interface OAuthStaticModel {
   endpointType: string;
   supportsToolUse: boolean;
   supportsVision: boolean;
-  reasoningConfig?: ReasoningConfig | null;
+  inputCostPerMillionUsd: number | null;
+  outputCostPerMillionUsd: number | null;
+  reasoningConfig: ReasoningConfig | null;
 }
 
 export interface OAuthProviderProfile {
@@ -31,6 +31,11 @@ export interface OAuthProviderProfile {
   staticModels: OAuthStaticModel[];
 }
 
+/**
+ * OAuth static models use subscription-tier specs that may differ from the
+ * API-tier values in MODEL_CATALOG (e.g. lower context windows). Cost fields
+ * are null because subscription models are not billed per-token.
+ */
 export const OPENAI_CODEX_PROFILE: OAuthProviderProfile = {
   profileId: 'openai-codex',
   displayName: 'OpenAI (Subscription)',
@@ -50,10 +55,10 @@ export const OPENAI_CODEX_PROFILE: OAuthProviderProfile = {
     originator: 'agirunner',
   },
   staticModels: [
-    { modelId: 'gpt-5.4',             contextWindow: 1_050_000, maxOutputTokens: 128_000, endpointType: 'responses', supportsToolUse: true,  supportsVision: true,  reasoningConfig: { type: 'reasoning_effort', options: ['none', 'low', 'medium', 'high', 'xhigh'], default: 'high' } },
-    { modelId: 'gpt-5.3-codex',       contextWindow: 272_000,   maxOutputTokens: 128_000, endpointType: 'responses', supportsToolUse: true,  supportsVision: false, reasoningConfig: { type: 'reasoning_effort', options: ['low', 'medium', 'high', 'xhigh'], default: 'high' } },
-    { modelId: 'gpt-5.3-codex-spark', contextWindow: 272_000,   maxOutputTokens: 128_000, endpointType: 'responses', supportsToolUse: true,  supportsVision: false, reasoningConfig: null },
-    { modelId: 'gpt-5-codex-mini',    contextWindow: 262_144,   maxOutputTokens: 128_000, endpointType: 'responses', supportsToolUse: true,  supportsVision: false, reasoningConfig: { type: 'reasoning_effort', options: ['low', 'medium', 'high', 'xhigh'], default: 'medium' } },
+    { modelId: 'gpt-5.4',             contextWindow: 1_050_000, maxOutputTokens: 128_000, endpointType: 'responses', supportsToolUse: true,  supportsVision: true,  inputCostPerMillionUsd: null, outputCostPerMillionUsd: null, reasoningConfig: { type: 'reasoning_effort', options: ['none', 'low', 'medium', 'high', 'xhigh'], default: 'high' } },
+    { modelId: 'gpt-5.3-codex',       contextWindow: 272_000,   maxOutputTokens: 128_000, endpointType: 'responses', supportsToolUse: true,  supportsVision: false, inputCostPerMillionUsd: null, outputCostPerMillionUsd: null, reasoningConfig: { type: 'reasoning_effort', options: ['low', 'medium', 'high', 'xhigh'], default: 'high' } },
+    { modelId: 'gpt-5.3-codex-spark', contextWindow: 272_000,   maxOutputTokens: 128_000, endpointType: 'responses', supportsToolUse: true,  supportsVision: false, inputCostPerMillionUsd: null, outputCostPerMillionUsd: null, reasoningConfig: null },
+    { modelId: 'gpt-5-codex-mini',    contextWindow: 262_144,   maxOutputTokens: 128_000, endpointType: 'responses', supportsToolUse: true,  supportsVision: false, inputCostPerMillionUsd: null, outputCostPerMillionUsd: null, reasoningConfig: { type: 'reasoning_effort', options: ['low', 'medium', 'high', 'xhigh'], default: 'medium' } },
   ],
 };
 

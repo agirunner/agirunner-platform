@@ -1,8 +1,10 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
+import type { AppEnv } from '../config/schema.js';
 import type { DatabasePool } from '../db/database.js';
 import { TenantScopedRepository, type TenantRow } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
+import { encryptWebhookSecret, decryptWebhookSecret } from './webhook-secret-crypto.js';
 
 interface ProjectListQuery {
   page: number;
@@ -57,11 +59,23 @@ function isUniqueViolation(error: unknown, constraint: string): boolean {
   return violatedConstraint === constraint;
 }
 
+type GitWebhookProvider = 'github' | 'gitea' | 'gitlab';
+
+interface GitWebhookConfig {
+  provider: GitWebhookProvider;
+  secret: string;
+}
+
 export class ProjectService {
+  private readonly encryptionKey: string;
+
   constructor(
     private readonly pool: DatabasePool,
     private readonly eventService: EventService,
-  ) {}
+    config?: Pick<AppEnv, 'WEBHOOK_ENCRYPTION_KEY'>,
+  ) {
+    this.encryptionKey = config?.WEBHOOK_ENCRYPTION_KEY ?? '';
+  }
 
   async createProject(identity: ApiKeyIdentity, input: CreateProjectInput) {
     const memory = normalizeRecord(input.memory);
@@ -85,7 +99,7 @@ export class ProjectService {
         ],
       );
 
-      const project = result.rows[0] as Record<string, unknown>;
+      const project = result.rows[0] as ProjectRow;
       await this.eventService.emit({
         tenantId: identity.tenantId,
         type: 'project.created',
@@ -96,7 +110,7 @@ export class ProjectService {
         data: { slug: project.slug },
       });
 
-      return project;
+      return redactWebhookSecret(project);
     } catch (error) {
       if (isUniqueViolation(error, 'uq_project_tenant_slug')) {
         throw new ConflictError('Project slug already exists');
@@ -152,7 +166,7 @@ export class ProjectService {
     if (!project) {
       throw new NotFoundError('Project not found');
     }
-    return project;
+    return redactWebhookSecret(project);
   }
 
   async updateProject(identity: ApiKeyIdentity, projectId: string, input: UpdateProjectInput) {
@@ -191,7 +205,7 @@ export class ProjectService {
         throw new NotFoundError('Project not found');
       }
 
-      const project = result.rows[0] as Record<string, unknown>;
+      const project = result.rows[0] as ProjectRow;
       await this.eventService.emit({
         tenantId: identity.tenantId,
         type: 'project.updated',
@@ -206,7 +220,7 @@ export class ProjectService {
         },
       });
 
-      return project;
+      return redactWebhookSecret(project);
     } catch (error) {
       if (isUniqueViolation(error, 'uq_project_tenant_slug')) {
         throw new ConflictError('Project slug already exists');
@@ -247,7 +261,7 @@ export class ProjectService {
       [identity.tenantId, projectId, nextMemory, memorySizeBytes],
     );
 
-    const updatedProject = result.rows[0] as Record<string, unknown>;
+    const updatedProject = result.rows[0] as ProjectRow;
 
     await this.eventService.emit({
       tenantId: identity.tenantId,
@@ -262,7 +276,7 @@ export class ProjectService {
       },
     });
 
-    return updatedProject;
+    return redactWebhookSecret(updatedProject);
   }
 
   async deleteProject(identity: ApiKeyIdentity, projectId: string) {
@@ -300,4 +314,98 @@ export class ProjectService {
 
     return { id: projectId, deleted: true };
   }
+
+  async setGitWebhookConfig(
+    identity: ApiKeyIdentity,
+    projectId: string,
+    input: GitWebhookConfig,
+  ) {
+    await this.getProject(identity.tenantId, projectId);
+
+    const encryptedSecret = encryptWebhookSecret(input.secret, this.encryptionKey);
+    const result = await this.pool.query<Record<string, unknown>>(
+      `UPDATE projects
+       SET git_webhook_provider = $3,
+           git_webhook_secret = $4,
+           updated_at = now()
+       WHERE tenant_id = $1 AND id = $2
+       RETURNING id, name, slug, git_webhook_provider, is_active, updated_at`,
+      [identity.tenantId, projectId, input.provider, encryptedSecret],
+    );
+
+    await this.eventService.emit({
+      tenantId: identity.tenantId,
+      type: 'project.git_webhook_configured',
+      entityType: 'project',
+      entityId: projectId,
+      actorType: identity.scope,
+      actorId: identity.keyPrefix,
+      data: { provider: input.provider },
+    });
+
+    const row = result.rows[0];
+    return {
+      ...row,
+      git_webhook_secret_configured: true,
+    };
+  }
+
+  async getGitWebhookSecret(
+    tenantId: string,
+    projectId: string,
+  ): Promise<{ provider: GitWebhookProvider; secret: string } | null> {
+    const result = await this.pool.query<{
+      git_webhook_provider: GitWebhookProvider | null;
+      git_webhook_secret: string | null;
+    }>(
+      'SELECT git_webhook_provider, git_webhook_secret FROM projects WHERE tenant_id = $1 AND id = $2',
+      [tenantId, projectId],
+    );
+
+    if (!result.rowCount) {
+      return null;
+    }
+
+    const row = result.rows[0];
+    if (!row.git_webhook_provider || !row.git_webhook_secret) {
+      return null;
+    }
+
+    return {
+      provider: row.git_webhook_provider,
+      secret: decryptWebhookSecret(row.git_webhook_secret, this.encryptionKey),
+    };
+  }
+
+  async findProjectByRepositoryUrl(
+    repositoryUrl: string,
+  ): Promise<{ id: string; tenant_id: string } | null> {
+    const normalized = normalizeRepoUrl(repositoryUrl);
+    const result = await this.pool.query<{ id: string; tenant_id: string }>(
+      `SELECT id, tenant_id FROM projects
+       WHERE LOWER(REPLACE(REPLACE(repository_url, '.git', ''), 'http://', 'https://')) = $1
+         AND is_active = true
+       LIMIT 1`,
+      [normalized],
+    );
+
+    return result.rowCount ? result.rows[0] : null;
+  }
+}
+
+function redactWebhookSecret(project: ProjectRow): Record<string, unknown> {
+  const record = project as Record<string, unknown>;
+  const hasSecret = typeof record.git_webhook_secret === 'string' && record.git_webhook_secret.length > 0;
+  const { git_webhook_secret: _removed, ...rest } = record;
+  return {
+    ...rest,
+    git_webhook_secret_configured: hasSecret,
+  };
+}
+
+function normalizeRepoUrl(url: string): string {
+  return url
+    .toLowerCase()
+    .replace(/\.git$/, '')
+    .replace(/^http:\/\//, 'https://');
 }

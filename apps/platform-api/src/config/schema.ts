@@ -74,8 +74,12 @@ export const envSchema = z
     GOVERNANCE_TASK_ARCHIVE_AFTER_DAYS: z.coerce.number().int().min(1).default(90),
     GOVERNANCE_TASK_DELETE_AFTER_DAYS: z.coerce.number().int().min(1).default(365),
     GOVERNANCE_AUDIT_LOG_RETENTION_DAYS: z.coerce.number().int().min(1).default(2557),
+    GOVERNANCE_EXECUTION_LOG_RETENTION_DAYS: z.coerce.number().int().min(1).default(90),
+    /** @deprecated Configure per-project git webhook secrets via PUT /api/v1/projects/:id/git-webhook instead. */
     GIT_WEBHOOK_GITHUB_SECRET: z.string().optional(),
+    /** @deprecated Configure per-project git webhook secrets via PUT /api/v1/projects/:id/git-webhook instead. */
     GIT_WEBHOOK_GITEA_SECRET: z.string().optional(),
+    /** @deprecated Configure per-project git webhook secrets via PUT /api/v1/projects/:id/git-webhook instead. */
     GIT_WEBHOOK_GITLAB_SECRET: z.string().optional(),
     GIT_WEBHOOK_MAX_PER_MINUTE: z.coerce.number().int().min(1).default(120),
     LIFECYCLE_AGENT_HEARTBEAT_CHECK_INTERVAL_MS: z.coerce.number().int().min(1).default(15000),

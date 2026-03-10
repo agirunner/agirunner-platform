@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import { LlmDiscoveryService, KNOWN_MODELS } from '../../src/services/llm-discovery-service.js';
+import { LlmDiscoveryService } from '../../src/services/llm-discovery-service.js';
+import { MODEL_CATALOG } from '../../src/config/model-catalog.js';
 
 function mockFetchResponse(data: unknown, status = 200): Response {
   return {
@@ -23,9 +24,9 @@ describe('LlmDiscoveryService', () => {
     globalThis.fetch = originalFetch;
   });
 
-  describe('KNOWN_MODELS catalog', () => {
+  describe('MODEL_CATALOG catalog', () => {
     it('contains gpt-4o with chat-completions endpoint and no reasoning', () => {
-      const model = KNOWN_MODELS['gpt-4o'];
+      const model = MODEL_CATALOG['gpt-4o'];
       expect(model).toBeDefined();
       expect(model.endpointType).toBe('chat-completions');
       expect(model.contextWindow).toBe(128000);
@@ -33,7 +34,7 @@ describe('LlmDiscoveryService', () => {
     });
 
     it('contains gpt-5 with minimal/low/medium/high reasoning_effort', () => {
-      const model = KNOWN_MODELS['gpt-5'];
+      const model = MODEL_CATALOG['gpt-5'];
       expect(model).toBeDefined();
       expect(model.endpointType).toBe('responses');
       expect(model.reasoningConfig).not.toBeNull();
@@ -43,7 +44,7 @@ describe('LlmDiscoveryService', () => {
     });
 
     it('contains gpt-5.2 with xhigh reasoning and default none', () => {
-      const model = KNOWN_MODELS['gpt-5.2'];
+      const model = MODEL_CATALOG['gpt-5.2'];
       expect(model.reasoningConfig).not.toBeNull();
       expect(model.reasoningConfig!.options).toContain('xhigh');
       expect(model.reasoningConfig!.options).toContain('none');
@@ -51,14 +52,14 @@ describe('LlmDiscoveryService', () => {
     });
 
     it('contains gpt-5.1 with default medium (not none)', () => {
-      const model = KNOWN_MODELS['gpt-5.1'];
+      const model = MODEL_CATALOG['gpt-5.1'];
       expect(model.reasoningConfig).not.toBeNull();
       expect(model.reasoningConfig!.default).toBe('medium');
       expect(model.reasoningConfig!.options).toContain('none');
     });
 
     it('contains o3 with responses endpoint and reasoning_effort', () => {
-      const model = KNOWN_MODELS['o3'];
+      const model = MODEL_CATALOG['o3'];
       expect(model).toBeDefined();
       expect(model.endpointType).toBe('responses');
       expect(model.reasoningConfig).not.toBeNull();
@@ -67,7 +68,7 @@ describe('LlmDiscoveryService', () => {
     });
 
     it('contains claude-sonnet-4-6 with messages endpoint and effort config', () => {
-      const model = KNOWN_MODELS['claude-sonnet-4-6'];
+      const model = MODEL_CATALOG['claude-sonnet-4-6'];
       expect(model).toBeDefined();
       expect(model.endpointType).toBe('messages');
       expect(model.contextWindow).toBe(200000);
@@ -77,14 +78,14 @@ describe('LlmDiscoveryService', () => {
     });
 
     it('contains claude-opus-4-6 with effort config including max', () => {
-      const model = KNOWN_MODELS['claude-opus-4-6'];
+      const model = MODEL_CATALOG['claude-opus-4-6'];
       expect(model.reasoningConfig).not.toBeNull();
       expect(model.reasoningConfig!.type).toBe('effort');
       expect(model.reasoningConfig!.options).toContain('max');
     });
 
     it('contains gemini-3.1-pro-preview with thinking_level (no minimal)', () => {
-      const model = KNOWN_MODELS['gemini-3.1-pro-preview'];
+      const model = MODEL_CATALOG['gemini-3.1-pro-preview'];
       expect(model).toBeDefined();
       expect(model.endpointType).toBe('generate-content');
       expect(model.reasoningConfig).not.toBeNull();
@@ -93,7 +94,7 @@ describe('LlmDiscoveryService', () => {
     });
 
     it('contains gemini-2.5-pro with thinking_budget min 128 max 32768', () => {
-      const model = KNOWN_MODELS['gemini-2.5-pro'];
+      const model = MODEL_CATALOG['gemini-2.5-pro'];
       expect(model).toBeDefined();
       expect(model.endpointType).toBe('generate-content');
       expect(model.reasoningConfig).not.toBeNull();
@@ -103,7 +104,7 @@ describe('LlmDiscoveryService', () => {
     });
 
     it('contains gemini-2.5-flash with thinking_budget min 0 max 24576', () => {
-      const model = KNOWN_MODELS['gemini-2.5-flash'];
+      const model = MODEL_CATALOG['gemini-2.5-flash'];
       expect(model.reasoningConfig).not.toBeNull();
       expect(model.reasoningConfig!.type).toBe('thinking_budget');
       expect(model.reasoningConfig!.min).toBe(0);
@@ -111,17 +112,26 @@ describe('LlmDiscoveryService', () => {
     });
 
     it('marks claude-haiku-4-5 with no effort support', () => {
-      const model = KNOWN_MODELS['claude-haiku-4-5'];
+      const model = MODEL_CATALOG['claude-haiku-4-5'];
       expect(model).toBeDefined();
       expect(model.reasoningConfig).toBeNull();
     });
 
     it('contains claude-opus-4-5 with effort config', () => {
-      const model = KNOWN_MODELS['claude-opus-4-5'];
+      const model = MODEL_CATALOG['claude-opus-4-5'];
       expect(model).toBeDefined();
       expect(model.reasoningConfig).not.toBeNull();
       expect(model.reasoningConfig!.type).toBe('effort');
       expect(model.reasoningConfig!.default).toBe('high');
+    });
+
+    it('includes cost and capability data for all entries', () => {
+      const model = MODEL_CATALOG['claude-sonnet-4-6'];
+      expect(model.maxOutputTokens).toBe(64000);
+      expect(model.supportsToolUse).toBe(true);
+      expect(model.supportsVision).toBe(true);
+      expect(model.inputCostPerMillionUsd).toBe(3);
+      expect(model.outputCostPerMillionUsd).toBe(15);
     });
   });
 
@@ -172,7 +182,7 @@ describe('LlmDiscoveryService', () => {
       expect(ids).not.toContain('dall-e-3');
     });
 
-    it('enriches known models with catalog data including reasoning config', async () => {
+    it('enriches known models with full catalog data', async () => {
       vi.mocked(globalThis.fetch).mockResolvedValueOnce(
         mockFetchResponse({
           data: [{ id: 'gpt-4o', created: 1700000000 }],
@@ -182,7 +192,12 @@ describe('LlmDiscoveryService', () => {
       const result = await service.validateAndDiscover('openai', 'https://api.openai.com/v1', 'sk-test');
 
       expect(result[0].contextWindow).toBe(128000);
+      expect(result[0].maxOutputTokens).toBe(16384);
       expect(result[0].endpointType).toBe('chat-completions');
+      expect(result[0].supportsToolUse).toBe(true);
+      expect(result[0].supportsVision).toBe(true);
+      expect(result[0].inputCostPerMillionUsd).toBe(2.5);
+      expect(result[0].outputCostPerMillionUsd).toBe(10);
       expect(result[0].reasoningConfig).toBeNull();
     });
 
@@ -199,6 +214,25 @@ describe('LlmDiscoveryService', () => {
           headers: { Authorization: 'Bearer sk-test' },
         }),
       );
+    });
+
+    it('returns sensible defaults for unknown models', async () => {
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+        mockFetchResponse({
+          data: [{ id: 'gpt-99-future', created: 1700000000 }],
+        }),
+      );
+
+      const result = await service.validateAndDiscover('openai', 'https://api.openai.com/v1', 'sk-test');
+
+      expect(result[0].contextWindow).toBeNull();
+      expect(result[0].maxOutputTokens).toBeNull();
+      expect(result[0].endpointType).toBe('chat-completions');
+      expect(result[0].supportsToolUse).toBe(true);
+      expect(result[0].supportsVision).toBe(false);
+      expect(result[0].inputCostPerMillionUsd).toBeNull();
+      expect(result[0].outputCostPerMillionUsd).toBeNull();
+      expect(result[0].reasoningConfig).toBeNull();
     });
   });
 
@@ -340,6 +374,29 @@ describe('LlmDiscoveryService', () => {
 
       const result = await service.validateAndDiscover('google', 'https://generativelanguage.googleapis.com', 'goog-key');
       expect(result[0].endpointType).toBe('generate-content');
+    });
+
+    it('enriches Google models with catalog cost data', async () => {
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+        mockFetchResponse({
+          models: [
+            {
+              name: 'models/gemini-2.5-pro',
+              displayName: 'Gemini 2.5 Pro',
+              inputTokenLimit: 1048576,
+              outputTokenLimit: 65536,
+              supportedGenerationMethods: ['generateContent'],
+            },
+          ],
+        }),
+      );
+
+      const result = await service.validateAndDiscover('google', 'https://generativelanguage.googleapis.com', 'goog-key');
+
+      expect(result[0].inputCostPerMillionUsd).toBe(1.25);
+      expect(result[0].outputCostPerMillionUsd).toBe(10);
+      expect(result[0].supportsToolUse).toBe(true);
+      expect(result[0].supportsVision).toBe(true);
     });
   });
 

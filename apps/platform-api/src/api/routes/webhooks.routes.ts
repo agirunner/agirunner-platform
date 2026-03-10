@@ -6,7 +6,9 @@ import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { SchemaValidationFailedError, UnauthorizedError } from '../../errors/domain-errors.js';
+import { NotFoundError } from '../../errors/domain-errors.js';
 import {
+  extractRepositoryUrl,
   extractTaskIdFromGitPayload,
   mapGitEventType,
   normalizeGitEvent,
@@ -54,14 +56,15 @@ function getHeaderValue(request: FastifyRequest, headerName: string): string | u
   return value;
 }
 
-function parseInboundIdentity(request: FastifyRequest): InboundWebhookIdentity {
+function parseInboundProvider(
+  request: FastifyRequest,
+): { provider: 'github' | 'gitea' | 'gitlab'; eventType: string; signature?: string } {
   const githubEvent = getHeaderValue(request, 'x-github-event');
   if (githubEvent) {
     return {
       provider: 'github',
       eventType: githubEvent,
       signature: getHeaderValue(request, 'x-hub-signature-256'),
-      secret: request.server.config.GIT_WEBHOOK_GITHUB_SECRET,
     };
   }
 
@@ -71,7 +74,6 @@ function parseInboundIdentity(request: FastifyRequest): InboundWebhookIdentity {
       provider: 'gitea',
       eventType: giteaEvent,
       signature: getHeaderValue(request, 'x-gitea-signature'),
-      secret: request.server.config.GIT_WEBHOOK_GITEA_SECRET,
     };
   }
 
@@ -81,11 +83,22 @@ function parseInboundIdentity(request: FastifyRequest): InboundWebhookIdentity {
       provider: 'gitlab',
       eventType: gitlabEvent,
       signature: getHeaderValue(request, 'x-gitlab-token'),
-      secret: request.server.config.GIT_WEBHOOK_GITLAB_SECRET,
     };
   }
 
   throw new UnauthorizedError('Unsupported git webhook provider');
+}
+
+function getGlobalFallbackSecret(
+  config: { GIT_WEBHOOK_GITHUB_SECRET?: string; GIT_WEBHOOK_GITEA_SECRET?: string; GIT_WEBHOOK_GITLAB_SECRET?: string },
+  provider: 'github' | 'gitea' | 'gitlab',
+): string | undefined {
+  const map = {
+    github: config.GIT_WEBHOOK_GITHUB_SECRET,
+    gitea: config.GIT_WEBHOOK_GITEA_SECRET,
+    gitlab: config.GIT_WEBHOOK_GITLAB_SECRET,
+  };
+  return map[provider];
 }
 
 function constantTimeEquals(left: string, right: string): boolean {
@@ -195,16 +208,25 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
       },
     },
     async (request, reply) => {
-      const identity = parseInboundIdentity(request);
+      const inbound = parseInboundProvider(request);
       const rawBody = request.rawBody;
 
       if (!rawBody) {
         throw new UnauthorizedError('Webhook signature is invalid');
       }
 
+      const payload = asRecord(request.body);
+      const repoUrl = extractRepositoryUrl(inbound.provider, payload);
+
+      const identity = await resolveWebhookSecret(
+        app,
+        inbound,
+        repoUrl,
+        request,
+      );
+
       verifySignature(identity, rawBody);
 
-      const payload = asRecord(request.body);
       const taskId = extractTaskIdFromGitPayload(payload);
 
       if (!taskId) {
@@ -273,3 +295,52 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 };
+
+async function resolveWebhookSecret(
+  app: { projectService: { findProjectByRepositoryUrl(url: string): Promise<{ id: string; tenant_id: string } | null>; getGitWebhookSecret(tenantId: string, projectId: string): Promise<{ provider: string; secret: string } | null> }; config: Record<string, unknown>; log: { warn(obj: Record<string, unknown>, msg: string): void } },
+  inbound: { provider: 'github' | 'gitea' | 'gitlab'; eventType: string; signature?: string },
+  repoUrl: string | undefined,
+  request: FastifyRequest,
+): Promise<InboundWebhookIdentity> {
+  if (repoUrl) {
+    const project = await app.projectService.findProjectByRepositoryUrl(repoUrl);
+    if (project) {
+      const webhookConfig = await app.projectService.getGitWebhookSecret(
+        project.tenant_id,
+        project.id,
+      );
+      if (webhookConfig) {
+        return {
+          provider: inbound.provider,
+          eventType: inbound.eventType,
+          signature: inbound.signature,
+          secret: webhookConfig.secret,
+        };
+      }
+    }
+  }
+
+  /* @deprecated — global env var fallback. Configure per-project secrets instead. */
+  const globalSecret = getGlobalFallbackSecret(
+    request.server.config as unknown as Record<string, string | undefined>,
+    inbound.provider,
+  );
+
+  if (globalSecret) {
+    app.log.warn(
+      { provider: inbound.provider, repoUrl },
+      'git_webhook_using_deprecated_global_secret: configure per-project git webhook secrets instead',
+    );
+  }
+
+  if (!globalSecret && !repoUrl) {
+    throw new NotFoundError('No matching project found for webhook');
+  }
+
+  return {
+    provider: inbound.provider,
+    eventType: inbound.eventType,
+    signature: inbound.signature,
+    secret: globalSecret,
+  };
+}

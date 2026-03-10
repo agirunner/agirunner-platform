@@ -18,6 +18,8 @@ export const projects = pgTable(
     memoryMaxBytes: integer('memory_max_bytes').notNull().default(1048576),
     currentSpecVersion: integer('current_spec_version').notNull().default(0),
     settings: jsonb('settings').notNull().default({}),
+    gitWebhookProvider: text('git_webhook_provider'),
+    gitWebhookSecret: text('git_webhook_secret'),
     isActive: boolean('is_active').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

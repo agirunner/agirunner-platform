@@ -8,8 +8,14 @@ const retentionPolicySchema = z
     task_archive_after_days: z.number().int().min(1).optional(),
     task_delete_after_days: z.number().int().min(1).optional(),
     audit_log_retention_days: z.number().int().min(1).optional(),
+    execution_log_retention_days: z.number().int().min(1).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: 'At least one field is required' });
+
+const VALID_LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
+const loggingConfigSchema = z.object({
+  level: z.enum(VALID_LOG_LEVELS),
+});
 
 const legalHoldSchema = z.object({
   enabled: z.boolean(),
@@ -57,6 +63,26 @@ export const governanceRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(legalHoldSchema.safeParse(request.body ?? {}));
       return { data: await governanceService.setWorkflowLegalHold(request.auth!, params.id, body.enabled) };
+    },
+  );
+
+  app.get(
+    '/api/v1/governance/logging',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const level = await governanceService.getLoggingLevel(request.auth!.tenantId);
+      return { data: { level } };
+    },
+  );
+
+  app.put(
+    '/api/v1/governance/logging',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const body = parseOrThrow(loggingConfigSchema.safeParse(request.body ?? {}));
+      const level = await governanceService.setLoggingLevel(request.auth!, body.level);
+      app.logLevelCache.invalidate(request.auth!.tenantId);
+      return { data: { level } };
     },
   );
 };

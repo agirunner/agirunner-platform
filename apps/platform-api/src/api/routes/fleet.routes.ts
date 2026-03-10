@@ -136,6 +136,26 @@ export const fleetRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
+    '/api/v1/fleet/images',
+    { preHandler: [authenticateApiKey, withScope('worker')] },
+    async (request, reply) => {
+      const body = request.body as {
+        repository: string;
+        tag?: string;
+        digest?: string;
+        sizeBytes?: number;
+      };
+      await service.reportImage(
+        body.repository,
+        body.tag ?? null,
+        body.digest ?? null,
+        body.sizeBytes ?? null,
+      );
+      reply.status(204);
+    },
+  );
+
+  app.post(
     '/api/v1/fleet/images/pull',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request, reply) => {

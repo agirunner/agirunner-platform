@@ -9,6 +9,7 @@ import {
   Code2,
   FileText,
   Calendar,
+  Webhook,
 } from 'lucide-react';
 import { dashboardApi } from '../../lib/api.js';
 import type {
@@ -481,6 +482,113 @@ function MemoryTab({ projectId }: { projectId: string }): JSX.Element {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Git Webhook Tab                                                    */
+/* ------------------------------------------------------------------ */
+
+const GIT_PROVIDERS = ['github', 'gitea', 'gitlab'] as const;
+
+function GitWebhookTab({ project }: { project: DashboardProjectRecord }): JSX.Element {
+  const queryClient = useQueryClient();
+  const [provider, setProvider] = useState(project.git_webhook_provider ?? 'github');
+  const [secret, setSecret] = useState('');
+
+  const mutation = useMutation({
+    mutationFn: (payload: { provider: string; secret: string }) =>
+      dashboardApi.configureGitWebhook(project.id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project', project.id] });
+      setSecret('');
+    },
+  });
+
+  function handleSave() {
+    if (!secret.trim() || secret.trim().length < 8) return;
+    mutation.mutate({ provider, secret: secret.trim() });
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Webhook className="h-4 w-4" />
+            Git Webhook Configuration
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {project.git_webhook_provider && (
+            <div className="rounded-md border bg-border/10 p-3 text-sm">
+              <FieldRow label="Provider" value={project.git_webhook_provider} />
+              <FieldRow
+                label="Secret"
+                value={project.git_webhook_secret_configured ? 'Configured' : 'Not set'}
+              />
+            </div>
+          )}
+          {!project.git_webhook_provider && (
+            <p className="text-sm text-muted">
+              No git webhook secret configured. Set one to enable per-project signature verification.
+            </p>
+          )}
+
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Provider</label>
+              <select
+                className="w-full rounded-md border bg-surface px-3 py-2 text-sm"
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+              >
+                {GIT_PROVIDERS.map((p) => (
+                  <option key={p} value={p}>
+                    {p.charAt(0).toUpperCase() + p.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Webhook Secret</label>
+              <Input
+                type="password"
+                placeholder="Enter webhook secret (min 8 characters)"
+                value={secret}
+                onChange={(e) => setSecret(e.target.value)}
+              />
+            </div>
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={mutation.isPending || !secret.trim() || secret.trim().length < 8}
+            >
+              <Save className="h-4 w-4" />
+              {project.git_webhook_provider ? 'Update' : 'Configure'} Webhook Secret
+            </Button>
+          </div>
+
+          {mutation.isError && (
+            <p className="text-sm text-red-600">Failed to save webhook configuration.</p>
+          )}
+          {mutation.isSuccess && (
+            <p className="text-sm text-green-600">Webhook configuration saved.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {project.repository_url && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Repository</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FieldRow label="URL" value={project.repository_url} />
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Shared helpers                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -580,6 +688,7 @@ export function ProjectDetailPage(): JSX.Element {
           <TabsTrigger value="tools">Tools</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="memory">Memory</TabsTrigger>
+          <TabsTrigger value="git-webhook">Git Webhook</TabsTrigger>
         </TabsList>
 
         <TabsContent value="spec">
@@ -600,6 +709,10 @@ export function ProjectDetailPage(): JSX.Element {
 
         <TabsContent value="memory">
           <MemoryTab projectId={project.id} />
+        </TabsContent>
+
+        <TabsContent value="git-webhook">
+          <GitWebhookTab project={project} />
         </TabsContent>
       </Tabs>
     </div>

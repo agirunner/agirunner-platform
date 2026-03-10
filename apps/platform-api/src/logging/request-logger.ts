@@ -4,7 +4,35 @@ import { getRequestContext } from '../observability/request-context.js';
 import { actorFromAuth } from './actor-context.js';
 import type { LogService } from './log-service.js';
 
-const SKIP_PATHS = new Set(['/health', '/metrics', '/api/v1/logs/ingest']);
+const SKIP_PATHS = new Set([
+  // Health / metrics — internal probes, no observability value
+  '/health',
+  '/health/detail',
+  '/metrics',
+  // Log ingest — would create recursive logging
+  '/api/v1/logs/ingest',
+  // Heartbeats — high-frequency (every 5-60s per worker/agent/runtime)
+  '/api/v1/fleet/heartbeat',
+  '/api/v1/workers/:id/heartbeat',
+  '/api/v1/agents/:id/heartbeat',
+  '/api/v1/acp/sessions/:id/heartbeat',
+  // Fleet polling — called every reconcile cycle (5s)
+  '/api/v1/fleet/status',
+  '/api/v1/fleet/heartbeats',
+  '/api/v1/fleet/runtime-targets',
+  // Fleet event ingestion — container-manager reports every cycle
+  '/api/v1/fleet/events',
+  '/api/v1/fleet/workers/actual-state',
+  // Image inventory — container-manager scans and reports every cycle
+  '/api/v1/fleet/images',
+  // Queue depth polling and task claim polling
+  '/api/v1/tasks/queue-depth',
+  '/api/v1/tasks/claim',
+  // SSE streams — single long-lived connection, not request/response
+  '/api/v1/events/stream',
+  '/api/v1/logs/stream',
+  '/api/v1/a2a/tasks/:id/events',
+]);
 
 export function registerRequestLogger(app: FastifyInstance, logService: LogService): void {
   app.addHook('onResponse', async (request, reply) => {

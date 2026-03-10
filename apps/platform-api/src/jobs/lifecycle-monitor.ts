@@ -72,7 +72,7 @@ export function startLifecycleMonitor(
     }
     try {
       const result = await governanceService.enforceRetentionPolicies();
-      if (result.archivedTasks > 0 || result.deletedTasks > 0 || result.deletedAuditLogs > 0) {
+      if (result.archivedTasks > 0 || result.deletedTasks > 0 || result.deletedAuditLogs > 0 || result.droppedLogPartitions > 0) {
         logger.info(result, 'governance_retention_enforced');
       }
     } catch (error) {

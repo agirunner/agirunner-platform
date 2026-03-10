@@ -7,12 +7,14 @@ export interface RetentionPolicy {
   task_archive_after_days: number;
   task_delete_after_days: number;
   audit_log_retention_days: number;
+  execution_log_retention_days: number;
 }
 
 interface GovernanceServiceConfig {
   GOVERNANCE_TASK_ARCHIVE_AFTER_DAYS: number;
   GOVERNANCE_TASK_DELETE_AFTER_DAYS: number;
   GOVERNANCE_AUDIT_LOG_RETENTION_DAYS: number;
+  GOVERNANCE_EXECUTION_LOG_RETENTION_DAYS: number;
 }
 
 interface TenantRow {
@@ -71,11 +73,12 @@ export class GovernanceService {
     return this.setLegalHold(identity, 'workflows', workflowId, enabled, 'workflow');
   }
 
-  async enforceRetentionPolicies(): Promise<{ archivedTasks: number; deletedTasks: number; deletedAuditLogs: number }> {
+  async enforceRetentionPolicies(): Promise<{ archivedTasks: number; deletedTasks: number; deletedAuditLogs: number; droppedLogPartitions: number }> {
     const tenants = await this.pool.query<TenantRow>('SELECT id, settings FROM tenants WHERE is_active = true');
     let archivedTasks = 0;
     let deletedTasks = 0;
     let deletedAuditLogs = 0;
+    let droppedLogPartitions = 0;
 
     for (const tenant of tenants.rows) {
       const policy = readRetentionPolicy(tenant.settings, this.config);
@@ -84,7 +87,15 @@ export class GovernanceService {
       deletedAuditLogs += await this.deleteAuditLogs(tenant.id, policy);
     }
 
-    return { archivedTasks, deletedTasks, deletedAuditLogs };
+    // Execution log partition drop is global (partitions are not per-tenant).
+    // Use the shortest retention across all tenants, floored at 30 days.
+    const minRetention = tenants.rows.reduce((min, t) => {
+      const p = readRetentionPolicy(t.settings, this.config);
+      return Math.min(min, p.execution_log_retention_days);
+    }, this.config.GOVERNANCE_EXECUTION_LOG_RETENTION_DAYS);
+    droppedLogPartitions = await this.dropOldLogPartitions(Math.max(minRetention, 30));
+
+    return { archivedTasks, deletedTasks, deletedAuditLogs, droppedLogPartitions };
   }
 
   private async setLegalHold(
@@ -119,6 +130,41 @@ export class GovernanceService {
       id: result.rows[0].id,
       legal_hold: result.rows[0].legal_hold,
     };
+  }
+
+  async getLoggingLevel(tenantId: string): Promise<string> {
+    const tenant = await this.loadTenant(tenantId);
+    const logging = asRecord(tenant.settings?.logging);
+    const level = logging.level;
+    if (typeof level === 'string' && ['debug', 'info', 'warn', 'error'].includes(level)) {
+      return level;
+    }
+    return 'info';
+  }
+
+  async setLoggingLevel(identity: ApiKeyIdentity, level: string): Promise<string> {
+    await this.pool.query(
+      `UPDATE tenants
+       SET settings = jsonb_set(
+         COALESCE(settings, '{}'::jsonb),
+         '{logging,level}',
+         $2::jsonb,
+         true
+       ),
+       updated_at = now()
+       WHERE id = $1`,
+      [identity.tenantId, JSON.stringify(level)],
+    );
+
+    await this.auditService.record({
+      tenantId: identity.tenantId,
+      action: 'governance.logging_level_updated',
+      resourceType: 'tenant',
+      resourceId: identity.tenantId,
+      metadata: { level },
+    });
+
+    return level;
   }
 
   private async loadTenant(tenantId: string): Promise<TenantRow> {
@@ -197,6 +243,19 @@ export class GovernanceService {
     return deletable.rowCount ?? 0;
   }
 
+  private async dropOldLogPartitions(retentionDays: number): Promise<number> {
+    try {
+      const result = await this.pool.query<{ dropped: number }>(
+        `SELECT drop_old_execution_log_partitions($1) AS dropped`,
+        [retentionDays],
+      );
+      return result.rows[0]?.dropped ?? 0;
+    } catch {
+      // Function may not exist in older schema versions
+      return 0;
+    }
+  }
+
   private async deleteAuditLogs(tenantId: string, policy: RetentionPolicy): Promise<number> {
     const deleted = await this.pool.query<{ id: number }>(
       `DELETE FROM audit_logs
@@ -241,6 +300,10 @@ function readRetentionPolicy(
     audit_log_retention_days: readPositiveInt(
       retention.audit_log_retention_days,
       config.GOVERNANCE_AUDIT_LOG_RETENTION_DAYS,
+    ),
+    execution_log_retention_days: readPositiveInt(
+      retention.execution_log_retention_days,
+      config.GOVERNANCE_EXECUTION_LOG_RETENTION_DAYS,
     ),
   };
 }

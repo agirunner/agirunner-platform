@@ -351,13 +351,20 @@ export class ModelCatalogService {
       const result = await this.pool.query<ModelRow>(
         `INSERT INTO llm_models (
           tenant_id, provider_id, model_id, context_window,
-          max_output_tokens, endpoint_type, reasoning_config, is_enabled
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          max_output_tokens, endpoint_type, reasoning_config,
+          supports_tool_use, supports_vision,
+          input_cost_per_million_usd, output_cost_per_million_usd,
+          is_enabled
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         ON CONFLICT (tenant_id, provider_id, model_id) DO UPDATE SET
           context_window = EXCLUDED.context_window,
           max_output_tokens = EXCLUDED.max_output_tokens,
           endpoint_type = EXCLUDED.endpoint_type,
-          reasoning_config = EXCLUDED.reasoning_config
+          reasoning_config = EXCLUDED.reasoning_config,
+          supports_tool_use = EXCLUDED.supports_tool_use,
+          supports_vision = EXCLUDED.supports_vision,
+          input_cost_per_million_usd = EXCLUDED.input_cost_per_million_usd,
+          output_cost_per_million_usd = EXCLUDED.output_cost_per_million_usd
         RETURNING *`,
         [
           tenantId,
@@ -367,6 +374,10 @@ export class ModelCatalogService {
           model.maxOutputTokens,
           model.endpointType,
           model.reasoningConfig ? JSON.stringify(model.reasoningConfig) : null,
+          model.supportsToolUse,
+          model.supportsVision,
+          model.inputCostPerMillionUsd,
+          model.outputCostPerMillionUsd,
           enableAll || isDefaultEnabledModel(model.modelId),
         ],
       );
