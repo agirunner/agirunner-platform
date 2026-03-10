@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { parseBearerToken, verifyApiKey, verifyJwtApiKeyIdentity } from '../../auth/api-key.js';
 import { issueAccessToken, issueRefreshToken, verifyJwt } from '../../auth/jwt.js';
 import { UnauthorizedError } from '../../errors/domain-errors.js';
+import { logAuthEvent } from '../../logging/auth-log.js';
 
 const tokenExchangeSchema = z.object({ api_key: z.string().min(1) });
 const ACCESS_COOKIE_NAME = 'agirunner_access_token';
@@ -135,7 +136,22 @@ function clearAuthCookies(reply: FastifyReply, useSecureCookie: boolean): void {
 export const authRoutes: FastifyPluginAsync = async (app) => {
   const loginHandler = async (request: FastifyRequest, reply: FastifyReply) => {
     const body = tokenExchangeSchema.parse(request.body);
-    const identity = await verifyApiKey(app.pgPool, body.api_key);
+
+    let identity;
+    try {
+      identity = await verifyApiKey(app.pgPool, body.api_key);
+    } catch (err) {
+      void logAuthEvent(app.logService, {
+        tenantId: '00000000-0000-0000-0000-000000000000',
+        type: 'login_failed',
+        method: 'api_key',
+        actorType: 'system',
+        actorId: 'unknown',
+        actorName: 'Unknown',
+        metadata: { failure_reason: 'invalid_credentials' },
+      });
+      throw err;
+    }
 
     const token = await issueAccessToken(app, {
       keyId: identity.id,
@@ -173,6 +189,16 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     reply.setCookie(ACCESS_COOKIE_NAME, token, accessCookieOptions(useSecureCookie));
     reply.setCookie(REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions(useSecureCookie));
     reply.setCookie(CSRF_COOKIE_NAME, csrfToken, csrfCookieOptions(useSecureCookie));
+
+    void logAuthEvent(app.logService, {
+      tenantId: identity.tenantId,
+      type: 'login',
+      method: 'api_key',
+      actorType: identity.ownerType,
+      actorId: identity.ownerId ?? identity.id,
+      actorName: `Key ${identity.keyPrefix}`,
+      metadata: { scope: identity.scope, key_prefix: identity.keyPrefix },
+    });
 
     return {
       data: {
@@ -343,6 +369,15 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       reply.setCookie(REFRESH_COOKIE_NAME, nextRefreshToken, refreshCookieOptions(useSecureCookie));
       reply.setCookie(CSRF_COOKIE_NAME, nextCsrfToken, csrfCookieOptions(useSecureCookie));
 
+      void logAuthEvent(app.logService, {
+        tenantId: keyIdentity.tenantId,
+        type: 'token_refresh',
+        method: 'jwt',
+        actorType: keyIdentity.ownerType,
+        actorId: keyIdentity.ownerId ?? keyIdentity.id,
+        actorName: `Key ${keyIdentity.keyPrefix}`,
+      });
+
       return {
         data: {
           token: nextToken,
@@ -388,6 +423,15 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     }
 
     clearAuthCookies(reply, useSecureCookie);
+
+    void logAuthEvent(app.logService, {
+      tenantId: '00000000-0000-0000-0000-000000000000',
+      type: 'logout',
+      method: 'jwt',
+      actorType: 'system',
+      actorId: 'system',
+      actorName: 'System',
+    });
 
     return {
       data: {

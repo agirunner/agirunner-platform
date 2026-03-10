@@ -3,8 +3,6 @@ import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
-import { GovernanceService } from '../../services/governance-service.js';
-
 const retentionPolicySchema = z
   .object({
     task_archive_after_days: z.number().int().min(1).optional(),
@@ -25,7 +23,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const governanceRoutes: FastifyPluginAsync = async (app) => {
-  const governanceService = new GovernanceService(app.pgPool, app.auditService, app.config);
+  const governanceService = app.governanceService;
 
   app.get(
     '/api/v1/governance/retention-policy',

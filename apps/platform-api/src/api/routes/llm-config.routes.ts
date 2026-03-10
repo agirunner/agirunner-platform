@@ -1,17 +1,17 @@
 import type { FastifyPluginAsync } from 'fastify';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
-import {
-  ModelCatalogService,
-  type CreateProviderInput,
-  type UpdateProviderInput,
-  type CreateModelInput,
-  type UpdateModelInput,
+import type {
+  CreateProviderInput,
+  UpdateProviderInput,
+  CreateModelInput,
+  UpdateModelInput,
 } from '../../services/model-catalog-service.js';
 import { LlmDiscoveryService } from '../../services/llm-discovery-service.js';
+import { getOAuthProfile } from '../../config/oauth-profiles.js';
 
 export const llmConfigRoutes: FastifyPluginAsync = async (app) => {
-  const service = new ModelCatalogService(app.pgPool);
+  const service = app.modelCatalogService;
   const discoveryService = new LlmDiscoveryService();
 
   // --- Providers ---
@@ -127,6 +127,33 @@ export const llmConfigRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  // --- System Default Model ---
+
+  app.get(
+    '/api/v1/config/llm/system-default',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => ({
+      data: await service.getSystemDefault(request.auth!.tenantId),
+    }),
+  );
+
+  app.put(
+    '/api/v1/config/llm/system-default',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const body = request.body as {
+        modelId?: string | null;
+        reasoningConfig?: Record<string, unknown> | null;
+      };
+      await service.setSystemDefault(
+        request.auth!.tenantId,
+        body.modelId ?? null,
+        body.reasoningConfig ?? null,
+      );
+      return { data: await service.getSystemDefault(request.auth!.tenantId) };
+    },
+  );
+
   // --- Role-Model Assignments ---
 
   app.get(
@@ -164,6 +191,11 @@ export const llmConfigRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const provider = await service.getProvider(request.auth!.tenantId, params.id);
 
+      const authMode = (provider.auth_mode as string) ?? 'api_key';
+      if (authMode === 'oauth') {
+        return discoverOAuthModels(request.auth!.tenantId, params.id, provider);
+      }
+
       const providerType = (provider.metadata as Record<string, unknown>)?.providerType as string | undefined;
       const apiKey = provider.api_key_secret_ref ?? '';
 
@@ -194,6 +226,36 @@ export const llmConfigRoutes: FastifyPluginAsync = async (app) => {
       return { data: { discovered, created } };
     },
   );
+
+  async function discoverOAuthModels(
+    tenantId: string,
+    providerId: string,
+    provider: Record<string, unknown>,
+  ) {
+    const oauthConfig = provider.oauth_config as { profile_id: string } | null;
+    if (!oauthConfig?.profile_id) {
+      return { data: { discovered: [], created: [] } };
+    }
+
+    const profile = getOAuthProfile(oauthConfig.profile_id);
+    const discovered = profile.staticModels.map((m) => ({
+      modelId: m.modelId,
+      displayName: m.modelId,
+      contextWindow: m.contextWindow,
+      maxOutputTokens: m.maxOutputTokens,
+      endpointType: m.endpointType,
+      reasoningConfig: null,
+    }));
+
+    const created = await service.bulkCreateModels(
+      tenantId,
+      providerId,
+      discovered,
+      true,
+    );
+
+    return { data: { discovered, created } };
+  }
 
   // --- Resolve ---
 

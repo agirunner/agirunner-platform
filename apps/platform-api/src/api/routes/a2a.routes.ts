@@ -3,7 +3,6 @@ import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
-import { TaskService } from '../../services/task-service.js';
 import {
   buildA2ATaskResponse,
   buildA2AStreamEvent,
@@ -37,7 +36,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const a2aRoutes: FastifyPluginAsync = async (app) => {
-  const taskService = new TaskService(app.pgPool, app.eventService, app.config, app.workerConnectionHub);
+  const taskService = app.taskService;
 
   app.get('/.well-known/agent.json', async (request) => {
     const protocol = request.protocol;

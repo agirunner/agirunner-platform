@@ -25,17 +25,18 @@ const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:
 
 interface OrchestratorGrant {
   id: string;
-  workflow_id?: string | null;
-  agent_scope?: string | null;
-  agent_id?: string | null;
+  workflow_id: string;
+  agent_id: string;
   permissions: string[];
+  expires_at?: string | null;
   created_at: string;
 }
 
 interface CreateGrantPayload {
-  workflow_id?: string;
-  agent_scope?: string;
+  agent_id: string;
+  workflow_id: string;
   permissions: string[];
+  expires_at?: string;
 }
 
 function authHeaders(): Record<string, string> {
@@ -60,6 +61,9 @@ async function fetchGrants(): Promise<OrchestratorGrant[]> {
   if (!resp.ok) {
     if (resp.status === 404) {
       return [];
+    }
+    if (resp.status === 403) {
+      throw new Error('HTTP 403');
     }
     throw new Error(`HTTP ${resp.status}`);
   }
@@ -97,8 +101,8 @@ function CreateGrantDialog({
   onClose: () => void;
 }): JSX.Element {
   const queryClient = useQueryClient();
+  const [agentId, setAgentId] = useState('');
   const [workflowId, setWorkflowId] = useState('');
-  const [agentScope, setAgentScope] = useState('');
   const [permissions, setPermissions] = useState('');
 
   const mutation = useMutation({
@@ -110,8 +114,8 @@ function CreateGrantDialog({
   });
 
   function resetAndClose(): void {
+    setAgentId('');
     setWorkflowId('');
-    setAgentScope('');
     setPermissions('');
     onClose();
   }
@@ -122,12 +126,13 @@ function CreateGrantDialog({
       .split(',')
       .map((p) => p.trim())
       .filter(Boolean);
-    if (permList.length === 0) return;
+    if (permList.length === 0 || !agentId.trim() || !workflowId.trim()) return;
 
-    const payload: CreateGrantPayload = { permissions: permList };
-    if (workflowId.trim()) payload.workflow_id = workflowId.trim();
-    if (agentScope.trim()) payload.agent_scope = agentScope.trim();
-    mutation.mutate(payload);
+    mutation.mutate({
+      agent_id: agentId.trim(),
+      workflow_id: workflowId.trim(),
+      permissions: permList,
+    });
   }
 
   return (
@@ -141,21 +146,23 @@ function CreateGrantDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
+            <label htmlFor="grant-agent-id" className="text-sm font-medium">Agent ID</label>
+            <Input
+              id="grant-agent-id"
+              value={agentId}
+              onChange={(e) => setAgentId(e.target.value)}
+              placeholder="agent-uuid"
+              required
+            />
+          </div>
+          <div className="space-y-2">
             <label htmlFor="grant-workflow" className="text-sm font-medium">Workflow ID</label>
             <Input
               id="grant-workflow"
               value={workflowId}
               onChange={(e) => setWorkflowId(e.target.value)}
               placeholder="workflow-uuid"
-            />
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="grant-agent-scope" className="text-sm font-medium">Agent Scope</label>
-            <Input
-              id="grant-agent-scope"
-              value={agentScope}
-              onChange={(e) => setAgentScope(e.target.value)}
-              placeholder="e.g. coding, review"
+              required
             />
           </div>
           <div className="space-y-2">
@@ -204,6 +211,7 @@ export function OrchestratorGrantsPage(): JSX.Element {
   }
 
   const isEndpointMissing = error && String(error).includes('404');
+  const isPermissionDenied = error && String(error).includes('403');
 
   if (isEndpointMissing) {
     return (
@@ -216,6 +224,23 @@ export function OrchestratorGrantsPage(): JSX.Element {
           <p className="text-muted-foreground">
             The orchestrator grants endpoint is not available. This feature requires
             the <code className="text-sm">/api/v1/orchestrator-grants</code> API to be configured.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isPermissionDenied) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center gap-2">
+          <Lock className="h-6 w-6 text-muted-foreground" />
+          <h1 className="text-2xl font-semibold">Orchestrator Grants</h1>
+        </div>
+        <div className="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30 p-6 text-center">
+          <p className="text-amber-800 dark:text-amber-300">
+            Insufficient permissions. Orchestrator grant management requires admin-level access.
+            Please log in with an admin API key to manage grants.
           </p>
         </div>
       </div>
@@ -248,8 +273,8 @@ export function OrchestratorGrantsPage(): JSX.Element {
           <TableHeader>
             <TableRow>
               <TableHead>Grant ID</TableHead>
+              <TableHead>Agent ID</TableHead>
               <TableHead>Workflow ID</TableHead>
-              <TableHead>Agent Scope</TableHead>
               <TableHead>Permissions</TableHead>
               <TableHead>Created</TableHead>
               <TableHead>Actions</TableHead>
@@ -261,15 +286,11 @@ export function OrchestratorGrantsPage(): JSX.Element {
                 <TableCell className="font-mono text-xs" title={grant.id}>
                   {grant.id.length > 12 ? `${grant.id.slice(0, 12)}...` : grant.id}
                 </TableCell>
-                <TableCell className="font-mono text-xs text-muted-foreground">
-                  {grant.workflow_id ?? '-'}
+                <TableCell className="font-mono text-xs text-muted-foreground" title={grant.agent_id}>
+                  {grant.agent_id.length > 12 ? `${grant.agent_id.slice(0, 12)}...` : grant.agent_id}
                 </TableCell>
-                <TableCell>
-                  {grant.agent_scope ? (
-                    <Badge variant="secondary">{grant.agent_scope}</Badge>
-                  ) : (
-                    <span className="text-muted-foreground">-</span>
-                  )}
+                <TableCell className="font-mono text-xs text-muted-foreground" title={grant.workflow_id}>
+                  {grant.workflow_id.length > 12 ? `${grant.workflow_id.slice(0, 12)}...` : grant.workflow_id}
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">

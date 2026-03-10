@@ -98,6 +98,12 @@ func (m *Manager) createWarmTaskContainers(ctx context.Context, target RuntimeTa
 		m.logger.Info("created warm task container",
 			"template", target.TemplateID, "container", containerID)
 		m.logFleetEvent("warm_task_created", "info", "", target.TemplateID, containerID)
+		m.emitLog("container", "container.warm_create", "info", "completed", map[string]any{
+			"template_id":   target.TemplateID,
+			"template_name": target.TemplateName,
+			"container_id":  containerID,
+			"image":         target.TaskImage,
+		})
 	}
 }
 
@@ -120,11 +126,12 @@ func buildWarmTaskSpec(target RuntimeTarget, networkName string) ContainerSpec {
 // buildWarmTaskLabels creates labels identifying a warm-pool task container.
 func buildWarmTaskLabels(target RuntimeTarget) map[string]string {
 	return map[string]string{
-		labelDCMManaged:    "true",
-		labelDCMTier:       tierTask,
-		labelDCMTemplateID: target.TemplateID,
-		labelDCMWarmPool:   "true",
-		labelManagedBy:     "true",
+		labelDCMManaged:      "true",
+		labelDCMTier:         tierTask,
+		labelDCMTemplateID:   target.TemplateID,
+		labelDCMTemplateName: target.TemplateName,
+		labelDCMWarmPool:     "true",
+		labelManagedBy:       "true",
 	}
 }
 

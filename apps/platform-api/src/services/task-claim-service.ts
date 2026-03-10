@@ -4,6 +4,7 @@ import { AgentBusyError, ForbiddenError, NotFoundError } from '../errors/domain-
 import { assertValidTransition } from '../orchestration/task-state-machine.js';
 import { EventService } from './event-service.js';
 import type { ResolvedRoleConfig } from './model-catalog-service.js';
+import { OAuthService, type ResolvedOAuthToken } from './oauth-service.js';
 import { computeToolMatch, readAgentToolRequirements, resolveProjectToolTags } from './tool-tag-service.js';
 
 const priorityCase = "CASE priority WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END";
@@ -211,8 +212,50 @@ export class TaskClaimService {
     if (!resolved) return task;
 
     const existingRoleConfig = (task.role_config ?? {}) as Record<string, unknown>;
+
+    if (resolved.provider.authMode === 'oauth' && resolved.provider.providerId) {
+      return this.enrichWithOAuthCredentials(
+        resolved, existingRoleConfig, task,
+      );
+    }
+
+    return this.enrichWithApiKeyCredentials(resolved, existingRoleConfig, task);
+  }
+
+  private async enrichWithOAuthCredentials(
+    resolved: ResolvedRoleConfig,
+    existingRoleConfig: Record<string, unknown>,
+    task: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    const oauthService = new OAuthService(this.deps.pool);
+    const oauthToken = await oauthService.resolveValidToken(resolved.provider.providerId!);
+
     const llmFields: Record<string, unknown> = {
-      llm_provider: resolved.provider.name,
+      llm_provider: resolved.provider.providerType,
+      llm_model: resolved.model.modelId,
+      llm_api_key: oauthToken.accessToken,
+      llm_base_url: oauthToken.baseUrl,
+      llm_endpoint_type: oauthToken.endpointType,
+      llm_auth_mode: 'oauth',
+    };
+
+    if (Object.keys(oauthToken.extraHeaders).length > 0) {
+      llmFields.llm_extra_headers = oauthToken.extraHeaders;
+    }
+
+    return {
+      ...task,
+      role_config: { ...existingRoleConfig, ...llmFields },
+    };
+  }
+
+  private enrichWithApiKeyCredentials(
+    resolved: ResolvedRoleConfig,
+    existingRoleConfig: Record<string, unknown>,
+    task: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const llmFields: Record<string, unknown> = {
+      llm_provider: resolved.provider.providerType,
       llm_model: resolved.model.modelId,
     };
     if (resolved.provider.apiKeySecretRef) {

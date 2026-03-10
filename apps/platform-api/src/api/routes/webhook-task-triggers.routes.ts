@@ -5,7 +5,6 @@ import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
-import { TaskService } from '../../services/task-service.js';
 import { WebhookTaskTriggerService } from '../../services/webhook-task-trigger-service.js';
 
 const triggerSchema = z.object({
@@ -65,7 +64,7 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 export const webhookTaskTriggerRoutes: FastifyPluginAsync = async (app) => {
-  const taskService = new TaskService(app.pgPool, app.eventService, app.config, app.workerConnectionHub);
+  const taskService = app.taskService;
   const triggerService = new WebhookTaskTriggerService(
     app.pgPool,
     app.eventService,

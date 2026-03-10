@@ -1,10 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
+import { authenticateApiKey, withAllowedScopes, withScope } from '../../auth/fastify-auth-hook.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
-import { TaskService } from '../../services/task-service.js';
+
 
 const taskCreateSchema = z.object({
   title: z.string().min(1).max(500),
@@ -122,7 +122,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const taskRoutes: FastifyPluginAsync = async (app) => {
-  const taskService = new TaskService(app.pgPool, app.eventService, app.config, app.workerConnectionHub);
+  const taskService = app.taskService;
 
   app.post(
     '/api/v1/tasks',
@@ -256,7 +256,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     '/api/v1/tasks/:id/fail',
-    { preHandler: [authenticateApiKey, withScope('agent')] },
+    { preHandler: [authenticateApiKey, withAllowedScopes(['agent', 'worker', 'admin'])] },
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(failSchema.safeParse(request.body));

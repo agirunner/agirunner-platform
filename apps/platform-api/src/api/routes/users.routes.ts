@@ -6,10 +6,10 @@ import { withRole, roleToScope } from '../../auth/rbac.js';
 import { issueUserAccessToken, issueUserRefreshToken } from '../../auth/jwt.js';
 import { DEFAULT_TENANT_ID } from '../../db/seed.js';
 import { ForbiddenError, UnauthorizedError } from '../../errors/domain-errors.js';
-import { UserService, type CreateUserInput, type UpdateUserInput } from '../../services/user-service.js';
+import type { CreateUserInput, UpdateUserInput } from '../../services/user-service.js';
 
 export async function userRoutes(app: FastifyInstance): Promise<void> {
-  const userService = new UserService(app.pgPool);
+  const userService = app.userService;
 
   app.post<{ Body: Record<string, unknown> }>(
     '/api/v1/auth/register',
@@ -69,9 +69,8 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
 
     const ssoUser = await exchangeCodeForUser(provider, config, code);
 
-    const ssoUserService = new UserService(app.pgPool);
     const tenantId = request.auth?.tenantId ?? DEFAULT_TENANT_ID;
-    const user = await ssoUserService.findOrCreateFromSSO(
+    const user = await userService.findOrCreateFromSSO(
       tenantId,
       ssoUser.provider,
       ssoUser.providerUserId,

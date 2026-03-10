@@ -1,74 +1,105 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Copy, Download, Pencil, Plus, LayoutTemplate, GitCompare, Trash2 } from 'lucide-react';
-import { dashboardApi, type DashboardTemplate } from '../../lib/api.js';
-import { readSession } from '../../lib/session.js';
+import { ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Loader2,
+  Plus,
+  LayoutTemplate,
+  Search,
+  Pencil,
+  Copy,
+  Download,
+  Trash2,
+  Play,
+  MoreVertical,
+  Zap,
+  Settings,
+} from 'lucide-react';
 import { toast } from '../../lib/toast.js';
 import { Button } from '../../components/ui/button.js';
 import { Badge } from '../../components/ui/badge.js';
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from '../../components/ui/table.js';
+import { Input } from '../../components/ui/input.js';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from '../../components/ui/dialog.js';
-import { DiffViewer } from '../../components/diff-viewer.js';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../components/ui/dropdown-menu.js';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../../components/ui/tooltip.js';
+import { Skeleton } from '../../components/ui/skeleton.js';
+import { listTemplates, deleteTemplate, cloneTemplate } from './template-editor-api.js';
+import type { TemplateResponse, TemplateSchema } from './template-editor-types.js';
 
-function normalizeTemplates(
-  response: { data: DashboardTemplate[] } | DashboardTemplate[] | undefined,
-): DashboardTemplate[] {
-  if (!response) return [];
-  if (Array.isArray(response)) return response;
-  return response?.data ?? [];
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+type FilterTab = 'all' | 'published' | 'drafts' | 'built-in';
+type SortMode = 'recent' | 'name' | 'tasks';
+
+function getTaskCount(schema: TemplateSchema | undefined): number {
+  return schema?.tasks?.length ?? 0;
 }
 
-function exportTemplate(template: DashboardTemplate) {
-  const blob = new Blob([JSON.stringify(template, null, 2)], {
-    type: 'application/json',
-  });
+function getPhaseCount(schema: TemplateSchema | undefined): number {
+  return schema?.workflow?.phases?.length ?? 0;
+}
+
+function getRoles(schema: TemplateSchema | undefined): string[] {
+  if (!schema?.tasks) return [];
+  const roles = new Set<string>();
+  for (const task of schema.tasks) {
+    if (task.role) roles.add(task.role);
+  }
+  return [...roles];
+}
+
+function hasWarmMode(schema: TemplateSchema | undefined): boolean {
+  return schema?.runtime?.pool_mode === 'warm';
+}
+
+const ROLE_COLORS: Record<string, string> = {
+  architect: 'bg-purple-500',
+  developer: 'bg-blue-500',
+  reviewer: 'bg-amber-500',
+  qa: 'bg-green-500',
+  orchestrator: 'bg-red-500',
+};
+
+function roleColor(role: string): string {
+  return ROLE_COLORS[role] ?? 'bg-gray-400';
+}
+
+function exportTemplateJson(template: TemplateResponse) {
+  const blob = new Blob([JSON.stringify(template.schema, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = `${template.slug}-v${template.version}.json`;
-  document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${template.slug}-v${template.version}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
-const API_BASE_URL =
-  import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
+// ---------------------------------------------------------------------------
+// Delete dialog
+// ---------------------------------------------------------------------------
 
-async function deleteTemplate(id: string): Promise<void> {
-  const session = readSession();
-  const headers: Record<string, string> = {};
-  if (session?.accessToken) {
-    headers.Authorization = `Bearer ${session.accessToken}`;
-  }
-  const response = await fetch(`${API_BASE_URL}/api/v1/templates/${id}`, {
-    method: 'DELETE',
-    headers,
-    credentials: 'include',
-  });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-}
-
-function DeleteTemplateDialog({
+function DeleteDialog({
   template,
   onClose,
 }: {
-  template: DashboardTemplate;
+  template: TemplateResponse;
   onClose: () => void;
-}): JSX.Element {
+}) {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: () => deleteTemplate(template.id),
@@ -77,9 +108,7 @@ function DeleteTemplateDialog({
       onClose();
       toast.success('Template deleted');
     },
-    onError: () => {
-      toast.error('Failed to delete template');
-    },
+    onError: () => toast.error('Failed to delete template'),
   });
 
   return (
@@ -89,24 +118,17 @@ function DeleteTemplateDialog({
           <DialogTitle>Delete Template</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted">
-          Are you sure you want to delete &quot;{template.name}&quot;? This action cannot be undone.
+          Are you sure you want to delete &quot;{template.name}&quot;? This
+          action cannot be undone.
         </p>
-        {mutation.error && (
-          <p className="text-sm text-red-600">{String(mutation.error)}</p>
-        )}
         <div className="flex justify-end gap-2 mt-4">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button
             variant="destructive"
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending}
-            data-testid="confirm-delete"
           >
-            {mutation.isPending && (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            )}
+            {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
             Delete
           </Button>
         </div>
@@ -115,86 +137,262 @@ function DeleteTemplateDialog({
   );
 }
 
-function buildDiffText(template: DashboardTemplate, version: number): string {
-  const header = `Template: ${template.name}\nVersion: ${version}\n`;
-  return header + JSON.stringify(template.schema, null, 2);
-}
+// ---------------------------------------------------------------------------
+// Template card
+// ---------------------------------------------------------------------------
 
-function TemplateActions({ template, onDiff }: { template: DashboardTemplate; onDiff: () => void }): JSX.Element {
+function TemplateCard({ template }: { template: TemplateResponse }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [showDelete, setShowDelete] = useState(false);
+
+  const cloneMutation = useMutation({
+    mutationFn: () => cloneTemplate(template.id),
+    onSuccess: (cloned) => {
+      queryClient.invalidateQueries({ queryKey: ['templates'] });
+      toast.success('Template cloned');
+      navigate(`/config/templates/${cloned.id}/edit`);
+    },
+    onError: () => toast.error('Failed to clone template'),
+  });
+
+  const schema = template.schema as TemplateSchema | undefined;
+  const taskCount = getTaskCount(schema);
+  const phaseCount = getPhaseCount(schema);
+  const roles = getRoles(schema);
+  const warm = hasWarmMode(schema);
 
   return (
     <>
-      <div className="flex items-center gap-1">
-        <Button
-          size="icon"
-          variant="ghost"
-          title="Edit template"
-          onClick={() => {
-            window.location.assign(`/config/templates/${template.id}/edit`);
-          }}
-        >
-          <Pencil className="h-4 w-4" />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          title="Clone template"
-        >
-          <Copy className="h-4 w-4" />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          title="Export as JSON"
-          onClick={() => exportTemplate(template)}
-        >
-          <Download className="h-4 w-4" />
-        </Button>
-        {template.version > 1 && (
-          <Button
-            size="icon"
-            variant="ghost"
-            title="View diff with previous version"
-            onClick={onDiff}
+      <div className="group rounded-lg border border-border bg-surface p-5 flex flex-col gap-3 hover:border-accent/40 transition-colors">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2">
+          <button
+            className="text-left flex-1 min-w-0"
+            onClick={() => navigate(`/config/templates/${template.id}/edit`)}
           >
-            <GitCompare className="h-4 w-4" />
-          </Button>
+            <h3 className="font-semibold text-foreground truncate">{template.name}</h3>
+          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Badge variant="outline" className="text-[10px]">v{template.version}</Badge>
+            <Badge variant={template.is_published ? 'success' : 'secondary'}>
+              {template.is_published ? 'Published' : 'Draft'}
+            </Badge>
+            {warm && template.is_published && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />
+                  </TooltipTrigger>
+                  <TooltipContent>Warm containers active</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            {warm && !template.is_published && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger><Settings className="h-3.5 w-3.5 text-muted" /></TooltipTrigger>
+                  <TooltipContent>Warm mode configured but template is draft</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+        </div>
+
+        {/* Description */}
+        <p className="text-sm text-muted line-clamp-2 min-h-[2.5rem]">
+          {template.description || 'No description'}
+        </p>
+
+        {/* Stats */}
+        <div className="flex items-center gap-4 text-xs text-muted">
+          <span>{phaseCount} phase{phaseCount !== 1 ? 's' : ''}</span>
+          <span>{taskCount} task{taskCount !== 1 ? 's' : ''}</span>
+          {template.is_built_in && (
+            <Badge variant="outline" className="text-[10px] py-0">Built-in</Badge>
+          )}
+        </div>
+
+        {/* Roles */}
+        {roles.length > 0 && (
+          <TooltipProvider>
+            <div className="flex items-center gap-1">
+              {roles.map((role) => (
+                <Tooltip key={role}>
+                  <TooltipTrigger>
+                    <span className={`inline-block h-2.5 w-2.5 rounded-full ${roleColor(role)}`} />
+                  </TooltipTrigger>
+                  <TooltipContent>{role}</TooltipContent>
+                </Tooltip>
+              ))}
+              <span className="text-xs text-muted ml-1">{roles.length} role{roles.length !== 1 ? 's' : ''}</span>
+            </div>
+          </TooltipProvider>
         )}
-        {!template.is_built_in && (
-          <Button
-            size="icon"
-            variant="ghost"
-            title="Delete template"
-            onClick={() => setShowDelete(true)}
-            data-testid={`delete-template-${template.slug}`}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        )}
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 mt-auto pt-2 border-t border-border/50">
+          {/* Desktop inline actions */}
+          <div className="hidden sm:flex items-center gap-2 flex-1">
+            {template.is_published && (
+              <Button
+                size="sm"
+                onClick={() => navigate(`/config/templates/${template.id}/launch`)}
+              >
+                <Play className="h-3.5 w-3.5" />
+                Launch
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate(`/config/templates/${template.id}/edit`)}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Edit
+            </Button>
+            {!template.is_published && !template.is_built_in && (
+              <Badge variant="outline" className="text-[10px] ml-auto cursor-default">
+                <Zap className="h-3 w-3 mr-0.5" />
+                Draft
+              </Badge>
+            )}
+          </div>
+
+          {/* Overflow menu (always visible on mobile, hover on desktop) */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 sm:ml-auto"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {/* Mobile-only actions */}
+              <DropdownMenuItem
+                className="sm:hidden"
+                onClick={() => navigate(`/config/templates/${template.id}/edit`)}
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
+              {template.is_published && (
+                <DropdownMenuItem
+                  className="sm:hidden"
+                  onClick={() => navigate(`/config/templates/${template.id}/launch`)}
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  Launch
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                onClick={() => cloneMutation.mutate()}
+                disabled={cloneMutation.isPending}
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                {cloneMutation.isPending ? 'Cloning...' : 'Clone'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => exportTemplateJson(template)}>
+                <Download className="h-4 w-4 mr-2" />
+                Export JSON
+              </DropdownMenuItem>
+              {!template.is_built_in && (
+                <DropdownMenuItem
+                  className="text-red-600"
+                  onClick={() => setShowDelete(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
+
       {showDelete && (
-        <DeleteTemplateDialog
-          template={template}
-          onClose={() => setShowDelete(false)}
-        />
+        <DeleteDialog template={template} onClose={() => setShowDelete(false)} />
       )}
     </>
   );
 }
 
+// ---------------------------------------------------------------------------
+// Main page
+// ---------------------------------------------------------------------------
+
 export function TemplateListPage(): JSX.Element {
-  const [diffTemplate, setDiffTemplate] = useState<DashboardTemplate | null>(null);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<FilterTab>('all');
+  const [sort, setSort] = useState<SortMode>('recent');
+  const [page, setPage] = useState(1);
+  const PER_PAGE = 12;
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['templates'],
-    queryFn: () => dashboardApi.listTemplates(),
+    queryKey: ['templates', page],
+    queryFn: () => listTemplates({ page, per_page: PER_PAGE }),
   });
+
+  const handleCreateNew = () => navigate('/config/templates/new/edit');
+
+  const templates = useMemo(() => {
+    let list: TemplateResponse[] = data?.data ?? [];
+
+    // Filter
+    if (filter === 'published') list = list.filter((t) => t.is_published);
+    else if (filter === 'drafts') list = list.filter((t) => !t.is_published);
+    else if (filter === 'built-in') list = list.filter((t) => t.is_built_in);
+
+    // Search
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (t) =>
+          t.name.toLowerCase().includes(q) ||
+          t.slug.toLowerCase().includes(q) ||
+          (t.description ?? '').toLowerCase().includes(q),
+      );
+    }
+
+    // Sort
+    if (sort === 'name') {
+      list = [...list].sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sort === 'tasks') {
+      list = [...list].sort((a, b) => getTaskCount(b.schema) - getTaskCount(a.schema));
+    }
+    // 'recent' = default API order (created_at DESC)
+
+    return list;
+  }, [data, filter, search, sort]);
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center p-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted" />
+      <div className="p-4 sm:p-6 space-y-5">
+        <div>
+          <Skeleton className="h-7 w-40" />
+          <Skeleton className="h-4 w-72 mt-2" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={i} className="rounded-lg border border-border p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-5 w-16" />
+              </div>
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-2/3" />
+              <div className="flex gap-4">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -209,93 +407,142 @@ export function TemplateListPage(): JSX.Element {
     );
   }
 
-  const templates = normalizeTemplates(data);
+  const FILTER_TABS: { key: FilterTab; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'published', label: 'Published' },
+    { key: 'drafts', label: 'Drafts' },
+    { key: 'built-in', label: 'Built-in' },
+  ];
+
+  const SORT_OPTIONS: { key: SortMode; label: string }[] = [
+    { key: 'recent', label: 'Recent' },
+    { key: 'name', label: 'Name A-Z' },
+    { key: 'tasks', label: 'Most tasks' },
+  ];
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Templates</h1>
-          <p className="text-sm text-muted">
-            Manage workflow templates, versions, and publishing.
-          </p>
-        </div>
-        <Button disabled title="Coming soon">
-          <Plus className="h-4 w-4" />
-          Create Template
-        </Button>
+    <div className="p-4 sm:p-6 space-y-5">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-semibold">Templates</h1>
+        <p className="text-sm text-muted mt-1">
+          Reusable workflow blueprints. Create a template, then launch workflows
+          from it.
+        </p>
       </div>
 
+      {/* Toolbar */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        {/* Search */}
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+          <Input
+            placeholder="Search templates..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+
+        {/* Filter tabs */}
+        <div className="flex items-center gap-1 overflow-x-auto">
+          {FILTER_TABS.map((tab) => (
+            <Button
+              key={tab.key}
+              size="sm"
+              variant={filter === tab.key ? 'default' : 'ghost'}
+              onClick={() => setFilter(tab.key)}
+            >
+              {tab.label}
+            </Button>
+          ))}
+        </div>
+
+        {/* Sort + Create */}
+        <div className="flex items-center gap-2 sm:ml-auto">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline">
+                Sort: {SORT_OPTIONS.find((o) => o.key === sort)?.label}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {SORT_OPTIONS.map((opt) => (
+                <DropdownMenuItem key={opt.key} onClick={() => setSort(opt.key)}>
+                  {opt.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button
+            onClick={() => handleCreateNew()}
+          >
+            <Plus className="h-4 w-4" />
+            New Template
+          </Button>
+        </div>
+      </div>
+
+      {/* Grid */}
       {templates.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-muted">
+        <div className="flex flex-col items-center justify-center py-16 text-muted">
           <LayoutTemplate className="h-12 w-12 mb-4" />
-          <p className="font-medium">No templates found</p>
-          <p className="text-sm mt-1">Templates will appear here once created.</p>
+          <p className="font-medium">
+            {search || filter !== 'all' ? 'No matching templates' : 'No templates yet'}
+          </p>
+          <p className="text-sm mt-1">
+            {search || filter !== 'all'
+              ? 'Try adjusting your search or filters.'
+              : 'Create your first template to get started.'}
+          </p>
+          {!search && filter === 'all' && (
+            <Button className="mt-4" onClick={() => handleCreateNew()}>
+              <Plus className="h-4 w-4" />
+              Create your first template
+            </Button>
+          )}
         </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Slug</TableHead>
-              <TableHead>Version</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Built-in</TableHead>
-              <TableHead className="w-[140px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {templates.map((template) => (
-              <TableRow key={template.id}>
-                <TableCell className="font-medium">{template.name}</TableCell>
-                <TableCell className="font-mono text-xs text-muted">
-                  {template.slug}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">v{template.version}</Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={template.is_published ? 'success' : 'secondary'}>
-                    {template.is_published ? 'Published' : 'Draft'}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  {template.is_built_in ? (
-                    <Badge variant="outline">Built-in</Badge>
-                  ) : (
-                    <span className="text-sm text-muted">Custom</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <TemplateActions
-                    template={template}
-                    onDiff={() => setDiffTemplate(template)}
-                  />
-                </TableCell>
-              </TableRow>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {templates.map((t) => (
+              <TemplateCard key={t.id} template={t} />
             ))}
-          </TableBody>
-        </Table>
+          </div>
+          {/* Pagination */}
+          <div className="flex items-center justify-between pt-2">
+            <p className="text-xs text-muted">
+              Showing {templates.length} of {data?.meta?.total ?? templates.length} templates
+            </p>
+            {(data?.meta?.pages ?? 1) > 1 && (
+              <div className="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="h-7 w-7 p-0"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-xs text-muted px-2">
+                  {page} / {data?.meta?.pages ?? 1}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={page >= (data?.meta?.pages ?? 1)}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="h-7 w-7 p-0"
+                >
+                  <ChevronRightIcon className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        </>
       )}
-
-      <Dialog open={diffTemplate !== null} onOpenChange={(open) => { if (!open) setDiffTemplate(null); }}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Template Version Diff</DialogTitle>
-            <DialogDescription>
-              Comparing version {(diffTemplate?.version ?? 1) - 1} with version {diffTemplate?.version ?? 1} of {diffTemplate?.name ?? ''}.
-            </DialogDescription>
-          </DialogHeader>
-          {diffTemplate && (
-            <DiffViewer
-              oldText={buildDiffText(diffTemplate, diffTemplate.version - 1)}
-              newText={buildDiffText(diffTemplate, diffTemplate.version)}
-              oldLabel={`v${diffTemplate.version - 1}`}
-              newLabel={`v${diffTemplate.version}`}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

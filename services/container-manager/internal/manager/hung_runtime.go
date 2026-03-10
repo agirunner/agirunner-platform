@@ -111,6 +111,13 @@ func (m *Manager) handleHungRuntime(
 	m.failActiveTask(runtimeID, hb, reason)
 	m.stopAndRemove(ctx, c.ID, hungStopGracePeriod)
 	m.logFleetEvent("runtime_hung", "error", runtimeID, templateID, c.ID)
+	m.emitLog("container", "container.hung_detected", "warn", "completed", map[string]any{
+		"runtime_id":    runtimeID,
+		"container_id":  c.ID,
+		"template_id":   templateID,
+		"template_name": c.Labels[labelDCMTemplateName],
+		"reason":        reason,
+	})
 }
 
 // failActiveTask marks the in-progress task as failed if one exists.

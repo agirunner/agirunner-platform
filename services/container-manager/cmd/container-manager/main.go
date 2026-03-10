@@ -26,8 +26,9 @@ func main() {
 		DockerHost:          envOrDefault("DOCKER_HOST", "tcp://socket-proxy:2375"),
 		ReconcileInterval:   parseDuration("RECONCILE_INTERVAL_SECONDS", 5),
 		StopTimeout:         parseDuration("STOP_TIMEOUT_SECONDS", 30),
-		GlobalMaxRuntimes:   parseIntWithAlias("AGIRUNNER_GLOBAL_MAX_RUNTIMES", "GLOBAL_MAX_RUNTIMES", 10),
-		RuntimeNetwork:      envOrDefault("RUNTIME_NETWORK", ""),
+		GlobalMaxRuntimes:      parseIntWithAlias("AGIRUNNER_GLOBAL_MAX_RUNTIMES", "GLOBAL_MAX_RUNTIMES", 10),
+		RuntimeNetwork:         envOrDefault("RUNTIME_NETWORK", ""),
+		RuntimeInternalNetwork: envOrDefault("RUNTIME_INTERNAL_NETWORK", ""),
 	}
 
 	if cfg.PlatformAPIKey == "" {
@@ -172,6 +173,11 @@ func (c *noopDockerClient) InspectContainerHealth(_ context.Context, _ string) (
 
 func (c *noopDockerClient) PullImage(_ context.Context, image, policy string) error {
 	c.logger.Info("noop: would pull image", "image", image, "policy", policy)
+	return nil
+}
+
+func (c *noopDockerClient) ConnectNetwork(_ context.Context, containerID, networkName string) error {
+	c.logger.Info("noop: would connect network", "container", containerID, "network", networkName)
 	return nil
 }
 

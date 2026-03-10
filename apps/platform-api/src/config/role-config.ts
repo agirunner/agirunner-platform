@@ -29,8 +29,8 @@ export interface RoleDefinition {
   systemPrompt: string;
   /** Tools this role is permitted to invoke. */
   allowedTools: string[];
-  /** Preferred model identifier for this role. */
-  modelPreference: string;
+  /** @deprecated Model selection is managed via role_model_assignments and runtime_defaults in the DB. */
+  modelPreference?: string;
   /**
    * Strategy used to verify the agent's output before accepting it.
    * Values: 'unit_tests' | 'structured_review' | 'peer_review' | 'test_coverage_check'

@@ -6,7 +6,6 @@ import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { listWorkflowDocuments } from '../../services/document-reference-service.js';
 import { WorkflowChainingService } from '../../services/workflow-chaining-service.js';
-import { WorkflowService } from '../../services/workflow-service.js';
 
 const workflowCreateSchema = z.object({
   template_id: z.string().uuid(),
@@ -42,7 +41,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const workflowRoutes: FastifyPluginAsync = async (app) => {
-  const workflowService = new WorkflowService(app.pgPool, app.eventService, app.config, app.workerConnectionHub);
+  const workflowService = app.workflowService;
   const workflowChainingService = new WorkflowChainingService(app.pgPool, workflowService);
 
   app.post('/api/v1/workflows', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request, reply) => {

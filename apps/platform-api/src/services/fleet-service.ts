@@ -90,6 +90,20 @@ interface FleetWorkerView extends DesiredStateRow {
   actual: ActualStateRow[];
 }
 
+interface ContainerView {
+  [key: string]: unknown;
+  id: string;
+  container_id: string | null;
+  name: string;
+  status: string;
+  image: string;
+  worker_role: string;
+  cpu_usage_percent: number | null;
+  memory_usage_bytes: number | null;
+  started_at: Date | null;
+  last_updated: Date;
+}
+
 interface ContainerImageRow {
   id: string;
   repository: string;
@@ -238,9 +252,20 @@ export class FleetService {
     return result.rows[0];
   }
 
-  async listContainers(tenantId: string): Promise<ActualStateRow[]> {
-    const result = await this.pool.query<ActualStateRow>(
-      `SELECT was.* FROM worker_actual_state was
+  async listContainers(tenantId: string): Promise<ContainerView[]> {
+    const result = await this.pool.query<ContainerView>(
+      `SELECT
+         was.id,
+         was.container_id,
+         wds.worker_name AS name,
+         COALESCE(was.container_status, 'unknown') AS status,
+         wds.runtime_image AS image,
+         wds.role AS worker_role,
+         was.cpu_usage_percent,
+         was.memory_usage_bytes,
+         was.started_at,
+         was.last_updated
+       FROM worker_actual_state was
        JOIN worker_desired_state wds ON wds.id = was.desired_state_id
        WHERE wds.tenant_id = $1`,
       [tenantId],
@@ -509,6 +534,18 @@ export class FleetService {
 
     const drainRequested = result.rows[0]?.drain_requested ?? false;
     return { should_drain: drainRequested };
+  }
+
+  async listHeartbeats(tenantId: string): Promise<HeartbeatListRow[]> {
+    const result = await this.pool.query<HeartbeatListRow>(
+      `SELECT runtime_id, template_id, state,
+              to_char(last_heartbeat_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS last_heartbeat_at,
+              task_id AS active_task_id
+       FROM runtime_heartbeats
+       WHERE tenant_id = $1`,
+      [tenantId],
+    );
+    return result.rows;
   }
 
   async getFleetStatus(tenantId: string): Promise<FleetStatus> {
@@ -787,6 +824,14 @@ export interface FleetEventRow {
   container_id: string | null;
   payload: Record<string, unknown>;
   created_at: Date;
+}
+
+export interface HeartbeatListRow {
+  runtime_id: string;
+  template_id: string;
+  state: string;
+  last_heartbeat_at: string;
+  active_task_id: string | null;
 }
 
 export interface RecordFleetEventInput {

@@ -2,6 +2,7 @@ package manager
 
 import (
 	"context"
+	"fmt"
 	"testing"
 )
 
@@ -74,5 +75,97 @@ func TestDCMStartupSweepNoContainers(t *testing.T) {
 
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+func TestDCMStartupSweepRemovesOrphanTasksWithDeadParent(t *testing.T) {
+	docker := newMockDockerClient()
+	// Task container whose parent runtime (rt-dead) does not exist in the container list.
+	docker.containers = []ContainerInfo{
+		makeDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-alive"),
+		makeDCMTaskContainer("task-orphan", "rt-dead"),
+	}
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{
+			makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 0, 10),
+		},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.startupSweep(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.stoppedIDs) != 1 || docker.stoppedIDs[0] != "task-orphan" {
+		t.Errorf("expected orphan task task-orphan stopped, got %v", docker.stoppedIDs)
+	}
+}
+
+func TestDCMShutdownOrphanTasksCleansUpRemainingTasks(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeDCMTaskContainer("task-1", "rt-gone"),
+		makeDCMTaskContainer("task-2", "rt-gone"),
+	}
+	platform := &mockPlatformClient{}
+	mgr := newDCMTestManager(docker, platform)
+
+	mgr.shutdownOrphanTasks(context.Background())
+
+	if len(docker.stoppedIDs) != 2 {
+		t.Errorf("expected 2 task containers stopped, got %d", len(docker.stoppedIDs))
+	}
+}
+
+func TestDCMShutdownOrphanTasksHandlesListError(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.listErr = fmt.Errorf("docker socket closed")
+	platform := &mockPlatformClient{}
+	mgr := newDCMTestManager(docker, platform)
+
+	// Should not panic; logs the error and returns gracefully.
+	mgr.shutdownOrphanTasks(context.Background())
+
+	if len(docker.stoppedIDs) != 0 {
+		t.Errorf("expected no containers stopped when list fails, got %d", len(docker.stoppedIDs))
+	}
+}
+
+func TestDCMShutdownRuntimesHandlesListError(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.listErr = fmt.Errorf("docker daemon unreachable")
+	platform := &mockPlatformClient{}
+	mgr := newDCMTestManager(docker, platform)
+
+	// Should not panic; logs the error and returns gracefully.
+	mgr.shutdownRuntimes(context.Background())
+
+	if len(docker.stoppedIDs) != 0 {
+		t.Errorf("expected no containers stopped when list fails, got %d", len(docker.stoppedIDs))
+	}
+}
+
+func TestDCMStartupSweepKeepsTasksWithLiveParent(t *testing.T) {
+	docker := newMockDockerClient()
+	// Task container whose parent runtime (rt-alive) is present.
+	docker.containers = []ContainerInfo{
+		makeDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-alive"),
+		makeDCMTaskContainer("task-ok", "rt-alive"),
+	}
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{
+			makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 0, 10),
+		},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.startupSweep(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.stoppedIDs) != 0 {
+		t.Errorf("expected no containers stopped when task parent is alive, got %v", docker.stoppedIDs)
 	}
 }

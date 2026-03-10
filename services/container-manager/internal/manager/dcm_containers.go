@@ -16,10 +16,18 @@ func (m *Manager) createRuntimeContainers(ctx context.Context, target RuntimeTar
 	if count <= 0 {
 		return 0
 	}
+
+	pullStart := time.Now()
+	pullMeta := map[string]any{"image": target.Image, "policy": target.PullPolicy, "template_id": target.TemplateID, "template_name": target.TemplateName}
+	m.emitLog("container", "container.image_pull", "info", "started", pullMeta)
+
 	if err := m.docker.PullImage(ctx, target.Image, target.PullPolicy); err != nil {
 		m.logger.Error("failed to pull runtime image", "image", target.Image, "policy", target.PullPolicy, "error", err)
+		m.emitLogError("container", "container.image_pull", pullMeta, err.Error())
 		return 0
 	}
+	m.emitLogTimed("container", "container.image_pull", "info", "completed", pullMeta, int(time.Since(pullStart).Milliseconds()))
+
 	created := 0
 	for i := 0; i < count; i++ {
 		spec := m.buildDCMRuntimeSpec(target)
@@ -28,28 +36,54 @@ func (m *Manager) createRuntimeContainers(ctx context.Context, target RuntimeTar
 			m.logger.Error("failed to create DCM runtime", "template", target.TemplateID, "error", err)
 			continue
 		}
+		if m.config.RuntimeInternalNetwork != "" {
+			if err := m.docker.ConnectNetwork(ctx, containerID, m.config.RuntimeInternalNetwork); err != nil {
+				m.logger.Error("failed to connect runtime to internal network",
+					"container", containerID, "network", m.config.RuntimeInternalNetwork, "error", err)
+			}
+		}
 		runtimeID := spec.Labels[labelDCMRuntimeID]
 		m.logFleetEvent("runtime_created", "info", runtimeID, target.TemplateID, containerID)
 		m.logFleetEvent("container.created", "info", runtimeID, target.TemplateID, containerID)
 		m.metrics.RecordScalingEvent(target.TemplateID, "created")
+		m.emitLog("container", "container.create", "info", "completed", map[string]any{
+			"template_id":   target.TemplateID,
+			"template_name": target.TemplateName,
+			"runtime_id":    runtimeID,
+			"image":         target.Image,
+			"container_id":  containerID,
+			"reason":        "scaling",
+		})
 		created++
 	}
 	return created
 }
 
+const pullFailCacheTTL = 5 * time.Minute
+
 // prePullWarmImages pulls both the runtime and task container images for warm
 // templates so they are cached locally before any container is created.
+// Failed pulls are cached to avoid retrying the same image every cycle.
 func (m *Manager) prePullWarmImages(ctx context.Context, target RuntimeTarget) {
-	if err := m.docker.PullImage(ctx, target.Image, target.PullPolicy); err != nil {
-		m.logger.Error("failed to pre-pull runtime image for warm template",
-			"image", target.Image, "template", target.TemplateID, "error", err)
+	m.prePullImageWithCache(ctx, target.Image, target.PullPolicy, target.TemplateID, "runtime")
+	if target.TaskImage != "" {
+		m.prePullImageWithCache(ctx, target.TaskImage, target.PullPolicy, target.TemplateID, "task")
 	}
-	if target.TaskImage == "" {
-		return
+}
+
+// prePullImageWithCache attempts an image pull, skipping if the same image
+// failed recently (within pullFailCacheTTL).
+func (m *Manager) prePullImageWithCache(ctx context.Context, image, policy, templateID, imageType string) {
+	if failedAt, ok := m.pullFailCache[image]; ok {
+		if m.nowFunc().Sub(failedAt) < pullFailCacheTTL {
+			return
+		}
+		delete(m.pullFailCache, image)
 	}
-	if err := m.docker.PullImage(ctx, target.TaskImage, target.PullPolicy); err != nil {
-		m.logger.Error("failed to pre-pull task image for warm template",
-			"image", target.TaskImage, "template", target.TemplateID, "error", err)
+	if err := m.docker.PullImage(ctx, image, policy); err != nil {
+		m.pullFailCache[image] = m.nowFunc()
+		m.logger.Error("failed to pre-pull "+imageType+" image for warm template",
+			"image", image, "template", templateID, "error", err)
 	}
 }
 
@@ -72,25 +106,26 @@ func (m *Manager) buildDCMRuntimeSpec(target RuntimeTarget) ContainerSpec {
 // buildDCMEnvironment creates environment variables for a DCM runtime container.
 func (m *Manager) buildDCMEnvironment(target RuntimeTarget, runtimeID string) map[string]string {
 	return map[string]string{
-		"AGIRUNNER_RUNTIME_PLATFORM_API_URL":       m.config.PlatformAPIURL,
-		"AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY": m.config.PlatformAdminAPIKey,
-		"AGIRUNNER_RUNTIME_TEMPLATE_FILTER":        target.TemplateID,
-		"AGIRUNNER_RUNTIME_ID":                     runtimeID,
-		"AGIRUNNER_RUNTIME_IMAGE":                  target.Image,
-		"DOCKER_HOST":                              m.config.DockerHost,
+		"AGIRUNNER_RUNTIME_PLATFORM_API_URL":          m.config.PlatformAPIURL,
+		"AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY":    m.config.PlatformAdminAPIKey,
+		"AGIRUNNER_RUNTIME_PLATFORM_TEMPLATE_FILTER":  target.TemplateID,
+		"AGIRUNNER_RUNTIME_PLATFORM_RUNTIME_ID":       runtimeID,
+		"AGIRUNNER_RUNTIME_IMAGE":                     target.Image,
+		"DOCKER_HOST":                                 m.config.DockerHost,
 	}
 }
 
 // buildDCMLabels creates labels for a DCM-managed runtime container.
 func buildDCMLabels(target RuntimeTarget, runtimeID string) map[string]string {
 	return map[string]string{
-		labelDCMManaged:     "true",
-		labelDCMTier:        tierRuntime,
-		labelDCMTemplateID:  target.TemplateID,
-		labelDCMRuntimeID:   runtimeID,
-		labelDCMImage:       target.Image,
-		labelDCMGracePeriod: strconv.Itoa(target.GracePeriodSeconds),
-		labelManagedBy:      "true",
+		labelDCMManaged:      "true",
+		labelDCMTier:         tierRuntime,
+		labelDCMTemplateID:   target.TemplateID,
+		labelDCMTemplateName: target.TemplateName,
+		labelDCMRuntimeID:    runtimeID,
+		labelDCMImage:        target.Image,
+		labelDCMGracePeriod:  strconv.Itoa(target.GracePeriodSeconds),
+		labelManagedBy:       "true",
 	}
 }
 
@@ -103,10 +138,18 @@ func (m *Manager) destroyContainers(ctx context.Context, containers []ContainerI
 	destroyed := 0
 	for _, c := range containers {
 		templateID := c.Labels[labelDCMTemplateID]
+		templateName := c.Labels[labelDCMTemplateName]
 		runtimeID := c.Labels[labelDCMRuntimeID]
 		m.stopAndRemove(ctx, c.ID, timeout)
 		m.logFleetEvent("container.destroyed", "info", runtimeID, templateID, c.ID)
 		m.metrics.RecordScalingEvent(templateID, "destroyed")
+		m.emitLog("container", "container.destroy", "info", "completed", map[string]any{
+			"template_id":   templateID,
+			"template_name": templateName,
+			"runtime_id":    runtimeID,
+			"container_id":  c.ID,
+			"reason":        "idle_teardown",
+		})
 		destroyed++
 	}
 	return destroyed
@@ -170,6 +213,12 @@ func (m *Manager) drainExecutingRuntime(ctx context.Context, c ContainerInfo, ru
 
 	m.logFleetEvent("runtime_draining", "info", runtimeID, templateID, c.ID)
 	m.metrics.RecordScalingEvent(templateID, "preempted")
+	m.emitLog("container", "reconcile.drain", "info", "completed", map[string]any{
+		"runtime_id":   runtimeID,
+		"template_id":  templateID,
+		"container_id": c.ID,
+		"reason":       "image_drift",
+	})
 }
 
 // stopAndRemove stops then removes a container, logging errors without failing.
@@ -200,6 +249,13 @@ func (m *Manager) cleanupOrphanTaskContainers(ctx context.Context) {
 		m.stopAndRemove(ctx, orphan.ID, m.config.StopTimeout)
 		m.logFleetEvent("orphan.cleaned", "warn", parentRuntime, templateID, orphan.ID)
 		m.metrics.RecordOrphanCleaned()
+		m.emitLog("container", "container.orphan_cleanup", "warn", "completed", map[string]any{
+			"container_id":  orphan.ID,
+			"runtime_id":    parentRuntime,
+			"template_id":   templateID,
+			"template_name": orphan.Labels[labelDCMTemplateName],
+			"reason":        "parent_runtime_gone",
+		})
 	}
 }
 

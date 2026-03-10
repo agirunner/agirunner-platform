@@ -150,17 +150,19 @@ func TestDCMColdIdleTeardown(t *testing.T) {
 	target := makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 0, 10)
 	target.PoolMode = "cold"
 	target.IdleTimeoutSeconds = 60
-	// Heartbeats show both runtimes idle with timestamps older than the 60s
-	// timeout but within the 90s stale heartbeat threshold.
-	oldTimestamp := time.Now().Add(-65 * time.Second).UTC().Format(time.RFC3339)
+	recentTimestamp := time.Now().UTC().Format(time.RFC3339)
 	platform := &mockPlatformClient{
 		runtimeTargets: []RuntimeTarget{target},
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: oldTimestamp},
-			{RuntimeID: "rt-2", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: oldTimestamp},
+			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: recentTimestamp},
+			{RuntimeID: "rt-2", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: recentTimestamp},
 		},
 	}
 	mgr := newDCMTestManager(docker, platform)
+	// Pre-seed idle tracking as if both runtimes entered idle 65s ago.
+	idleSince := time.Now().Add(-65 * time.Second)
+	mgr.idleSince["rt-1"] = idleSince
+	mgr.idleSince["rt-2"] = idleSince
 
 	err := mgr.reconcileDCM(context.Background())
 
@@ -305,11 +307,14 @@ func TestDCMRuntimeContainerHasCorrectEnvVars(t *testing.T) {
 	if env["AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY"] != "test-admin-key" {
 		t.Errorf("wrong admin API key: %s", env["AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY"])
 	}
-	if env["AGIRUNNER_RUNTIME_TEMPLATE_FILTER"] != "tmpl-1" {
-		t.Errorf("wrong template filter: %s", env["AGIRUNNER_RUNTIME_TEMPLATE_FILTER"])
+	if env["AGIRUNNER_RUNTIME_PLATFORM_TEMPLATE_FILTER"] != "tmpl-1" {
+		t.Errorf("wrong template filter: %s", env["AGIRUNNER_RUNTIME_PLATFORM_TEMPLATE_FILTER"])
 	}
-	if env["AGIRUNNER_RUNTIME_ID"] == "" {
+	if env["AGIRUNNER_RUNTIME_PLATFORM_RUNTIME_ID"] == "" {
 		t.Error("expected runtime ID to be set")
+	}
+	if env["DOCKER_HOST"] == "" {
+		t.Error("expected DOCKER_HOST to be set")
 	}
 }
 
@@ -662,44 +667,68 @@ func TestDriftReplacementRespectsGlobalMax(t *testing.T) {
 
 // --- Idle timeout enforcement tests ---
 
-func TestIsIdlePastTimeoutReturnsTrueWhenExpired(t *testing.T) {
-	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+func TestIsIdlePastTimeoutReturnsTrueAfterContinuousIdle(t *testing.T) {
+	mgr := newDCMTestManager(newMockDockerClient(), &mockPlatformClient{})
 	heartbeats := map[string]RuntimeHeartbeat{
-		"rt-1": {RuntimeID: "rt-1", State: "idle", LastHeartbeatAt: now.Add(-90 * time.Second).Format(time.RFC3339)},
+		"rt-1": {RuntimeID: "rt-1", State: "idle", LastHeartbeatAt: time.Now().Format(time.RFC3339)},
 	}
 
-	if !isIdlePastTimeout("rt-1", heartbeats, 60, func() time.Time { return now }) {
-		t.Error("expected idle runtime past 60s timeout to be expired")
+	// First call starts tracking
+	t0 := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+	mgr.nowFunc = func() time.Time { return t0 }
+	if mgr.isIdlePastTimeout("rt-1", heartbeats, 60, t0) {
+		t.Error("should NOT be expired on first observation")
+	}
+
+	// 59s later: still not expired
+	t59 := t0.Add(59 * time.Second)
+	if mgr.isIdlePastTimeout("rt-1", heartbeats, 60, t59) {
+		t.Error("should NOT be expired at 59s")
+	}
+
+	// 60s later: expired
+	t60 := t0.Add(60 * time.Second)
+	if !mgr.isIdlePastTimeout("rt-1", heartbeats, 60, t60) {
+		t.Error("expected idle runtime to be expired after 60s continuous idle")
 	}
 }
 
-func TestIsIdlePastTimeoutReturnsFalseWhenNotExpired(t *testing.T) {
-	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
-	heartbeats := map[string]RuntimeHeartbeat{
-		"rt-1": {RuntimeID: "rt-1", State: "idle", LastHeartbeatAt: now.Add(-30 * time.Second).Format(time.RFC3339)},
+func TestIsIdlePastTimeoutResetsWhenExecuting(t *testing.T) {
+	mgr := newDCMTestManager(newMockDockerClient(), &mockPlatformClient{})
+	t0 := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	idleHB := map[string]RuntimeHeartbeat{
+		"rt-1": {RuntimeID: "rt-1", State: "idle", LastHeartbeatAt: t0.Format(time.RFC3339)},
+	}
+	execHB := map[string]RuntimeHeartbeat{
+		"rt-1": {RuntimeID: "rt-1", State: "executing", LastHeartbeatAt: t0.Format(time.RFC3339)},
 	}
 
-	if isIdlePastTimeout("rt-1", heartbeats, 60, func() time.Time { return now }) {
-		t.Error("expected idle runtime before 60s timeout to NOT be expired")
-	}
-}
+	// Start idle tracking
+	mgr.isIdlePastTimeout("rt-1", idleHB, 60, t0)
 
-func TestIsIdlePastTimeoutReturnsFalseWhenExecuting(t *testing.T) {
-	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
-	heartbeats := map[string]RuntimeHeartbeat{
-		"rt-1": {RuntimeID: "rt-1", State: "executing", LastHeartbeatAt: now.Add(-120 * time.Second).Format(time.RFC3339)},
+	// After 30s, runtime starts executing — resets tracking
+	mgr.isIdlePastTimeout("rt-1", execHB, 60, t0.Add(30*time.Second))
+
+	// Back to idle 31s later — tracking restarts from new time
+	t61 := t0.Add(61 * time.Second)
+	if mgr.isIdlePastTimeout("rt-1", idleHB, 60, t61) {
+		t.Error("should NOT be expired — idle tracking was reset when executing")
 	}
 
-	if isIdlePastTimeout("rt-1", heartbeats, 60, func() time.Time { return now }) {
-		t.Error("expected executing runtime to NOT be idle-expired regardless of timestamp")
+	// Another 60s of continuous idle — now expired
+	t121 := t0.Add(121 * time.Second)
+	if !mgr.isIdlePastTimeout("rt-1", idleHB, 60, t121) {
+		t.Error("expected idle runtime to expire after 60s from re-entering idle")
 	}
 }
 
 func TestIsIdlePastTimeoutReturnsFalseWhenNoHeartbeat(t *testing.T) {
+	mgr := newDCMTestManager(newMockDockerClient(), &mockPlatformClient{})
 	now := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
 	heartbeats := map[string]RuntimeHeartbeat{}
 
-	if isIdlePastTimeout("rt-1", heartbeats, 60, func() time.Time { return now }) {
+	if mgr.isIdlePastTimeout("rt-1", heartbeats, 60, now) {
 		t.Error("expected runtime without heartbeat to NOT be expired")
 	}
 }
@@ -753,5 +782,195 @@ func TestColdIdleNoHeartbeatNotDestroyed(t *testing.T) {
 	}
 	if len(docker.stoppedIDs) != 0 {
 		t.Errorf("expected 0 containers stopped (no heartbeat = new runtime), got %d", len(docker.stoppedIDs))
+	}
+}
+
+// --- Heartbeat fallback tests ---
+
+func TestFallbackHeartbeatNotTriggeredBeforeGracePeriod(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-1"),
+	}
+	target := makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 0, 10)
+	target.PoolMode = "cold"
+	target.IdleTimeoutSeconds = 60
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{target},
+		fetchHBErr:     fmt.Errorf("heartbeat API unavailable"),
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	// First reconcile — starts tracking, but grace period (180s) hasn't elapsed.
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.stoppedIDs) != 0 {
+		t.Errorf("expected 0 containers stopped (within grace period), got %d", len(docker.stoppedIDs))
+	}
+}
+
+func TestFallbackHeartbeatDestroysIdleAfterGracePeriod(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-1"),
+	}
+	target := makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 0, 10)
+	target.PoolMode = "cold"
+	target.IdleTimeoutSeconds = 60
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{target},
+		fetchHBErr:     fmt.Errorf("heartbeat API unavailable"),
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	// Pre-seed fallback tracking as if it started 4 minutes ago.
+	fourMinAgo := time.Now().Add(-4 * time.Minute)
+	mgr.failedHeartbeatSince["rt-1"] = fourMinAgo
+	// Also pre-seed idle tracking since fallback synthesizes idle entries.
+	mgr.idleSince["rt-1"] = fourMinAgo
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.stoppedIDs) != 1 {
+		t.Errorf("expected 1 container stopped (past grace + idle timeout), got %d", len(docker.stoppedIDs))
+	}
+}
+
+func TestFallbackHeartbeatClearedOnSuccessfulFetch(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-1"),
+	}
+	target := makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 0, 10)
+	target.PoolMode = "cold"
+	target.IdleTimeoutSeconds = 300
+	recentTimestamp := time.Now().Add(-10 * time.Second).UTC().Format(time.RFC3339)
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{target},
+		heartbeats: []RuntimeHeartbeat{
+			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: recentTimestamp},
+		},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	// Pre-seed stale fallback tracking.
+	mgr.failedHeartbeatSince["rt-1"] = time.Now().Add(-10 * time.Minute)
+	mgr.failedHeartbeatSince["rt-gone"] = time.Now().Add(-10 * time.Minute)
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	// rt-gone should be pruned, rt-1 kept (still active container).
+	if _, exists := mgr.failedHeartbeatSince["rt-gone"]; exists {
+		t.Error("expected stale fallback entry rt-gone to be pruned")
+	}
+}
+
+func TestFallbackHeartbeatSkipsDrainingContainers(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeDrainingDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-1"),
+	}
+	target := makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 0, 10)
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{target},
+		fetchHBErr:     fmt.Errorf("heartbeat API unavailable"),
+	}
+	mgr := newDCMTestManager(docker, platform)
+	mgr.failedHeartbeatSince["rt-1"] = time.Now().Add(-10 * time.Minute)
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	// Draining containers should not be affected by fallback.
+	if len(docker.stoppedIDs) != 0 {
+		t.Errorf("expected 0 containers stopped (draining excluded from fallback), got %d", len(docker.stoppedIDs))
+	}
+}
+
+// --- Pull fail cache tests ---
+
+func TestPrePullCacheSkipsRecentlyFailedImage(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.pullErr = fmt.Errorf("pull denied")
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	target := makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 0, 10)
+	target.PoolMode = "warm"
+
+	// First call should attempt and fail.
+	mgr.prePullWarmImages(context.Background(), target)
+	if len(docker.pulledImages) != 1 {
+		t.Fatalf("expected 1 pull attempt, got %d", len(docker.pulledImages))
+	}
+
+	// Second call should skip (cached failure).
+	mgr.prePullWarmImages(context.Background(), target)
+	if len(docker.pulledImages) != 1 {
+		t.Errorf("expected still 1 pull attempt (cached), got %d", len(docker.pulledImages))
+	}
+}
+
+func TestPrePullCacheRetriesAfterTTL(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.pullErr = fmt.Errorf("pull denied")
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	target := makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 0, 10)
+	target.PoolMode = "warm"
+
+	// First call fails and gets cached.
+	mgr.prePullWarmImages(context.Background(), target)
+	if len(docker.pulledImages) != 1 {
+		t.Fatalf("expected 1 pull attempt, got %d", len(docker.pulledImages))
+	}
+
+	// Move time forward past TTL.
+	mgr.nowFunc = func() time.Time {
+		return time.Now().Add(6 * time.Minute)
+	}
+
+	// Should retry after TTL expired.
+	mgr.prePullWarmImages(context.Background(), target)
+	if len(docker.pulledImages) != 2 {
+		t.Errorf("expected 2 pull attempts (retry after TTL), got %d", len(docker.pulledImages))
+	}
+}
+
+func TestPrePullCacheDoesNotCacheSuccessfulPulls(t *testing.T) {
+	docker := newMockDockerClient()
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	target := makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 0, 10)
+	target.PoolMode = "warm"
+
+	// Successful pull — should not be cached.
+	mgr.prePullWarmImages(context.Background(), target)
+	mgr.prePullWarmImages(context.Background(), target)
+
+	if len(docker.pulledImages) != 2 {
+		t.Errorf("expected 2 pull attempts (success not cached), got %d", len(docker.pulledImages))
+	}
+	if len(mgr.pullFailCache) != 0 {
+		t.Errorf("expected empty pull fail cache after success, got %d entries", len(mgr.pullFailCache))
 	}
 }

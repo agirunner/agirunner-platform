@@ -23,7 +23,10 @@ func (m *Manager) reconcileDCM(ctx context.Context) error {
 
 	heartbeatMap, err := m.fetchHeartbeatMap()
 	if err != nil {
-		m.logger.Error("failed to fetch heartbeats, drift handling will treat all as idle", "error", err)
+		m.logger.Warn("heartbeat fetch failed, using fallback idle tracking", "error", err)
+		heartbeatMap = m.buildFallbackHeartbeatMap(containers)
+	} else {
+		m.clearHeartbeatFallbackTracking(containers)
 	}
 
 	grouped := groupContainersByTemplate(containers)
@@ -259,6 +262,18 @@ func (m *Manager) executePreemptions(
 
 		m.logFleetEvent("runtime_preempted", "info", plan.VictimContainerID,
 			plan.BeneficiaryTemplate.TemplateID, plan.VictimContainerID)
+		victimName := ""
+		if vt, ok := targetMap[plan.VictimTemplateID]; ok {
+			victimName = vt.TemplateName
+		}
+		m.emitLog("container", "reconcile.preempt", "info", "completed", map[string]any{
+			"victim_template_id":        plan.VictimTemplateID,
+			"victim_template_name":      victimName,
+			"victim_container_id":       plan.VictimContainerID,
+			"beneficiary_template_id":   plan.BeneficiaryTemplate.TemplateID,
+			"beneficiary_template_name": plan.BeneficiaryTemplate.TemplateName,
+			"reason":                    "starvation",
+		})
 	}
 }
 
@@ -317,6 +332,62 @@ func buildHeartbeatMap(heartbeats []RuntimeHeartbeat) map[string]RuntimeHeartbea
 		m[hb.RuntimeID] = hb
 	}
 	return m
+}
+
+// buildFallbackHeartbeatMap creates synthetic heartbeat entries when the
+// platform heartbeat API is unavailable. For each running container, if we
+// haven't seen it before, record the current time. If it's been tracked for
+// longer than the default grace period, mark it as idle with a timestamp old
+// enough to trigger idle timeout cleanup.
+func (m *Manager) buildFallbackHeartbeatMap(containers []ContainerInfo) map[string]RuntimeHeartbeat {
+	now := m.nowFunc()
+	result := make(map[string]RuntimeHeartbeat, len(containers))
+
+	for _, c := range containers {
+		if isDrainingContainer(c) {
+			continue
+		}
+		runtimeID := c.Labels[labelDCMRuntimeID]
+		if runtimeID == "" {
+			continue
+		}
+		if _, tracked := m.failedHeartbeatSince[runtimeID]; !tracked {
+			m.failedHeartbeatSince[runtimeID] = now
+		}
+
+		trackedSince := m.failedHeartbeatSince[runtimeID]
+		elapsed := now.Sub(trackedSince)
+
+		// After the default grace period without heartbeat data, treat
+		// the runtime as idle since tracking started. This allows idle
+		// timeout to trigger cleanup.
+		if elapsed >= time.Duration(defaultGracePeriodSeconds)*time.Second {
+			result[runtimeID] = RuntimeHeartbeat{
+				RuntimeID:       runtimeID,
+				TemplateID:      c.Labels[labelDCMTemplateID],
+				State:           "idle",
+				LastHeartbeatAt: trackedSince.Format(time.RFC3339),
+			}
+		}
+	}
+
+	return result
+}
+
+// clearHeartbeatFallbackTracking removes fallback tracking entries for
+// containers that no longer exist. Called when heartbeat fetch succeeds.
+func (m *Manager) clearHeartbeatFallbackTracking(containers []ContainerInfo) {
+	activeRuntimes := make(map[string]bool, len(containers))
+	for _, c := range containers {
+		if rid := c.Labels[labelDCMRuntimeID]; rid != "" {
+			activeRuntimes[rid] = true
+		}
+	}
+	for rid := range m.failedHeartbeatSince {
+		if !activeRuntimes[rid] {
+			delete(m.failedHeartbeatSince, rid)
+		}
+	}
 }
 
 // countDrainingContainers returns how many containers have the draining label.
@@ -410,7 +481,7 @@ func (m *Manager) planTargetActions(
 	capacity := m.config.GlobalMaxRuntimes - totalRunning
 	drifted := findImageDrift(target, running)
 	driftIDs := containerIDSet(drifted)
-	idle := excludeByID(findIdleForTeardown(target, running, heartbeats, m.nowFunc), driftIDs)
+	idle := excludeByID(m.findIdleForTeardown(target, running, heartbeats), driftIDs)
 
 	return targetActions{
 		toCreate:      computeScaleUp(target, len(running), capacity),
@@ -459,10 +530,10 @@ func computeScaleUp(target RuntimeTarget, runningCount, capacity int) int {
 }
 
 // findIdleForTeardown identifies idle containers that should be destroyed.
-func findIdleForTeardown(target RuntimeTarget, running []ContainerInfo, heartbeats map[string]RuntimeHeartbeat, now func() time.Time) []ContainerInfo {
+func (m *Manager) findIdleForTeardown(target RuntimeTarget, running []ContainerInfo, heartbeats map[string]RuntimeHeartbeat) []ContainerInfo {
 	switch target.PoolMode {
 	case "cold":
-		return findColdIdleExpired(target, running, heartbeats, now)
+		return m.findColdIdleExpired(target, running, heartbeats)
 	case "warm":
 		return findWarmNoWorkflows(target, running)
 	default:
@@ -471,19 +542,19 @@ func findIdleForTeardown(target RuntimeTarget, running []ContainerInfo, heartbea
 }
 
 // findColdIdleExpired returns containers idle past the configured timeout.
-// A container is considered idle-expired when its heartbeat state is "idle"
-// and the heartbeat timestamp is older than IdleTimeoutSeconds.
-func findColdIdleExpired(target RuntimeTarget, running []ContainerInfo, heartbeats map[string]RuntimeHeartbeat, now func() time.Time) []ContainerInfo {
+// Tracks when each runtime enters idle state and expires after IdleTimeoutSeconds.
+func (m *Manager) findColdIdleExpired(target RuntimeTarget, running []ContainerInfo, heartbeats map[string]RuntimeHeartbeat) []ContainerInfo {
 	if target.IdleTimeoutSeconds <= 0 {
 		return nil
 	}
+	now := m.nowFunc()
 	var expired []ContainerInfo
 	for _, c := range running {
 		if isDrainingContainer(c) {
 			continue
 		}
 		runtimeID := c.Labels[labelDCMRuntimeID]
-		if isIdlePastTimeout(runtimeID, heartbeats, target.IdleTimeoutSeconds, now) {
+		if m.isIdlePastTimeout(runtimeID, heartbeats, target.IdleTimeoutSeconds, now) {
 			expired = append(expired, c)
 		}
 	}
@@ -498,27 +569,24 @@ func findWarmNoWorkflows(target RuntimeTarget, running []ContainerInfo) []Contai
 	return running
 }
 
-// isIdlePastTimeout checks if a runtime has been idle longer than the
-// configured timeout by examining its heartbeat data. A runtime is
-// considered idle-expired when:
-//   - Heartbeat exists with state "idle"
-//   - The heartbeat timestamp is older than timeoutSeconds
-//
+// isIdlePastTimeout tracks when a runtime first enters idle state and returns
+// true once it has been continuously idle for longer than timeoutSeconds.
 // Runtimes without heartbeat data (newly created) are NOT considered expired.
-// Runtimes actively executing tasks are NOT considered expired.
-func isIdlePastTimeout(runtimeID string, heartbeats map[string]RuntimeHeartbeat, timeoutSeconds int, now func() time.Time) bool {
+// When a runtime leaves idle state, its tracking entry is removed.
+func (m *Manager) isIdlePastTimeout(runtimeID string, heartbeats map[string]RuntimeHeartbeat, timeoutSeconds int, now time.Time) bool {
 	hb, ok := heartbeats[runtimeID]
 	if !ok {
+		delete(m.idleSince, runtimeID)
 		return false
 	}
 	if hb.State != "idle" {
+		delete(m.idleSince, runtimeID)
 		return false
 	}
-	heartbeatTime, err := time.Parse(time.RFC3339, hb.LastHeartbeatAt)
-	if err != nil {
-		return false
+	if _, tracked := m.idleSince[runtimeID]; !tracked {
+		m.idleSince[runtimeID] = now
 	}
-	return now().Sub(heartbeatTime) >= time.Duration(timeoutSeconds)*time.Second
+	return now.Sub(m.idleSince[runtimeID]) >= time.Duration(timeoutSeconds)*time.Second
 }
 
 // isDrainingContainer checks whether a container has the draining label.
@@ -549,6 +617,17 @@ func (m *Manager) executeTargetActions(
 	drainingCount int,
 ) int {
 	delta := 0
+
+	if len(actions.idleToDestroy) > 0 {
+		m.emitLog("container", "reconcile.scale_down", "info", "started", map[string]any{
+			"template_id":   target.TemplateID,
+			"template_name": target.TemplateName,
+			"count":         len(actions.idleToDestroy),
+			"actual_count":  activeCount,
+			"desired_count": activeCount - len(actions.idleToDestroy),
+			"reason":        "idle_timeout",
+		})
+	}
 	delta -= m.destroyContainers(ctx, actions.idleToDestroy, target.GracePeriodSeconds)
 
 	driftResult := m.handleDriftContainers(ctx, actions.driftToHandle, target, heartbeats)
@@ -562,6 +641,18 @@ func (m *Manager) executeTargetActions(
 	if replacements > globalCapacity {
 		replacements = globalCapacity
 	}
-	delta += m.createRuntimeContainers(ctx, target, actions.toCreate+replacements)
+
+	toCreate := actions.toCreate + replacements
+	if toCreate > 0 {
+		m.emitLog("container", "reconcile.scale_up", "info", "started", map[string]any{
+			"template_id":   target.TemplateID,
+			"template_name": target.TemplateName,
+			"count":         toCreate,
+			"actual_count":  activeCount,
+			"desired_count": activeCount + toCreate,
+			"reason":        "pending_tasks",
+		})
+	}
+	delta += m.createRuntimeContainers(ctx, target, toCreate)
 	return delta
 }

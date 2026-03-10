@@ -40,7 +40,7 @@ interface PlatformInstructions {
 }
 
 async function fetchInstructions(): Promise<PlatformInstructions> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/platform-instructions`, {
+  const response = await fetch(`${API_BASE_URL}/api/v1/platform/instructions`, {
     headers: authHeaders(),
     credentials: 'include',
   });
@@ -55,7 +55,7 @@ async function fetchInstructions(): Promise<PlatformInstructions> {
 async function saveInstructions(
   content: string,
 ): Promise<PlatformInstructions> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/platform-instructions`, {
+  const response = await fetch(`${API_BASE_URL}/api/v1/platform/instructions`, {
     method: 'PUT',
     headers: authHeaders(),
     credentials: 'include',

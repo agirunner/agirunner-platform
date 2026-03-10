@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Users, Plus, Pencil, UserX } from 'lucide-react';
+import { Users, Plus, Pencil, UserX, Lock } from 'lucide-react';
 import { readSession } from '../../lib/session.js';
 import { toast } from '../../lib/toast.js';
 import { Badge } from '../../components/ui/badge.js';
@@ -75,7 +75,9 @@ async function fetchUsers(): Promise<User[]> {
   const resp = await fetch(`${API_BASE_URL}/api/v1/users`, {
     headers: authHeaders(),
   });
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  if (!resp.ok) {
+    throw new Error(`HTTP ${resp.status}`);
+  }
   return normalizeUsers(await resp.json());
 }
 
@@ -354,10 +356,30 @@ export function UserManagementPage(): JSX.Element {
   const { data, isLoading, error } = useQuery({
     queryKey: ['users'],
     queryFn: fetchUsers,
+    retry: false,
   });
 
   if (isLoading) {
     return <div className="p-6 text-muted-foreground">Loading users...</div>;
+  }
+
+  const isPermissionDenied = error && String(error).includes('403');
+
+  if (isPermissionDenied) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center gap-2">
+          <Lock className="h-6 w-6 text-muted-foreground" />
+          <h1 className="text-2xl font-semibold">User Management</h1>
+        </div>
+        <div className="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30 p-6 text-center">
+          <p className="text-amber-800 dark:text-amber-300">
+            Insufficient permissions. User management requires org_admin role.
+            Please log in with an admin API key to manage users.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (error) {

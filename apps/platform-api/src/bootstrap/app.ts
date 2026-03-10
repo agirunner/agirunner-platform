@@ -9,19 +9,32 @@ import { runMigrations } from '../db/migrations/run-migrations.js';
 import { seedDefaultTenant } from '../db/seed.js';
 import { registerErrorHandler } from '../errors/error-handler.js';
 import { startLifecycleMonitor } from '../jobs/lifecycle-monitor.js';
+import { createLoggedService } from '../logging/create-logged-service.js';
+import { LogService } from '../logging/log-service.js';
+import { LogStreamService } from '../logging/log-stream-service.js';
+import { registerRequestLogger } from '../logging/request-logger.js';
 import { registerRequestContext } from '../observability/request-context.js';
 import { AgentService } from '../services/agent-service.js';
+import { ApiKeyService } from '../services/api-key-service.js';
 import { AuditService, WebhookAuditExporter } from '../services/audit-service.js';
 import { EventStreamService } from '../services/event-stream-service.js';
 import { EventService } from '../services/event-service.js';
+import { FleetService } from '../services/fleet-service.js';
 import { IntegrationActionService } from '../services/integration-action-service.js';
 import { IntegrationAdapterService } from '../services/integration-adapter-service.js';
 import { startIntegrationDispatcher } from '../services/integration-dispatcher.js';
 import { GovernanceService } from '../services/governance-service.js';
+import { ModelCatalogService } from '../services/model-catalog-service.js';
+import { ProjectService } from '../services/project-service.js';
+import { RoleDefinitionService } from '../services/role-definition-service.js';
+import { RuntimeDefaultsService } from '../services/runtime-defaults-service.js';
 import { TaskService } from '../services/task-service.js';
+import { TemplateService } from '../services/template-service.js';
+import { UserService } from '../services/user-service.js';
 import { WorkerConnectionHub } from '../services/worker-connection-hub.js';
 import { WorkerService } from '../services/worker-service.js';
 import { WebhookService } from '../services/webhook-service.js';
+import { WorkflowService } from '../services/workflow-service.js';
 import { seedConfigTables } from './config-seed.js';
 import { registerPlugins } from './plugins.js';
 import { registerRoutes } from './routes.js';
@@ -105,17 +118,43 @@ export async function buildApp() {
     undefined,
     integrationActionService,
   );
+  const projectService = new ProjectService(pool, eventService);
+  const templateService = new TemplateService(pool, eventService);
+  const workflowService = new WorkflowService(pool, eventService, config, workerConnectionHub);
+  const userService = new UserService(pool);
+  const apiKeyService = new ApiKeyService(pool);
+  const roleDefinitionService = new RoleDefinitionService(pool);
+  const runtimeDefaultsService = new RuntimeDefaultsService(pool);
+  const fleetService = new FleetService(pool);
+  const modelCatalogService = new ModelCatalogService(pool);
+
+  const logService = new LogService(pool);
+  const logStreamService = new LogStreamService(pool);
+  await logStreamService.start();
 
   app.decorate('config', config);
   app.decorate('pgPool', pool);
+  app.decorate('logService', logService);
+  app.decorate('logStreamService', logStreamService);
   app.decorate('auditService', auditService);
   app.decorate('eventService', eventService);
   app.decorate('eventStreamService', eventStreamService);
   app.decorate('integrationActionService', integrationActionService);
-  app.decorate('integrationAdapterService', integrationAdapterService);
+  app.decorate('integrationAdapterService', createLoggedService(integrationAdapterService, 'IntegrationAdapterService', logService));
   app.decorate('workerConnectionHub', workerConnectionHub);
-  app.decorate('workerService', workerService);
-  app.decorate('webhookService', webhookService);
+  app.decorate('workerService', createLoggedService(workerService, 'WorkerService', logService));
+  app.decorate('webhookService', createLoggedService(webhookService, 'WebhookService', logService));
+  app.decorate('governanceService', createLoggedService(governanceService, 'GovernanceService', logService));
+  app.decorate('projectService', createLoggedService(projectService, 'ProjectService', logService));
+  app.decorate('templateService', createLoggedService(templateService, 'TemplateService', logService));
+  app.decorate('workflowService', createLoggedService(workflowService, 'WorkflowService', logService));
+  app.decorate('taskService', createLoggedService(taskService, 'TaskService', logService));
+  app.decorate('userService', createLoggedService(userService, 'UserService', logService));
+  app.decorate('apiKeyService', createLoggedService(apiKeyService, 'ApiKeyService', logService));
+  app.decorate('roleDefinitionService', createLoggedService(roleDefinitionService, 'RoleDefinitionService', logService));
+  app.decorate('runtimeDefaultsService', createLoggedService(runtimeDefaultsService, 'RuntimeDefaultsService', logService));
+  app.decorate('fleetService', createLoggedService(fleetService, 'FleetService', logService));
+  app.decorate('modelCatalogService', createLoggedService(modelCatalogService, 'ModelCatalogService', logService));
 
   if (migratedWebhookSecrets > 0) {
     app.log.info({ migratedWebhookSecrets }, 'webhook_secrets_migrated_to_encrypted_storage');
@@ -123,6 +162,7 @@ export async function buildApp() {
 
   registerRequestContext(app);
   registerErrorHandler(app);
+  registerRequestLogger(app, logService);
   await registerPlugins(app);
   await registerRoutes(app);
   registerWebsocketGateway(app);
@@ -138,13 +178,13 @@ export async function buildApp() {
     app.log,
     config,
     agentService,
-    taskService,
-    workerService,
-    governanceService,
+    app.taskService,
+    app.workerService,
+    app.governanceService,
   );
   const integrationDispatcher = startIntegrationDispatcher(
     app.log,
-    integrationAdapterService,
+    app.integrationAdapterService,
     eventStreamService,
   );
 
@@ -152,6 +192,7 @@ export async function buildApp() {
     integrationDispatcher.stop();
     lifecycleMonitor.stop();
     await eventStreamService.stop();
+    await logStreamService.stop();
     await pool.end();
   });
 

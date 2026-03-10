@@ -22,6 +22,7 @@ type DockerClient interface {
 	UpdateContainerLabels(ctx context.Context, containerID string, labels map[string]string) error
 	InspectContainerHealth(ctx context.Context, containerID string) (*ContainerHealthStatus, error)
 	PullImage(ctx context.Context, image, policy string) error
+	ConnectNetwork(ctx context.Context, containerID, networkName string) error
 }
 
 // ContainerInfo represents a running container as reported by Docker.
@@ -52,8 +53,9 @@ type Config struct {
 	DockerHost          string
 	ReconcileInterval   time.Duration
 	StopTimeout         time.Duration
-	GlobalMaxRuntimes   int
-	RuntimeNetwork      string
+	GlobalMaxRuntimes      int
+	RuntimeNetwork         string
+	RuntimeInternalNetwork string
 }
 
 // PlatformAPI abstracts communication with the platform API.
@@ -70,25 +72,34 @@ type PlatformAPI interface {
 
 // Manager implements the desired-state reconciliation loop.
 type Manager struct {
-	platform        PlatformAPI
-	docker          DockerClient
-	config          Config
-	logger          *slog.Logger
-	metrics         *FleetMetrics
-	starvationTrack map[string]time.Time
-	nowFunc         func() time.Time
+	platform             PlatformAPI
+	docker               DockerClient
+	config               Config
+	logger               *slog.Logger
+	metrics              *FleetMetrics
+	logEmitter           *LogEmitter
+	starvationTrack      map[string]time.Time
+	failedHeartbeatSince map[string]time.Time
+	pullFailCache        map[string]time.Time // tracks when an image pull last failed, keyed by image ref
+	idleSince            map[string]time.Time // tracks when each runtime first became idle
+	nowFunc              func() time.Time
 }
 
 // New creates a new Manager with a real PlatformClient.
 func New(cfg Config, docker DockerClient, logger *slog.Logger) *Manager {
+	ingestEndpoint := cfg.PlatformAPIURL + "/api/v1/logs/ingest"
 	return &Manager{
-		platform:        NewPlatformClient(cfg.PlatformAPIURL, cfg.PlatformAPIKey),
-		docker:          docker,
-		config:          cfg,
-		logger:          logger,
-		metrics:         NewFleetMetrics(),
-		starvationTrack: make(map[string]time.Time),
-		nowFunc:         time.Now,
+		platform:             NewPlatformClient(cfg.PlatformAPIURL, cfg.PlatformAPIKey),
+		docker:               docker,
+		config:               cfg,
+		logger:               logger,
+		metrics:              NewFleetMetrics(),
+		logEmitter:           NewLogEmitter(ingestEndpoint, cfg.PlatformAPIKey, logger),
+		starvationTrack:      make(map[string]time.Time),
+		failedHeartbeatSince: make(map[string]time.Time),
+		pullFailCache:        make(map[string]time.Time),
+		idleSince:            make(map[string]time.Time),
+		nowFunc:              time.Now,
 	}
 }
 
@@ -96,19 +107,31 @@ func New(cfg Config, docker DockerClient, logger *slog.Logger) *Manager {
 // This is primarily useful for testing.
 func NewWithPlatform(cfg Config, docker DockerClient, platform PlatformAPI, logger *slog.Logger) *Manager {
 	return &Manager{
-		platform:        platform,
-		docker:          docker,
-		config:          cfg,
-		logger:          logger,
-		metrics:         NewFleetMetrics(),
-		starvationTrack: make(map[string]time.Time),
-		nowFunc:         time.Now,
+		platform:             platform,
+		docker:               docker,
+		config:               cfg,
+		logger:               logger,
+		metrics:              NewFleetMetrics(),
+		starvationTrack:      make(map[string]time.Time),
+		failedHeartbeatSince: make(map[string]time.Time),
+		pullFailCache:        make(map[string]time.Time),
+		idleSince:            make(map[string]time.Time),
+		nowFunc:              time.Now,
 	}
 }
 
 // MetricsRegistry returns the Prometheus registry for exposing fleet metrics.
 func (m *Manager) MetricsRegistry() *prometheus.Registry {
 	return m.metrics.Registry
+}
+
+// Close releases resources held by the Manager, including flushing any
+// buffered log entries. It is safe to call Close on a Manager whose
+// logEmitter is nil (e.g. in tests).
+func (m *Manager) Close() {
+	if m.logEmitter != nil {
+		m.logEmitter.Close()
+	}
 }
 
 // Run starts the reconcile loop and blocks until the context is cancelled.
@@ -127,6 +150,7 @@ func (m *Manager) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			m.logger.Info("container-manager stopping, running shutdown cascade")
 			m.shutdownCascade()
+			m.Close()
 			return ctx.Err()
 		case <-ticker.C:
 			m.runReconcileCycle(ctx)

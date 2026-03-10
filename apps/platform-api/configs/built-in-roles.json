@@ -33,7 +33,7 @@
         "git_commit",
         "git_push"
       ],
-      "modelPreference": "claude-sonnet-4-6",
+
       "verificationStrategy": "unit_tests",
       "capabilities": [
         "llm-api",
@@ -56,7 +56,7 @@
         "git_diff",
         "git_log"
       ],
-      "modelPreference": "gpt-5-mini",
+
       "verificationStrategy": "structured_review",
       "capabilities": [
         "llm-api",
@@ -71,7 +71,7 @@
         "file_list",
         "file_write"
       ],
-      "modelPreference": "claude-opus-4-6",
+
       "verificationStrategy": "peer_review",
       "capabilities": [
         "llm-api",
@@ -90,7 +90,7 @@
         "git_status",
         "git_diff"
       ],
-      "modelPreference": "gemini-2.5-flash",
+
       "verificationStrategy": "test_coverage_check",
       "capabilities": [
         "llm-api",
@@ -109,7 +109,7 @@
         "git_status",
         "git_diff"
       ],
-      "modelPreference": "claude-haiku-4-5",
+
       "verificationStrategy": "structured_review",
       "capabilities": [
         "llm-api",

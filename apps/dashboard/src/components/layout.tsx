@@ -301,7 +301,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
       </aside>
 
       <main className="flex-1 overflow-y-auto bg-background pt-12 lg:pt-0">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
+        <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 lg:px-8">
           <Outlet />
         </div>
       </main>
@@ -391,6 +391,7 @@ function NavSectionGroup({
             <NavLink
               key={item.href}
               to={item.href}
+              end
               className={({ isActive: active }) =>
                 cn(
                   'flex items-center gap-2 rounded-md px-3 py-1 text-sm',

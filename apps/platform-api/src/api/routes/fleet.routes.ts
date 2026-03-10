@@ -1,16 +1,15 @@
 import type { FastifyPluginAsync } from 'fastify';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
-import {
-  FleetService,
-  type CreateDesiredStateInput,
-  type UpdateDesiredStateInput,
-  type HeartbeatPayload,
-  type FleetEventFilters,
+import type {
+  CreateDesiredStateInput,
+  UpdateDesiredStateInput,
+  HeartbeatPayload,
+  FleetEventFilters,
 } from '../../services/fleet-service.js';
 
 export const fleetRoutes: FastifyPluginAsync = async (app) => {
-  const service = new FleetService(app.pgPool);
+  const service = app.fleetService;
 
   // --- Desired State (Fleet Workers) ---
 
@@ -173,6 +172,14 @@ export const fleetRoutes: FastifyPluginAsync = async (app) => {
       const body = request.body as HeartbeatPayload;
       const result = await service.recordHeartbeat(request.auth!.tenantId, body);
       return result;
+    },
+  );
+
+  app.get(
+    '/api/v1/fleet/heartbeats',
+    { preHandler: [authenticateApiKey, withScope('worker')] },
+    async (request) => {
+      return { data: await service.listHeartbeats(request.auth!.tenantId) };
     },
   );
 

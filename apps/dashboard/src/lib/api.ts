@@ -412,6 +412,27 @@ export interface QueueDepthResponse {
   by_template?: Record<string, number>;
 }
 
+export interface FleetContainerRecord {
+  id: string;
+  container_id: string | null;
+  name: string;
+  status: string;
+  image: string;
+  worker_role: string;
+  cpu_usage_percent: number | null;
+  memory_usage_bytes: number | null;
+  started_at: string | null;
+  last_updated: string;
+}
+
+export interface FleetImageRecord {
+  repository: string;
+  tag: string | null;
+  digest: string | null;
+  size_bytes: number | null;
+  last_seen: string;
+}
+
 export interface DashboardApi {
   login(apiKey: string): Promise<void>;
   logout(): Promise<void>;
@@ -535,6 +556,10 @@ export interface DashboardApi {
   search(query: string): Promise<DashboardSearchResult[]>;
   fetchFleetStatus(): Promise<FleetStatusResponse>;
   fetchFleetEvents(filters?: Record<string, string>): Promise<{ data: FleetEventRecord[]; total: number }>;
+  fetchFleetContainers(): Promise<FleetContainerRecord[]>;
+  fetchFleetImages(): Promise<FleetImageRecord[]>;
+  pruneFleetContainers(): Promise<{ removed: number }>;
+  pullFleetImage(payload: { repository: string; tag: string }): Promise<{ repository: string; tag: string }>;
   fetchQueueDepth(templateId?: string): Promise<QueueDepthResponse>;
   getMetrics(): Promise<string>;
   getCustomizationStatus(): Promise<DashboardCustomizationStatusResponse>;
@@ -914,6 +939,30 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           `/api/v1/fleet/events${buildQueryString(filters)}`,
           { method: 'GET' },
         ),
+      ),
+    fetchFleetContainers: () =>
+      withRefresh(() =>
+        requestData<FleetContainerRecord[]>('/api/v1/fleet/containers', {
+          method: 'GET',
+        }),
+      ),
+    fetchFleetImages: () =>
+      withRefresh(() =>
+        requestData<FleetImageRecord[]>('/api/v1/fleet/images', {
+          method: 'GET',
+        }),
+      ),
+    pruneFleetContainers: () =>
+      withRefresh(() =>
+        requestData<{ removed: number }>('/api/v1/fleet/containers/prune', {
+          method: 'POST',
+        }),
+      ),
+    pullFleetImage: (payload) =>
+      withRefresh(() =>
+        requestData<{ repository: string; tag: string }>('/api/v1/fleet/images/pull', {
+          body: payload as unknown as Record<string, unknown>,
+        }),
       ),
     fetchQueueDepth: (templateId) =>
       withRefresh(() => {

@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
 import { AcpSessionService } from '../../services/acp-session-service.js';
-import { TaskService } from '../../services/task-service.js';
 
 const sessionSchema = z.object({
   agent_id: z.string().uuid(),
@@ -50,7 +49,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 
 export const acpRoutes: FastifyPluginAsync = async (app) => {
   const eventService = app.eventService;
-  const taskService = new TaskService(app.pgPool, eventService, app.config, app.workerConnectionHub);
+  const taskService = app.taskService;
   const sessionService = new AcpSessionService(app.pgPool, eventService);
 
   app.post('/api/v1/acp/sessions', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request, reply) => {

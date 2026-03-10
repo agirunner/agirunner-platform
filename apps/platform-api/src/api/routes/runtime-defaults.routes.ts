@@ -1,14 +1,13 @@
 import type { FastifyPluginAsync } from 'fastify';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
-import {
-  RuntimeDefaultsService,
-  type CreateRuntimeDefaultInput,
-  type UpdateRuntimeDefaultInput,
+import type {
+  CreateRuntimeDefaultInput,
+  UpdateRuntimeDefaultInput,
 } from '../../services/runtime-defaults-service.js';
 
 export const runtimeDefaultsRoutes: FastifyPluginAsync = async (app) => {
-  const service = new RuntimeDefaultsService(app.pgPool);
+  const service = app.runtimeDefaultsService;
 
   app.get(
     '/api/v1/config/runtime-defaults',

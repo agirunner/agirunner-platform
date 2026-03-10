@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Flame, Settings } from 'lucide-react';
-import { readSession } from '../../lib/session.js';
-import { cn } from '../../lib/utils.js';
+import { dashboardApi, type FleetContainerRecord } from '../../lib/api.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
@@ -23,60 +22,18 @@ import {
   DialogDescription,
 } from '../../components/ui/dialog.js';
 
-const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
-
-interface FleetContainer {
-  id: string;
-  name: string;
-  status: string;
-  image: string;
-  worker_role?: string;
-  reuse_count?: number;
-  pool_name?: string;
-  created_at?: string;
-}
-
 interface PoolSummary {
   name: string;
   size: number;
   activeContainers: number;
-  reuseCount: number;
   workerRole: string;
 }
 
-interface PoolSizeUpdate {
-  poolName: string;
-  size: number;
-}
-
-function normalizeContainers(response: unknown): FleetContainer[] {
-  if (Array.isArray(response)) {
-    return response as FleetContainer[];
-  }
-  const wrapped = response as { data?: FleetContainer[] } | undefined;
-  return wrapped?.data ?? [];
-}
-
-function authHeaders(): Record<string, string> {
-  const session = readSession();
-  return { Authorization: `Bearer ${session?.accessToken}` };
-}
-
-async function fetchContainers(): Promise<FleetContainer[]> {
-  const resp = await fetch(`${API_BASE_URL}/api/v1/fleet/containers`, {
-    headers: authHeaders(),
-  });
-  if (!resp.ok) {
-    throw new Error(`HTTP ${resp.status}`);
-  }
-  return normalizeContainers(await resp.json());
-}
-
-function buildPoolSummaries(containers: FleetContainer[]): PoolSummary[] {
+function buildPoolSummaries(containers: FleetContainerRecord[]): PoolSummary[] {
   const poolMap = new Map<string, PoolSummary>();
 
   containers.forEach((container) => {
-    const poolName = container.pool_name ?? container.worker_role ?? 'default';
+    const poolName = container.worker_role;
     const existing = poolMap.get(poolName);
 
     const isIdle = container.status.toLowerCase() === 'idle' || container.status.toLowerCase() === 'created';
@@ -85,14 +42,12 @@ function buildPoolSummaries(containers: FleetContainer[]): PoolSummary[] {
     if (existing) {
       existing.size += isIdle ? 1 : 0;
       existing.activeContainers += isActive ? 1 : 0;
-      existing.reuseCount += container.reuse_count ?? 0;
     } else {
       poolMap.set(poolName, {
         name: poolName,
         size: isIdle ? 1 : 0,
         activeContainers: isActive ? 1 : 0,
-        reuseCount: container.reuse_count ?? 0,
-        workerRole: container.worker_role ?? 'general',
+        workerRole: container.worker_role,
       });
     }
   });
@@ -160,9 +115,9 @@ export function WarmPoolsPage(): JSX.Element {
   const [selectedPool, setSelectedPool] = useState<PoolSummary | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const { data: containers, isLoading, error } = useQuery({
+  const { data: containers, isLoading, error } = useQuery<FleetContainerRecord[]>({
     queryKey: ['fleet-containers-warm'],
-    queryFn: fetchContainers,
+    queryFn: () => dashboardApi.fetchFleetContainers(),
   });
 
   if (isLoading) {
@@ -216,7 +171,7 @@ export function WarmPoolsPage(): JSX.Element {
                 <p className="text-xs text-muted-foreground">Role: {pool.workerRole}</p>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="grid grid-cols-2 gap-2 text-center">
                   <div>
                     <p className="text-2xl font-bold">{pool.size}</p>
                     <p className="text-xs text-muted-foreground">Idle</p>
@@ -224,10 +179,6 @@ export function WarmPoolsPage(): JSX.Element {
                   <div>
                     <p className="text-2xl font-bold">{pool.activeContainers}</p>
                     <p className="text-xs text-muted-foreground">Active</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold">{pool.reuseCount}</p>
-                    <p className="text-xs text-muted-foreground">Reuses</p>
                   </div>
                 </div>
               </CardContent>
@@ -246,27 +197,31 @@ export function WarmPoolsPage(): JSX.Element {
               <TableRow>
                 <TableHead>Container ID</TableHead>
                 <TableHead>Name</TableHead>
-                <TableHead>Pool</TableHead>
+                <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Image</TableHead>
-                <TableHead className="text-right">Reuse Count</TableHead>
+                <TableHead>Last Updated</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {warmContainers.map((container) => (
                 <TableRow key={container.id}>
-                  <TableCell className="font-mono text-xs" title={container.id}>
-                    {container.id.length > 12 ? `${container.id.slice(0, 12)}...` : container.id}
+                  <TableCell className="font-mono text-xs" title={container.container_id ?? container.id}>
+                    {(container.container_id ?? container.id).length > 12
+                      ? `${(container.container_id ?? container.id).slice(0, 12)}...`
+                      : (container.container_id ?? container.id)}
                   </TableCell>
                   <TableCell className="font-medium">{container.name}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary">{container.pool_name ?? container.worker_role ?? 'default'}</Badge>
+                    <Badge variant="secondary">{container.worker_role}</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant="warning" className="capitalize">{container.status}</Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs">{container.image}</TableCell>
-                  <TableCell className="text-right">{container.reuse_count ?? 0}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {container.last_updated ? new Date(container.last_updated).toLocaleString() : '-'}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

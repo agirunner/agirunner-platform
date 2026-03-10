@@ -1,6 +1,11 @@
 import { readSession } from '../../lib/session.js';
-import type { TemplateDefinition } from './template-editor-types.js';
-import { createEmptyTemplate } from './template-editor-types.js';
+import type { TemplateResponse, TemplateEditorState } from './template-editor-types.js';
+import {
+  createEmptyTemplate,
+  responseToEditorState,
+  editorStateToCreatePayload,
+  editorStateToPatchPayload,
+} from './template-editor-types.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 
@@ -13,81 +18,110 @@ function authHeaders(): Record<string, string> {
   return headers;
 }
 
-export async function fetchTemplate(id: string): Promise<TemplateDefinition> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/templates/${id}`, {
-    headers: authHeaders(),
+async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    ...init,
+    headers: { ...authHeaders(), ...init?.headers },
     credentials: 'include',
   });
   if (!response.ok) {
-    if (response.status === 404) {
-      return createEmptyTemplate(id);
-    }
-    throw new Error(`HTTP ${response.status}`);
+    const text = await response.text().catch(() => '');
+    throw new Error(`HTTP ${response.status}: ${text}`);
   }
-  const body = await response.json();
-  const raw = body.data ?? body;
-  return normalizeTemplate(id, raw);
+  return response.json();
 }
 
-export async function saveTemplateDraft(
-  template: TemplateDefinition,
-): Promise<TemplateDefinition> {
-  const payload = { ...template, status: 'draft' };
-  const response = await fetch(`${API_BASE_URL}/api/v1/templates/${template.id}`, {
-    method: 'PUT',
-    headers: authHeaders(),
-    credentials: 'include',
-    body: JSON.stringify(payload),
-  });
-  if (response.status === 404) {
-    const createResponse = await fetch(`${API_BASE_URL}/api/v1/templates`, {
+// ---------------------------------------------------------------------------
+// Template CRUD
+// ---------------------------------------------------------------------------
+
+export interface TemplateListResponse {
+  data: TemplateResponse[];
+  meta: { total: number; page: number; per_page: number; pages: number };
+}
+
+export interface TemplateListParams {
+  q?: string;
+  slug?: string;
+  is_built_in?: boolean;
+  page?: number;
+  per_page?: number;
+}
+
+export async function listTemplates(params: TemplateListParams = {}): Promise<TemplateListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params.q) searchParams.set('q', params.q);
+  if (params.slug) searchParams.set('slug', params.slug);
+  if (params.is_built_in !== undefined) searchParams.set('is_built_in', String(params.is_built_in));
+  if (params.page) searchParams.set('page', String(params.page));
+  if (params.per_page) searchParams.set('per_page', String(params.per_page));
+
+  const qs = searchParams.toString();
+  const url = `${API_BASE_URL}/api/v1/templates${qs ? `?${qs}` : ''}`;
+  return requestJson<TemplateListResponse>(url);
+}
+
+export async function fetchTemplate(id: string): Promise<TemplateEditorState> {
+  const body = await requestJson<{ data: TemplateResponse }>(
+    `${API_BASE_URL}/api/v1/templates/${id}`,
+  );
+  return responseToEditorState(body.data);
+}
+
+export async function createTemplate(state: TemplateEditorState): Promise<TemplateEditorState> {
+  const body = await requestJson<{ data: TemplateResponse }>(
+    `${API_BASE_URL}/api/v1/templates`,
+    {
       method: 'POST',
-      headers: authHeaders(),
-      credentials: 'include',
-      body: JSON.stringify(payload),
-    });
-    if (!createResponse.ok) throw new Error(`HTTP ${createResponse.status}`);
-    const body = await createResponse.json();
-    return body.data ?? body;
-  }
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body = await response.json();
-  return body.data ?? body;
+      body: JSON.stringify(editorStateToCreatePayload(state)),
+    },
+  );
+  return responseToEditorState(body.data);
 }
 
-export async function publishTemplate(
-  template: TemplateDefinition,
-): Promise<TemplateDefinition> {
-  const payload = { ...template, status: 'published' };
-  const response = await fetch(`${API_BASE_URL}/api/v1/templates/${template.id}`, {
-    method: 'PUT',
-    headers: authHeaders(),
-    credentials: 'include',
-    body: JSON.stringify(payload),
+export async function saveTemplate(state: TemplateEditorState): Promise<TemplateEditorState> {
+  const body = await requestJson<{ data: TemplateResponse }>(
+    `${API_BASE_URL}/api/v1/templates/${state.id}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(editorStateToPatchPayload(state)),
+    },
+  );
+  return responseToEditorState(body.data);
+}
+
+export async function publishTemplate(state: TemplateEditorState): Promise<TemplateEditorState> {
+  const body = await requestJson<{ data: TemplateResponse }>(
+    `${API_BASE_URL}/api/v1/templates/${state.id}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ is_published: true }),
+    },
+  );
+  return responseToEditorState(body.data);
+}
+
+export async function deleteTemplate(id: string): Promise<void> {
+  await requestJson<{ data: TemplateResponse }>(
+    `${API_BASE_URL}/api/v1/templates/${id}`,
+    { method: 'DELETE' },
+  );
+}
+
+export async function cloneTemplate(templateId: string): Promise<TemplateEditorState> {
+  const original = await fetchTemplate(templateId);
+  return createTemplate({
+    ...original,
+    id: '',
+    name: `${original.name} (Copy)`,
+    slug: `${original.slug}-copy`,
+    version: 1,
+    is_published: false,
+    created_at: undefined,
+    updated_at: undefined,
   });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body = await response.json();
-  return body.data ?? body;
 }
 
-function normalizeTemplate(
-  id: string,
-  raw: Record<string, unknown>,
-): TemplateDefinition {
-  const base = createEmptyTemplate(id);
-  return {
-    ...base,
-    ...raw,
-    id,
-    phases: Array.isArray(raw.phases) ? raw.phases : base.phases,
-    variables: Array.isArray(raw.variables) ? raw.variables : base.variables,
-    config_policy: Array.isArray(raw.config_policy) ? raw.config_policy : base.config_policy,
-    lifecycle: (raw.lifecycle as TemplateDefinition['lifecycle']) ?? base.lifecycle,
-  } as TemplateDefinition;
-}
-
-export function templateToJson(
-  template: TemplateDefinition,
-): string {
-  return JSON.stringify(template, null, 2);
+export function templateToJson(state: TemplateEditorState): string {
+  return JSON.stringify(state.schema, null, 2);
 }

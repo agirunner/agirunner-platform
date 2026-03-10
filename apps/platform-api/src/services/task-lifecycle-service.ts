@@ -417,7 +417,10 @@ export class TaskLifecycleService {
       worker_id?: string;
     },
   ) {
-    const assignment = this.requireLifecycleIdentity(identity, payload);
+    // Workers/admins (container-manager) can fail any task via hung detection — skip assignment enforcement.
+    const assignment = identity.scope === 'agent'
+      ? this.requireLifecycleIdentity(identity, payload)
+      : undefined;
     const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
     const lifecyclePolicy = readPersistedLifecyclePolicy(task.metadata);
     const failure = classifyFailure(payload.error);

@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import {
   Loader2,
   Plus,
@@ -9,6 +10,9 @@ import {
   Search,
   ChevronDown,
   ChevronRight,
+  Link2,
+  Unlink,
+  ExternalLink,
 } from 'lucide-react';
 import { readSession } from '../../lib/session.js';
 import { toast } from '../../lib/toast.js';
@@ -46,7 +50,7 @@ import { Switch } from '../../components/ui/switch.js';
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
 
-type ProviderType = 'openai' | 'anthropic' | 'google' | 'openai-compatible';
+type ProviderType = 'openai' | 'anthropic' | 'google' | 'openai-compatible' | 'openai-codex';
 
 interface ReasoningConfigSchema {
   type: 'reasoning_effort' | 'effort' | 'thinking_level' | 'thinking_budget';
@@ -56,10 +60,28 @@ interface ReasoningConfigSchema {
   default: string | number;
 }
 
+interface OAuthStatus {
+  connected: boolean;
+  email: string | null;
+  authorizedAt: string | null;
+  expiresAt: string | null;
+  authorizedBy: string | null;
+  needsReauth: boolean;
+}
+
+interface OAuthProfile {
+  profileId: string;
+  displayName: string;
+  description: string;
+  providerType: string;
+  costModel: string;
+}
+
 interface LlmProvider {
   id: string;
   name: string;
   base_url?: string;
+  auth_mode?: string;
   metadata?: { providerType?: ProviderType };
   model_count?: number;
 }
@@ -73,6 +95,11 @@ interface LlmModel {
   endpoint_type?: string;
   reasoning_config?: ReasoningConfigSchema | null;
   is_enabled?: boolean;
+}
+
+interface SystemDefault {
+  modelId: string | null;
+  reasoningConfig: Record<string, unknown> | null;
 }
 
 interface RoleAssignment {
@@ -98,6 +125,7 @@ const PROVIDER_TYPE_DEFAULTS: Record<ProviderType, { name: string; baseUrl: stri
   anthropic: { name: 'Anthropic', baseUrl: 'https://api.anthropic.com/v1' },
   google: { name: 'Google', baseUrl: 'https://generativelanguage.googleapis.com/v1beta' },
   'openai-compatible': { name: '', baseUrl: 'http://localhost:11434/v1' },
+  'openai-codex': { name: 'OpenAI (Subscription)', baseUrl: 'https://chatgpt.com/backend-api' },
 };
 
 const ROLE_NAMES = ['architect', 'developer', 'reviewer', 'qa', 'project-manager'] as const;
@@ -165,6 +193,29 @@ async function fetchModels(): Promise<LlmModel[]> {
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const body = await response.json();
   return body.data ?? body;
+}
+
+async function fetchSystemDefault(): Promise<SystemDefault> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/config/llm/system-default`,
+    { headers: getAuthHeaders(), credentials: 'include' },
+  );
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const body = await response.json();
+  return body.data ?? { modelId: null, reasoningConfig: null };
+}
+
+async function updateSystemDefault(payload: SystemDefault): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/config/llm/system-default`,
+    {
+      method: 'PUT',
+      headers: getAuthHeaders(true),
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    },
+  );
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
 }
 
 async function fetchAssignments(): Promise<RoleAssignment[]> {
@@ -253,6 +304,271 @@ async function updateModel(
     },
   );
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
+}
+
+/* ─── OAuth API Functions ──────────────────────────────────────────────── */
+
+async function fetchOAuthProfiles(): Promise<OAuthProfile[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/config/oauth/profiles`,
+    { headers: getAuthHeaders(), credentials: 'include' },
+  );
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const body = await response.json();
+  return body.data ?? body;
+}
+
+async function initiateOAuthFlow(profileId: string): Promise<{ authorizeUrl: string }> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/config/oauth/authorize`,
+    {
+      method: 'POST',
+      headers: getAuthHeaders(true),
+      credentials: 'include',
+      body: JSON.stringify({ profileId }),
+    },
+  );
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const body = await response.json();
+  return body.data ?? body;
+}
+
+async function fetchOAuthStatus(providerId: string): Promise<OAuthStatus> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/config/oauth/providers/${providerId}/status`,
+    { headers: getAuthHeaders(), credentials: 'include' },
+  );
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const body = await response.json();
+  return body.data ?? body;
+}
+
+async function disconnectOAuth(providerId: string): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/config/oauth/providers/${providerId}/disconnect`,
+    {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+    },
+  );
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+}
+
+/* ─── Connect OAuth Provider Dialog ────────────────────────────────────── */
+
+function ConnectOAuthDialog(): JSX.Element {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const profilesQuery = useQuery({
+    queryKey: ['oauth-profiles'],
+    queryFn: fetchOAuthProfiles,
+    enabled: isOpen,
+  });
+
+  const connectMutation = useMutation({
+    mutationFn: async (profileId: string) => {
+      const result = await initiateOAuthFlow(profileId);
+      window.open(result.authorizeUrl, '_blank', 'noopener,noreferrer');
+    },
+    onError: (error) => {
+      toast.error(`Failed to start OAuth flow: ${String(error)}`);
+    },
+  });
+
+  const profiles = profilesQuery.data ?? [];
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Button onClick={() => setIsOpen(true)}>
+        <Link2 className="h-4 w-4" />
+        Connect Subscription
+      </Button>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Connect Subscription Provider</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted mb-4">
+          Use your existing subscription (e.g. ChatGPT Plus/Pro) to access LLM models without separate API billing.
+        </p>
+        {profilesQuery.isLoading && (
+          <div className="flex justify-center py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-muted" />
+          </div>
+        )}
+        {profilesQuery.error && (
+          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            Failed to load profiles: {String(profilesQuery.error)}
+          </div>
+        )}
+        <div className="space-y-3">
+          {profiles.map((profile) => (
+            <Card key={profile.profileId} className="cursor-pointer hover:border-primary transition-colors">
+              <CardContent className="flex items-center justify-between py-4">
+                <div>
+                  <p className="font-medium">{profile.displayName}</p>
+                  <p className="text-sm text-muted">{profile.description}</p>
+                  <Badge variant="outline" className="mt-1">{profile.costModel === 'subscription' ? 'Subscription' : 'Pay-per-token'}</Badge>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => connectMutation.mutate(profile.profileId)}
+                  disabled={connectMutation.isPending}
+                >
+                  {connectMutation.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  )}
+                  Connect
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ─── OAuth Provider Card ──────────────────────────────────────────────── */
+
+function OAuthProviderCard({
+  provider,
+  modelCount,
+  onDelete,
+  onDiscover,
+  isDiscovering,
+}: {
+  provider: LlmProvider;
+  modelCount: number;
+  onDelete: (id: string) => void;
+  onDiscover: (id: string) => void;
+  isDiscovering: boolean;
+}): JSX.Element {
+  const queryClient = useQueryClient();
+
+  const statusQuery = useQuery({
+    queryKey: ['oauth-status', provider.id],
+    queryFn: () => fetchOAuthStatus(provider.id),
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: () => disconnectOAuth(provider.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['oauth-status', provider.id] });
+      toast.success('OAuth disconnected.');
+    },
+    onError: (error) => {
+      toast.error(`Failed to disconnect: ${String(error)}`);
+    },
+  });
+
+  const reconnectMutation = useMutation({
+    mutationFn: async () => {
+      const profileId = 'openai-codex';
+      const result = await initiateOAuthFlow(profileId);
+      window.open(result.authorizeUrl, '_blank', 'noopener,noreferrer');
+    },
+    onError: (error) => {
+      toast.error(`Failed to start reconnection: ${String(error)}`);
+    },
+  });
+
+  const status = statusQuery.data;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">{provider.name}</CardTitle>
+          <div className="flex gap-1">
+            <Badge variant="outline">oauth</Badge>
+            {status?.connected && <Badge variant="default">Connected</Badge>}
+            {status?.needsReauth && <Badge variant="destructive">Needs Reconnect</Badge>}
+            {status && !status.connected && !status.needsReauth && <Badge variant="secondary">Disconnected</Badge>}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <dl className="space-y-2 text-sm">
+          {status?.email && (
+            <div className="flex items-center gap-2">
+              <span className="text-muted">Account</span>
+              <span className="font-medium">{status.email}</span>
+            </div>
+          )}
+          {status?.authorizedAt && (
+            <div className="flex items-center gap-2">
+              <span className="text-muted">Connected</span>
+              <span className="text-xs">{new Date(status.authorizedAt).toLocaleDateString()}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between">
+            <span className="text-muted">Models</span>
+            <span className="font-medium">{modelCount}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-muted">Billing</span>
+            <Badge variant="outline">Subscription</Badge>
+          </div>
+        </dl>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onDiscover(provider.id)}
+            disabled={isDiscovering}
+          >
+            {isDiscovering ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Search className="h-3.5 w-3.5" />
+            )}
+            Refresh Models
+          </Button>
+          {(status?.needsReauth || (status && !status.connected)) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => reconnectMutation.mutate()}
+              disabled={reconnectMutation.isPending}
+            >
+              {reconnectMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Link2 className="h-3.5 w-3.5" />
+              )}
+              Reconnect
+            </Button>
+          )}
+          {status?.connected && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => disconnectMutation.mutate()}
+              disabled={disconnectMutation.isPending}
+            >
+              {disconnectMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Unlink className="h-3.5 w-3.5" />
+              )}
+              Disconnect
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onDelete(provider.id)}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Remove
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 /* ─── Add Provider Dialog ───────────────────────────────────────────────── */
@@ -540,58 +856,43 @@ function ReasoningControl({
   );
 }
 
-function RoleAssignmentRow({
-  role,
-  assignment,
+function ModelReasoningSelect({
+  modelId,
+  reasoningConfig,
   enabledModels,
+  onModelChange,
+  onReasoningChange,
+  label,
 }: {
-  role: string;
-  assignment?: RoleAssignment;
+  modelId: string;
+  reasoningConfig: Record<string, unknown> | null;
   enabledModels: LlmModel[];
+  onModelChange: (modelId: string) => void;
+  onReasoningChange: (config: Record<string, unknown> | null) => void;
+  label?: string;
 }): JSX.Element {
-  const queryClient = useQueryClient();
-  const [primaryModelId, setPrimaryModelId] = useState(assignment?.primary_model_id ?? '__none__');
-  const [reasoningConfig, setReasoningConfig] = useState<Record<string, unknown> | null>(
-    assignment?.reasoning_config ?? null,
-  );
-
-  const selectedModel = enabledModels.find((m) => m.id === primaryModelId);
+  const selectedModel = enabledModels.find((m) => m.id === modelId);
   const modelReasoningSchema = selectedModel?.reasoning_config ?? null;
 
-  const mutation = useMutation({
-    mutationFn: () =>
-      updateAssignment(role, {
-        primaryModelId: primaryModelId === '__none__' ? undefined : primaryModelId,
-        reasoningConfig: modelReasoningSchema ? reasoningConfig : null,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['llm-assignments'] });
-      toast.success(`Assignment for "${role}" saved.`);
-    },
-    onError: (error) => {
-      toast.error(`Failed to save assignment: ${String(error)}`);
-    },
-  });
-
   return (
-    <TableRow>
-      <TableCell className="font-medium">{role}</TableCell>
+    <>
+      {label && <TableCell className="font-medium">{label}</TableCell>}
       <TableCell>
         <Select
-          value={primaryModelId}
+          value={modelId}
           onValueChange={(v) => {
-            setPrimaryModelId(v);
-            setReasoningConfig(null);
+            onModelChange(v);
+            onReasoningChange(null);
           }}
         >
-          <SelectTrigger className="w-[220px]">
+          <SelectTrigger className="w-[380px]">
             <SelectValue placeholder="Select model" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__none__">None</SelectItem>
+            <SelectItem value="__none__">None (use system default)</SelectItem>
             {enabledModels.map((m) => (
               <SelectItem key={m.id} value={m.id}>
-                {m.model_id}
+                {m.model_id}{m.provider_name ? ` (${m.provider_name})` : ''}
               </SelectItem>
             ))}
           </SelectContent>
@@ -601,20 +902,180 @@ function RoleAssignmentRow({
         <ReasoningControl
           schema={modelReasoningSchema}
           value={extractReasoningValue(modelReasoningSchema, reasoningConfig)}
-          onChange={setReasoningConfig}
+          onChange={onReasoningChange}
         />
       </TableCell>
-      <TableCell>
-        <Button
-          size="sm"
-          onClick={() => mutation.mutate()}
-          disabled={mutation.isPending}
-        >
-          {mutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-          Save
+    </>
+  );
+}
+
+/* ─── Role Assignments Section ──────────────────────────────────────────── */
+
+interface RoleState {
+  modelId: string;
+  reasoningConfig: Record<string, unknown> | null;
+}
+
+function RoleAssignmentsSection({
+  enabledModels,
+  assignments,
+  systemDefault,
+}: {
+  enabledModels: LlmModel[];
+  assignments: RoleAssignment[];
+  systemDefault: SystemDefault;
+}): JSX.Element {
+  const queryClient = useQueryClient();
+
+  const [defaultModelId, setDefaultModelId] = useState(systemDefault.modelId ?? '__none__');
+  const [defaultReasoning, setDefaultReasoning] = useState<Record<string, unknown> | null>(
+    systemDefault.reasoningConfig,
+  );
+
+  const [roleStates, setRoleStates] = useState<Record<string, RoleState>>(() => {
+    const initial: Record<string, RoleState> = {};
+    for (const role of ROLE_NAMES) {
+      const a = assignments.find((x) => x.role_name === role);
+      initial[role] = {
+        modelId: a?.primary_model_id ?? '__none__',
+        reasoningConfig: a?.reasoning_config ?? null,
+      };
+    }
+    return initial;
+  });
+
+  // Sync from server data when it changes
+  useEffect(() => {
+    setDefaultModelId(systemDefault.modelId ?? '__none__');
+    setDefaultReasoning(systemDefault.reasoningConfig);
+  }, [systemDefault.modelId, systemDefault.reasoningConfig]);
+
+  useEffect(() => {
+    const updated: Record<string, RoleState> = {};
+    for (const role of ROLE_NAMES) {
+      const a = assignments.find((x) => x.role_name === role);
+      updated[role] = {
+        modelId: a?.primary_model_id ?? '__none__',
+        reasoningConfig: a?.reasoning_config ?? null,
+      };
+    }
+    setRoleStates(updated);
+  }, [assignments]);
+
+  const updateRole = (role: string, patch: Partial<RoleState>) => {
+    setRoleStates((prev) => ({
+      ...prev,
+      [role]: { ...prev[role], ...patch },
+    }));
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      await updateSystemDefault({
+        modelId: defaultModelId === '__none__' ? null : defaultModelId,
+        reasoningConfig: defaultReasoning,
+      });
+
+      for (const role of ROLE_NAMES) {
+        const s = roleStates[role];
+        await updateAssignment(role, {
+          primaryModelId: s.modelId === '__none__' ? undefined : s.modelId,
+          reasoningConfig: s.reasoningConfig,
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['llm-system-default'] });
+      queryClient.invalidateQueries({ queryKey: ['llm-assignments'] });
+      toast.success('Model assignments saved.');
+    },
+    onError: (error) => {
+      toast.error(`Failed to save assignments: ${String(error)}`);
+    },
+  });
+
+  const defaultModel = enabledModels.find((m) => m.id === defaultModelId);
+  const defaultReasoningSchema = defaultModel?.reasoning_config ?? null;
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-lg font-semibold">Model Assignments</h2>
+
+      {/* ── System Default ────────────────────────────────────────────── */}
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold">System Default</h3>
+          <p className="text-xs text-muted">
+            The default model and reasoning level used for all roles unless overridden below.
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <Select value={defaultModelId} onValueChange={(v) => { setDefaultModelId(v); setDefaultReasoning(null); }}>
+            <SelectTrigger className="w-[380px]">
+              <SelectValue placeholder="Select default model" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">None</SelectItem>
+              {enabledModels.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.model_id}{m.provider_name ? ` (${m.provider_name})` : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <ReasoningControl
+            schema={defaultReasoningSchema}
+            value={extractReasoningValue(defaultReasoningSchema, defaultReasoning)}
+            onChange={setDefaultReasoning}
+          />
+        </div>
+      </div>
+
+      {/* ── Role Overrides ────────────────────────────────────────────── */}
+      <div>
+        <div className="mb-3">
+          <h3 className="text-sm font-semibold">Role Overrides</h3>
+          <p className="text-xs text-muted">
+            Optionally override the model and reasoning level for specific roles.
+            Roles set to &quot;None&quot; inherit the system default.
+          </p>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[160px]">Role</TableHead>
+              <TableHead>Model</TableHead>
+              <TableHead>Reasoning</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {ROLE_NAMES.map((role) => {
+              const s = roleStates[role] ?? { modelId: '__none__', reasoningConfig: null };
+              return (
+                <TableRow key={role}>
+                  <ModelReasoningSelect
+                    modelId={s.modelId}
+                    reasoningConfig={s.reasoningConfig}
+                    enabledModels={enabledModels}
+                    onModelChange={(id) => updateRole(role, { modelId: id, reasoningConfig: null })}
+                    onReasoningChange={(cfg) => updateRole(role, { reasoningConfig: cfg })}
+                    label={role}
+                  />
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* ── Save ──────────────────────────────────────────────────────── */}
+      <div className="flex justify-end">
+        <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+          {saveMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />}
+          Save All
         </Button>
-      </TableCell>
-    </TableRow>
+      </div>
+    </div>
   );
 }
 
@@ -642,17 +1103,20 @@ function ModelCatalog({
     );
   }
 
-  const grouped = new Map<string, { providerName: string; models: LlmModel[] }>();
+  const grouped = new Map<string, { providerName: string; authMode: string; models: LlmModel[] }>();
   for (const model of models) {
     const pid = model.provider_id ?? 'unknown';
     if (!grouped.has(pid)) {
-      const providerName = model.provider_name
-        ?? providers.find((p) => p.id === pid)?.name
-        ?? 'Unknown';
-      grouped.set(pid, { providerName, models: [] });
+      const provider = providers.find((p) => p.id === pid);
+      const providerName = model.provider_name ?? provider?.name ?? 'Unknown';
+      const authMode = provider?.auth_mode ?? 'api_key';
+      grouped.set(pid, { providerName, authMode, models: [] });
     }
     grouped.get(pid)!.models.push(model);
   }
+
+  const apiKeyGroups = [...grouped.entries()].filter(([, g]) => g.authMode !== 'oauth');
+  const subscriptionGroups = [...grouped.entries()].filter(([, g]) => g.authMode === 'oauth');
 
   function toggleProvider(providerId: string) {
     setExpandedProviders((prev) => {
@@ -666,78 +1130,106 @@ function ModelCatalog({
     });
   }
 
-  return (
-    <div>
-      <h2 className="text-lg font-semibold mb-4">
-        Model Catalog
-        <span className="ml-2 text-sm font-normal text-muted">({models.length} models)</span>
-      </h2>
-      <div className="space-y-2">
-        {[...grouped.entries()].map(([providerId, group]) => {
-          const isExpanded = expandedProviders.has(providerId);
-          const enabledCount = group.models.filter((m) => m.is_enabled !== false).length;
-          return (
-            <div key={providerId} className="border rounded-md">
-              <button
-                type="button"
-                className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-muted/50 transition-colors"
-                onClick={() => toggleProvider(providerId)}
-              >
-                <div className="flex items-center gap-2">
-                  {isExpanded ? (
-                    <ChevronDown className="h-4 w-4 text-muted" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-muted" />
-                  )}
-                  <span className="font-medium">{group.providerName}</span>
-                  <Badge variant="outline">{enabledCount}/{group.models.length} enabled</Badge>
-                </div>
-              </button>
-              {isExpanded && (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Model ID</TableHead>
-                      <TableHead>Context Window</TableHead>
-                      <TableHead>Endpoint</TableHead>
-                      <TableHead>Enabled</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {[...group.models].sort((a, b) => {
-                      const ae = a.is_enabled !== false ? 0 : 1;
-                      const be = b.is_enabled !== false ? 0 : 1;
-                      return ae - be;
-                    }).map((model) => (
-                      <TableRow key={model.id ?? model.model_id}>
-                        <TableCell className="font-mono text-sm">
-                          {model.model_id}
-                        </TableCell>
-                        <TableCell>
-                          {formatContextWindow(model.context_window)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {model.endpoint_type ?? '-'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Switch
-                            checked={model.is_enabled !== false}
-                            onCheckedChange={(checked) =>
-                              onToggleEnabled(model.id, checked)
-                            }
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </div>
-          );
-        })}
+  function renderProviderGroup(providerId: string, group: { providerName: string; authMode: string; models: LlmModel[] }) {
+    const isExpanded = expandedProviders.has(providerId);
+    const enabledCount = group.models.filter((m) => m.is_enabled !== false).length;
+    return (
+      <div key={providerId} className="border rounded-md">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+          onClick={() => toggleProvider(providerId)}
+        >
+          <div className="flex items-center gap-2">
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4 text-muted" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted" />
+            )}
+            <span className="font-medium">{group.providerName}</span>
+            <Badge variant="outline">{enabledCount}/{group.models.length} enabled</Badge>
+          </div>
+        </button>
+        {isExpanded && (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Model ID</TableHead>
+                <TableHead>Context Window</TableHead>
+                <TableHead>Endpoint</TableHead>
+                <TableHead>Enabled</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[...group.models].sort((a, b) => {
+                const ae = a.is_enabled !== false ? 0 : 1;
+                const be = b.is_enabled !== false ? 0 : 1;
+                return ae - be;
+              }).map((model) => (
+                <TableRow key={model.id ?? model.model_id}>
+                  <TableCell className="font-mono text-sm">
+                    {model.model_id}
+                  </TableCell>
+                  <TableCell>
+                    {formatContextWindow(model.context_window)}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {model.endpoint_type ?? '-'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Switch
+                      checked={model.is_enabled !== false}
+                      onCheckedChange={(checked) =>
+                        onToggleEnabled(model.id, checked)
+                      }
+                    />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-lg font-semibold mb-4">
+          Model Catalog
+          {apiKeyGroups.length > 0 && (
+            <span className="ml-2 text-sm font-normal text-muted">
+              ({apiKeyGroups.reduce((sum, [, g]) => sum + g.models.length, 0)} models)
+            </span>
+          )}
+        </h2>
+        {apiKeyGroups.length === 0 ? (
+          <p className="text-sm text-muted">
+            No API-key provider models. Add a provider and run discovery.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {apiKeyGroups.map(([pid, group]) => renderProviderGroup(pid, group))}
+          </div>
+        )}
+      </div>
+
+      {subscriptionGroups.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-4">
+            Subscription Models
+            <span className="ml-2 text-sm font-normal text-muted">
+              ({subscriptionGroups.reduce((sum, [, g]) => sum + g.models.length, 0)} models)
+            </span>
+          </h2>
+          <div className="space-y-2">
+            {subscriptionGroups.map(([pid, group]) => renderProviderGroup(pid, group))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -746,7 +1238,27 @@ function ModelCatalog({
 
 export function LlmProvidersPage(): JSX.Element {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [discoveringId, setDiscoveringId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const oauthSuccess = searchParams.get('oauth_success');
+    const oauthError = searchParams.get('oauth_error');
+    const oauthEmail = searchParams.get('oauth_email');
+
+    if (oauthSuccess) {
+      const msg = oauthEmail
+        ? `OAuth connected successfully (${oauthEmail}).`
+        : 'OAuth connected successfully.';
+      toast.success(msg);
+      queryClient.invalidateQueries({ queryKey: ['llm-providers'] });
+      queryClient.invalidateQueries({ queryKey: ['llm-models'] });
+      setSearchParams({}, { replace: true });
+    } else if (oauthError) {
+      toast.error(`OAuth failed: ${oauthError}`);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams, queryClient]);
 
   const providersQuery = useQuery({
     queryKey: ['llm-providers'],
@@ -761,6 +1273,11 @@ export function LlmProvidersPage(): JSX.Element {
   const assignmentsQuery = useQuery({
     queryKey: ['llm-assignments'],
     queryFn: fetchAssignments,
+  });
+
+  const systemDefaultQuery = useQuery({
+    queryKey: ['llm-system-default'],
+    queryFn: fetchSystemDefault,
   });
 
   const deleteMutation = useMutation({
@@ -842,7 +1359,10 @@ export function LlmProvidersPage(): JSX.Element {
             Manage language model providers, the model catalog, and role assignments.
           </p>
         </div>
-        <AddProviderDialog />
+        <div className="flex gap-2">
+          <ConnectOAuthDialog />
+          <AddProviderDialog />
+        </div>
       </div>
 
       {providers.length === 0 ? (
@@ -855,16 +1375,27 @@ export function LlmProvidersPage(): JSX.Element {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {providers.map((provider) => (
-            <ProviderCard
-              key={provider.id}
-              provider={provider}
-              modelCount={models.filter((m) => m.provider_id === provider.id).length}
-              onDelete={(id) => deleteMutation.mutate(id)}
-              onDiscover={handleDiscover}
-              isDiscovering={discoveringId === provider.id}
-            />
-          ))}
+          {providers.map((provider) =>
+            provider.auth_mode === 'oauth' ? (
+              <OAuthProviderCard
+                key={provider.id}
+                provider={provider}
+                modelCount={models.filter((m) => m.provider_id === provider.id).length}
+                onDelete={(id) => deleteMutation.mutate(id)}
+                onDiscover={handleDiscover}
+                isDiscovering={discoveringId === provider.id}
+              />
+            ) : (
+              <ProviderCard
+                key={provider.id}
+                provider={provider}
+                modelCount={models.filter((m) => m.provider_id === provider.id).length}
+                onDelete={(id) => deleteMutation.mutate(id)}
+                onDiscover={handleDiscover}
+                isDiscovering={discoveringId === provider.id}
+              />
+            ),
+          )}
         </div>
       )}
 
@@ -877,30 +1408,12 @@ export function LlmProvidersPage(): JSX.Element {
         }
       />
 
-      {/* ── Role Assignments Section ───────────────────────────────────── */}
-      <div>
-        <h2 className="text-lg font-semibold mb-4">Role Model Assignments</h2>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Role</TableHead>
-              <TableHead>Model</TableHead>
-              <TableHead>Reasoning</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {ROLE_NAMES.map((role) => (
-              <RoleAssignmentRow
-                key={role}
-                role={role}
-                assignment={assignments.find((a) => a.role_name === role)}
-                enabledModels={enabledModels}
-              />
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      {/* ── Model Assignments Section ──────────────────────────────────── */}
+      <RoleAssignmentsSection
+        enabledModels={enabledModels}
+        assignments={assignments}
+        systemDefault={systemDefaultQuery.data ?? { modelId: null, reasoningConfig: null }}
+      />
     </div>
   );
 }

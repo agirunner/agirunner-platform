@@ -1,154 +1,287 @@
-export interface TemplateVariable {
-  name: string;
-  type: 'string' | 'number' | 'boolean' | 'array' | 'object';
-  default_value: string;
-  is_required: boolean;
-  enum_values: string;
-  description: string;
+/**
+ * Template editor types — matches backend schema exactly.
+ *
+ * Source of truth:
+ *   - workflow-engine.ts: TemplateTaskDefinition, RuntimeConfig, TaskContainerConfig, TemplateSchema
+ *   - workflow-model.ts: WorkflowPhaseDefinition, WorkflowGateType
+ *   - template-variables.ts: TemplateVariableDefinition
+ *   - task-lifecycle-policy.ts: LifecyclePolicy, RetryPolicy, EscalationPolicy, ReworkPolicy
+ *   - DB: templates table (id, name, slug, description, version, is_built_in, is_published, schema)
+ */
+
+// ---------------------------------------------------------------------------
+// Task types
+// ---------------------------------------------------------------------------
+
+export type TaskType = 'analysis' | 'code' | 'review' | 'test' | 'docs' | 'orchestration' | 'custom';
+export const TASK_TYPES: TaskType[] = ['analysis', 'code', 'review', 'test', 'docs', 'orchestration', 'custom'];
+
+export type OutputStorageMode = 'inline' | 'artifact' | 'git' | 'diff';
+export const OUTPUT_STORAGE_MODES: OutputStorageMode[] = ['inline', 'artifact', 'git', 'diff'];
+
+export interface OutputStateDeclaration {
+  mode: OutputStorageMode;
+  path?: string;
+  media_type?: string;
+  summary?: string;
 }
+
+export interface TemplateTaskDefinition {
+  id: string;
+  title_template: string;
+  type: TaskType;
+  role?: string;
+  depends_on?: string[];
+  blocked_by?: string[];
+  requires_approval?: boolean;
+  input_template?: Record<string, unknown>;
+  context_template?: Record<string, unknown>;
+  capabilities_required?: string[];
+  role_config?: Record<string, unknown>;
+  environment?: Record<string, unknown>;
+  lifecycle?: LifecyclePolicy;
+  output_state?: Record<string, OutputStateDeclaration>;
+  timeout_minutes?: number;
+  auto_retry?: boolean;
+  max_retries?: number;
+  metadata?: Record<string, unknown>;
+}
+
+// ---------------------------------------------------------------------------
+// Workflow phases
+// ---------------------------------------------------------------------------
+
+export type WorkflowGateType = 'none' | 'all_complete' | 'manual' | 'auto';
+export const GATE_TYPES: WorkflowGateType[] = ['none', 'all_complete', 'manual', 'auto'];
+
+export interface WorkflowPhaseDefinition {
+  name: string;
+  gate: WorkflowGateType;
+  parallel: boolean;
+  tasks: string[];
+}
+
+export interface WorkflowDefinition {
+  phases: WorkflowPhaseDefinition[];
+  patterns?: Record<string, unknown>;
+}
+
+// ---------------------------------------------------------------------------
+// Variables
+// ---------------------------------------------------------------------------
+
+export type VariableType = 'string' | 'number' | 'boolean' | 'json';
+export const VARIABLE_TYPES: VariableType[] = ['string', 'number', 'boolean', 'json'];
+
+export interface TemplateVariableDefinition {
+  name: string;
+  type: VariableType;
+  required?: boolean;
+  default?: unknown;
+  description?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Lifecycle policy
+// ---------------------------------------------------------------------------
+
+export type RetryBackoffStrategy = 'fixed' | 'linear' | 'exponential';
+export const BACKOFF_STRATEGIES: RetryBackoffStrategy[] = ['fixed', 'linear', 'exponential'];
+
+export interface RetryPolicy {
+  max_attempts: number;
+  backoff_strategy: RetryBackoffStrategy;
+  initial_backoff_seconds: number;
+  retryable_categories: string[];
+}
+
+export interface EscalationPolicy {
+  role: string;
+  task_type: 'orchestration' | 'review' | 'analysis' | 'custom';
+  title_template: string;
+  instructions?: string;
+  enabled: boolean;
+}
+
+export interface ReworkPolicy {
+  max_cycles: number;
+}
+
+export interface LifecyclePolicy {
+  retry_policy?: RetryPolicy;
+  escalation?: EscalationPolicy;
+  rework?: ReworkPolicy;
+}
+
+// ---------------------------------------------------------------------------
+// Runtime config
+// ---------------------------------------------------------------------------
+
+export type PullPolicy = 'always' | 'if-not-present' | 'never';
+export const PULL_POLICIES: PullPolicy[] = ['always', 'if-not-present', 'never'];
+
+export type PoolMode = 'warm' | 'cold';
+
+export interface RuntimeConfig {
+  pool_mode?: PoolMode;
+  max_runtimes?: number;
+  priority?: number;
+  idle_timeout_seconds?: number;
+  grace_period_seconds?: number;
+  image?: string;
+  pull_policy?: PullPolicy;
+  cpu?: string;
+  memory?: string;
+}
+
+export interface TaskContainerConfig {
+  pool_mode?: PoolMode;
+  warm_pool_size?: number;
+  image?: string;
+  pull_policy?: PullPolicy;
+  cpu?: string;
+  memory?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Template schema (the JSONB `schema` column)
+// ---------------------------------------------------------------------------
+
+export interface TemplateSchema {
+  tasks: TemplateTaskDefinition[];
+  workflow?: WorkflowDefinition;
+  variables?: TemplateVariableDefinition[];
+  runtime?: RuntimeConfig;
+  task_container?: TaskContainerConfig;
+  lifecycle?: LifecyclePolicy;
+  config?: Record<string, unknown>;
+  config_policy?: Record<string, unknown>;
+  default_instruction_config?: Record<string, unknown>;
+  patterns?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+}
+
+// ---------------------------------------------------------------------------
+// Template (API response shape — DB row)
+// ---------------------------------------------------------------------------
+
+export interface TemplateResponse {
+  id: string;
+  tenant_id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  version: number;
+  is_built_in: boolean;
+  is_published: boolean;
+  schema: TemplateSchema;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Editor state — wraps TemplateResponse for local editing
+// ---------------------------------------------------------------------------
+
+export interface TemplateEditorState {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  version: number;
+  is_built_in: boolean;
+  is_published: boolean;
+  schema: TemplateSchema;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Config policy (unstructured on backend, structured for editor UX)
+// ---------------------------------------------------------------------------
+
+export type OverrideLevel = 'locked' | 'per-run' | 'per-task';
 
 export interface ConfigPolicyField {
   field: string;
   default_value: string;
-  is_locked: boolean;
-  override_level: 'none' | 'per-run' | 'per-task';
+  override_level: OverrideLevel;
 }
 
-export interface TaskDefinition {
-  id: string;
-  name: string;
-  type: string;
-  role: string;
-  depends_on: string[];
-  requires_approval: boolean;
-  input_template: string;
-  output_mode: 'inline' | 'artifact' | 'git' | 'diff';
-}
+// ---------------------------------------------------------------------------
+// Factory helpers
+// ---------------------------------------------------------------------------
 
-export interface PhaseDefinition {
-  id: string;
-  name: string;
-  gate: 'auto' | 'all_complete' | 'manual' | 'any_complete';
-  gate_type: string;
-  parallel: boolean;
-  tasks: TaskDefinition[];
-}
-
-export interface LifecyclePolicy {
-  retry: {
-    max_attempts: number;
-    backoff_strategy: 'exponential' | 'linear' | 'fixed';
-    initial_delay_ms: string;
-    retryable_error_types: string[];
-  };
-  escalation: {
-    is_enabled: boolean;
-    target_role: string;
-    instructions: string;
-  };
-  rework: {
-    max_cycles: number;
-  };
-}
-
-export type PullPolicy = 'always' | 'if-not-present' | 'never';
-export type PoolMode = 'warm' | 'cold';
-
-export interface RuntimeConfig {
-  pool_mode: PoolMode;
-  max_runtimes: number;
-  priority: number;
-  idle_timeout: number;
-  grace_period: number;
-  image: string;
-  pull_policy: PullPolicy;
-  cpu_limit: string;
-  memory_limit: string;
-}
-
-export interface TaskContainerConfig {
-  pool_mode: PoolMode;
-  warm_pool_size: number;
-  image: string;
-  pull_policy: PullPolicy;
-  cpu_limit: string;
-  memory_limit: string;
-}
-
-export interface TemplateDefinition {
-  id: string;
-  name: string;
-  slug?: string;
-  description: string;
-  version: string;
-  status: 'draft' | 'published' | 'archived';
-  is_published?: boolean;
-  origin: 'custom' | 'built-in' | 'marketplace';
-  phases: PhaseDefinition[];
-  variables: TemplateVariable[];
-  config_policy: ConfigPolicyField[];
-  lifecycle: LifecyclePolicy;
-  runtime: RuntimeConfig;
-  task_container: TaskContainerConfig;
-}
-
-export function createEmptyLifecycle(): LifecyclePolicy {
+export function createEmptyTask(phaseIndex: number, taskIndex: number): TemplateTaskDefinition {
   return {
-    retry: {
-      max_attempts: 3,
-      backoff_strategy: 'exponential',
-      initial_delay_ms: '5000',
-      retryable_error_types: ['timeout', 'transient_error', 'resource_unavailable'],
-    },
-    escalation: {
-      is_enabled: false,
-      target_role: 'architect',
-      instructions: '',
-    },
-    rework: {
-      max_cycles: 3,
-    },
+    id: `task_${phaseIndex + 1}_${taskIndex + 1}`,
+    title_template: 'New Task',
+    type: 'code',
+    role: 'developer',
   };
 }
 
-export function createEmptyRuntimeConfig(): RuntimeConfig {
+export function createEmptyPhase(index: number): WorkflowPhaseDefinition {
   return {
-    pool_mode: 'warm',
-    max_runtimes: 2,
-    priority: 50,
-    idle_timeout: 300,
-    grace_period: 30,
-    image: 'agirunner-runtime:local',
-    pull_policy: 'if-not-present',
-    cpu_limit: '1.0',
-    memory_limit: '512m',
+    name: `Phase ${index + 1}`,
+    gate: 'all_complete',
+    parallel: true,
+    tasks: [],
   };
 }
 
-export function createEmptyTaskContainerConfig(): TaskContainerConfig {
+export function createEmptySchema(): TemplateSchema {
   return {
-    pool_mode: 'warm',
-    warm_pool_size: 1,
-    image: 'ubuntu:22.04',
-    pull_policy: 'if-not-present',
-    cpu_limit: '0.5',
-    memory_limit: '256m',
+    tasks: [],
+    workflow: { phases: [] },
   };
 }
 
-export function createEmptyTemplate(id: string): TemplateDefinition {
+export function createEmptyTemplate(): TemplateEditorState {
   return {
-    id,
+    id: '',
     name: '',
+    slug: '',
     description: '',
-    version: '1.0',
-    status: 'draft',
-    origin: 'custom',
-    phases: [],
-    variables: [],
-    config_policy: [],
-    lifecycle: createEmptyLifecycle(),
-    runtime: createEmptyRuntimeConfig(),
-    task_container: createEmptyTaskContainerConfig(),
+    version: 1,
+    is_built_in: false,
+    is_published: false,
+    schema: createEmptySchema(),
+  };
+}
+
+export function responseToEditorState(response: TemplateResponse): TemplateEditorState {
+  return {
+    id: response.id,
+    name: response.name,
+    slug: response.slug,
+    description: response.description ?? '',
+    version: response.version,
+    is_built_in: response.is_built_in,
+    is_published: response.is_published,
+    schema: response.schema ?? createEmptySchema(),
+    created_at: response.created_at,
+    updated_at: response.updated_at,
+  };
+}
+
+export function editorStateToCreatePayload(state: TemplateEditorState) {
+  return {
+    name: state.name,
+    slug: state.slug,
+    description: state.description || undefined,
+    is_published: state.is_published,
+    schema: state.schema,
+  };
+}
+
+export function editorStateToPatchPayload(state: TemplateEditorState) {
+  return {
+    name: state.name,
+    slug: state.slug,
+    description: state.description || undefined,
+    is_published: state.is_published,
+    schema: state.schema,
   };
 }

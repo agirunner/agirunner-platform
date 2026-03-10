@@ -32,6 +32,7 @@ const IntegrationsPage = lazy(() => import('../pages/config/integrations-page.js
 const PlatformInstructionsPage = lazy(() => import('../pages/config/platform-instructions-page.js').then((m) => ({ default: m.PlatformInstructionsPage })));
 const AiConfigAssistantPage = lazy(() => import('../pages/config/ai-config-assistant-page.js').then((m) => ({ default: m.AiConfigAssistantPage })));
 const TemplateEditorPage = lazy(() => import('../pages/config/template-editor-page.js').then((m) => ({ default: m.TemplateEditorPage })));
+const TemplateLaunchPage = lazy(() => import('../pages/config/template-launch-page.js').then((m) => ({ default: m.TemplateLaunchPage })));
 const RuntimeDefaultsPage = lazy(() => import('../pages/config/runtime-defaults-page.js').then((m) => ({ default: m.RuntimeDefaultsPage })));
 const ToolsPage = lazy(() => import('../pages/config/tools-page.js').then((m) => ({ default: m.ToolsPage })));
 const WebhooksPage = lazy(() => import('../pages/config/webhooks-page.js').then((m) => ({ default: m.WebhooksPage })));
@@ -98,7 +99,10 @@ export function App(): JSX.Element {
 
             {/* Configuration */}
             <Route path="/config/templates" element={<TemplateListPage />} />
+            <Route path="/config/templates/new/edit" element={<TemplateEditorPage />} />
             <Route path="/config/templates/:id/edit" element={<TemplateEditorPage />} />
+            <Route path="/config/templates/:id/launch" element={<TemplateLaunchPage />} />
+            <Route path="/config/templates/launch" element={<TemplateLaunchPage />} />
             <Route path="/config/roles" element={<RoleDefinitionsPage />} />
             <Route path="/config/llm" element={<LlmProvidersPage />} />
             <Route path="/config/runtimes" element={<RuntimesPage />} />

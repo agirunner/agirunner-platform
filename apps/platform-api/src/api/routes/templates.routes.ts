@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
-import { TemplateService } from '../../services/template-service.js';
+// TemplateService provided via app.templateService
 
 const templateCreateSchema = z.object({
   name: z.string().min(1).max(255),
@@ -32,7 +32,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const templateRoutes: FastifyPluginAsync = async (app) => {
-  const templateService = new TemplateService(app.pgPool, app.eventService);
+  const templateService = app.templateService;
 
   app.post('/api/v1/templates', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request, reply) => {
     const body = parseOrThrow(templateCreateSchema.safeParse(request.body));

@@ -2,6 +2,7 @@ package manager
 
 import (
 	"context"
+	"fmt"
 	"testing"
 )
 
@@ -323,6 +324,41 @@ func TestWarmPoolIntegrationWithDCMReconcile(t *testing.T) {
 	}
 	if warmTaskCount != 2 {
 		t.Errorf("expected 2 warm task containers, got %d", warmTaskCount)
+	}
+}
+
+func TestReconcileWarmTaskPoolsFromDockerListError(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.listErr = fmt.Errorf("docker socket closed")
+	target := makeWarmTarget("tmpl-1", "runtime:v1", "task:v1", 3)
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{target},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	mgr.reconcileWarmTaskPoolsFromDocker(context.Background(), platform.runtimeTargets)
+
+	if len(docker.createdSpecs) != 0 {
+		t.Errorf("expected 0 containers created when ListContainers fails, got %d", len(docker.createdSpecs))
+	}
+}
+
+func TestReconcileWarmTaskPoolsFromDockerDelegatesToReconcile(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeWarmTaskContainer("wt-1", "tmpl-1"),
+	}
+	target := makeWarmTarget("tmpl-1", "runtime:v1", "task:v1", 3)
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{target},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	mgr.reconcileWarmTaskPoolsFromDocker(context.Background(), platform.runtimeTargets)
+
+	warmCreated := countWarmTaskSpecs(docker.createdSpecs)
+	if warmCreated != 2 {
+		t.Errorf("expected 2 warm containers created (1 existing, target 3), got %d", warmCreated)
 	}
 }
 

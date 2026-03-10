@@ -8,6 +8,9 @@ export interface RequestContext {
   requestId: string;
   sourceIp: string;
   auth?: ApiKeyIdentity;
+  projectId?: string;
+  workflowId?: string;
+  taskId?: string;
 }
 
 const requestContextStorage = new AsyncLocalStorage<RequestContext>();

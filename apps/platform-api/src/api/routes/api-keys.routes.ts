@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
-import { ApiKeyService } from '../../services/api-key-service.js';
+// ApiKeyService provided via app.apiKeyService
 
 const createApiKeySchema = z.object({
   scope: z.enum(['agent', 'worker', 'admin']),
@@ -21,7 +21,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const apiKeyRoutes: FastifyPluginAsync = async (app) => {
-  const apiKeyService = new ApiKeyService(app.pgPool);
+  const apiKeyService = app.apiKeyService;
 
   app.get('/api/v1/api-keys', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
     const data = await apiKeyService.listApiKeys(request.auth!.tenantId);

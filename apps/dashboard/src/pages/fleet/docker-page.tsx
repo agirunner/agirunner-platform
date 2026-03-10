@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Container, Image, Trash2, Download, ScrollText } from 'lucide-react';
-import { readSession } from '../../lib/session.js';
-import { cn } from '../../lib/utils.js';
+import { Container, Trash2, Download, ScrollText } from 'lucide-react';
+import { dashboardApi, type FleetContainerRecord, type FleetImageRecord } from '../../lib/api.js';
 import { ExecutionLogViewer } from '../../components/execution-log-viewer.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -24,85 +23,7 @@ import {
   DialogDescription,
 } from '../../components/ui/dialog.js';
 
-const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 const CONTAINERS_REFETCH_INTERVAL_MS = 5000;
-
-interface DockerContainer {
-  id: string;
-  name: string;
-  status: string;
-  image: string;
-  cpu_percent: number;
-  memory_mb: number;
-  uptime: string;
-}
-
-interface DockerImage {
-  repository: string;
-  tag: string;
-  digest: string;
-  size_mb: number;
-  last_seen: string;
-}
-
-function normalizeArray<T>(response: unknown): T[] {
-  if (Array.isArray(response)) {
-    return response as T[];
-  }
-  const wrapped = response as { data?: T[] } | undefined;
-  return wrapped?.data ?? [];
-}
-
-function authHeaders(): Record<string, string> {
-  const session = readSession();
-  return { Authorization: `Bearer ${session?.accessToken}` };
-}
-
-async function fetchContainers(): Promise<DockerContainer[]> {
-  const resp = await fetch(`${API_BASE_URL}/api/v1/fleet/containers`, {
-    headers: authHeaders(),
-  });
-  if (!resp.ok) {
-    throw new Error(`HTTP ${resp.status}`);
-  }
-  return normalizeArray<DockerContainer>(await resp.json());
-}
-
-async function fetchImages(): Promise<DockerImage[]> {
-  const resp = await fetch(`${API_BASE_URL}/api/v1/fleet/images`, {
-    headers: authHeaders(),
-  });
-  if (!resp.ok) {
-    throw new Error(`HTTP ${resp.status}`);
-  }
-  return normalizeArray<DockerImage>(await resp.json());
-}
-
-async function pruneContainers(): Promise<unknown> {
-  const resp = await fetch(`${API_BASE_URL}/api/v1/fleet/containers/prune`, {
-    method: 'POST',
-    headers: authHeaders(),
-  });
-  if (!resp.ok) {
-    throw new Error(`HTTP ${resp.status}`);
-  }
-  return resp.json();
-}
-
-async function pullImage(payload: { repository: string; tag: string }): Promise<unknown> {
-  const resp = await fetch(`${API_BASE_URL}/api/v1/fleet/images/pull`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeaders(),
-    },
-    body: JSON.stringify(payload),
-  });
-  if (!resp.ok) {
-    throw new Error(`HTTP ${resp.status}`);
-  }
-  return resp.json();
-}
 
 function truncateId(id: string): string {
   if (id.length <= 12) {
@@ -131,7 +52,8 @@ function PullImageDialog({
   const [tag, setTag] = useState('latest');
 
   const mutation = useMutation({
-    mutationFn: pullImage,
+    mutationFn: (payload: { repository: string; tag: string }) =>
+      dashboardApi.pullFleetImage(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['docker-images'] });
       resetAndClose();
@@ -197,14 +119,14 @@ function ContainersTab(): JSX.Element {
   const queryClient = useQueryClient();
   const [logContainerId, setLogContainerId] = useState<string | null>(null);
 
-  const { data: containers, isLoading, error } = useQuery({
+  const { data: containers, isLoading, error } = useQuery<FleetContainerRecord[]>({
     queryKey: ['docker-containers'],
-    queryFn: fetchContainers,
+    queryFn: () => dashboardApi.fetchFleetContainers(),
     refetchInterval: CONTAINERS_REFETCH_INTERVAL_MS,
   });
 
   const pruneMutation = useMutation({
-    mutationFn: pruneContainers,
+    mutationFn: () => dashboardApi.pruneFleetContainers(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['docker-containers'] });
     },
@@ -247,15 +169,15 @@ function ContainersTab(): JSX.Element {
               <TableHead>Image</TableHead>
               <TableHead className="text-right">CPU %</TableHead>
               <TableHead className="text-right">Memory (MB)</TableHead>
-              <TableHead>Uptime</TableHead>
+              <TableHead>Last Updated</TableHead>
               <TableHead className="w-[80px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.map((container) => (
               <TableRow key={container.id}>
-                <TableCell className="font-mono text-xs" title={container.id}>
-                  {truncateId(container.id)}
+                <TableCell className="font-mono text-xs" title={container.container_id ?? container.id}>
+                  {truncateId(container.container_id ?? container.id)}
                 </TableCell>
                 <TableCell className="font-medium">{container.name}</TableCell>
                 <TableCell>
@@ -264,15 +186,23 @@ function ContainersTab(): JSX.Element {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-muted-foreground text-xs">{container.image}</TableCell>
-                <TableCell className="text-right">{container.cpu_percent.toFixed(1)}</TableCell>
-                <TableCell className="text-right">{container.memory_mb.toFixed(0)}</TableCell>
-                <TableCell className="text-muted-foreground">{container.uptime}</TableCell>
+                <TableCell className="text-right">
+                  {container.cpu_usage_percent != null ? container.cpu_usage_percent.toFixed(1) : '-'}
+                </TableCell>
+                <TableCell className="text-right">
+                  {container.memory_usage_bytes != null
+                    ? (container.memory_usage_bytes / (1024 * 1024)).toFixed(0)
+                    : '-'}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {container.last_updated ? new Date(container.last_updated).toLocaleString() : '-'}
+                </TableCell>
                 <TableCell>
                   <Button
                     variant="ghost"
                     size="sm"
                     title="View logs"
-                    onClick={() => setLogContainerId(container.id)}
+                    onClick={() => setLogContainerId(container.container_id ?? container.id)}
                   >
                     <ScrollText className="h-4 w-4" />
                   </Button>
@@ -303,9 +233,9 @@ function ContainersTab(): JSX.Element {
 function ImagesTab(): JSX.Element {
   const [isPullOpen, setIsPullOpen] = useState(false);
 
-  const { data: images, isLoading, error } = useQuery({
+  const { data: images, isLoading, error } = useQuery<FleetImageRecord[]>({
     queryKey: ['docker-images'],
-    queryFn: fetchImages,
+    queryFn: () => dashboardApi.fetchFleetImages(),
   });
 
   if (isLoading) {
@@ -346,12 +276,14 @@ function ImagesTab(): JSX.Element {
               <TableRow key={`${image.repository}:${image.tag}-${idx}`}>
                 <TableCell className="font-medium">{image.repository}</TableCell>
                 <TableCell>
-                  <Badge variant="secondary">{image.tag}</Badge>
+                  <Badge variant="secondary">{image.tag ?? 'latest'}</Badge>
                 </TableCell>
-                <TableCell className="font-mono text-xs text-muted-foreground" title={image.digest}>
+                <TableCell className="font-mono text-xs text-muted-foreground" title={image.digest ?? undefined}>
                   {truncateId(image.digest ?? '')}
                 </TableCell>
-                <TableCell className="text-right">{image.size_mb?.toFixed(1) ?? '-'}</TableCell>
+                <TableCell className="text-right">
+                  {image.size_bytes != null ? (image.size_bytes / (1024 * 1024)).toFixed(1) : '-'}
+                </TableCell>
                 <TableCell className="text-muted-foreground">
                   {image.last_seen ? new Date(image.last_seen).toLocaleString() : '-'}
                 </TableCell>

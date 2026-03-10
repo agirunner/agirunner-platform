@@ -4,9 +4,7 @@ import { z } from 'zod';
 import { authenticateApiKey, withAllowedScopes, withScope } from '../../auth/fastify-auth-hook.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
-import { WorkflowService } from '../../services/workflow-service.js';
 import { ProjectPlanningService } from '../../services/project-planning-service.js';
-import { ProjectService } from '../../services/project-service.js';
 import { ProjectSpecService } from '../../services/project-spec-service.js';
 
 const projectCreateSchema = z.object({
@@ -58,9 +56,9 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const projectRoutes: FastifyPluginAsync = async (app) => {
-  const projectService = new ProjectService(app.pgPool, app.eventService);
+  const projectService = app.projectService;
   const projectSpecService = new ProjectSpecService(app.pgPool, app.eventService);
-  const workflowService = new WorkflowService(app.pgPool, app.eventService, app.config, app.workerConnectionHub);
+  const workflowService = app.workflowService;
   const projectPlanningService = new ProjectPlanningService(app.pgPool, workflowService);
 
   app.post('/api/v1/projects', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request, reply) => {

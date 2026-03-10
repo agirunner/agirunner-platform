@@ -75,6 +75,8 @@ interface ModelRow {
   endpoint_type: string | null;
   reasoning_config: Record<string, unknown> | null;
   created_at: Date;
+  provider_name: string | null;
+  auth_mode: string | null;
 }
 
 interface AssignmentRow {
@@ -189,11 +191,22 @@ export class ModelCatalogService {
   }
 
   async listModels(tenantId: string, providerId?: string): Promise<ModelRow[]> {
-    const repo = new TenantScopedRepository(this.pool, tenantId);
+    const baseQuery = `
+      SELECT m.*, p.name AS provider_name, p.auth_mode
+      FROM llm_models m
+      LEFT JOIN llm_providers p ON p.id = m.provider_id
+      WHERE m.tenant_id = $1`;
+
     if (providerId) {
-      return repo.findAll<ModelRow>('llm_models', '*', ['provider_id = $2'], [providerId]);
+      const result = await this.pool.query<ModelRow>(
+        `${baseQuery} AND m.provider_id = $2`,
+        [tenantId, providerId],
+      );
+      return result.rows;
     }
-    return repo.findAll<ModelRow>('llm_models', '*');
+
+    const result = await this.pool.query<ModelRow>(baseQuery, [tenantId]);
+    return result.rows;
   }
 
   async getModel(tenantId: string, id: string): Promise<ModelRow> {
@@ -280,6 +293,27 @@ export class ModelCatalogService {
     if (!result.rowCount) throw new NotFoundError('LLM model not found');
   }
 
+  async getSystemDefault(
+    tenantId: string,
+  ): Promise<{ modelId: string | null; reasoningConfig: Record<string, unknown> | null }> {
+    const modelId = await this.findDefaultModelId(tenantId);
+    const reasoningConfig = await this.findDefaultReasoningConfig(tenantId);
+    return { modelId, reasoningConfig };
+  }
+
+  async setSystemDefault(
+    tenantId: string,
+    modelId: string | null,
+    reasoningConfig: Record<string, unknown> | null,
+  ): Promise<void> {
+    await this.upsertRuntimeDefault(tenantId, 'default_model_id', modelId);
+    await this.upsertRuntimeDefault(
+      tenantId,
+      'default_reasoning_config',
+      reasoningConfig ? JSON.stringify(reasoningConfig) : null,
+    );
+  }
+
   async listAssignments(tenantId: string): Promise<AssignmentRow[]> {
     const repo = new TenantScopedRepository(this.pool, tenantId);
     return repo.findAll<AssignmentRow>('role_model_assignments', '*');
@@ -319,7 +353,7 @@ export class ModelCatalogService {
           tenant_id, provider_id, model_id, context_window,
           max_output_tokens, endpoint_type, reasoning_config, is_enabled
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT (tenant_id, model_id) DO UPDATE SET
+        ON CONFLICT (tenant_id, provider_id, model_id) DO UPDATE SET
           context_window = EXCLUDED.context_window,
           max_output_tokens = EXCLUDED.max_output_tokens,
           endpoint_type = EXCLUDED.endpoint_type,
@@ -377,14 +411,51 @@ export class ModelCatalogService {
   }
 
   private async findDefaultModelId(tenantId: string): Promise<string | null> {
+    return this.getRuntimeDefault(tenantId, 'default_model_id');
+  }
+
+  private async findDefaultReasoningConfig(
+    tenantId: string,
+  ): Promise<Record<string, unknown> | null> {
+    const raw = await this.getRuntimeDefault(tenantId, 'default_reasoning_config');
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  }
+
+  private async getRuntimeDefault(tenantId: string, key: string): Promise<string | null> {
     const repo = new TenantScopedRepository(this.pool, tenantId);
     const rows = await repo.findAll<{ config_value: string; [key: string]: unknown; tenant_id: string }>(
       'runtime_defaults',
       'config_value',
       ['config_key = $2'],
-      ['default_model_id'],
+      [key],
     );
     return rows[0]?.config_value ?? null;
+  }
+
+  private async upsertRuntimeDefault(
+    tenantId: string,
+    key: string,
+    value: string | null,
+  ): Promise<void> {
+    if (value === null) {
+      await this.pool.query(
+        'DELETE FROM runtime_defaults WHERE tenant_id = $1 AND config_key = $2',
+        [tenantId, key],
+      );
+    } else {
+      await this.pool.query(
+        `INSERT INTO runtime_defaults (tenant_id, config_key, config_value, config_type)
+         VALUES ($1, $2, $3, 'string')
+         ON CONFLICT (tenant_id, config_key)
+         DO UPDATE SET config_value = $3, updated_at = NOW()`,
+        [tenantId, key, value],
+      );
+    }
   }
 
   private async buildResolvedConfig(
@@ -396,13 +467,23 @@ export class ModelCatalogService {
     const provider = await this.getProvider(tenantId, model.provider_id);
     const assignment = await this.findAssignment(tenantId, roleName);
 
-    const reasoningConfig = assignment?.reasoning_config ?? this.buildDefaultReasoningValue(model);
+    const systemDefaultReasoning = await this.findDefaultReasoningConfig(tenantId);
+    const reasoningConfig = assignment?.reasoning_config
+      ?? systemDefaultReasoning
+      ?? this.buildDefaultReasoningValue(model);
+
+    const authMode = (provider.auth_mode as string) ?? 'api_key';
+
+    const providerType = (provider.metadata?.providerType as string) ?? provider.name.toLowerCase();
 
     return {
       provider: {
         name: provider.name,
+        providerType,
         baseUrl: provider.base_url,
         apiKeySecretRef: provider.api_key_secret_ref,
+        authMode,
+        providerId: authMode === 'oauth' ? provider.id : null,
       },
       model: {
         modelId: model.model_id,
@@ -429,8 +510,11 @@ export class ModelCatalogService {
 export interface ResolvedRoleConfig {
   provider: {
     name: string;
+    providerType: string;
     baseUrl: string;
     apiKeySecretRef: string | null;
+    authMode: string;
+    providerId: string | null;
   };
   model: {
     modelId: string;

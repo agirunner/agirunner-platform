@@ -233,7 +233,7 @@ type heartbeatsResponse struct {
 
 // FetchHeartbeats retrieves runtime heartbeat data from the platform.
 func (c *PlatformClient) FetchHeartbeats() ([]RuntimeHeartbeat, error) {
-	url := fmt.Sprintf("%s/api/v1/fleet/status", c.baseURL)
+	url := fmt.Sprintf("%s/api/v1/fleet/heartbeats", c.baseURL)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -311,7 +311,12 @@ func (c *PlatformClient) DrainRuntime(runtimeID string) error {
 
 // FailTask marks a task as failed via the platform API.
 func (c *PlatformClient) FailTask(taskID, reason string) error {
-	payload := map[string]string{"error": reason}
+	payload := map[string]interface{}{
+		"error": map[string]string{
+			"code":    "RUNTIME_HUNG",
+			"message": reason,
+		},
+	}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("marshal fail task payload: %w", err)

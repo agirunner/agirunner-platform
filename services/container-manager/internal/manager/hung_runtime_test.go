@@ -284,6 +284,103 @@ func TestIndexContainersByRuntimeID(t *testing.T) {
 	}
 }
 
+func TestOrphanHeartbeatWithActiveTaskFailsTask(t *testing.T) {
+	docker := newMockDockerClient()
+	// No containers — the heartbeat is orphaned.
+	staleTime := time.Now().UTC().Add(-2 * time.Minute).Format(time.RFC3339)
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{},
+		heartbeats: []RuntimeHeartbeat{
+			{RuntimeID: "rt-orphan", TemplateID: "tmpl-1", State: "running", LastHeartbeatAt: staleTime, ActiveTaskID: "task-orphan"},
+		},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	mgr.detectHungRuntimes(context.Background())
+
+	if len(platform.failedTasks) != 1 || platform.failedTasks[0].TaskID != "task-orphan" {
+		t.Errorf("expected task-orphan failed via orphan heartbeat path, got %v", platform.failedTasks)
+	}
+}
+
+func TestOrphanHeartbeatNotStaleIsSkipped(t *testing.T) {
+	docker := newMockDockerClient()
+	// No containers — heartbeat is orphaned but recent, so should be skipped.
+	recentTime := time.Now().UTC().Format(time.RFC3339)
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{},
+		heartbeats: []RuntimeHeartbeat{
+			{RuntimeID: "rt-recent-orphan", TemplateID: "tmpl-1", State: "running", LastHeartbeatAt: recentTime, ActiveTaskID: "task-skip"},
+		},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	mgr.detectHungRuntimes(context.Background())
+
+	if len(platform.failedTasks) != 0 {
+		t.Errorf("expected no failed tasks for non-stale orphan heartbeat, got %v", platform.failedTasks)
+	}
+}
+
+func TestOrphanHeartbeatMixedWithContainerBacked(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-has-container"),
+	}
+	staleTime := time.Now().UTC().Add(-2 * time.Minute).Format(time.RFC3339)
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{},
+		heartbeats: []RuntimeHeartbeat{
+			// This heartbeat has a matching container — not an orphan.
+			{RuntimeID: "rt-has-container", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: staleTime, ActiveTaskID: "task-container"},
+			// This heartbeat has no container — orphan and stale.
+			{RuntimeID: "rt-no-container", TemplateID: "tmpl-1", State: "running", LastHeartbeatAt: staleTime, ActiveTaskID: "task-orphan"},
+		},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	mgr.detectHungRuntimes(context.Background())
+
+	// The orphan path should only fail the orphan's task, not the container-backed one
+	// (the container-backed one gets handled by handleHungRuntime instead).
+	orphanFailed := false
+	for _, ft := range platform.failedTasks {
+		if ft.TaskID == "task-orphan" {
+			orphanFailed = true
+		}
+	}
+	if !orphanFailed {
+		t.Errorf("expected task-orphan failed via orphan heartbeat path, got %v", platform.failedTasks)
+	}
+}
+
+func TestFailActiveTaskLogsErrorOnFailTaskFailure(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-1"),
+	}
+	staleTime := time.Now().UTC().Add(-2 * time.Minute).Format(time.RFC3339)
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{},
+		heartbeats: []RuntimeHeartbeat{
+			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "running", LastHeartbeatAt: staleTime, ActiveTaskID: "task-fail"},
+		},
+		failTaskErr: errForTest("platform unavailable"),
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	mgr.detectHungRuntimes(context.Background())
+
+	// FailTask returned an error, so no tasks should be recorded as failed.
+	if len(platform.failedTasks) != 0 {
+		t.Errorf("expected no recorded failed tasks when FailTask errors, got %v", platform.failedTasks)
+	}
+	// Container should still be stopped despite the FailTask error.
+	if len(docker.stoppedIDs) != 1 || docker.stoppedIDs[0] != "c-1" {
+		t.Errorf("expected container c-1 still stopped despite FailTask error, got %v", docker.stoppedIDs)
+	}
+}
+
 func TestIndexHeartbeatsByRuntimeID(t *testing.T) {
 	hbs := []RuntimeHeartbeat{
 		{RuntimeID: "rt-1"},

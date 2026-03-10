@@ -290,6 +290,18 @@ func (d *RealDockerClient) GetContainerStats(ctx context.Context, containerID st
 	}, nil
 }
 
+// ConnectNetwork attaches a running container to an additional Docker network.
+func (d *RealDockerClient) ConnectNetwork(ctx context.Context, containerID, networkName string) error {
+	if networkName == "" {
+		return nil
+	}
+	err := d.cli.NetworkConnect(ctx, networkName, containerID, nil)
+	if err != nil {
+		return fmt.Errorf("connect container %s to network %s: %w", containerID, networkName, err)
+	}
+	return nil
+}
+
 // InspectContainerHealth returns the Docker HEALTHCHECK status of a container.
 func (d *RealDockerClient) InspectContainerHealth(ctx context.Context, containerID string) (*ContainerHealthStatus, error) {
 	info, err := d.cli.ContainerInspect(ctx, containerID)

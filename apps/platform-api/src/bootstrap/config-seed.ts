@@ -62,7 +62,7 @@ async function seedRoleDefinitions(
       description: role.description,
       systemPrompt: role.systemPrompt,
       allowedTools: role.allowedTools,
-      modelPreference: role.modelPreference,
+
       verificationStrategy: role.verificationStrategy,
       capabilities: role.capabilities,
       isBuiltIn: true,

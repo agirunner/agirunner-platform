@@ -9,7 +9,8 @@ const (
 	labelDCMImage       = "agirunner.image"
 	labelDCMDraining    = "agirunner.draining"
 	labelDCMWarmPool    = "agirunner.warm_pool"
-	labelDCMGracePeriod = "agirunner.grace_period"
+	labelDCMGracePeriod    = "agirunner.grace_period"
+	labelDCMTemplateName   = "com.agirunner.dcm.template-name"
 )
 
 // DCM tier values distinguish runtime containers from task containers.
