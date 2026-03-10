@@ -5,7 +5,6 @@ import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
-import { WebhookTaskTriggerService } from '../../services/webhook-task-trigger-service.js';
 
 const triggerSchema = z.object({
   name: z.string().min(1).max(255),
@@ -65,12 +64,7 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 export const webhookTaskTriggerRoutes: FastifyPluginAsync = async (app) => {
   const taskService = app.taskService;
-  const triggerService = new WebhookTaskTriggerService(
-    app.pgPool,
-    app.eventService,
-    taskService,
-    app.config.WEBHOOK_ENCRYPTION_KEY,
-  );
+  const triggerService = app.webhookTaskTriggerService;
 
   app.post('/api/v1/task-triggers', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request, reply) => {
     const body = parseOrThrow(triggerSchema.safeParse(request.body));

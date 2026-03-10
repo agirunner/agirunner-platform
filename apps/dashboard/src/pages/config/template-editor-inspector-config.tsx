@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select.js';
-import { SectionHeader, HelpText, JsonObjectEditor } from './template-editor-inspector-shared.js';
+import { SectionHeader, HelpText, ExpandableTextarea, JsonObjectEditor } from './template-editor-inspector-shared.js';
 import type { OverrideLevel } from './template-editor-types.js';
 
 // ---------------------------------------------------------------------------
@@ -168,7 +168,7 @@ export function ConfigInspector({
       <JsonObjectEditor
         value={config}
         onChange={onUpdate}
-        rows={6}
+        rows={10}
         placeholder='{\n  "max_file_size": 10000,\n  "language": "typescript"\n}'
       />
       <HelpText>
@@ -189,21 +189,32 @@ export function DefaultInstructionConfigInspector({
   instructionConfig: Record<string, unknown> | undefined;
   onUpdate: (c: Record<string, unknown> | undefined) => void;
 }) {
+  const instructions = typeof instructionConfig?.instructions === 'string'
+    ? instructionConfig.instructions
+    : '';
+
   return (
     <div className="space-y-4">
       <SectionHeader
         title="Default Instructions"
-        description="Default instruction configuration applied to all tasks unless overridden at the task level."
+        description="Default instructions applied to all tasks unless overridden at the task level."
       />
-      <JsonObjectEditor
-        value={instructionConfig}
-        onChange={onUpdate}
-        rows={6}
-        placeholder='{\n  "system_prompt": "You are a senior engineer...",\n  "temperature": 0.3\n}'
+      <ExpandableTextarea
+        value={instructions}
+        onChange={(v) => {
+          if (!v.trim()) {
+            onUpdate(undefined);
+          } else {
+            onUpdate({ ...instructionConfig, instructions: v });
+          }
+        }}
+        placeholder="Instructions shared across all tasks in this template..."
+        label="Default Instructions"
+        rows={10}
       />
       <HelpText>
-        Common instruction settings (system prompts, model parameters, tool configs) shared by all tasks.
-        Individual tasks can override via their role_config.
+        Shared instructions prepended to every task in this template. Individual tasks can add
+        task-specific instructions that supplement these defaults.
       </HelpText>
     </div>
   );

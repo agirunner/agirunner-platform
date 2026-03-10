@@ -184,6 +184,19 @@ func (m *Manager) runReconcileCycle(ctx context.Context) {
 			"wds_ok", wdsErr == nil,
 			"dcm_ok", dcmErr == nil,
 		)
+		m.emitLogTimed("container", "reconcile.cycle", "info", "completed", map[string]any{
+			"action":  "heartbeat",
+			"cycle":  m.cycleCount,
+			"wds_ok": wdsErr == nil,
+			"dcm_ok": dcmErr == nil,
+		}, int(elapsed.Milliseconds()))
+	}
+
+	if wdsErr != nil {
+		m.emitLogError("container", "reconcile.wds", map[string]any{"action": "reconcile"}, wdsErr.Error())
+	}
+	if dcmErr != nil {
+		m.emitLogError("container", "reconcile.dcm", map[string]any{"action": "reconcile"}, dcmErr.Error())
 	}
 }
 
@@ -252,6 +265,12 @@ func (m *Manager) reconcileOnce(ctx context.Context) error {
 			if err := m.docker.RemoveContainer(ctx, c.ID); err != nil {
 				m.logger.Error("failed to remove orphaned container", "container", c.ID, "error", err)
 			}
+			m.emitLog("container", "container.wds_orphan_cleanup", "warn", "completed", map[string]any{
+				"action":       "orphan_clean",
+				"container_id": c.ID,
+				"name":         c.Name,
+				"reason":       "no_matching_desired_state",
+			})
 		}
 	}
 
@@ -289,9 +308,19 @@ func (m *Manager) reconcileDesired(ctx context.Context, ds DesiredState, existin
 		containerID, err := m.docker.CreateContainer(ctx, spec)
 		if err != nil {
 			m.logger.Error("failed to create container", "worker", ds.WorkerName, "error", err)
+			m.emitLogError("container", "container.wds_create", map[string]any{
+				"action": "create",
+				"worker": ds.WorkerName, "image": ds.RuntimeImage,
+			}, err.Error())
 			continue
 		}
 		m.logger.Info("created container", "worker", ds.WorkerName, "container", containerID)
+		m.emitLog("container", "container.wds_create", "info", "completed", map[string]any{
+			"action":       "create",
+			"worker":       ds.WorkerName,
+			"container_id": containerID,
+			"image":        ds.RuntimeImage,
+		})
 	}
 
 	// Scale down if needed
@@ -300,6 +329,12 @@ func (m *Manager) reconcileDesired(ctx context.Context, ds DesiredState, existin
 			m.logger.Info("scaling down, removing container", "container", existing[i].ID)
 			_ = m.docker.StopContainer(ctx, existing[i].ID, m.config.StopTimeout)
 			_ = m.docker.RemoveContainer(ctx, existing[i].ID)
+			m.emitLog("container", "container.wds_destroy", "info", "completed", map[string]any{
+				"action":       "scale_down",
+				"worker":       ds.WorkerName,
+				"container_id": existing[i].ID,
+				"reason":       "scale_down",
+			})
 		}
 	}
 }
@@ -309,6 +344,11 @@ func (m *Manager) handleDraining(ctx context.Context, ds DesiredState, existing 
 		m.logger.Info("draining container", "container", c.ID, "worker", ds.WorkerName)
 		_ = m.docker.StopContainer(ctx, c.ID, m.config.StopTimeout)
 		_ = m.docker.RemoveContainer(ctx, c.ID)
+		m.emitLog("container", "container.wds_drain", "info", "completed", map[string]any{
+			"action":       "drain",
+			"worker":       ds.WorkerName,
+			"container_id": c.ID,
+		})
 	}
 }
 
@@ -329,6 +369,12 @@ func (m *Manager) handleRestart(ctx context.Context, ds DesiredState, existing [
 		}
 		m.logger.Info("recreated container after restart", "worker", ds.WorkerName, "container", containerID)
 	}
+	m.emitLog("container", "container.wds_restart", "info", "completed", map[string]any{
+		"action":   "restart",
+		"worker":   ds.WorkerName,
+		"stopped":  len(existing),
+		"replicas": ds.Replicas,
+	})
 }
 
 func (m *Manager) needsReplacement(ds DesiredState, c ContainerInfo) bool {

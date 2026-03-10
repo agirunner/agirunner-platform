@@ -31,7 +31,7 @@ type logEntry struct {
 	Operation    string         `json:"operation"`
 	Status       string         `json:"status"`
 	DurationMs   *int           `json:"duration_ms,omitempty"`
-	Metadata     map[string]any `json:"metadata,omitempty"`
+	Payload      map[string]any `json:"payload,omitempty"`
 	Error        *logError      `json:"error,omitempty"`
 	ActorType    string         `json:"actor_type"`
 	ActorID      string         `json:"actor_id"`
@@ -196,7 +196,7 @@ func (e *LogEmitter) emitOperation(
 		Level:     level,
 		Operation: operation,
 		Status:    status,
-		Metadata:  metadata,
+		Payload:   metadata,
 		ActorType: logActorType,
 		ActorID:   logActorID,
 		ActorName: logActorName,
@@ -218,7 +218,7 @@ func (e *LogEmitter) emitError(
 		Level:     "error",
 		Operation: operation,
 		Status:    "failed",
-		Metadata:  metadata,
+		Payload:   metadata,
 		Error:     &logError{Message: errMsg},
 		ActorType: logActorType,
 		ActorID:   logActorID,
@@ -263,7 +263,7 @@ func (e *LogEmitter) emitTimed(
 		Operation:  operation,
 		Status:     status,
 		DurationMs: &durationMs,
-		Metadata:   metadata,
+		Payload:    metadata,
 		ActorType:  logActorType,
 		ActorID:    logActorID,
 		ActorName:  logActorName,

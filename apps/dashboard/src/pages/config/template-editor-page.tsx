@@ -50,7 +50,6 @@ export type SelectedItem =
   | { kind: 'config-policy' }
   | { kind: 'config' }
   | { kind: 'default-instruction-config' }
-  | { kind: 'metadata' };
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -124,6 +123,12 @@ function validateTemplate(state: TemplateEditorState): ValidationIssue[] {
     if (task.max_retries !== undefined && task.max_retries < 1) {
       issues.push({ level: 'error', message: `Max retries must be >= 1 on task ${task.id}` });
     }
+    const taskInstructions = typeof task.input_template?.instructions === 'string'
+      ? task.input_template.instructions.trim()
+      : '';
+    if (!taskInstructions) {
+      issues.push({ level: 'error', message: `Task "${task.title_template || task.id}" has no instructions` });
+    }
     for (const dep of task.depends_on ?? []) {
       if (dep === task.id) {
         issues.push({ level: 'error', message: `Task ${task.id} depends on itself` });
@@ -131,12 +136,32 @@ function validateTemplate(state: TemplateEditorState): ValidationIssue[] {
         issues.push({ level: 'error', message: `Task ${task.id} depends on unknown task ${dep}` });
       }
     }
+    const outputKeys = Object.keys(task.output_state ?? {});
+    const seenOutputKeys = new Set<string>();
+    for (const key of outputKeys) {
+      if (seenOutputKeys.has(key)) {
+        issues.push({ level: 'error', message: `Duplicate output key "${key}" in task "${task.title_template || task.id}"` });
+      }
+      seenOutputKeys.add(key);
+    }
+  }
+
+  // Cross-task output key uniqueness
+  const globalOutputKeys = new Map<string, string>();
+  for (const task of schema.tasks ?? []) {
+    for (const key of Object.keys(task.output_state ?? {})) {
+      if (globalOutputKeys.has(key)) {
+        issues.push({ level: 'error', message: `Output key "${key}" used in both "${globalOutputKeys.get(key)}" and "${task.title_template || task.id}"` });
+      } else {
+        globalOutputKeys.set(key, task.title_template || task.id);
+      }
+    }
   }
 
   // Empty phases: backend rejects phases with no tasks
   for (const phase of schema.workflow?.phases ?? []) {
     if (phase.tasks.length === 0) {
-      issues.push({ level: 'warning', message: `Phase "${phase.name}" has no tasks` });
+      issues.push({ level: 'error', message: `Phase "${phase.name}" has no tasks` });
     }
   }
 

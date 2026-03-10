@@ -12,6 +12,7 @@ export const executionLogCategoryEnum = pgEnum('execution_log_category', [
   'tool',
   'agent_loop',
   'task_lifecycle',
+  'runtime_lifecycle',
   'container',
   'api',
   'config',

@@ -13,8 +13,8 @@
 // Task definitions
 // ---------------------------------------------------------------------------
 
-export type OutputStorageMode = 'inline' | 'artifact' | 'git' | 'diff';
-export const OUTPUT_STORAGE_MODES: OutputStorageMode[] = ['inline', 'artifact', 'git', 'diff'];
+export type OutputStorageMode = 'inline' | 'artifact' | 'git';
+export const OUTPUT_STORAGE_MODES: OutputStorageMode[] = ['inline', 'artifact', 'git'];
 
 export interface OutputStateDeclaration {
   mode: OutputStorageMode;

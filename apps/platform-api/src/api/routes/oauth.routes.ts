@@ -3,14 +3,13 @@ import { createServer } from 'node:http';
 import type { FastifyPluginAsync } from 'fastify';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
-import { OAuthService } from '../../services/oauth-service.js';
 import { listOAuthProfiles } from '../../config/oauth-profiles.js';
 import { ValidationError } from '../../errors/domain-errors.js';
 
 const OAUTH_CALLBACK_PORT = 1455;
 
 export const oauthRoutes: FastifyPluginAsync = async (app) => {
-  const service = new OAuthService(app.pgPool);
+  const service = app.oauthService;
 
   // ── Admin API routes ────────────────────────────────────────────────
 

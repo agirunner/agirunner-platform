@@ -1,6 +1,6 @@
 export interface ServiceLogConfig {
   entityType: string;
-  category: 'config' | 'task_lifecycle' | 'auth' | 'container';
+  category: 'config' | 'task_lifecycle' | 'auth' | 'container' | 'api';
   nameField: string;
   ignoreFields: string[];
   ignoreMethods: string[];
@@ -115,5 +115,47 @@ export const SERVICE_REGISTRY: Record<string, ServiceLogConfig> = {
     nameField: 'name',
     ignoreFields: ['updatedAt', 'createdAt'],
     ignoreMethods: ['listAdapters'],
+  },
+  OAuthService: {
+    entityType: 'oauth_connection',
+    category: 'auth',
+    nameField: 'profileId',
+    ignoreFields: ['accessToken', 'refreshToken'],
+    ignoreMethods: ['resolveValidToken', 'getStatus'],
+  },
+  OrchestratorGrantService: {
+    entityType: 'orchestrator_grant',
+    category: 'auth',
+    nameField: 'id',
+    ignoreFields: [],
+    ignoreMethods: ['listGrants', 'hasPermission', 'subtaskPermission'],
+  },
+  AcpSessionService: {
+    entityType: 'acp_session',
+    category: 'api',
+    nameField: 'id',
+    ignoreFields: [],
+    ignoreMethods: ['getSession', 'normalizeOutput'],
+  },
+  ToolTagService: {
+    entityType: 'tool_tag',
+    category: 'config',
+    nameField: 'name',
+    ignoreFields: [],
+    ignoreMethods: ['listToolTags'],
+  },
+  WebhookTaskTriggerService: {
+    entityType: 'task_trigger',
+    category: 'config',
+    nameField: 'name',
+    ignoreFields: ['secret'],
+    ignoreMethods: ['listTriggers'],
+  },
+  AgentService: {
+    entityType: 'agent',
+    category: 'api',
+    nameField: 'name',
+    ignoreFields: [],
+    ignoreMethods: ['listAgents', 'enforceHeartbeatTimeouts'],
   },
 };

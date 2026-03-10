@@ -95,6 +95,9 @@ export class GovernanceService {
     }, this.config.GOVERNANCE_EXECUTION_LOG_RETENTION_DAYS);
     droppedLogPartitions = await this.dropOldLogPartitions(Math.max(minRetention, 30));
 
+    // Ensure future log partitions exist (current + next 2 months).
+    await this.ensureLogPartitions();
+
     return { archivedTasks, deletedTasks, deletedAuditLogs, droppedLogPartitions };
   }
 
@@ -241,6 +244,19 @@ export class GovernanceService {
     );
 
     return deletable.rowCount ?? 0;
+  }
+
+  private async ensureLogPartitions(): Promise<void> {
+    try {
+      // Create partitions for the current month and next 2 months to stay ahead.
+      await this.pool.query(`
+        SELECT create_execution_logs_partition(date_trunc('month', now())::date);
+        SELECT create_execution_logs_partition((date_trunc('month', now()) + interval '1 month')::date);
+        SELECT create_execution_logs_partition((date_trunc('month', now()) + interval '2 months')::date);
+      `);
+    } catch {
+      // Function may not exist in older schema versions, or partition already exists
+    }
   }
 
   private async dropOldLogPartitions(retentionDays: number): Promise<number> {

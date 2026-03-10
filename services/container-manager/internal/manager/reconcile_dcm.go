@@ -255,6 +255,13 @@ func (m *Manager) executePreemptions(
 		if !isContainerIdleByHeartbeat(plan.VictimContainerID, plan.VictimTemplateID, grouped, heartbeats) {
 			m.logger.Info("skipping preemption, victim is executing",
 				"victim", plan.VictimContainerID, "template", plan.VictimTemplateID)
+			m.emitLog("container", "reconcile.preempt_skipped", "info", "completed", map[string]any{
+				"action":                    "preempt",
+				"victim_container_id":       plan.VictimContainerID,
+				"victim_template_id":        plan.VictimTemplateID,
+				"beneficiary_template_id":   plan.BeneficiaryTemplate.TemplateID,
+				"reason":                    "victim_executing",
+			})
 			continue
 		}
 
@@ -281,6 +288,7 @@ func (m *Manager) executePreemptions(
 			victimName = vt.TemplateName
 		}
 		m.emitLog("container", "reconcile.preempt", "info", "completed", map[string]any{
+				"action":                    "preempt",
 			"victim_template_id":        plan.VictimTemplateID,
 			"victim_template_name":      victimName,
 			"victim_container_id":       plan.VictimContainerID,
@@ -667,6 +675,7 @@ func (m *Manager) executeTargetActions(
 
 	if len(actions.idleToDestroy) > 0 {
 		m.emitLog("container", "reconcile.scale_down", "info", "started", map[string]any{
+			"action":        "scale_down",
 			"template_id":   target.TemplateID,
 			"template_name": target.TemplateName,
 			"count":         len(actions.idleToDestroy),
@@ -692,6 +701,7 @@ func (m *Manager) executeTargetActions(
 	toCreate := actions.toCreate + replacements
 	if toCreate > 0 {
 		m.emitLog("container", "reconcile.scale_up", "info", "started", map[string]any{
+			"action":        "scale_up",
 			"template_id":   target.TemplateID,
 			"template_name": target.TemplateName,
 			"count":         toCreate,

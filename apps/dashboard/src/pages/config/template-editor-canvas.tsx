@@ -112,11 +112,11 @@ function buildNodes(
         width: phaseWidth,
         height: phaseHeight,
         backgroundColor: isPhaseSelected
-          ? 'rgba(37, 99, 235, 0.08)'
-          : 'rgba(107, 114, 128, 0.04)',
+          ? 'color-mix(in srgb, var(--color-accent) 8%, transparent)'
+          : 'color-mix(in srgb, var(--color-muted) 6%, transparent)',
         border: isPhaseSelected
-          ? '2px solid rgba(37, 99, 235, 0.4)'
-          : '1px solid rgba(229, 231, 235, 0.6)',
+          ? '2px solid color-mix(in srgb, var(--color-accent) 40%, transparent)'
+          : '1px solid color-mix(in srgb, var(--color-border) 60%, transparent)',
         borderRadius: '10px',
         padding: '8px',
       },
@@ -152,15 +152,18 @@ function buildNodes(
           style: {
             width: taskW,
             padding: '6px 10px',
-            backgroundColor: isTaskSelected ? 'rgba(37, 99, 235, 0.06)' : '#ffffff',
+            backgroundColor: isTaskSelected
+              ? 'color-mix(in srgb, var(--color-accent) 6%, var(--color-surface))'
+              : 'var(--color-surface)',
             border: isTaskSelected
-              ? '2px solid rgba(37, 99, 235, 0.5)'
-              : '1px solid #e5e7eb',
+              ? '2px solid color-mix(in srgb, var(--color-accent) 50%, transparent)'
+              : '1px solid var(--color-border)',
             borderRadius: '8px',
             fontSize: '11px',
             lineHeight: '1.4',
             whiteSpace: 'pre-line',
             cursor: 'pointer',
+            color: 'var(--color-foreground)',
           },
         });
       });
@@ -182,7 +185,7 @@ function buildEdges(tasks: TemplateTaskDefinition[]): Edge[] {
         target: `task:${task.id}`,
         animated: true,
         selectable: true,
-        style: { stroke: '#2563eb', strokeWidth: 1.5 },
+        style: { stroke: 'var(--color-accent)', strokeWidth: 1.5 },
       });
     }
   }

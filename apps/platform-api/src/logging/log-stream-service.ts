@@ -9,6 +9,8 @@ export interface LogStreamFilters {
   projectId?: string;
   workflowId?: string;
   taskId?: string;
+  traceId?: string;
+  operation?: string;
 }
 
 interface LogNotification {
@@ -94,7 +96,7 @@ export class LogStreamService {
       `SELECT id, tenant_id, trace_id, span_id, parent_span_id,
               source, category, level, operation, status, duration_ms,
               payload, error,
-              project_id, workflow_id, task_id,
+              project_id, workflow_id, workflow_name, task_id,
               actor_type, actor_id, actor_name,
               resource_type, resource_id, resource_name,
               created_at
@@ -150,6 +152,12 @@ export class LogStreamService {
       return false;
     }
     if (filters.taskId && notification.task_id !== filters.taskId) {
+      return false;
+    }
+    if (filters.traceId && notification.trace_id !== filters.traceId) {
+      return false;
+    }
+    if (filters.operation && !notification.operation.startsWith(filters.operation.replace(/\*$/, ''))) {
       return false;
     }
     return true;

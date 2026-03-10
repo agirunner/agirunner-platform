@@ -27,8 +27,15 @@ func (m *Manager) startupSweep(ctx context.Context) error {
 	}
 
 	targetMap := buildTargetMap(targets)
-	m.adoptOrRemoveRuntimes(ctx, containers, targetMap)
-	m.removeOrphanTasksOnStartup(ctx, containers)
+	adopted, removed := m.adoptOrRemoveRuntimes(ctx, containers, targetMap)
+	orphanCount := m.removeOrphanTasksOnStartup(ctx, containers)
+	m.emitLog("container", "lifecycle.startup_sweep", "info", "completed", map[string]any{
+		"action":           "startup_sweep",
+		"total_containers": len(containers),
+		"adopted":          adopted,
+		"removed":          removed,
+		"orphan_tasks":     orphanCount,
+	})
 	return nil
 }
 
@@ -58,11 +65,12 @@ func buildTargetMap(targets []RuntimeTarget) map[string]RuntimeTarget {
 }
 
 // adoptOrRemoveRuntimes keeps runtimes with matching targets, removes the rest.
+// Returns counts of adopted and removed runtimes.
 func (m *Manager) adoptOrRemoveRuntimes(
 	ctx context.Context,
 	containers []ContainerInfo,
 	targetMap map[string]RuntimeTarget,
-) {
+) (adopted, removed int) {
 	for _, c := range containers {
 		if c.Labels[labelDCMTier] != tierRuntime {
 			continue
@@ -70,12 +78,21 @@ func (m *Manager) adoptOrRemoveRuntimes(
 		templateID := c.Labels[labelDCMTemplateID]
 		if _, hasTarget := targetMap[templateID]; hasTarget {
 			m.logger.Info("startup: adopting runtime", "container", c.ID, "template", templateID)
+			adopted++
 			continue
 		}
 		gracePeriod := gracePeriodForContainer(c)
 		m.logger.Info("startup: removing stale runtime", "container", c.ID, "template", templateID)
 		m.stopAndRemove(ctx, c.ID, gracePeriod)
+		m.emitLog("container", "lifecycle.startup_remove", "info", "completed", map[string]any{
+			"action":       "orphan_clean",
+			"container_id": c.ID,
+			"template_id":  templateID,
+			"reason":       "no_matching_target",
+		})
+		removed++
 	}
+	return adopted, removed
 }
 
 // gracePeriodForContainer returns a stop timeout based on the container's
@@ -94,7 +111,7 @@ func gracePeriodForContainer(c ContainerInfo) time.Duration {
 }
 
 // removeOrphanTasksOnStartup destroys task containers with dead parent runtimes.
-func (m *Manager) removeOrphanTasksOnStartup(ctx context.Context, containers []ContainerInfo) {
+func (m *Manager) removeOrphanTasksOnStartup(ctx context.Context, containers []ContainerInfo) int {
 	runtimeIDs := collectRuntimeIDs(containers)
 	orphans := findOrphanTasks(containers, runtimeIDs)
 
@@ -102,28 +119,38 @@ func (m *Manager) removeOrphanTasksOnStartup(ctx context.Context, containers []C
 		m.logger.Info("startup: removing orphan task", "container", orphan.ID)
 		m.stopAndRemove(ctx, orphan.ID, m.config.StopTimeout)
 	}
+	return len(orphans)
 }
 
 // shutdownCascade gracefully stops all DCM-managed containers on manager shutdown.
 func (m *Manager) shutdownCascade() {
+	start := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
+	m.emitLog("container", "lifecycle.shutdown", "info", "started", map[string]any{"action": "shutdown"})
+
 	m.logger.Info("shutdown cascade: stopping runtime containers")
-	m.shutdownRuntimes(ctx)
+	runtimeCount := m.shutdownRuntimes(ctx)
 
 	m.logger.Info("shutdown cascade: cleaning up orphan task containers")
-	m.shutdownOrphanTasks(ctx)
+	taskCount := m.shutdownOrphanTasks(ctx)
+
+	m.emitLogTimed("container", "lifecycle.shutdown", "info", "completed", map[string]any{
+		"action":           "shutdown",
+		"runtimes_stopped": runtimeCount,
+		"tasks_cleaned":    taskCount,
+	}, int(time.Since(start).Milliseconds()))
 
 	m.logger.Info("shutdown cascade: complete")
 }
 
 // shutdownRuntimes stops all DCM runtime containers with appropriate grace periods.
-func (m *Manager) shutdownRuntimes(ctx context.Context) {
+func (m *Manager) shutdownRuntimes(ctx context.Context) int {
 	containers, err := m.listDCMRuntimeContainers(ctx)
 	if err != nil {
 		m.logger.Error("shutdown: failed to list runtime containers", "error", err)
-		return
+		return 0
 	}
 
 	for _, c := range containers {
@@ -131,14 +158,15 @@ func (m *Manager) shutdownRuntimes(ctx context.Context) {
 		m.logger.Info("shutdown: stopping runtime", "container", c.ID)
 		m.stopAndRemove(ctx, c.ID, gracePeriod)
 	}
+	return len(containers)
 }
 
 // shutdownOrphanTasks removes any remaining task containers after runtimes are stopped.
-func (m *Manager) shutdownOrphanTasks(ctx context.Context) {
+func (m *Manager) shutdownOrphanTasks(ctx context.Context) int {
 	all, err := m.docker.ListContainers(ctx)
 	if err != nil {
 		m.logger.Error("shutdown: failed to list containers for task cleanup", "error", err)
-		return
+		return 0
 	}
 
 	tasks := filterByLabels(all, labelDCMManaged, "true", labelDCMTier, tierTask)
@@ -146,4 +174,5 @@ func (m *Manager) shutdownOrphanTasks(ctx context.Context) {
 		m.logger.Info("shutdown: removing task container", "container", t.ID)
 		m.stopAndRemove(ctx, t.ID, m.config.StopTimeout)
 	}
+	return len(tasks)
 }

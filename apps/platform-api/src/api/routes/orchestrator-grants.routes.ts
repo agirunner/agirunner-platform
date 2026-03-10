@@ -3,7 +3,6 @@ import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
-import { OrchestratorGrantService } from '../../services/orchestrator-grant-service.js';
 
 const createGrantSchema = z.object({
   agent_id: z.string().uuid(),
@@ -20,7 +19,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const orchestratorGrantRoutes: FastifyPluginAsync = async (app) => {
-  const grantService = new OrchestratorGrantService(app.pgPool, app.eventService);
+  const grantService = app.orchestratorGrantService;
 
   app.post(
     '/api/v1/orchestrator-grants',

@@ -13,7 +13,7 @@ interface StoredArtifactReference {
 }
 
 interface OutputReferenceEnvelope {
-  type: 'artifact' | 'git' | 'diff';
+  type: 'artifact' | 'git';
   location: string;
   media_type: string;
   size_bytes: number;
@@ -94,22 +94,6 @@ export async function applyOutputStateDeclarations(
       ensureNestedRecord(storedGitInfo, 'declared_outputs')[field] = value;
       continue;
     }
-
-    if (typeof value !== 'string' || value.length === 0) {
-      throw new ValidationError(
-        `Task output field '${field}' is declared as diff-backed but is not a diff string`,
-      );
-    }
-    storedOutput[field] = buildReferenceEnvelope({
-      type: 'diff',
-      location: `diff:${task.id as string}/${field}`,
-      mediaType: declaration.media_type ?? 'text/x-diff',
-      sizeBytes: Buffer.byteLength(value),
-      summary: declaration.summary,
-    });
-    const writableGitInfo = storedGitInfo ?? {};
-    ensureNestedRecord(writableGitInfo, 'declared_diffs')[field] = value;
-    storedGitInfo = writableGitInfo;
   }
 
   return {
@@ -197,7 +181,7 @@ function defaultArtifactPath(field: string, extension: string): string {
 }
 
 function buildReferenceEnvelope(input: {
-  type: 'artifact' | 'git' | 'diff';
+  type: 'artifact' | 'git';
   location: string;
   mediaType: string;
   sizeBytes: number;

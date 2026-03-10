@@ -23,6 +23,12 @@ import type { UserService } from './services/user-service.js';
 import type { WebhookService } from './services/webhook-service.js';
 import type { WorkerConnectionHub } from './services/worker-connection-hub.js';
 import type { WorkerService } from './services/worker-service.js';
+import type { AcpSessionService } from './services/acp-session-service.js';
+import type { AgentService } from './services/agent-service.js';
+import type { OAuthService } from './services/oauth-service.js';
+import type { OrchestratorGrantService } from './services/orchestrator-grant-service.js';
+import type { ToolTagService } from './services/tool-tag-service.js';
+import type { WebhookTaskTriggerService } from './services/webhook-task-trigger-service.js';
 import type { WorkflowService } from './services/workflow-service.js';
 
 declare module 'fastify' {
@@ -51,6 +57,12 @@ declare module 'fastify' {
     runtimeDefaultsService: RuntimeDefaultsService;
     fleetService: FleetService;
     modelCatalogService: ModelCatalogService;
+    oauthService: OAuthService;
+    orchestratorGrantService: OrchestratorGrantService;
+    acpSessionService: AcpSessionService;
+    toolTagService: ToolTagService;
+    webhookTaskTriggerService: WebhookTaskTriggerService;
+    agentService: AgentService;
   }
 
   interface FastifyRequest {

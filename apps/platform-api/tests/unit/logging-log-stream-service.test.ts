@@ -30,10 +30,11 @@ function sampleRow(overrides: Record<string, unknown> = {}) {
     operation: 'llm.chat_stream',
     status: 'completed',
     duration_ms: 1200,
-    metadata: {},
+    payload: {},
     error: null,
     project_id: null,
     workflow_id: 'wf-1',
+    workflow_name: 'Test Workflow',
     task_id: 'task-1',
     actor_type: 'worker',
     actor_id: 'w-1',
@@ -239,6 +240,27 @@ describe('LogStreamService', () => {
       expect(callback).not.toHaveBeenCalled();
     });
 
+    it('includesWorkflowNameInFetchedRow', async () => {
+      const callback = vi.fn();
+      const row = sampleRow();
+      mockPool.pool.query.mockResolvedValue({ rows: [row], rowCount: 1 });
+
+      service.subscribe('tenant-1', {}, callback);
+      await simulateNotification(JSON.stringify({
+        id: 1,
+        tenant_id: 'tenant-1',
+        source: 'runtime',
+        category: 'llm',
+        level: 'info',
+        operation: 'llm.chat_stream',
+        created_at: '2026-03-09T15:30:00.000Z',
+      }));
+
+      const [sql] = mockPool.pool.query.mock.calls[0];
+      expect(sql).toContain('workflow_name');
+      expect(callback).toHaveBeenCalledWith(expect.objectContaining({ workflow_name: 'Test Workflow' }));
+    });
+
     it('fansOutToMultipleMatchingSubscribers', async () => {
       const callback1 = vi.fn();
       const callback2 = vi.fn();
@@ -259,6 +281,83 @@ describe('LogStreamService', () => {
 
       expect(callback1).toHaveBeenCalledWith(row);
       expect(callback2).toHaveBeenCalledWith(row);
+    });
+
+    it('filtersByTraceId', async () => {
+      const callback = vi.fn();
+      mockPool.pool.query.mockResolvedValue({ rows: [sampleRow()], rowCount: 1 });
+
+      service.subscribe('tenant-1', { traceId: 'trace-other' }, callback);
+      await service.start();
+
+      const notificationHandler = mockPool.client.on.mock.calls.find(
+        (call: unknown[]) => call[0] === 'notification',
+      )![1] as (msg: { channel: string; payload: string }) => void;
+
+      notificationHandler({
+        channel: 'agirunner_execution_logs',
+        payload: JSON.stringify({
+          id: 1,
+          tenant_id: 'tenant-1',
+          trace_id: 'trace-1',
+          source: 'runtime',
+          category: 'llm',
+          level: 'info',
+          operation: 'llm.chat_stream',
+          created_at: '2026-03-09T15:30:00.000Z',
+        }),
+      });
+
+      await new Promise((r) => setTimeout(r, 10));
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('filtersByOperationPrefix', async () => {
+      const callback = vi.fn();
+      mockPool.pool.query.mockResolvedValue({ rows: [sampleRow()], rowCount: 1 });
+
+      service.subscribe('tenant-1', { operation: 'tool.*' }, callback);
+      await service.start();
+
+      const notificationHandler = mockPool.client.on.mock.calls.find(
+        (call: unknown[]) => call[0] === 'notification',
+      )![1] as (msg: { channel: string; payload: string }) => void;
+
+      notificationHandler({
+        channel: 'agirunner_execution_logs',
+        payload: JSON.stringify({
+          id: 1,
+          tenant_id: 'tenant-1',
+          source: 'runtime',
+          category: 'llm',
+          level: 'info',
+          operation: 'llm.chat_stream',
+          created_at: '2026-03-09T15:30:00.000Z',
+        }),
+      });
+
+      await new Promise((r) => setTimeout(r, 10));
+      expect(callback).not.toHaveBeenCalled();
+      expect(mockPool.pool.query).not.toHaveBeenCalled();
+    });
+
+    it('matchesOperationPrefix', async () => {
+      const callback = vi.fn();
+      const row = sampleRow();
+      mockPool.pool.query.mockResolvedValue({ rows: [row], rowCount: 1 });
+
+      service.subscribe('tenant-1', { operation: 'llm.*' }, callback);
+      await simulateNotification(JSON.stringify({
+        id: 1,
+        tenant_id: 'tenant-1',
+        source: 'runtime',
+        category: 'llm',
+        level: 'info',
+        operation: 'llm.chat_stream',
+        created_at: '2026-03-09T15:30:00.000Z',
+      }));
+
+      expect(callback).toHaveBeenCalledWith(row);
     });
 
     it('ignoresInvalidJsonPayload', async () => {

@@ -18,7 +18,7 @@ func (m *Manager) createRuntimeContainers(ctx context.Context, target RuntimeTar
 	}
 
 	pullStart := time.Now()
-	pullMeta := map[string]any{"image": target.Image, "policy": target.PullPolicy, "template_id": target.TemplateID, "template_name": target.TemplateName}
+	pullMeta := map[string]any{"action": "image_pull", "image": target.Image, "policy": target.PullPolicy, "template_id": target.TemplateID, "template_name": target.TemplateName}
 	m.emitLog("container", "container.image_pull", "info", "started", pullMeta)
 
 	if err := m.docker.PullImage(ctx, target.Image, target.PullPolicy); err != nil {
@@ -34,6 +34,12 @@ func (m *Manager) createRuntimeContainers(ctx context.Context, target RuntimeTar
 		containerID, err := m.docker.CreateContainer(ctx, spec)
 		if err != nil {
 			m.logger.Error("failed to create DCM runtime", "template", target.TemplateID, "error", err)
+			m.emitLogError("container", "container.create", map[string]any{
+				"action":        "create",
+				"template_id":   target.TemplateID,
+				"template_name": target.TemplateName,
+				"image":         target.Image,
+			}, err.Error())
 			continue
 		}
 		if m.config.RuntimeInternalNetwork != "" {
@@ -47,6 +53,7 @@ func (m *Manager) createRuntimeContainers(ctx context.Context, target RuntimeTar
 		m.logFleetEvent("container.created", "info", runtimeID, target.TemplateID, containerID)
 		m.metrics.RecordScalingEvent(target.TemplateID, "created")
 		m.emitLog("container", "container.create", "info", "completed", map[string]any{
+			"action":        "create",
 			"template_id":   target.TemplateID,
 			"template_name": target.TemplateName,
 			"runtime_id":    runtimeID,
@@ -84,6 +91,13 @@ func (m *Manager) prePullImageWithCache(ctx context.Context, image, policy, temp
 		m.pullFailCache[image] = m.nowFunc()
 		m.logger.Error("failed to pre-pull "+imageType+" image for warm template",
 			"image", image, "template", templateID, "error", err)
+		m.emitLogError("container", "container.pre_pull", map[string]any{
+			"action":      "image_pull",
+			"image":       image,
+			"policy":      policy,
+			"template_id": templateID,
+			"image_type":  imageType,
+		}, err.Error())
 	}
 }
 
@@ -144,6 +158,7 @@ func (m *Manager) destroyContainers(ctx context.Context, containers []ContainerI
 		m.logFleetEvent("container.destroyed", "info", runtimeID, templateID, c.ID)
 		m.metrics.RecordScalingEvent(templateID, "destroyed")
 		m.emitLog("container", "container.destroy", "info", "completed", map[string]any{
+			"action":        "scale_down",
 			"template_id":   templateID,
 			"template_name": templateName,
 			"runtime_id":    runtimeID,
@@ -214,6 +229,7 @@ func (m *Manager) drainExecutingRuntime(ctx context.Context, c ContainerInfo, ru
 	m.logFleetEvent("runtime_draining", "info", runtimeID, templateID, c.ID)
 	m.metrics.RecordScalingEvent(templateID, "preempted")
 	m.emitLog("container", "reconcile.drain", "info", "completed", map[string]any{
+		"action":       "drain",
 		"runtime_id":   runtimeID,
 		"template_id":  templateID,
 		"container_id": c.ID,
@@ -250,6 +266,7 @@ func (m *Manager) cleanupOrphanTaskContainers(ctx context.Context) {
 		m.logFleetEvent("orphan.cleaned", "warn", parentRuntime, templateID, orphan.ID)
 		m.metrics.RecordOrphanCleaned()
 		m.emitLog("container", "container.orphan_cleanup", "warn", "completed", map[string]any{
+			"action":        "orphan_clean",
 			"container_id":  orphan.ID,
 			"runtime_id":    parentRuntime,
 			"template_id":   templateID,

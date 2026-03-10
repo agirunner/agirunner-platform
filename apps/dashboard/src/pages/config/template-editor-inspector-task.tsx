@@ -28,11 +28,32 @@ import {
   FieldLabel,
   SectionHeader,
   CollapsibleSection,
+  ExpandableTextarea,
   JsonObjectEditor,
   ChipArrayEditor,
   KeyValueEditor,
 } from './template-editor-inspector-shared.js';
 import { LifecycleInspector } from './template-editor-inspector-settings.js';
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '')
+    .slice(0, 60);
+}
+
+function extractInstructions(inputTemplate: Record<string, unknown> | undefined): string {
+  if (!inputTemplate) return '';
+  if (typeof inputTemplate.instructions === 'string') return inputTemplate.instructions;
+  // Fallback: if the whole object is a single string value, use it
+  const values = Object.values(inputTemplate);
+  if (values.length === 1 && typeof values[0] === 'string') return values[0];
+  // Otherwise show JSON for complex existing data
+  if (Object.keys(inputTemplate).length > 0) return JSON.stringify(inputTemplate, null, 2);
+  return '';
+}
 
 // ---------------------------------------------------------------------------
 // Task inspector
@@ -63,24 +84,18 @@ export function TaskInspector({
       <SectionHeader title="Task" description="Configure this task's identity, inputs, and behavior." />
 
       {/* Identity */}
-      <FieldLabel label="ID">
-        <Input
-          value={task.id}
-          onChange={(e) => onUpdate({ ...task, id: e.target.value })}
-          className="mt-1 font-mono text-xs"
-        />
-        <HelpText>
-          Unique identifier. Changing this updates all dependency references automatically.
-        </HelpText>
-      </FieldLabel>
-
       <FieldLabel label="Title">
         <Input
           value={task.title_template}
-          onChange={(e) => onUpdate({ ...task, title_template: e.target.value })}
+          onChange={(e) => {
+            const title = e.target.value;
+            const newId = slugify(title);
+            const idChanged = newId && !allTasks.some((t) => t.id !== task.id && t.id === newId);
+            onUpdate({ ...task, title_template: title, ...(idChanged ? { id: newId } : {}) });
+          }}
           className="mt-1"
         />
-        <HelpText>Display name. Supports {'{{variable}}'} substitution from template variables.</HelpText>
+        <span className="text-[10px] font-mono text-muted mt-0.5 block">id: {task.id}</span>
       </FieldLabel>
 
       <FieldLabel label="Role">
@@ -126,25 +141,23 @@ export function TaskInspector({
       </div>
       </CollapsibleSection>
 
-      {/* Input & Context */}
-      <CollapsibleSection title="Input & Context" description="Data injected into the agent when this task runs.">
+      {/* Instructions */}
+      <CollapsibleSection title="Instructions" description="What the agent should do when executing this task.">
 
-      <FieldLabel label="Input Template (JSON)">
-        <JsonObjectEditor
-          value={task.input_template}
-          onChange={(v) => onUpdate({ ...task, input_template: v })}
-          placeholder='{"goal": "{{goal}}"}'
+      <FieldLabel label="Instructions">
+        <ExpandableTextarea
+          value={extractInstructions(task.input_template)}
+          onChange={(v) => onUpdate({
+            ...task,
+            input_template: v.trim()
+              ? { ...task.input_template, instructions: v }
+              : undefined,
+            context_template: undefined,
+          })}
+          placeholder="Describe what the agent should do. Use {{variable}} for template substitution."
+          label="Task Instructions"
         />
-        <HelpText>JSON object passed to the agent. Use {'{{variable}}'} for template variable substitution.</HelpText>
-      </FieldLabel>
-
-      <FieldLabel label="Context Template (JSON)">
-        <JsonObjectEditor
-          value={task.context_template}
-          onChange={(v) => onUpdate({ ...task, context_template: v })}
-          placeholder='{"repo": "{{repository_url}}"}'
-        />
-        <HelpText>Additional context injected alongside the input. Useful for repo URLs, branch info, etc.</HelpText>
+        <HelpText>Plain text instructions passed to the agent. Supports {'{{variable}}'} substitution from template variables.</HelpText>
       </FieldLabel>
 
       </CollapsibleSection>
@@ -152,78 +165,91 @@ export function TaskInspector({
       {/* Output */}
       <CollapsibleSection title="Output" description="How this task's output is stored and surfaced." defaultOpen={false}>
 
-      {Object.entries(task.output_state ?? {}).map(([key, decl]) => (
-        <div key={key} className="p-3 rounded-md border border-border/50 bg-background space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-medium">{key}</span>
-            <Button size="icon" variant="ghost" className="h-6 w-6" aria-label={`Remove output ${key}`} onClick={() => {
-              const next = { ...(task.output_state ?? {}) };
-              delete next[key];
-              onUpdate({ ...task, output_state: Object.keys(next).length ? next : undefined });
-            }}>
-              <X className="h-3 w-3" />
-            </Button>
+      {Object.entries(task.output_state ?? {}).map(([key, decl]) => {
+        const d = decl as OutputStateDeclaration;
+        const updateDecl = (patch: Partial<OutputStateDeclaration>) =>
+          onUpdate({ ...task, output_state: { ...task.output_state, [key]: { ...d, ...patch } } });
+        const renameKey = (newKey: string) => {
+          if (!newKey || newKey === key) return;
+          const entries = Object.entries(task.output_state ?? {});
+          const rebuilt: Record<string, OutputStateDeclaration> = {};
+          for (const [k, v] of entries) rebuilt[k === key ? newKey : k] = v as OutputStateDeclaration;
+          onUpdate({ ...task, output_state: rebuilt });
+        };
+        const removeKey = () => {
+          const next = { ...(task.output_state ?? {}) };
+          delete next[key];
+          onUpdate({ ...task, output_state: Object.keys(next).length ? next : undefined });
+        };
+        return (
+          <div key={key} className="p-3 rounded-md border border-border/50 bg-background space-y-2">
+            <div className="flex items-center gap-1">
+              <Input
+                value={key}
+                onChange={(e) => renameKey(e.target.value.replace(/[^a-z0-9_]/gi, '_').toLowerCase())}
+                className="flex-1 text-xs h-6 font-mono"
+              />
+              <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" aria-label={`Remove output ${key}`} onClick={removeKey}>
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+            <FieldLabel label="Storage Mode">
+              <Select
+                value={d.mode}
+                onValueChange={(v) => {
+                  const mode = v as OutputStorageMode;
+                  const patch: Partial<OutputStateDeclaration> = { mode };
+                  if (mode === 'inline') { patch.path = undefined; patch.media_type = undefined; }
+                  updateDecl(patch);
+                }}
+              >
+                <SelectTrigger className="mt-1 h-7 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="inline">Inline — in DB</SelectItem>
+                  <SelectItem value="artifact">Artifact — file storage</SelectItem>
+                  <SelectItem value="git">Git — in repository</SelectItem>
+                </SelectContent>
+              </Select>
+            </FieldLabel>
+
+            {(d.mode === 'artifact' || d.mode === 'git') && (
+              <FieldLabel label={d.mode === 'artifact' ? 'Storage Path' : 'File Path'}>
+                <Input
+                  value={d.path ?? ''}
+                  onChange={(e) => updateDecl({ path: e.target.value || undefined })}
+                  placeholder={d.mode === 'artifact' ? 'artifacts/report.pdf' : 'src/output.ts'}
+                  className="mt-1 text-xs h-7 font-mono"
+                />
+              </FieldLabel>
+            )}
+
+            {(d.mode === 'artifact' || d.mode === 'git') && (
+              <FieldLabel label="Media Type">
+                <Input
+                  value={d.media_type ?? ''}
+                  onChange={(e) => updateDecl({ media_type: e.target.value || undefined })}
+                  placeholder={d.mode === 'artifact' ? 'application/pdf' : 'application/json'}
+                  className="mt-1 text-xs h-7"
+                />
+              </FieldLabel>
+            )}
+
+            <FieldLabel label="Summary">
+              <Input
+                value={d.summary ?? ''}
+                onChange={(e) => updateDecl({ summary: e.target.value || undefined })}
+                placeholder="Brief description of this output"
+                className="mt-1 text-xs h-7"
+              />
+            </FieldLabel>
           </div>
-          <FieldLabel label="Storage Mode">
-            <Select
-              value={(decl as OutputStateDeclaration).mode}
-              onValueChange={(v) => onUpdate({
-                ...task,
-                output_state: { ...task.output_state, [key]: { ...(decl as OutputStateDeclaration), mode: v as OutputStorageMode } },
-              })}
-            >
-              <SelectTrigger className="mt-1 h-7 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {OUTPUT_STORAGE_MODES.map((m) => (
-                  <SelectItem key={m} value={m}>
-                    {m === 'inline' ? 'inline — in task record' :
-                     m === 'artifact' ? 'artifact — in artifact storage' :
-                     m === 'git' ? 'git — committed to repository' :
-                     'diff — as diff patch'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FieldLabel>
-          <FieldLabel label="Path">
-            <Input
-              value={(decl as OutputStateDeclaration).path ?? ''}
-              onChange={(e) => onUpdate({
-                ...task,
-                output_state: { ...task.output_state, [key]: { ...(decl as OutputStateDeclaration), path: e.target.value || undefined } },
-              })}
-              placeholder="e.g. src/output/"
-              className="mt-1 text-xs h-7 font-mono"
-            />
-          </FieldLabel>
-          <FieldLabel label="Media Type">
-            <Input
-              value={(decl as OutputStateDeclaration).media_type ?? ''}
-              onChange={(e) => onUpdate({
-                ...task,
-                output_state: { ...task.output_state, [key]: { ...(decl as OutputStateDeclaration), media_type: e.target.value || undefined } },
-              })}
-              placeholder="e.g. application/json"
-              className="mt-1 text-xs h-7"
-            />
-          </FieldLabel>
-          <FieldLabel label="Summary">
-            <Input
-              value={(decl as OutputStateDeclaration).summary ?? ''}
-              onChange={(e) => onUpdate({
-                ...task,
-                output_state: { ...task.output_state, [key]: { ...(decl as OutputStateDeclaration), summary: e.target.value || undefined } },
-              })}
-              placeholder="Brief description of this output"
-              className="mt-1 text-xs h-7"
-            />
-          </FieldLabel>
-        </div>
-      ))}
+        );
+      })}
       <Button
         size="sm" variant="outline" className="w-full"
         onClick={() => {
-          const key = `output_${Object.keys(task.output_state ?? {}).length + 1}`;
+          const existing = Object.keys(task.output_state ?? {});
+          const key = existing.length === 0 ? 'result' : `result_${existing.length + 1}`;
           onUpdate({
             ...task,
             output_state: { ...(task.output_state ?? {}), [key]: { mode: 'inline' as OutputStorageMode } },
@@ -234,7 +260,7 @@ export function TaskInspector({
         Add Output
       </Button>
       <HelpText>
-        Each output declares a storage mode, optional path, media type, and summary.
+        The output name is a key the agent must include in its result. Downstream tasks can reference it.
       </HelpText>
 
       </CollapsibleSection>
@@ -394,16 +420,6 @@ export function TaskInspector({
         lifecycle={task.lifecycle}
         onUpdate={(lc) => onUpdate({ ...task, lifecycle: lc })}
         compact
-      />
-
-      </CollapsibleSection>
-
-      {/* Task metadata */}
-      <CollapsibleSection title="Metadata" description="Arbitrary key-value data attached to this task." defaultOpen={false}>
-      <JsonObjectEditor
-        value={task.metadata}
-        onChange={(v) => onUpdate({ ...task, metadata: v })}
-        placeholder='{"priority": "high", "team": "backend"}'
       />
 
       </CollapsibleSection>

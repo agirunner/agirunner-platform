@@ -84,6 +84,14 @@ func (m *Manager) createWarmTaskContainers(ctx context.Context, target RuntimeTa
 	if err := m.docker.PullImage(ctx, target.TaskImage, target.PullPolicy); err != nil {
 		m.logger.Error("failed to pull task image for warm pool",
 			"image", target.TaskImage, "template", target.TemplateID, "error", err)
+		m.emitLogError("container", "container.image_pull", map[string]any{
+			"action":         "image_pull",
+			"image":         target.TaskImage,
+			"policy":        target.PullPolicy,
+			"template_id":   target.TemplateID,
+			"template_name": target.TemplateName,
+			"image_type":    "task",
+		}, err.Error())
 		return
 	}
 
@@ -99,6 +107,7 @@ func (m *Manager) createWarmTaskContainers(ctx context.Context, target RuntimeTa
 			"template", target.TemplateID, "container", containerID)
 		m.logFleetEvent("warm_task_created", "info", "", target.TemplateID, containerID)
 		m.emitLog("container", "container.warm_create", "info", "completed", map[string]any{
+			"action":        "create",
 			"template_id":   target.TemplateID,
 			"template_name": target.TemplateName,
 			"container_id":  containerID,
@@ -143,10 +152,18 @@ func (m *Manager) removeExcessWarmTaskContainers(
 	toRemove int,
 ) {
 	for i := len(containers) - 1; i >= 0 && toRemove > 0; i-- {
+		templateID := containers[i].Labels[labelDCMTemplateID]
 		m.logger.Info("removing excess warm task container",
 			"container", containers[i].ID,
-			"template", containers[i].Labels[labelDCMTemplateID])
+			"template", templateID)
 		m.stopAndRemove(ctx, containers[i].ID, m.config.StopTimeout)
+		m.emitLog("container", "container.warm_destroy", "info", "completed", map[string]any{
+			"action":        "scale_down",
+			"container_id":  containers[i].ID,
+			"template_id":   templateID,
+			"template_name": containers[i].Labels[labelDCMTemplateName],
+			"reason":        "excess_pool",
+		})
 		toRemove--
 	}
 }
@@ -187,6 +204,13 @@ func (m *Manager) cleanupOrphanWarmTaskContainers(
 				"container", c.ID, "template", tmplID)
 			m.stopAndRemove(ctx, c.ID, m.config.StopTimeout)
 			m.metrics.RecordOrphanCleaned()
+			m.emitLog("container", "container.warm_orphan_cleanup", "warn", "completed", map[string]any{
+				"action":        "orphan_clean",
+				"container_id":  c.ID,
+				"template_id":   tmplID,
+				"template_name": c.Labels[labelDCMTemplateName],
+				"reason":        "template_inactive",
+			})
 		}
 	}
 }

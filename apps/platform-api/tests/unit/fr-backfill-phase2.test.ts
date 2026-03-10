@@ -300,7 +300,6 @@ describe('FR-SM-004: template state profile declaration', () => {
           output_state: {
             report: { mode: 'artifact', path: 'reports/report.json' },
             branch: 'git',
-            patch: { mode: 'diff' },
           },
         },
       ],
@@ -314,7 +313,6 @@ describe('FR-SM-004: template state profile declaration', () => {
         summary: undefined,
       },
       branch: { mode: 'git', path: undefined, media_type: undefined, summary: undefined },
-      patch: { mode: 'diff', path: undefined, media_type: undefined, summary: undefined },
     });
   });
 });

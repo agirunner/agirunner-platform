@@ -156,7 +156,8 @@ export class LogService {
   }
 
   private async resolveWorkflowName(tenantId: string, workflowId: string): Promise<string | null> {
-    const cached = this.workflowNameCache.get(workflowId);
+    const cacheKey = `${tenantId}:${workflowId}`;
+    const cached = this.workflowNameCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) return cached.name;
 
     const result = await this.pool.query<{ name: string }>(
@@ -165,7 +166,7 @@ export class LogService {
     );
     const name = result.rows[0]?.name ?? null;
     if (name) {
-      this.workflowNameCache.set(workflowId, { name, expiresAt: Date.now() + 60_000 });
+      this.workflowNameCache.set(cacheKey, { name, expiresAt: Date.now() + 60_000 });
       if (this.workflowNameCache.size > 500) {
         const oldest = this.workflowNameCache.keys().next().value;
         if (oldest) this.workflowNameCache.delete(oldest);
@@ -211,7 +212,7 @@ export class LogService {
         entry.operation,
         entry.status,
         entry.durationMs ?? null,
-        JSON.stringify(entry.payload ?? {}),
+        JSON.stringify(redactPayload(entry.payload) ?? {}),
         entry.error ? JSON.stringify(entry.error) : null,
         entry.projectId ?? null,
         entry.workflowId ?? null,
@@ -237,10 +238,7 @@ export class LogService {
 
     for (const entry of batch) {
       try {
-        await this.insert({
-          ...entry,
-          payload: redactPayload(entry.payload),
-        });
+        await this.insert(entry);
         accepted += 1;
       } catch {
         rejected += 1;

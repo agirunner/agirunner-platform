@@ -10,7 +10,7 @@ const MUTATION_PREFIXES = [
   'cancel', 'pause', 'resume', 'claim', 'start', 'complete', 'fail',
   'approve', 'reject', 'retry', 'rework', 'skip', 'reassign',
   'escalate', 'drain', 'restart', 'revoke', 'register', 'signal',
-  'set', 'clear', 'chain', 'prune', 'pull',
+  'set', 'clear', 'chain', 'prune', 'pull', 'disconnect',
 ];
 
 export function methodToAction(method: string): string {

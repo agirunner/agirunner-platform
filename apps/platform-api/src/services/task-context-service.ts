@@ -60,9 +60,11 @@ export async function buildTaskContext(
     (workflowRow?.template_schema as Record<string, unknown> | undefined) ?? {};
   const projectInstructions = await loadProjectInstructions(db, tenantId, task, workflowRow);
   const platformInstructions = await loadPlatformInstructions(db, tenantId);
+  const templateInstructionConfig = asRecord(templateSchema.default_instruction_config);
   const instructionLayers = buildInstructionLayers({
     platformInstructions,
     projectInstructions,
+    templateInstructions: asOptionalString(templateInstructionConfig.instructions),
     roleConfig: asRecord(task.role_config),
     taskInput: asRecord(task.input),
     taskId: String(task.id ?? ''),
@@ -145,6 +147,7 @@ async function loadProjectInstructions(
 function buildInstructionLayers(params: {
   platformInstructions?: Record<string, unknown>;
   projectInstructions?: Record<string, unknown>;
+  templateInstructions?: string;
   roleConfig: Record<string, unknown>;
   taskInput: Record<string, unknown>;
   taskId: string;
@@ -191,6 +194,18 @@ function buildInstructionLayers(params: {
     };
   }
 
+  const templateDocument = normalizeInstructionDocument(
+    params.templateInstructions,
+    'template instructions',
+    20_000,
+  );
+  if (templateDocument && !suppressed.has('template')) {
+    layers.template = {
+      ...templateDocument,
+      source: { type: 'default_instruction_config' },
+    };
+  }
+
   const roleDocument = normalizeInstructionDocument(
     params.roleConfig.system_prompt ?? params.roleConfig.instructions,
     'role instructions',
@@ -221,6 +236,33 @@ function buildInstructionLayers(params: {
   }
 
   return layers;
+}
+
+const LAYER_ORDER = ['platform', 'project', 'template', 'role'] as const;
+
+const LAYER_HEADERS: Record<string, string> = {
+  platform: '=== Platform Instructions ===',
+  project: '=== Project Instructions ===',
+  template: '=== Template Instructions ===',
+  role: '=== Role Instructions ===',
+};
+
+/**
+ * Flatten instruction layers into a single system prompt string.
+ * The task layer is excluded — the runtime reads it separately from `input`.
+ */
+export function flattenInstructionLayers(
+  layers: Record<string, unknown>,
+): string {
+  const sections: string[] = [];
+  for (const name of LAYER_ORDER) {
+    const layer = layers[name] as
+      | { content?: string }
+      | undefined;
+    if (!layer?.content) continue;
+    sections.push(`${LAYER_HEADERS[name]}\n${layer.content}`);
+  }
+  return sections.join('\n\n');
 }
 
 function readSuppressedLayers(value: unknown): string[] {

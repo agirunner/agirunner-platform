@@ -185,7 +185,32 @@ describe('LogService', () => {
       expect(pool.query).toHaveBeenCalledTimes(100);
     });
 
-    it('redactsSecretKeysInMetadata', async () => {
+    it('redactsSecretKeysOnDirectInsert', async () => {
+      const pool = createMockPool();
+      const service = new LogService(pool as never);
+
+      await service.insert({
+        tenantId: 'tenant-1',
+        traceId: 'trace-1',
+        spanId: 'span-1',
+        source: 'platform' as const,
+        category: 'config' as const,
+        level: 'info' as const,
+        operation: 'config.provider.created',
+        status: 'completed' as const,
+        payload: {
+          api_key: 'sk-secret-value',
+          safe_field: 'visible',
+        },
+      });
+
+      const [, params] = pool.query.mock.calls[0];
+      const payload = JSON.parse(params[10] as string);
+      expect(payload.api_key).toBe('[REDACTED]');
+      expect(payload.safe_field).toBe('visible');
+    });
+
+    it('redactsSecretKeysInBatchInsert', async () => {
       const pool = createMockPool();
       const service = new LogService(pool as never);
 

@@ -12,7 +12,7 @@ import { readTemplateLifecyclePolicy, type LifecyclePolicy } from '../services/t
 import { parseTemplateVariables, type TemplateVariableDefinition } from './template-variables.js';
 
 export type WorkflowState = 'pending' | 'active' | 'completed' | 'failed' | 'cancelled' | 'paused';
-export type OutputStorageMode = 'inline' | 'artifact' | 'git' | 'diff';
+export type OutputStorageMode = 'inline' | 'artifact' | 'git';
 
 export interface OutputStateDeclaration {
   mode: OutputStorageMode;
@@ -277,7 +277,7 @@ function validateTaskContainerConfig(
   return config;
 }
 
-const allowedOutputStorageModes = new Set<OutputStorageMode>(['inline', 'artifact', 'git', 'diff']);
+const allowedOutputStorageModes = new Set<OutputStorageMode>(['inline', 'artifact', 'git']);
 
 export function deriveWorkflowState(taskStates: string[]): WorkflowState {
   if (taskStates.length === 0) {

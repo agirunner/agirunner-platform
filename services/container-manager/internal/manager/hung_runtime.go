@@ -112,6 +112,7 @@ func (m *Manager) handleHungRuntime(
 	m.stopAndRemove(ctx, c.ID, hungStopGracePeriod)
 	m.logFleetEvent("runtime_hung", "error", runtimeID, templateID, c.ID)
 	m.emitLog("container", "container.hung_detected", "warn", "completed", map[string]any{
+		"action":        "orphan_clean",
 		"runtime_id":    runtimeID,
 		"container_id":  c.ID,
 		"template_id":   templateID,
@@ -162,6 +163,13 @@ func (m *Manager) handleOrphanHeartbeats(
 			continue
 		}
 		m.failActiveTask(hb.RuntimeID, hb, "orphan_heartbeat")
+		m.emitLog("container", "container.orphan_heartbeat", "warn", "completed", map[string]any{
+			"action":        "orphan_clean",
+			"runtime_id":    hb.RuntimeID,
+			"template_id":   hb.TemplateID,
+			"active_task_id": hb.ActiveTaskID,
+			"reason":        "container_gone",
+		})
 	}
 }
 

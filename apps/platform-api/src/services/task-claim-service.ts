@@ -5,6 +5,7 @@ import { assertValidTransition } from '../orchestration/task-state-machine.js';
 import { EventService } from './event-service.js';
 import type { ResolvedRoleConfig } from './model-catalog-service.js';
 import { OAuthService, type ResolvedOAuthToken } from './oauth-service.js';
+import { flattenInstructionLayers } from './task-context-service.js';
 import { computeToolMatch, readAgentToolRequirements, resolveProjectToolTags } from './tool-tag-service.js';
 
 const priorityCase = "CASE priority WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END";
@@ -177,16 +178,18 @@ export class TaskClaimService {
       )) as Record<string, unknown>;
       const instructions =
         typeof instructionContext.instructions === 'string' ? instructionContext.instructions : '';
+      const layers = (instructionContext.instruction_layers ?? {}) as Record<string, unknown>;
+      const mergedBase = mergeSystemPrompt(claimedTaskBase, layers);
       if ((payload.include_context ?? true) === false) {
         return {
-          ...claimedTaskBase,
+          ...mergedBase,
           tools: toolMatch,
           instructions,
         };
       }
 
       return {
-        ...claimedTaskBase,
+        ...mergedBase,
         tools: toolMatch,
         instructions,
         context: instructionContext,
@@ -273,4 +276,18 @@ export class TaskClaimService {
       role_config: { ...existingRoleConfig, ...llmFields },
     };
   }
+}
+
+function mergeSystemPrompt(
+  taskResponse: Record<string, unknown>,
+  instructionLayers: Record<string, unknown>,
+): Record<string, unknown> {
+  const flattened = flattenInstructionLayers(instructionLayers);
+  if (!flattened) return taskResponse;
+
+  const existing = (taskResponse.role_config ?? {}) as Record<string, unknown>;
+  return {
+    ...taskResponse,
+    role_config: { ...existing, system_prompt: flattened },
+  };
 }

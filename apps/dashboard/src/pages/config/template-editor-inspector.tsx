@@ -2,7 +2,7 @@
  * Template inspector — main dispatcher panel.
  * Delegates to focused sub-panels based on the selected item.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Plus, Rocket } from 'lucide-react';
 import { Button } from '../../components/ui/button.js';
@@ -34,7 +34,6 @@ import {
   ConfigPolicyInspector,
   ConfigInspector,
   DefaultInstructionConfigInspector,
-  MetadataInspector,
 } from './template-editor-inspector-config.js';
 
 // ---------------------------------------------------------------------------
@@ -54,6 +53,14 @@ interface InspectorProps {
 // Template overview
 // ---------------------------------------------------------------------------
 
+function slugifyTemplate(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 function TemplateOverviewInspector({
   state,
   onChange,
@@ -65,6 +72,7 @@ function TemplateOverviewInspector({
 }) {
   const navigate = useNavigate();
   const [slugError, setSlugError] = useState<string | null>(null);
+  const slugManuallyEdited = useRef(state.slug !== '' && state.slug !== slugifyTemplate(state.name));
   const checkSlugUniqueness = useCallback(async () => {
     if (!state.slug.trim()) return;
     try {
@@ -76,6 +84,21 @@ function TemplateOverviewInspector({
     }
   }, [state.slug, state.id]);
 
+  const handleNameChange = (name: string) => {
+    if (slugManuallyEdited.current) {
+      onChange({ ...state, name });
+    } else {
+      onChange({ ...state, name, slug: slugifyTemplate(name) });
+      setSlugError(null);
+    }
+  };
+
+  const handleSlugChange = (slug: string) => {
+    slugManuallyEdited.current = true;
+    onChange({ ...state, slug });
+    setSlugError(null);
+  };
+
   return (
     <div className="space-y-4">
       <SectionHeader title="Template" description="Identity and metadata for this template." />
@@ -83,7 +106,7 @@ function TemplateOverviewInspector({
       <FieldLabel label="Name">
         <Input
           value={state.name}
-          onChange={(e) => onChange({ ...state, name: e.target.value })}
+          onChange={(e) => handleNameChange(e.target.value)}
           placeholder="e.g. Feature Build"
           maxLength={255}
           className="mt-1"
@@ -94,14 +117,14 @@ function TemplateOverviewInspector({
       <FieldLabel label="Slug">
         <Input
           value={state.slug}
-          onChange={(e) => { onChange({ ...state, slug: e.target.value }); setSlugError(null); }}
+          onChange={(e) => handleSlugChange(e.target.value)}
           onBlur={checkSlugUniqueness}
           placeholder="e.g. feature-build"
           maxLength={255}
           className={`mt-1 ${slugError ? 'border-red-500' : ''}`}
         />
         {slugError && <p className="text-[10px] text-red-500 mt-0.5">{slugError}</p>}
-        <HelpText>URL-friendly identifier (lowercase, hyphens, no spaces, max 255 chars). Checked for uniqueness.</HelpText>
+        <HelpText>Auto-generated from name. Edit to override. Checked for uniqueness.</HelpText>
       </FieldLabel>
 
       <FieldLabel label="Description">
@@ -493,27 +516,50 @@ export function TemplateInspector({
         />
       );
       break;
-    case 'metadata':
-      content = (
-        <MetadataInspector
-          metadata={state.schema.metadata}
-          onUpdate={(m) => onSchemaChange((s) => ({ ...s, metadata: m }))}
-        />
-      );
-      break;
     default:
       content = <p className="text-xs text-muted p-4">Select an item to inspect.</p>;
   }
 
+  const [width, setWidth] = useState(384);
+  const dragging = useRef(false);
+  const startX = useRef(0);
+  const startW = useRef(0);
+
+  const onPointerDown = (e: ReactPointerEvent) => {
+    dragging.current = true;
+    startX.current = e.clientX;
+    startW.current = width;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const onPointerMove = (e: ReactPointerEvent) => {
+    if (!dragging.current) return;
+    const delta = startX.current - e.clientX;
+    setWidth(Math.max(280, Math.min(640, startW.current + delta)));
+  };
+
+  const onPointerUp = () => { dragging.current = false; };
+
   return (
-    <aside className="w-80 shrink-0 border-l border-border bg-surface overflow-y-auto hidden md:block">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-border/50">
-        <span className="text-xs font-semibold text-muted uppercase tracking-wide">Inspector</span>
-        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onClose} aria-label="Close inspector">
-          <X className="h-3.5 w-3.5" />
-        </Button>
+    <aside
+      className="shrink-0 border-l border-border bg-surface overflow-y-auto hidden md:flex"
+      style={{ width }}
+    >
+      <div
+        className="w-1 shrink-0 cursor-col-resize hover:bg-accent/30 active:bg-accent/50 transition-colors"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+      />
+      <div className="flex-1 min-w-0 flex flex-col">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border/50">
+          <span className="text-xs font-semibold text-muted uppercase tracking-wide">Inspector</span>
+          <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onClose} aria-label="Close inspector">
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-3">{content}</div>
       </div>
-      <div className="p-3">{content}</div>
     </aside>
   );
 }

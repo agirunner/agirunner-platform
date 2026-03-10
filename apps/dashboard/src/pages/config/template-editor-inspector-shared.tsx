@@ -1,8 +1,8 @@
 /**
  * Shared UI components for template inspector panels.
  */
-import { useState } from 'react';
-import { X, Plus, ChevronDown, ChevronRight } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Plus, ChevronDown, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
 import { Textarea } from '../../components/ui/textarea.js';
@@ -72,6 +72,69 @@ export function CollapsibleSection({
 }
 
 // ---------------------------------------------------------------------------
+// Expandable textarea — inline textarea with pop-out modal for long text
+// ---------------------------------------------------------------------------
+
+export function ExpandableTextarea({
+  value,
+  onChange,
+  placeholder,
+  label,
+  rows = 4,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  label?: string;
+  rows?: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (expanded) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-8" onClick={() => setExpanded(false)}>
+        <div className="w-full max-w-3xl rounded-lg border border-border bg-surface shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between border-b border-border px-4 py-2">
+            <span className="text-sm font-medium">{label ?? 'Edit'}</span>
+            <Button size="sm" variant="ghost" onClick={() => setExpanded(false)}>
+              <Minimize2 className="h-3.5 w-3.5" />
+              Close
+            </Button>
+          </div>
+          <textarea
+            autoFocus
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            className="flex-1 min-h-[400px] w-full resize-none bg-background px-4 py-3 text-sm font-mono focus:outline-none"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative mt-1">
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        className="w-full rounded-md border border-border bg-transparent px-3 py-2 pr-8 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-accent"
+      />
+      <button
+        type="button"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpanded(true); }}
+        className="absolute right-1.5 top-1.5 rounded p-1 text-muted hover:bg-border/50 hover:text-foreground"
+        title="Expand editor"
+      >
+        <Maximize2 className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // JSON object editor — for unstructured Record<string, unknown> fields
 // ---------------------------------------------------------------------------
 
@@ -80,40 +143,91 @@ export function JsonObjectEditor({
   onChange,
   rows = 3,
   placeholder,
+  label,
 }: {
   value: Record<string, unknown> | undefined;
   onChange: (v: Record<string, unknown> | undefined) => void;
   rows?: number;
   placeholder?: string;
+  label?: string;
 }) {
   const [error, setError] = useState<string | null>(null);
-  const text = value ? JSON.stringify(value, null, 2) : '';
+  const [expanded, setExpanded] = useState(false);
+  const [text, setText] = useState(() => value ? JSON.stringify(value, null, 2) : '');
+  const lastExternalRef = useRef(value);
+
+  // Sync from parent when value changes externally (not from our own edits)
+  useEffect(() => {
+    const serialized = value ? JSON.stringify(value, null, 2) : '';
+    const lastSerialized = lastExternalRef.current ? JSON.stringify(lastExternalRef.current, null, 2) : '';
+    if (serialized !== lastSerialized) {
+      setText(serialized);
+      lastExternalRef.current = value;
+      setError(null);
+    }
+  }, [value]);
+
+  const handleChange = (raw: string) => {
+    setText(raw);
+    if (!raw.trim()) {
+      setError(null);
+      lastExternalRef.current = undefined;
+      onChange(undefined);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      setError(null);
+      lastExternalRef.current = parsed;
+      onChange(parsed);
+    } catch {
+      setError('Invalid JSON');
+    }
+  };
+
+  if (expanded) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-8" onClick={() => setExpanded(false)}>
+        <div className="w-full max-w-3xl rounded-lg border border-border bg-surface shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between border-b border-border px-4 py-2">
+            <span className="text-sm font-medium">{label ?? 'Edit JSON'}</span>
+            <Button size="sm" variant="ghost" onClick={() => setExpanded(false)}>
+              <Minimize2 className="h-3.5 w-3.5" />
+              Close
+            </Button>
+          </div>
+          <textarea
+            autoFocus
+            value={text}
+            onChange={(e) => handleChange(e.target.value)}
+            placeholder={placeholder ?? '{}'}
+            className="flex-1 min-h-[400px] w-full resize-none bg-transparent px-4 py-3 text-sm font-mono focus:outline-none"
+          />
+          {error && <p className="text-xs text-red-500 px-4 py-1 border-t border-border">{error}</p>}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <>
+    <div className="relative mt-1">
       <Textarea
         value={text}
-        onChange={(e) => {
-          const raw = e.target.value;
-          if (!raw.trim()) {
-            setError(null);
-            onChange(undefined);
-            return;
-          }
-          try {
-            const parsed = JSON.parse(raw);
-            setError(null);
-            onChange(parsed);
-          } catch {
-            setError('Invalid JSON');
-          }
-        }}
+        onChange={(e) => handleChange(e.target.value)}
         rows={rows}
-        className="mt-1 font-mono text-xs"
+        className="font-mono text-xs pr-8"
         placeholder={placeholder ?? '{}'}
       />
+      <button
+        type="button"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setExpanded(true); }}
+        className="absolute right-1.5 top-1.5 rounded p-1 text-muted hover:bg-border/50 hover:text-foreground"
+        title="Expand editor"
+      >
+        <Maximize2 className="h-3.5 w-3.5" />
+      </button>
       {error && <p className="text-[10px] text-red-500 mt-0.5">{error}</p>}
-    </>
+    </div>
   );
 }
 

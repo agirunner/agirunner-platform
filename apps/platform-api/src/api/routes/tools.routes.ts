@@ -3,7 +3,6 @@ import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
-import { ToolTagService } from '../../services/tool-tag-service.js';
 
 const createToolTagSchema = z.object({
   id: z.string().min(1).max(255),
@@ -20,7 +19,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const toolRoutes: FastifyPluginAsync = async (app) => {
-  const toolTagService = new ToolTagService(app.pgPool);
+  const toolTagService = app.toolTagService;
 
   app.get('/api/v1/tools', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
     return toolTagService.listToolTags(request.auth!.tenantId);

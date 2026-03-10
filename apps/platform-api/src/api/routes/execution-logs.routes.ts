@@ -146,6 +146,8 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
         projectId: query.project_id,
         workflowId: query.workflow_id,
         taskId: query.task_id,
+        traceId: query.trace_id,
+        operation: query.operation,
       };
 
       reply.raw.setHeader('Content-Type', 'text/event-stream');

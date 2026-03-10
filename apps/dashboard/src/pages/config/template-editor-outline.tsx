@@ -13,7 +13,6 @@ import {
   Shield,
   Settings2,
   BookOpen,
-  Tag,
   Trash2,
   Copy,
   GripVertical,
@@ -474,9 +473,6 @@ export function OutlinePanel({
             </button>
             <button className={itemClass({ kind: 'default-instruction-config' })} onClick={() => onSelect({ kind: 'default-instruction-config' })}>
               <span className="flex items-center gap-2"><BookOpen className="h-3.5 w-3.5" />Default Instructions</span>
-            </button>
-            <button className={itemClass({ kind: 'metadata' })} onClick={() => onSelect({ kind: 'metadata' })}>
-              <span className="flex items-center gap-2"><Tag className="h-3.5 w-3.5" />Metadata</span>
             </button>
           </div>
         </div>
