@@ -4,6 +4,8 @@
  */
 import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { dashboardApi } from '../../lib/api.js';
 import { X, Plus, Rocket } from 'lucide-react';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
@@ -31,7 +33,6 @@ import { TaskInspector } from './template-editor-inspector-task.js';
 import { VariablesInspector, LifecycleInspector } from './template-editor-inspector-settings.js';
 import { RuntimeInspector } from './template-editor-inspector-runtime.js';
 import {
-  ConfigPolicyInspector,
   ConfigInspector,
   DefaultInstructionConfigInspector,
 } from './template-editor-inspector-config.js';
@@ -304,6 +305,11 @@ export function TemplateInspector({
 }: InspectorProps): JSX.Element {
   const tasks = state.schema.tasks ?? [];
   const phases = state.schema.workflow?.phases ?? [];
+  const { data: roles } = useQuery({
+    queryKey: ['role-definitions'],
+    queryFn: () => dashboardApi.listRoleDefinitions(),
+    staleTime: 60_000,
+  });
 
   // Task update with automatic reference migration on ID change
   const handleUpdateTask = useCallback(
@@ -478,6 +484,7 @@ export function TemplateInspector({
         <LifecycleInspector
           lifecycle={state.schema.lifecycle}
           onUpdate={(lc) => onSchemaChange((s) => ({ ...s, lifecycle: lc }))}
+          roles={roles ?? []}
         />
       );
       break;
@@ -485,35 +492,23 @@ export function TemplateInspector({
       content = (
         <RuntimeInspector
           runtime={state.schema.runtime}
-          taskContainer={state.schema.task_container}
           isPublished={state.is_published}
           onUpdateRuntime={(rt) => onSchemaChange((s) => ({ ...s, runtime: rt }))}
-          onUpdateTaskContainer={(tc) => onSchemaChange((s) => ({ ...s, task_container: tc }))}
         />
       );
       break;
-    case 'config-policy':
+    case 'template-defaults':
       content = (
-        <ConfigPolicyInspector
-          configPolicy={state.schema.config_policy}
-          onUpdate={(policy) => onSchemaChange((s) => ({ ...s, config_policy: policy }))}
-        />
-      );
-      break;
-    case 'config':
-      content = (
-        <ConfigInspector
-          config={state.schema.config}
-          onUpdate={(c) => onSchemaChange((s) => ({ ...s, config: c }))}
-        />
-      );
-      break;
-    case 'default-instruction-config':
-      content = (
-        <DefaultInstructionConfigInspector
-          instructionConfig={state.schema.default_instruction_config}
-          onUpdate={(c) => onSchemaChange((s) => ({ ...s, default_instruction_config: c }))}
-        />
+        <div className="space-y-6">
+          <DefaultInstructionConfigInspector
+            instructionConfig={state.schema.default_instruction_config}
+            onUpdate={(c) => onSchemaChange((s) => ({ ...s, default_instruction_config: c }))}
+          />
+          <ConfigInspector
+            config={state.schema.config}
+            onUpdate={(c) => onSchemaChange((s) => ({ ...s, config: c }))}
+          />
+        </div>
       );
       break;
     default:

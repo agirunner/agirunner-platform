@@ -91,8 +91,8 @@ export class TaskWriteService {
         normalizedInput.timeout_minutes ?? this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES,
         normalizedInput.token_budget ?? null,
         normalizedInput.cost_cap_usd ?? null,
-        normalizedInput.auto_retry ?? this.deps.config.TASK_DEFAULT_AUTO_RETRY,
-        normalizedInput.max_retries ?? this.deps.config.TASK_DEFAULT_MAX_RETRIES,
+        normalizedInput.auto_retry ?? false,
+        normalizedInput.max_retries ?? 0,
         metadata,
       ],
     );

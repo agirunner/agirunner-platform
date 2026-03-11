@@ -40,9 +40,7 @@ export interface ListTaskQuery {
 
 export type TaskServiceConfig = Pick<
   AppEnv,
-  | 'TASK_DEFAULT_TIMEOUT_MINUTES'
-  | 'TASK_DEFAULT_AUTO_RETRY'
-  | 'TASK_DEFAULT_MAX_RETRIES'
+  'TASK_DEFAULT_TIMEOUT_MINUTES'
 > &
   Partial<Pick<AppEnv, 'TASK_MAX_SUBTASK_DEPTH' | 'TASK_MAX_SUBTASKS_PER_PARENT'>> &
   Partial<Pick<AppEnv, 'ARTIFACT_ACCESS_URL_TTL_SECONDS'>> & {

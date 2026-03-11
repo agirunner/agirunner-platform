@@ -8,7 +8,6 @@ const (
 	labelDCMRuntimeID   = "agirunner.runtime_id"
 	labelDCMImage       = "agirunner.image"
 	labelDCMDraining    = "agirunner.draining"
-	labelDCMWarmPool    = "agirunner.warm_pool"
 	labelDCMGracePeriod    = "agirunner.grace_period"
 	labelDCMTemplateName   = "com.agirunner.dcm.template-name"
 	labelDCMPoolMode       = "agirunner.pool_mode"

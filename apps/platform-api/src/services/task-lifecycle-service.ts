@@ -1463,14 +1463,8 @@ function buildRetryPlan(
     };
   }
 
-  const shouldRetry =
-    Boolean(task.auto_retry) &&
-    Number(task.retry_count) < Number(task.max_retries);
-  return {
-    shouldRetry,
-    backoffSeconds: 0,
-    retryAvailableAt: shouldRetry ? new Date() : null,
-  };
+  // No lifecycle policy = no retry.
+  return { shouldRetry: false, backoffSeconds: 0, retryAvailableAt: null };
 }
 
 function buildEscalationTaskInput(

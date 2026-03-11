@@ -14,9 +14,21 @@ import { Badge } from '../../components/ui/badge.js';
 import { Switch } from '../../components/ui/switch.js';
 import { toast } from '../../lib/toast.js';
 import { listTemplates, fetchTemplate } from './template-editor-api.js';
-import type { TemplateResponse, TemplateSchema, TemplateVariableDefinition } from './template-editor-types.js';
+import type { TemplateResponse, TemplateSchema, TemplateVariableDefinition, VariableType } from './template-editor-types.js';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select.js';
 import { dashboardApi } from '../../lib/api.js';
+
+function validateVariableValue(type: VariableType, value: string): string | null {
+  if (!value.trim()) return null; // empty handled by required check
+  switch (type) {
+    case 'number':
+      return isNaN(Number(value)) ? 'Must be a valid number' : null;
+    case 'json':
+      try { JSON.parse(value); return null; } catch { return 'Must be valid JSON'; }
+    default:
+      return null;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Step 1: Select Template
@@ -135,8 +147,6 @@ function StepConfigureParams({
   onRepoUrlChange,
   repoBranch,
   onRepoBranchChange,
-  configOverrides,
-  onConfigOverridesChange,
 }: {
   template: TemplateResponse;
   values: Record<string, string>;
@@ -149,8 +159,6 @@ function StepConfigureParams({
   onRepoUrlChange: (url: string) => void;
   repoBranch: string;
   onRepoBranchChange: (branch: string) => void;
-  configOverrides: Record<string, string>;
-  onConfigOverridesChange: (overrides: Record<string, string>) => void;
 }) {
   const { data: projectsData } = useQuery({
     queryKey: ['projects'],
@@ -176,6 +184,7 @@ function StepConfigureParams({
   const renderField = (v: TemplateVariableDefinition) => {
     const val = values[v.name] ?? '';
     const useTextarea = isImplicit(v) && v.type === 'string';
+    const error = validateVariableValue(v.type, val);
     return (
       <label key={v.name} className="block">
         <span className="text-sm font-medium">
@@ -205,9 +214,10 @@ function StepConfigureParams({
             value={val}
             onChange={(e) => onChange({ ...values, [v.name]: e.target.value })}
             placeholder={v.default !== undefined ? `Default: ${v.default}` : undefined}
-            className="mt-1"
+            className={`mt-1 ${error ? 'border-red-500' : ''}`}
           />
         )}
+        {error && <p className="text-xs text-red-500 mt-0.5">{error}</p>}
       </label>
     );
   };
@@ -288,28 +298,6 @@ function StepConfigureParams({
         </label>
       </div>
 
-      {/* Config overrides */}
-      {schema?.config_policy && Object.keys(schema.config_policy).length > 0 && (
-        <div className="space-y-3">
-          <h4 className="text-sm font-semibold">Config Overrides</h4>
-          <p className="text-xs text-muted">Override config policy values for this run.</p>
-          {Object.entries(schema.config_policy).map(([key, policy]) => {
-            const p = policy as Record<string, unknown> | undefined;
-            if (p?.override_level === 'locked' || p?.locked) return null;
-            return (
-              <label key={key} className="block">
-                <span className="text-sm font-medium font-mono">{key}</span>
-                <Input
-                  value={configOverrides[key] ?? ''}
-                  onChange={(e) => onConfigOverridesChange({ ...configOverrides, [key]: e.target.value })}
-                  placeholder={p?.default_value !== undefined ? `Default: ${p.default_value}` : undefined}
-                  className="mt-1"
-                />
-              </label>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
@@ -481,10 +469,12 @@ export function TemplateLaunchPage(): JSX.Element {
     if (step === 1) return Boolean(selectedTemplateId);
     if (step === 2) {
       if (!workflowName.trim()) return false;
-      // Check declared variables
+      // Check declared variables — required + type validation
       const vars = templateSchema?.variables ?? [];
       for (const v of vars) {
-        if (v.required !== false && !values[v.name]?.trim() && v.default === undefined) return false;
+        const val = values[v.name] ?? '';
+        if (v.required !== false && !val.trim() && v.default === undefined) return false;
+        if (val.trim() && validateVariableValue(v.type, val)) return false;
       }
       // Check auto-detected variables not formally declared
       const declaredNames = new Set(vars.map((v) => v.name));
@@ -602,8 +592,6 @@ export function TemplateLaunchPage(): JSX.Element {
           onRepoUrlChange={setRepoUrl}
           repoBranch={repoBranch}
           onRepoBranchChange={setRepoBranch}
-          configOverrides={configOverrides}
-          onConfigOverridesChange={setConfigOverrides}
         />
       )}
       {step === 3 && templateForReview && (

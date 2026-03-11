@@ -238,7 +238,7 @@ export function TaskInspector({
       </CollapsibleSection>
 
       {/* Environment */}
-      <CollapsibleSection title="Environment" description="Pre-configures the workspace before the agent starts. Optional — agents can also set up their own environment via tools." defaultOpen>
+      <CollapsibleSection title="Environment" description="Pre-configures the workspace before the agent starts. Optional — agents can also set up their own environment via tools.">
 
       <FieldLabel label="Repository URL">
         <Input
@@ -393,7 +393,7 @@ export function TaskInspector({
       </CollapsibleSection>
 
       {/* Task-level lifecycle override */}
-      <CollapsibleSection title="Lifecycle Override" description="Override template-level lifecycle for this specific task." defaultOpen>
+      <CollapsibleSection title="Lifecycle Override" description="Override template-level lifecycle for this specific task.">
       <LifecycleInspector
         lifecycle={task.lifecycle}
         onUpdate={(lc) => onUpdate({ ...task, lifecycle: lc })}

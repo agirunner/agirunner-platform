@@ -44,6 +44,7 @@ export interface TemplateListParams {
   q?: string;
   slug?: string;
   is_built_in?: boolean;
+  latest_only?: boolean;
   page?: number;
   per_page?: number;
 }
@@ -53,6 +54,7 @@ export async function listTemplates(params: TemplateListParams = {}): Promise<Te
   if (params.q) searchParams.set('q', params.q);
   if (params.slug) searchParams.set('slug', params.slug);
   if (params.is_built_in !== undefined) searchParams.set('is_built_in', String(params.is_built_in));
+  if (params.latest_only !== undefined) searchParams.set('latest_only', String(params.latest_only));
   if (params.page) searchParams.set('page', String(params.page));
   if (params.per_page) searchParams.set('per_page', String(params.per_page));
 

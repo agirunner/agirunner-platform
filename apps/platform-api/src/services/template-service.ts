@@ -40,6 +40,10 @@ export class TemplateService {
   }
 
   async listTemplates(tenantId: string, query: ListTemplateQuery) {
+    if (query.latest_only) {
+      return this.listLatestTemplates(tenantId, query);
+    }
+
     const repo = new TenantScopedRepository(this.pool, tenantId);
 
     // Extra conditions beyond tenant_id (always prepended).
@@ -77,6 +81,56 @@ export class TemplateService {
 
     return {
       data: rows.map((row) => this.toTemplateResponse(row as Record<string, unknown>)),
+      meta: { total, page: query.page, per_page: query.per_page, pages: Math.ceil(total / query.per_page) || 1 },
+    };
+  }
+
+  /**
+   * Returns only the latest version of each template (by slug), using
+   * DISTINCT ON to efficiently pick the highest-versioned row per slug.
+   */
+  private async listLatestTemplates(tenantId: string, query: ListTemplateQuery) {
+    const conditions: string[] = ['t.tenant_id = $1', 't.deleted_at IS NULL'];
+    const values: unknown[] = [tenantId];
+
+    if (query.slug) {
+      values.push(query.slug);
+      conditions.push(`t.slug = $${values.length}`);
+    }
+    if (query.q) {
+      values.push(`%${query.q}%`);
+      conditions.push(`(t.name ILIKE $${values.length} OR t.slug ILIKE $${values.length})`);
+    }
+    if (query.is_built_in !== undefined) {
+      values.push(query.is_built_in);
+      conditions.push(`t.is_built_in = $${values.length}`);
+    }
+
+    const where = conditions.join(' AND ');
+    const offset = (query.page - 1) * query.per_page;
+
+    // Use a CTE with DISTINCT ON to get one row per slug (latest version).
+    const cte = `
+      WITH latest AS (
+        SELECT DISTINCT ON (t.slug) t.*
+        FROM templates t
+        WHERE ${where}
+        ORDER BY t.slug, t.version DESC
+      )`;
+
+    const countQuery = `${cte} SELECT COUNT(*)::int AS total FROM latest`;
+    const dataQuery = `${cte} SELECT * FROM latest ORDER BY created_at DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;
+
+    const dataValues = [...values, query.per_page, offset];
+
+    const [countResult, dataResult] = await Promise.all([
+      this.pool.query<{ total: number }>(countQuery, values),
+      this.pool.query<Record<string, unknown>>(dataQuery, dataValues),
+    ]);
+
+    const total = Number(countResult.rows[0].total);
+    return {
+      data: dataResult.rows.map((row) => this.toTemplateResponse(row)),
       meta: { total, page: query.page, per_page: query.per_page, pages: Math.ceil(total / query.per_page) || 1 },
     };
   }

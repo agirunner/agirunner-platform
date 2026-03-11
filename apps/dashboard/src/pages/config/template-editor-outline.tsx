@@ -10,9 +10,7 @@ import {
   Variable,
   RefreshCw,
   Cpu,
-  Shield,
   Settings2,
-  BookOpen,
   Trash2,
   Copy,
   GripVertical,
@@ -168,11 +166,11 @@ export function OutlinePanel({
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <button className={`p-2 rounded-md ${selected.kind === 'config-policy' ? 'bg-accent/10 text-accent' : 'hover:bg-border/30 text-muted'}`} onClick={() => onSelect({ kind: 'config-policy' })}>
-                <Shield className="h-3.5 w-3.5" />
+              <button className={`p-2 rounded-md ${selected.kind === 'template-defaults' ? 'bg-accent/10 text-accent' : 'hover:bg-border/30 text-muted'}`} onClick={() => onSelect({ kind: 'template-defaults' })}>
+                <Settings2 className="h-3.5 w-3.5" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">Config Policy</TooltipContent>
+            <TooltipContent side="right">Template Defaults</TooltipContent>
           </Tooltip>
         </aside>
       </TooltipProvider>
@@ -448,31 +446,8 @@ export function OutlinePanel({
                 )}
               </span>
             </button>
-            <button className={itemClass({ kind: 'config-policy' })} onClick={() => onSelect({ kind: 'config-policy' })}>
-              <span className="flex items-center gap-2">
-                <Shield className="h-3.5 w-3.5" />
-                <span className="truncate">
-                  Config Policy
-                  {state.schema.config_policy && Object.keys(state.schema.config_policy).length > 0 && (
-                    <span className="text-[10px] text-muted font-normal ml-1">
-                      {Object.keys(state.schema.config_policy).length} fields
-                    </span>
-                  )}
-                </span>
-              </span>
-            </button>
-          </div>
-        </div>
-
-        {/* Advanced section */}
-        <div className="pt-4 border-t border-border/50 mt-2">
-          <span className="text-xs font-semibold text-muted uppercase tracking-wide px-2">Advanced</span>
-          <div className="mt-1 space-y-0.5">
-            <button className={itemClass({ kind: 'config' })} onClick={() => onSelect({ kind: 'config' })}>
-              <span className="flex items-center gap-2"><Settings2 className="h-3.5 w-3.5" />Config</span>
-            </button>
-            <button className={itemClass({ kind: 'default-instruction-config' })} onClick={() => onSelect({ kind: 'default-instruction-config' })}>
-              <span className="flex items-center gap-2"><BookOpen className="h-3.5 w-3.5" />Default Instructions</span>
+            <button className={itemClass({ kind: 'template-defaults' })} onClick={() => onSelect({ kind: 'template-defaults' })}>
+              <span className="flex items-center gap-2"><Settings2 className="h-3.5 w-3.5" />Template Defaults</span>
             </button>
           </div>
         </div>

@@ -22,11 +22,6 @@ export const envSchema = z
     TASK_DEFAULT_TIMEOUT_MINUTES: z.coerce.number().int().min(1).default(30),
     TASK_MAX_SUBTASK_DEPTH: z.coerce.number().int().min(1).default(3),
     TASK_MAX_SUBTASKS_PER_PARENT: z.coerce.number().int().min(1).default(20),
-    TASK_DEFAULT_AUTO_RETRY: z
-      .enum(['true', 'false'])
-      .transform((value) => value === 'true')
-      .default('false'),
-    TASK_DEFAULT_MAX_RETRIES: z.coerce.number().int().min(0).default(0),
     ARTIFACT_STORAGE_BACKEND: z.enum(['local', 's3', 'gcs', 'azure']).default('local'),
     ARTIFACT_LOCAL_ROOT: z.string().min(1).default('/tmp/agirunner-platform-artifacts'),
     ARTIFACT_ACCESS_URL_TTL_SECONDS: z.coerce.number().int().min(1).default(900),

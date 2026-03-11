@@ -2,7 +2,7 @@
  * Template editor types — matches backend schema exactly.
  *
  * Source of truth:
- *   - workflow-engine.ts: TemplateTaskDefinition, RuntimeConfig, TaskContainerConfig, TemplateSchema
+ *   - workflow-engine.ts: TemplateTaskDefinition, RuntimeConfig, TemplateSchema
  *   - workflow-model.ts: WorkflowPhaseDefinition, WorkflowGateType
  *   - template-variables.ts: TemplateVariableDefinition
  *   - task-lifecycle-policy.ts: LifecyclePolicy, RetryPolicy, EscalationPolicy, ReworkPolicy
@@ -131,15 +131,6 @@ export interface RuntimeConfig {
   memory?: string;
 }
 
-export interface TaskContainerConfig {
-  pool_mode?: PoolMode;
-  warm_pool_size?: number;
-  image?: string;
-  pull_policy?: PullPolicy;
-  cpu?: string;
-  memory?: string;
-}
-
 // ---------------------------------------------------------------------------
 // Template schema (the JSONB `schema` column)
 // ---------------------------------------------------------------------------
@@ -149,10 +140,8 @@ export interface TemplateSchema {
   workflow?: WorkflowDefinition;
   variables?: TemplateVariableDefinition[];
   runtime?: RuntimeConfig;
-  task_container?: TaskContainerConfig;
   lifecycle?: LifecyclePolicy;
   config?: Record<string, unknown>;
-  config_policy?: Record<string, unknown>;
   default_instruction_config?: Record<string, unknown>;
   patterns?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
@@ -192,18 +181,6 @@ export interface TemplateEditorState {
   schema: TemplateSchema;
   created_at?: string;
   updated_at?: string;
-}
-
-// ---------------------------------------------------------------------------
-// Config policy (unstructured on backend, structured for editor UX)
-// ---------------------------------------------------------------------------
-
-export type OverrideLevel = 'locked' | 'per-run' | 'per-task';
-
-export interface ConfigPolicyField {
-  field: string;
-  default_value: string;
-  override_level: OverrideLevel;
 }
 
 // ---------------------------------------------------------------------------

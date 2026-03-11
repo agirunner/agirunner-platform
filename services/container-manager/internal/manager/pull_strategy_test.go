@@ -90,61 +90,10 @@ func TestWarmTemplatePrePullsRuntimeImage(t *testing.T) {
 	}
 }
 
-func TestWarmTemplatePrePullsTaskImage(t *testing.T) {
-	docker := newMockDockerClient()
-	target := makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 0, 10)
-	target.PoolMode = "warm"
-	target.TaskImage = "task-runner:v2"
-	target.ActiveWorkflows = 1
-	platform := &mockPlatformClient{
-		runtimeTargets: []RuntimeTarget{target},
-	}
-	mgr := newDCMTestManager(docker, platform)
-
-	_ = mgr.reconcileDCM(context.Background())
-
-	var pulledRuntime, pulledTask bool
-	for _, p := range docker.pulledImages {
-		if p.Image == "runtime:v1" {
-			pulledRuntime = true
-		}
-		if p.Image == "task-runner:v2" {
-			pulledTask = true
-		}
-	}
-	if !pulledRuntime {
-		t.Error("expected warm template to pre-pull runtime image")
-	}
-	if !pulledTask {
-		t.Error("expected warm template to pre-pull task image")
-	}
-}
-
-func TestWarmTemplateSkipsTaskImagePullWhenEmpty(t *testing.T) {
-	docker := newMockDockerClient()
-	target := makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 0, 10)
-	target.PoolMode = "warm"
-	target.TaskImage = ""
-	target.ActiveWorkflows = 1
-	platform := &mockPlatformClient{
-		runtimeTargets: []RuntimeTarget{target},
-	}
-	mgr := newDCMTestManager(docker, platform)
-
-	_ = mgr.reconcileDCM(context.Background())
-
-	for _, p := range docker.pulledImages {
-		if p.Image == "" {
-			t.Error("should not attempt pull with empty image reference")
-		}
-	}
-}
-
 func TestColdTemplateDoesNotPrePull(t *testing.T) {
 	docker := newMockDockerClient()
 	target := makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 0, 10)
 	target.PoolMode = "cold"
-	target.TaskImage = "task-runner:v1"
 	platform := &mockPlatformClient{
 		runtimeTargets: []RuntimeTarget{target},
 	}
@@ -153,8 +102,8 @@ func TestColdTemplateDoesNotPrePull(t *testing.T) {
 	_ = mgr.reconcileDCM(context.Background())
 
 	for _, p := range docker.pulledImages {
-		if p.Image == "task-runner:v1" {
-			t.Error("cold template should not pre-pull task image")
+		if p.Image == "runtime:v1" {
+			t.Error("cold template should not pre-pull runtime image")
 		}
 	}
 }

@@ -52,6 +52,7 @@ export const templateRoutes: FastifyPluginAsync = async (app) => {
       q: query.q,
       slug: query.slug,
       is_built_in: query.is_built_in ? query.is_built_in === 'true' : undefined,
+      latest_only: query.latest_only !== undefined ? query.latest_only !== 'false' : undefined,
       page,
       per_page: perPage,
     });

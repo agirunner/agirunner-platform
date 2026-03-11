@@ -21,7 +21,6 @@ type DesiredState struct {
 	RestartRequested   bool                   `json:"restart_requested"`
 	Draining           bool                   `json:"draining"`
 	Version            int                    `json:"version"`
-	WarmPoolSize       int                    `json:"warm_pool_size"`
 }
 
 // ActualState represents the current state of a container.
@@ -92,13 +91,11 @@ type RuntimeTarget struct {
 	IdleTimeoutSeconds int    `json:"idle_timeout_seconds"`
 	GracePeriodSeconds int    `json:"grace_period_seconds"`
 	Image              string `json:"image"`
-	TaskImage          string `json:"task_image"`
 	PullPolicy         string `json:"pull_policy"`
 	CPU                string `json:"cpu"`
 	Memory             string `json:"memory"`
 	PendingTasks       int    `json:"pending_tasks"`
 	ActiveWorkflows    int    `json:"active_workflows"`
-	WarmPoolSize       int    `json:"warm_pool_size"`
 }
 
 // RuntimeHeartbeat represents a runtime's last known heartbeat state.

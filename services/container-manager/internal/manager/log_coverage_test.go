@@ -200,8 +200,7 @@ func TestReconcile_PrePullFailed_EmitsErrorLog(t *testing.T) {
 
 	target := makeRuntimeTarget("tmpl-pull", "runtime:v1", 5, 1, 10)
 	target.PoolMode = "warm"
-	target.TaskImage = "task:v1"
-	mgr.prePullWarmImages(context.Background(), target)
+	mgr.prePullImage(context.Background(), target)
 	emitter.Close()
 
 	entries := getEntries()
@@ -333,50 +332,6 @@ func TestReconcile_WDS_Restart_EmitsLog(t *testing.T) {
 	}
 }
 
-func TestReconcile_WarmOrphanCleanup_EmitsLog(t *testing.T) {
-	emitter, getEntries := newTestEmitter(t)
-	docker := newMockDockerClient()
-	platform := &mockPlatformClient{}
-	mgr := newDCMTestManager(docker, platform)
-	mgr.logEmitter = emitter
-
-	orphan := ContainerInfo{
-		ID: "warm-orphan",
-		Labels: map[string]string{
-			labelDCMManaged:      "true",
-			labelDCMTier:         tierTask,
-			labelDCMWarmPool:     "true",
-			labelDCMTemplateID:   "tmpl-gone",
-			labelDCMTemplateName: "Gone Template",
-		},
-	}
-	warmByTemplate := map[string][]ContainerInfo{
-		"tmpl-gone": {orphan},
-	}
-	activeTemplates := map[string]bool{} // tmpl-gone is NOT active
-
-	mgr.cleanupOrphanWarmTaskContainers(context.Background(), warmByTemplate, activeTemplates)
-	emitter.Close()
-
-	entries := getEntries()
-	found := false
-	for _, e := range entries {
-		if e.Operation == "container.warm_orphan_cleanup" {
-			found = true
-			if e.Payload["template_id"] != "tmpl-gone" {
-				t.Errorf("expected template_id tmpl-gone, got %v", e.Payload["template_id"])
-			}
-			if e.Payload["reason"] != "template_inactive" {
-				t.Errorf("expected reason template_inactive, got %v", e.Payload["reason"])
-			}
-			break
-		}
-	}
-	if !found {
-		t.Error("expected container.warm_orphan_cleanup log entry emitted")
-	}
-}
-
 func TestReconcile_ReconcileCycle_EmitsHeartbeatLog(t *testing.T) {
 	emitter, getEntries := newTestEmitter(t)
 	docker := newMockDockerClient()
@@ -402,34 +357,6 @@ func TestReconcile_ReconcileCycle_EmitsHeartbeatLog(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected reconcile.cycle log entry emitted on heartbeat interval")
-	}
-}
-
-func TestReconcile_WarmTaskPoolPullFailed_EmitsErrorLog(t *testing.T) {
-	emitter, getEntries := newTestEmitter(t)
-	docker := newMockDockerClient()
-	docker.pullErr = errors.New("rate limited")
-	platform := &mockPlatformClient{}
-	mgr := newDCMTestManager(docker, platform)
-	mgr.logEmitter = emitter
-
-	target := makeWarmTarget("tmpl-warm", "runtime:v1", "task:v1", 2)
-	mgr.createWarmTaskContainers(context.Background(), target, 1)
-	emitter.Close()
-
-	entries := getEntries()
-	found := false
-	for _, e := range entries {
-		if e.Operation == "container.image_pull" && e.Status == "failed" {
-			found = true
-			if e.Error == nil || e.Error.Message != "rate limited" {
-				t.Errorf("expected error 'rate limited', got %v", e.Error)
-			}
-			break
-		}
-	}
-	if !found {
-		t.Error("expected container.image_pull error log entry for warm task pool pull failure")
 	}
 }
 

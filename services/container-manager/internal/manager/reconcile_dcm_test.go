@@ -912,13 +912,13 @@ func TestPrePullCacheSkipsRecentlyFailedImage(t *testing.T) {
 	target.PoolMode = "warm"
 
 	// First call should attempt and fail.
-	mgr.prePullWarmImages(context.Background(), target)
+	mgr.prePullImage(context.Background(), target)
 	if len(docker.pulledImages) != 1 {
 		t.Fatalf("expected 1 pull attempt, got %d", len(docker.pulledImages))
 	}
 
 	// Second call should skip (cached failure).
-	mgr.prePullWarmImages(context.Background(), target)
+	mgr.prePullImage(context.Background(), target)
 	if len(docker.pulledImages) != 1 {
 		t.Errorf("expected still 1 pull attempt (cached), got %d", len(docker.pulledImages))
 	}
@@ -936,7 +936,7 @@ func TestPrePullCacheRetriesAfterTTL(t *testing.T) {
 	target.PoolMode = "warm"
 
 	// First call fails and gets cached.
-	mgr.prePullWarmImages(context.Background(), target)
+	mgr.prePullImage(context.Background(), target)
 	if len(docker.pulledImages) != 1 {
 		t.Fatalf("expected 1 pull attempt, got %d", len(docker.pulledImages))
 	}
@@ -947,7 +947,7 @@ func TestPrePullCacheRetriesAfterTTL(t *testing.T) {
 	}
 
 	// Should retry after TTL expired.
-	mgr.prePullWarmImages(context.Background(), target)
+	mgr.prePullImage(context.Background(), target)
 	if len(docker.pulledImages) != 2 {
 		t.Errorf("expected 2 pull attempts (retry after TTL), got %d", len(docker.pulledImages))
 	}
@@ -964,8 +964,8 @@ func TestPrePullCacheDoesNotCacheSuccessfulPulls(t *testing.T) {
 	target.PoolMode = "warm"
 
 	// Successful pull — should not be cached.
-	mgr.prePullWarmImages(context.Background(), target)
-	mgr.prePullWarmImages(context.Background(), target)
+	mgr.prePullImage(context.Background(), target)
+	mgr.prePullImage(context.Background(), target)
 
 	if len(docker.pulledImages) != 2 {
 		t.Errorf("expected 2 pull attempts (success not cached), got %d", len(docker.pulledImages))

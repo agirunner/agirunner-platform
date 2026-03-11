@@ -44,7 +44,7 @@ async function seedRolesAndDefaults(pool: pg.Pool): Promise<void> {
   }
 
   await seedRoleDefinitions(roleService, rolesConfig);
-  await seedRuntimeDefaults(defaultsService, rolesConfig);
+  await seedRuntimeDefaults(defaultsService);
 
   console.info('[config-seed] Configuration tables seeded from built-in-roles.json.');
 }
@@ -73,22 +73,7 @@ async function seedRoleDefinitions(
 
 async function seedRuntimeDefaults(
   service: RuntimeDefaultsService,
-  config: BuiltInRolesConfig,
 ): Promise<void> {
-  await service.upsertDefault(DEFAULT_TENANT_ID, {
-    configKey: 'default_provider',
-    configValue: config.defaultProvider,
-    configType: 'string',
-    description: 'Default LLM provider name',
-  });
-
-  await service.upsertDefault(DEFAULT_TENANT_ID, {
-    configKey: 'max_rework_attempts',
-    configValue: String(config.maxReworkAttempts),
-    configType: 'number',
-    description: 'Maximum number of rework attempts before permanently failing a task',
-  });
-
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'global_max_runtimes',
     configValue: '10',
@@ -101,6 +86,34 @@ async function seedRuntimeDefaults(
     configValue: 'agirunner-runtime:local',
     configType: 'string',
     description: 'Default Docker image for runtime containers when template does not specify',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'default_cpu',
+    configValue: '1',
+    configType: 'string',
+    description: 'CPU allocation per container. Use "0" for unlimited.',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'default_memory',
+    configValue: '256m',
+    configType: 'string',
+    description: 'Default memory allocation for runtime containers',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'default_pull_policy',
+    configValue: 'if-not-present',
+    configType: 'string',
+    description: 'Default image pull policy for runtime containers',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'default_grace_period',
+    configValue: '30',
+    configType: 'number',
+    description: 'Default grace period in seconds before forced container shutdown',
   });
 }
 

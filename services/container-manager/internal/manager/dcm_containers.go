@@ -83,14 +83,10 @@ func (m *Manager) createRuntimeContainers(ctx context.Context, target RuntimeTar
 
 const pullFailCacheTTL = 5 * time.Minute
 
-// prePullWarmImages pulls both the runtime and task container images for warm
-// templates so they are cached locally before any container is created.
-// Failed pulls are cached to avoid retrying the same image every cycle.
-func (m *Manager) prePullWarmImages(ctx context.Context, target RuntimeTarget) {
+// prePullImage pre-pulls the runtime image for warm templates so it is
+// cached locally before any container is created.
+func (m *Manager) prePullImage(ctx context.Context, target RuntimeTarget) {
 	m.prePullImageWithCache(ctx, target.Image, target.PullPolicy, target.TemplateID, "runtime")
-	if target.TaskImage != "" {
-		m.prePullImageWithCache(ctx, target.TaskImage, target.PullPolicy, target.TemplateID, "task")
-	}
 }
 
 // prePullImageWithCache attempts an image pull, skipping if the same image

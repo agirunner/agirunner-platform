@@ -609,33 +609,6 @@ func TestReconcile_HungDetected_EmitsLog(t *testing.T) {
 	}
 }
 
-func TestReconcile_WarmCreate_EmitsLog(t *testing.T) {
-	emitter, getEntries := newTestEmitter(t)
-	docker := newMockDockerClient()
-	target := makeWarmTarget("tmpl-1", "runtime:v1", "task:v1", 1)
-	platform := &mockPlatformClient{}
-	mgr := newDCMTestManager(docker, platform)
-	mgr.logEmitter = emitter
-
-	mgr.createWarmTaskContainers(context.Background(), target, 1)
-	emitter.Close()
-
-	entries := getEntries()
-	found := false
-	for _, e := range entries {
-		if e.Operation == "container.warm_create" && e.Status == "completed" {
-			found = true
-			if e.Payload["template_id"] != "tmpl-1" {
-				t.Errorf("expected template_id tmpl-1, got %v", e.Payload["template_id"])
-			}
-			break
-		}
-	}
-	if !found {
-		t.Error("expected container.warm_create log entry emitted")
-	}
-}
-
 func TestReconcile_ImagePull_EmitsLog(t *testing.T) {
 	emitter, getEntries := newTestEmitter(t)
 	docker := newMockDockerClient()
@@ -839,43 +812,6 @@ func TestReconcile_WDS_Drain_EmitsLog(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected container.wds_drain log entry emitted")
-	}
-}
-
-func TestReconcile_WarmDestroy_EmitsLog(t *testing.T) {
-	emitter, getEntries := newTestEmitter(t)
-	docker := newMockDockerClient()
-	// Target wants 1 warm container but 2 exist
-	_ = makeWarmTarget("tmpl-1", "runtime:v1", "task:v1", 1)
-	existing := []ContainerInfo{
-		{ID: "warm-1", Labels: map[string]string{
-			labelDCMManaged: "true", labelDCMTier: tierTask, labelDCMWarmPool: "true",
-			labelDCMTemplateID: "tmpl-1", labelDCMTemplateName: "template-tmpl-1",
-		}},
-		{ID: "warm-2", Labels: map[string]string{
-			labelDCMManaged: "true", labelDCMTier: tierTask, labelDCMWarmPool: "true",
-			labelDCMTemplateID: "tmpl-1", labelDCMTemplateName: "template-tmpl-1",
-		}},
-	}
-	platform := &mockPlatformClient{}
-	mgr := newDCMTestManager(docker, platform)
-	mgr.logEmitter = emitter
-
-	mgr.removeExcessWarmTaskContainers(context.Background(), existing, 1)
-	emitter.Close()
-
-	entries := getEntries()
-	found := false
-	for _, e := range entries {
-		if e.Operation == "container.warm_destroy" && e.Status == "completed" {
-			found = true
-			if e.Payload["reason"] != "excess_pool" {
-				t.Errorf("expected reason excess_pool, got %v", e.Payload["reason"])
-			}
-		}
-	}
-	if !found {
-		t.Error("expected container.warm_destroy log entry emitted")
 	}
 }
 

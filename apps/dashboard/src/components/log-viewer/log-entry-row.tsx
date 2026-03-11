@@ -214,7 +214,7 @@ function getRole(entry: LogEntry): string | null {
 export function LogTableHeader(): JSX.Element {
   return (
     <thead>
-      <tr className="border-b border-border bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground">
+      <tr className="border-b border-border bg-muted/30 text-[11px] uppercase tracking-wider text-muted-foreground">
         <th className="w-6 px-1 py-1.5" />
         <th className="w-5 px-0.5 py-1.5" />
         <th className="px-1.5 py-1.5 text-left font-medium">Level</th>
@@ -244,7 +244,7 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
   return (
     <tr
       className={cn(
-        'border-b border-border/40 border-l-2 cursor-pointer hover:bg-muted/40 transition-colors text-xs',
+        'border-b border-border/40 border-l-2 cursor-pointer hover:bg-muted/40 transition-colors text-[13px]',
         accent,
         isError && 'bg-red-500/5',
       )}
@@ -264,14 +264,14 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
 
       {/* Status indicator */}
       <td className="px-0.5 py-1">
-        <span className={cn('text-[10px] leading-none', STATUS_COLOR[entry.status] ?? 'text-muted-foreground')}>
+        <span className={cn('text-[11px] leading-none', STATUS_COLOR[entry.status] ?? 'text-muted-foreground')}>
           {STATUS_INDICATOR[entry.status] ?? '○'}
         </span>
       </td>
 
       {/* Level badge */}
       <td className="px-1.5 py-1">
-        <span className={cn('inline-block rounded px-1 py-px text-[10px] leading-tight uppercase font-mono', levelBadge)}>
+        <span className={cn('inline-block rounded px-1 py-px text-[11px] leading-tight uppercase font-mono', levelBadge)}>
           {entry.level}
         </span>
       </td>
@@ -283,7 +283,7 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
 
       {/* Category */}
       <td className="px-1.5 py-1">
-        <span className={cn('inline-block rounded px-1 py-px text-[10px] leading-tight font-medium whitespace-nowrap', catStyle)}>
+        <span className={cn('inline-block rounded px-1 py-px text-[11px] leading-tight font-medium whitespace-nowrap', catStyle)}>
           {CATEGORY_LABELS[entry.category] ?? entry.category}
         </span>
       </td>
@@ -291,7 +291,7 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
       {/* Project */}
       <td className="hidden lg:table-cell px-1.5 py-1">
         {(entry.project_name || entry.project_id) ? (
-          <span className="inline-block rounded bg-cyan-50 px-1.5 py-px text-[10px] leading-tight text-cyan-700 font-medium whitespace-nowrap max-w-[120px] truncate">
+          <span className="inline-block rounded bg-cyan-50 px-1.5 py-px text-[11px] leading-tight text-cyan-700 font-medium whitespace-nowrap max-w-[120px] truncate">
             {entry.project_name ?? entry.project_id!.slice(0, 8)}
           </span>
         ) : (
@@ -302,7 +302,7 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
       {/* Workflow */}
       <td className="hidden lg:table-cell px-1.5 py-1">
         {(entry.workflow_name || entry.workflow_id) ? (
-          <span className="inline-block rounded bg-purple-50 px-1.5 py-px text-[10px] leading-tight text-purple-700 font-medium whitespace-nowrap max-w-[120px] truncate">
+          <span className="inline-block rounded bg-purple-50 px-1.5 py-px text-[11px] leading-tight text-purple-700 font-medium whitespace-nowrap max-w-[120px] truncate">
             {entry.workflow_name ?? entry.workflow_id!.slice(0, 8)}
           </span>
         ) : (
@@ -313,7 +313,7 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
       {/* Role */}
       <td className="hidden lg:table-cell px-1.5 py-1">
         {role ? (
-          <span className="inline-block rounded bg-rose-50 px-1.5 py-px text-[10px] leading-tight text-rose-600 font-medium whitespace-nowrap">
+          <span className="inline-block rounded bg-rose-50 px-1.5 py-px text-[11px] leading-tight text-rose-600 font-medium whitespace-nowrap">
             {truncate(role, 16)}
           </span>
         ) : (

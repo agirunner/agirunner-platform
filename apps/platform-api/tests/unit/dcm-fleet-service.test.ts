@@ -61,6 +61,9 @@ describe('FleetService DCM', () => {
 
   describe('getRuntimeTargets', () => {
     it('returns targets derived from templates with runtime config', async () => {
+      // First call: loadRuntimeDefaults
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      // Second call: templates query
       pool.query.mockResolvedValueOnce({
         rows: [{
           template_id: TEMPLATE_ID,
@@ -96,7 +99,10 @@ describe('FleetService DCM', () => {
       expect(result[0].active_workflows).toBe(1);
     });
 
-    it('applies defaults when runtime config fields are missing', async () => {
+    it('applies hardcoded fallbacks when no runtime defaults configured', async () => {
+      // First call: loadRuntimeDefaults (empty)
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      // Second call: templates query
       pool.query.mockResolvedValueOnce({
         rows: [{
           template_id: TEMPLATE_ID,
@@ -117,32 +123,28 @@ describe('FleetService DCM', () => {
       expect(result[0].grace_period_seconds).toBe(180);
       expect(result[0].image).toBe('agirunner-runtime:local');
       expect(result[0].pull_policy).toBe('if-not-present');
-      expect(result[0].cpu).toBe('1.0');
-      expect(result[0].memory).toBe('512m');
-      expect(result[0].task_image).toBe('');
-      expect(result[0].task_pull_policy).toBe('if-not-present');
-      expect(result[0].task_cpu).toBe('0.5');
-      expect(result[0].task_memory).toBe('256m');
-      expect(result[0].warm_pool_size).toBe(0);
-      expect(result[0].task_pool_mode).toBe('cold');
+      expect(result[0].cpu).toBe('1');
+      expect(result[0].memory).toBe('256m');
     });
 
-    it('reads task_container fields from schema', async () => {
+    it('uses runtime_defaults table values as fallbacks', async () => {
+      // First call: loadRuntimeDefaults with seeded values
+      pool.query.mockResolvedValueOnce({
+        rows: [
+          { config_key: 'default_cpu', config_value: '1' },
+          { config_key: 'default_memory', config_value: '512m' },
+          { config_key: 'default_pull_policy', config_value: 'always' },
+          { config_key: 'default_grace_period', config_value: '30' },
+          { config_key: 'default_runtime_image', config_value: 'agirunner-runtime:v2' },
+        ],
+        rowCount: 5,
+      });
+      // Second call: templates query
       pool.query.mockResolvedValueOnce({
         rows: [{
           template_id: TEMPLATE_ID,
-          template_name: 'With Task Container',
-          schema: {
-            runtime: { pool_mode: 'warm' },
-            task_container: {
-              image: 'ubuntu:24.04',
-              pull_policy: 'always',
-              cpu: '1.0',
-              memory: '512m',
-              warm_pool_size: 3,
-              pool_mode: 'warm',
-            },
-          },
+          template_name: 'Minimal',
+          schema: { runtime: {} },
           active_workflows: 0,
           pending_tasks: 0,
         }],
@@ -151,15 +153,17 @@ describe('FleetService DCM', () => {
 
       const result = await service.getRuntimeTargets(TENANT_ID);
 
-      expect(result[0].task_image).toBe('ubuntu:24.04');
-      expect(result[0].task_pull_policy).toBe('always');
-      expect(result[0].task_cpu).toBe('1.0');
-      expect(result[0].task_memory).toBe('512m');
-      expect(result[0].warm_pool_size).toBe(3);
-      expect(result[0].task_pool_mode).toBe('warm');
+      expect(result[0].cpu).toBe('1');
+      expect(result[0].memory).toBe('512m');
+      expect(result[0].pull_policy).toBe('always');
+      expect(result[0].grace_period_seconds).toBe(30);
+      expect(result[0].image).toBe('agirunner-runtime:v2');
     });
 
     it('returns empty array when no templates have runtime config', async () => {
+      // First call: loadRuntimeDefaults
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      // Second call: templates query
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const result = await service.getRuntimeTargets(TENANT_ID);
@@ -291,7 +295,9 @@ describe('FleetService DCM', () => {
         ],
         rowCount: 2,
       });
-      // Third call: runtime targets
+      // Third call: loadRuntimeDefaults (inside getRuntimeTargets)
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      // Fourth call: runtime targets templates query
       pool.query.mockResolvedValueOnce({
         rows: [{
           template_id: TEMPLATE_ID,
@@ -302,7 +308,7 @@ describe('FleetService DCM', () => {
         }],
         rowCount: 1,
       });
-      // Fourth call: recent_events
+      // Fifth call: recent_events
       pool.query.mockResolvedValueOnce({
         rows: [{ id: 'evt-1', event_type: 'runtime.started', level: 'info', created_at: new Date() }],
         rowCount: 1,
@@ -324,10 +330,11 @@ describe('FleetService DCM', () => {
     });
 
     it('uses default global_max_runtimes when not configured', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // global_max_runtimes
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // heartbeats
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // loadRuntimeDefaults
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // templates query
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // recent_events
 
       const result = await service.getFleetStatus(TENANT_ID);
 
@@ -483,23 +490,20 @@ describe('FleetService DCM', () => {
       const result = service.validateRuntimeConfig(
         TEMPLATE_ID,
         { pool_mode: 'warm', max_runtimes: 2, pull_policy: 'always' },
-        { pool_mode: 'cold', pull_policy: 'never' },
       );
 
-      expect(result.runtime.pool_mode).toBe('warm');
-      expect(result.runtime.max_runtimes).toBe(2);
-      expect(result.runtime.pull_policy).toBe('always');
-      expect(result.taskContainer.pool_mode).toBe('cold');
-      expect(result.taskContainer.pull_policy).toBe('never');
+      expect(result.pool_mode).toBe('warm');
+      expect(result.max_runtimes).toBe(2);
+      expect(result.pull_policy).toBe('always');
     });
 
-    it('defaults invalid runtime pool_mode to warm', () => {
+    it('defaults invalid pool_mode to warm', () => {
       const result = service.validateRuntimeConfig(
         TEMPLATE_ID,
         { pool_mode: 'hot' },
       );
 
-      expect(result.runtime.pool_mode).toBe('warm');
+      expect(result.pool_mode).toBe('warm');
     });
 
     it('defaults invalid max_runtimes to 1', () => {
@@ -508,7 +512,7 @@ describe('FleetService DCM', () => {
         { max_runtimes: -5 },
       );
 
-      expect(result.runtime.max_runtimes).toBe(1);
+      expect(result.max_runtimes).toBe(1);
     });
 
     it('defaults non-integer max_runtimes to 1', () => {
@@ -517,7 +521,7 @@ describe('FleetService DCM', () => {
         { max_runtimes: 2.5 },
       );
 
-      expect(result.runtime.max_runtimes).toBe(1);
+      expect(result.max_runtimes).toBe(1);
     });
 
     it('defaults zero max_runtimes to 1', () => {
@@ -526,65 +530,16 @@ describe('FleetService DCM', () => {
         { max_runtimes: 0 },
       );
 
-      expect(result.runtime.max_runtimes).toBe(1);
+      expect(result.max_runtimes).toBe(1);
     });
 
-    it('defaults invalid runtime pull_policy to if-not-present', () => {
+    it('defaults invalid pull_policy to if-not-present', () => {
       const result = service.validateRuntimeConfig(
         TEMPLATE_ID,
         { pull_policy: 'sometimes' },
       );
 
-      expect(result.runtime.pull_policy).toBe('if-not-present');
-    });
-
-    it('defaults invalid task_container pull_policy to if-not-present', () => {
-      const result = service.validateRuntimeConfig(
-        TEMPLATE_ID,
-        {},
-        { pull_policy: 'maybe' },
-      );
-
-      expect(result.taskContainer.pull_policy).toBe('if-not-present');
-    });
-
-    it('defaults invalid task_container pool_mode to cold', () => {
-      const result = service.validateRuntimeConfig(
-        TEMPLATE_ID,
-        {},
-        { pool_mode: 'lukewarm' },
-      );
-
-      expect(result.taskContainer.pool_mode).toBe('cold');
-    });
-
-    it('downgrades warm task_container to cold when runtime is cold', () => {
-      const result = service.validateRuntimeConfig(
-        TEMPLATE_ID,
-        { pool_mode: 'cold' },
-        { pool_mode: 'warm' },
-      );
-
-      expect(result.taskContainer.pool_mode).toBe('cold');
-    });
-
-    it('allows warm task_container when runtime is warm', () => {
-      const result = service.validateRuntimeConfig(
-        TEMPLATE_ID,
-        { pool_mode: 'warm' },
-        { pool_mode: 'warm' },
-      );
-
-      expect(result.taskContainer.pool_mode).toBe('warm');
-    });
-
-    it('returns empty taskContainer when none provided', () => {
-      const result = service.validateRuntimeConfig(
-        TEMPLATE_ID,
-        { pool_mode: 'warm' },
-      );
-
-      expect(result.taskContainer).toEqual({});
+      expect(result.pull_policy).toBe('if-not-present');
     });
 
     it('logs warnings for invalid values', () => {
@@ -594,18 +549,18 @@ describe('FleetService DCM', () => {
       loggedService.validateRuntimeConfig(
         TEMPLATE_ID,
         { pool_mode: 'hot', max_runtimes: -1, pull_policy: 'sometimes' },
-        { pool_mode: 'lukewarm', pull_policy: 'maybe' },
       );
 
-      expect(mockLogger.warn).toHaveBeenCalledTimes(5);
+      expect(mockLogger.warn).toHaveBeenCalledTimes(3);
     });
   });
 
   describe('getFleetStatus recent_events', () => {
     it('includes recent fleet events in status response', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [{ config_value: '5' }], rowCount: 1 });
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({ rows: [{ config_value: '5' }], rowCount: 1 }); // global_max
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // heartbeats
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // loadRuntimeDefaults
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // templates query
       const events = [
         { id: 'evt-1', event_type: 'runtime.started', level: 'info', created_at: new Date() },
         { id: 'evt-2', event_type: 'runtime.shutdown', level: 'info', created_at: new Date() },
@@ -620,14 +575,15 @@ describe('FleetService DCM', () => {
     });
 
     it('queries fleet_events with correct tenant and limit', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // global_max
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // heartbeats
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // loadRuntimeDefaults
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // templates query
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // recent_events
 
       await service.getFleetStatus(TENANT_ID);
 
-      const recentEventsCall = pool.query.mock.calls[3];
+      const recentEventsCall = pool.query.mock.calls[4];
       const sql = recentEventsCall[0] as string;
       expect(sql).toContain('fleet_events');
       expect(sql).toContain('ORDER BY created_at DESC');

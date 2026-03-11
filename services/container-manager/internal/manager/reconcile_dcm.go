@@ -44,7 +44,6 @@ func (m *Manager) reconcileDCM(ctx context.Context) error {
 		m.executePreemptions(ctx, unsatisfied, sorted, grouped, heartbeatMap, totalRunning)
 	}
 
-	m.reconcileWarmTaskPoolsFromDocker(ctx, sorted)
 	m.cleanupOrphanTaskContainers(ctx)
 	m.detectHungRuntimes(ctx)
 
@@ -134,7 +133,7 @@ func (m *Manager) processTargetGroup(
 	plans := make([]planned, 0, len(group))
 	for _, target := range group {
 		if target.PoolMode == "warm" {
-			m.prePullWarmImages(ctx, target)
+			m.prePullImage(ctx, target)
 		}
 		running := grouped[target.TemplateID]
 		activeCount := countActiveContainers(running)

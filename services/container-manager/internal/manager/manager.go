@@ -217,7 +217,6 @@ func (m *Manager) runReconcileCycle(ctx context.Context) {
 const labelManagedBy = "agirunner.container-manager"
 const labelDesiredStateID = "agirunner.desired_state_id"
 const labelVersion = "agirunner.version"
-const labelWarmPool = "agirunner.warm-pool"
 
 func (m *Manager) reconcileOnce(ctx context.Context) error {
 	desired, err := m.platform.FetchDesiredState()
@@ -230,47 +229,35 @@ func (m *Manager) reconcileOnce(ctx context.Context) error {
 		return fmt.Errorf("list containers: %w", err)
 	}
 
-	// Separate warm pool containers from regular containers
-	regularByDesiredID := make(map[string][]ContainerInfo)
-	warmByDesiredID := make(map[string][]ContainerInfo)
+	byDesiredID := make(map[string][]ContainerInfo)
 	for _, c := range actual {
 		dsID, ok := c.Labels[labelDesiredStateID]
 		if !ok {
 			continue
 		}
-		if c.Labels[labelWarmPool] == "true" {
-			warmByDesiredID[dsID] = append(warmByDesiredID[dsID], c)
-		} else {
-			regularByDesiredID[dsID] = append(regularByDesiredID[dsID], c)
-		}
+		byDesiredID[dsID] = append(byDesiredID[dsID], c)
 	}
 
 	// For each desired state, ensure the right containers exist
 	for _, ds := range desired {
-		existingContainers := regularByDesiredID[ds.ID]
-		delete(regularByDesiredID, ds.ID)
-
-		warmContainers := warmByDesiredID[ds.ID]
-		delete(warmByDesiredID, ds.ID)
+		existingContainers := byDesiredID[ds.ID]
+		delete(byDesiredID, ds.ID)
 
 		if ds.Draining {
 			m.handleDraining(ctx, ds, existingContainers)
-			m.removeAllWarmPool(ctx, warmContainers)
 			continue
 		}
 
 		if ds.RestartRequested {
 			m.handleRestart(ctx, ds, existingContainers)
-			m.removeAllWarmPool(ctx, warmContainers)
 			continue
 		}
 
 		m.reconcileDesired(ctx, ds, existingContainers)
-		m.reconcileWarmPool(ctx, ds, warmContainers)
 	}
 
 	// Remove orphaned containers (actual with no matching desired)
-	for _, containers := range regularByDesiredID {
+	for _, containers := range byDesiredID {
 		for _, c := range containers {
 			m.logger.Info("removing orphaned container", "container", c.ID, "name", c.Name)
 			if err := m.docker.StopContainer(ctx, c.ID, m.config.StopTimeout); err != nil {
@@ -286,11 +273,6 @@ func (m *Manager) reconcileOnce(ctx context.Context) error {
 				"reason":       "no_matching_desired_state",
 			})
 		}
-	}
-
-	// Remove orphaned warm pool containers
-	for _, containers := range warmByDesiredID {
-		m.removeAllWarmPool(ctx, containers)
 	}
 
 	// Report actual state for all managed containers
@@ -454,78 +436,6 @@ func (m *Manager) buildContainerSpec(ds DesiredState, replicaIndex int) Containe
 			labelManagedBy:      "true",
 			labelDesiredStateID: ds.ID,
 			labelVersion:        fmt.Sprintf("%d", ds.Version),
-		},
-	}
-}
-
-func (m *Manager) reconcileWarmPool(ctx context.Context, ds DesiredState, warmContainers []ContainerInfo) {
-	targetSize := ds.WarmPoolSize
-	currentSize := len(warmContainers)
-
-	// Replace warm pool containers with wrong image or version
-	for _, c := range warmContainers {
-		if m.needsReplacement(ds, c) {
-			m.logger.Info("replacing warm pool container", "container", c.ID, "reason", "version or image mismatch")
-			_ = m.docker.StopContainer(ctx, c.ID, m.config.StopTimeout)
-			_ = m.docker.RemoveContainer(ctx, c.ID)
-			currentSize--
-		}
-	}
-
-	// Scale up warm pool
-	for i := currentSize; i < targetSize; i++ {
-		spec := m.buildWarmPoolSpec(ds, i)
-		containerID, err := m.docker.CreateContainer(ctx, spec)
-		if err != nil {
-			m.logger.Error("failed to create warm pool container", "worker", ds.WorkerName, "error", err)
-			continue
-		}
-		m.logger.Info("created warm pool container", "worker", ds.WorkerName, "container", containerID)
-	}
-
-	// Scale down warm pool
-	if currentSize > targetSize {
-		for i := targetSize; i < currentSize && i < len(warmContainers); i++ {
-			m.logger.Info("removing excess warm pool container", "container", warmContainers[i].ID)
-			_ = m.docker.StopContainer(ctx, warmContainers[i].ID, m.config.StopTimeout)
-			_ = m.docker.RemoveContainer(ctx, warmContainers[i].ID)
-		}
-	}
-}
-
-func (m *Manager) removeAllWarmPool(ctx context.Context, warmContainers []ContainerInfo) {
-	for _, c := range warmContainers {
-		m.logger.Info("removing warm pool container", "container", c.ID)
-		_ = m.docker.StopContainer(ctx, c.ID, m.config.StopTimeout)
-		_ = m.docker.RemoveContainer(ctx, c.ID)
-	}
-}
-
-func (m *Manager) buildWarmPoolSpec(ds DesiredState, index int) ContainerSpec {
-	name := fmt.Sprintf("%s-warm-%d", ds.WorkerName, index)
-
-	env := make(map[string]string)
-	for k, v := range ds.Environment {
-		env[k] = fmt.Sprintf("%v", v)
-	}
-	if ds.LLMProvider != nil {
-		env["LLM_PROVIDER"] = *ds.LLMProvider
-	}
-	if ds.LLMModel != nil {
-		env["LLM_MODEL"] = *ds.LLMModel
-	}
-
-	return ContainerSpec{
-		Name:        strings.ReplaceAll(name, " ", "-"),
-		Image:       ds.RuntimeImage,
-		CPULimit:    ds.CPULimit,
-		MemoryLimit: ds.MemoryLimit,
-		Environment: env,
-		Labels: map[string]string{
-			labelManagedBy:      "true",
-			labelDesiredStateID: ds.ID,
-			labelVersion:        fmt.Sprintf("%d", ds.Version),
-			labelWarmPool:       "true",
 		},
 	}
 }

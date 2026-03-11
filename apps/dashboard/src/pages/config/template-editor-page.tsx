@@ -47,9 +47,7 @@ export type SelectedItem =
   | { kind: 'variables' }
   | { kind: 'lifecycle' }
   | { kind: 'runtime' }
-  | { kind: 'config-policy' }
-  | { kind: 'config' }
-  | { kind: 'default-instruction-config' }
+  | { kind: 'template-defaults' }
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -120,14 +118,13 @@ function validateTemplate(state: TemplateEditorState): ValidationIssue[] {
     if (task.timeout_minutes !== undefined && task.timeout_minutes < 0) {
       issues.push({ level: 'error', message: `Negative timeout on task ${task.id}` });
     }
-    if (task.max_retries !== undefined && task.max_retries < 1) {
-      issues.push({ level: 'error', message: `Max retries must be >= 1 on task ${task.id}` });
-    }
     const taskInstructions = typeof task.input_template?.instructions === 'string'
       ? task.input_template.instructions.trim()
       : '';
-    if (!taskInstructions) {
-      issues.push({ level: 'error', message: `Task "${task.title_template || task.id}" has no instructions` });
+    const hasDefaultInstructions = typeof schema.default_instruction_config?.instructions === 'string'
+      && (schema.default_instruction_config.instructions as string).trim().length > 0;
+    if (!taskInstructions && !hasDefaultInstructions) {
+      issues.push({ level: 'error', message: `Task "${task.title_template || task.id}" has no instructions (set per-task or template default instructions)` });
     }
     for (const dep of task.depends_on ?? []) {
       if (dep === task.id) {
@@ -321,7 +318,7 @@ export function TemplateEditorPage(): JSX.Element {
       queryClient.setQueryData(['template', saved.id], saved);
       queryClient.invalidateQueries({ queryKey: ['templates'] });
       toast.success('Template saved');
-      if (isNew) navigate(`/config/templates/${saved.id}/edit`, { replace: true });
+      if (saved.id !== id) navigate(`/config/templates/${saved.id}/edit`, { replace: true });
     },
     onError: (err) => toast.error(`Save failed: ${err.message}`),
   });
@@ -615,7 +612,7 @@ export function TemplateEditorPage(): JSX.Element {
           <Button
             variant="outline" size="sm"
             onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending || !dirty}
+            disabled={saveMutation.isPending || !dirty || errors.length > 0}
           >
             {saveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
             <span className="hidden sm:inline">Save</span>

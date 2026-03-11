@@ -59,7 +59,7 @@ export async function loadTemplateOrThrow(
 
 type WorkflowInstantiationConfig = Pick<
   AppEnv,
-  'TASK_DEFAULT_TIMEOUT_MINUTES' | 'TASK_DEFAULT_AUTO_RETRY' | 'TASK_DEFAULT_MAX_RETRIES'
+  'TASK_DEFAULT_TIMEOUT_MINUTES'
 >;
 
 export async function insertTaskFromTemplate(params: {
@@ -162,8 +162,8 @@ export async function insertTaskFromTemplate(params: {
       roleConfig,
       environment,
       task.timeout_minutes ?? config.TASK_DEFAULT_TIMEOUT_MINUTES,
-      task.auto_retry ?? config.TASK_DEFAULT_AUTO_RETRY,
-      task.max_retries ?? config.TASK_DEFAULT_MAX_RETRIES,
+      task.auto_retry ?? false,
+      task.max_retries ?? 0,
       metadata,
     ],
   );

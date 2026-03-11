@@ -57,21 +57,11 @@ export interface RuntimeConfig {
   memory?: string;
 }
 
-export interface TaskContainerConfig {
-  pool_mode?: 'warm' | 'cold';
-  warm_pool_size?: number;
-  image?: string;
-  pull_policy?: 'always' | 'if-not-present' | 'never';
-  cpu?: string;
-  memory?: string;
-}
-
 export interface TemplateSchema {
   variables?: TemplateVariableDefinition[];
   tasks: TemplateTaskDefinition[];
   workflow?: WorkflowDefinition;
   runtime?: RuntimeConfig;
-  task_container?: TaskContainerConfig;
   config?: Record<string, unknown>;
   config_policy?: Record<string, unknown>;
   default_instruction_config?: Record<string, unknown>;
@@ -205,74 +195,6 @@ function validateRuntimeConfig(raw: unknown): RuntimeConfig | undefined {
   if (raw.memory !== undefined) {
     if (typeof raw.memory !== 'string' || raw.memory.trim().length === 0) {
       throw new SchemaValidationFailedError('runtime.memory must be a non-empty string');
-    }
-    config.memory = raw.memory;
-  }
-
-  return config;
-}
-
-function validateTaskContainerConfig(
-  raw: unknown,
-  runtimeConfig: RuntimeConfig | undefined,
-): TaskContainerConfig | undefined {
-  if (raw === undefined) return undefined;
-  if (!isObject(raw)) {
-    throw new SchemaValidationFailedError("Template field 'task_container' must be an object");
-  }
-
-  const config: TaskContainerConfig = {};
-
-  if (raw.pool_mode !== undefined) {
-    if (typeof raw.pool_mode !== 'string' || !allowedPoolModes.has(raw.pool_mode)) {
-      throw new SchemaValidationFailedError(
-        `task_container.pool_mode must be 'warm' or 'cold', got '${String(raw.pool_mode)}'`,
-      );
-    }
-    if (raw.pool_mode === 'warm') {
-      const runtimePoolMode = runtimeConfig?.pool_mode ?? 'warm';
-      if (runtimePoolMode === 'cold') {
-        throw new SchemaValidationFailedError(
-          "task_container.pool_mode cannot be 'warm' when runtime.pool_mode is 'cold'",
-        );
-      }
-    }
-    config.pool_mode = raw.pool_mode as TaskContainerConfig['pool_mode'];
-  }
-
-  if (raw.warm_pool_size !== undefined) {
-    if (typeof raw.warm_pool_size !== 'number' || !Number.isInteger(raw.warm_pool_size) || raw.warm_pool_size < 0) {
-      throw new SchemaValidationFailedError('task_container.warm_pool_size must be a non-negative integer');
-    }
-    config.warm_pool_size = raw.warm_pool_size;
-  }
-
-  if (raw.image !== undefined) {
-    if (typeof raw.image !== 'string') {
-      throw new SchemaValidationFailedError('task_container.image must be a string');
-    }
-    config.image = raw.image;
-  }
-
-  if (raw.pull_policy !== undefined) {
-    if (typeof raw.pull_policy !== 'string' || !allowedPullPolicies.has(raw.pull_policy)) {
-      throw new SchemaValidationFailedError(
-        `task_container.pull_policy must be 'always', 'if-not-present', or 'never', got '${String(raw.pull_policy)}'`,
-      );
-    }
-    config.pull_policy = raw.pull_policy as TaskContainerConfig['pull_policy'];
-  }
-
-  if (raw.cpu !== undefined) {
-    if (typeof raw.cpu !== 'string' || raw.cpu.trim().length === 0) {
-      throw new SchemaValidationFailedError('task_container.cpu must be a non-empty string');
-    }
-    config.cpu = raw.cpu;
-  }
-
-  if (raw.memory !== undefined) {
-    if (typeof raw.memory !== 'string' || raw.memory.trim().length === 0) {
-      throw new SchemaValidationFailedError('task_container.memory must be a non-empty string');
     }
     config.memory = raw.memory;
   }
@@ -579,14 +501,12 @@ export function validateTemplateSchema(input: unknown): TemplateSchema {
   }
 
   const runtimeConfig = validateRuntimeConfig(input.runtime);
-  const taskContainerConfig = validateTaskContainerConfig(input.task_container, runtimeConfig);
 
   return {
     variables: parseTemplateVariables(input.variables),
     tasks,
     workflow,
     runtime: runtimeConfig,
-    task_container: taskContainerConfig,
     config: isObject(input.config) ? input.config : undefined,
     config_policy: isObject(input.config_policy) ? input.config_policy : undefined,
     default_instruction_config: isObject(input.default_instruction_config)

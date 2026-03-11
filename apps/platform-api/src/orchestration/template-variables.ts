@@ -14,6 +14,31 @@ function assertObject(value: unknown, message: string): asserts value is Record<
   }
 }
 
+export function coerceVariableValue(name: string, type: TemplateVariableDefinition['type'], value: unknown): unknown {
+  if (typeof value === type || type === 'json') {
+    return value;
+  }
+  if (typeof value !== 'string') {
+    throw new ValidationError(`Template variable '${name}' must be of type ${type}`);
+  }
+  switch (type) {
+    case 'number': {
+      const n = Number(value);
+      if (isNaN(n)) {
+        throw new ValidationError(`Template variable '${name}' must be a valid number, got '${value}'`);
+      }
+      return n;
+    }
+    case 'boolean': {
+      if (value === 'true') return true;
+      if (value === 'false') return false;
+      throw new ValidationError(`Template variable '${name}' must be 'true' or 'false', got '${value}'`);
+    }
+    default:
+      return value;
+  }
+}
+
 export function assertVariableType(name: string, type: TemplateVariableDefinition['type'], value: unknown): void {
   if (type === 'json') {
     return;
@@ -80,8 +105,8 @@ export function resolveTemplateVariables(
     }
 
     if (value !== undefined) {
-      assertVariableType(variable.name, variable.type, value);
-      result[variable.name] = value;
+      const coerced = coerceVariableValue(variable.name, variable.type, value);
+      result[variable.name] = coerced;
     }
   }
 

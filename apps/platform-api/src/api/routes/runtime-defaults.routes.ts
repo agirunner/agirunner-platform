@@ -28,7 +28,7 @@ export const runtimeDefaultsRoutes: FastifyPluginAsync = async (app) => {
     '/api/v1/config/runtime-defaults',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request, reply) => {
-      const result = await service.createDefault(
+      const result = await service.upsertDefault(
         request.auth!.tenantId,
         request.body as CreateRuntimeDefaultInput,
       );

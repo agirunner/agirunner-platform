@@ -1,10 +1,9 @@
 /**
  * Variables and Lifecycle inspector panels.
  */
-import { X, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
-import { Badge } from '../../components/ui/badge.js';
 import {
   Select,
   SelectContent,
@@ -21,8 +20,7 @@ import type {
   VariableType,
   RetryBackoffStrategy,
 } from './template-editor-types.js';
-import { VARIABLE_TYPES, BACKOFF_STRATEGIES } from './template-editor-types.js';
-import { HelpText, FieldLabel, SectionHeader, ChipArrayEditor } from './template-editor-inspector-shared.js';
+import { HelpText, FieldLabel, SectionHeader } from './template-editor-inspector-shared.js';
 
 // ---------------------------------------------------------------------------
 // Variables inspector
@@ -35,6 +33,20 @@ function coerceDefault(type: VariableType, raw: string): unknown {
     case 'boolean': return raw === 'true';
     case 'json': try { return JSON.parse(raw); } catch { return raw; }
     default: return raw;
+  }
+}
+
+function validateDefault(type: VariableType, raw: string): string | null {
+  if (!raw) return null;
+  switch (type) {
+    case 'number':
+      return isNaN(Number(raw)) ? 'Must be a valid number' : null;
+    case 'boolean':
+      return raw !== 'true' && raw !== 'false' ? 'Must be "true" or "false"' : null;
+    case 'json':
+      try { JSON.parse(raw); return null; } catch { return 'Must be valid JSON'; }
+    default:
+      return null;
   }
 }
 
@@ -111,13 +123,24 @@ export function VariablesInspector({
           </div>
 
           <FieldLabel label="Default Value">
-            <Input
-              value={v.default !== undefined ? String(v.default) : ''}
-              onChange={(e) => updateVar(i, { ...v, default: coerceDefault(v.type, e.target.value) })}
-              className="mt-1 text-xs h-7"
-              placeholder={v.type === 'boolean' ? 'true or false' : 'Leave blank for required variables'}
-            />
-            <HelpText>Used if not provided at launch. Value is coerced to match the type above.</HelpText>
+            {(() => {
+              const rawDefault = v.default !== undefined ? String(v.default) : '';
+              const error = validateDefault(v.type, rawDefault);
+              return (
+                <>
+                  <Input
+                    value={rawDefault}
+                    onChange={(e) => updateVar(i, { ...v, default: coerceDefault(v.type, e.target.value) })}
+                    className={`mt-1 text-xs h-7 ${error ? 'border-red-500' : ''}`}
+                    placeholder={v.type === 'boolean' ? 'true or false' : 'Leave blank for required variables'}
+                  />
+                  {error
+                    ? <p className="text-[11px] text-red-500 mt-0.5">{error}</p>
+                    : <HelpText>Used if not provided at launch. Value is coerced to match the type above.</HelpText>
+                  }
+                </>
+              );
+            })()}
           </FieldLabel>
 
           <FieldLabel label="Description">
@@ -143,39 +166,89 @@ export function VariablesInspector({
 // Lifecycle inspector
 // ---------------------------------------------------------------------------
 
-// Default retry categories — used only at the template level.
-const DEFAULT_RETRYABLE_CATEGORIES = ['timeout', 'transient_error', 'resource_unavailable', 'network_error'];
+// Known retryable error categories — must match classifyFailure() in task-lifecycle-service.
+const RETRYABLE_CATEGORIES = ['timeout', 'transient_error', 'resource_unavailable', 'network_error'] as const;
+const DEFAULT_RETRYABLE_CATEGORIES = [...RETRYABLE_CATEGORIES];
+
+const DEFAULT_LIFECYCLE: LifecyclePolicy = {
+  retry_policy: {
+    max_attempts: 3,
+    backoff_strategy: 'fixed',
+    initial_backoff_seconds: 5,
+    retryable_categories: DEFAULT_RETRYABLE_CATEGORIES,
+  },
+  rework: { max_cycles: 10 },
+};
 
 export function LifecycleInspector({
   lifecycle,
   onUpdate,
   compact = false,
+  roles,
 }: {
   lifecycle: LifecyclePolicy | undefined;
   onUpdate: (lc: LifecyclePolicy | undefined) => void;
   compact?: boolean;
+  roles?: Array<{ name: string }>;
 }) {
   // In compact (task-level) mode, undefined = "inherit from template".
   // Only explicitly set fields are overrides.
   return compact
     ? <TaskLifecycleOverride lifecycle={lifecycle} onUpdate={onUpdate} />
-    : <TemplateLifecycleEditor lifecycle={lifecycle ?? {}} onUpdate={onUpdate} />;
+    : <TemplateLifecycleEditor lifecycle={lifecycle ?? DEFAULT_LIFECYCLE} onUpdate={onUpdate} roles={roles} />;
 }
 
 // ---------------------------------------------------------------------------
 // Template-level: full lifecycle editor with all options + defaults
 // ---------------------------------------------------------------------------
 
+function RetryableCategoryCheckboxes({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (categories: string[]) => void;
+}) {
+  const selected = new Set(value);
+  const toggle = (cat: string) => {
+    const next = new Set(selected);
+    if (next.has(cat)) next.delete(cat); else next.add(cat);
+    onChange([...next]);
+  };
+
+  return (
+    <div className="space-y-1.5 mt-1">
+      {RETRYABLE_CATEGORIES.map((cat) => (
+        <label key={cat} className="flex items-center gap-2 text-xs cursor-pointer">
+          <input
+            type="checkbox"
+            checked={selected.has(cat)}
+            onChange={() => toggle(cat)}
+            className="rounded border-border"
+          />
+          <span className="font-mono">{cat}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
 function TemplateLifecycleEditor({
   lifecycle,
   onUpdate,
+  roles,
 }: {
   lifecycle: LifecyclePolicy;
   onUpdate: (lc: LifecyclePolicy | undefined) => void;
+  roles?: Array<{ name: string }>;
 }) {
   const lc = lifecycle;
   const retry = lc.retry_policy;
+  const escalation = lc.escalation;
   const rework = lc.rework;
+  const hasRetry = retry != null;
+  const hasEscalation = escalation != null;
+  const hasRework = rework != null;
 
   const updateRetry = (patch: Partial<RetryPolicy>) => {
     const current: RetryPolicy = retry ?? {
@@ -187,77 +260,166 @@ function TemplateLifecycleEditor({
     onUpdate({ ...lc, retry_policy: { ...current, ...patch } });
   };
 
+  const clearIfEmpty = (next: LifecyclePolicy): LifecyclePolicy | undefined => {
+    if (!next.retry_policy && !next.escalation && !next.rework) return undefined;
+    return next;
+  };
+
   return (
     <div className="space-y-4">
       <SectionHeader
         title="Lifecycle"
-        description="Controls how tasks handle failure and rework across this template. Escalation is configured per role in Role Definitions."
+        description="Controls retry, escalation, and rework for all tasks in this template. Tasks can override these settings individually."
       />
 
       {/* Retry */}
       <div className="space-y-3 p-3 rounded-md border border-border/50 bg-background">
-        <h5 className="text-xs font-semibold">Retry Policy</h5>
-        <HelpText>When a task fails with a retryable error, retry before marking it failed.</HelpText>
-
-        <FieldLabel label="Max Attempts">
-          <Input
-            type="number" min={1} max={10}
-            value={retry?.max_attempts ?? 3}
-            onChange={(e) => updateRetry({ max_attempts: Math.max(1, Number(e.target.value)) })}
-            className="mt-1 h-7 text-xs"
+        <div className="flex items-center justify-between">
+          <h5 className="text-xs font-semibold">Retry Policy</h5>
+          <Switch
+            checked={hasRetry}
+            onCheckedChange={(v) => {
+              if (v) {
+                onUpdate({ ...lc, retry_policy: { max_attempts: 3, backoff_strategy: 'fixed', initial_backoff_seconds: 5, retryable_categories: DEFAULT_RETRYABLE_CATEGORIES } });
+              } else {
+                onUpdate(clearIfEmpty({ ...lc, retry_policy: undefined }));
+              }
+            }}
           />
-          <HelpText>Total tries including the initial attempt (1-10).</HelpText>
-        </FieldLabel>
+        </div>
+        {!hasRetry && <HelpText>Off — tasks will not be retried on failure.</HelpText>}
 
-        <FieldLabel label="Backoff Strategy">
-          <Select
-            value={retry?.backoff_strategy ?? 'fixed'}
-            onValueChange={(v) => updateRetry({ backoff_strategy: v as RetryBackoffStrategy })}
-          >
-            <SelectTrigger className="mt-1 h-7 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="fixed">Fixed — same delay every time</SelectItem>
-              <SelectItem value="exponential">Exponential — delay doubles each retry</SelectItem>
-              <SelectItem value="linear">Linear — delay increases by initial amount</SelectItem>
-            </SelectContent>
-          </Select>
-          <HelpText>How the wait time between retries changes.</HelpText>
-        </FieldLabel>
+        {hasRetry && (
+          <>
+            <HelpText>When a task fails with a retryable error, retry before marking it failed.</HelpText>
 
-        <FieldLabel label="Initial Delay (seconds)">
-          <Input
-            type="number" min={0}
-            value={retry?.initial_backoff_seconds ?? 5}
-            onChange={(e) => updateRetry({ initial_backoff_seconds: Math.max(0, Number(e.target.value)) })}
-            className="mt-1 h-7 text-xs"
+            <FieldLabel label="Max Attempts">
+              <Input
+                type="number" min={1} max={10}
+                value={retry.max_attempts}
+                onChange={(e) => updateRetry({ max_attempts: Math.max(1, Number(e.target.value)) })}
+                className="mt-1 h-7 text-xs"
+              />
+              <HelpText>Total tries including the initial attempt (1-10).</HelpText>
+            </FieldLabel>
+
+            <FieldLabel label="Backoff Strategy">
+              <Select
+                value={retry.backoff_strategy}
+                onValueChange={(v) => updateRetry({ backoff_strategy: v as RetryBackoffStrategy })}
+              >
+                <SelectTrigger className="mt-1 h-7 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="fixed">Fixed — same delay every time</SelectItem>
+                  <SelectItem value="exponential">Exponential — delay doubles each retry</SelectItem>
+                  <SelectItem value="linear">Linear — delay increases by initial amount</SelectItem>
+                </SelectContent>
+              </Select>
+              <HelpText>How the wait time between retries changes.</HelpText>
+            </FieldLabel>
+
+            <FieldLabel label="Initial Delay (seconds)">
+              <Input
+                type="number" min={0}
+                value={retry.initial_backoff_seconds}
+                onChange={(e) => updateRetry({ initial_backoff_seconds: Math.max(0, Number(e.target.value)) })}
+                className="mt-1 h-7 text-xs"
+              />
+              <HelpText>Wait time before the first retry.</HelpText>
+            </FieldLabel>
+
+            <FieldLabel label="Retryable Error Categories">
+              <RetryableCategoryCheckboxes
+                value={retry.retryable_categories}
+                onChange={(cats) => updateRetry({ retryable_categories: cats })}
+              />
+              <HelpText>Only retry on these error categories. Others fail immediately.</HelpText>
+            </FieldLabel>
+          </>
+        )}
+      </div>
+
+      {/* Escalation */}
+      <div className="space-y-3 p-3 rounded-md border border-border/50 bg-background">
+        <div className="flex items-center justify-between">
+          <h5 className="text-xs font-semibold">Escalation</h5>
+          <Switch
+            checked={hasEscalation}
+            onCheckedChange={(v) => {
+              if (v) {
+                onUpdate({ ...lc, escalation: { enabled: true, role: 'orchestrator', title_template: 'Escalation: {{task_title}}' } });
+              } else {
+                onUpdate(clearIfEmpty({ ...lc, escalation: undefined }));
+              }
+            }}
           />
-          <HelpText>Wait time before the first retry.</HelpText>
-        </FieldLabel>
+        </div>
+        {!hasEscalation && <HelpText>Off — agents cannot escalate tasks.</HelpText>}
 
-        <FieldLabel label="Retryable Error Types">
-          <ChipArrayEditor
-            value={retry?.retryable_categories ?? DEFAULT_RETRYABLE_CATEGORIES}
-            onChange={(cats) => updateRetry({ retryable_categories: cats })}
-            placeholder="e.g. timeout, transient_error"
-          />
-          <HelpText>Only retry on these error types. Others fail immediately.</HelpText>
-        </FieldLabel>
+        {hasEscalation && (
+          <>
+            <HelpText>When an agent calls the escalate tool, create an escalation task for the target role. The agent provides context and instructions via the tool call.</HelpText>
+
+            <FieldLabel label="Target Role">
+              <Select
+                value={escalation.role}
+                onValueChange={(v) => onUpdate({ ...lc, escalation: { ...escalation, role: v } })}
+              >
+                <SelectTrigger className="mt-1 h-7 text-xs"><SelectValue placeholder="Select role..." /></SelectTrigger>
+                <SelectContent>
+                  {(roles ?? []).map((r) => (
+                    <SelectItem key={r.name} value={r.name}>{r.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <HelpText>Role that receives the escalation task.</HelpText>
+            </FieldLabel>
+
+            <FieldLabel label="Title Template">
+              <Input
+                value={escalation.title_template}
+                onChange={(e) => onUpdate({ ...lc, escalation: { ...escalation, title_template: e.target.value } })}
+                className="mt-1 text-xs h-7"
+                placeholder="Escalation: {{task_title}}"
+              />
+              <HelpText>Title for the escalation task. Use {'{{task_title}}'} for the original task title.</HelpText>
+            </FieldLabel>
+          </>
+        )}
       </div>
 
       {/* Rework */}
       <div className="space-y-3 p-3 rounded-md border border-border/50 bg-background">
-        <h5 className="text-xs font-semibold">Rework</h5>
-        <HelpText>When a reviewer rejects task output, send it back for revision.</HelpText>
-
-        <FieldLabel label="Max Cycles">
-          <Input
-            type="number" min={1} max={20}
-            value={rework?.max_cycles ?? 3}
-            onChange={(e) => onUpdate({ ...lc, rework: { max_cycles: Math.max(1, Number(e.target.value)) } })}
-            className="mt-1 h-7 text-xs"
+        <div className="flex items-center justify-between">
+          <h5 className="text-xs font-semibold">Rework</h5>
+          <Switch
+            checked={hasRework}
+            onCheckedChange={(v) => {
+              if (v) {
+                onUpdate({ ...lc, rework: { max_cycles: 10 } });
+              } else {
+                onUpdate(clearIfEmpty({ ...lc, rework: undefined }));
+              }
+            }}
           />
-          <HelpText>Maximum revision rounds before the task fails (1-20).</HelpText>
-        </FieldLabel>
+        </div>
+        {!hasRework && <HelpText>Off — rejected tasks fail instead of being sent back for revision.</HelpText>}
+
+        {hasRework && (
+          <>
+            <HelpText>When a reviewer rejects task output, send it back for revision.</HelpText>
+
+            <FieldLabel label="Max Cycles">
+              <Input
+                type="number" min={1} max={20}
+                value={rework.max_cycles}
+                onChange={(e) => onUpdate({ ...lc, rework: { max_cycles: Math.max(1, Number(e.target.value)) } })}
+                className="mt-1 h-7 text-xs"
+              />
+              <HelpText>Maximum revision rounds before the task fails (1-20).</HelpText>
+            </FieldLabel>
+          </>
+        )}
       </div>
     </div>
   );
@@ -285,7 +447,7 @@ function TaskLifecycleOverride({
 
   return (
     <div className="space-y-3">
-      <HelpText>Only set fields you want to override. Empty sections inherit from the template-level lifecycle. Escalation is configured per role in Role Definitions.</HelpText>
+      <HelpText>Only set fields you want to override. Empty sections inherit from the template-level lifecycle. Escalation is configured at the template level.</HelpText>
 
       {/* Retry override */}
       <div className="space-y-2 p-3 rounded-md border border-border/50 bg-background">
@@ -295,7 +457,7 @@ function TaskLifecycleOverride({
             checked={hasRetry}
             onCheckedChange={(v) => {
               if (v) {
-                onUpdate({ ...lc, retry_policy: { max_attempts: 3, backoff_strategy: 'fixed', initial_backoff_seconds: 5, retryable_categories: [] } });
+                onUpdate({ ...lc, retry_policy: { max_attempts: 3, backoff_strategy: 'fixed', initial_backoff_seconds: 5, retryable_categories: DEFAULT_RETRYABLE_CATEGORIES } });
               } else {
                 onUpdate(clearIfEmpty({ ...lc, retry_policy: undefined }));
               }
@@ -335,6 +497,13 @@ function TaskLifecycleOverride({
                 value={lc.retry_policy!.initial_backoff_seconds}
                 onChange={(e) => onUpdate({ ...lc, retry_policy: { ...lc.retry_policy!, initial_backoff_seconds: Math.max(0, Number(e.target.value)) } })}
                 className="mt-1 h-7 text-xs"
+              />
+            </FieldLabel>
+
+            <FieldLabel label="Retryable Error Categories">
+              <RetryableCategoryCheckboxes
+                value={lc.retry_policy!.retryable_categories}
+                onChange={(cats) => onUpdate({ ...lc, retry_policy: { ...lc.retry_policy!, retryable_categories: cats } })}
               />
             </FieldLabel>
           </>

@@ -15,6 +15,7 @@ import {
   MoreVertical,
   Zap,
   Settings,
+  Layers,
 } from 'lucide-react';
 import { toast } from '../../lib/toast.js';
 import { Button } from '../../components/ui/button.js';
@@ -330,12 +331,13 @@ export function TemplateListPage(): JSX.Element {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterTab>('all');
   const [sort, setSort] = useState<SortMode>('recent');
+  const [latestOnly, setLatestOnly] = useState(true);
   const [page, setPage] = useState(1);
   const PER_PAGE = 12;
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['templates', page],
-    queryFn: () => listTemplates({ page, per_page: PER_PAGE }),
+    queryKey: ['templates', page, latestOnly],
+    queryFn: () => listTemplates({ page, per_page: PER_PAGE, latest_only: latestOnly }),
   });
 
   const handleCreateNew = () => navigate('/config/templates/new/edit');
@@ -458,8 +460,26 @@ export function TemplateListPage(): JSX.Element {
           ))}
         </div>
 
-        {/* Sort + Create */}
+        {/* Sort + Version toggle + Create */}
         <div className="flex items-center gap-2 sm:ml-auto">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant={latestOnly ? 'default' : 'outline'}
+                  onClick={() => { setLatestOnly((v) => !v); setPage(1); }}
+                >
+                  <Layers className="h-4 w-4" />
+                  Latest
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {latestOnly ? 'Showing latest version only — click to show all versions' : 'Showing all versions — click to show latest only'}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="sm" variant="outline">
@@ -494,7 +514,7 @@ export function TemplateListPage(): JSX.Element {
           <p className="text-sm mt-1">
             {search || filter !== 'all'
               ? 'Try adjusting your search or filters.'
-              : 'Create your first template to get started.'}
+              : latestOnly ? 'No templates found. Try showing all versions.' : 'Create your first template to get started.'}
           </p>
           {!search && filter === 'all' && (
             <Button className="mt-4" onClick={() => handleCreateNew()}>

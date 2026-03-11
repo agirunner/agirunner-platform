@@ -18,6 +18,7 @@ export interface ListTemplateQuery {
   q?: string;
   slug?: string;
   is_built_in?: boolean;
+  latest_only?: boolean;
   page: number;
   per_page: number;
 }

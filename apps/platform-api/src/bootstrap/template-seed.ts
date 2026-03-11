@@ -222,14 +222,6 @@ function sdlcTemplateSchema() {
       cpu: '1.0',
       memory: '512m',
     },
-    task_container: {
-      pool_mode: 'cold' as const,
-      warm_pool_size: 0,
-      image: '',
-      pull_policy: 'if-not-present' as const,
-      cpu: '0.5',
-      memory: '256m',
-    },
     workflow: {
       phases: [
         { name: 'design', gate: 'none', tasks: ['architect'], parallel: false },

@@ -5,7 +5,6 @@ import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 
 const VALID_POOL_MODES = new Set(['warm', 'cold']);
-const VALID_PULL_POLICIES = new Set(['always', 'if-not-present', 'never']);
 
 interface FleetLogger {
   warn(obj: Record<string, unknown>, msg: string): void;
@@ -355,13 +354,13 @@ export class FleetService {
 
   // --- Dynamic Container Management ---
 
+  private static readonly VALID_PULL_POLICIES = new Set(['always', 'if-not-present', 'never']);
+
   validateRuntimeConfig(
     templateId: string,
     runtime: Record<string, unknown>,
-    taskContainer?: Record<string, unknown>,
-  ): { runtime: Record<string, unknown>; taskContainer: Record<string, unknown> } {
+  ): Record<string, unknown> {
     const validatedRuntime = { ...runtime };
-    const validatedTask = { ...(taskContainer ?? {}) };
 
     if (validatedRuntime.pool_mode !== undefined && !VALID_POOL_MODES.has(validatedRuntime.pool_mode as string)) {
       this.logger.warn(
@@ -382,7 +381,7 @@ export class FleetService {
       }
     }
 
-    if (validatedRuntime.pull_policy !== undefined && !VALID_PULL_POLICIES.has(validatedRuntime.pull_policy as string)) {
+    if (validatedRuntime.pull_policy !== undefined && !FleetService.VALID_PULL_POLICIES.has(validatedRuntime.pull_policy as string)) {
       this.logger.warn(
         { templateId, value: validatedRuntime.pull_policy },
         'invalid_runtime_pull_policy_using_default',
@@ -390,33 +389,7 @@ export class FleetService {
       validatedRuntime.pull_policy = 'if-not-present';
     }
 
-    if (validatedTask.pull_policy !== undefined && !VALID_PULL_POLICIES.has(validatedTask.pull_policy as string)) {
-      this.logger.warn(
-        { templateId, value: validatedTask.pull_policy },
-        'invalid_task_container_pull_policy_using_default',
-      );
-      validatedTask.pull_policy = 'if-not-present';
-    }
-
-    if (validatedTask.pool_mode !== undefined && !VALID_POOL_MODES.has(validatedTask.pool_mode as string)) {
-      this.logger.warn(
-        { templateId, value: validatedTask.pool_mode },
-        'invalid_task_container_pool_mode_using_default',
-      );
-      validatedTask.pool_mode = 'cold';
-    }
-
-    const runtimePoolMode = (validatedRuntime.pool_mode as string) ?? 'warm';
-    const taskPoolMode = validatedTask.pool_mode as string | undefined;
-    if (taskPoolMode === 'warm' && runtimePoolMode !== 'warm') {
-      this.logger.warn(
-        { templateId },
-        'task_container_warm_requires_runtime_warm_downgrading_to_cold',
-      );
-      validatedTask.pool_mode = 'cold';
-    }
-
-    return { runtime: validatedRuntime, taskContainer: validatedTask };
+    return validatedRuntime;
   }
 
   async getQueueDepth(tenantId: string, templateId?: string): Promise<QueueDepthResult> {
@@ -451,7 +424,21 @@ export class FleetService {
     return { total_pending: totalPending, by_template: byTemplate };
   }
 
+  private async loadRuntimeDefaults(tenantId: string): Promise<Map<string, string>> {
+    const result = await this.pool.query<{ config_key: string; config_value: string }>(
+      'SELECT config_key, config_value FROM runtime_defaults WHERE tenant_id = $1',
+      [tenantId],
+    );
+    const defaults = new Map<string, string>();
+    for (const row of result.rows) {
+      defaults.set(row.config_key, row.config_value);
+    }
+    return defaults;
+  }
+
   async getRuntimeTargets(tenantId: string): Promise<RuntimeTarget[]> {
+    const defaults = await this.loadRuntimeDefaults(tenantId);
+
     const result = await this.pool.query<RuntimeTargetRow>(
       `SELECT
          t.id AS template_id,
@@ -476,15 +463,7 @@ export class FleetService {
     return result.rows.map((row) => {
       const schema = row.schema as Record<string, unknown>;
       const rawRuntime = (schema.runtime ?? {}) as Record<string, unknown>;
-      const rawTaskContainer = schema.task_container as Record<string, unknown> | undefined;
-
-      const validated = this.validateRuntimeConfig(
-        row.template_id,
-        rawRuntime,
-        rawTaskContainer,
-      );
-      const runtime = validated.runtime;
-      const taskContainer = validated.taskContainer;
+      const runtime = this.validateRuntimeConfig(row.template_id, rawRuntime);
 
       return {
         template_id: row.template_id,
@@ -493,17 +472,11 @@ export class FleetService {
         max_runtimes: (runtime.max_runtimes as number) ?? 1,
         priority: (runtime.priority as number) ?? 0,
         idle_timeout_seconds: (runtime.idle_timeout_seconds as number) ?? 300,
-        grace_period_seconds: (runtime.grace_period_seconds as number) ?? 180,
-        image: (runtime.image as string) ?? 'agirunner-runtime:local',
-        pull_policy: (runtime.pull_policy as string) ?? 'if-not-present',
-        cpu: (runtime.cpu as string) ?? '1.0',
-        memory: (runtime.memory as string) ?? '512m',
-        task_image: (taskContainer.image as string) ?? '',
-        task_pull_policy: (taskContainer.pull_policy as string) ?? 'if-not-present',
-        task_cpu: (taskContainer.cpu as string) ?? '0.5',
-        task_memory: (taskContainer.memory as string) ?? '256m',
-        warm_pool_size: (taskContainer.warm_pool_size as number) ?? 0,
-        task_pool_mode: (taskContainer.pool_mode as string) ?? 'cold',
+        grace_period_seconds: (runtime.grace_period_seconds as number) ?? Number(defaults.get('default_grace_period') || '180'),
+        image: (runtime.image as string) ?? defaults.get('default_runtime_image') ?? 'agirunner-runtime:local',
+        pull_policy: (runtime.pull_policy as string) ?? defaults.get('default_pull_policy') ?? 'if-not-present',
+        cpu: (runtime.cpu as string) ?? defaults.get('default_cpu') ?? '1',
+        memory: (runtime.memory as string) ?? defaults.get('default_memory') ?? '256m',
         pending_tasks: row.pending_tasks,
         active_workflows: row.active_workflows,
       };
@@ -751,12 +724,6 @@ export interface RuntimeTarget {
   pull_policy: string;
   cpu: string;
   memory: string;
-  task_image: string;
-  task_pull_policy: string;
-  task_cpu: string;
-  task_memory: string;
-  warm_pool_size: number;
-  task_pool_mode: string;
   pending_tasks: number;
   active_workflows: number;
 }
