@@ -5,7 +5,7 @@ import {
   findCatalogEntry,
   isDefaultEnabledModel,
   type ModelCatalogEntry,
-} from '../../src/config/model-catalog.js';
+} from '../../src/catalogs/model-catalog.js';
 
 describe('MODEL_CATALOG schema validation', () => {
   it('every entry has all required fields with correct types', () => {

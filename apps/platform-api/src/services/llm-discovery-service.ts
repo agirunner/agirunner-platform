@@ -7,7 +7,7 @@ import {
   findCatalogEntry,
   PROVIDER_ENDPOINT_DEFAULTS,
   isDefaultEnabledModel,
-} from '../config/model-catalog.js';
+} from '../catalogs/model-catalog.js';
 
 export type { ReasoningConfig };
 export { MODEL_CATALOG, findCatalogEntry, isDefaultEnabledModel };

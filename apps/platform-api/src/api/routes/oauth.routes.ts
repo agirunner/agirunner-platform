@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import type { FastifyPluginAsync } from 'fastify';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
-import { listOAuthProfiles } from '../../config/oauth-profiles.js';
+import { listOAuthProfiles } from '../../catalogs/oauth-profiles.js';
 import { ValidationError } from '../../errors/domain-errors.js';
 
 const OAUTH_CALLBACK_PORT = 1455;

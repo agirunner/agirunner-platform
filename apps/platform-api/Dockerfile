@@ -11,9 +11,8 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS build
 COPY . .
 RUN pnpm --filter @agirunner/platform-api build
-RUN mkdir -p apps/platform-api/dist/src/db/migrations apps/platform-api/dist/configs \
-  && cp apps/platform-api/src/db/migrations/*.sql apps/platform-api/dist/src/db/migrations/ \
-  && cp apps/platform-api/configs/built-in-roles.json apps/platform-api/dist/configs/
+RUN mkdir -p apps/platform-api/dist/src/db/migrations \
+  && cp apps/platform-api/src/db/migrations/*.sql apps/platform-api/dist/src/db/migrations/
 RUN pnpm --filter @agirunner/platform-api deploy --legacy /app --prod
 
 FROM node:22-alpine AS runtime

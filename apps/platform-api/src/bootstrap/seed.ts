@@ -1,52 +1,75 @@
+/**
+ * Configuration seeding — idempotent first-run setup.
+ *
+ * Seeds role definitions, runtime defaults, built-in templates, and the admin user.
+ * Skips seeding if roles already exist for the default tenant.
+ */
 import type pg from 'pg';
 
 import {
   loadBuiltInRolesConfig,
   type BuiltInRolesConfig,
   type RoleName,
-} from '../config/role-config.js';
+} from '../catalogs/built-in-roles.js';
+import { BUILT_IN_TEMPLATES } from '../catalogs/built-in-templates.js';
 import { RoleDefinitionService } from '../services/role-definition-service.js';
 import { RuntimeDefaultsService } from '../services/runtime-defaults-service.js';
 import { UserService } from '../services/user-service.js';
 import { DEFAULT_TENANT_ID } from '../db/seed.js';
-import { seedDefaultTemplates } from './template-seed.js';
 
-/**
- * Seeds configuration tables from the file-based config on first run.
- *
- * This provides backwards compatibility: if the DB config tables are empty,
- * the system loads from the JSON files. Once an admin modifies config via the
- * API, the DB values take precedence.
- *
- * Idempotent — skips seeding if roles already exist for the default tenant.
- */
+// ---------------------------------------------------------------------------
+// Public entry point
+// ---------------------------------------------------------------------------
+
 export async function seedConfigTables(pool: pg.Pool): Promise<void> {
   await seedRolesAndDefaults(pool);
   await seedAdminUser(pool);
-  await seedDefaultTemplates(pool);
+  await seedBuiltInTemplates(pool);
 }
+
+// ---------------------------------------------------------------------------
+// Roles + runtime defaults
+// ---------------------------------------------------------------------------
 
 async function seedRolesAndDefaults(pool: pg.Pool): Promise<void> {
   const roleService = new RoleDefinitionService(pool);
   const defaultsService = new RuntimeDefaultsService(pool);
 
   const existingRoles = await roleService.listRoles(DEFAULT_TENANT_ID);
-  if (existingRoles.length > 0) {
-    return;
+  const rolesConfig = loadBuiltInRolesConfig();
+
+  if (existingRoles.length === 0) {
+    await seedRoleDefinitions(roleService, rolesConfig);
+    await seedRuntimeDefaults(defaultsService);
+    console.info('[seed] Role definitions and runtime defaults seeded.');
+  } else {
+    await seedMissingRoles(roleService, rolesConfig, existingRoles);
   }
+}
 
-  let rolesConfig: BuiltInRolesConfig;
-  try {
-    rolesConfig = loadBuiltInRolesConfig();
-  } catch {
-    console.info('[config-seed] No built-in-roles.json found, skipping config seed.');
-    return;
+async function seedMissingRoles(
+  service: RoleDefinitionService,
+  config: BuiltInRolesConfig,
+  existingRoles: Array<{ name: string }>,
+): Promise<void> {
+  const existingNames = new Set(existingRoles.map((r) => r.name));
+  const allNames = Object.keys(config.roles) as RoleName[];
+  const missing = allNames.filter((name) => !existingNames.has(name));
+
+  for (const name of missing) {
+    const role = config.roles[name];
+    await service.createRole(DEFAULT_TENANT_ID, {
+      name,
+      description: role.description,
+      systemPrompt: role.systemPrompt,
+      allowedTools: role.allowedTools,
+      verificationStrategy: role.verificationStrategy,
+      capabilities: role.capabilities,
+      isBuiltIn: true,
+      isActive: true,
+    });
+    console.info(`[seed] Added missing role: ${name}`);
   }
-
-  await seedRoleDefinitions(roleService, rolesConfig);
-  await seedRuntimeDefaults(defaultsService);
-
-  console.info('[config-seed] Configuration tables seeded from built-in-roles.json.');
 }
 
 async function seedRoleDefinitions(
@@ -62,7 +85,6 @@ async function seedRoleDefinitions(
       description: role.description,
       systemPrompt: role.systemPrompt,
       allowedTools: role.allowedTools,
-
       verificationStrategy: role.verificationStrategy,
       capabilities: role.capabilities,
       isBuiltIn: true,
@@ -117,6 +139,10 @@ async function seedRuntimeDefaults(
   });
 }
 
+// ---------------------------------------------------------------------------
+// Admin user
+// ---------------------------------------------------------------------------
+
 async function seedAdminUser(pool: pg.Pool): Promise<void> {
   const userService = new UserService(pool);
 
@@ -133,5 +159,30 @@ async function seedAdminUser(pool: pg.Pool): Promise<void> {
     role: 'org_admin',
   });
 
-  console.info(`[config-seed] Admin user created: ${email} (authenticate via API key)`);
+  console.info(`[seed] Admin user created: ${email}`);
+}
+
+// ---------------------------------------------------------------------------
+// Built-in templates
+// ---------------------------------------------------------------------------
+
+async function seedBuiltInTemplates(pool: pg.Pool): Promise<void> {
+  for (const template of BUILT_IN_TEMPLATES) {
+    const existing = await pool.query(
+      'SELECT id FROM templates WHERE tenant_id = $1 AND slug = $2 LIMIT 1',
+      [DEFAULT_TENANT_ID, template.slug],
+    );
+
+    if (existing.rowCount && existing.rowCount > 0) {
+      continue;
+    }
+
+    await pool.query(
+      `INSERT INTO templates (tenant_id, name, slug, description, version, is_built_in, is_published, schema)
+       VALUES ($1, $2, $3, $4, 1, true, true, $5)`,
+      [DEFAULT_TENANT_ID, template.name, template.slug, template.description, JSON.stringify(template.schema)],
+    );
+
+    console.info(`[seed] Built-in template seeded: ${template.slug}`);
+  }
 }

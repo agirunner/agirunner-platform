@@ -688,9 +688,31 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
   // Deduplicate concurrent refresh calls — only one in-flight at a time.
   let refreshPromise: Promise<{ token: string }> | null = null;
 
+  function readCsrfCookie(): string | undefined {
+    if (typeof document === 'undefined') return undefined;
+    const match = document.cookie.match(/(?:^|;\s*)agirunner_csrf_token=([^;]*)/);
+    return match?.[1] ? decodeURIComponent(match[1]) : undefined;
+  }
+
   async function doRefresh(): Promise<{ token: string }> {
     if (refreshPromise) return refreshPromise;
-    refreshPromise = client.refreshSession().finally(() => {
+    refreshPromise = (async () => {
+      const csrfToken = readCsrfCookie();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (csrfToken) {
+        headers['x-csrf-token'] = csrfToken;
+      }
+      const response = await requestFetch(`${baseUrl}/api/v1/auth/refresh`, {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const body = (await response.json()) as { data: { token: string } };
+      return body.data;
+    })().finally(() => {
       refreshPromise = null;
     });
     return refreshPromise;
@@ -717,7 +739,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           tenantId: activeSession.tenantId,
         });
         client.setAccessToken(refreshed.token);
-        return handler();
+        return await handler();
       } catch (refreshError) {
         clearSession();
         if (typeof window !== 'undefined') {

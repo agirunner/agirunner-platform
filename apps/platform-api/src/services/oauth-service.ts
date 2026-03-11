@@ -1,5 +1,5 @@
 import type { DatabasePool } from '../db/database.js';
-import { getOAuthProfile, type OAuthProviderProfile } from '../config/oauth-profiles.js';
+import { getOAuthProfile, type OAuthProviderProfile } from '../catalogs/oauth-profiles.js';
 import { storeOAuthToken, readOAuthToken } from '../lib/oauth-crypto.js';
 import { generateCodeVerifier, generateCodeChallenge, generateState } from '../lib/pkce.js';
 import { extractChatGptAccountId, extractEmailFromJwt } from '../lib/jwt-decode.js';

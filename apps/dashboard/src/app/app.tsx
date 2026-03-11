@@ -240,15 +240,16 @@ export function App(): JSX.Element {
 function RequireAuth(): JSX.Element {
   const navigate = useNavigate();
   const session = readSession();
+  const hasToken = Boolean(session?.accessToken);
 
   useEffect(() => {
-    if (!session) {
+    if (!hasToken) {
       clearSession();
       navigate('/login', { replace: true });
     }
-  }, [navigate, session]);
+  }, [navigate, hasToken]);
 
-  if (!session) {
+  if (!hasToken) {
     return <Navigate to="/login" replace />;
   }
 

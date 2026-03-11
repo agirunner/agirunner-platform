@@ -40,7 +40,7 @@ import { WorkerConnectionHub } from '../services/worker-connection-hub.js';
 import { WorkerService } from '../services/worker-service.js';
 import { WebhookService } from '../services/webhook-service.js';
 import { WorkflowService } from '../services/workflow-service.js';
-import { seedConfigTables } from './config-seed.js';
+import { seedConfigTables } from './seed.js';
 import { registerPlugins } from './plugins.js';
 import { registerRoutes } from './routes.js';
 import { registerWebsocketGateway } from './websocket.js';

@@ -115,7 +115,8 @@ DO $$ BEGIN
     'failed',
     'cancelled',
     'awaiting_approval',
-    'output_pending_review'
+    'output_pending_review',
+    'awaiting_escalation'
   );
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
@@ -176,9 +177,9 @@ DECLARE
   start_date date;
   end_date date;
 BEGIN
-  start_date := date_trunc('month', partition_date);
-  end_date := start_date + interval '1 month';
-  partition_name := 'execution_logs_' || to_char(start_date, 'YYYY_MM');
+  start_date := partition_date;
+  end_date := start_date + interval '1 day';
+  partition_name := 'execution_logs_' || to_char(start_date, 'YYYY_MM_DD');
 
   EXECUTE format(
     'CREATE TABLE IF NOT EXISTS %I PARTITION OF execution_logs
@@ -194,14 +195,16 @@ CREATE FUNCTION public.drop_old_execution_log_partitions(retention_days integer 
 DECLARE
   partition record;
   cutoff date;
+  cutoff_name text;
 BEGIN
   cutoff := current_date - (retention_days || ' days')::interval;
+  cutoff_name := 'execution_logs_' || to_char(cutoff, 'YYYY_MM_DD');
   FOR partition IN
     SELECT inhrelid::regclass::text AS name
     FROM pg_inherits
     WHERE inhparent = 'execution_logs'::regclass
   LOOP
-    IF partition.name < 'execution_logs_' || to_char(cutoff, 'YYYY_MM') THEN
+    IF partition.name < cutoff_name THEN
       EXECUTE format('DROP TABLE IF EXISTS %I', partition.name);
     END IF;
   END LOOP;
@@ -376,6 +379,7 @@ CREATE TABLE public.tasks (
     started_at timestamp with time zone,
     depends_on uuid[] DEFAULT '{}'::uuid[] NOT NULL,
     requires_approval boolean DEFAULT false NOT NULL,
+    requires_output_review boolean DEFAULT false NOT NULL,
     input jsonb DEFAULT '{}'::jsonb NOT NULL,
     output jsonb,
     error jsonb,
@@ -814,6 +818,8 @@ CREATE TABLE public.role_definitions (
     verification_strategy text,
     capabilities text[] DEFAULT '{}'::text[],
     is_built_in boolean DEFAULT false,
+    escalation_target text DEFAULT NULL,
+    max_escalation_depth integer NOT NULL DEFAULT 5,
     is_active boolean DEFAULT true,
     version integer DEFAULT 1,
     created_at timestamp with time zone DEFAULT now(),
