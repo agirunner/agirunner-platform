@@ -7,7 +7,6 @@ const retentionPolicySchema = z
   .object({
     task_archive_after_days: z.number().int().min(1).optional(),
     task_delete_after_days: z.number().int().min(1).optional(),
-    audit_log_retention_days: z.number().int().min(1).optional(),
     execution_log_retention_days: z.number().int().min(1).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: 'At least one field is required' });
@@ -15,10 +14,6 @@ const retentionPolicySchema = z
 const VALID_LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
 const loggingConfigSchema = z.object({
   level: z.enum(VALID_LOG_LEVELS),
-});
-
-const legalHoldSchema = z.object({
-  enabled: z.boolean(),
 });
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
@@ -43,26 +38,6 @@ export const governanceRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const body = parseOrThrow(retentionPolicySchema.safeParse(request.body ?? {}));
       return { data: await governanceService.updateRetentionPolicy(request.auth!, body) };
-    },
-  );
-
-  app.put(
-    '/api/v1/governance/legal-holds/tasks/:id',
-    { preHandler: [authenticateApiKey, withScope('admin')] },
-    async (request) => {
-      const params = request.params as { id: string };
-      const body = parseOrThrow(legalHoldSchema.safeParse(request.body ?? {}));
-      return { data: await governanceService.setTaskLegalHold(request.auth!, params.id, body.enabled) };
-    },
-  );
-
-  app.put(
-    '/api/v1/governance/legal-holds/workflows/:id',
-    { preHandler: [authenticateApiKey, withScope('admin')] },
-    async (request) => {
-      const params = request.params as { id: string };
-      const body = parseOrThrow(legalHoldSchema.safeParse(request.body ?? {}));
-      return { data: await governanceService.setWorkflowLegalHold(request.auth!, params.id, body.enabled) };
     },
   );
 

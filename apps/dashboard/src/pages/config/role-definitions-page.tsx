@@ -44,6 +44,8 @@ interface RoleDefinition {
   capabilities?: string[];
   model?: string;
   verification_strategy?: string;
+  escalation_target?: string | null;
+  max_escalation_depth?: number;
 }
 
 interface RoleEditForm {
@@ -52,6 +54,8 @@ interface RoleEditForm {
   system_prompt: string;
   allowed_tools: string[];
   verification_strategy: string;
+  escalation_target: string | null;
+  max_escalation_depth: number;
 }
 
 const API_BASE_URL =
@@ -94,17 +98,23 @@ async function updateRole(
 }
 
 const KNOWN_TOOLS = [
+  'shell_exec',
   'file_read',
   'file_write',
-  'shell_exec',
+  'file_edit',
+  'file_list',
+  'git_status',
+  'git_diff',
+  'git_log',
+  'git_commit',
+  'git_push',
+  'artifact_upload',
+  'web_fetch',
   'web_search',
-  'code_review',
-  'test_runner',
-  'git_operations',
-  'api_request',
+  'escalate',
 ];
 
-function RoleRow({ role }: { role: RoleDefinition }) {
+function RoleRow({ role, allRoles }: { role: RoleDefinition; allRoles: RoleDefinition[] }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -199,6 +209,7 @@ function RoleRow({ role }: { role: RoleDefinition }) {
       {isEditing && (
         <RoleEditDialog
           role={role}
+          allRoles={allRoles}
           onClose={() => setIsEditing(false)}
         />
       )}
@@ -208,9 +219,11 @@ function RoleRow({ role }: { role: RoleDefinition }) {
 
 function RoleEditDialog({
   role,
+  allRoles,
   onClose,
 }: {
   role: RoleDefinition;
+  allRoles: RoleDefinition[];
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
@@ -220,10 +233,19 @@ function RoleEditDialog({
     system_prompt: role.system_prompt ?? '',
     allowed_tools: role.allowed_tools ?? [],
     verification_strategy: role.verification_strategy ?? 'none',
+    escalation_target: role.escalation_target ?? null,
+    max_escalation_depth: role.max_escalation_depth ?? 5,
   });
 
+  const otherRoles = allRoles.filter((r) => r.id !== role.id);
+
   const mutation = useMutation({
-    mutationFn: () => updateRole(role.id, form),
+    mutationFn: () =>
+      updateRole(role.id, {
+        ...form,
+        escalation_target: form.escalation_target,
+        max_escalation_depth: form.escalation_target != null ? form.max_escalation_depth : undefined,
+      } as Partial<RoleEditForm> & { escalation_target: string | null; max_escalation_depth?: number }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['roles'] });
       onClose();
@@ -322,6 +344,54 @@ function RoleEditDialog({
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Escalation Target</label>
+            <Select
+              value={form.escalation_target ?? '__none__'}
+              onValueChange={(v) =>
+                setForm((prev) => ({
+                  ...prev,
+                  escalation_target: v === '__none__' ? null : v,
+                }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">None</SelectItem>
+                <SelectItem value="human">Human</SelectItem>
+                {otherRoles.map((r) => (
+                  <SelectItem key={r.name} value={r.name}>
+                    {r.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted">
+              Where escalations go when this role&apos;s agent requests help or exhausts retries.
+            </p>
+          </div>
+          {form.escalation_target != null && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Max Escalation Depth</label>
+              <Input
+                type="number"
+                min={1}
+                max={10}
+                value={form.max_escalation_depth}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    max_escalation_depth: Math.max(1, Math.min(10, Number(e.target.value))),
+                  }))
+                }
+              />
+              <p className="text-xs text-muted">
+                Maximum recursive escalation depth before the task fails (1-10).
+              </p>
+            </div>
+          )}
           {mutation.error && (
             <p className="text-sm text-red-600">{String(mutation.error)}</p>
           )}
@@ -398,7 +468,7 @@ export function RoleDefinitionsPage(): JSX.Element {
           </TableHeader>
           <TableBody>
             {roles.map((role) => (
-              <RoleRow key={role.id} role={role} />
+              <RoleRow key={role.id} role={role} allRoles={roles} />
             ))}
           </TableBody>
         </Table>

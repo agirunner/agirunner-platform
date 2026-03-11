@@ -60,7 +60,9 @@ export function resolveTimeRange(range: TimeRange): { since: string; until: stri
   if (range.preset) {
     const preset = PRESETS.find((p) => p.value === range.preset);
     if (preset) {
-      const now = Date.now();
+      // Quantize to 10-second buckets so query keys stay stable between renders
+      const BUCKET_MS = 10_000;
+      const now = Math.floor(Date.now() / BUCKET_MS) * BUCKET_MS;
       return {
         since: new Date(now - preset.durationMs).toISOString(),
         until: new Date(now).toISOString(),

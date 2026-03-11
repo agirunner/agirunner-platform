@@ -17,7 +17,11 @@ export interface ExecutionLogEntry {
   projectId?: string | null;
   workflowId?: string | null;
   workflowName?: string | null;
+  projectName?: string | null;
   taskId?: string | null;
+  taskTitle?: string | null;
+  workflowPhase?: string | null;
+  role?: string | null;
   actorType?: string | null;
   actorId?: string | null;
   actorName?: string | null;
@@ -44,7 +48,11 @@ export interface LogRow {
   project_id: string | null;
   workflow_id: string | null;
   workflow_name: string | null;
+  project_name: string | null;
   task_id: string | null;
+  task_title: string | null;
+  workflow_phase: string | null;
+  role: string | null;
   actor_type: string | null;
   actor_id: string | null;
   actor_name: string | null;
@@ -62,9 +70,10 @@ export interface LogFilters {
   source?: string[];
   category?: string[];
   level?: string;
-  operation?: string;
+  operation?: string[];
   status?: string[];
-  actorId?: string;
+  role?: string[];
+  actorId?: string[];
   search?: string;
   since?: string;
   until?: string;
@@ -74,9 +83,12 @@ export interface LogFilters {
 }
 
 export interface LogStatsFilters {
+  projectId?: string;
   traceId?: string;
   workflowId?: string;
   taskId?: string;
+  since?: string;
+  until?: string;
   groupBy: 'category' | 'operation' | 'level' | 'task_id' | 'source';
 }
 
@@ -146,33 +158,11 @@ export interface LogLevelFilter {
 
 export class LogService {
   private levelFilter: LogLevelFilter | null = null;
-  private readonly workflowNameCache = new Map<string, { name: string; expiresAt: number }>();
-
   constructor(private readonly pool: DatabasePool) {}
 
   /** Attach a write-side level filter. Entries below the tenant threshold are silently dropped. */
   setLevelFilter(filter: LogLevelFilter): void {
     this.levelFilter = filter;
-  }
-
-  private async resolveWorkflowName(tenantId: string, workflowId: string): Promise<string | null> {
-    const cacheKey = `${tenantId}:${workflowId}`;
-    const cached = this.workflowNameCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) return cached.name;
-
-    const result = await this.pool.query<{ name: string }>(
-      'SELECT name FROM workflows WHERE tenant_id = $1 AND id = $2',
-      [tenantId, workflowId],
-    );
-    const name = result.rows[0]?.name ?? null;
-    if (name) {
-      this.workflowNameCache.set(cacheKey, { name, expiresAt: Date.now() + 60_000 });
-      if (this.workflowNameCache.size > 500) {
-        const oldest = this.workflowNameCache.keys().next().value;
-        if (oldest) this.workflowNameCache.delete(oldest);
-      }
-    }
-    return name;
   }
 
   async insert(entry: ExecutionLogEntry): Promise<void> {
@@ -181,14 +171,17 @@ export class LogService {
       if (!shouldWrite) return;
     }
 
-    const workflowName = entry.workflowName ?? (entry.workflowId ? await this.resolveWorkflowName(entry.tenantId, entry.workflowId) : null);
+    const workflowName = entry.workflowName ?? null;
+    const projectName = entry.projectName ?? null;
 
     await this.pool.query(
       `INSERT INTO execution_logs (
         tenant_id, trace_id, span_id, parent_span_id,
         source, category, level, operation, status, duration_ms,
         payload, error,
-        project_id, workflow_id, workflow_name, task_id,
+        project_id, workflow_id, workflow_name, project_name, task_id,
+        task_title, workflow_phase,
+        role,
         actor_type, actor_id, actor_name,
         resource_type, resource_id, resource_name,
         created_at
@@ -196,10 +189,12 @@ export class LogService {
         $1, $2, $3, $4,
         $5, $6, $7, $8, $9, $10,
         $11, $12,
-        $13, $14, $15, $16,
-        $17, $18, $19,
-        $20, $21, $22,
-        COALESCE($23::timestamptz, now())
+        $13, $14, $15, $16, $17,
+        $18, $19,
+        $20,
+        $21, $22, $23,
+        $24, $25, $26,
+        COALESCE($27::timestamptz, now())
       )`,
       [
         entry.tenantId,
@@ -217,7 +212,11 @@ export class LogService {
         entry.projectId ?? null,
         entry.workflowId ?? null,
         workflowName,
+        projectName,
         entry.taskId ?? null,
+        entry.taskTitle ?? null,
+        entry.workflowPhase ?? null,
+        entry.role ?? null,
         entry.actorType ?? null,
         entry.actorId ?? null,
         entry.actorName ?? null,
@@ -271,7 +270,9 @@ export class LogService {
       `SELECT id, tenant_id, trace_id, span_id, parent_span_id,
               source, category, level, operation, status, duration_ms,
               payload, error,
-              project_id, workflow_id, workflow_name, task_id,
+              project_id, workflow_id, workflow_name, project_name, task_id,
+              task_title, workflow_phase,
+              role,
               actor_type, actor_id, actor_name,
               resource_type, resource_id, resource_name,
               created_at
@@ -307,6 +308,10 @@ export class LogService {
     const conditions: string[] = ['tenant_id = $1'];
     const values: unknown[] = [tenantId];
 
+    if (filters.projectId) {
+      values.push(filters.projectId);
+      conditions.push(`project_id = $${values.length}`);
+    }
     if (filters.traceId) {
       values.push(filters.traceId);
       conditions.push(`trace_id = $${values.length}`);
@@ -318,6 +323,14 @@ export class LogService {
     if (filters.taskId) {
       values.push(filters.taskId);
       conditions.push(`task_id = $${values.length}`);
+    }
+    if (filters.since) {
+      values.push(filters.since);
+      conditions.push(`created_at >= $${values.length}`);
+    }
+    if (filters.until) {
+      values.push(filters.until);
+      conditions.push(`created_at <= $${values.length}`);
     }
 
     const whereClause = conditions.join(' AND ');
@@ -395,6 +408,28 @@ export class LogService {
     }));
   }
 
+  async roles(tenantId: string, since: Date): Promise<{ role: string; count: number }[]> {
+    const result = await this.pool.query<{ role: string; count: string }>(
+      `SELECT role, COUNT(*)::text AS count
+       FROM (
+         SELECT role FROM execution_logs
+         WHERE tenant_id = $1 AND created_at >= $2 AND role IS NOT NULL
+         UNION ALL
+         SELECT DISTINCT role FROM tasks
+         WHERE tenant_id = $1 AND role IS NOT NULL AND role <> ''
+       ) combined
+       GROUP BY role
+       ORDER BY count DESC
+       LIMIT 50`,
+      [tenantId, since.toISOString()],
+    );
+
+    return result.rows.map((row) => ({
+      role: row.role,
+      count: Number(row.count),
+    }));
+  }
+
   async actors(tenantId: string, since: Date): Promise<ActorInfo[]> {
     const result = await this.pool.query<{
       actor_type: string;
@@ -464,28 +499,34 @@ export class LogService {
       values.push(LEVELS_AT_OR_ABOVE[filters.level]);
       conditions.push(`level = ANY($${values.length}::execution_log_level[])`);
     }
-    if (filters.operation) {
-      if (filters.operation.endsWith('*')) {
-        values.push(filters.operation.slice(0, -1) + '%');
+    if (filters.operation?.length) {
+      if (filters.operation.length === 1 && filters.operation[0].endsWith('*')) {
+        values.push(filters.operation[0].slice(0, -1) + '%');
         conditions.push(`operation LIKE $${values.length}`);
       } else {
         values.push(filters.operation);
-        conditions.push(`operation = $${values.length}`);
+        conditions.push(`operation = ANY($${values.length}::text[])`);
       }
     }
     if (filters.status?.length) {
       values.push(filters.status);
       conditions.push(`status = ANY($${values.length}::execution_log_status[])`);
     }
-    if (filters.actorId) {
+    if (filters.role?.length) {
+      values.push(filters.role);
+      conditions.push(`role = ANY($${values.length}::text[])`);
+    }
+    if (filters.actorId?.length) {
       values.push(filters.actorId);
-      conditions.push(`actor_id = $${values.length}`);
+      conditions.push(`actor_id = ANY($${values.length}::text[])`);
     }
     if (filters.search) {
-      values.push(filters.search);
-      conditions.push(
-        `to_tsvector('english', operation || ' ' || COALESCE(payload::text, '')) @@ plainto_tsquery('english', $${values.length})`,
-      );
+      const term = filters.search.trim();
+      values.push(`%${term}%`);
+      const p = values.length;
+      const searchable = `CONCAT_WS(' ', operation, task_id, workflow_id, project_id,`
+        + ` trace_id, span_id, actor_name, actor_id, task_title, payload::text)`;
+      conditions.push(`${searchable} ILIKE $${p}`);
     }
     if (filters.since) {
       values.push(filters.since);
@@ -518,13 +559,15 @@ function validateGroupColumn(column: string): string {
 
 const SECRET_PATTERN = /(?:api[_-]?key|password|secret|(?:^|[_-])token(?!s)|authorization|bearer|credential|private[_-]?key)/i;
 
+const REDACT_EXEMPT_KEYS = new Set(['system_prompt', 'prompt_summary', 'response_summary', 'description']);
+
 function redactPayload(payload: Record<string, unknown> | undefined): Record<string, unknown> {
   if (!payload) return {};
   const redacted: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(payload)) {
     if (SECRET_PATTERN.test(key)) {
       redacted[key] = '[REDACTED]';
-    } else if (typeof value === 'string' && SECRET_PATTERN.test(value)) {
+    } else if (typeof value === 'string' && !REDACT_EXEMPT_KEYS.has(key) && SECRET_PATTERN.test(value)) {
       redacted[key] = '[REDACTED]';
     } else if (value && typeof value === 'object' && !Array.isArray(value)) {
       redacted[key] = redactPayload(value as Record<string, unknown>);

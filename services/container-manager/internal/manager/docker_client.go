@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
@@ -300,6 +301,16 @@ func (d *RealDockerClient) ConnectNetwork(ctx context.Context, containerID, netw
 		return fmt.Errorf("connect container %s to network %s: %w", containerID, networkName, err)
 	}
 	return nil
+}
+
+// Events subscribes to the Docker events stream.
+func (d *RealDockerClient) Events(ctx context.Context, options events.ListOptions) (<-chan events.Message, <-chan error) {
+	return d.cli.Events(ctx, options)
+}
+
+// ContainerLogs returns the logs from a container.
+func (d *RealDockerClient) ContainerLogs(ctx context.Context, containerID string, options container.LogsOptions) (io.ReadCloser, error) {
+	return d.cli.ContainerLogs(ctx, containerID, options)
 }
 
 // InspectContainerHealth returns the Docker HEALTHCHECK status of a container.

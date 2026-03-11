@@ -6,7 +6,6 @@ import type { LogLevelCache } from './logging/log-level-cache.js';
 import type { LogService } from './logging/log-service.js';
 import type { LogStreamService } from './logging/log-stream-service.js';
 import type { ApiKeyService } from './services/api-key-service.js';
-import type { AuditService } from './services/audit-service.js';
 import type { EventStreamService } from './services/event-stream-service.js';
 import type { EventService } from './services/event-service.js';
 import type { FleetService } from './services/fleet-service.js';
@@ -38,7 +37,6 @@ declare module 'fastify' {
     logService: LogService;
     logLevelCache: LogLevelCache;
     logStreamService: LogStreamService;
-    auditService: AuditService;
     eventService: EventService;
     eventStreamService: EventStreamService;
     integrationActionService: IntegrationActionService;

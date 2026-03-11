@@ -19,6 +19,8 @@ const taskCreateSchema = z.object({
   context: z.record(z.unknown()).optional(),
   depends_on: z.array(z.string().uuid()).optional(),
   requires_approval: z.boolean().optional(),
+  requires_output_review: z.boolean().optional(),
+  review_prompt: z.string().max(2000).optional(),
   capabilities_required: z.array(z.string().min(1)).max(20).optional(),
   role_config: z.record(z.unknown()).optional(),
   environment: z.record(z.unknown()).optional(),
@@ -105,6 +107,17 @@ const escalateSchema = z.object({
 });
 
 const escalationResponseSchema = z.object({
+  instructions: z.string().min(1).max(4000),
+  context: z.record(z.unknown()).optional(),
+});
+
+const agentEscalateSchema = z.object({
+  reason: z.string().min(1).max(4000),
+  context_summary: z.string().max(4000).optional(),
+  work_so_far: z.string().max(8000).optional(),
+});
+
+const resolveEscalationSchema = z.object({
   instructions: z.string().min(1).max(4000),
   context: z.record(z.unknown()).optional(),
 });
@@ -266,7 +279,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     '/api/v1/tasks/:id/approve',
-    { preHandler: [authenticateApiKey, withScope('admin')] },
+    { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'worker'])] },
     async (request) => {
       const params = request.params as { id: string };
       const task = await taskService.approveTask(request.auth!, params.id);
@@ -275,8 +288,18 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
+    '/api/v1/tasks/:id/approve-output',
+    { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'worker'])] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const task = await taskService.approveTaskOutput(request.auth!, params.id);
+      return { data: task };
+    },
+  );
+
+  app.post(
     '/api/v1/tasks/:id/retry',
-    { preHandler: [authenticateApiKey, withScope('admin')] },
+    { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'worker'])] },
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(retrySchema.safeParse(request.body ?? {}));
@@ -287,7 +310,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     '/api/v1/tasks/:id/cancel',
-    { preHandler: [authenticateApiKey, withScope('admin')] },
+    { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'worker'])] },
     async (request) => {
       const params = request.params as { id: string };
       const task = await taskService.cancelTask(request.auth!, params.id);
@@ -297,7 +320,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     '/api/v1/tasks/:id/reject',
-    { preHandler: [authenticateApiKey, withScope('admin')] },
+    { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'worker'])] },
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(rejectSchema.safeParse(request.body));
@@ -308,7 +331,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     '/api/v1/tasks/:id/rework',
-    { preHandler: [authenticateApiKey, withScope('admin')] },
+    { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'worker'])] },
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(requestChangesSchema.safeParse(request.body));
@@ -319,7 +342,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     '/api/v1/tasks/:id/request-changes',
-    { preHandler: [authenticateApiKey, withScope('admin')] },
+    { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'worker'])] },
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(requestChangesSchema.safeParse(request.body));
@@ -330,7 +353,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     '/api/v1/tasks/:id/skip',
-    { preHandler: [authenticateApiKey, withScope('admin')] },
+    { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'worker'])] },
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(skipSchema.safeParse(request.body));
@@ -382,6 +405,28 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
         output: body.output,
         reason: body.reason,
       });
+      return { data: task };
+    },
+  );
+
+  app.post(
+    '/api/v1/tasks/:id/agent-escalate',
+    { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'worker', 'agent'])] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(agentEscalateSchema.safeParse(request.body));
+      const task = await taskService.agentEscalate(request.auth!, params.id, body);
+      return { data: task };
+    },
+  );
+
+  app.post(
+    '/api/v1/tasks/:id/resolve-escalation',
+    { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'worker'])] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(resolveEscalationSchema.safeParse(request.body));
+      const task = await taskService.resolveEscalation(request.auth!, params.id, body);
       return { data: task };
     },
   );

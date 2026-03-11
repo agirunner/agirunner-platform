@@ -25,21 +25,6 @@ export function withRole(minimumRole: RbacRole) {
     const effectiveRole = request.auth.role ?? scopeToRole(request.auth.scope);
 
     if (!hasRequiredRole(effectiveRole, minimumRole)) {
-      await request.server.auditService.record({
-        tenantId: request.auth.tenantId,
-        action: 'auth.request_denied',
-        resourceType: 'system',
-        outcome: 'failure',
-        reason: 'insufficient_role',
-        actorType: request.auth.ownerType,
-        actorId: request.auth.ownerId,
-        metadata: {
-          path: request.url,
-          method: request.method,
-          required_role: minimumRole,
-          actual_role: effectiveRole,
-        },
-      });
       throw new ForbiddenError(`Role '${effectiveRole}' cannot access endpoint requiring '${minimumRole}'`);
     }
   };

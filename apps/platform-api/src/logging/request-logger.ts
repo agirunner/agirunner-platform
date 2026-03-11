@@ -9,8 +9,13 @@ const SKIP_PATHS = new Set([
   '/health',
   '/health/detail',
   '/metrics',
-  // Log ingest — would create recursive logging
+  // Log endpoints — would create recursive logging feedback loop
+  '/api/v1/logs',
   '/api/v1/logs/ingest',
+  '/api/v1/logs/stats',
+  '/api/v1/logs/operations',
+  '/api/v1/logs/actors',
+  '/api/v1/logs/export',
   // Heartbeats — high-frequency (every 5-60s per worker/agent/runtime)
   '/api/v1/fleet/heartbeat',
   '/api/v1/workers/:id/heartbeat',
@@ -20,6 +25,7 @@ const SKIP_PATHS = new Set([
   '/api/v1/fleet/status',
   '/api/v1/fleet/heartbeats',
   '/api/v1/fleet/runtime-targets',
+  '/api/v1/fleet/workers',
   // Fleet event ingestion — container-manager reports every cycle
   '/api/v1/fleet/events',
   '/api/v1/fleet/workers/actual-state',
@@ -36,13 +42,17 @@ const SKIP_PATHS = new Set([
 
 export function registerRequestLogger(app: FastifyInstance, logService: LogService): void {
   app.addHook('onResponse', async (request, reply) => {
+    const method = request.method.toUpperCase();
+    if (method === 'OPTIONS') return;
+
     const routePath = request.routeOptions?.url ?? request.url;
     if (SKIP_PATHS.has(routePath)) return;
 
     const duration = Math.round(reply.elapsedTime);
     const level = reply.statusCode >= 500 ? 'error'
       : reply.statusCode >= 400 ? 'warn'
-        : 'info';
+        : method === 'GET' ? 'debug'
+          : 'info';
     const status = reply.statusCode >= 400 ? 'failed' : 'completed';
 
     const ctx = getRequestContext();
@@ -55,12 +65,12 @@ export function registerRequestLogger(app: FastifyInstance, logService: LogServi
       spanId: request.id as string,
       source: 'platform',
       category: 'api',
-      level: level as 'info' | 'warn' | 'error',
-      operation: `api.${request.method.toLowerCase()}.${normalizeRoute(routePath)}`,
+      level: level as 'debug' | 'info' | 'warn' | 'error',
+      operation: `api.${method.toLowerCase()}.${normalizeRoute(routePath)}`,
       status: status as 'completed' | 'failed',
       durationMs: duration,
       payload: {
-        method: request.method,
+        method,
         path: request.url,
         route: routePath,
         status_code: reply.statusCode,

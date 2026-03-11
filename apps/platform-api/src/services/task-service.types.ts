@@ -13,6 +13,8 @@ export interface CreateTaskInput {
   context?: Record<string, unknown>;
   depends_on?: string[];
   requires_approval?: boolean;
+  requires_output_review?: boolean;
+  review_prompt?: string;
   capabilities_required?: string[];
   role_config?: Record<string, unknown>;
   environment?: Record<string, unknown>;

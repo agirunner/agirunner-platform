@@ -1,5 +1,4 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import { AuditService } from './audit-service.js';
 
 type EventEntityType = 'task' | 'workflow' | 'agent' | 'worker' | 'project' | 'template' | 'system';
 
@@ -20,7 +19,6 @@ interface DbLike {
 export class EventService {
   constructor(
     private readonly pool: DatabasePool,
-    private readonly auditService?: AuditService,
   ) {}
 
   async emit(input: EventInput, client?: DatabaseClient): Promise<void> {
@@ -37,19 +35,6 @@ export class EventService {
         input.actorId ?? null,
         input.data ?? {},
       ],
-    );
-    await this.auditService?.record(
-      {
-        tenantId: input.tenantId,
-        action: input.type,
-        resourceType: input.entityType,
-        resourceId: input.entityId,
-        actorType: input.actorType,
-        actorId: input.actorId ?? null,
-        outcome: 'success',
-        metadata: input.data ?? {},
-      },
-      client,
     );
   }
 }

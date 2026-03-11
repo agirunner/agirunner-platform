@@ -30,7 +30,6 @@ import {
   CollapsibleSection,
   ExpandableTextarea,
   JsonObjectEditor,
-  ChipArrayEditor,
   KeyValueEditor,
 } from './template-editor-inspector-shared.js';
 import { LifecycleInspector } from './template-editor-inspector-settings.js';
@@ -163,7 +162,7 @@ export function TaskInspector({
       </CollapsibleSection>
 
       {/* Output */}
-      <CollapsibleSection title="Output" description="How this task's output is stored and surfaced." defaultOpen={false}>
+      <CollapsibleSection title="Output" description="How this task's output is stored and surfaced." defaultOpen>
 
       {Object.entries(task.output_state ?? {}).map(([key, decl]) => {
         const d = decl as OutputStateDeclaration;
@@ -196,12 +195,7 @@ export function TaskInspector({
             <FieldLabel label="Storage Mode">
               <Select
                 value={d.mode}
-                onValueChange={(v) => {
-                  const mode = v as OutputStorageMode;
-                  const patch: Partial<OutputStateDeclaration> = { mode };
-                  if (mode === 'inline') { patch.path = undefined; patch.media_type = undefined; }
-                  updateDecl(patch);
-                }}
+                onValueChange={(v) => updateDecl({ mode: v as OutputStorageMode, path: undefined, media_type: undefined })}
               >
                 <SelectTrigger className="mt-1 h-7 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -211,28 +205,6 @@ export function TaskInspector({
                 </SelectContent>
               </Select>
             </FieldLabel>
-
-            {(d.mode === 'artifact' || d.mode === 'git') && (
-              <FieldLabel label={d.mode === 'artifact' ? 'Storage Path' : 'File Path'}>
-                <Input
-                  value={d.path ?? ''}
-                  onChange={(e) => updateDecl({ path: e.target.value || undefined })}
-                  placeholder={d.mode === 'artifact' ? 'artifacts/report.pdf' : 'src/output.ts'}
-                  className="mt-1 text-xs h-7 font-mono"
-                />
-              </FieldLabel>
-            )}
-
-            {(d.mode === 'artifact' || d.mode === 'git') && (
-              <FieldLabel label="Media Type">
-                <Input
-                  value={d.media_type ?? ''}
-                  onChange={(e) => updateDecl({ media_type: e.target.value || undefined })}
-                  placeholder={d.mode === 'artifact' ? 'application/pdf' : 'application/json'}
-                  className="mt-1 text-xs h-7"
-                />
-              </FieldLabel>
-            )}
 
             <FieldLabel label="Summary">
               <Input
@@ -265,31 +237,8 @@ export function TaskInspector({
 
       </CollapsibleSection>
 
-      {/* Capabilities */}
-      <CollapsibleSection title="Capabilities" description="Required agent capabilities and role-specific configuration." defaultOpen={false}>
-
-      <FieldLabel label="Required Capabilities">
-        <ChipArrayEditor
-          value={task.capabilities_required ?? []}
-          onChange={(v) => onUpdate({ ...task, capabilities_required: v.length ? v : undefined })}
-          placeholder="e.g. shell_exec, git, docker"
-        />
-        <HelpText>Agent must have all listed capabilities to execute this task.</HelpText>
-      </FieldLabel>
-
-      <FieldLabel label="Role Config (JSON)">
-        <JsonObjectEditor
-          value={task.role_config}
-          onChange={(v) => onUpdate({ ...task, role_config: v })}
-          placeholder='{"model": "claude-opus", "temperature": 0.2}'
-        />
-        <HelpText>Per-task overrides for the assigned role (model, temperature, tools, etc.).</HelpText>
-      </FieldLabel>
-
-      </CollapsibleSection>
-
       {/* Environment */}
-      <CollapsibleSection title="Environment" description="Key-value pairs injected into the task container." defaultOpen={false}>
+      <CollapsibleSection title="Environment" description="Pre-configures the workspace before the agent starts. Optional — agents can also set up their own environment via tools." defaultOpen>
 
       <FieldLabel label="Repository URL">
         <Input
@@ -327,10 +276,10 @@ export function TaskInspector({
             if (e.target.value) env.IMAGE = e.target.value; else delete env.IMAGE;
             onUpdate({ ...task, environment: Object.keys(env).length ? env : undefined });
           }}
-          placeholder="Default (alpine/git)"
+          placeholder="alpine/git:2.47.2 (default)"
           className="mt-1 text-xs font-mono"
         />
-        <HelpText>Override the container image for this task. Leave blank to use the default.</HelpText>
+        <HelpText>Advanced — override the task container image. Agents install their own tools at runtime, so the default is almost always correct.</HelpText>
       </FieldLabel>
 
       <FieldLabel label="Setup Commands">
@@ -394,6 +343,26 @@ export function TaskInspector({
 
       <div className="flex items-center justify-between">
         <div>
+          <span className="text-xs font-medium">Requires Output Review</span>
+          <HelpText>Human must review the agent's output before this task is considered complete.</HelpText>
+        </div>
+        <Switch checked={task.requires_output_review ?? false} onCheckedChange={(v) => onUpdate({ ...task, requires_output_review: v })} />
+      </div>
+
+      {task.requires_output_review && (
+        <FieldLabel label="Review Prompt">
+          <ExpandableTextarea
+            value={task.review_prompt ?? ''}
+            onChange={(v) => onUpdate({ ...task, review_prompt: v.trim() || undefined })}
+            placeholder="What should the reviewer look for? e.g. 'Verify the design covers all acceptance criteria.'"
+            label="Review Prompt"
+          />
+          <HelpText>Shown to the human reviewer when evaluating this task's output. Supports {'{{variable}}'} substitution.</HelpText>
+        </FieldLabel>
+      )}
+
+      <div className="flex items-center justify-between">
+        <div>
           <span className="text-xs font-medium">Auto Retry</span>
           <HelpText>Automatically retry on transient failures.</HelpText>
         </div>
@@ -412,10 +381,19 @@ export function TaskInspector({
         </FieldLabel>
       )}
 
+      <FieldLabel label="Role Config (JSON)">
+        <JsonObjectEditor
+          value={task.role_config}
+          onChange={(v) => onUpdate({ ...task, role_config: v })}
+          placeholder='{"model": "claude-opus", "temperature": 0.2}'
+        />
+        <HelpText>Per-task overrides for the assigned role (model, temperature, tools, etc.).</HelpText>
+      </FieldLabel>
+
       </CollapsibleSection>
 
       {/* Task-level lifecycle override */}
-      <CollapsibleSection title="Lifecycle Override" description="Override template-level lifecycle for this specific task." defaultOpen={false}>
+      <CollapsibleSection title="Lifecycle Override" description="Override template-level lifecycle for this specific task." defaultOpen>
       <LifecycleInspector
         lifecycle={task.lifecycle}
         onUpdate={(lc) => onUpdate({ ...task, lifecycle: lc })}

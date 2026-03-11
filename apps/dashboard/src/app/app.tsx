@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { Component, lazy, Suspense, useEffect } from 'react';
+import type { ComponentType, ErrorInfo, ReactNode } from 'react';
 import { Navigate, Outlet, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { DashboardLayout } from '../components/layout.js';
@@ -6,50 +7,86 @@ import { clearSession, readSession, writeSession } from '../lib/session.js';
 
 import { applyTheme, readTheme } from './theme.js';
 
-const LoginPage = lazy(() => import('../pages/login-page.js').then((m) => ({ default: m.LoginPage })));
+/* ── Chunk-resilient lazy loader ──────────────────────────────────────── */
 
-const LiveBoardPage = lazy(() => import('../pages/mission-control/live-board-page.js').then((m) => ({ default: m.LiveBoardPage })));
-const ActivityFeedPage = lazy(() => import('../pages/mission-control/activity-feed-page.js').then((m) => ({ default: m.ActivityFeedPage })));
-const AlertsApprovalsPage = lazy(() => import('../pages/mission-control/alerts-approvals-page.js').then((m) => ({ default: m.AlertsApprovalsPage })));
-const CostDashboardPage = lazy(() => import('../pages/mission-control/cost-dashboard-page.js').then((m) => ({ default: m.CostDashboardPage })));
+/**
+ * Wraps React.lazy with automatic retry on chunk load failures.
+ * When Vite rebuilds, old chunk hashes become stale. This catches the
+ * resulting import error and reloads the page once to pick up the new manifest.
+ */
+function lazyWithRetry<T extends ComponentType<unknown>>(
+  factory: () => Promise<{ default: T }>,
+): React.LazyExoticComponent<T> {
+  return lazy(() =>
+    factory().catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!isChunkLoadError(message)) throw error;
 
-const WorkflowListPage = lazy(() => import('../pages/work/workflow-list-page.js').then((m) => ({ default: m.WorkflowListPage })));
-const WorkflowDetailPage = lazy(() => import('../pages/work/workflow-detail-page.js').then((m) => ({ default: m.WorkflowDetailPage })));
-const TaskListPage = lazy(() => import('../pages/work/task-list-page.js').then((m) => ({ default: m.TaskListPage })));
-const TaskDetailPage = lazy(() => import('../pages/work/task-detail-page.js').then((m) => ({ default: m.TaskDetailPage })));
-const ApprovalQueuePage = lazy(() => import('../pages/work/approval-queue-page.js').then((m) => ({ default: m.ApprovalQueuePage })));
+      const reloadKey = 'chunk_reload_ts';
+      const lastReload = Number(sessionStorage.getItem(reloadKey) ?? '0');
+      if (Date.now() - lastReload < 10_000) throw error;
 
-const ProjectListPage = lazy(() => import('../pages/projects/project-list-page.js').then((m) => ({ default: m.ProjectListPage })));
-const ProjectDetailPage = lazy(() => import('../pages/projects/project-detail-page.js').then((m) => ({ default: m.ProjectDetailPage })));
-const MemoryBrowserPage = lazy(() => import('../pages/projects/memory-browser-page.js').then((m) => ({ default: m.MemoryBrowserPage })));
-const ContentBrowserPage = lazy(() => import('../pages/projects/content-browser-page.js').then((m) => ({ default: m.ContentBrowserPage })));
+      sessionStorage.setItem(reloadKey, String(Date.now()));
+      window.location.reload();
+      return new Promise<never>(() => {});
+    }),
+  );
+}
 
-const TemplateListPage = lazy(() => import('../pages/config/template-list-page.js').then((m) => ({ default: m.TemplateListPage })));
-const RoleDefinitionsPage = lazy(() => import('../pages/config/role-definitions-page.js').then((m) => ({ default: m.RoleDefinitionsPage })));
-const LlmProvidersPage = lazy(() => import('../pages/config/llm-providers-page.js').then((m) => ({ default: m.LlmProvidersPage })));
-const RuntimesPage = lazy(() => import('../pages/config/runtimes-page.js').then((m) => ({ default: m.RuntimesPage })));
-const IntegrationsPage = lazy(() => import('../pages/config/integrations-page.js').then((m) => ({ default: m.IntegrationsPage })));
-const PlatformInstructionsPage = lazy(() => import('../pages/config/platform-instructions-page.js').then((m) => ({ default: m.PlatformInstructionsPage })));
-const AiConfigAssistantPage = lazy(() => import('../pages/config/ai-config-assistant-page.js').then((m) => ({ default: m.AiConfigAssistantPage })));
-const TemplateEditorPage = lazy(() => import('../pages/config/template-editor-page.js').then((m) => ({ default: m.TemplateEditorPage })));
-const TemplateLaunchPage = lazy(() => import('../pages/config/template-launch-page.js').then((m) => ({ default: m.TemplateLaunchPage })));
-const RuntimeDefaultsPage = lazy(() => import('../pages/config/runtime-defaults-page.js').then((m) => ({ default: m.RuntimeDefaultsPage })));
-const ToolsPage = lazy(() => import('../pages/config/tools-page.js').then((m) => ({ default: m.ToolsPage })));
-const WebhooksPage = lazy(() => import('../pages/config/webhooks-page.js').then((m) => ({ default: m.WebhooksPage })));
-const TaskTriggersPage = lazy(() => import('../pages/config/task-triggers-page.js').then((m) => ({ default: m.TaskTriggersPage })));
+function isChunkLoadError(message: string): boolean {
+  return (
+    message.includes('Failed to fetch dynamically imported module') ||
+    message.includes('Loading chunk') ||
+    message.includes('Loading CSS chunk') ||
+    message.includes('error loading dynamically imported module')
+  );
+}
 
-const WorkerListPage = lazy(() => import('../pages/fleet/worker-list-page.js').then((m) => ({ default: m.WorkerListPage })));
-const AgentListPage = lazy(() => import('../pages/fleet/agent-list-page.js').then((m) => ({ default: m.AgentListPage })));
-const DockerPage = lazy(() => import('../pages/fleet/docker-page.js').then((m) => ({ default: m.DockerPage })));
-const WarmPoolsPage = lazy(() => import('../pages/fleet/warm-pools-page.js').then((m) => ({ default: m.WarmPoolsPage })));
-const FleetStatusPage = lazy(() => import('../pages/fleet/fleet-status-page.js').then((m) => ({ default: m.FleetStatusPage })));
+/* ── Lazy page imports ────────────────────────────────────────────────── */
 
-const AuditLogPage = lazy(() => import('../pages/governance/audit-log-page.js').then((m) => ({ default: m.AuditLogPage })));
-const ApiKeyPage = lazy(() => import('../pages/governance/api-key-page.js').then((m) => ({ default: m.ApiKeyPage })));
-const UserManagementPage = lazy(() => import('../pages/governance/user-management-page.js').then((m) => ({ default: m.UserManagementPage })));
-const RetentionPolicyPage = lazy(() => import('../pages/governance/retention-policy-page.js').then((m) => ({ default: m.RetentionPolicyPage })));
-const LegalHoldsPage = lazy(() => import('../pages/governance/legal-holds-page.js').then((m) => ({ default: m.LegalHoldsPage })));
-const OrchestratorGrantsPage = lazy(() => import('../pages/governance/orchestrator-grants-page.js').then((m) => ({ default: m.OrchestratorGrantsPage })));
+const LoginPage = lazyWithRetry(() => import('../pages/login-page.js').then((m) => ({ default: m.LoginPage })));
+
+const LiveBoardPage = lazyWithRetry(() => import('../pages/mission-control/live-board-page.js').then((m) => ({ default: m.LiveBoardPage })));
+const AlertsApprovalsPage = lazyWithRetry(() => import('../pages/mission-control/alerts-approvals-page.js').then((m) => ({ default: m.AlertsApprovalsPage })));
+const CostDashboardPage = lazyWithRetry(() => import('../pages/mission-control/cost-dashboard-page.js').then((m) => ({ default: m.CostDashboardPage })));
+
+const WorkflowListPage = lazyWithRetry(() => import('../pages/work/workflow-list-page.js').then((m) => ({ default: m.WorkflowListPage })));
+const WorkflowDetailPage = lazyWithRetry(() => import('../pages/work/workflow-detail-page.js').then((m) => ({ default: m.WorkflowDetailPage })));
+const TaskListPage = lazyWithRetry(() => import('../pages/work/task-list-page.js').then((m) => ({ default: m.TaskListPage })));
+const TaskDetailPage = lazyWithRetry(() => import('../pages/work/task-detail-page.js').then((m) => ({ default: m.TaskDetailPage })));
+const ApprovalQueuePage = lazyWithRetry(() => import('../pages/work/approval-queue-page.js').then((m) => ({ default: m.ApprovalQueuePage })));
+
+const ProjectListPage = lazyWithRetry(() => import('../pages/projects/project-list-page.js').then((m) => ({ default: m.ProjectListPage })));
+const ProjectDetailPage = lazyWithRetry(() => import('../pages/projects/project-detail-page.js').then((m) => ({ default: m.ProjectDetailPage })));
+const MemoryBrowserPage = lazyWithRetry(() => import('../pages/projects/memory-browser-page.js').then((m) => ({ default: m.MemoryBrowserPage })));
+const ContentBrowserPage = lazyWithRetry(() => import('../pages/projects/content-browser-page.js').then((m) => ({ default: m.ContentBrowserPage })));
+
+const TemplateListPage = lazyWithRetry(() => import('../pages/config/template-list-page.js').then((m) => ({ default: m.TemplateListPage })));
+const RoleDefinitionsPage = lazyWithRetry(() => import('../pages/config/role-definitions-page.js').then((m) => ({ default: m.RoleDefinitionsPage })));
+const LlmProvidersPage = lazyWithRetry(() => import('../pages/config/llm-providers-page.js').then((m) => ({ default: m.LlmProvidersPage })));
+const RuntimesPage = lazyWithRetry(() => import('../pages/config/runtimes-page.js').then((m) => ({ default: m.RuntimesPage })));
+const IntegrationsPage = lazyWithRetry(() => import('../pages/config/integrations-page.js').then((m) => ({ default: m.IntegrationsPage })));
+const PlatformInstructionsPage = lazyWithRetry(() => import('../pages/config/platform-instructions-page.js').then((m) => ({ default: m.PlatformInstructionsPage })));
+const AiConfigAssistantPage = lazyWithRetry(() => import('../pages/config/ai-config-assistant-page.js').then((m) => ({ default: m.AiConfigAssistantPage })));
+const TemplateEditorPage = lazyWithRetry(() => import('../pages/config/template-editor-page.js').then((m) => ({ default: m.TemplateEditorPage })));
+const TemplateLaunchPage = lazyWithRetry(() => import('../pages/config/template-launch-page.js').then((m) => ({ default: m.TemplateLaunchPage })));
+const RuntimeDefaultsPage = lazyWithRetry(() => import('../pages/config/runtime-defaults-page.js').then((m) => ({ default: m.RuntimeDefaultsPage })));
+const ToolsPage = lazyWithRetry(() => import('../pages/config/tools-page.js').then((m) => ({ default: m.ToolsPage })));
+const WebhooksPage = lazyWithRetry(() => import('../pages/config/webhooks-page.js').then((m) => ({ default: m.WebhooksPage })));
+const TaskTriggersPage = lazyWithRetry(() => import('../pages/config/task-triggers-page.js').then((m) => ({ default: m.TaskTriggersPage })));
+
+const WorkerListPage = lazyWithRetry(() => import('../pages/fleet/worker-list-page.js').then((m) => ({ default: m.WorkerListPage })));
+const AgentListPage = lazyWithRetry(() => import('../pages/fleet/agent-list-page.js').then((m) => ({ default: m.AgentListPage })));
+const DockerPage = lazyWithRetry(() => import('../pages/fleet/docker-page.js').then((m) => ({ default: m.DockerPage })));
+const WarmPoolsPage = lazyWithRetry(() => import('../pages/fleet/warm-pools-page.js').then((m) => ({ default: m.WarmPoolsPage })));
+const FleetStatusPage = lazyWithRetry(() => import('../pages/fleet/fleet-status-page.js').then((m) => ({ default: m.FleetStatusPage })));
+
+const ApiKeyPage = lazyWithRetry(() => import('../pages/governance/api-key-page.js').then((m) => ({ default: m.ApiKeyPage })));
+const UserManagementPage = lazyWithRetry(() => import('../pages/governance/user-management-page.js').then((m) => ({ default: m.UserManagementPage })));
+const RetentionPolicyPage = lazyWithRetry(() => import('../pages/governance/retention-policy-page.js').then((m) => ({ default: m.RetentionPolicyPage })));
+const OrchestratorGrantsPage = lazyWithRetry(() => import('../pages/governance/orchestrator-grants-page.js').then((m) => ({ default: m.OrchestratorGrantsPage })));
+const SettingsPage = lazyWithRetry(() => import('../pages/governance/settings-page.js').then((m) => ({ default: m.SettingsPage })));
+const LogsPage = lazyWithRetry(() => import('../pages/mission-control/logs-page.js').then((m) => ({ default: m.LogsPage })));
 
 function PageFallback(): JSX.Element {
   return (
@@ -57,6 +94,69 @@ function PageFallback(): JSX.Element {
       Loading...
     </div>
   );
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class AppErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error('[AppErrorBoundary]', error, info.componentStack);
+  }
+
+  render(): ReactNode {
+    if (!this.state.hasError) {
+      return this.props.children;
+    }
+
+    const message = this.state.error?.message ?? '';
+
+    const isAuthError = message.includes('401') || message.includes('Unauthorized');
+    if (isAuthError) {
+      clearSession();
+      window.location.assign('/login');
+      return null;
+    }
+
+    if (isChunkLoadError(message)) {
+      const reloadKey = 'chunk_reload_ts';
+      const lastReload = Number(sessionStorage.getItem(reloadKey) ?? '0');
+      if (Date.now() - lastReload > 10_000) {
+        sessionStorage.setItem(reloadKey, String(Date.now()));
+        window.location.reload();
+        return null;
+      }
+    }
+
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-8">
+        <h1 className="text-xl font-semibold">Something went wrong</h1>
+        <p className="text-sm text-muted max-w-md text-center">
+          {message || 'An unexpected error occurred.'}
+        </p>
+        <button
+          className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground"
+          onClick={() => {
+            this.setState({ hasError: false, error: null });
+            window.location.reload();
+          }}
+        >
+          Reload
+        </button>
+      </div>
+    );
+  }
 }
 
 export function App(): JSX.Element {
@@ -70,6 +170,7 @@ export function App(): JSX.Element {
   };
 
   return (
+    <AppErrorBoundary>
     <Suspense fallback={<PageFallback />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
@@ -80,9 +181,9 @@ export function App(): JSX.Element {
 
             {/* Mission Control */}
             <Route path="/mission-control" element={<LiveBoardPage />} />
-            <Route path="/mission-control/activity" element={<ActivityFeedPage />} />
             <Route path="/mission-control/alerts" element={<AlertsApprovalsPage />} />
             <Route path="/mission-control/costs" element={<CostDashboardPage />} />
+            <Route path="/logs" element={<LogsPage />} />
 
             {/* Work */}
             <Route path="/work/workflows" element={<WorkflowListPage />} />
@@ -122,17 +223,17 @@ export function App(): JSX.Element {
             <Route path="/fleet/status" element={<FleetStatusPage />} />
 
             {/* Governance */}
-            <Route path="/governance/audit" element={<AuditLogPage />} />
+            <Route path="/governance/settings" element={<SettingsPage />} />
             <Route path="/governance/api-keys" element={<ApiKeyPage />} />
             <Route path="/governance/users" element={<UserManagementPage />} />
             <Route path="/governance/retention" element={<RetentionPolicyPage />} />
-            <Route path="/governance/legal-holds" element={<LegalHoldsPage />} />
             <Route path="/governance/grants" element={<OrchestratorGrantsPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/mission-control" replace />} />
       </Routes>
     </Suspense>
+    </AppErrorBoundary>
   );
 }
 

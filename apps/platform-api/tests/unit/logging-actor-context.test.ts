@@ -36,7 +36,7 @@ describe('actorFromAuth', () => {
     const actor = actorFromAuth(auth);
     expect(actor.type).toBe('api_key');
     expect(actor.id).toBe('key-1');
-    expect(actor.name).toContain('kABCDEFGHIJK');
+    expect(actor.name).toBe('Admin API');
   });
 
   it('returnsWorkerActorForWorkerScope', () => {

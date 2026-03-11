@@ -9,6 +9,7 @@ const states = [
   'running',
   'awaiting_approval',
   'output_pending_review',
+  'awaiting_escalation',
   'completed',
   'failed',
   'cancelled',
@@ -27,14 +28,20 @@ const validTransitions: Array<[State, State]> = [
   ['running', 'completed'],
   ['running', 'failed'],
   ['running', 'output_pending_review'],
+  ['running', 'awaiting_escalation'],
   ['running', 'cancelled'],
   ['awaiting_approval', 'ready'],
   ['awaiting_approval', 'cancelled'],
   ['output_pending_review', 'completed'],
   ['output_pending_review', 'failed'],
+  ['output_pending_review', 'ready'],
   ['output_pending_review', 'cancelled'],
   ['failed', 'ready'],
+  ['failed', 'awaiting_escalation'],
   ['failed', 'cancelled'],
+  ['awaiting_escalation', 'ready'],
+  ['awaiting_escalation', 'cancelled'],
+  ['awaiting_escalation', 'failed'],
 ];
 
 describe('task state machine', () => {

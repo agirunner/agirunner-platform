@@ -17,14 +17,12 @@ export function RetentionPolicyPage(): JSX.Element {
 
   const [taskArchiveDays, setTaskArchiveDays] = useState('');
   const [taskDeleteDays, setTaskDeleteDays] = useState('');
-  const [auditLogDays, setAuditLogDays] = useState('');
   const [execLogDays, setExecLogDays] = useState('');
 
   useEffect(() => {
     if (data) {
       setTaskArchiveDays(String(data.task_archive_after_days));
       setTaskDeleteDays(String(data.task_delete_after_days));
-      setAuditLogDays(String(data.audit_log_retention_days));
       setExecLogDays(String(data.execution_log_retention_days));
     }
   }, [data]);
@@ -41,16 +39,14 @@ export function RetentionPolicyPage(): JSX.Element {
     e.preventDefault();
     const archive = parseInt(taskArchiveDays, 10);
     const del = parseInt(taskDeleteDays, 10);
-    const audit = parseInt(auditLogDays, 10);
     const exec = parseInt(execLogDays, 10);
 
-    if (isNaN(archive) || isNaN(del) || isNaN(audit) || isNaN(exec)) return;
-    if (archive < 0 || del < 0 || audit < 0 || exec < 0) return;
+    if (isNaN(archive) || isNaN(del) || isNaN(exec)) return;
+    if (archive < 0 || del < 0 || exec < 0) return;
 
     mutation.mutate({
       task_archive_after_days: archive,
       task_delete_after_days: del,
-      audit_log_retention_days: audit,
       execution_log_retention_days: exec,
     });
   }
@@ -59,7 +55,6 @@ export function RetentionPolicyPage(): JSX.Element {
     data &&
     (taskArchiveDays !== String(data.task_archive_after_days) ||
       taskDeleteDays !== String(data.task_delete_after_days) ||
-      auditLogDays !== String(data.audit_log_retention_days) ||
       execLogDays !== String(data.execution_log_retention_days));
 
   if (isLoading) {
@@ -114,21 +109,6 @@ export function RetentionPolicyPage(): JSX.Element {
               />
               <p className="text-xs text-muted-foreground">
                 Archived tasks older than this will be permanently deleted.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="audit-log" className="text-sm font-medium">
-                Audit Log Retention (days)
-              </label>
-              <Input
-                id="audit-log"
-                type="number"
-                min={0}
-                value={auditLogDays}
-                onChange={(e) => setAuditLogDays(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Audit log entries older than this will be purged.
               </p>
             </div>
             <div className="space-y-2">

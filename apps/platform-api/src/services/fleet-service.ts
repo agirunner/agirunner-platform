@@ -313,6 +313,15 @@ export class FleetService {
     );
   }
 
+  async pruneStaleHeartbeats(maxAgeMinutes = 10): Promise<number> {
+    const result = await this.pool.query(
+      `DELETE FROM runtime_heartbeats
+       WHERE last_heartbeat_at < now() - make_interval(mins => $1)`,
+      [maxAgeMinutes],
+    );
+    return result.rowCount ?? 0;
+  }
+
   async pruneStaleContainers(tenantId: string): Promise<number> {
     const result = await this.pool.query(
       `DELETE FROM worker_actual_state

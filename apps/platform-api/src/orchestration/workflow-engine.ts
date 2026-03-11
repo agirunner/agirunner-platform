@@ -29,6 +29,8 @@ export interface TemplateTaskDefinition {
   depends_on?: string[];
   blocked_by?: string[];
   requires_approval?: boolean;
+  requires_output_review?: boolean;
+  review_prompt?: string;
   input_template?: Record<string, unknown>;
   context_template?: Record<string, unknown>;
   capabilities_required?: string[];
@@ -36,6 +38,7 @@ export interface TemplateTaskDefinition {
   environment?: Record<string, unknown>;
   lifecycle?: LifecyclePolicy;
   output_state?: Record<string, OutputStateDeclaration>;
+  instruction_config?: { instructions?: string };
   timeout_minutes?: number;
   auto_retry?: boolean;
   max_retries?: number;
@@ -297,7 +300,10 @@ export function deriveWorkflowState(taskStates: string[]): WorkflowState {
     return 'failed';
   }
 
-  if (taskStates.some((state) => state === 'running' || state === 'claimed')) return 'active';
+  const hasActiveWork = taskStates.some(
+    (state) => state === 'running' || state === 'claimed' || state === 'ready',
+  );
+  if (hasActiveWork) return 'active';
   if (
     taskStates.some((state) => state === 'awaiting_approval' || state === 'output_pending_review')
   )
@@ -486,6 +492,8 @@ export function validateTemplateSchema(input: unknown): TemplateSchema {
       }),
       blocked_by: (rawTask.blocked_by as unknown[] | undefined)?.map((dep) => String(dep)),
       requires_approval: rawTask.requires_approval === true,
+      requires_output_review: rawTask.requires_output_review === true,
+      review_prompt: typeof rawTask.review_prompt === 'string' ? rawTask.review_prompt : undefined,
       input_template: isObject(rawTask.input_template) ? rawTask.input_template : undefined,
       context_template: isObject(rawTask.context_template) ? rawTask.context_template : undefined,
       capabilities_required: Array.isArray(rawTask.capabilities_required)
@@ -495,6 +503,11 @@ export function validateTemplateSchema(input: unknown): TemplateSchema {
       environment: isObject(rawTask.environment) ? rawTask.environment : undefined,
       lifecycle: readTemplateLifecyclePolicy(rawTask.lifecycle, `Task '${rawTask.id}' lifecycle`),
       output_state: normalizeOutputStateDeclaration(rawTask.id, rawTask.output_state),
+      instruction_config: isObject(rawTask.instruction_config)
+        ? { instructions: typeof (rawTask.instruction_config as Record<string, unknown>).instructions === 'string'
+              ? (rawTask.instruction_config as Record<string, unknown>).instructions as string
+              : undefined }
+        : undefined,
       timeout_minutes:
         typeof rawTask.timeout_minutes === 'number' ? rawTask.timeout_minutes : undefined,
       auto_retry: rawTask.auto_retry === true,

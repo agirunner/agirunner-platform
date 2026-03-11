@@ -106,7 +106,7 @@ func (m *Manager) createWarmTaskContainers(ctx context.Context, target RuntimeTa
 		m.logger.Info("created warm task container",
 			"template", target.TemplateID, "container", containerID)
 		m.logFleetEvent("warm_task_created", "info", "", target.TemplateID, containerID)
-		m.emitLog("container", "container.warm_create", "info", "completed", map[string]any{
+		m.emitLog("container", "container.warm_create", "debug", "completed", map[string]any{
 			"action":        "create",
 			"template_id":   target.TemplateID,
 			"template_name": target.TemplateName,
@@ -157,7 +157,7 @@ func (m *Manager) removeExcessWarmTaskContainers(
 			"container", containers[i].ID,
 			"template", templateID)
 		m.stopAndRemove(ctx, containers[i].ID, m.config.StopTimeout)
-		m.emitLog("container", "container.warm_destroy", "info", "completed", map[string]any{
+		m.emitLog("container", "container.warm_destroy", "debug", "completed", map[string]any{
 			"action":        "scale_down",
 			"container_id":  containers[i].ID,
 			"template_id":   templateID,

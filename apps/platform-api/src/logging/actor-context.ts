@@ -14,12 +14,12 @@ export function actorFromAuth(auth: ApiKeyIdentity | undefined): ActorContext {
   switch (auth.scope) {
     case 'admin':
       return auth.userId
-        ? { type: 'user', id: auth.userId, name: `User ${auth.keyPrefix}` }
-        : { type: 'api_key', id: auth.id, name: `Key ${auth.keyPrefix}` };
+        ? { type: 'user', id: auth.userId, name: 'Admin' }
+        : { type: 'api_key', id: auth.id, name: 'Admin API' };
     case 'worker':
-      return { type: 'worker', id: auth.ownerId ?? auth.id, name: `Worker ${auth.keyPrefix}` };
+      return { type: 'worker', id: auth.ownerId ?? auth.id, name: 'Worker' };
     case 'agent':
-      return { type: 'agent', id: auth.ownerId ?? auth.id, name: `Agent ${auth.keyPrefix}` };
+      return { type: 'agent', id: auth.ownerId ?? auth.id, name: 'Agent' };
     default:
       return SYSTEM_ACTOR;
   }

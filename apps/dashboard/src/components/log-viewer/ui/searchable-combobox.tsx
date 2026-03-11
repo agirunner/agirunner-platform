@@ -8,7 +8,7 @@ import {
   type KeyboardEvent,
 } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { ChevronDown, Search } from 'lucide-react';
+import { Check, ChevronDown, Search, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover.js';
 import { cn } from '../../../lib/utils.js';
 import { Input } from '../../ui/input.js';
@@ -37,6 +37,9 @@ export interface SearchableComboboxProps {
   isLoading?: boolean;
   className?: string;
   disabled?: boolean;
+  multiSelect?: boolean;
+  selectedIds?: Set<string>;
+  onClearAll?: () => void;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -99,6 +102,9 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
       isLoading,
       className,
       disabled,
+      multiSelect = false,
+      selectedIds,
+      onClearAll,
     },
     ref,
   ) => {
@@ -171,10 +177,12 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
     const handleSelect = useCallback(
       (id: string) => {
         onChange(id);
-        setOpen(false);
-        setQuery('');
+        if (!multiSelect) {
+          setOpen(false);
+          setQuery('');
+        }
       },
-      [onChange],
+      [onChange, multiSelect],
     );
 
     const handleClear = useCallback(() => {
@@ -252,10 +260,31 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
               className,
             )}
           >
-            <span className={selectedItem ? 'text-foreground' : 'text-muted'}>
+            <span className={cn('min-w-0 truncate', selectedItem || (multiSelect && selectedIds && selectedIds.size > 0) ? 'text-foreground' : 'text-muted')}>
               {selectedItem?.label ?? placeholder}
             </span>
-            <ChevronDown className="h-4 w-4 opacity-50" />
+            <div className="flex shrink-0 items-center gap-1">
+              {multiSelect && selectedIds && selectedIds.size > 0 && onClearAll && (
+                <span
+                  role="button"
+                  tabIndex={-1}
+                  className="rounded-sm p-0.5 hover:bg-border/50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onClearAll();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.stopPropagation();
+                      onClearAll();
+                    }
+                  }}
+                >
+                  <X className="h-3.5 w-3.5 opacity-50 hover:opacity-100" />
+                </span>
+              )}
+              <ChevronDown className="h-4 w-4 opacity-50" />
+            </div>
           </button>
         </PopoverTrigger>
 
@@ -314,16 +343,19 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
                   }
 
                   const { item, flatIndex } = row;
+                  const isItemSelected = multiSelect
+                    ? selectedIds?.has(item.id) ?? false
+                    : item.id === value;
                   return (
                     <button
                       key={item.id}
                       type="button"
                       role="option"
-                      aria-selected={item.id === value}
+                      aria-selected={isItemSelected}
                       className={cn(
                         'flex w-full cursor-default select-none flex-col rounded-sm px-2 py-1.5 text-left text-sm outline-none',
                         flatIndex === highlightIndex && 'bg-accent/10',
-                        item.id === value && 'font-medium',
+                        isItemSelected && 'font-medium',
                       )}
                       style={{
                         position: 'absolute',
@@ -337,6 +369,16 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
                       onMouseEnter={() => setHighlightIndex(flatIndex)}
                     >
                       <div className="flex items-center gap-2">
+                        {multiSelect && (
+                          <span
+                            className={cn(
+                              'flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-border',
+                              isItemSelected && 'border-accent bg-accent text-accent-foreground',
+                            )}
+                          >
+                            {isItemSelected && <Check className="h-3 w-3" />}
+                          </span>
+                        )}
                         {item.status && (
                           <span
                             className={cn(
@@ -348,7 +390,7 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
                         <span className="truncate">{item.label}</span>
                       </div>
                       {item.subtitle && (
-                        <span className="truncate pl-4 text-xs text-muted">{item.subtitle}</span>
+                        <span className={cn('truncate text-xs text-muted', multiSelect ? 'pl-6' : 'pl-4')}>{item.subtitle}</span>
                       )}
                     </button>
                   );
@@ -357,15 +399,15 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
             )}
           </div>
 
-          {value && (
+          {(value || (multiSelect && selectedIds && selectedIds.size > 0)) && (
             <>
               <div className="border-t border-border" />
               <button
                 type="button"
                 className="w-full px-3 py-2 text-left text-sm text-muted hover:bg-border/30"
-                onClick={handleClear}
+                onClick={multiSelect && onClearAll ? onClearAll : handleClear}
               >
-                Clear selection
+                Clear {multiSelect ? 'all' : 'selection'}
               </button>
             </>
           )}

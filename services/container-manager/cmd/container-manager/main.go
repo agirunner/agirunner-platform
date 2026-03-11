@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -13,6 +14,8 @@ import (
 	"time"
 
 	"agirunner-container-manager/internal/manager"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -192,6 +195,14 @@ func (c *noopDockerClient) PullImage(_ context.Context, image, policy string) er
 func (c *noopDockerClient) ConnectNetwork(_ context.Context, containerID, networkName string) error {
 	c.logger.Info("noop: would connect network", "container", containerID, "network", networkName)
 	return nil
+}
+
+func (c *noopDockerClient) Events(_ context.Context, _ events.ListOptions) (<-chan events.Message, <-chan error) {
+	return make(chan events.Message), make(chan error)
+}
+
+func (c *noopDockerClient) ContainerLogs(_ context.Context, _ string, _ container.LogsOptions) (io.ReadCloser, error) {
+	return io.NopCloser(strings.NewReader("")), nil
 }
 
 // startMetricsServer launches an HTTP server serving Prometheus metrics on /metrics.

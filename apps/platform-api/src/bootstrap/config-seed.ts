@@ -112,7 +112,7 @@ async function seedAdminUser(pool: pg.Pool): Promise<void> {
     return;
   }
 
-  const email = process.env.AGIRUNNER_ADMIN_EMAIL ?? 'admin@localhost';
+  const email = process.env.AGIRUNNER_ADMIN_EMAIL ?? 'admin@agirunner.local';
 
   await userService.createUser(DEFAULT_TENANT_ID, {
     email,

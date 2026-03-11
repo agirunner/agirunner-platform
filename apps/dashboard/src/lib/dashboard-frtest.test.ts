@@ -76,7 +76,7 @@ describe('FR-030: modern SPA structure', () => {
     expect(source).toContain('/projects');
     expect(source).toContain('/config/templates');
     expect(source).toContain('/fleet/workers');
-    expect(source).toContain('/governance/audit');
+    expect(source).toContain('/governance/api-keys');
     expect(source).toContain('/login');
   });
 
@@ -355,13 +355,11 @@ describe('operator information architecture', () => {
     expect(source).toContain('deleteIntegration');
   });
 
-  it('governance page exposes retention, legal holds, and audit controls', () => {
+  it('governance page exposes retention controls', () => {
     const source = readComponent('pages/governance-page.tsx');
     expect(source).toContain('export function GovernancePage');
     expect(source).toContain('getRetentionPolicy');
-    expect(source).toContain('setTaskLegalHold');
-    expect(source).toContain('setWorkflowLegalHold');
-    expect(source).toContain('listAuditLogs');
+    expect(source).toContain('updateRetentionPolicy');
   });
 });
 

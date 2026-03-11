@@ -144,23 +144,11 @@ export interface DashboardIntegrationRecord {
 export interface DashboardGovernanceRetentionPolicy {
   task_archive_after_days: number;
   task_delete_after_days: number;
-  audit_log_retention_days: number;
   execution_log_retention_days: number;
 }
 
 export interface DashboardLoggingConfig {
   level: 'debug' | 'info' | 'warn' | 'error';
-}
-
-export interface DashboardAuditLogRecord {
-  id: string;
-  actor_type: string;
-  actor_id?: string | null;
-  action: string;
-  resource_type: string;
-  resource_id?: string | null;
-  details?: Record<string, unknown>;
-  created_at: string;
 }
 
 export interface DashboardResolvedDocumentReference {
@@ -419,6 +407,81 @@ export interface QueueDepthResponse {
   by_template?: Record<string, number>;
 }
 
+export interface LogEntry {
+  id: number;
+  trace_id: string;
+  span_id: string;
+  parent_span_id?: string | null;
+  source: string;
+  category: string;
+  level: string;
+  operation: string;
+  status: string;
+  duration_ms?: number | null;
+  payload?: Record<string, unknown> | null;
+  error?: { code?: string; message: string } | null;
+  project_id?: string | null;
+  project_name?: string | null;
+  workflow_id?: string | null;
+  workflow_name?: string | null;
+  task_id?: string | null;
+  task_title?: string | null;
+  workflow_phase?: string | null;
+  role?: string | null;
+  actor_type: string;
+  actor_id: string;
+  actor_name?: string | null;
+  resource_type?: string | null;
+  resource_id?: string | null;
+  resource_name?: string | null;
+  created_at: string;
+}
+
+export interface LogPagination {
+  per_page: number;
+  has_more: boolean;
+  next_cursor?: string | null;
+  prev_cursor?: string | null;
+}
+
+export interface LogQueryResponse {
+  data: LogEntry[];
+  pagination: LogPagination;
+}
+
+export interface LogStatGroup {
+  group: string;
+  count: number;
+  error_count: number;
+  total_duration_ms: number;
+  avg_duration_ms: number;
+  agg: Record<string, unknown>;
+}
+
+export interface LogStatsResponse {
+  data: {
+    groups: LogStatGroup[];
+    totals: { count: number; error_count: number; total_duration_ms: number };
+  };
+}
+
+export interface LogOperationRecord {
+  operation: string;
+  count: number;
+}
+
+export interface LogRoleRecord {
+  role: string;
+  count: number;
+}
+
+export interface LogActorRecord {
+  actor_type: string;
+  actor_id: string;
+  actor_name: string;
+  count: number;
+}
+
 export interface FleetContainerRecord {
   id: string;
   container_id: string | null;
@@ -483,6 +546,7 @@ export interface DashboardApi {
   listWorkers(): Promise<unknown>;
   listAgents(): Promise<unknown>;
   approveTask(taskId: string): Promise<unknown>;
+  approveTaskOutput(taskId: string): Promise<unknown>;
   retryTask(
     taskId: string,
     payload?: { override_input?: Record<string, unknown>; force?: boolean },
@@ -506,6 +570,10 @@ export interface DashboardApi {
   escalateTask(
     taskId: string,
     payload: { reason: string; escalation_target?: string },
+  ): Promise<unknown>;
+  resolveEscalation(
+    taskId: string,
+    payload: { instructions: string; context?: Record<string, unknown> },
   ): Promise<unknown>;
   overrideTaskOutput(
     taskId: string,
@@ -552,9 +620,6 @@ export interface DashboardApi {
   ): Promise<DashboardGovernanceRetentionPolicy>;
   getLoggingConfig(): Promise<DashboardLoggingConfig>;
   updateLoggingConfig(payload: DashboardLoggingConfig): Promise<DashboardLoggingConfig>;
-  setTaskLegalHold(taskId: string, enabled: boolean): Promise<unknown>;
-  setWorkflowLegalHold(workflowId: string, enabled: boolean): Promise<unknown>;
-  listAuditLogs(filters?: Record<string, string>): Promise<{ data: DashboardAuditLogRecord[]; pagination?: Record<string, unknown> }>;
   listEvents(
     filters?: Record<string, string>,
   ): Promise<{ data: DashboardEventRecord[]; meta?: Record<string, unknown> }>;
@@ -601,6 +666,12 @@ export interface DashboardApi {
     artifact_type?: 'manifest' | 'profile' | 'template';
     format?: 'json' | 'yaml';
   }): Promise<DashboardCustomizationExportResponse>;
+  queryLogs(filters: Record<string, string>): Promise<LogQueryResponse>;
+  getLogStats(filters: Record<string, string>): Promise<LogStatsResponse>;
+  getLogOperations(filters?: Record<string, string>): Promise<{ data: LogOperationRecord[] }>;
+  getLogRoles(filters?: Record<string, string>): Promise<{ data: LogRoleRecord[] }>;
+  getLogActors(filters?: Record<string, string>): Promise<{ data: LogActorRecord[] }>;
+  exportLogs(filters: Record<string, string>): Promise<Blob>;
 }
 
 export function createDashboardApi(options: DashboardApiOptions = {}): DashboardApi {
@@ -613,6 +684,17 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       accessToken: session?.accessToken ?? undefined,
     });
   const requestFetch = options.fetcher ?? fetch;
+
+  // Deduplicate concurrent refresh calls — only one in-flight at a time.
+  let refreshPromise: Promise<{ token: string }> | null = null;
+
+  async function doRefresh(): Promise<{ token: string }> {
+    if (refreshPromise) return refreshPromise;
+    refreshPromise = client.refreshSession().finally(() => {
+      refreshPromise = null;
+    });
+    return refreshPromise;
+  }
 
   async function withRefresh<T>(handler: () => Promise<T>): Promise<T> {
     try {
@@ -629,7 +711,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       }
 
       try {
-        const refreshed = await client.refreshSession();
+        const refreshed = await doRefresh();
         writeSession({
           accessToken: refreshed.token,
           tenantId: activeSession.tenantId,
@@ -791,6 +873,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     listWorkers: () => withRefresh(() => client.listWorkers()),
     listAgents: () => withRefresh(() => client.listAgents()),
     approveTask: (taskId) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/approve`)),
+    approveTaskOutput: (taskId) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/approve-output`)),
     retryTask: (taskId, payload = {}) =>
       withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/retry`, { body: payload })),
     cancelTask: (taskId) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/cancel`)),
@@ -804,6 +887,8 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/reassign`, { body: payload })),
     escalateTask: (taskId, payload) =>
       withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/escalate`, { body: payload })),
+    resolveEscalation: (taskId, payload) =>
+      withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/resolve-escalation`, { body: payload })),
     overrideTaskOutput: (taskId, payload) =>
       withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/output-override`, { body: payload })),
     pauseWorkflow: (workflowId) =>
@@ -895,29 +980,8 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(() =>
         requestData<DashboardLoggingConfig>('/api/v1/governance/logging', {
           method: 'PUT',
-          body: payload as Record<string, unknown>,
+          body: payload as unknown as Record<string, unknown>,
         }),
-      ),
-    setTaskLegalHold: (taskId, enabled) =>
-      withRefresh(() =>
-        requestJson(`/api/v1/governance/legal-holds/tasks/${taskId}`, {
-          method: 'PUT',
-          body: { enabled },
-        }),
-      ),
-    setWorkflowLegalHold: (workflowId, enabled) =>
-      withRefresh(() =>
-        requestJson(`/api/v1/governance/legal-holds/workflows/${workflowId}`, {
-          method: 'PUT',
-          body: { enabled },
-        }),
-      ),
-    listAuditLogs: (filters) =>
-      withRefresh(() =>
-        requestJson<{ data: DashboardAuditLogRecord[]; pagination?: Record<string, unknown> }>(
-          `/api/v1/audit/logs${buildQueryString(filters)}`,
-          { method: 'GET' },
-        ),
       ),
     listEvents: (filters) =>
       withRefresh(() =>
@@ -1084,6 +1148,24 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           { body: payload },
         ),
       ),
+    queryLogs: (filters) =>
+      withRefresh(() => requestJson<LogQueryResponse>(`/api/v1/logs${buildQueryString(filters)}`, { method: 'GET' })),
+    getLogStats: (filters) =>
+      withRefresh(() => requestJson<LogStatsResponse>(`/api/v1/logs/stats${buildQueryString(filters)}`, { method: 'GET' })),
+    getLogOperations: (filters) =>
+      withRefresh(() => requestJson<{ data: LogOperationRecord[] }>(`/api/v1/logs/operations${buildQueryString(filters)}`, { method: 'GET' })),
+    getLogRoles: (filters) =>
+      withRefresh(() => requestJson<{ data: LogRoleRecord[] }>(`/api/v1/logs/roles${buildQueryString(filters)}`, { method: 'GET' })),
+    getLogActors: (filters) =>
+      withRefresh(() => requestJson<{ data: LogActorRecord[] }>(`/api/v1/logs/actors${buildQueryString(filters)}`, { method: 'GET' })),
+    exportLogs: (filters) =>
+      withRefresh(async () => {
+        const res = await requestFetch(`${baseUrl}/api/v1/logs/export${buildQueryString(filters)}`, {
+          headers: { Authorization: `Bearer ${readSession()?.accessToken ?? ''}` },
+        });
+        if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+        return res.blob();
+      }),
   };
 }
 

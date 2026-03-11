@@ -1,0 +1,340 @@
+import { ChevronRight, ChevronDown } from 'lucide-react';
+import type { LogEntry } from '../../lib/api.js';
+import { cn } from '../../lib/utils.js';
+
+export interface LogEntryRowProps {
+  entry: LogEntry;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+const CATEGORY_STYLES: Record<string, string> = {
+  llm: 'bg-indigo-100 text-indigo-700',
+  tool: 'bg-emerald-100 text-emerald-700',
+  agent_loop: 'bg-violet-100 text-violet-700',
+  task_lifecycle: 'bg-sky-100 text-sky-700',
+  runtime_lifecycle: 'bg-sky-100 text-sky-700',
+  container: 'bg-orange-100 text-orange-700',
+  api: 'bg-slate-100 text-slate-700',
+  config: 'bg-teal-100 text-teal-700',
+  auth: 'bg-yellow-100 text-yellow-700',
+};
+
+const LEVEL_ACCENT: Record<string, string> = {
+  debug: 'border-l-transparent',
+  info: 'border-l-blue-400',
+  warn: 'border-l-yellow-500',
+  error: 'border-l-red-500',
+};
+
+const LEVEL_BADGE: Record<string, string> = {
+  debug: 'bg-gray-100 text-gray-500',
+  info: 'bg-blue-50 text-blue-600',
+  warn: 'bg-amber-50 text-amber-700 font-semibold',
+  error: 'bg-red-50 text-red-700 font-semibold',
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  llm: 'LLM',
+  tool: 'Tool',
+  agent_loop: 'Agent Loop',
+  task_lifecycle: 'Task',
+  runtime_lifecycle: 'Runtime',
+  container: 'Container',
+  api: 'API',
+  config: 'Config',
+  auth: 'Auth',
+};
+
+function formatTimestamp(iso: string): string {
+  const d = new Date(iso);
+  const mon = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  const ss = String(d.getSeconds()).padStart(2, '0');
+  return `${mon}/${day} ${hh}:${mm}:${ss}`;
+}
+
+function formatDuration(ms: number | null | undefined): string {
+  if (ms == null) return '';
+  if (ms < 1) return '<1ms';
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function str(v: unknown): string {
+  return v == null ? '' : String(v);
+}
+
+function num(v: unknown): string {
+  return v == null ? '?' : String(v);
+}
+
+function truncate(t: string, max: number): string {
+  return t.length <= max ? t : `${t.slice(0, max)}…`;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const RUNTIME_PREFIX = 'agirunner-runtime-';
+const DOCKER_HASH_RE = /^[0-9a-f]{12,}$/i;
+const KEY_PREFIX_RE = /^(?:Key|Worker|Agent|User)\s+ar_/;
+
+function formatActorLabel(entry: LogEntry): string {
+  if (entry.actor_name) {
+    if (KEY_PREFIX_RE.test(entry.actor_name)) {
+      return entry.actor_name.split(' ')[0];
+    }
+    if (entry.actor_name.startsWith(RUNTIME_PREFIX)) {
+      return 'Runtime Worker';
+    }
+    if (DOCKER_HASH_RE.test(entry.actor_name)) {
+      return 'Runtime Worker';
+    }
+    if (!UUID_RE.test(entry.actor_name)) {
+      return entry.actor_name;
+    }
+  }
+  const type = entry.actor_type ?? 'unknown';
+  return type.charAt(0).toUpperCase() + type.slice(1).replace(/_/g, ' ');
+}
+
+function formatToolArgs(p: Record<string, unknown>): string {
+  const input = p.input;
+  if (input == null || typeof input !== 'object') return '';
+  const inp = input as Record<string, unknown>;
+
+  switch (p.tool_name) {
+    case 'shell_exec':
+      return inp.command ? `"${truncate(String(inp.command), 40)}"` : '';
+    case 'file_read':
+    case 'file_list':
+      return inp.path ? `"${truncate(String(inp.path), 50)}"` : '';
+    case 'file_write': {
+      const path = inp.path ? `"${truncate(String(inp.path), 40)}"` : '';
+      const size = typeof inp.content === 'string' ? `, ${inp.content.length}b` : '';
+      return `${path}${size}`;
+    }
+    case 'file_copy':
+      return [inp.src, inp.dst].filter(Boolean).map((v) => `"${truncate(String(v), 30)}"`).join(' → ');
+    default: {
+      const keys = Object.keys(inp);
+      if (keys.length === 0) return '';
+      const first = inp[keys[0]];
+      return typeof first === 'string' ? `"${truncate(first, 40)}"` : JSON.stringify(first)?.slice(0, 40) ?? '';
+    }
+  }
+}
+
+function buildPreview(entry: LogEntry): string {
+  const p = entry.payload ?? {};
+  switch (entry.category) {
+    case 'llm': {
+      const parts = [
+        str(p.model), str(p.phase),
+        p.input_tokens != null ? `${num(p.input_tokens)}→${num(p.output_tokens)}tok` : '',
+        p.cost != null ? `$${num(p.cost)}` : '',
+      ];
+      return parts.filter(Boolean).join(' · ');
+    }
+    case 'tool': {
+      const name = str(p.tool_name || p.command_or_path || p.command || p.path);
+      const args = formatToolArgs(p);
+      const call = args ? `${name}(${args})` : name;
+      const failed = p.error || (p.exit_code != null && Number(p.exit_code) !== 0);
+      return failed ? `${call} · exit ${num(p.exit_code)}` : call;
+    }
+    case 'agent_loop':
+      return [
+        p.iteration != null ? `iter ${num(p.iteration)}` : '',
+        str(p.decision || p.summary || p.approach),
+      ].filter(Boolean).join(' · ');
+    case 'task_lifecycle':
+      return [
+        p.from_state && p.to_state ? `${str(p.from_state)}→${str(p.to_state)}` : str(p.task_status),
+        str(p.action),
+        str(p.entity_name),
+        str(p.role),
+        str(p.model),
+        str(p.image),
+        p.reuse_decision ? `${str(p.reuse_decision)} start` : '',
+        str(p.template_name || p.workflow_name),
+      ].filter(Boolean).join(' · ');
+    case 'runtime_lifecycle': {
+      const rid = str(p.runtime_id);
+      return [
+        str(p.action), rid ? rid.slice(0, 8) : '',
+        str(p.image), str(p.template_name), str(p.reason),
+      ].filter(Boolean).join(' · ');
+    }
+    case 'container':
+      return [
+        str(p.action), str(p.image), str(p.template_name), str(p.reason),
+        p.cpu ? `${str(p.cpu)} cpu` : '',
+        p.memory ? str(p.memory) : '',
+        p.desired != null ? `${num(p.desired)}/${num(p.actual)}` : '',
+      ].filter(Boolean).join(' · ');
+    case 'api':
+      return [str(p.method), str(p.path), p.status_code != null ? String(p.status_code) : '']
+        .filter(Boolean).join(' ');
+    case 'config':
+      return [str(p.action), p.entity_name ? `"${str(p.entity_name)}"` : ''].filter(Boolean).join(' ');
+    case 'auth':
+      return [str(p.auth_type), p.email ? str(p.email) : ''].filter(Boolean).join(' · ');
+    default:
+      return '';
+  }
+}
+
+function appendTaskTitle(preview: string, entry: LogEntry): string {
+  if (!entry.task_title) return preview;
+  const titleSnippet = truncate(entry.task_title, 40);
+  return preview ? `${preview} · ${titleSnippet}` : titleSnippet;
+}
+
+const STATUS_INDICATOR: Record<string, string> = {
+  completed: '●',
+  failed: '✕',
+  started: '◐',
+  skipped: '○',
+};
+
+const STATUS_COLOR: Record<string, string> = {
+  completed: 'text-green-500',
+  failed: 'text-red-500',
+  started: 'text-blue-500 animate-pulse',
+  skipped: 'text-gray-400',
+};
+
+function getRole(entry: LogEntry): string | null {
+  const role = entry.role ?? (entry.payload?.role as string | undefined);
+  return role && role !== '' ? role : null;
+}
+
+export function LogTableHeader(): JSX.Element {
+  return (
+    <thead>
+      <tr className="border-b border-border bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <th className="w-6 px-1 py-1.5" />
+        <th className="w-5 px-0.5 py-1.5" />
+        <th className="px-1.5 py-1.5 text-left font-medium">Level</th>
+        <th className="px-1.5 py-1.5 text-left font-medium">Time</th>
+        <th className="px-1.5 py-1.5 text-left font-medium">Category</th>
+        <th className="px-1.5 py-1.5 text-left font-medium hidden lg:table-cell">Project</th>
+        <th className="px-1.5 py-1.5 text-left font-medium hidden lg:table-cell">Workflow</th>
+        <th className="px-1.5 py-1.5 text-left font-medium hidden lg:table-cell">Role</th>
+        <th className="px-1.5 py-1.5 text-left font-medium">Operation</th>
+        <th className="px-1.5 py-1.5 text-left font-medium hidden md:table-cell">Detail</th>
+        <th className="px-1.5 py-1.5 text-right font-medium w-16">Duration</th>
+      </tr>
+    </thead>
+  );
+}
+
+export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): JSX.Element {
+  const preview = appendTaskTitle(buildPreview(entry), entry);
+  const accent = LEVEL_ACCENT[entry.level] ?? LEVEL_ACCENT.info;
+  const levelBadge = LEVEL_BADGE[entry.level] ?? LEVEL_BADGE.info;
+  const catStyle = CATEGORY_STYLES[entry.category] ?? 'bg-slate-100 text-slate-700';
+  const Chevron = isExpanded ? ChevronDown : ChevronRight;
+  const duration = formatDuration(entry.duration_ms);
+  const isError = entry.level === 'error';
+  const role = getRole(entry);
+
+  return (
+    <tr
+      className={cn(
+        'border-b border-border/40 border-l-2 cursor-pointer hover:bg-muted/40 transition-colors text-xs',
+        accent,
+        isError && 'bg-red-500/5',
+      )}
+      onClick={onToggle}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onToggle();
+        }
+      }}
+    >
+      {/* Expand chevron */}
+      <td className="px-1 py-1">
+        <Chevron className="h-3 w-3 text-muted-foreground" />
+      </td>
+
+      {/* Status indicator */}
+      <td className="px-0.5 py-1">
+        <span className={cn('text-[10px] leading-none', STATUS_COLOR[entry.status] ?? 'text-muted-foreground')}>
+          {STATUS_INDICATOR[entry.status] ?? '○'}
+        </span>
+      </td>
+
+      {/* Level badge */}
+      <td className="px-1.5 py-1">
+        <span className={cn('inline-block rounded px-1 py-px text-[10px] leading-tight uppercase font-mono', levelBadge)}>
+          {entry.level}
+        </span>
+      </td>
+
+      {/* Time */}
+      <td className="px-1.5 py-1 font-mono text-muted-foreground tabular-nums whitespace-nowrap">
+        {formatTimestamp(entry.created_at)}
+      </td>
+
+      {/* Category */}
+      <td className="px-1.5 py-1">
+        <span className={cn('inline-block rounded px-1 py-px text-[10px] leading-tight font-medium whitespace-nowrap', catStyle)}>
+          {CATEGORY_LABELS[entry.category] ?? entry.category}
+        </span>
+      </td>
+
+      {/* Project */}
+      <td className="hidden lg:table-cell px-1.5 py-1">
+        {(entry.project_name || entry.project_id) ? (
+          <span className="inline-block rounded bg-cyan-50 px-1.5 py-px text-[10px] leading-tight text-cyan-700 font-medium whitespace-nowrap max-w-[120px] truncate">
+            {entry.project_name ?? entry.project_id!.slice(0, 8)}
+          </span>
+        ) : (
+          <span className="text-muted-foreground/30">—</span>
+        )}
+      </td>
+
+      {/* Workflow */}
+      <td className="hidden lg:table-cell px-1.5 py-1">
+        {(entry.workflow_name || entry.workflow_id) ? (
+          <span className="inline-block rounded bg-purple-50 px-1.5 py-px text-[10px] leading-tight text-purple-700 font-medium whitespace-nowrap max-w-[120px] truncate">
+            {entry.workflow_name ?? entry.workflow_id!.slice(0, 8)}
+          </span>
+        ) : (
+          <span className="text-muted-foreground/30">—</span>
+        )}
+      </td>
+
+      {/* Role */}
+      <td className="hidden lg:table-cell px-1.5 py-1">
+        {role ? (
+          <span className="inline-block rounded bg-rose-50 px-1.5 py-px text-[10px] leading-tight text-rose-600 font-medium whitespace-nowrap">
+            {truncate(role, 16)}
+          </span>
+        ) : (
+          <span className="text-muted-foreground/30">—</span>
+        )}
+      </td>
+
+      {/* Operation */}
+      <td className={cn('px-1.5 py-1 font-medium max-w-[200px] truncate', isError && 'text-red-600')}>
+        {entry.operation}
+      </td>
+
+      {/* Detail */}
+      <td className="hidden md:table-cell px-1.5 py-1 text-muted-foreground max-w-[300px] truncate">
+        {preview ? truncate(preview, 80) : ''}
+      </td>
+
+      {/* Duration */}
+      <td className="px-1.5 py-1 text-right tabular-nums text-muted-foreground font-mono whitespace-nowrap">
+        {duration}
+      </td>
+    </tr>
+  );
+}

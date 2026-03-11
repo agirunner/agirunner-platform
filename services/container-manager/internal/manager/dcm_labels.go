@@ -11,6 +11,8 @@ const (
 	labelDCMWarmPool    = "agirunner.warm_pool"
 	labelDCMGracePeriod    = "agirunner.grace_period"
 	labelDCMTemplateName   = "com.agirunner.dcm.template-name"
+	labelDCMPoolMode       = "agirunner.pool_mode"
+	labelDCMPriority       = "agirunner.priority"
 )
 
 // DCM tier values distinguish runtime containers from task containers.

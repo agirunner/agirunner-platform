@@ -22,16 +22,20 @@ interface AgentToolRequirements {
 }
 
 const builtInToolTags: Array<{ id: string; name: string; description: string; category: ToolCategory }> = [
-  { id: 'shell', name: 'Shell', description: 'Shell command execution', category: 'runtime' },
-  { id: 'git', name: 'Git', description: 'Git operations', category: 'vcs' },
-  { id: 'file_system', name: 'File System', description: 'Read and write files in workspace', category: 'runtime' },
-  { id: 'file_system_readonly', name: 'File System Readonly', description: 'Read files only', category: 'runtime' },
-  { id: 'web_search', name: 'Web Search', description: 'Search the web', category: 'web' },
+  { id: 'shell_exec', name: 'Shell Exec', description: 'Execute shell commands in the task workspace', category: 'runtime' },
+  { id: 'file_read', name: 'File Read', description: 'Read files from the task workspace', category: 'runtime' },
+  { id: 'file_write', name: 'File Write', description: 'Write files to the task workspace', category: 'runtime' },
+  { id: 'file_edit', name: 'File Edit', description: 'Edit files with search-and-replace operations', category: 'runtime' },
+  { id: 'file_list', name: 'File List', description: 'List files and directories in the workspace', category: 'runtime' },
+  { id: 'git_status', name: 'Git Status', description: 'Show working tree status', category: 'vcs' },
+  { id: 'git_diff', name: 'Git Diff', description: 'Show changes between commits or working tree', category: 'vcs' },
+  { id: 'git_log', name: 'Git Log', description: 'Show commit log history', category: 'vcs' },
+  { id: 'git_commit', name: 'Git Commit', description: 'Record changes to the repository', category: 'vcs' },
+  { id: 'git_push', name: 'Git Push', description: 'Push commits to remote repository', category: 'vcs' },
+  { id: 'artifact_upload', name: 'Artifact Upload', description: 'Upload artifacts (files, reports) from the task workspace', category: 'runtime' },
   { id: 'web_fetch', name: 'Web Fetch', description: 'Fetch and extract content from URLs', category: 'web' },
-  { id: 'web_browser', name: 'Web Browser', description: 'Browser automation', category: 'web' },
-  { id: 'python', name: 'Python', description: 'Python code execution', category: 'language' },
-  { id: 'node', name: 'Node.js', description: 'Node.js code execution', category: 'language' },
-  { id: 'docker', name: 'Docker', description: 'Docker container operations', category: 'runtime' },
+  { id: 'web_search', name: 'Web Search', description: 'Search the web', category: 'web' },
+  { id: 'escalate', name: 'Escalate', description: 'Request escalation when stuck or task is infeasible — pauses task and routes to supervisor or human', category: 'runtime' },
 ];
 
 const allowedCategories = new Set<ToolCategory>(['runtime', 'vcs', 'web', 'language', 'integration']);

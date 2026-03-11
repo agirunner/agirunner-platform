@@ -17,7 +17,11 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      retry: 1,
+      retry: (failureCount, error) => {
+        // Never retry auth errors — withRefresh handles token refresh
+        if (String(error).includes('401')) return false;
+        return failureCount < 1;
+      },
     },
   },
 });

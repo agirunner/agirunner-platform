@@ -68,10 +68,22 @@ func (m *Manager) boostStarvedTargets(unsatisfied []RuntimeTarget, allTargets []
 	globalMax := maxPriorityIn(allTargets)
 	for i := range boosted {
 		if m.isStarved(boosted[i].TemplateID) {
+			originalPriority := boosted[i].Priority
 			m.logger.Warn("template starved, boosting priority for preemption",
 				"template", boosted[i].TemplateID,
-				"original_priority", boosted[i].Priority,
+				"original_priority", originalPriority,
 			)
+			starvationMeta := map[string]any{
+				"action":            "starvation_boost",
+				"template_id":       boosted[i].TemplateID,
+				"template_name":     boosted[i].TemplateName,
+				"original_priority": originalPriority,
+				"boosted_priority":  globalMax + 1,
+			}
+			if starvedSince, ok := m.starvationTrack[boosted[i].TemplateID]; ok {
+				starvationMeta["starvation_duration_ms"] = m.nowFunc().Sub(starvedSince).Milliseconds()
+			}
+			m.emitLog("container", "reconcile.starvation_boost", "warn", "completed", starvationMeta)
 			boosted[i].Priority = globalMax + 1
 		}
 	}

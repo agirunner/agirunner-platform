@@ -10,7 +10,7 @@ export interface LogStreamFilters {
   workflowId?: string;
   taskId?: string;
   traceId?: string;
-  operation?: string;
+  operation?: string[];
 }
 
 interface LogNotification {
@@ -157,8 +157,13 @@ export class LogStreamService {
     if (filters.traceId && notification.trace_id !== filters.traceId) {
       return false;
     }
-    if (filters.operation && !notification.operation.startsWith(filters.operation.replace(/\*$/, ''))) {
-      return false;
+    if (filters.operation?.length) {
+      const matches = filters.operation.some((op) =>
+        op.endsWith('*')
+          ? notification.operation.startsWith(op.slice(0, -1))
+          : notification.operation === op,
+      );
+      if (!matches) return false;
     }
     return true;
   }

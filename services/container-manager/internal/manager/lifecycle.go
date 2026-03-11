@@ -29,7 +29,7 @@ func (m *Manager) startupSweep(ctx context.Context) error {
 	targetMap := buildTargetMap(targets)
 	adopted, removed := m.adoptOrRemoveRuntimes(ctx, containers, targetMap)
 	orphanCount := m.removeOrphanTasksOnStartup(ctx, containers)
-	m.emitLog("container", "lifecycle.startup_sweep", "info", "completed", map[string]any{
+	m.emitLog("container", "lifecycle.startup_sweep", "debug", "completed", map[string]any{
 		"action":           "startup_sweep",
 		"total_containers": len(containers),
 		"adopted":          adopted,
@@ -78,13 +78,19 @@ func (m *Manager) adoptOrRemoveRuntimes(
 		templateID := c.Labels[labelDCMTemplateID]
 		if _, hasTarget := targetMap[templateID]; hasTarget {
 			m.logger.Info("startup: adopting runtime", "container", c.ID, "template", templateID)
+			m.emitLog("container", "lifecycle.startup_adopt", "debug", "completed", map[string]any{
+				"action":       "adopt",
+				"container_id": c.ID,
+				"template_id":  templateID,
+				"runtime_id":   c.Labels[labelDCMRuntimeID],
+			})
 			adopted++
 			continue
 		}
 		gracePeriod := gracePeriodForContainer(c)
 		m.logger.Info("startup: removing stale runtime", "container", c.ID, "template", templateID)
 		m.stopAndRemove(ctx, c.ID, gracePeriod)
-		m.emitLog("container", "lifecycle.startup_remove", "info", "completed", map[string]any{
+		m.emitLog("container", "lifecycle.startup_remove", "debug", "completed", map[string]any{
 			"action":       "orphan_clean",
 			"container_id": c.ID,
 			"template_id":  templateID,

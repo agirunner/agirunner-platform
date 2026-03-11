@@ -32,7 +32,6 @@ describe('authenticateApiKey', () => {
       method: 'GET',
       server: {
         pgPool: {},
-        auditService: { record: vi.fn().mockResolvedValue(undefined) },
       },
       auth: undefined,
     } as never;

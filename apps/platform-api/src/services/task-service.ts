@@ -17,6 +17,7 @@ import type { LogService } from '../logging/log-service.js';
 import type { WorkerConnectionHub } from './worker-connection-hub.js';
 import { TaskWriteService } from './task-write-service.js';
 import { OrchestratorGrantService } from './orchestrator-grant-service.js';
+import { RoleDefinitionService } from './role-definition-service.js';
 const DEFAULT_CANCEL_SIGNAL_GRACE_PERIOD_MS = 60_000;
 export class TaskService {
   private readonly queryService: TaskQueryService;
@@ -130,6 +131,7 @@ export class TaskService {
       projectTimelineService,
       logService,
     );
+    const roleDefService = new RoleDefinitionService(pool);
     this.lifecycleService = new TaskLifecycleService({
       pool,
       eventService,
@@ -139,6 +141,14 @@ export class TaskService {
       loadTaskOrThrow: this.queryService.loadTaskOrThrow.bind(this.queryService),
       toTaskResponse: this.queryService.toTaskResponse.bind(this.queryService),
       queueWorkerCancelSignal,
+      getRoleByName: async (tenantId: string, name: string) => {
+        const role = await roleDefService.getRoleByName(tenantId, name);
+        if (!role) return null;
+        return {
+          escalation_target: role.escalation_target,
+          max_escalation_depth: role.max_escalation_depth,
+        };
+      },
     });
 
     const modelCatalog = new ModelCatalogService(pool);
@@ -229,6 +239,10 @@ export class TaskService {
     return this.lifecycleService.approveTask(identity, taskId);
   }
 
+  approveTaskOutput(identity: ApiKeyIdentity, taskId: string) {
+    return this.lifecycleService.approveTaskOutput(identity, taskId);
+  }
+
   retryTask(
     identity: ApiKeyIdentity,
     taskId: string,
@@ -284,6 +298,22 @@ export class TaskService {
     payload: { instructions: string; context?: Record<string, unknown> },
   ) {
     return this.lifecycleService.respondToEscalation(identity, taskId, payload);
+  }
+
+  agentEscalate(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: { reason: string; context_summary?: string; work_so_far?: string },
+  ) {
+    return this.lifecycleService.agentEscalate(identity, taskId, payload);
+  }
+
+  resolveEscalation(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: { instructions: string; context?: Record<string, unknown> },
+  ) {
+    return this.lifecycleService.resolveEscalation(identity, taskId, payload);
   }
 
   overrideTaskOutput(

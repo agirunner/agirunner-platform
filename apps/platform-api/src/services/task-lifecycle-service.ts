@@ -60,6 +60,10 @@ interface TaskLifecycleDependencies {
     reason: 'manual_cancel' | 'task_timeout',
     requestedAt: Date,
   ) => Promise<string | null>;
+  getRoleByName?: (
+    tenantId: string,
+    name: string,
+  ) => Promise<{ escalation_target: string | null; max_escalation_depth: number } | null>;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -281,7 +285,12 @@ export class TaskLifecycleService {
           entityId: taskId,
           actorType: identity.scope,
           actorId: identity.keyPrefix,
-          data: { from_state: task.state, to_state: nextState, reason: options.reason },
+          data: {
+            from_state: task.state,
+            to_state: nextState,
+            reason: options.reason,
+            feedback: options.metadataPatch?.review_feedback ?? undefined,
+          },
         },
         client,
       );
@@ -361,7 +370,8 @@ export class TaskLifecycleService {
           cleanupArtifactIds: [],
         };
 
-    const shouldMoveToOutputReview = !outputValidation.valid || verificationPassed === false;
+    const shouldMoveToOutputReview =
+      Boolean(task.requires_output_review) || !outputValidation.valid || verificationPassed === false;
 
     try {
       return shouldMoveToOutputReview
@@ -375,9 +385,11 @@ export class TaskLifecycleService {
             clearAssignment: true,
             clearLifecycleControlMetadata: true,
             clearEscalationMetadata: true,
-            reason: !outputValidation.valid
-              ? 'output_schema_review_required'
-              : 'verification_review_required',
+            reason: task.requires_output_review
+              ? 'output_review_required'
+              : !outputValidation.valid
+                ? 'output_schema_review_required'
+                : 'verification_review_required',
           })
         : await this.applyStateTransition(identity, taskId, 'completed', {
             expectedStates: ['running'],
@@ -391,6 +403,7 @@ export class TaskLifecycleService {
             clearEscalationMetadata: true,
             afterUpdate: async (updatedTask, client) => {
               await registerTaskOutputDocuments(client, identity.tenantId, updatedTask, persisted.output);
+              await this.maybeResolveEscalationSource(identity, updatedTask, client);
             },
             reason: 'task_completed',
           });
@@ -493,6 +506,22 @@ export class TaskLifecycleService {
     });
   }
 
+  async approveTaskOutput(identity: ApiKeyIdentity, taskId: string) {
+    return this.applyStateTransition(identity, taskId, 'completed', {
+      expectedStates: ['output_pending_review'],
+      clearLifecycleControlMetadata: true,
+      clearEscalationMetadata: true,
+      metadataPatch: {
+        review_action: 'approve_output',
+        review_updated_at: new Date().toISOString(),
+      },
+      afterUpdate: async (updatedTask, client) => {
+        await registerTaskOutputDocuments(client, identity.tenantId, updatedTask, updatedTask.output);
+      },
+      reason: 'output_review_approved',
+    });
+  }
+
   async retryTask(
     identity: ApiKeyIdentity,
     taskId: string,
@@ -508,6 +537,7 @@ export class TaskLifecycleService {
           'pending',
           'awaiting_approval',
           'output_pending_review',
+          'awaiting_escalation',
         ]
       : ['failed'];
 
@@ -553,6 +583,7 @@ export class TaskLifecycleService {
         'running',
         'awaiting_approval',
         'output_pending_review',
+        'awaiting_escalation',
         'failed',
       ],
       clearAssignment: true,
@@ -874,6 +905,383 @@ export class TaskLifecycleService {
     } finally {
       client.release();
     }
+  }
+
+  async agentEscalate(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: {
+      reason: string;
+      context_summary?: string;
+      work_so_far?: string;
+    },
+  ) {
+    const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
+    const roleName = typeof task.role === 'string' ? task.role : '';
+
+    if (!this.deps.getRoleByName) {
+      throw new ConflictError('Escalation is not configured: role lookup unavailable');
+    }
+
+    const roleDef = await this.deps.getRoleByName(identity.tenantId, roleName);
+    if (!roleDef || !roleDef.escalation_target) {
+      throw new ConflictError(`Escalation not configured for role '${roleName}'`);
+    }
+
+    const metadata = asRecord(task.metadata);
+    const currentDepth = typeof metadata.escalation_depth === 'number' ? metadata.escalation_depth : 0;
+    const maxDepth = roleDef.max_escalation_depth;
+
+    if (currentDepth >= maxDepth) {
+      return this.applyStateTransition(identity, taskId, 'failed', {
+        expectedStates: ['running'],
+        clearAssignment: true,
+        clearLifecycleControlMetadata: true,
+        error: {
+          category: 'escalation_depth_exceeded',
+          message: `Escalation depth ${currentDepth} exceeds maximum ${maxDepth}`,
+          recoverable: false,
+        },
+        metadataPatch: {
+          escalation_depth: currentDepth,
+          escalation_max_depth: maxDepth,
+        },
+        afterUpdate: async (updatedTask, client) => {
+          await this.deps.eventService.emit(
+            {
+              tenantId: identity.tenantId,
+              type: 'task.escalation_depth_exceeded',
+              entityType: 'task',
+              entityId: taskId,
+              actorType: identity.scope,
+              actorId: identity.keyPrefix,
+              data: {
+                depth: currentDepth,
+                max_depth: maxDepth,
+              },
+            },
+            client,
+          );
+        },
+        reason: 'escalation_depth_exceeded',
+      });
+    }
+
+    const escalationTarget = roleDef.escalation_target;
+
+    if (escalationTarget === 'human') {
+      return this.applyStateTransition(identity, taskId, 'awaiting_escalation', {
+        expectedStates: ['running'],
+        clearAssignment: true,
+        clearLifecycleControlMetadata: true,
+        metadataPatch: {
+          escalation_reason: payload.reason,
+          escalation_context: payload.context_summary ?? null,
+          escalation_work_so_far: payload.work_so_far ?? null,
+          escalation_target: 'human',
+          escalation_depth: currentDepth + 1,
+          escalation_awaiting_human: true,
+        },
+        afterUpdate: async (_updatedTask, client) => {
+          await this.deps.eventService.emit(
+            {
+              tenantId: identity.tenantId,
+              type: 'task.agent_escalated',
+              entityType: 'task',
+              entityId: taskId,
+              actorType: identity.scope,
+              actorId: identity.keyPrefix,
+              data: {
+                reason: payload.reason,
+                context_summary: payload.context_summary ?? null,
+                source_role: roleName,
+                escalation_target: 'human',
+                escalation_depth: currentDepth + 1,
+              },
+            },
+            client,
+          );
+        },
+        reason: 'agent_escalated',
+      });
+    }
+
+    return this.applyStateTransition(identity, taskId, 'awaiting_escalation', {
+      expectedStates: ['running'],
+      clearAssignment: true,
+      clearLifecycleControlMetadata: true,
+      metadataPatch: {
+        escalation_reason: payload.reason,
+        escalation_context: payload.context_summary ?? null,
+        escalation_work_so_far: payload.work_so_far ?? null,
+        escalation_target: escalationTarget,
+        escalation_depth: currentDepth + 1,
+      },
+      afterUpdate: async (updatedTask, client) => {
+        const escalationTask = await this.createEscalationTaskForRole(
+          identity,
+          updatedTask,
+          escalationTarget,
+          {
+            reason: payload.reason,
+            context_summary: payload.context_summary,
+            work_so_far: payload.work_so_far,
+          },
+          currentDepth + 1,
+          client,
+        );
+
+        await client.query(
+          `UPDATE tasks SET metadata = metadata || $3::jsonb WHERE tenant_id = $1 AND id = $2`,
+          [identity.tenantId, taskId, { escalation_task_id: escalationTask.id }],
+        );
+
+        await this.deps.eventService.emit(
+          {
+            tenantId: identity.tenantId,
+            type: 'task.agent_escalated',
+            entityType: 'task',
+            entityId: taskId,
+            actorType: identity.scope,
+            actorId: identity.keyPrefix,
+            data: {
+              reason: payload.reason,
+              context_summary: payload.context_summary ?? null,
+              source_role: roleName,
+              escalation_target: escalationTarget,
+              escalation_depth: currentDepth + 1,
+            },
+          },
+          client,
+        );
+
+        await this.deps.eventService.emit(
+          {
+            tenantId: identity.tenantId,
+            type: 'task.escalation_task_created',
+            entityType: 'task',
+            entityId: taskId,
+            actorType: identity.scope,
+            actorId: identity.keyPrefix,
+            data: {
+              escalation_task_id: escalationTask.id,
+              target_role: escalationTarget,
+              source_task_id: taskId,
+              depth: currentDepth + 1,
+            },
+          },
+          client,
+        );
+      },
+      reason: 'agent_escalated',
+    });
+  }
+
+  async resolveEscalation(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: {
+      instructions: string;
+      context?: Record<string, unknown>;
+    },
+  ) {
+    const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
+    if (task.state !== 'awaiting_escalation') {
+      throw new ConflictError('Task is not awaiting escalation');
+    }
+
+    const currentInput = asRecord(task.input);
+    const nextInput = {
+      ...currentInput,
+      escalation_resolution: {
+        resolved_by: 'human',
+        instructions: payload.instructions,
+        context: payload.context ?? {},
+        resolved_at: new Date().toISOString(),
+        resolved_by_user: identity.keyPrefix,
+      },
+    };
+
+    return this.applyStateTransition(identity, taskId, 'ready', {
+      expectedStates: ['awaiting_escalation'],
+      clearAssignment: true,
+      clearExecutionData: true,
+      clearLifecycleControlMetadata: true,
+      overrideInput: nextInput,
+      metadataPatch: {
+        escalation_awaiting_human: null,
+      },
+      afterUpdate: async (_updatedTask, client) => {
+        await this.deps.eventService.emit(
+          {
+            tenantId: identity.tenantId,
+            type: 'task.escalation_resolved',
+            entityType: 'task',
+            entityId: taskId,
+            actorType: identity.scope,
+            actorId: identity.keyPrefix,
+            data: {
+              resolved_by: 'human',
+              resolution_preview: payload.instructions.slice(0, 200),
+            },
+          },
+          client,
+        );
+      },
+      reason: 'escalation_resolved',
+    });
+  }
+
+  private async maybeResolveEscalationSource(
+    identity: ApiKeyIdentity,
+    completedTask: Record<string, unknown>,
+    client: DatabaseClient,
+  ): Promise<void> {
+    const metadata = asRecord(completedTask.metadata);
+    const sourceTaskId = metadata.escalation_source_task_id;
+    if (typeof sourceTaskId !== 'string') return;
+
+    const sourceTaskRes = await client.query(
+      'SELECT * FROM tasks WHERE tenant_id = $1 AND id = $2 FOR UPDATE',
+      [identity.tenantId, sourceTaskId],
+    );
+    if (!sourceTaskRes.rowCount) return;
+
+    const sourceTask = sourceTaskRes.rows[0] as Record<string, unknown>;
+    if (sourceTask.state !== 'awaiting_escalation') return;
+
+    const currentInput = asRecord(sourceTask.input);
+    const nextInput = {
+      ...currentInput,
+      escalation_resolution: {
+        resolved_by_role: completedTask.role,
+        resolved_by_task_id: completedTask.id,
+        instructions: completedTask.output,
+        resolved_at: new Date().toISOString(),
+      },
+    };
+
+    await client.query(
+      `UPDATE tasks SET state = 'ready', state_changed_at = now(), input = $3::jsonb,
+       assigned_agent_id = NULL, assigned_worker_id = NULL, claimed_at = NULL, started_at = NULL,
+       output = NULL, error = NULL, metrics = NULL, git_info = NULL
+       WHERE tenant_id = $1 AND id = $2`,
+      [identity.tenantId, sourceTaskId, nextInput],
+    );
+
+    await this.deps.eventService.emit(
+      {
+        tenantId: identity.tenantId,
+        type: 'task.state_changed',
+        entityType: 'task',
+        entityId: sourceTaskId,
+        actorType: 'system',
+        actorId: 'smart_escalation',
+        data: {
+          from_state: 'awaiting_escalation',
+          to_state: 'ready',
+          reason: 'escalation_resolved',
+        },
+      },
+      client,
+    );
+
+    await this.deps.eventService.emit(
+      {
+        tenantId: identity.tenantId,
+        type: 'task.escalation_resolved',
+        entityType: 'task',
+        entityId: sourceTaskId,
+        actorType: 'system',
+        actorId: 'smart_escalation',
+        data: {
+          resolved_by: completedTask.role,
+          escalation_task_id: completedTask.id,
+          resolution_preview: typeof completedTask.output === 'string'
+            ? completedTask.output.slice(0, 200)
+            : JSON.stringify(completedTask.output).slice(0, 200),
+        },
+      },
+      client,
+    );
+  }
+
+  private async createEscalationTaskForRole(
+    identity: ApiKeyIdentity,
+    sourceTask: Record<string, unknown>,
+    targetRole: string,
+    escalationContext: {
+      reason: string;
+      context_summary?: string;
+      work_so_far?: string;
+    },
+    depth: number,
+    client: DatabaseClient,
+  ): Promise<Record<string, unknown>> {
+    const title = `Escalation: ${String(sourceTask.title ?? 'task')}`;
+    const input = {
+      escalation: true,
+      source_task_id: sourceTask.id,
+      source_task_title: sourceTask.title,
+      source_task_role: sourceTask.role,
+      reason: escalationContext.reason,
+      context_summary: escalationContext.context_summary ?? null,
+      work_so_far: escalationContext.work_so_far ?? null,
+      original_instructions: asRecord(sourceTask.input).instructions ?? null,
+    };
+    const metadata = {
+      escalation_source_task_id: sourceTask.id,
+      escalation_depth: depth,
+    };
+
+    const escalationInsert = await client.query(
+      `INSERT INTO tasks (
+         tenant_id, workflow_id, project_id, title, role, priority, state, depends_on,
+         requires_approval, input, context, capabilities_required, role_config, environment,
+         resource_bindings, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, metadata
+       ) VALUES (
+         $1,$2,$3,$4,$5,'high','ready',$6::uuid[],$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
+       )
+       RETURNING *`,
+      [
+        identity.tenantId,
+        sourceTask.workflow_id ?? null,
+        sourceTask.project_id ?? null,
+        title,
+        targetRole,
+        [],
+        false,
+        input,
+        { escalation: true },
+        [],
+        null,
+        null,
+        [],
+        Number(sourceTask.timeout_minutes) || this.deps.defaultTaskTimeoutMinutes,
+        null,
+        null,
+        false,
+        0,
+        metadata,
+      ],
+    );
+
+    const escalationTask = escalationInsert.rows[0] as Record<string, unknown>;
+
+    await this.deps.eventService.emit(
+      {
+        tenantId: identity.tenantId,
+        type: 'task.created',
+        entityType: 'task',
+        entityId: String(escalationTask.id),
+        actorType: 'system',
+        actorId: 'smart_escalation',
+        data: { state: 'ready' },
+      },
+      client,
+    );
+
+    return escalationTask;
   }
 
   private async maybeCreateEscalationTask(

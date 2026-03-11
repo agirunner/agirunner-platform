@@ -18,7 +18,6 @@ import { registerRequestContext } from '../observability/request-context.js';
 import { AcpSessionService } from '../services/acp-session-service.js';
 import { AgentService } from '../services/agent-service.js';
 import { ApiKeyService } from '../services/api-key-service.js';
-import { AuditService, WebhookAuditExporter } from '../services/audit-service.js';
 import { EventStreamService } from '../services/event-stream-service.js';
 import { EventService } from '../services/event-service.js';
 import { FleetService } from '../services/fleet-service.js';
@@ -99,15 +98,7 @@ export async function buildApp() {
   await seedDefaultTenant(pool, process.env);
   await seedConfigTables(pool);
 
-  const auditExporter = config.AUDIT_EXPORT_WEBHOOK_URL
-    ? new WebhookAuditExporter(
-      config.AUDIT_EXPORT_WEBHOOK_URL,
-      config.AUDIT_EXPORT_TIMEOUT_MS,
-      config.AUDIT_EXPORT_WEBHOOK_AUTH_TOKEN,
-    )
-    : undefined;
-  const auditService = new AuditService(pool, auditExporter);
-  const eventService = new EventService(pool, auditService);
+  const eventService = new EventService(pool);
   const eventStreamService = new EventStreamService(pool);
   await eventStreamService.start();
 
@@ -122,7 +113,7 @@ export async function buildApp() {
   const webhookService = new WebhookService(pool, config);
   const migratedWebhookSecrets = await webhookService.migratePlaintextSecrets();
   const taskService = new TaskService(pool, eventService, config, workerConnectionHub, logService);
-  const governanceService = new GovernanceService(pool, auditService, config);
+  const governanceService = new GovernanceService(pool, config);
   const integrationActionService = new IntegrationActionService(pool, taskService, config);
   const integrationAdapterService = new IntegrationAdapterService(
     pool,
@@ -156,7 +147,6 @@ export async function buildApp() {
   app.decorate('logService', logService);
   app.decorate('logLevelCache', logLevelCache);
   app.decorate('logStreamService', logStreamService);
-  app.decorate('auditService', auditService);
   app.decorate('eventService', eventService);
   app.decorate('eventStreamService', eventStreamService);
   app.decorate('integrationActionService', integrationActionService);
@@ -205,6 +195,7 @@ export async function buildApp() {
     app.agentService,
     app.taskService,
     app.workerService,
+    app.fleetService,
     app.governanceService,
   );
   const integrationDispatcher = startIntegrationDispatcher(

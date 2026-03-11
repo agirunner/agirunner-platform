@@ -18,6 +18,8 @@ export const roleDefinitions = pgTable(
     verificationStrategy: text('verification_strategy'),
     capabilities: text('capabilities').array().default([]),
     isBuiltIn: boolean('is_built_in').notNull().default(false),
+    escalationTarget: text('escalation_target'),
+    maxEscalationDepth: integer('max_escalation_depth').notNull().default(5),
     isActive: boolean('is_active').notNull().default(true),
     version: integer('version').notNull().default(1),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

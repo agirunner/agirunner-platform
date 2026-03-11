@@ -30,6 +30,8 @@ export interface TemplateTaskDefinition {
   depends_on?: string[];
   blocked_by?: string[];
   requires_approval?: boolean;
+  requires_output_review?: boolean;
+  review_prompt?: string;
   input_template?: Record<string, unknown>;
   context_template?: Record<string, unknown>;
   capabilities_required?: string[];

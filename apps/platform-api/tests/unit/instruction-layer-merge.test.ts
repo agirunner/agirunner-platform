@@ -114,7 +114,8 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
       // resolveProjectToolTags skipped when project_id is null
       .mockResolvedValueOnce({ rowCount: 1, rows: [{ ...taskRow, state: 'claimed' }] }) // UPDATE tasks RETURNING
       .mockResolvedValueOnce({ rowCount: 1, rows: [] }) // UPDATE agents
-      .mockResolvedValueOnce(undefined); // COMMIT
+      .mockResolvedValueOnce(undefined) // COMMIT
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ workflow_name: null, project_name: null }] }); // names lookup
 
     const client = {
       query: queryMock,

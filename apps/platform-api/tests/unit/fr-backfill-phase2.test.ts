@@ -393,7 +393,7 @@ describe('FR-708: phase parallel flag', () => {
 
   it('tasks with no depends_on start in ready state which enables parallel execution', () => {
     // Tasks with no deps are immediately ready — supporting parallel execution at the engine level
-    expect(deriveWorkflowState(['ready', 'ready'])).toBe('pending');
+    expect(deriveWorkflowState(['ready', 'ready'])).toBe('active');
     // All running → active (parallel in progress)
     expect(deriveWorkflowState(['running', 'running'])).toBe('active');
   });

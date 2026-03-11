@@ -13,14 +13,16 @@ const createRoleSchema = z.object({
   fallbackModel: z.string().optional(),
   verificationStrategy: z.string().optional(),
   capabilities: z.array(z.string()).default([]),
+  escalationTarget: z.string().max(100).nullable().optional(),
+  maxEscalationDepth: z.number().int().min(1).max(10).default(5),
   isBuiltIn: z.boolean().default(false),
   isActive: z.boolean().default(true),
 });
 
 const updateRoleSchema = createRoleSchema.partial().omit({ isBuiltIn: true });
 
-export type CreateRoleInput = z.infer<typeof createRoleSchema>;
-export type UpdateRoleInput = z.infer<typeof updateRoleSchema>;
+export type CreateRoleInput = z.input<typeof createRoleSchema>;
+export type UpdateRoleInput = z.input<typeof updateRoleSchema>;
 
 interface RoleDefinitionRow {
   [key: string]: unknown;
@@ -34,6 +36,8 @@ interface RoleDefinitionRow {
   fallback_model: string | null;
   verification_strategy: string | null;
   capabilities: string[];
+  escalation_target: string | null;
+  max_escalation_depth: number;
   is_built_in: boolean;
   is_active: boolean;
   version: number;
@@ -79,8 +83,8 @@ export class RoleDefinitionService {
       `INSERT INTO role_definitions (
         tenant_id, name, description, system_prompt, allowed_tools,
         model_preference, fallback_model, verification_strategy,
-        capabilities, is_built_in, is_active
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        capabilities, escalation_target, max_escalation_depth, is_built_in, is_active
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *`,
       [
         tenantId,
@@ -92,6 +96,8 @@ export class RoleDefinitionService {
         validated.fallbackModel ?? null,
         validated.verificationStrategy ?? null,
         validated.capabilities,
+        validated.escalationTarget ?? null,
+        validated.maxEscalationDepth,
         validated.isBuiltIn,
         validated.isActive,
       ],
@@ -117,6 +123,8 @@ export class RoleDefinitionService {
       ['fallback_model', validated.fallbackModel],
       ['verification_strategy', validated.verificationStrategy],
       ['capabilities', validated.capabilities],
+      ['escalation_target', validated.escalationTarget],
+      ['max_escalation_depth', validated.maxEscalationDepth],
       ['is_active', validated.isActive],
     ];
 

@@ -316,7 +316,7 @@ describe('LogStreamService', () => {
       const callback = vi.fn();
       mockPool.pool.query.mockResolvedValue({ rows: [sampleRow()], rowCount: 1 });
 
-      service.subscribe('tenant-1', { operation: 'tool.*' }, callback);
+      service.subscribe('tenant-1', { operation: ['tool.*'] }, callback);
       await service.start();
 
       const notificationHandler = mockPool.client.on.mock.calls.find(
@@ -346,7 +346,7 @@ describe('LogStreamService', () => {
       const row = sampleRow();
       mockPool.pool.query.mockResolvedValue({ rows: [row], rowCount: 1 });
 
-      service.subscribe('tenant-1', { operation: 'llm.*' }, callback);
+      service.subscribe('tenant-1', { operation: ['llm.*'] }, callback);
       await simulateNotification(JSON.stringify({
         id: 1,
         tenant_id: 'tenant-1',

@@ -67,14 +67,10 @@ export const envSchema = z
     WEBHOOK_RETRY_BASE_DELAY_MS: z.coerce.number().int().min(1).default(200),
     PLATFORM_PUBLIC_BASE_URL: z.string().url().default('http://localhost:8080'),
     INTEGRATION_ACTION_TTL_SECONDS: z.coerce.number().int().min(60).default(86400),
-    AUDIT_EXPORT_WEBHOOK_URL: z.string().url().optional(),
-    AUDIT_EXPORT_WEBHOOK_AUTH_TOKEN: z.string().optional(),
-    AUDIT_EXPORT_TIMEOUT_MS: z.coerce.number().int().min(1).default(5000),
     GOVERNANCE_RETENTION_JOB_INTERVAL_MS: z.coerce.number().int().min(1000).default(3600000),
     GOVERNANCE_TASK_ARCHIVE_AFTER_DAYS: z.coerce.number().int().min(1).default(90),
     GOVERNANCE_TASK_DELETE_AFTER_DAYS: z.coerce.number().int().min(1).default(365),
-    GOVERNANCE_AUDIT_LOG_RETENTION_DAYS: z.coerce.number().int().min(1).default(2557),
-    GOVERNANCE_EXECUTION_LOG_RETENTION_DAYS: z.coerce.number().int().min(1).default(90),
+    GOVERNANCE_EXECUTION_LOG_RETENTION_DAYS: z.coerce.number().int().min(1).default(30),
     /** @deprecated Configure per-project git webhook secrets via PUT /api/v1/projects/:id/git-webhook instead. */
     GIT_WEBHOOK_GITHUB_SECRET: z.string().optional(),
     /** @deprecated Configure per-project git webhook secrets via PUT /api/v1/projects/:id/git-webhook instead. */

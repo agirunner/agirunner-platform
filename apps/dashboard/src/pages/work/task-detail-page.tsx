@@ -12,9 +12,9 @@ import {
   Workflow,
   Download,
 } from 'lucide-react';
-import { dashboardApi, type DashboardTaskArtifactRecord, type DashboardEventRecord } from '../../lib/api.js';
+import { dashboardApi, type DashboardTaskArtifactRecord } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
-import { ExecutionLogViewer } from '../../components/execution-log-viewer.js';
+import { LogViewer } from '../../components/log-viewer/log-viewer.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
@@ -226,46 +226,6 @@ function OutputSection({ output }: { output: unknown }): JSX.Element {
   );
 }
 
-function EventLog({ taskId }: { taskId: string }): JSX.Element {
-  const { data, isLoading } = useQuery({
-    queryKey: ['events', 'task', taskId],
-    queryFn: () => dashboardApi.listEvents({ entity_type: 'task', entity_id: taskId }),
-  });
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center gap-2 py-4 text-sm text-muted">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Loading events...
-      </div>
-    );
-  }
-
-  const events: DashboardEventRecord[] = data?.data ?? [];
-
-  if (events.length === 0) {
-    return <p className="text-sm text-muted">No execution events recorded.</p>;
-  }
-
-  return (
-    <div className="space-y-2">
-      {events.map((event) => (
-        <div key={event.id} className="flex items-start gap-3 rounded-md border p-3 text-sm">
-          <div className="min-w-0 flex-1">
-            <p className="font-medium capitalize">{event.type.replace(/_/g, ' ')}</p>
-            <p className="text-xs text-muted">{new Date(event.created_at).toLocaleString()}</p>
-            {event.data && Object.keys(event.data).length > 0 && (
-              <pre className="mt-1 overflow-x-auto text-xs text-muted">
-                {JSON.stringify(event.data, null, 2)}
-              </pre>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function ArtifactList({ taskId }: { taskId: string }): JSX.Element {
   const { data, isLoading } = useQuery({
     queryKey: ['task-artifacts', taskId],
@@ -385,8 +345,7 @@ export function TaskDetailPage(): JSX.Element {
       <Tabs defaultValue="output">
         <TabsList>
           <TabsTrigger value="output">Output</TabsTrigger>
-          <TabsTrigger value="logs">Execution Logs</TabsTrigger>
-          <TabsTrigger value="streaming">Streaming Logs</TabsTrigger>
+          <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
         </TabsList>
 
@@ -403,22 +362,11 @@ export function TaskDetailPage(): JSX.Element {
 
         <TabsContent value="logs">
           <Card>
-            <CardHeader>
-              <CardTitle>Execution Logs</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <EventLog taskId={task.id} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="streaming">
-          <Card>
-            <CardHeader>
-              <CardTitle>Streaming Execution Logs</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ExecutionLogViewer sseUrl={`/api/v1/tasks/${task.id}/logs/stream`} />
+            <CardContent className="pt-6">
+              <LogViewer
+                scope={{ taskId: task.id }}
+                compact
+              />
             </CardContent>
           </Card>
         </TabsContent>

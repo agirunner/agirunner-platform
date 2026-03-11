@@ -111,14 +111,18 @@ func (m *Manager) handleHungRuntime(
 	m.failActiveTask(runtimeID, hb, reason)
 	m.stopAndRemove(ctx, c.ID, hungStopGracePeriod)
 	m.logFleetEvent("runtime_hung", "error", runtimeID, templateID, c.ID)
-	m.emitLog("container", "container.hung_detected", "warn", "completed", map[string]any{
-		"action":        "orphan_clean",
-		"runtime_id":    runtimeID,
-		"container_id":  c.ID,
-		"template_id":   templateID,
-		"template_name": c.Labels[labelDCMTemplateName],
-		"reason":        reason,
-	})
+	m.emitLogWithResource("container", "container.hung_detected", "warn", "completed", map[string]any{
+		"action":         "orphan_clean",
+		"runtime_id":     runtimeID,
+		"container_id":   c.ID,
+		"template_id":    templateID,
+		"template_name":  c.Labels[labelDCMTemplateName],
+		"image":          c.Image,
+		"pool_mode":      c.Labels[labelDCMPoolMode],
+		"priority":       c.Labels[labelDCMPriority],
+		"active_task_id": activeTaskID(hb),
+		"reason":         reason,
+	}, logResourceInfo{ResourceType: "runtime", ResourceID: runtimeID, TaskID: activeTaskID(hb)})
 }
 
 // failActiveTask marks the in-progress task as failed if one exists.
@@ -157,19 +161,24 @@ func (m *Manager) handleOrphanHeartbeats(
 	for i := range heartbeats {
 		hb := &heartbeats[i]
 		if _, hasContainer := containerByRuntimeID[hb.RuntimeID]; hasContainer {
+			delete(m.processedOrphans, hb.RuntimeID)
 			continue
 		}
 		if !isStaleHeartbeat(hb, now) {
 			continue
 		}
+		if _, alreadyHandled := m.processedOrphans[hb.RuntimeID]; alreadyHandled {
+			continue
+		}
 		m.failActiveTask(hb.RuntimeID, hb, "orphan_heartbeat")
-		m.emitLog("container", "container.orphan_heartbeat", "warn", "completed", map[string]any{
-			"action":        "orphan_clean",
-			"runtime_id":    hb.RuntimeID,
-			"template_id":   hb.TemplateID,
+		m.emitLogWithResource("container", "container.orphan_heartbeat", "warn", "completed", map[string]any{
+			"action":         "orphan_clean",
+			"runtime_id":     hb.RuntimeID,
+			"template_id":    hb.TemplateID,
 			"active_task_id": hb.ActiveTaskID,
-			"reason":        "container_gone",
-		})
+			"reason":         "container_gone",
+		}, logResourceInfo{ResourceType: "runtime", ResourceID: hb.RuntimeID, TaskID: hb.ActiveTaskID})
+		m.processedOrphans[hb.RuntimeID] = struct{}{}
 	}
 }
 

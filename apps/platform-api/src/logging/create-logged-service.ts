@@ -13,10 +13,20 @@ const MUTATION_PREFIXES = [
   'set', 'clear', 'chain', 'prune', 'pull', 'disconnect',
 ];
 
+const PAST_TENSE_OVERRIDES: Record<string, string> = {
+  set: 'set',
+  put: 'put',
+  cut: 'cut',
+  skip: 'skipped',
+  retry: 'retried',
+};
+
 export function methodToAction(method: string): string {
   for (const prefix of MUTATION_PREFIXES) {
     if (method.startsWith(prefix)) {
-      return prefix.endsWith('e') ? prefix + 'd' : prefix + 'ed';
+      if (PAST_TENSE_OVERRIDES[prefix]) return PAST_TENSE_OVERRIDES[prefix];
+      if (prefix.endsWith('e')) return prefix + 'd';
+      return prefix + 'ed';
     }
   }
   return method;
@@ -47,13 +57,26 @@ export function createLoggedService<T extends object>(
 
         try {
           const result = await (value as Function).apply(target, args);
+
+          // Skip logging for polling methods that return null (e.g. claimTask with no task available).
+          if (result === null || result === undefined) return result;
+
           const durationMs = Math.round(performance.now() - start);
 
           const entityId = isRecord(result) ? (result.id as string) : undefined;
           const entityName = isRecord(result) ? (result[config.nameField] as string) : undefined;
           const projectId = isRecord(result) ? ((result.projectId ?? result.project_id) as string) : undefined;
+          const projectName = isRecord(result) ? ((result.projectName ?? result.project_name) as string) : undefined;
           const workflowId = isRecord(result) ? ((result.workflowId ?? result.workflow_id) as string) : undefined;
-          const taskId = isRecord(result) ? ((result.taskId ?? result.task_id) as string) : undefined;
+          const workflowName = isRecord(result) ? ((result.workflowName ?? result.workflow_name) as string) : undefined;
+          const taskId = isRecord(result)
+            ? ((result.taskId ?? result.task_id ?? (config.entityType === 'task' ? result.id : undefined)) as string)
+            : undefined;
+          const role = isRecord(result) ? ((result.role) as string) : undefined;
+          const taskTitle = isRecord(result) ? ((result.taskTitle ?? result.task_title ?? result.title) as string) : undefined;
+          const workflowPhase = isRecord(result)
+            ? ((result.workflowPhase ?? result.workflow_phase ?? (isRecord(result.metadata) ? result.metadata.workflow_phase : undefined)) as string)
+            : undefined;
 
           const operation = `${config.category}.${config.entityType}.${methodToAction(prop)}`;
 
@@ -63,6 +86,10 @@ export function createLoggedService<T extends object>(
           };
           if (isRecord(result)) {
             if (result.status) payload.entity_status = result.status;
+            if (result[config.nameField]) payload.entity_name = result[config.nameField];
+            if (result.role) payload.role = result.role;
+            if (result.claimedBy ?? result.claimed_by) payload.claimed_by = result.claimedBy ?? result.claimed_by;
+            if (result.templateId ?? result.template_id) payload.template_id = result.templateId ?? result.template_id;
             if (result.error && isRecord(result.error)) {
               payload.error_category = result.error.category;
               payload.error_message = result.error.message;
@@ -82,8 +109,13 @@ export function createLoggedService<T extends object>(
             durationMs,
             payload,
             projectId: projectId ?? undefined,
+            projectName: projectName ?? undefined,
             workflowId: workflowId ?? undefined,
+            workflowName: workflowName ?? undefined,
             taskId: taskId ?? undefined,
+            taskTitle: taskTitle ?? undefined,
+            workflowPhase: workflowPhase ?? undefined,
+            role: role ?? undefined,
             actorType: actor.type,
             actorId: actor.id,
             actorName: actor.name,

@@ -61,14 +61,15 @@ export class TaskWriteService {
         : {}),
       ...(normalizedInput.description ? { description: normalizedInput.description } : {}),
       ...(normalizedInput.parent_id ? { parent_id: normalizedInput.parent_id } : {}),
+      ...(normalizedInput.review_prompt ? { review_prompt: normalizedInput.review_prompt } : {}),
     };
 
     const insertResult = await this.deps.pool.query(
       `INSERT INTO tasks (
         tenant_id, workflow_id, project_id, title, role, priority, state, depends_on,
-        requires_approval, input, context, capabilities_required, role_config, environment,
+        requires_approval, requires_output_review, input, context, capabilities_required, role_config, environment,
         resource_bindings, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, metadata
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::uuid[],$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::uuid[],$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
       RETURNING *`,
       [
         identity.tenantId,
@@ -80,6 +81,7 @@ export class TaskWriteService {
         initialState,
         dependencies,
         normalizedInput.requires_approval ?? false,
+        normalizedInput.requires_output_review ?? false,
         normalizedInput.input ?? {},
         normalizedInput.context ?? {},
         normalizedInput.capabilities_required ?? [],

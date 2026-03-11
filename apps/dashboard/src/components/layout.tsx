@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Activity,
   Bell,
   Box,
   ChevronRight,
@@ -18,7 +17,6 @@ import {
   Key,
   LayoutDashboard,
   Link2,
-  Lock,
   LogOut,
   Menu,
   Moon,
@@ -59,9 +57,9 @@ const NAV_SECTIONS: NavSection[] = [
     icon: Gauge,
     items: [
       { label: 'Live Board', href: '/mission-control', icon: LayoutDashboard },
-      { label: 'Activity Feed', href: '/mission-control/activity', icon: Activity },
-      { label: 'Alerts & Approvals', href: '/mission-control/alerts', icon: Bell },
+      { label: 'Action Queue', href: '/mission-control/alerts', icon: Bell },
       { label: 'Cost Dashboard', href: '/mission-control/costs', icon: DollarSign },
+      { label: 'Logs', href: '/logs', icon: ScrollText },
     ],
   },
   {
@@ -113,9 +111,8 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Governance',
     icon: Shield,
     items: [
-      { label: 'Audit Log', href: '/governance/audit', icon: Shield },
+      { label: 'Settings', href: '/governance/settings', icon: Settings2 },
       { label: 'Retention Policy', href: '/governance/retention', icon: Timer },
-      { label: 'Legal Holds', href: '/governance/legal-holds', icon: Lock },
       { label: 'API Keys', href: '/governance/api-keys', icon: Key },
       { label: 'Orchestrator Grants', href: '/governance/grants', icon: Link2 },
       { label: 'User Management', href: '/governance/users', icon: Users },

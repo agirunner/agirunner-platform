@@ -24,6 +24,34 @@ const ALL_TOOLS = [
 
 function sdlcTemplateSchema() {
   return {
+    variables: [
+      {
+        name: 'goal',
+        type: 'string',
+        required: true,
+        description: 'What the workflow should build or accomplish',
+      },
+      {
+        name: 'repo',
+        type: 'string',
+        required: true,
+        description: 'Git repository URL (e.g. https://github.com/org/repo)',
+      },
+      {
+        name: 'branch',
+        type: 'string',
+        required: true,
+        default: 'main',
+        description: 'Git branch to work on',
+      },
+      {
+        name: 'git_token',
+        type: 'string',
+        required: false,
+        default: '',
+        description: 'Git access token for private repositories',
+      },
+    ],
     tasks: [
       {
         id: 'architect',

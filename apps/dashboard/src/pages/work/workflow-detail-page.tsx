@@ -35,6 +35,7 @@ import type {
   DashboardEventRecord,
 } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
+import { LogViewer } from '../../components/log-viewer/log-viewer.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
@@ -1321,6 +1322,7 @@ export function WorkflowDetailPage(): JSX.Element {
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
           <TabsTrigger value="memory">Memory</TabsTrigger>
+          <TabsTrigger value="logs">Logs</TabsTrigger>
         </TabsList>
 
         <TabsContent value="flow">
@@ -1349,6 +1351,17 @@ export function WorkflowDetailPage(): JSX.Element {
 
         <TabsContent value="memory">
           <MemoryTab workflowId={workflow.id} />
+        </TabsContent>
+
+        <TabsContent value="logs">
+          <Card>
+            <CardContent className="pt-6">
+              <LogViewer
+                scope={{ workflowId: workflow.id }}
+                compact
+              />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 

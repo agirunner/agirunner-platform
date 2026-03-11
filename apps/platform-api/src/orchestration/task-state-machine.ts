@@ -7,6 +7,7 @@ export const taskStates = [
   'running',
   'awaiting_approval',
   'output_pending_review',
+  'awaiting_escalation',
   'completed',
   'failed',
   'cancelled',
@@ -18,11 +19,12 @@ const transitionTable: Record<TaskState, ReadonlySet<TaskState>> = {
   pending: new Set(['ready', 'awaiting_approval', 'cancelled']),
   ready: new Set(['claimed', 'cancelled']),
   claimed: new Set(['running', 'cancelled']),
-  running: new Set(['completed', 'failed', 'output_pending_review', 'cancelled']),
+  running: new Set(['completed', 'failed', 'output_pending_review', 'awaiting_escalation', 'cancelled']),
   awaiting_approval: new Set(['ready', 'cancelled']),
-  output_pending_review: new Set(['completed', 'failed', 'cancelled']),
+  output_pending_review: new Set(['completed', 'failed', 'ready', 'cancelled']),
+  awaiting_escalation: new Set(['ready', 'cancelled', 'failed']),
   completed: new Set([]),
-  failed: new Set(['ready', 'cancelled']),
+  failed: new Set(['ready', 'awaiting_escalation', 'cancelled']),
   cancelled: new Set([]),
 };
 

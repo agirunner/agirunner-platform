@@ -35,7 +35,11 @@ const ingestEntrySchema = z.object({
   project_id: z.string().uuid().nullable().optional(),
   workflow_id: z.string().uuid().nullable().optional(),
   workflow_name: z.string().max(500).nullable().optional(),
+  project_name: z.string().max(500).nullable().optional(),
   task_id: z.string().uuid().nullable().optional(),
+  task_title: z.string().max(200).nullable().optional(),
+  workflow_phase: z.string().max(200).nullable().optional(),
+  role: z.string().max(100).nullable().optional(),
   actor_type: z.string().max(50).optional(),
   actor_id: z.string().max(255).optional(),
   actor_name: z.string().max(255).optional(),
@@ -88,7 +92,11 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
           projectId: entry.project_id ?? null,
           workflowId: entry.workflow_id ?? null,
           workflowName: entry.workflow_name ?? null,
+          projectName: entry.project_name ?? null,
           taskId: entry.task_id ?? null,
+          taskTitle: entry.task_title ?? null,
+          workflowPhase: entry.workflow_phase ?? null,
+          role: entry.role ?? null,
           actorType: entry.actor_type ?? null,
           actorId: entry.actor_id ?? null,
           actorName: entry.actor_name ?? null,
@@ -118,9 +126,10 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
         source: parseCsv(query.source),
         category: parseCsv(query.category),
         level: query.level,
-        operation: query.operation,
+        operation: parseCsv(query.operation),
         status: parseCsv(query.status),
-        actorId: query.actor_id,
+        role: parseCsv(query.role),
+        actorId: parseCsv(query.actor ?? query.actor_id),
         search: query.search,
         since: query.since,
         until: query.until,
@@ -147,12 +156,19 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
         workflowId: query.workflow_id,
         taskId: query.task_id,
         traceId: query.trace_id,
-        operation: query.operation,
+        operation: parseCsv(query.operation),
       };
 
+      const origin = request.headers.origin;
+      reply.hijack();
+      if (origin) {
+        reply.raw.setHeader('Access-Control-Allow-Origin', origin);
+        reply.raw.setHeader('Access-Control-Allow-Credentials', 'true');
+      }
       reply.raw.setHeader('Content-Type', 'text/event-stream');
       reply.raw.setHeader('Cache-Control', 'no-cache');
       reply.raw.setHeader('Connection', 'keep-alive');
+      reply.raw.writeHead(200);
       reply.raw.write(': connected\n\n');
 
       const unsubscribe = logStreamService.subscribe(
@@ -173,8 +189,6 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
         clearInterval(keepAlive);
         unsubscribe();
       });
-
-      return reply;
     },
   );
 
@@ -194,9 +208,10 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
         source: parseCsv(query.source),
         category: parseCsv(query.category),
         level: query.level,
-        operation: query.operation,
+        operation: parseCsv(query.operation),
         status: parseCsv(query.status),
-        actorId: query.actor_id,
+        role: parseCsv(query.role),
+        actorId: parseCsv(query.actor ?? query.actor_id),
         search: query.search,
         since: query.since,
         until: query.until,
@@ -247,9 +262,12 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
       }
 
       const filters: LogStatsFilters = {
+        projectId: query.project_id,
         traceId: query.trace_id,
         workflowId: query.workflow_id,
         taskId: query.task_id,
+        since: query.since,
+        until: query.until,
         groupBy: groupBy as LogStatsFilters['groupBy'],
       };
 
@@ -266,6 +284,18 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
       const query = request.query as Record<string, string | undefined>;
       const since = query.since ? new Date(query.since) : new Date(Date.now() - 86400000);
       return { data: await logService.operations(request.auth!.tenantId, since, query.category) };
+    },
+  );
+
+  // --- Roles (dropdown data) ---
+
+  app.get(
+    '/api/v1/logs/roles',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const query = request.query as Record<string, string | undefined>;
+      const since = query.since ? new Date(query.since) : new Date(Date.now() - 86400000);
+      return { data: await logService.roles(request.auth!.tenantId, since) };
     },
   );
 

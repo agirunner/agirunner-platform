@@ -13,7 +13,7 @@ export function resolveRateLimitRoute(request: FastifyRequest): string {
 
 export function isRealtimeTransportRoute(app: FastifyInstance, request: FastifyRequest): boolean {
   const route = resolveRateLimitRoute(request);
-  return route === app.config.EVENT_STREAM_PATH || route === '/api/v1/events/ws' || route === app.config.WORKER_WEBSOCKET_PATH;
+  return route === app.config.EVENT_STREAM_PATH || route === '/api/v1/events/ws' || route === app.config.WORKER_WEBSOCKET_PATH || route === '/api/v1/logs/stream';
 }
 
 export function rateLimitKeyGenerator(request: FastifyRequest): string {

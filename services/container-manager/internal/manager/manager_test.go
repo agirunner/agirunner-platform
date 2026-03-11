@@ -3,10 +3,14 @@ package manager
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 )
 
 // labelUpdate records a call to UpdateContainerLabels.
@@ -113,6 +117,14 @@ func (m *mockDockerClient) PullImage(_ context.Context, img, policy string) erro
 
 func (m *mockDockerClient) ConnectNetwork(_ context.Context, _ string, _ string) error {
 	return nil
+}
+
+func (m *mockDockerClient) Events(_ context.Context, _ events.ListOptions) (<-chan events.Message, <-chan error) {
+	return make(chan events.Message), make(chan error)
+}
+
+func (m *mockDockerClient) ContainerLogs(_ context.Context, _ string, _ container.LogsOptions) (io.ReadCloser, error) {
+	return io.NopCloser(io.LimitReader(nil, 0)), nil
 }
 
 func (m *mockDockerClient) GetContainerStats(_ context.Context, containerID string) (*ContainerStats, error) {

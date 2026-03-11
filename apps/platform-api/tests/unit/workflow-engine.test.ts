@@ -94,9 +94,10 @@ describe('workflow engine unit', () => {
   });
 
   it('derives workflow state from task state set', () => {
-    expect(deriveWorkflowState(['ready', 'pending'])).toBe('pending');
+    expect(deriveWorkflowState(['ready', 'pending'])).toBe('active');
     expect(deriveWorkflowState(['running', 'pending'])).toBe('active');
     expect(deriveWorkflowState(['awaiting_approval', 'pending'])).toBe('paused');
+    expect(deriveWorkflowState(['awaiting_approval', 'ready'])).toBe('active');
     expect(deriveWorkflowState(['failed', 'running', 'pending'])).toBe('failed');
     expect(deriveWorkflowState(['completed', 'failed'])).toBe('failed');
     expect(deriveWorkflowState(['completed', 'cancelled'])).toBe('failed');

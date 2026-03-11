@@ -23,7 +23,7 @@ export interface MultiSelectChipsProps {
 export const SOURCE_OPTIONS: MultiSelectOption[] = [
   { value: 'runtime', label: 'Runtime' },
   { value: 'platform', label: 'Platform' },
-  { value: 'container_mgr', label: 'Container Manager' },
+  { value: 'container_manager', label: 'Container Manager' },
   { value: 'task_container', label: 'Task Container' },
 ];
 

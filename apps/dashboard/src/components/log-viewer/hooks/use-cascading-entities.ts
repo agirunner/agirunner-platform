@@ -14,6 +14,7 @@ interface WorkflowRecord {
 
 interface TaskRecord {
   id: string;
+  title?: string;
   description?: string;
   status?: string;
   workflow_id?: string;
@@ -112,7 +113,7 @@ export function useCascadingEntities(
     () =>
       (tasksQuery.data ?? []).map((t) => ({
         id: t.id,
-        label: t.description ?? t.id,
+        label: t.title ?? t.description ?? t.id,
         subtitle: t.role ?? undefined,
         status: normalizeStatus(t.status),
       })),

@@ -8,14 +8,15 @@ export interface LogFilters {
   project: string | null;
   workflow: string | null;
   task: string | null;
+  trace: string | null;
   sources: string[];
   categories: string[];
   level: LogLevel;
   time: TimeRange;
   search: string;
   operations: string[];
+  roles: string[];
   actors: string[];
-  statuses: string[];
 }
 
 const DEFAULT_LEVEL: LogLevel = 'info';
@@ -45,8 +46,8 @@ const PLURAL_TO_PARAM: Partial<Record<keyof LogFilters, string>> = {
   sources: 'source',
   categories: 'category',
   operations: 'operation',
+  roles: 'role',
   actors: 'actor',
-  statuses: 'status',
 };
 
 export function useLogFilters() {
@@ -57,14 +58,15 @@ export function useLogFilters() {
       project: searchParams.get('project'),
       workflow: searchParams.get('workflow'),
       task: searchParams.get('task'),
+      trace: searchParams.get('trace'),
       sources: parseList(searchParams.get('source')),
       categories: parseList(searchParams.get('category')),
       level: (searchParams.get('level') as LogLevel) ?? DEFAULT_LEVEL,
       time: parseTimeRange(searchParams),
       search: searchParams.get('search') ?? '',
       operations: parseList(searchParams.get('operation')),
+      roles: parseList(searchParams.get('role')),
       actors: parseList(searchParams.get('actor')),
-      statuses: parseList(searchParams.get('status')),
     }),
     [searchParams],
   );
@@ -116,6 +118,38 @@ export function useLogFilters() {
     [setSearchParams],
   );
 
+  const setEntityScope = useCallback(
+    (scope: { project: string | null; workflow: string | null; task: string | null }) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+
+          if (scope.project) {
+            next.set('project', scope.project);
+          } else {
+            next.delete('project');
+          }
+
+          if (scope.workflow) {
+            next.set('workflow', scope.workflow);
+          } else {
+            next.delete('workflow');
+          }
+
+          if (scope.task) {
+            next.set('task', scope.task);
+          } else {
+            next.delete('task');
+          }
+
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
   const resetFilters = useCallback(() => {
     setSearchParams({}, { replace: true });
   }, [setSearchParams]);
@@ -126,13 +160,14 @@ export function useLogFilters() {
     if (filters.project) params.project_id = filters.project;
     if (filters.workflow) params.workflow_id = filters.workflow;
     if (filters.task) params.task_id = filters.task;
+    if (filters.trace) params.trace_id = filters.trace;
     if (filters.sources.length > 0) params.source = filters.sources.join(',');
     if (filters.categories.length > 0) params.category = filters.categories.join(',');
     params.level = filters.level;
     if (filters.search) params.search = filters.search;
     if (filters.operations.length > 0) params.operation = filters.operations.join(',');
+    if (filters.roles.length > 0) params.role = filters.roles.join(',');
     if (filters.actors.length > 0) params.actor = filters.actors.join(',');
-    if (filters.statuses.length > 0) params.status = filters.statuses.join(',');
 
     const resolved = resolveTimeRange(filters.time);
     if (resolved) {
@@ -143,5 +178,12 @@ export function useLogFilters() {
     return params;
   }, [filters]);
 
-  return { filters, setFilter, resetFilters, toQueryParams };
+  const replaceAllParams = useCallback(
+    (params: Record<string, string>) => {
+      setSearchParams(params, { replace: true });
+    },
+    [setSearchParams],
+  );
+
+  return { filters, setFilter, setEntityScope, resetFilters, replaceAllParams, toQueryParams };
 }

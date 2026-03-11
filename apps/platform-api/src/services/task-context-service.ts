@@ -44,7 +44,7 @@ export async function buildTaskContext(
       : Promise.resolve({ rows: [] }),
     (task.depends_on as string[]).length > 0
       ? db.query(
-          "SELECT id, role, type, output FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[]) AND state = 'completed'",
+          "SELECT id, role, title, output FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[]) AND state = 'completed'",
           [tenantId, task.depends_on],
         )
       : Promise.resolve({ rows: [] }),
@@ -52,7 +52,10 @@ export async function buildTaskContext(
   ]);
 
   const upstreamOutputs = Object.fromEntries(
-    depsRes.rows.map((row) => [row.role ?? row.type ?? row.id, truncateOutput(row.output ?? {})]),
+    depsRes.rows.map((row) => [
+      row.role ?? row.title ?? row.id,
+      { task_name: row.title ?? row.role ?? row.id, output: truncateOutput(row.output ?? {}) },
+    ]),
   );
 
   const workflowRow = workflowRes.rows[0] as Record<string, unknown> | undefined;
@@ -60,11 +63,11 @@ export async function buildTaskContext(
     (workflowRow?.template_schema as Record<string, unknown> | undefined) ?? {};
   const projectInstructions = await loadProjectInstructions(db, tenantId, task, workflowRow);
   const platformInstructions = await loadPlatformInstructions(db, tenantId);
-  const templateInstructionConfig = asRecord(templateSchema.default_instruction_config);
+  const templateInstructions = resolveTemplateInstructions(templateSchema, task);
   const instructionLayers = buildInstructionLayers({
     platformInstructions,
     projectInstructions,
-    templateInstructions: asOptionalString(templateInstructionConfig.instructions),
+    templateInstructions,
     roleConfig: asRecord(task.role_config),
     taskInput: asRecord(task.input),
     taskId: String(task.id ?? ''),
@@ -263,6 +266,32 @@ export function flattenInstructionLayers(
     sections.push(`${LAYER_HEADERS[name]}\n${layer.content}`);
   }
   return sections.join('\n\n');
+}
+
+/**
+ * Resolve template-level instructions for a task.
+ * If the task's template definition has its own instruction_config, use it;
+ * otherwise fall back to the template's default_instruction_config.
+ */
+function resolveTemplateInstructions(
+  templateSchema: Record<string, unknown>,
+  task: Record<string, unknown>,
+): string | undefined {
+  const defaultConfig = asRecord(templateSchema.default_instruction_config);
+  const tasks = templateSchema.tasks;
+  if (Array.isArray(tasks)) {
+    const taskRef = asOptionalString(asRecord(task.metadata).template_task_ref);
+    if (taskRef) {
+      const templateTask = tasks.find(
+        (t) => typeof t === 'object' && t !== null && (t as Record<string, unknown>).id === taskRef,
+      ) as Record<string, unknown> | undefined;
+      const taskConfig = asRecord(templateTask?.instruction_config);
+      if (typeof taskConfig.instructions === 'string' && taskConfig.instructions.trim().length > 0) {
+        return taskConfig.instructions;
+      }
+    }
+  }
+  return asOptionalString(defaultConfig.instructions);
 }
 
 function readSuppressedLayers(value: unknown): string[] {

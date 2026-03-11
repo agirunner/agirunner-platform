@@ -39,7 +39,16 @@ type logEntry struct {
 	ResourceType string         `json:"resource_type,omitempty"`
 	ResourceID   string         `json:"resource_id,omitempty"`
 	ResourceName string         `json:"resource_name,omitempty"`
+	TaskID       string         `json:"task_id,omitempty"`
 	CreatedAt    time.Time      `json:"created_at"`
+}
+
+// logResourceInfo holds optional resource context for enriched log entries.
+type logResourceInfo struct {
+	ResourceType string
+	ResourceID   string
+	ResourceName string
+	TaskID       string
 }
 
 // logError holds error details for failed operations.
@@ -204,6 +213,32 @@ func (e *LogEmitter) emitOperation(
 	})
 }
 
+// emitOperationWithResource emits a completed operation enriched with resource context.
+func (e *LogEmitter) emitOperationWithResource(
+	category, operation, level, status string,
+	metadata map[string]any,
+	res logResourceInfo,
+) {
+	e.Emit(logEntry{
+		TraceID:      newUUID(),
+		SpanID:       newUUID(),
+		Source:       logSource,
+		Category:     category,
+		Level:        level,
+		Operation:    operation,
+		Status:       status,
+		Payload:      metadata,
+		ActorType:    logActorType,
+		ActorID:      logActorID,
+		ActorName:    logActorName,
+		ResourceType: res.ResourceType,
+		ResourceID:   res.ResourceID,
+		ResourceName: res.ResourceName,
+		TaskID:       res.TaskID,
+		CreatedAt:    time.Now().UTC(),
+	})
+}
+
 // emitError emits a failed operation with error details.
 func (e *LogEmitter) emitError(
 	category, operation string,
@@ -234,10 +269,26 @@ func (m *Manager) emitLog(category, operation, level, status string, metadata ma
 	}
 }
 
+// emitLogWithResource is a nil-safe convenience for emitting log entries
+// enriched with resource context (resource_type, resource_id, resource_name, task_id).
+func (m *Manager) emitLogWithResource(category, operation, level, status string, metadata map[string]any, res logResourceInfo) {
+	if m.logEmitter != nil {
+		m.logEmitter.emitOperationWithResource(category, operation, level, status, metadata, res)
+	}
+}
+
 // emitLogError is a nil-safe convenience on Manager for emitting error entries.
 func (m *Manager) emitLogError(category, operation string, metadata map[string]any, errMsg string) {
 	if m.logEmitter != nil {
 		m.logEmitter.emitError(category, operation, metadata, errMsg)
+	}
+}
+
+// emitLogErrorWithResource is a nil-safe convenience for emitting error entries
+// enriched with resource context.
+func (m *Manager) emitLogErrorWithResource(category, operation string, metadata map[string]any, errMsg string, res logResourceInfo) {
+	if m.logEmitter != nil {
+		m.logEmitter.emitErrorWithResource(category, operation, metadata, errMsg, res)
 	}
 }
 
@@ -246,6 +297,34 @@ func (m *Manager) emitLogTimed(category, operation, level, status string, metada
 	if m.logEmitter != nil {
 		m.logEmitter.emitTimed(category, operation, level, status, metadata, durationMs)
 	}
+}
+
+// emitErrorWithResource emits a failed operation enriched with resource context.
+func (e *LogEmitter) emitErrorWithResource(
+	category, operation string,
+	metadata map[string]any,
+	errMsg string,
+	res logResourceInfo,
+) {
+	e.Emit(logEntry{
+		TraceID:      newUUID(),
+		SpanID:       newUUID(),
+		Source:       logSource,
+		Category:     category,
+		Level:        "error",
+		Operation:    operation,
+		Status:       "failed",
+		Payload:      metadata,
+		Error:        &logError{Message: errMsg},
+		ActorType:    logActorType,
+		ActorID:      logActorID,
+		ActorName:    logActorName,
+		ResourceType: res.ResourceType,
+		ResourceID:   res.ResourceID,
+		ResourceName: res.ResourceName,
+		TaskID:       res.TaskID,
+		CreatedAt:    time.Now().UTC(),
+	})
 }
 
 // emitTimed emits a completed operation with duration tracking.

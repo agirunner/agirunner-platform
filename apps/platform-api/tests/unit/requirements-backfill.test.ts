@@ -133,7 +133,7 @@ describe('requirements structural backfill', () => {
     });
 
     expect(schema.tasks).toHaveLength(2);
-    expect(deriveWorkflowState(['ready', 'pending'])).toBe('pending');
+    expect(deriveWorkflowState(['ready', 'pending'])).toBe('active');
     expect(deriveWorkflowState(['running', 'pending'])).toBe('active');
 
     // WorkflowCancellationService is a real class (not just a string in source)

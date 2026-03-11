@@ -2,6 +2,7 @@ import type { FastifyBaseLogger } from 'fastify';
 
 import type { AppEnv } from '../config/schema.js';
 import { AgentService } from '../services/agent-service.js';
+import { FleetService } from '../services/fleet-service.js';
 import { GovernanceService } from '../services/governance-service.js';
 import { TaskService } from '../services/task-service.js';
 import { WorkerService } from '../services/worker-service.js';
@@ -16,6 +17,7 @@ export function startLifecycleMonitor(
   agentService: AgentService,
   taskService: TaskService,
   workerService: WorkerService,
+  fleetService?: FleetService,
   governanceService?: GovernanceService,
 ): LifecycleMonitor {
   const heartbeatTimer = setInterval(async () => {
@@ -66,13 +68,25 @@ export function startLifecycleMonitor(
     }
   }, config.LIFECYCLE_DISPATCH_LOOP_INTERVAL_MS);
 
+  const heartbeatPruneTimer = setInterval(async () => {
+    if (!fleetService) return;
+    try {
+      const pruned = await fleetService.pruneStaleHeartbeats(10);
+      if (pruned > 0) {
+        logger.info({ pruned }, 'stale_heartbeats_pruned');
+      }
+    } catch (error) {
+      logger.error({ err: error }, 'heartbeat_prune_failed');
+    }
+  }, 60_000);
+
   const retentionTimer = setInterval(async () => {
     if (!governanceService) {
       return;
     }
     try {
       const result = await governanceService.enforceRetentionPolicies();
-      if (result.archivedTasks > 0 || result.deletedTasks > 0 || result.deletedAuditLogs > 0 || result.droppedLogPartitions > 0) {
+      if (result.archivedTasks > 0 || result.deletedTasks > 0 || result.droppedLogPartitions > 0) {
         logger.info(result, 'governance_retention_enforced');
       }
     } catch (error) {
@@ -86,6 +100,7 @@ export function startLifecycleMonitor(
       clearInterval(workerHeartbeatTimer);
       clearInterval(timeoutTimer);
       clearInterval(dispatchTimer);
+      clearInterval(heartbeatPruneTimer);
       clearInterval(retentionTimer);
     },
   };

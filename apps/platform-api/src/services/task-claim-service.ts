@@ -166,6 +166,22 @@ export class TaskClaimService {
 
       await client.query('COMMIT');
       const claimedTask = this.deps.toTaskResponse(updatedTaskRes.rows[0] as Record<string, unknown>);
+
+      const namesRes = await client.query(
+        `SELECT
+           w.name AS workflow_name,
+           p.name AS project_name
+         FROM tasks t
+         LEFT JOIN workflows w ON w.tenant_id = t.tenant_id AND w.id = t.workflow_id
+         LEFT JOIN projects p ON p.tenant_id = t.tenant_id AND p.id = t.project_id
+         WHERE t.tenant_id = $1 AND t.id = $2`,
+        [identity.tenantId, task.id],
+      );
+      if (namesRes.rowCount) {
+        (claimedTask as Record<string, unknown>).workflow_name = namesRes.rows[0].workflow_name;
+        (claimedTask as Record<string, unknown>).project_name = namesRes.rows[0].project_name;
+      }
+
       const enrichedTask = await this.enrichWithLLMCredentials(
         identity.tenantId,
         claimedTask,
@@ -216,13 +232,53 @@ export class TaskClaimService {
 
     const existingRoleConfig = (task.role_config ?? {}) as Record<string, unknown>;
 
+    let enriched: Record<string, unknown>;
     if (resolved.provider.authMode === 'oauth' && resolved.provider.providerId) {
-      return this.enrichWithOAuthCredentials(
+      enriched = await this.enrichWithOAuthCredentials(
         resolved, existingRoleConfig, task,
       );
+    } else {
+      enriched = this.enrichWithApiKeyCredentials(resolved, existingRoleConfig, task);
     }
 
-    return this.enrichWithApiKeyCredentials(resolved, existingRoleConfig, task);
+    return this.enrichFromRoleDefinition(tenantId, roleName, enriched);
+  }
+
+  private async enrichFromRoleDefinition(
+    tenantId: string,
+    roleName: string,
+    task: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    try {
+      const roleRes = await this.deps.pool.query<{
+        escalation_target: string | null;
+        allowed_tools: string[] | null;
+      }>(
+        'SELECT escalation_target, allowed_tools FROM role_definitions WHERE tenant_id = $1 AND name = $2 AND is_active = true LIMIT 1',
+        [tenantId, roleName],
+      );
+      if (!roleRes.rowCount) return task;
+
+      const row = roleRes.rows[0];
+      const existingRoleConfig = (task.role_config ?? {}) as Record<string, unknown>;
+      const updates: Record<string, unknown> = {};
+
+      if (row.escalation_target) {
+        updates.escalation_target = row.escalation_target;
+      }
+      if (row.allowed_tools && row.allowed_tools.length > 0) {
+        updates.tools = row.allowed_tools;
+      }
+
+      if (Object.keys(updates).length === 0) return task;
+
+      return {
+        ...task,
+        role_config: { ...existingRoleConfig, ...updates },
+      };
+    } catch {
+      return task;
+    }
   }
 
   private async enrichWithOAuthCredentials(

@@ -365,7 +365,7 @@ describe('LogService', () => {
       pool.query.mockResolvedValue({ rows: [], rowCount: 0 });
       const service = new LogService(pool as never);
 
-      await service.query('tenant-1', { operation: 'llm.*' });
+      await service.query('tenant-1', { operation: ['llm.*'] });
 
       const [sql, params] = pool.query.mock.calls[0];
       expect(sql).toContain('operation LIKE $');
@@ -377,11 +377,11 @@ describe('LogService', () => {
       pool.query.mockResolvedValue({ rows: [], rowCount: 0 });
       const service = new LogService(pool as never);
 
-      await service.query('tenant-1', { operation: 'llm.chat_stream' });
+      await service.query('tenant-1', { operation: ['llm.chat_stream'] });
 
       const [sql, params] = pool.query.mock.calls[0];
-      expect(sql).toContain('operation = $');
-      expect(params).toContain('llm.chat_stream');
+      expect(sql).toContain('operation = ANY($');
+      expect(params).toContainEqual(['llm.chat_stream']);
     });
 
     it('appliesFullTextSearch', async () => {
@@ -392,9 +392,9 @@ describe('LogService', () => {
       await service.query('tenant-1', { search: 'shell_exec error' });
 
       const [sql, params] = pool.query.mock.calls[0];
-      expect(sql).toContain('to_tsvector');
-      expect(sql).toContain('plainto_tsquery');
-      expect(params).toContain('shell_exec error');
+      expect(sql).toContain('CONCAT_WS');
+      expect(sql).toContain('ILIKE');
+      expect(params).toContain('%shell_exec error%');
     });
 
     it('appliesTimeRangeFilters', async () => {

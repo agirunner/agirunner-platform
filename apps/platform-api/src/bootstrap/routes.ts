@@ -3,7 +3,6 @@ import type { FastifyInstance } from 'fastify';
 import { agentRoutes } from '../api/routes/agents.routes.js';
 import { a2aRoutes } from '../api/routes/a2a.routes.js';
 import { acpRoutes } from '../api/routes/acp.routes.js';
-import { auditRoutes } from '../api/routes/audit.routes.js';
 import { apiKeyRoutes } from '../api/routes/api-keys.routes.js';
 import { authRoutes } from '../api/routes/auth.routes.js';
 import { eventRoutes } from '../api/routes/events.routes.js';
@@ -38,7 +37,6 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(healthRoutes);
   await app.register(a2aRoutes);
   await app.register(acpRoutes);
-  await app.register(auditRoutes);
   await app.register(authRoutes);
   await app.register(apiKeyRoutes);
   await app.register(governanceRoutes);

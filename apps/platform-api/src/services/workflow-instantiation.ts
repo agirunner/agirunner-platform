@@ -132,14 +132,18 @@ export async function insertTaskFromTemplate(params: {
     metadata.output_state = substituteTemplateVariables(task.output_state, parameters);
   }
   metadata.workflow_phase = phase.name;
+  metadata.template_task_ref = task.id;
+  if (task.review_prompt) {
+    metadata.review_prompt = substituteTemplateVariables(task.review_prompt, parameters);
+  }
 
   const created = await client.query(
     `INSERT INTO tasks (
       id, tenant_id, workflow_id, project_id, title, role, state, depends_on,
-      requires_approval, input, context, capabilities_required, role_config, environment,
+      requires_approval, requires_output_review, input, context, capabilities_required, role_config, environment,
       timeout_minutes, auto_retry, max_retries, metadata
     ) VALUES (
-      $1,$2,$3,$4,$5,$6,$7,$8::uuid[],$9,$10,$11,$12,$13,$14,$15,$16,$17,$18
+      $1,$2,$3,$4,$5,$6,$7,$8::uuid[],$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
     ) RETURNING *`,
     [
       taskId,
@@ -151,6 +155,7 @@ export async function insertTaskFromTemplate(params: {
       initialState,
       dependsOn,
       task.requires_approval ?? false,
+      task.requires_output_review ?? false,
       input,
       context,
       task.capabilities_required ?? [],

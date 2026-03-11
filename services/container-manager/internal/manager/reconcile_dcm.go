@@ -255,11 +255,13 @@ func (m *Manager) executePreemptions(
 		if !isContainerIdleByHeartbeat(plan.VictimContainerID, plan.VictimTemplateID, grouped, heartbeats) {
 			m.logger.Info("skipping preemption, victim is executing",
 				"victim", plan.VictimContainerID, "template", plan.VictimTemplateID)
-			m.emitLog("container", "reconcile.preempt_skipped", "info", "completed", map[string]any{
+			m.emitLog("container", "reconcile.preempt_skipped", "debug", "completed", map[string]any{
 				"action":                    "preempt",
 				"victim_container_id":       plan.VictimContainerID,
 				"victim_template_id":        plan.VictimTemplateID,
 				"beneficiary_template_id":   plan.BeneficiaryTemplate.TemplateID,
+				"beneficiary_pool_mode":     plan.BeneficiaryTemplate.PoolMode,
+				"beneficiary_priority":      plan.BeneficiaryTemplate.Priority,
 				"reason":                    "victim_executing",
 			})
 			continue
@@ -287,15 +289,22 @@ func (m *Manager) executePreemptions(
 		if vt, ok := targetMap[plan.VictimTemplateID]; ok {
 			victimName = vt.TemplateName
 		}
-		m.emitLog("container", "reconcile.preempt", "info", "completed", map[string]any{
-				"action":                    "preempt",
+		preemptMeta := map[string]any{
+			"action":                    "preempt",
 			"victim_template_id":        plan.VictimTemplateID,
 			"victim_template_name":      victimName,
 			"victim_container_id":       plan.VictimContainerID,
 			"beneficiary_template_id":   plan.BeneficiaryTemplate.TemplateID,
 			"beneficiary_template_name": plan.BeneficiaryTemplate.TemplateName,
+			"beneficiary_pool_mode":     plan.BeneficiaryTemplate.PoolMode,
+			"beneficiary_priority":      plan.BeneficiaryTemplate.Priority,
 			"reason":                    "starvation",
-		})
+		}
+		if starvedSince, ok := m.starvationTrack[plan.BeneficiaryTemplate.TemplateID]; ok {
+			preemptMeta["starvation_duration_ms"] = m.nowFunc().Sub(starvedSince).Milliseconds()
+		}
+		m.emitLogWithResource("container", "reconcile.preempt", "info", "completed", preemptMeta,
+			logResourceInfo{ResourceType: "runtime", ResourceID: plan.VictimContainerID})
 	}
 }
 
@@ -674,14 +683,20 @@ func (m *Manager) executeTargetActions(
 	delta := 0
 
 	if len(actions.idleToDestroy) > 0 {
-		m.emitLog("container", "reconcile.scale_down", "info", "started", map[string]any{
-			"action":        "scale_down",
-			"template_id":   target.TemplateID,
-			"template_name": target.TemplateName,
-			"count":         len(actions.idleToDestroy),
-			"actual_count":  activeCount,
-			"desired_count": activeCount - len(actions.idleToDestroy),
-			"reason":        "idle_timeout",
+		m.emitLog("container", "reconcile.scale_down", "debug", "started", map[string]any{
+			"action":              "scale_down",
+			"template_id":        target.TemplateID,
+			"template_name":      target.TemplateName,
+			"pool_mode":          target.PoolMode,
+			"priority":           target.Priority,
+			"pending_tasks":      target.PendingTasks,
+			"active_workflows":   target.ActiveWorkflows,
+			"count":              len(actions.idleToDestroy),
+			"actual_count":       activeCount,
+			"desired_count":      activeCount - len(actions.idleToDestroy),
+			"max_runtimes":       target.MaxRuntimes,
+			"global_max_runtimes": m.config.GlobalMaxRuntimes,
+			"reason":             "idle_timeout",
 		})
 	}
 	delta -= m.destroyContainers(ctx, actions.idleToDestroy, target.GracePeriodSeconds)
@@ -700,14 +715,20 @@ func (m *Manager) executeTargetActions(
 
 	toCreate := actions.toCreate + replacements
 	if toCreate > 0 {
-		m.emitLog("container", "reconcile.scale_up", "info", "started", map[string]any{
-			"action":        "scale_up",
-			"template_id":   target.TemplateID,
-			"template_name": target.TemplateName,
-			"count":         toCreate,
-			"actual_count":  activeCount,
-			"desired_count": activeCount + toCreate,
-			"reason":        "pending_tasks",
+		m.emitLog("container", "reconcile.scale_up", "debug", "started", map[string]any{
+			"action":              "scale_up",
+			"template_id":        target.TemplateID,
+			"template_name":      target.TemplateName,
+			"pool_mode":          target.PoolMode,
+			"priority":           target.Priority,
+			"pending_tasks":      target.PendingTasks,
+			"active_workflows":   target.ActiveWorkflows,
+			"count":              toCreate,
+			"actual_count":       activeCount,
+			"desired_count":      activeCount + toCreate,
+			"max_runtimes":       target.MaxRuntimes,
+			"global_max_runtimes": m.config.GlobalMaxRuntimes,
+			"reason":             "pending_tasks",
 		})
 	}
 	delta += m.createRuntimeContainers(ctx, target, toCreate)

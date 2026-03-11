@@ -3,10 +3,13 @@ package manager
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -23,6 +26,8 @@ type DockerClient interface {
 	InspectContainerHealth(ctx context.Context, containerID string) (*ContainerHealthStatus, error)
 	PullImage(ctx context.Context, image, policy string) error
 	ConnectNetwork(ctx context.Context, containerID, networkName string) error
+	Events(ctx context.Context, options events.ListOptions) (<-chan events.Message, <-chan error)
+	ContainerLogs(ctx context.Context, containerID string, options container.LogsOptions) (io.ReadCloser, error)
 }
 
 // ContainerInfo represents a running container as reported by Docker.
@@ -82,6 +87,7 @@ type Manager struct {
 	failedHeartbeatSince map[string]time.Time
 	pullFailCache        map[string]time.Time // tracks when an image pull last failed, keyed by image ref
 	idleSince            map[string]time.Time // tracks when each runtime first became idle
+	processedOrphans     map[string]struct{}  // runtime IDs already handled as orphans (prevents log spam)
 	nowFunc              func() time.Time
 	cycleCount           uint64 // monotonic reconcile cycle counter
 }
@@ -100,6 +106,7 @@ func New(cfg Config, docker DockerClient, logger *slog.Logger) *Manager {
 		failedHeartbeatSince: make(map[string]time.Time),
 		pullFailCache:        make(map[string]time.Time),
 		idleSince:            make(map[string]time.Time),
+		processedOrphans:     make(map[string]struct{}),
 		nowFunc:              time.Now,
 	}
 }
@@ -117,6 +124,7 @@ func NewWithPlatform(cfg Config, docker DockerClient, platform PlatformAPI, logg
 		failedHeartbeatSince: make(map[string]time.Time),
 		pullFailCache:        make(map[string]time.Time),
 		idleSince:            make(map[string]time.Time),
+		processedOrphans:     make(map[string]struct{}),
 		nowFunc:              time.Now,
 	}
 }
@@ -141,6 +149,12 @@ func (m *Manager) Run(ctx context.Context) error {
 
 	if err := m.startupSweep(ctx); err != nil {
 		m.logger.Error("startup sweep failed", "error", err)
+	}
+
+	// Start Docker event watcher in a background goroutine.
+	if m.logEmitter != nil {
+		watcher := NewDockerEventWatcher(m.docker, m.logEmitter, m.logger)
+		go watcher.Run(ctx)
 	}
 
 	ticker := time.NewTicker(m.config.ReconcileInterval)
@@ -184,7 +198,7 @@ func (m *Manager) runReconcileCycle(ctx context.Context) {
 			"wds_ok", wdsErr == nil,
 			"dcm_ok", dcmErr == nil,
 		)
-		m.emitLogTimed("container", "reconcile.cycle", "info", "completed", map[string]any{
+		m.emitLogTimed("container", "reconcile.cycle", "debug", "completed", map[string]any{
 			"action":  "heartbeat",
 			"cycle":  m.cycleCount,
 			"wds_ok": wdsErr == nil,
@@ -193,10 +207,10 @@ func (m *Manager) runReconcileCycle(ctx context.Context) {
 	}
 
 	if wdsErr != nil {
-		m.emitLogError("container", "reconcile.wds", map[string]any{"action": "reconcile"}, wdsErr.Error())
+		m.emitLogError("container", "reconcile.wds", map[string]any{"action": "reconcile", "cycle": m.cycleCount}, wdsErr.Error())
 	}
 	if dcmErr != nil {
-		m.emitLogError("container", "reconcile.dcm", map[string]any{"action": "reconcile"}, dcmErr.Error())
+		m.emitLogError("container", "reconcile.dcm", map[string]any{"action": "reconcile", "cycle": m.cycleCount}, dcmErr.Error())
 	}
 }
 
@@ -298,6 +312,14 @@ func (m *Manager) reconcileDesired(ctx context.Context, ds DesiredState, existin
 			m.logger.Info("replacing container", "container", c.ID, "reason", "version or image mismatch")
 			_ = m.docker.StopContainer(ctx, c.ID, m.config.StopTimeout)
 			_ = m.docker.RemoveContainer(ctx, c.ID)
+			m.emitLog("container", "container.wds_replace", "info", "completed", map[string]any{
+				"action":           "replace",
+				"worker":           ds.WorkerName,
+				"container_id":     c.ID,
+				"image":            ds.RuntimeImage,
+				"desired_state_id": ds.ID,
+				"reason":           "version_or_image_mismatch",
+			})
 			currentCount--
 		}
 	}
@@ -309,17 +331,24 @@ func (m *Manager) reconcileDesired(ctx context.Context, ds DesiredState, existin
 		if err != nil {
 			m.logger.Error("failed to create container", "worker", ds.WorkerName, "error", err)
 			m.emitLogError("container", "container.wds_create", map[string]any{
-				"action": "create",
-				"worker": ds.WorkerName, "image": ds.RuntimeImage,
+				"action":           "create",
+				"worker":           ds.WorkerName,
+				"image":            ds.RuntimeImage,
+				"desired_state_id": ds.ID,
+				"version":          ds.Version,
+				"role":             ds.Role,
 			}, err.Error())
 			continue
 		}
 		m.logger.Info("created container", "worker", ds.WorkerName, "container", containerID)
 		m.emitLog("container", "container.wds_create", "info", "completed", map[string]any{
-			"action":       "create",
-			"worker":       ds.WorkerName,
-			"container_id": containerID,
-			"image":        ds.RuntimeImage,
+			"action":           "create",
+			"worker":           ds.WorkerName,
+			"container_id":     containerID,
+			"image":            ds.RuntimeImage,
+			"desired_state_id": ds.ID,
+			"version":          ds.Version,
+			"role":             ds.Role,
 		})
 	}
 
@@ -330,10 +359,13 @@ func (m *Manager) reconcileDesired(ctx context.Context, ds DesiredState, existin
 			_ = m.docker.StopContainer(ctx, existing[i].ID, m.config.StopTimeout)
 			_ = m.docker.RemoveContainer(ctx, existing[i].ID)
 			m.emitLog("container", "container.wds_destroy", "info", "completed", map[string]any{
-				"action":       "scale_down",
-				"worker":       ds.WorkerName,
-				"container_id": existing[i].ID,
-				"reason":       "scale_down",
+				"action":           "scale_down",
+				"worker":           ds.WorkerName,
+				"container_id":     existing[i].ID,
+				"desired_state_id": ds.ID,
+				"version":          ds.Version,
+				"role":             ds.Role,
+				"reason":           "scale_down",
 			})
 		}
 	}
@@ -345,9 +377,12 @@ func (m *Manager) handleDraining(ctx context.Context, ds DesiredState, existing 
 		_ = m.docker.StopContainer(ctx, c.ID, m.config.StopTimeout)
 		_ = m.docker.RemoveContainer(ctx, c.ID)
 		m.emitLog("container", "container.wds_drain", "info", "completed", map[string]any{
-			"action":       "drain",
-			"worker":       ds.WorkerName,
-			"container_id": c.ID,
+			"action":           "drain",
+			"worker":           ds.WorkerName,
+			"container_id":     c.ID,
+			"desired_state_id": ds.ID,
+			"version":          ds.Version,
+			"role":             ds.Role,
 		})
 	}
 }
@@ -370,10 +405,13 @@ func (m *Manager) handleRestart(ctx context.Context, ds DesiredState, existing [
 		m.logger.Info("recreated container after restart", "worker", ds.WorkerName, "container", containerID)
 	}
 	m.emitLog("container", "container.wds_restart", "info", "completed", map[string]any{
-		"action":   "restart",
-		"worker":   ds.WorkerName,
-		"stopped":  len(existing),
-		"replicas": ds.Replicas,
+		"action":           "restart",
+		"worker":           ds.WorkerName,
+		"stopped":          len(existing),
+		"replicas":         ds.Replicas,
+		"desired_state_id": ds.ID,
+		"version":          ds.Version,
+		"role":             ds.Role,
 	})
 }
 

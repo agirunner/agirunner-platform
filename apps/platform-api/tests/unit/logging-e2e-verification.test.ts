@@ -40,14 +40,18 @@ function createMockPool() {
           project_id: p[12],
           workflow_id: p[13],
           workflow_name: p[14],
-          task_id: p[15],
-          actor_type: p[16],
-          actor_id: p[17],
-          actor_name: p[18],
-          resource_type: p[19],
-          resource_id: p[20],
-          resource_name: p[21],
-          created_at: p[22] ?? new Date().toISOString(),
+          project_name: p[15],
+          task_id: p[16],
+          task_title: p[17],
+          workflow_phase: p[18],
+          role: p[19],
+          actor_type: p[20],
+          actor_id: p[21],
+          actor_name: p[22],
+          resource_type: p[23],
+          resource_id: p[24],
+          resource_name: p[25],
+          created_at: p[26] ?? new Date().toISOString(),
         };
         rows.push(row);
         return { rowCount: 1, rows: [row] };
@@ -451,16 +455,9 @@ describe('Logging E2E Verification', () => {
     });
   });
 
-  describe('workflow name resolution', () => {
-    it('resolvesWorkflowNameFromDbWhenNotProvided', async () => {
-      const pool = {
-        query: vi.fn(async (sql: string, _params?: unknown[]) => {
-          if (typeof sql === 'string' && sql.includes('SELECT name FROM workflows')) {
-            return { rows: [{ name: 'Build Pipeline' }], rowCount: 1 };
-          }
-          return { rows: [], rowCount: 1 };
-        }),
-      };
+  describe('denormalized workflow and project names', () => {
+    it('storesProvidedWorkflowNameWithoutDbLookup', async () => {
+      const pool = createMockPool();
       const service = new LogService(pool as never);
 
       await service.insert({
@@ -473,18 +470,18 @@ describe('Logging E2E Verification', () => {
         operation: 'task.started',
         status: 'started',
         workflowId: 'wf-1',
+        workflowName: 'Build Pipeline',
+        projectId: 'proj-1',
+        projectName: 'My Project',
       });
 
-      const insertCall = pool.query.mock.calls.find((c) => (c[0] as string).includes('INSERT'));
-      expect(insertCall).toBeDefined();
-      const params = insertCall![1] as unknown[];
-      expect(params[14]).toBe('Build Pipeline');
+      expect(pool.rows).toHaveLength(1);
+      expect(pool.rows[0].workflow_name).toBe('Build Pipeline');
+      expect(pool.rows[0].project_name).toBe('My Project');
     });
 
-    it('usesProvidedWorkflowNameWithoutDbLookup', async () => {
-      const pool = {
-        query: vi.fn().mockResolvedValue({ rows: [], rowCount: 1 }),
-      };
+    it('storesNullWhenNamesNotProvided', async () => {
+      const pool = createMockPool();
       const service = new LogService(pool as never);
 
       await service.insert({
@@ -497,13 +494,11 @@ describe('Logging E2E Verification', () => {
         operation: 'task.started',
         status: 'started',
         workflowId: 'wf-1',
-        workflowName: 'Pre-provided Name',
       });
 
-      const workflowLookups = pool.query.mock.calls.filter((c) =>
-        (c[0] as string).includes('SELECT name FROM workflows'),
-      );
-      expect(workflowLookups).toHaveLength(0);
+      expect(pool.rows).toHaveLength(1);
+      expect(pool.rows[0].workflow_name).toBeNull();
+      expect(pool.rows[0].project_name).toBeNull();
     });
   });
 
