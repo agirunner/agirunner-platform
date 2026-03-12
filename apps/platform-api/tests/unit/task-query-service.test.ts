@@ -104,7 +104,7 @@ describe('task query service git activity (FR-055)', () => {
     expect(response.is_orchestrator_task).toBe(true);
   });
 
-  it('normalizes stale persisted task aliases before serializing the public response', () => {
+  it('keeps canonical persisted task states unchanged in the public response', () => {
     const service = new TaskQueryService(createPool({
       id: taskId,
       tenant_id: tenantId,
@@ -115,16 +115,50 @@ describe('task query service git activity (FR-055)', () => {
       service.toTaskResponse({
         id: taskId,
         tenant_id: tenantId,
-        state: 'running',
+        state: 'in_progress',
         metadata: {},
       }) as Record<string, unknown>,
     ).toEqual(expect.objectContaining({ state: 'in_progress' }));
+  });
+
+  it('rejects stale persisted task aliases instead of rewriting them in the public response', () => {
+    const service = new TaskQueryService(createPool({
+      id: taskId,
+      tenant_id: tenantId,
+      metadata: {},
+    }) as never);
+
+    expect(() =>
+      service.toTaskResponse({
+        id: taskId,
+        tenant_id: tenantId,
+        state: 'running',
+        metadata: {},
+      }),
+    ).toThrow("Persisted task state must be canonical. Found 'running'.");
+
+    expect(() =>
+      service.toTaskResponse({
+        id: taskId,
+        tenant_id: tenantId,
+        state: 'awaiting_escalation',
+        metadata: {},
+      }),
+    ).toThrow("Persisted task state must be canonical. Found 'awaiting_escalation'.");
+  });
+
+  it('keeps canonical escalated task state unchanged in the public response', () => {
+    const service = new TaskQueryService(createPool({
+      id: taskId,
+      tenant_id: tenantId,
+      metadata: {},
+    }) as never);
 
     expect(
       service.toTaskResponse({
         id: taskId,
         tenant_id: tenantId,
-        state: 'awaiting_escalation',
+        state: 'escalated',
         metadata: {},
       }) as Record<string, unknown>,
     ).toEqual(expect.objectContaining({ state: 'escalated' }));
