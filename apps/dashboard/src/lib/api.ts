@@ -969,6 +969,7 @@ export interface FleetWorkerRecord {
   environment: Record<string, unknown>;
   llm_provider: string | null;
   llm_model: string | null;
+  llm_api_key_secret_ref_configured?: boolean;
   replicas: number;
   enabled: boolean;
   restart_requested: boolean;
@@ -1347,6 +1348,23 @@ export interface DashboardApi {
     replicas?: number;
     enabled?: boolean;
   }): Promise<FleetWorkerRecord>;
+  updateFleetWorker(
+    workerId: string,
+    payload: {
+      role?: string;
+      poolKind?: 'orchestrator' | 'specialist';
+      runtimeImage?: string;
+      cpuLimit?: string;
+      memoryLimit?: string;
+      networkPolicy?: string;
+      environment?: Record<string, unknown>;
+      llmProvider?: string;
+      llmModel?: string;
+      llmApiKeySecretRef?: string;
+      replicas?: number;
+      enabled?: boolean;
+    },
+  ): Promise<FleetWorkerRecord>;
   restartFleetWorker(workerId: string): Promise<unknown>;
   drainFleetWorker(workerId: string): Promise<unknown>;
   deleteFleetWorker(workerId: string): Promise<void>;
@@ -2169,6 +2187,13 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(() =>
         requestData<FleetWorkerRecord>('/api/v1/fleet/workers', {
           method: 'POST',
+          body: payload as Record<string, unknown>,
+        }),
+      ),
+    updateFleetWorker: (workerId, payload) =>
+      withRefresh(() =>
+        requestData<FleetWorkerRecord>(`/api/v1/fleet/workers/${workerId}`, {
+          method: 'PATCH',
           body: payload as Record<string, unknown>,
         }),
       ),

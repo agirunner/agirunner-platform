@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Flame } from 'lucide-react';
+import { ArrowRight, Flame, Settings2 } from 'lucide-react';
 
 import {
   dashboardApi,
@@ -169,12 +169,20 @@ export function WarmPoolsPage(): JSX.Element {
             derived from fleet worker desired state, so capacity changes belong in worker management.
           </p>
         </div>
-        <Button asChild variant="outline">
-          <Link to="/fleet/workers">
-            Manage Workers
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link to="/config/runtimes">
+              Runtime Defaults
+              <Settings2 className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/fleet/workers">
+              Manage Workers
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <PoolStateCards status={fleetStatusQuery.data} />

@@ -16,5 +16,8 @@ describe('fleet status pool split source', () => {
     expect(source).toContain('Per-Playbook Pool Status');
     expect(source).toContain('md:hidden');
     expect(source).toContain('Auto-refreshing');
+    expect(source).toContain('/fleet/workers');
+    expect(source).toContain('/config/runtimes');
+    expect(source).toContain('Configuration ownership');
   });
 });

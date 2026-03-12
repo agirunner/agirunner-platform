@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Activity,
+  ArrowRight,
   Clock,
   Container,
   Gauge,
@@ -10,8 +11,15 @@ import {
   Play,
   Server,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils.js';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card.js';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+} from '../../components/ui/card.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Skeleton } from '../../components/ui/skeleton.js';
@@ -425,16 +433,47 @@ export function FleetStatusPage(): JSX.Element {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-2">
-          <Container className="h-6 w-6 text-muted-foreground" />
-          <h1 className="text-2xl font-semibold">Fleet Status</h1>
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Container className="h-6 w-6 text-muted-foreground" />
+            <h1 className="text-2xl font-semibold">Fleet Status</h1>
+          </div>
+          <p className="max-w-3xl text-sm text-muted">
+            Monitor the current pool posture and runtime pressure here. Change worker desired state
+            in worker management, and change global runtime caps in runtime defaults.
+          </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Auto-refreshing
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 text-xs text-muted">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Auto-refreshing
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/config/runtimes">
+              Runtime Defaults
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/fleet/workers">
+              Manage Workers
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Configuration ownership</CardTitle>
+          <CardDescription>
+            This page is operational telemetry. Pool sizes, worker roles, runtime images, network
+            posture, and model pinning are configured in worker desired state. Platform-wide runtime
+            caps and baseline runtime defaults are configured in the runtime defaults page.
+          </CardDescription>
+        </CardHeader>
+      </Card>
 
       <GlobalOverview status={status} />
       <WorkerPoolsOverview pools={status.worker_pools ?? []} />

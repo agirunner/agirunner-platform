@@ -1430,11 +1430,12 @@ describe('dashboard api auth/session behavior', () => {
                 cpu_limit: '2',
                 memory_limit: '2g',
                 network_policy: 'restricted',
-                environment: {},
-                llm_provider: 'openai',
-                llm_model: 'gpt-5',
-                replicas: 1,
-                enabled: true,
+              environment: {},
+              llm_provider: 'openai',
+              llm_model: 'gpt-5',
+              llm_api_key_secret_ref_configured: true,
+              replicas: 1,
+              enabled: true,
                 restart_requested: false,
                 draining: false,
                 version: 1,
@@ -1463,6 +1464,7 @@ describe('dashboard api auth/session behavior', () => {
               environment: {},
               llm_provider: null,
               llm_model: null,
+              llm_api_key_secret_ref_configured: false,
               replicas: 2,
               enabled: true,
               restart_requested: false,
@@ -1475,6 +1477,36 @@ describe('dashboard api auth/session behavior', () => {
             },
           }),
           { status: 201 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              id: 'worker-2',
+              worker_name: 'specialist-1',
+              role: 'reviewer',
+              pool_kind: 'specialist',
+              runtime_image: 'ghcr.io/agirunner/specialist:stable',
+              cpu_limit: '4',
+              memory_limit: '4g',
+              network_policy: 'open',
+              environment: { FEATURE_FLAG: 'enabled' },
+              llm_provider: 'openai',
+              llm_model: 'gpt-5',
+              llm_api_key_secret_ref_configured: true,
+              replicas: 3,
+              enabled: false,
+              restart_requested: false,
+              draining: false,
+              version: 2,
+              created_at: '2026-03-11T00:00:00.000Z',
+              updated_at: '2026-03-11T01:00:00.000Z',
+              updated_by: null,
+              actual: [],
+            },
+          }),
+          { status: 200 },
         ),
       )
       .mockResolvedValueOnce(
@@ -1513,6 +1545,19 @@ describe('dashboard api auth/session behavior', () => {
       runtimeImage: 'ghcr.io/agirunner/specialist:latest',
       poolKind: 'specialist',
     });
+    const updated = await api.updateFleetWorker('worker-2', {
+      role: 'reviewer',
+      runtimeImage: 'ghcr.io/agirunner/specialist:stable',
+      cpuLimit: '4',
+      memoryLimit: '4g',
+      networkPolicy: 'open',
+      environment: { FEATURE_FLAG: 'enabled' },
+      llmProvider: 'openai',
+      llmModel: 'gpt-5',
+      llmApiKeySecretRef: 'secret:tenant/openai',
+      replicas: 3,
+      enabled: false,
+    });
     await api.restartFleetWorker('worker-2');
     await api.drainFleetWorker('worker-2');
     await api.deleteFleetWorker('worker-2');
@@ -1521,6 +1566,7 @@ describe('dashboard api auth/session behavior', () => {
     expect(status.by_playbook_pool[0]?.pool_kind).toBe('orchestrator');
     expect(workers[0]?.pool_kind).toBe('orchestrator');
     expect(created.pool_kind).toBe('specialist');
+    expect(updated.llm_api_key_secret_ref_configured).toBe(true);
     expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
       'http://localhost:8080/api/v1/fleet/status',
     );
@@ -1531,12 +1577,15 @@ describe('dashboard api auth/session behavior', () => {
       'http://localhost:8080/api/v1/fleet/workers',
     );
     expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
-      'http://localhost:8080/api/v1/fleet/workers/worker-2/restart',
+      'http://localhost:8080/api/v1/fleet/workers/worker-2',
     );
     expect(vi.mocked(fetcher).mock.calls[4][0]).toBe(
-      'http://localhost:8080/api/v1/fleet/workers/worker-2/drain',
+      'http://localhost:8080/api/v1/fleet/workers/worker-2/restart',
     );
     expect(vi.mocked(fetcher).mock.calls[5][0]).toBe(
+      'http://localhost:8080/api/v1/fleet/workers/worker-2/drain',
+    );
+    expect(vi.mocked(fetcher).mock.calls[6][0]).toBe(
       'http://localhost:8080/api/v1/fleet/workers/worker-2',
     );
   });

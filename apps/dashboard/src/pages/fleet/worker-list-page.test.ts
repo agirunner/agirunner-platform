@@ -7,14 +7,16 @@ function readSource() {
 }
 
 describe('worker list two-pool source', () => {
-  it('uses split fleet worker and pool status APIs for orchestrator vs specialist worker views', () => {
+  it('uses worker desired state as the canonical fleet configuration surface', () => {
     const source = readSource();
     expect(source).toContain('dashboardApi.fetchFleetWorkers()');
     expect(source).toContain('dashboardApi.fetchFleetStatus()');
-    expect(source).toContain('Orchestrator Workers');
-    expect(source).toContain('Specialist Workers');
-    expect(source).toContain('worker.pool_kind');
-    expect(source).toContain('max-h-[80vh] max-w-xl overflow-y-auto');
-    expect(source).toContain('className="w-full sm:w-auto"');
+    expect(source).toContain('dashboardApi.listLlmProviders()');
+    expect(source).toContain('dashboardApi.listLlmModels()');
+    expect(source).toContain('dashboardApi.deleteFleetWorker(workerId)');
+    expect(source).toContain('WorkerDesiredStateDialog');
+    expect(source).toContain('Runtime defaults');
+    expect(source).toContain('Orchestrator workers');
+    expect(source).toContain('Specialist workers');
   });
 });

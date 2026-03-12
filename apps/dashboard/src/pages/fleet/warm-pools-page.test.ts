@@ -18,6 +18,8 @@ describe('warm pools two-pool source', () => {
 
   it('removes the fake pool size dialog and routes operators to real worker controls', () => {
     const source = readSource();
+    expect(source).toContain('/config/runtimes');
+    expect(source).toContain('Runtime Defaults');
     expect(source).toContain('Manage Workers');
     expect(source).toContain('worker desired state');
     expect(source).not.toContain('Configure Pool Size');
