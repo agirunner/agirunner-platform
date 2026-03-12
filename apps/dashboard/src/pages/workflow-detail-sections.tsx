@@ -13,7 +13,10 @@ import type {
   DashboardWorkflowWorkItemRecord,
 } from '../lib/api.js';
 import { dashboardApi } from '../lib/api.js';
-import type { DashboardWorkflowTaskRow } from './workflow-detail-support.js';
+import {
+  describeTaskGraphPacket,
+  type DashboardWorkflowTaskRow,
+} from './workflow-detail-support.js';
 import { listWorkflowGates, type DashboardGateDetailRecord } from './work/gate-api.js';
 import { GateDetailCard } from './work/gate-detail-card.js';
 import {
@@ -68,11 +71,23 @@ interface MissionControlSummary {
 
 export function MissionControlCard(props: {
   summary: MissionControlSummary;
+  workItemSummary?: {
+    open_work_item_count?: number;
+    completed_work_item_count?: number;
+    active_stage_count?: number;
+    awaiting_gate_count?: number;
+  } | null;
   totalCostUsd: number;
+  latestActivitySummary?: string;
   onPause(): void;
   onResume(): void;
   onCancel(): void;
 }) {
+  const specialistPressure = props.summary.ready + props.summary.in_progress;
+  const openWorkItems = props.workItemSummary?.open_work_item_count ?? 0;
+  const completedWorkItems = props.workItemSummary?.completed_work_item_count ?? 0;
+  const liveStages = props.workItemSummary?.active_stage_count ?? 0;
+  const gateReviews = props.workItemSummary?.awaiting_gate_count ?? 0;
   return (
     <Card className="border-border/80 bg-card shadow-sm">
       <CardHeader className="gap-4">
@@ -98,19 +113,19 @@ export function MissionControlCard(props: {
       </CardHeader>
       <CardContent className="grid gap-4">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <MissionMetric label="Total" value={props.summary.total} />
-          <MissionMetric label="Ready" value={props.summary.ready} />
-          <MissionMetric label="In Progress" value={props.summary.in_progress} />
-          <MissionMetric label="Blocked" value={props.summary.blocked} />
-          <MissionMetric label="Completed" value={props.summary.completed} />
-          <MissionMetric label="Failed" value={props.summary.failed} />
+          <MissionMetric label="Open Work" value={openWorkItems} />
+          <MissionMetric label="Gate Reviews" value={gateReviews} />
+          <MissionMetric label="Live Stages" value={liveStages} />
+          <MissionMetric label="Queued Steps" value={specialistPressure} />
+          <MissionMetric label="Blocked + Failed" value={props.summary.blocked + props.summary.failed} />
+          <MissionMetric label="Completed Work" value={completedWorkItems} />
         </div>
         <div className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="space-y-1">
               <p className="text-sm font-medium text-foreground">Operator posture</p>
               <p className="text-sm text-muted">
-                Stage changes, retries, approvals, and escalations all flow through work items and gates.
+                Prioritize open work, gate pressure, and blocked specialist steps before touching run controls.
               </p>
             </div>
             <div className="rounded-lg border border-border/70 bg-background/90 px-3 py-2 text-right shadow-sm">
@@ -119,6 +134,24 @@ export function MissionControlCard(props: {
               </p>
               <p className="text-lg font-semibold text-foreground">${props.totalCostUsd.toFixed(4)}</p>
             </div>
+          </div>
+          <div className="grid gap-3 rounded-lg border border-border/60 bg-background/80 p-3 sm:grid-cols-2">
+            <SnapshotMetric
+              label="Specialist step health"
+              value={`${props.summary.in_progress} in progress • ${props.summary.ready} ready`}
+            />
+            <SnapshotMetric
+              label="Recovery pressure"
+              value={`${props.summary.blocked} blocked • ${props.summary.failed} failed`}
+            />
+            <SnapshotMetric
+              label="Board completion"
+              value={`${completedWorkItems} complete • ${openWorkItems} open`}
+            />
+            <SnapshotMetric
+              label="Latest operator activity"
+              value={props.latestActivitySummary ?? 'No operator activity recorded yet'}
+            />
           </div>
         </div>
       </CardContent>
@@ -137,7 +170,7 @@ export function TaskGraphCard(props: {
       <CardHeader>
         <CardTitle>Execution Steps</CardTitle>
         <CardDescription>
-          Execution steps grouped by board stage for faster operator scanning.
+          Human-readable specialist steps grouped by board stage for faster operator scanning.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -156,7 +189,7 @@ export function TaskGraphCard(props: {
             <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 pb-3">
               <div className="grid gap-1">
                 <CardTitle className="text-base">{group.stageName}</CardTitle>
-                <CardDescription>Execution steps anchored to this board stage.</CardDescription>
+                <CardDescription>Execution flow, ownership, and upstream dependencies for this stage.</CardDescription>
               </div>
               <Badge variant="secondary">{group.tasks.length} steps</Badge>
             </CardHeader>
@@ -165,22 +198,30 @@ export function TaskGraphCard(props: {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Step</TableHead>
-                    <TableHead>State</TableHead>
-                    <TableHead>Depends On</TableHead>
+                    <TableHead>Focus</TableHead>
+                    <TableHead>Upstream</TableHead>
+                    <TableHead>Updated</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {group.tasks.map((task) => (
-                    <TableRow key={task.id}>
-                      <TableCell className="font-medium">
-                        <Link to={`/work/tasks/${task.id}`}>{task.title}</Link>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={badgeVariantForState(task.state)}>{task.state}</Badge>
-                      </TableCell>
-                      <TableCell>{task.depends_on.length > 0 ? task.depends_on.join(', ') : '—'}</TableCell>
-                    </TableRow>
-                  ))}
+                  {group.tasks.map((task) => {
+                    const packet = describeTaskGraphPacket(task, props.tasks);
+                    return (
+                      <TableRow key={task.id}>
+                        <TableCell className="font-medium">
+                          <div className="grid gap-1">
+                            <Link to={`/work/tasks/${task.id}`}>{task.title}</Link>
+                            <Badge variant={badgeVariantForState(task.state)} className="w-fit">
+                              {task.state}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted">{packet.focus}</TableCell>
+                        <TableCell className="text-sm text-muted">{packet.upstream}</TableCell>
+                        <TableCell className="text-sm text-muted">{packet.timing}</TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
@@ -1130,6 +1171,15 @@ function MissionMetric({ label, value }: { label: string; value: number }): JSX.
     <div className="grid gap-1 rounded-xl border border-border/70 bg-background/90 p-4 shadow-sm">
       <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted">{label}</p>
       <strong className="text-2xl text-foreground">{value}</strong>
+    </div>
+  );
+}
+
+function SnapshotMetric({ label, value }: { label: string; value: string }): JSX.Element {
+  return (
+    <div className="grid gap-1 rounded-xl border border-border/70 bg-background/90 p-4 shadow-sm">
+      <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted">{label}</p>
+      <strong className="text-sm text-foreground">{value}</strong>
     </div>
   );
 }

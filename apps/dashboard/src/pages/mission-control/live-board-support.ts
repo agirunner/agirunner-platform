@@ -19,6 +19,19 @@ export interface LiveBoardWorkflowRecord {
   created_at?: string;
 }
 
+export interface LiveBoardWorkerRecord {
+  status: string;
+  current_tasks?: number | null;
+}
+
+export interface LiveBoardFleetSummary {
+  online: number;
+  busy: number;
+  available: number;
+  offline: number;
+  assignedSteps: number;
+}
+
 function readLiveStageNames(workflow: LiveBoardWorkflowRecord): string[] {
   const activeStages = workflow.active_stages?.filter((stage): stage is string => stage.trim().length > 0) ?? [];
   const summaryStages =
@@ -164,4 +177,47 @@ export function formatRelativeTimestamp(value: string | null | undefined, now = 
   }
   const deltaDays = Math.floor(deltaHours / 24);
   return `${deltaDays}d ago`;
+}
+
+export function summarizeWorkerFleet(workers: LiveBoardWorkerRecord[]): LiveBoardFleetSummary {
+  return workers.reduce<LiveBoardFleetSummary>(
+    (summary, worker) => {
+      const currentTasks = Math.max(0, Number(worker.current_tasks ?? 0));
+      const isOnline = worker.status === 'online' || worker.status === 'active';
+      if (isOnline) {
+        summary.online += 1;
+        summary.assignedSteps += currentTasks;
+        if (currentTasks > 0) {
+          summary.busy += 1;
+        } else {
+          summary.available += 1;
+        }
+      } else {
+        summary.offline += 1;
+      }
+      return summary;
+    },
+    { online: 0, busy: 0, available: 0, offline: 0, assignedSteps: 0 },
+  );
+}
+
+export function describeWorkerCapacity(worker: LiveBoardWorkerRecord): string {
+  const currentTasks = Math.max(0, Number(worker.current_tasks ?? 0));
+  if (worker.status !== 'online' && worker.status !== 'active') {
+    return 'Offline';
+  }
+  if (currentTasks > 0) {
+    return `${currentTasks} step${currentTasks === 1 ? '' : 's'} active`;
+  }
+  return 'Available for new steps';
+}
+
+export function describeFleetHeadline(summary: LiveBoardFleetSummary): string {
+  if (summary.online === 0) {
+    return 'No connected workers';
+  }
+  if (summary.busy > 0) {
+    return `${summary.busy} worker${summary.busy === 1 ? '' : 's'} actively executing`;
+  }
+  return `${summary.available} worker${summary.available === 1 ? '' : 's'} ready for new steps`;
 }

@@ -54,7 +54,10 @@ import {
   WorkflowActivationsCard,
   WorkflowStagesCard,
 } from './workflow-detail-sections.js';
-import { WorkflowInteractionTimelineCard } from './workflow-history-card.js';
+import {
+  describeTimelineEvent,
+  WorkflowInteractionTimelineCard,
+} from './workflow-history-card.js';
 import { WorkflowDocumentsCard, ProjectMemoryCard } from './workflow-detail-content.js';
 import { invalidateWorkflowQueries } from './workflow-detail-query.js';
 import { buildWorkflowDetailHash } from './workflow-detail-permalinks.js';
@@ -303,6 +306,14 @@ export function WorkflowDetailPage(): JSX.Element {
     () => historyQuery.data?.pages.flatMap((page) => page.data) ?? [],
     [historyQuery.data],
   );
+  const latestActivitySummary = useMemo(() => {
+    const latestEvent = historyEvents[0];
+    if (!latestEvent) {
+      return null;
+    }
+    const descriptor = describeTimelineEvent(latestEvent);
+    return descriptor.summary ?? descriptor.headline;
+  }, [historyEvents]);
   const costSummary = useMemo(() => {
     const tasks = taskQuery.data?.data ?? [];
     return tasks.reduce(
@@ -655,7 +666,9 @@ export function WorkflowDetailPage(): JSX.Element {
           <div className="grid content-start gap-6">
             <MissionControlCard
               summary={summary}
+              workItemSummary={workflowQuery.data?.work_item_summary}
               totalCostUsd={costSummary.totalCostUsd}
+              latestActivitySummary={latestActivitySummary ?? undefined}
               onPause={() =>
                 void dashboardApi
                   .pauseWorkflow(workflowId)

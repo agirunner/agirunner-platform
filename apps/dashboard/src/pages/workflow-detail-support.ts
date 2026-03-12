@@ -36,6 +36,12 @@ export interface DashboardPacketFact {
   value: string;
 }
 
+export interface DashboardTaskGraphPacket {
+  focus: string;
+  upstream: string;
+  timing: string;
+}
+
 export interface DashboardConfigLayerSummary {
   name: string;
   fieldCount: number;
@@ -202,6 +208,68 @@ export function summarizeTasks(tasks: Array<{ state: string }>): MissionControlS
     },
     { total: 0, ready: 0, in_progress: 0, blocked: 0, completed: 0, failed: 0 },
   );
+}
+
+export function describeTaskGraphPacket(
+  task: DashboardWorkflowTaskRow,
+  allTasks: DashboardWorkflowTaskRow[],
+  now = Date.now(),
+): DashboardTaskGraphPacket {
+  const taskIndex = new Map(allTasks.map((entry) => [entry.id, entry]));
+  const upstreamTitles = task.depends_on
+    .map((dependencyId) => taskIndex.get(dependencyId)?.title ?? summarizeIdentifier(dependencyId))
+    .slice(0, 3);
+
+  const focusParts = [readNonEmptyString(task.role), readNonEmptyString(task.stage_name)]
+    .filter((value): value is string => Boolean(value))
+    .map((value, index) => (index === 0 ? value : `stage ${value}`));
+  const workItemId = readNonEmptyString(task.work_item_id);
+  const focus =
+    focusParts.length > 0
+      ? focusParts.join(' • ')
+      : workItemId
+        ? `work item ${summarizeIdentifier(workItemId)}`
+        : 'Standalone specialist step';
+
+  const hasCompletedAt = readNonEmptyString(task.completed_at);
+  const hasCreatedAt = readNonEmptyString(task.created_at);
+  const timingReference = hasCompletedAt ?? hasCreatedAt;
+  const timingPrefix = hasCompletedAt ? 'Completed' : hasCreatedAt ? 'Queued' : 'No timestamp';
+
+  return {
+    focus,
+    upstream:
+      upstreamTitles.length > 0
+        ? upstreamTitles.join(', ')
+        : 'No upstream steps',
+    timing:
+      timingReference
+        ? `${timingPrefix} ${formatCompactRelativeTime(timingReference, now)}`
+        : timingPrefix,
+  };
+}
+
+function summarizeIdentifier(value: string): string {
+  return value.length <= 12 ? value : `${value.slice(0, 8)}…${value.slice(-4)}`;
+}
+
+function formatCompactRelativeTime(value: string, now: number): string {
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) {
+    return 'recently';
+  }
+  const deltaMinutes = Math.max(0, Math.floor((now - timestamp) / 60_000));
+  if (deltaMinutes < 1) {
+    return 'just now';
+  }
+  if (deltaMinutes < 60) {
+    return `${deltaMinutes}m ago`;
+  }
+  const deltaHours = Math.floor(deltaMinutes / 60);
+  if (deltaHours < 24) {
+    return `${deltaHours}h ago`;
+  }
+  return `${Math.floor(deltaHours / 24)}d ago`;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

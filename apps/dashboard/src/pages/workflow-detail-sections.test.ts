@@ -13,7 +13,11 @@ describe('workflow detail sections source', () => {
   it('surfaces stage-level work item summary in the playbook board card', () => {
     const source = readSource();
     expect(source).toContain('Execution Steps');
-    expect(source).toContain('Execution steps grouped by board stage');
+    expect(source).toContain('Human-readable specialist steps grouped by board stage');
+    expect(source).toContain('describeTaskGraphPacket');
+    expect(source).toContain('Execution flow, ownership, and upstream dependencies for this stage.');
+    expect(source).toContain('Upstream');
+    expect(source).toContain('Updated');
     expect(source).toContain('Work Board');
     expect(source).toContain('stage_summary');
     expect(source).toContain('completed_count');
@@ -30,6 +34,15 @@ describe('workflow detail sections source', () => {
     expect(source).toContain('Apply Board Move');
     expect(source).toContain('Board move controls');
     expect(source).toContain('dashboardApi.updateWorkflowWorkItem');
+  });
+
+  it('keeps mission control focused on work-item posture and latest operator activity instead of raw task totals', () => {
+    const source = readSource();
+    expect(source).toContain('Open Work');
+    expect(source).toContain('Gate Reviews');
+    expect(source).toContain('Latest operator activity');
+    expect(source).toContain('Prioritize open work, gate pressure, and blocked specialist steps');
+    expect(source).not.toContain('MissionMetric label="Total"');
   });
 
   it('shows stage summaries directly on workflow stage cards', () => {

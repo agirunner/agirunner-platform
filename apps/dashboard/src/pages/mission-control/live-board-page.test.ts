@@ -60,6 +60,16 @@ describe('live board page source', () => {
     expect(source).not.toContain('Cost Today');
   });
 
+  it('turns fleet telemetry into operator-capacity packets instead of raw worker rows', () => {
+    const source = readSource();
+    expect(source).toContain('summarizeWorkerFleet');
+    expect(source).toContain('describeFleetHeadline');
+    expect(source).toContain('describeWorkerCapacity');
+    expect(source).toContain('Assigned steps');
+    expect(source).toContain('Use this to spot capacity gaps before work starts queueing.');
+    expect(source).toContain('assigned');
+  });
+
   it('uses human-readable progress, spend, and relative timing in board summaries', () => {
     const source = readSource();
     expect(source).toContain('describeBoardProgress');

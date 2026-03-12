@@ -121,6 +121,8 @@ describe('workflow detail model override display', () => {
     expect(source).toContain('dashboardApi.getWorkflowBudget(workflowId)');
     expect(source).toContain('WorkflowBudgetCard');
     expect(source).toContain('context="workflow-detail"');
+    expect(source).toContain('workItemSummary={workflowQuery.data?.work_item_summary}');
+    expect(source).toContain('latestActivitySummary={latestActivitySummary ?? undefined}');
   });
 });
 

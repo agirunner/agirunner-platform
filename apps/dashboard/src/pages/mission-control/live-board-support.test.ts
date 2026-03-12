@@ -6,10 +6,13 @@ import {
   describeBoardHeadline,
   describeBoardProgress,
   describeBoardSpend,
+  describeFleetHeadline,
   describeWorkflowStage,
+  describeWorkerCapacity,
   formatRelativeTimestamp,
   isLiveWorkflow,
   resolveBoardPosture,
+  summarizeWorkerFleet,
 } from './live-board-support.js';
 
 describe('live board support', () => {
@@ -121,5 +124,24 @@ describe('live board support', () => {
         new Date('2026-03-12T12:00:00.000Z').getTime(),
       ),
     ).toBe('15m ago');
+  });
+
+  it('turns raw worker telemetry into operator-capacity summaries', () => {
+    const summary = summarizeWorkerFleet([
+      { status: 'online', current_tasks: 2 },
+      { status: 'active', current_tasks: 0 },
+      { status: 'offline', current_tasks: 3 },
+    ]);
+
+    expect(summary).toEqual({
+      online: 2,
+      busy: 1,
+      available: 1,
+      offline: 1,
+      assignedSteps: 2,
+    });
+    expect(describeWorkerCapacity({ status: 'online', current_tasks: 2 })).toBe('2 steps active');
+    expect(describeWorkerCapacity({ status: 'active', current_tasks: 0 })).toBe('Available for new steps');
+    expect(describeFleetHeadline(summary)).toBe('1 worker actively executing');
   });
 });

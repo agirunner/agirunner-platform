@@ -51,10 +51,13 @@ import {
   describeBoardHeadline,
   describeBoardProgress,
   describeBoardSpend,
+  describeFleetHeadline,
   describeWorkflowStage,
+  describeWorkerCapacity,
   formatRelativeTimestamp,
   isLiveWorkflow,
   resolveBoardPosture,
+  summarizeWorkerFleet,
 } from './live-board-support.js';
 
 interface WorkflowRecord {
@@ -1131,30 +1134,43 @@ interface FleetStatusPanelProps {
 }
 
 function FleetStatusPanel({ workers }: FleetStatusPanelProps): JSX.Element {
+  const fleetSummary = summarizeWorkerFleet(workers);
   return (
-    <Card>
+    <Card className="border-border/70 shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Server className="h-4 w-4" />
           Fleet Status
         </CardTitle>
+        <p className="text-sm text-muted">
+          {describeFleetHeadline(fleetSummary)}. Use this to spot capacity gaps before work starts queueing.
+        </p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="grid gap-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <SnapshotMetric label="Online" value={String(fleetSummary.online)} />
+          <SnapshotMetric label="Busy" value={String(fleetSummary.busy)} />
+          <SnapshotMetric label="Available" value={String(fleetSummary.available)} />
+          <SnapshotMetric label="Assigned steps" value={String(fleetSummary.assignedSteps)} />
+        </div>
         {workers.length === 0 ? (
           <p className="text-sm text-muted">No workers registered.</p>
         ) : (
           <div className="space-y-2">
             {workers.map((w) => (
-              <div key={w.id} className="flex items-center justify-between rounded-md border p-2">
-                <div className="flex items-center gap-2">
+              <div key={w.id} className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/10 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-2">
                   <Cpu className="h-4 w-4 text-muted" />
-                  <span className="text-sm font-medium">{w.name ?? w.id}</span>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">{w.name ?? w.id}</p>
+                    <p className="text-xs text-muted">{describeWorkerCapacity(w)}</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {w.current_tasks != null && (
-                    <span className="text-xs text-muted">{w.current_tasks} steps</span>
-                  )}
                   <Badge variant={statusBadgeVariant(w.status)}>{w.status}</Badge>
+                  {w.current_tasks != null ? (
+                    <Badge variant="outline">{w.current_tasks} assigned</Badge>
+                  ) : null}
                 </div>
               </div>
             ))}
