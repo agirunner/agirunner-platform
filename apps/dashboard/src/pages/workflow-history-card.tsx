@@ -11,6 +11,11 @@ import {
   CardTitle,
 } from '../components/ui/card.js';
 import { StructuredRecordView } from '../components/structured-data.js';
+import {
+  describeReviewPacket,
+  toStructuredDetailViewData,
+} from './workflow-detail-presentation.js';
+import { readPacketScalarFacts } from './workflow-detail-support.js';
 
 interface TimelineDescriptor {
   headline: string;
@@ -277,6 +282,24 @@ export function describeTimelineEvent(event: DashboardEventRecord): TimelineDesc
         taskId,
         actor,
       };
+    case 'budget.warning':
+      return {
+        headline: 'Workflow budget warning',
+        summary: buildBudgetSummary(event.data, 'warning'),
+        stageName,
+        workItemId,
+        taskId,
+        actor,
+      };
+    case 'budget.exceeded':
+      return {
+        headline: 'Workflow budget exceeded',
+        summary: buildBudgetSummary(event.data, 'exceeded'),
+        stageName,
+        workItemId,
+        taskId,
+        actor,
+      };
     case 'child_workflow.completed':
       return {
         headline: childWorkflowName ? `Child board completed: ${childWorkflowName}` : 'Child board completed',
@@ -336,15 +359,65 @@ function TimelineEntry(props: { workflowId: string; event: DashboardEventRecord 
           </Link>
         ) : null}
       </div>
-      <details className="rounded-lg border border-border/60 bg-surface/80 p-3">
-        <summary className="cursor-pointer text-sm font-medium text-foreground">
-          Event payload
-        </summary>
-        <div className="mt-3">
-          <StructuredRecordView data={props.event.data} emptyMessage="No event payload." />
-        </div>
-      </details>
+      <TimelineEventPacket event={props.event} />
     </li>
+  );
+}
+
+function TimelineEventPacket(props: { event: DashboardEventRecord }): JSX.Element {
+  const reviewPacket = describeReviewPacket(props.event.data, 'interaction packet');
+  const scalarFacts = readPacketScalarFacts(props.event.data, 4);
+
+  return (
+    <div className="grid gap-3 rounded-lg border border-border/70 bg-surface/80 p-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="grid gap-1">
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+            Interaction packet
+          </div>
+          <div className="text-sm font-medium text-foreground">{reviewPacket.summary}</div>
+          <p className="text-sm leading-6 text-muted">{reviewPacket.detail}</p>
+        </div>
+        <Badge variant="outline">{reviewPacket.typeLabel}</Badge>
+      </div>
+      {scalarFacts.length > 0 ? (
+        <dl className="grid gap-2 sm:grid-cols-2">
+          {scalarFacts.map((fact) => (
+            <div
+              key={`${props.event.id}:${fact.label}`}
+              className="grid gap-1 rounded-lg border border-border/70 bg-background/90 px-3 py-2"
+            >
+              <dt className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+                {fact.label}
+              </dt>
+              <dd className="text-sm text-foreground">{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      {reviewPacket.badges.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {reviewPacket.badges.map((badge) => (
+            <Badge key={`${props.event.id}:${badge}`} variant="outline">
+              {badge}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
+      {reviewPacket.hasStructuredDetail ? (
+        <details className="rounded-lg border border-border/60 bg-background/90 p-3">
+          <summary className="cursor-pointer text-sm font-medium text-foreground">
+            Open event packet
+          </summary>
+          <div className="mt-3">
+            <StructuredRecordView
+              data={toStructuredDetailViewData(props.event.data)}
+              emptyMessage="No event payload."
+            />
+          </div>
+        </details>
+      ) : null}
+    </div>
   );
 }
 
@@ -369,6 +442,68 @@ function buildMovementSummary(
   return null;
 }
 
+function buildBudgetSummary(
+  data: Record<string, unknown> | undefined,
+  severity: 'warning' | 'exceeded',
+): string {
+  const dimensions = readStringArray(data?.dimensions);
+  const segments: string[] = [];
+
+  if (dimensions.includes('tokens')) {
+    segments.push(
+      buildBudgetSegment(
+        'tokens',
+        readNumber(data?.tokens_used),
+        readNumber(data?.tokens_limit),
+        formatInteger,
+      ),
+    );
+  }
+  if (dimensions.includes('cost')) {
+    segments.push(
+      buildBudgetSegment(
+        'cost',
+        readNumber(data?.cost_usd),
+        readNumber(data?.cost_limit_usd),
+        formatCurrency,
+      ),
+    );
+  }
+  if (dimensions.includes('duration')) {
+    segments.push(
+      buildBudgetSegment(
+        'duration',
+        readNumber(data?.elapsed_minutes),
+        readNumber(data?.duration_limit_minutes),
+        formatMinutes,
+      ),
+    );
+  }
+
+  if (segments.length === 0) {
+    return severity === 'warning'
+      ? 'Workflow activity is approaching a configured budget boundary.'
+      : 'Workflow activity crossed a configured budget boundary.';
+  }
+
+  const prefix =
+    severity === 'warning'
+      ? 'Approaching configured workflow guardrails for '
+      : 'Configured workflow guardrails were exceeded for ';
+  return `${prefix}${segments.join('; ')}.`;
+}
+
+function buildBudgetSegment(
+  label: string,
+  used: number | null,
+  limit: number | null,
+  formatter: (value: number) => string,
+): string {
+  const formattedUsed = used === null ? 'unknown usage' : formatter(used);
+  const formattedLimit = limit === null ? 'no cap' : formatter(limit);
+  return `${label} (${formattedUsed} / ${formattedLimit})`;
+}
+
 function readActorLabel(type: string, id: string | null | undefined): string | null {
   const actorType = readString(type);
   const actorId = readString(id);
@@ -384,12 +519,35 @@ function readActorLabel(type: string, id: string | null | undefined): string | n
   return `${actorType}:${actorId}`;
 }
 
+function readNumber(value: unknown): number | null {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function readStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
+    : [];
+}
+
 function formatTimestamp(value: string): string {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) {
     return value;
   }
   return date.toLocaleString();
+}
+
+function formatInteger(value: number): string {
+  return new Intl.NumberFormat().format(value);
+}
+
+function formatCurrency(value: number): string {
+  return `$${value.toFixed(4)}`;
+}
+
+function formatMinutes(value: number): string {
+  return `${value.toFixed(2)} min`;
 }
 
 function humanizeToken(value: string): string {

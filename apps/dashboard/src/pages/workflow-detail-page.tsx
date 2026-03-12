@@ -22,9 +22,12 @@ import { subscribeToEvents } from '../lib/sse.js';
 import {
   deriveWorkflowRoleOptions,
   groupTasksByStage,
+  readPacketNestedKeys,
+  readPacketScalarFacts,
   readWorkflowProjectId,
   readProjectMemoryEntries,
   readWorkflowRunSummary,
+  summarizeConfigLayers,
   shouldInvalidateWorkflowRealtimeEvent,
   summarizeTasks,
   type DashboardWorkflowTaskRow,
@@ -57,6 +60,7 @@ import { invalidateWorkflowQueries } from './workflow-detail-query.js';
 import { buildWorkflowDetailHash } from './workflow-detail-permalinks.js';
 import { ChainWorkflowDialog } from '../components/chain-workflow-dialog.js';
 import { StructuredRecordView } from '../components/structured-data.js';
+import { WorkflowBudgetCard } from '../components/workflow-budget-card.js';
 import { Badge } from '../components/ui/badge.js';
 import { Button } from '../components/ui/button.js';
 import {
@@ -136,6 +140,11 @@ export function WorkflowDetailPage(): JSX.Element {
   const workflowQuery = useQuery({
     queryKey: ['workflow', workflowId],
     queryFn: () => dashboardApi.getWorkflow(workflowId) as Promise<DashboardWorkflowRecord>,
+    enabled: workflowId.length > 0,
+  });
+  const budgetQuery = useQuery({
+    queryKey: ['workflow-budget', workflowId],
+    queryFn: () => dashboardApi.getWorkflowBudget(workflowId),
     enabled: workflowId.length > 0,
   });
   const taskQuery = useQuery({
@@ -663,6 +672,13 @@ export function WorkflowDetailPage(): JSX.Element {
                   .then(() => invalidateWorkflowQueries(queryClient, workflowId, projectId))
               }
             />
+            <WorkflowBudgetCard
+              workflowId={workflowId}
+              budget={budgetQuery.data}
+              isLoading={budgetQuery.isLoading}
+              hasError={Boolean(budgetQuery.error)}
+              context="workflow-detail"
+            />
             <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-1">
               <WorkflowSignalTile
                 label="Task health"
@@ -990,7 +1006,8 @@ function WorkflowContextPacket(props: {
 }): JSX.Element {
   const context = asPacketRecord(props.context);
   const contextKeys = Object.keys(context).sort((left, right) => left.localeCompare(right));
-  const scalarEntries = contextKeys.filter((key) => isScalarPacketValue(context[key]));
+  const scalarFacts = readPacketScalarFacts(context, 6);
+  const nestedKeys = readPacketNestedKeys(context, 8);
 
   if (contextKeys.length === 0) {
     return (
@@ -1010,25 +1027,29 @@ function WorkflowContextPacket(props: {
         />
         <WorkflowSignalTile
           label="Inline values"
-          value={String(scalarEntries.length)}
+          value={String(scalarFacts.length)}
           detail="Immediately readable values without drilling deeper"
         />
         <WorkflowSignalTile
           label="Nested packets"
-          value={String(Math.max(contextKeys.length - scalarEntries.length, 0))}
+          value={String(Math.max(contextKeys.length - scalarFacts.length, 0))}
           detail="Structured sections available on demand"
         />
       </div>
-      <div className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-4">
-        <div className="text-sm font-medium text-foreground">Context highlights</div>
-        <div className="flex flex-wrap gap-2">
-          {contextKeys.slice(0, 8).map((key) => (
-            <Badge key={key} variant="outline">
-              {key}
-            </Badge>
-          ))}
-        </div>
-      </div>
+      {scalarFacts.length > 0 ? (
+        <PacketFactGrid
+          title="Immediate context values"
+          description="Operator-visible values available without opening the full context packet."
+          facts={scalarFacts}
+        />
+      ) : null}
+      {nestedKeys.length > 0 ? (
+        <PacketBadgePanel
+          title="Structured context sections"
+          description="Nested context packets that the orchestrator can inspect on demand."
+          badges={nestedKeys}
+        />
+      ) : null}
       <PacketDisclosure
         summary="Open full operator context"
         data={context}
@@ -1044,7 +1065,8 @@ function WorkflowConfigReviewPacket(props: {
   const resolvedConfig = asPacketRecord(props.config.resolved_config);
   const resolvedSections = Object.keys(resolvedConfig).sort((left, right) => left.localeCompare(right));
   const configLayers = asPacketRecord(props.config.config_layers);
-  const layerNames = Object.keys(configLayers).sort((left, right) => left.localeCompare(right));
+  const layerSummaries = summarizeConfigLayers(configLayers);
+  const scalarFacts = readPacketScalarFacts(resolvedConfig, 4);
 
   return (
     <div className="grid gap-4">
@@ -1056,8 +1078,12 @@ function WorkflowConfigReviewPacket(props: {
         />
         <WorkflowSignalTile
           label="Layer sources"
-          value={String(layerNames.length)}
-          detail={layerNames.length > 0 ? layerNames.join(', ') : 'No layer breakdown exposed'}
+          value={String(layerSummaries.length)}
+          detail={
+            layerSummaries.length > 0
+              ? layerSummaries.map((layer) => layer.name).join(', ')
+              : 'No layer breakdown exposed'
+          }
         />
         <WorkflowSignalTile
           label="Workflow packet"
@@ -1075,12 +1101,39 @@ function WorkflowConfigReviewPacket(props: {
           ))}
         </div>
       </div>
+      {scalarFacts.length > 0 ? (
+        <PacketFactGrid
+          title="Resolved inline values"
+          description="Immediate workflow config facts surfaced without opening the full merged packet."
+          facts={scalarFacts}
+        />
+      ) : null}
+      {layerSummaries.length > 0 ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {layerSummaries.map((layer) => (
+            <article
+              key={layer.name}
+              className="grid gap-2 rounded-xl border border-border/70 bg-background/80 p-4"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <strong className="text-sm text-foreground">{layer.name}</strong>
+                <Badge variant="outline">{layer.fieldCount} fields</Badge>
+              </div>
+              <p className="text-sm leading-6 text-muted">
+                {layer.keys.length > 0
+                  ? `Includes ${layer.keys.slice(0, 4).join(', ')}.`
+                  : 'No top-level fields exposed in this layer.'}
+              </p>
+            </article>
+          ))}
+        </div>
+      ) : null}
       <PacketDisclosure
         summary="Open merged config"
         data={resolvedConfig}
         emptyMessage="No resolved configuration available."
       />
-      {layerNames.length > 0 ? (
+      {layerSummaries.length > 0 ? (
         <PacketDisclosure
           summary="Open layer breakdown"
           data={configLayers}
@@ -1100,6 +1153,11 @@ function WorkflowRunSummaryPacket(props: {
   const producedArtifacts = asPacketArray(summary.produced_artifacts);
   const childChain = asPacketRecord(summary.chain);
   const childCounts = asPacketRecord(childChain.child_status_counts);
+  const scalarFacts = readPacketScalarFacts(summary, 4);
+  const stageMetricCards = stageMetrics
+    .map((entry) => describeStageMetricCard(entry))
+    .filter((entry): entry is { label: string; value: string; detail: string } => entry !== null)
+    .slice(0, 4);
 
   return (
     <div className="grid gap-4">
@@ -1125,19 +1183,32 @@ function WorkflowRunSummaryPacket(props: {
           detail="Linked child workflows counted in lineage"
         />
       </div>
-      <div className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-4">
-        <div className="text-sm font-medium text-foreground">Run outcome packet</div>
-        <div className="flex flex-wrap gap-2">
-          {Object.keys(summary)
-            .sort((left, right) => left.localeCompare(right))
-            .slice(0, 10)
-            .map((key) => (
-              <Badge key={key} variant="outline">
-                {key}
-              </Badge>
-            ))}
+      {scalarFacts.length > 0 ? (
+        <PacketFactGrid
+          title="Terminal run signals"
+          description="Direct summary values captured when the board run reached its terminal state."
+          facts={scalarFacts}
+        />
+      ) : null}
+      {stageMetricCards.length > 0 ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {stageMetricCards.map((card) => (
+            <WorkflowSignalTile
+              key={`${card.label}:${card.value}`}
+              label={card.label}
+              value={card.value}
+              detail={card.detail}
+            />
+          ))}
         </div>
-      </div>
+      ) : null}
+      <PacketBadgePanel
+        title="Run outcome packet"
+        description="Top-level sections captured in the final board summary."
+        badges={Object.keys(summary)
+          .sort((left, right) => left.localeCompare(right))
+          .slice(0, 10)}
+      />
       <PacketDisclosure
         summary="Open run outcome packet"
         data={summary}
@@ -1161,6 +1232,56 @@ function PacketDisclosure(props: {
         <StructuredRecordView data={props.data} emptyMessage={props.emptyMessage} />
       </div>
     </details>
+  );
+}
+
+function PacketFactGrid(props: {
+  title: string;
+  description: string;
+  facts: Array<{ label: string; value: string }>;
+}): JSX.Element {
+  return (
+    <div className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-4">
+      <div className="grid gap-1">
+        <div className="text-sm font-medium text-foreground">{props.title}</div>
+        <p className="text-sm leading-6 text-muted">{props.description}</p>
+      </div>
+      <dl className="grid gap-2 sm:grid-cols-2">
+        {props.facts.map((fact) => (
+          <div
+            key={`${props.title}:${fact.label}`}
+            className="grid gap-1 rounded-lg border border-border/70 bg-surface px-3 py-2"
+          >
+            <dt className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+              {fact.label}
+            </dt>
+            <dd className="text-sm text-foreground">{fact.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function PacketBadgePanel(props: {
+  title: string;
+  description: string;
+  badges: string[];
+}): JSX.Element {
+  return (
+    <div className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-4">
+      <div className="grid gap-1">
+        <div className="text-sm font-medium text-foreground">{props.title}</div>
+        <p className="text-sm leading-6 text-muted">{props.description}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {props.badges.map((badge) => (
+          <Badge key={`${props.title}:${badge}`} variant="outline">
+            {badge}
+          </Badge>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -1343,6 +1464,42 @@ function OverridePacketStat(props: {
   );
 }
 
+function describeStageMetricCard(
+  value: unknown,
+): { label: string; value: string; detail: string } | null {
+  const record = asPacketRecord(value);
+  const stageName =
+    readPacketString(record.stage_name) ??
+    readPacketString(record.name);
+  if (!stageName) {
+    return null;
+  }
+
+  const completedCount = readPacketNumber(record.completed_count);
+  const workItemCount = readPacketNumber(record.work_item_count);
+  const detailParts: string[] = [];
+  const status = readPacketString(record.status);
+  const duration = readPacketString(record.duration) ?? readPacketString(record.duration_label);
+  if (workItemCount > 0 || completedCount > 0) {
+    detailParts.push(`${completedCount}/${workItemCount} items complete`);
+  }
+  if (status) {
+    detailParts.push(status);
+  }
+  if (duration) {
+    detailParts.push(duration);
+  }
+
+  return {
+    label: stageName,
+    value:
+      workItemCount > 0 || completedCount > 0
+        ? `${completedCount}/${workItemCount}`
+        : status ?? 'Captured',
+    detail: detailParts.length > 0 ? detailParts.join(' • ') : 'Stage outcome captured in the run summary.',
+  };
+}
+
 function asPacketRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -1353,16 +1510,15 @@ function asPacketArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
 
-function isScalarPacketValue(value: unknown): boolean {
-  return (
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean' ||
-    value === null
-  );
+function readNumericPacketValue(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
-function readNumericPacketValue(value: unknown): number {
+function readPacketString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function readPacketNumber(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 

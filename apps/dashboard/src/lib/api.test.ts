@@ -176,13 +176,74 @@ describe('dashboard api auth/session behavior', () => {
       client: client as never,
       baseUrl: 'http://localhost:8080',
     });
-    const workflow = await api.createWorkflow({ playbook_id: 'playbook-1', name: 'Test Run' });
+    const workflow = await api.createWorkflow({
+      playbook_id: 'playbook-1',
+      name: 'Test Run',
+      budget: {
+        token_budget: 120000,
+        cost_cap_usd: 12.5,
+        max_duration_minutes: 90,
+      },
+    });
 
     expect(client.createWorkflow).toHaveBeenCalledWith({
       playbook_id: 'playbook-1',
       name: 'Test Run',
+      budget: {
+        token_budget: 120000,
+        cost_cap_usd: 12.5,
+        max_duration_minutes: 90,
+      },
     });
     expect(workflow).toEqual({ id: 'pipe-1' });
+  });
+
+  it('loads workflow budget through the dashboard api surface', async () => {
+    writeSession({ accessToken: 'budget-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            tokens_used: 45000,
+            tokens_limit: 120000,
+            cost_usd: 6.25,
+            cost_limit_usd: 12.5,
+            elapsed_minutes: 42,
+            duration_limit_minutes: 90,
+            task_count: 6,
+            orchestrator_activations: 4,
+            tokens_remaining: 75000,
+            cost_remaining_usd: 6.25,
+            time_remaining_minutes: 48,
+            warning_dimensions: ['cost'],
+            exceeded_dimensions: [],
+            warning_threshold_ratio: 0.8,
+          },
+        }),
+        { status: 200 },
+      ),
+    ) as unknown as typeof fetch;
+
+    const api = createDashboardApi({
+      client: {} as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    const budget = await api.getWorkflowBudget('workflow-1');
+
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://localhost:8080/api/v1/workflows/workflow-1/budget',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer budget-token',
+        }),
+      }),
+    );
+    expect(budget.tokens_remaining).toBe(75000);
+    expect(budget.warning_dimensions).toEqual(['cost']);
   });
 
   it('loads workflow events through the cursor-based workflow api surface', async () => {

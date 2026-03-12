@@ -877,7 +877,6 @@ export function WorkflowActivationsCard(props: {
                   Permalink
                 </Link>
               </div>
-              <StructuredRecordView data={activation.payload} emptyMessage="No activation payload." />
               {activation.events && activation.events.length > 0 ? (
                 <ul className="grid gap-3">
                   {activation.events.map((event) => {

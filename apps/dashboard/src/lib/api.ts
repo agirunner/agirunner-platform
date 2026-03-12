@@ -91,6 +91,29 @@ export interface DashboardRoleModelOverride {
   reasoning_config?: Record<string, unknown> | null;
 }
 
+export interface DashboardWorkflowBudgetInput {
+  token_budget?: number;
+  cost_cap_usd?: number;
+  max_duration_minutes?: number;
+}
+
+export interface DashboardWorkflowBudgetRecord {
+  tokens_used: number;
+  tokens_limit: number | null;
+  cost_usd: number;
+  cost_limit_usd: number | null;
+  elapsed_minutes: number;
+  duration_limit_minutes: number | null;
+  task_count: number;
+  orchestrator_activations: number;
+  tokens_remaining: number | null;
+  cost_remaining_usd: number | null;
+  time_remaining_minutes: number | null;
+  warning_dimensions: string[];
+  exceeded_dimensions: string[];
+  warning_threshold_ratio: number;
+}
+
 export interface DashboardLlmProviderRecord {
   id: string;
   name: string;
@@ -1112,6 +1135,7 @@ export interface DashboardApi {
   ): Promise<DashboardScheduledWorkItemTriggerRecord>;
   deleteScheduledWorkItemTrigger(triggerId: string): Promise<void>;
   getWorkflow(id: string): Promise<DashboardWorkflowRecord>;
+  getWorkflowBudget(workflowId: string): Promise<DashboardWorkflowBudgetRecord>;
   getWorkflowModelOverrides(workflowId: string): Promise<DashboardWorkflowModelOverridesResponse>;
   getResolvedWorkflowModels(
     workflowId: string,
@@ -1189,6 +1213,7 @@ export interface DashboardApi {
     parameters?: Record<string, unknown>;
     metadata?: Record<string, unknown>;
     model_overrides?: Record<string, DashboardRoleModelOverride>;
+    budget?: DashboardWorkflowBudgetInput;
   }): Promise<DashboardWorkflowRecord>;
   previewEffectiveModels(payload: {
     roles?: string[];
@@ -1784,6 +1809,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         }).then(() => undefined),
       ),
     getWorkflow: (id) => withRefresh(() => client.getWorkflow(id)),
+    getWorkflowBudget: (workflowId) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowBudgetRecord>(`/api/v1/workflows/${workflowId}/budget`, {
+          method: 'GET',
+        }),
+      ),
     getWorkflowModelOverrides: (workflowId) =>
       withRefresh(() =>
         requestData<DashboardWorkflowModelOverridesResponse>(

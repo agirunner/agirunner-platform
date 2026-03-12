@@ -61,11 +61,13 @@ describe('workflow detail sections source', () => {
     expect(source).toContain('Orchestrator Activations');
     expect(source).toContain('describeActivationEvent');
     expect(source).toContain('describeTimelineEvent');
+    expect(source).toContain('describeReviewPacket');
     expect(source).toContain('describeActivationRecovery');
     expect(source).toContain('recovery_status');
     expect(source).toContain('stale_started_at');
     expect(source).toContain('redispatched_task_id');
     expect(source).toContain('Open logs');
     expect(source).toContain('Redispatched task');
+    expect(source).not.toContain('<StructuredRecordView data={activation.payload}');
   });
 });

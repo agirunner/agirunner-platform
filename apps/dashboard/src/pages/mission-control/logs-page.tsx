@@ -12,6 +12,7 @@ import { ExecutionInspectorFilterBar } from '../../components/execution-inspecto
 import { ExecutionInspectorSummaryView } from '../../components/execution-inspector-summary-view.js';
 import { ExecutionInspectorDetailView } from '../../components/execution-inspector-detail-view.js';
 import { ExecutionInspectorDebugView } from '../../components/execution-inspector-debug-view.js';
+import { WorkflowBudgetCard } from '../../components/workflow-budget-card.js';
 import {
   buildLogFilters,
   DEFAULT_INSPECTOR_FILTERS,
@@ -74,6 +75,12 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
   const statsQuery = useQuery({
     queryKey: ['execution-inspector', 'stats', baseFilters],
     queryFn: () => dashboardApi.getLogStats({ ...baseFilters, group_by: 'category' }),
+    refetchInterval: 10_000,
+  });
+  const budgetQuery = useQuery({
+    queryKey: ['workflow-budget', scopedWorkflowId],
+    queryFn: () => dashboardApi.getWorkflowBudget(scopedWorkflowId),
+    enabled: scopedWorkflowId.length > 0,
     refetchInterval: 10_000,
   });
   const operationsQuery = useQuery({
@@ -241,6 +248,16 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
           ) : null}
         </div>
       </section>
+
+      {scopedWorkflowId ? (
+        <WorkflowBudgetCard
+          workflowId={scopedWorkflowId}
+          budget={budgetQuery.data}
+          isLoading={budgetQuery.isLoading}
+          hasError={Boolean(budgetQuery.error)}
+          context="inspector"
+        />
+      ) : null}
 
       <section className="rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
         <ExecutionInspectorFilterBar

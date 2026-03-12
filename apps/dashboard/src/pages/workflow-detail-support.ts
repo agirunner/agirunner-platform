@@ -2,6 +2,7 @@ import type {
   DashboardEffectiveModelResolution,
   DashboardWorkflowWorkItemRecord,
 } from '../lib/api.js';
+import { normalizeTaskState } from '../lib/task-state.js';
 
 export interface DashboardWorkflowTaskRow {
   id: string;
@@ -201,10 +202,6 @@ export function summarizeTasks(tasks: Array<{ state: string }>): MissionControlS
     },
     { total: 0, ready: 0, in_progress: 0, blocked: 0, completed: 0, failed: 0 },
   );
-}
-
-function normalizeTaskState(state: string): string {
-  return state;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

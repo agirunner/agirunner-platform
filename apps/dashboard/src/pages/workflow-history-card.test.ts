@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import type { DashboardEventRecord } from '../lib/api.js';
@@ -50,5 +52,59 @@ describe('workflow interaction timeline', () => {
 
     expect(descriptor.headline).toBe('request changes gate for design');
     expect(descriptor.summary).toContain('Clarify the runtime credential flow');
+  });
+
+  it('describes workflow budget warnings with operator-readable usage details', () => {
+    const descriptor = describeTimelineEvent(
+      buildEvent({
+        type: 'budget.warning',
+        actor_type: 'system',
+        actor_id: 'workflow_budget_policy',
+        data: {
+          dimensions: ['tokens', 'cost'],
+          tokens_used: 96000,
+          tokens_limit: 120000,
+          cost_usd: 9.5,
+          cost_limit_usd: 12,
+        },
+      }),
+    );
+
+    expect(descriptor.headline).toBe('Workflow budget warning');
+    expect(descriptor.summary).toContain('Approaching configured workflow guardrails');
+    expect(descriptor.summary).toContain('tokens (96,000 / 120,000)');
+    expect(descriptor.summary).toContain('cost ($9.5000 / $12.0000)');
+  });
+
+  it('describes workflow budget exceedances with human-readable overage context', () => {
+    const descriptor = describeTimelineEvent(
+      buildEvent({
+        type: 'budget.exceeded',
+        actor_type: 'system',
+        actor_id: 'workflow_budget_policy',
+        data: {
+          dimensions: ['duration'],
+          elapsed_minutes: 105,
+          duration_limit_minutes: 90,
+        },
+      }),
+    );
+
+    expect(descriptor.headline).toBe('Workflow budget exceeded');
+    expect(descriptor.summary).toContain('Configured workflow guardrails were exceeded');
+    expect(descriptor.summary).toContain('duration (105.00 min / 90.00 min)');
+  });
+
+  it('renders timeline entries as interaction packets with reviewed payload drill-down', () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, './workflow-history-card.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('Interaction packet');
+    expect(source).toContain('describeReviewPacket');
+    expect(source).toContain('readPacketScalarFacts');
+    expect(source).toContain('Open event packet');
+    expect(source).not.toContain('>Event payload<');
   });
 });

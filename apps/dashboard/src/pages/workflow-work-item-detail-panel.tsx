@@ -915,7 +915,7 @@ function WorkItemTasksSection(props: {
           <DetailStatCard
             label="In flight"
             value={String(executionSummary.activeSteps)}
-            detail="Ready, blocked, or running"
+            detail="Ready, blocked, or in progress"
           />
         </div>
         <div className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4">

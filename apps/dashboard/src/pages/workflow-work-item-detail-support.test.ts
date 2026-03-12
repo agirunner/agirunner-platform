@@ -26,7 +26,7 @@ describe('workflow work item detail support', () => {
         {
           id: 'task-1',
           title: 'Draft design',
-          state: 'completed',
+          state: 'running',
           role: 'architect',
           work_item_id: 'wi-1',
           stage_name: 'design',
@@ -39,7 +39,7 @@ describe('workflow work item detail support', () => {
       {
         id: 'task-1',
         title: 'Draft design',
-        state: 'completed',
+        state: 'in_progress',
         role: 'architect',
         work_item_id: 'wi-1',
         stage_name: 'design',
@@ -48,6 +48,41 @@ describe('workflow work item detail support', () => {
         depends_on: ['task-0'],
       },
     ]);
+  });
+
+  it('keeps canonical claimed tasks distinct from in-progress work in execution summaries', () => {
+    expect(
+      summarizeWorkItemExecution([
+        {
+          id: 'task-claimed',
+          title: 'Queued specialist',
+          state: 'claimed',
+          role: 'engineer',
+          stage_name: 'implementation',
+          completed_at: null,
+          depends_on: [],
+          work_item_id: 'wi-1',
+        },
+        {
+          id: 'task-running',
+          title: 'Active specialist',
+          state: 'running',
+          role: 'reviewer',
+          stage_name: 'review',
+          completed_at: null,
+          depends_on: [],
+          work_item_id: 'wi-1',
+        },
+      ]),
+    ).toEqual({
+      totalSteps: 2,
+      awaitingOperator: 0,
+      retryableSteps: 0,
+      activeSteps: 1,
+      completedSteps: 0,
+      distinctRoles: ['engineer', 'reviewer'],
+      distinctStages: ['implementation', 'review'],
+    });
   });
 
   it('filters tasks and flattens artifacts for the selected work item', () => {
@@ -309,7 +344,24 @@ describe('workflow work item detail support', () => {
     ).toEqual({
       title: 'Output review needed',
       detail: 'Review the specialist output before the board can advance.',
-      tone: 'warning',
+        tone: 'warning',
+      });
+
+    expect(
+      describeTaskOperatorPosture({
+        id: 'task-legacy',
+        title: 'Legacy running task',
+        state: 'running',
+        role: 'reviewer',
+        stage_name: 'verification',
+        completed_at: null,
+        depends_on: [],
+        work_item_id: 'wi-1',
+      }),
+    ).toEqual({
+      title: 'Execution in flight',
+      detail: 'A specialist is actively working this step right now.',
+      tone: 'secondary',
     });
 
     expect(

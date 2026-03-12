@@ -11,6 +11,7 @@ export async function invalidateWorkflowQueries(
     queryClient.invalidateQueries({ queryKey: ['workflow-board', workflowId] }),
     queryClient.invalidateQueries({ queryKey: ['workflow-stages', workflowId] }),
     queryClient.invalidateQueries({ queryKey: ['workflow-activations', workflowId] }),
+    queryClient.invalidateQueries({ queryKey: ['workflow-budget', workflowId] }),
     queryClient.invalidateQueries({ queryKey: ['workflow-gates', workflowId] }),
     queryClient.invalidateQueries({ queryKey: ['workflow-model-overrides', workflowId] }),
     queryClient.invalidateQueries({ queryKey: ['workflow-resolved-models', workflowId] }),

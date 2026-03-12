@@ -21,6 +21,11 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('LaunchDefinitionSnapshot');
     expect(source).toContain('Playbook Parameters');
     expect(source).toContain('Metadata Entries');
+    expect(source).toContain('Workflow Budget Policy');
+    expect(source).toContain('WorkflowBudgetEditor');
+    expect(source).toContain('Token Budget');
+    expect(source).toContain('Cost Cap (USD)');
+    expect(source).toContain('Max Duration (Minutes)');
     expect(source).toContain('Workflow Model Overrides');
     expect(source).toContain('RoleOverrideEditor');
     expect(source).toContain('StructuredEntryEditor');
@@ -34,9 +39,11 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('readMappedProjectParameterDraft');
     expect(source).toContain("buildStructuredObject(metadataDrafts, 'Metadata')");
     expect(source).toContain('buildModelOverrides(modelOverrideDrafts)');
+    expect(source).toContain('buildWorkflowBudgetInput(workflowBudgetDraft)');
     expect(source).toContain('readLaunchValidationError');
     expect(source).toContain('dashboardApi.createWorkflow({');
     expect(source).toContain('model_overrides: modelOverrides');
+    expect(source).toContain('budget: workflowBudget.value');
     expect(source).toContain('Resolved Effective Models');
   });
 });

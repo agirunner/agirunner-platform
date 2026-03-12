@@ -5,6 +5,7 @@ import type {
   DashboardWorkItemMemoryHistoryEntry,
   DashboardWorkflowWorkItemRecord,
 } from '../lib/api.js';
+import { normalizeTaskState } from '../lib/task-state.js';
 
 export interface DashboardWorkItemTaskRecord {
   id: string;
@@ -81,7 +82,7 @@ export function normalizeWorkItemTasks(response: unknown): DashboardWorkItemTask
     normalized.push({
       id,
       title: readString(item.title) ?? readString(item.name) ?? id,
-      state: readString(item.state) ?? readString(item.status) ?? 'unknown',
+      state: normalizeTaskState(readString(item.state) ?? readString(item.status) ?? 'unknown'),
       role: readString(item.role) ?? null,
       stage_name: readString(item.stage_name) ?? null,
       work_item_id: readString(item.work_item_id) ?? null,
@@ -200,15 +201,18 @@ export function summarizeMilestoneOperatorFlow(
   const totalChildren = children.length;
   const completedChildren = children.filter((child) => Boolean(child.completed_at)).length;
   const openChildren = totalChildren - completedChildren;
-  const awaitingStepReviews = tasks.filter((task) =>
-    task.state === 'awaiting_approval' || task.state === 'output_pending_review',
-  ).length;
-  const failedSteps = tasks.filter((task) =>
-    task.state === 'failed' || task.state === 'escalated',
-  ).length;
-  const inFlightSteps = tasks.filter((task) =>
-    task.state === 'in_progress' || task.state === 'ready' || task.state === 'blocked',
-  ).length;
+  const awaitingStepReviews = tasks.filter((task) => {
+    const state = normalizeTaskState(task.state);
+    return state === 'awaiting_approval' || state === 'output_pending_review';
+  }).length;
+  const failedSteps = tasks.filter((task) => {
+    const state = normalizeTaskState(task.state);
+    return state === 'failed' || state === 'escalated';
+  }).length;
+  const inFlightSteps = tasks.filter((task) => {
+    const state = normalizeTaskState(task.state);
+    return state === 'in_progress' || state === 'ready' || state === 'blocked';
+  }).length;
   const activeStageNames = Array.from(
     new Set(
       children
@@ -247,29 +251,26 @@ export function summarizeWorkItemExecution(
   let completedSteps = 0;
 
   for (const task of tasks) {
+    const state = normalizeTaskState(task.state);
     if (task.role) {
       distinctRoles.add(task.role);
     }
     if (task.stage_name) {
       distinctStages.add(task.stage_name);
     }
-    if (task.state === 'awaiting_approval' || task.state === 'output_pending_review') {
+    if (state === 'awaiting_approval' || state === 'output_pending_review') {
       awaitingOperator += 1;
       continue;
     }
-    if (task.state === 'failed' || task.state === 'escalated') {
+    if (state === 'failed' || state === 'escalated') {
       retryableSteps += 1;
       continue;
     }
-    if (task.state === 'completed') {
+    if (state === 'completed') {
       completedSteps += 1;
       continue;
     }
-    if (
-      task.state === 'in_progress' ||
-      task.state === 'ready' ||
-      task.state === 'blocked'
-    ) {
+    if (state === 'in_progress' || state === 'ready' || state === 'blocked') {
       activeSteps += 1;
     }
   }
@@ -308,7 +309,7 @@ export function sortTasksForOperatorReview(
 export function describeTaskOperatorPosture(
   task: DashboardWorkItemTaskRecord,
 ): TaskOperatorPosture {
-  switch (task.state) {
+  switch (normalizeTaskState(task.state)) {
     case 'awaiting_approval':
       return {
         title: 'Approval needed',
@@ -461,7 +462,7 @@ export function sortMemoryHistoryNewestFirst(
 }
 
 function readTaskUrgencyRank(state: DashboardWorkItemTaskRecord['state']): number {
-  switch (state) {
+  switch (normalizeTaskState(state)) {
     case 'awaiting_approval':
     case 'output_pending_review':
       return 0;

@@ -4,6 +4,8 @@ import {
   buildModelOverrides,
   buildParametersFromDrafts,
   buildStructuredObject,
+  buildWorkflowBudgetInput,
+  createWorkflowBudgetDraft,
   defaultParameterDraftValue,
   readMappedProjectParameterDraft,
   readLaunchDefinition,
@@ -177,5 +179,36 @@ describe('playbook launch support', () => {
 
     expect(repositoryDraft).toBe('https://github.com/agisnap/agirunner-test-fixtures');
     expect(branchDraft).toBe('main');
+  });
+
+  it('builds structured workflow budget input from bounded launch fields', () => {
+    const draft = createWorkflowBudgetDraft();
+    draft.tokenBudget = '120000';
+    draft.costCapUsd = '18.5';
+    draft.maxDurationMinutes = '90';
+
+    expect(buildWorkflowBudgetInput(draft)).toEqual({
+      token_budget: 120000,
+      cost_cap_usd: 18.5,
+      max_duration_minutes: 90,
+    });
+  });
+
+  it('rejects invalid workflow budget values', () => {
+    expect(() =>
+      buildWorkflowBudgetInput({
+        tokenBudget: '1.5',
+        costCapUsd: '',
+        maxDurationMinutes: '',
+      }),
+    ).toThrow(/Token budget must be a positive whole number/i);
+
+    expect(() =>
+      buildWorkflowBudgetInput({
+        tokenBudget: '',
+        costCapUsd: '-3',
+        maxDurationMinutes: '',
+      }),
+    ).toThrow(/Cost cap must be greater than zero/i);
   });
 });

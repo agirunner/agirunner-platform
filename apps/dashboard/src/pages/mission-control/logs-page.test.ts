@@ -25,6 +25,9 @@ describe('execution inspector page source', () => {
     expect(source).toContain("detail: SUMMARY_DETAIL_MODE");
     expect(source).toContain('dashboardApi.getLog');
     expect(source).toContain('dashboardApi.getLogStats');
+    expect(source).toContain('dashboardApi.getWorkflowBudget(scopedWorkflowId)');
+    expect(source).toContain('WorkflowBudgetCard');
+    expect(source).toContain('context="inspector"');
     expect(source).not.toContain('LogViewer');
   });
 

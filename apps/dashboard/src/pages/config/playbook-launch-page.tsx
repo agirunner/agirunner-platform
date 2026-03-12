@@ -29,6 +29,8 @@ import {
   buildModelOverrides,
   buildParametersFromDrafts,
   buildStructuredObject,
+  buildWorkflowBudgetInput,
+  createWorkflowBudgetDraft,
   createRoleOverrideDraft,
   createStructuredEntryDraft,
   defaultParameterDraftValue,
@@ -40,6 +42,7 @@ import {
   type RoleOverrideDraft,
   type StructuredEntryDraft,
   type StructuredValueType,
+  type WorkflowBudgetDraft,
 } from './playbook-launch-support.js';
 
 export function PlaybookLaunchPage(): JSX.Element {
@@ -52,6 +55,9 @@ export function PlaybookLaunchPage(): JSX.Element {
   const [extraParameterDrafts, setExtraParameterDrafts] = useState<StructuredEntryDraft[]>([]);
   const [metadataDrafts, setMetadataDrafts] = useState<StructuredEntryDraft[]>([]);
   const [modelOverrideDrafts, setModelOverrideDrafts] = useState<RoleOverrideDraft[]>([]);
+  const [workflowBudgetDraft, setWorkflowBudgetDraft] = useState<WorkflowBudgetDraft>(
+    () => createWorkflowBudgetDraft(),
+  );
   const [error, setError] = useState<string | null>(null);
   const autoFilledParameterDraftsRef = useRef<Record<string, string>>({});
 
@@ -91,6 +97,22 @@ export function PlaybookLaunchPage(): JSX.Element {
     () => readWorkflowOverrides(modelOverrideDrafts),
     [modelOverrideDrafts],
   );
+  const workflowBudget = useMemo(() => {
+    try {
+      return {
+        value: buildWorkflowBudgetInput(workflowBudgetDraft),
+        error: null,
+      };
+    } catch (budgetError) {
+      return {
+        value: undefined,
+        error:
+          budgetError instanceof Error
+            ? budgetError.message
+            : 'Workflow budget inputs are invalid.',
+      };
+    }
+  }, [workflowBudgetDraft]);
   const projectResolvedModelsQuery = useQuery({
     queryKey: ['project-models', projectId],
     queryFn: () => dashboardApi.getResolvedProjectModels(projectId),
@@ -118,7 +140,7 @@ export function PlaybookLaunchPage(): JSX.Element {
     selectedPlaybookId,
     workflowName,
     workflowOverrides.error,
-  );
+  ) ?? workflowBudget.error;
   const playbooks = playbooksQuery.data?.data ?? [];
   const projects = projectsQuery.data?.data ?? [];
   const selectedProject = projects.find((project) => project.id === projectId) ?? null;
@@ -170,7 +192,15 @@ export function PlaybookLaunchPage(): JSX.Element {
 
   useEffect(() => {
     setError(null);
-  }, [selectedPlaybookId, workflowName, projectId, extraParameterDrafts, metadataDrafts, modelOverrideDrafts]);
+  }, [
+    selectedPlaybookId,
+    workflowName,
+    projectId,
+    extraParameterDrafts,
+    metadataDrafts,
+    modelOverrideDrafts,
+    workflowBudgetDraft,
+  ]);
 
   const launchMutation = useMutation({
     mutationFn: async () => {
@@ -188,6 +218,7 @@ export function PlaybookLaunchPage(): JSX.Element {
         parameters,
         metadata,
         model_overrides: modelOverrides,
+        budget: workflowBudget.value,
       });
     },
     onSuccess: (workflow) => {
@@ -304,6 +335,7 @@ export function PlaybookLaunchPage(): JSX.Element {
                 hasStructuredParameters={launchDefinition.parameterSpecs.length > 0 || hasAdditionalParameters}
                 hasMetadataEntries={hasMetadataEntries}
                 hasWorkflowOverrides={hasWorkflowOverrides}
+                budgetDraft={workflowBudgetDraft}
                 validationError={validationError}
               />
             </StructuredSection>
@@ -363,6 +395,19 @@ export function PlaybookLaunchPage(): JSX.Element {
                   setMetadataDrafts(drafts);
                 }}
                 addLabel="Add metadata field"
+              />
+            </StructuredSection>
+
+            <StructuredSection
+              title="Workflow Budget Policy"
+              description="Set optional workflow-level guardrails for token spend, cost, and elapsed runtime."
+            >
+              <WorkflowBudgetEditor
+                draft={workflowBudgetDraft}
+                onChange={(draft) => {
+                  setError(null);
+                  setWorkflowBudgetDraft(draft);
+                }}
               />
             </StructuredSection>
 
@@ -464,8 +509,10 @@ function LaunchReadinessPanel(props: {
   hasStructuredParameters: boolean;
   hasMetadataEntries: boolean;
   hasWorkflowOverrides: boolean;
+  budgetDraft: WorkflowBudgetDraft;
   validationError: string | null;
 }): JSX.Element {
+  const budgetSummary = summarizeWorkflowBudgetDraft(props.budgetDraft);
   const checks = [
     {
       label: 'Playbook selected',
@@ -496,6 +543,11 @@ function LaunchReadinessPanel(props: {
         : 'Using existing defaults and no workflow-specific overrides.',
       isReady: true,
     },
+    {
+      label: 'Workflow budget policy',
+      detail: budgetSummary,
+      isReady: true,
+    },
   ];
 
   return (
@@ -517,6 +569,67 @@ function LaunchReadinessPanel(props: {
           {props.validationError ?? 'All required launch inputs are present.'}
         </p>
       </div>
+    </div>
+  );
+}
+
+function WorkflowBudgetEditor(props: {
+  draft: WorkflowBudgetDraft;
+  onChange(draft: WorkflowBudgetDraft): void;
+}): JSX.Element {
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <label className="grid gap-2 text-sm">
+        <span className="font-medium">Token Budget</span>
+        <Input
+          type="number"
+          min={1}
+          step={1}
+          inputMode="numeric"
+          value={props.draft.tokenBudget}
+          onChange={(event) =>
+            props.onChange({ ...props.draft, tokenBudget: event.target.value })
+          }
+          placeholder="Optional cap"
+        />
+        <span className="text-xs text-muted">
+          Integer cap for total tokens across the workflow.
+        </span>
+      </label>
+      <label className="grid gap-2 text-sm">
+        <span className="font-medium">Cost Cap (USD)</span>
+        <Input
+          type="number"
+          min={0.0001}
+          step={0.01}
+          inputMode="decimal"
+          value={props.draft.costCapUsd}
+          onChange={(event) =>
+            props.onChange({ ...props.draft, costCapUsd: event.target.value })
+          }
+          placeholder="Optional cap"
+        />
+        <span className="text-xs text-muted">
+          Stop treating spend as open-ended when the workflow has a dollar ceiling.
+        </span>
+      </label>
+      <label className="grid gap-2 text-sm">
+        <span className="font-medium">Max Duration (Minutes)</span>
+        <Input
+          type="number"
+          min={1}
+          step={1}
+          inputMode="numeric"
+          value={props.draft.maxDurationMinutes}
+          onChange={(event) =>
+            props.onChange({ ...props.draft, maxDurationMinutes: event.target.value })
+          }
+          placeholder="Optional cap"
+        />
+        <span className="text-xs text-muted">
+          Guard against workflows running longer than the intended operator window.
+        </span>
+      </label>
     </div>
   );
 }
@@ -568,6 +681,22 @@ function ParameterField(props: {
       />
     </div>
   );
+}
+
+function summarizeWorkflowBudgetDraft(draft: WorkflowBudgetDraft): string {
+  const parts: string[] = [];
+  if (draft.tokenBudget.trim()) {
+    parts.push(`${draft.tokenBudget.trim()} tokens`);
+  }
+  if (draft.costCapUsd.trim()) {
+    parts.push(`$${draft.costCapUsd.trim()} cost cap`);
+  }
+  if (draft.maxDurationMinutes.trim()) {
+    parts.push(`${draft.maxDurationMinutes.trim()} minutes`);
+  }
+  return parts.length > 0
+    ? `Workflow guardrails set for ${parts.join(', ')}.`
+    : 'No explicit budget guardrails; the workflow will use open-ended defaults.';
 }
 
 function StructuredEntryEditor(props: {

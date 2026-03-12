@@ -44,6 +44,10 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('getWorkflowWorkItemMemoryHistory');
     expect(source).toContain('Current memory');
     expect(source).toContain('Memory history');
+    expect(source).toContain('Memory packet');
+    expect(source).toContain('Memory change packet');
+    expect(source).toContain('Open full memory packet');
+    expect(source).toContain('Open full change packet');
     expect(source).toContain('formatMemoryHistoryEventType');
     expect(source).toContain('Deleted value');
   });
@@ -73,6 +77,10 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Choose from roles already active on this board run');
     expect(source).toContain('Save Operator Changes');
     expect(source).toContain('Create Child Work Item');
+    expect(source).toContain('Execution review packet');
+    expect(source).toContain('Requires operator attention');
+    expect(source).toContain('Execution queue');
+    expect(source).toContain('Operator next step');
     expect(source).toContain('Approve Step');
     expect(source).toContain('Request Changes');
     expect(source).toContain('Retry Step');
@@ -108,6 +116,8 @@ describe('workflow work item detail panel source', () => {
     const source = readSource();
     expect(source).toContain('describeTimelineEvent');
     expect(source).toContain('formatTimelineEventType');
+    expect(source).toContain('Operator review packet');
+    expect(source).toContain('Open full event payload');
     expect(source).not.toContain('<strong>{event.type}</strong>');
   });
 });

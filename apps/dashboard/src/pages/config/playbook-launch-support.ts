@@ -2,6 +2,7 @@ import type {
   DashboardPlaybookRecord,
   DashboardProjectRecord,
   DashboardRoleModelOverride,
+  DashboardWorkflowBudgetInput,
 } from '../../lib/api.js';
 
 export type StructuredValueType = 'string' | 'number' | 'boolean' | 'json';
@@ -36,6 +37,12 @@ export interface RoleOverrideDraft {
   provider: string;
   model: string;
   reasoningEntries: StructuredEntryDraft[];
+}
+
+export interface WorkflowBudgetDraft {
+  tokenBudget: string;
+  costCapUsd: string;
+  maxDurationMinutes: string;
 }
 
 let draftCounter = 0;
@@ -210,6 +217,37 @@ export function readMappedProjectParameterDraft(
   return defaultParameterDraftValue(mappedValue, spec.inputType);
 }
 
+export function createWorkflowBudgetDraft(): WorkflowBudgetDraft {
+  return {
+    tokenBudget: '',
+    costCapUsd: '',
+    maxDurationMinutes: '',
+  };
+}
+
+export function buildWorkflowBudgetInput(
+  draft: WorkflowBudgetDraft,
+): DashboardWorkflowBudgetInput | undefined {
+  const tokenBudget = parsePositiveInteger(draft.tokenBudget, 'Token budget');
+  const costCapUsd = parsePositiveNumber(draft.costCapUsd, 'Cost cap');
+  const maxDurationMinutes = parsePositiveInteger(
+    draft.maxDurationMinutes,
+    'Maximum duration',
+  );
+
+  const value: DashboardWorkflowBudgetInput = {};
+  if (tokenBudget !== undefined) {
+    value.token_budget = tokenBudget;
+  }
+  if (costCapUsd !== undefined) {
+    value.cost_cap_usd = costCapUsd;
+  }
+  if (maxDurationMinutes !== undefined) {
+    value.max_duration_minutes = maxDurationMinutes;
+  }
+  return Object.keys(value).length > 0 ? value : undefined;
+}
+
 function readParameterSpecs(value: unknown): LaunchParameterSpec[] {
   if (!Array.isArray(value)) {
     return [];
@@ -359,6 +397,30 @@ function parseJsonRecord(value: string, label: string): Record<string, unknown> 
     throw new Error(`${label} must be a JSON object.`);
   }
   return parsed as Record<string, unknown>;
+}
+
+function parsePositiveInteger(value: string, label: string): number | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${label} must be a positive whole number.`);
+  }
+  return parsed;
+}
+
+function parsePositiveNumber(value: string, label: string): number | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`${label} must be greater than zero.`);
+  }
+  return parsed;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
