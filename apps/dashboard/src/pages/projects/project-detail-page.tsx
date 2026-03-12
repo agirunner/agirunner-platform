@@ -17,7 +17,6 @@ import type {
   DashboardProjectRecord,
   DashboardProjectSpecRecord,
   DashboardProjectResourceRecord,
-  DashboardRoleModelOverride,
   DashboardScheduledWorkItemTriggerRecord,
   DashboardProjectToolCatalog,
   DashboardProjectTimelineEntry,
@@ -459,7 +458,9 @@ function TimelineTab({ projectId }: { projectId: string }): JSX.Element {
 function MemoryTab({ projectId }: { projectId: string }): JSX.Element {
   const queryClient = useQueryClient();
   const [newKey, setNewKey] = useState('');
+  const [newValueType, setNewValueType] = useState<StructuredValueType>('string');
   const [newValue, setNewValue] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['project', projectId],
@@ -480,14 +481,28 @@ function MemoryTab({ projectId }: { projectId: string }): JSX.Element {
 
   function handleAdd() {
     if (!newKey.trim()) return;
-    let parsedValue: unknown = newValue;
+    let parsedValue: unknown = '';
     try {
-      parsedValue = JSON.parse(newValue);
-    } catch {
-      /* use raw string */
+      parsedValue =
+        buildStructuredObject(
+          [
+            {
+              id: 'new-memory-entry',
+              key: newKey.trim(),
+              valueType: newValueType,
+              value: newValue,
+            },
+          ],
+          'Project memory',
+        )?.[newKey.trim()] ?? '';
+      setFormError(null);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Invalid memory value.');
+      return;
     }
     patchMutation.mutate({ key: newKey.trim(), value: parsedValue });
     setNewKey('');
+    setNewValueType('string');
     setNewValue('');
   }
 
@@ -545,7 +560,7 @@ function MemoryTab({ projectId }: { projectId: string }): JSX.Element {
           <CardTitle className="text-sm">Add Entry</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-end gap-3">
+          <div className="grid gap-3 md:grid-cols-[1fr,180px,1.2fr,auto]">
             <div className="flex-1 space-y-1">
               <label className="text-xs font-medium">Key</label>
               <Input
@@ -554,19 +569,35 @@ function MemoryTab({ projectId }: { projectId: string }): JSX.Element {
                 onChange={(e) => setNewKey(e.target.value)}
               />
             </div>
-            <div className="flex-1 space-y-1">
-              <label className="text-xs font-medium">Value (string or JSON)</label>
-              <Input
-                placeholder='"value" or {"key": "val"}'
-                value={newValue}
-                onChange={(e) => setNewValue(e.target.value)}
-              />
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Value Type</label>
+              <select
+                className="w-full rounded-md border bg-surface px-3 py-2 text-sm"
+                value={newValueType}
+                onChange={(event) => setNewValueType(event.target.value as StructuredValueType)}
+              >
+                <option value="string">String</option>
+                <option value="number">Number</option>
+                <option value="boolean">Boolean</option>
+                <option value="json">JSON</option>
+              </select>
             </div>
-            <Button size="sm" onClick={handleAdd} disabled={patchMutation.isPending || !newKey.trim()}>
-              <Plus className="h-4 w-4" />
-              Add
-            </Button>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Value</label>
+              <ValueInput valueType={newValueType} value={newValue} onChange={setNewValue} />
+            </div>
+            <div className="flex items-end">
+              <Button
+                size="sm"
+                onClick={handleAdd}
+                disabled={patchMutation.isPending || !newKey.trim()}
+              >
+                <Plus className="h-4 w-4" />
+                Add
+              </Button>
+            </div>
           </div>
+          {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
         </CardContent>
       </Card>
     </div>

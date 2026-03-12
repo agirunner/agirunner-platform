@@ -109,6 +109,20 @@ interface RoleAssignment {
   reasoning_config?: Record<string, unknown> | null;
 }
 
+interface RoleDefinitionSummary {
+  id: string;
+  name: string;
+  description?: string | null;
+  is_active?: boolean;
+}
+
+interface AssignmentRoleRow {
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  source: 'catalog' | 'assignment';
+}
+
 interface AddProviderForm {
   providerType: ProviderType;
   name: string;
@@ -128,8 +142,6 @@ const PROVIDER_TYPE_DEFAULTS: Record<ProviderType, { name: string; baseUrl: stri
   'openai-compatible': { name: '', baseUrl: 'http://localhost:11434/v1' },
   'openai-codex': { name: 'OpenAI (Subscription)', baseUrl: 'https://chatgpt.com/backend-api' },
 };
-
-const ROLE_NAMES = ['architect', 'developer', 'reviewer', 'qa', 'project-manager'] as const;
 
 const INITIAL_FORM: AddProviderForm = {
   providerType: 'openai',
@@ -172,6 +184,50 @@ export function reasoningBadgeVariant(config?: ReasoningConfigSchema | null): 's
 
 export function getProviderTypeDefaults(providerType: ProviderType) {
   return PROVIDER_TYPE_DEFAULTS[providerType];
+}
+
+export function buildAssignmentRoleRows(
+  roleDefinitions: RoleDefinitionSummary[],
+  assignments: RoleAssignment[],
+): AssignmentRoleRow[] {
+  const catalogByName = new Map<string, RoleDefinitionSummary>();
+  for (const role of roleDefinitions) {
+    const normalizedName = role.name.trim();
+    if (normalizedName.length === 0 || catalogByName.has(normalizedName)) {
+      continue;
+    }
+    catalogByName.set(normalizedName, role);
+  }
+
+  const activeRoles = [...catalogByName.values()]
+    .filter((role) => role.is_active !== false)
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .map<AssignmentRoleRow>((role) => ({
+      name: role.name,
+      description: role.description ?? null,
+      isActive: true,
+      source: 'catalog',
+    }));
+
+  const includedNames = new Set(activeRoles.map((role) => role.name));
+  const staleRows: AssignmentRoleRow[] = [];
+  for (const assignment of assignments) {
+    const normalizedName = assignment.role_name.trim();
+    if (normalizedName.length === 0 || includedNames.has(normalizedName)) {
+      continue;
+    }
+    includedNames.add(normalizedName);
+    const catalogRole = catalogByName.get(normalizedName);
+    staleRows.push({
+      name: normalizedName,
+      description: catalogRole?.description ?? null,
+      isActive: catalogRole?.is_active !== false && Boolean(catalogRole),
+      source: catalogRole ? 'catalog' : 'assignment',
+    });
+  }
+
+  staleRows.sort((left, right) => left.name.localeCompare(right.name));
+  return [...activeRoles, ...staleRows];
 }
 
 /* ─── API Functions ─────────────────────────────────────────────────────── */
@@ -222,6 +278,16 @@ async function updateSystemDefault(payload: SystemDefault): Promise<void> {
 async function fetchAssignments(): Promise<RoleAssignment[]> {
   const response = await fetch(
     `${API_BASE_URL}/api/v1/config/llm/assignments`,
+    { headers: getAuthHeaders(), credentials: 'include' },
+  );
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const body = await response.json();
+  return body.data ?? body;
+}
+
+async function fetchRoleDefinitions(): Promise<RoleDefinitionSummary[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/config/roles`,
     { headers: getAuthHeaders(), credentials: 'include' },
   );
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -869,21 +935,18 @@ function ModelReasoningSelect({
   enabledModels,
   onModelChange,
   onReasoningChange,
-  label,
 }: {
   modelId: string;
   reasoningConfig: Record<string, unknown> | null;
   enabledModels: LlmModel[];
   onModelChange: (modelId: string) => void;
   onReasoningChange: (config: Record<string, unknown> | null) => void;
-  label?: string;
 }): JSX.Element {
   const selectedModel = enabledModels.find((m) => m.id === modelId);
   const modelReasoningSchema = selectedModel?.reasoning_config ?? null;
 
   return (
     <>
-      {label && <TableCell className="font-medium">{label}</TableCell>}
       <TableCell>
         <Select
           value={modelId}
@@ -926,13 +989,18 @@ interface RoleState {
 function RoleAssignmentsSection({
   enabledModels,
   assignments,
+  roleDefinitions,
   systemDefault,
 }: {
   enabledModels: LlmModel[];
   assignments: RoleAssignment[];
+  roleDefinitions: RoleDefinitionSummary[];
   systemDefault: SystemDefault;
 }): JSX.Element {
   const queryClient = useQueryClient();
+  const roleRows = buildAssignmentRoleRows(roleDefinitions, assignments);
+  const activeRoleCount = roleRows.filter((role) => role.isActive).length;
+  const staleRoleCount = roleRows.length - activeRoleCount;
 
   const [defaultModelId, setDefaultModelId] = useState(systemDefault.modelId ?? '__none__');
   const [defaultReasoning, setDefaultReasoning] = useState<Record<string, unknown> | null>(
@@ -941,9 +1009,9 @@ function RoleAssignmentsSection({
 
   const [roleStates, setRoleStates] = useState<Record<string, RoleState>>(() => {
     const initial: Record<string, RoleState> = {};
-    for (const role of ROLE_NAMES) {
-      const a = assignments.find((x) => x.role_name === role);
-      initial[role] = {
+    for (const role of buildAssignmentRoleRows(roleDefinitions, assignments)) {
+      const a = assignments.find((x) => x.role_name === role.name);
+      initial[role.name] = {
         modelId: a?.primary_model_id ?? '__none__',
         reasoningConfig: a?.reasoning_config ?? null,
       };
@@ -959,15 +1027,15 @@ function RoleAssignmentsSection({
 
   useEffect(() => {
     const updated: Record<string, RoleState> = {};
-    for (const role of ROLE_NAMES) {
-      const a = assignments.find((x) => x.role_name === role);
-      updated[role] = {
+    for (const role of roleRows) {
+      const a = assignments.find((x) => x.role_name === role.name);
+      updated[role.name] = {
         modelId: a?.primary_model_id ?? '__none__',
         reasoningConfig: a?.reasoning_config ?? null,
       };
     }
     setRoleStates(updated);
-  }, [assignments]);
+  }, [assignments, roleDefinitions]);
 
   const updateRole = (role: string, patch: Partial<RoleState>) => {
     setRoleStates((prev) => ({
@@ -983,9 +1051,9 @@ function RoleAssignmentsSection({
         reasoningConfig: defaultReasoning,
       });
 
-      for (const role of ROLE_NAMES) {
-        const s = roleStates[role];
-        await updateAssignment(role, {
+      for (const role of roleRows) {
+        const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
+        await updateAssignment(role.name, {
           primaryModelId: s.modelId === '__none__' ? undefined : s.modelId,
           reasoningConfig: s.reasoningConfig,
         });
@@ -1043,10 +1111,22 @@ function RoleAssignmentsSection({
         <div className="mb-3">
           <h3 className="text-sm font-semibold">Role Overrides</h3>
           <p className="text-xs text-muted">
-            Optionally override the model and reasoning level for specific roles.
-            Roles set to &quot;None&quot; inherit the system default.
+            Live role definitions drive the override table. Roles set to &quot;None&quot; inherit
+            the system default, and older assignment rows stay visible until they are cleaned up.
           </p>
         </div>
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <Badge variant="outline">{activeRoleCount} active roles</Badge>
+          {staleRoleCount > 0 && (
+            <Badge variant="warning">{staleRoleCount} inactive or missing assignments</Badge>
+          )}
+        </div>
+        {roleRows.length === 0 ? (
+          <div className="rounded-lg border border-border/70 bg-border/10 p-4 text-sm text-muted">
+            No active roles are available yet. Create roles on the Role Definitions page before
+            configuring model overrides here.
+          </div>
+        ) : (
         <Table>
           <TableHeader>
             <TableRow>
@@ -1056,23 +1136,44 @@ function RoleAssignmentsSection({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {ROLE_NAMES.map((role) => {
-              const s = roleStates[role] ?? { modelId: '__none__', reasoningConfig: null };
+            {roleRows.map((role) => {
+              const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
               return (
-                <TableRow key={role}>
+                <TableRow key={role.name}>
+                  <TableCell>
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{role.name}</span>
+                        {role.isActive ? (
+                          <Badge variant="outline">Active</Badge>
+                        ) : role.source === 'catalog' ? (
+                          <Badge variant="warning">Inactive</Badge>
+                        ) : (
+                          <Badge variant="warning">Assignment only</Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted">
+                        {role.description?.trim()
+                          ? role.description
+                          : role.source === 'assignment'
+                            ? 'This assignment references a role that is no longer in the active catalog.'
+                            : 'This configured role is currently inactive.'}
+                      </p>
+                    </div>
+                  </TableCell>
                   <ModelReasoningSelect
                     modelId={s.modelId}
                     reasoningConfig={s.reasoningConfig}
                     enabledModels={enabledModels}
-                    onModelChange={(id) => updateRole(role, { modelId: id, reasoningConfig: null })}
-                    onReasoningChange={(cfg) => updateRole(role, { reasoningConfig: cfg })}
-                    label={role}
+                    onModelChange={(id) => updateRole(role.name, { modelId: id, reasoningConfig: null })}
+                    onReasoningChange={(cfg) => updateRole(role.name, { reasoningConfig: cfg })}
                   />
                 </TableRow>
               );
             })}
           </TableBody>
         </Table>
+        )}
       </div>
 
       {/* ── Save ──────────────────────────────────────────────────────── */}
@@ -1282,6 +1383,11 @@ export function LlmProvidersPage(): JSX.Element {
     queryFn: fetchAssignments,
   });
 
+  const roleDefinitionsQuery = useQuery({
+    queryKey: ['role-definitions', 'llm-assignments'],
+    queryFn: fetchRoleDefinitions,
+  });
+
   const systemDefaultQuery = useQuery({
     queryKey: ['llm-system-default'],
     queryFn: fetchSystemDefault,
@@ -1329,7 +1435,10 @@ export function LlmProvidersPage(): JSX.Element {
     discoverMutation.mutate(providerId);
   }
 
-  const isLoading = providersQuery.isLoading || modelsQuery.isLoading || assignmentsQuery.isLoading;
+  const isLoading = providersQuery.isLoading
+    || modelsQuery.isLoading
+    || assignmentsQuery.isLoading
+    || roleDefinitionsQuery.isLoading;
 
   if (isLoading) {
     return (
@@ -1339,13 +1448,16 @@ export function LlmProvidersPage(): JSX.Element {
     );
   }
 
-  const hasError = providersQuery.error || modelsQuery.error || assignmentsQuery.error;
+  const hasError = providersQuery.error
+    || modelsQuery.error
+    || assignmentsQuery.error
+    || roleDefinitionsQuery.error;
   if (hasError) {
     return (
       <div className="p-6">
         <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
           Failed to load LLM configuration:{' '}
-          {String(providersQuery.error ?? modelsQuery.error ?? assignmentsQuery.error)}
+          {String(providersQuery.error ?? modelsQuery.error ?? assignmentsQuery.error ?? roleDefinitionsQuery.error)}
         </div>
       </div>
     );
@@ -1354,6 +1466,7 @@ export function LlmProvidersPage(): JSX.Element {
   const providers = Array.isArray(providersQuery.data) ? providersQuery.data : [];
   const models = Array.isArray(modelsQuery.data) ? modelsQuery.data : [];
   const assignments = Array.isArray(assignmentsQuery.data) ? assignmentsQuery.data : [];
+  const roleDefinitions = Array.isArray(roleDefinitionsQuery.data) ? roleDefinitionsQuery.data : [];
   const enabledModels = models.filter((m) => m.is_enabled !== false);
 
   return (
@@ -1419,6 +1532,7 @@ export function LlmProvidersPage(): JSX.Element {
       <RoleAssignmentsSection
         enabledModels={enabledModels}
         assignments={assignments}
+        roleDefinitions={roleDefinitions}
         systemDefault={systemDefaultQuery.data ?? { modelId: null, reasoningConfig: null }}
       />
     </div>

@@ -83,4 +83,12 @@ describe('project detail automation tab source', () => {
     expect(source).toContain('<option value="">Select stage</option>');
     expect(source).toContain('<option value="">Select role</option>');
   });
+
+  it('uses typed memory entry controls instead of heuristic string-or-json parsing', () => {
+    const source = readSource();
+    expect(source).toContain("const [newValueType, setNewValueType] = useState<StructuredValueType>('string')");
+    expect(source).toContain("buildStructuredObject(");
+    expect(source).toContain('<label className="text-xs font-medium">Value Type</label>');
+    expect(source).not.toContain('Value (string or JSON)');
+  });
 });

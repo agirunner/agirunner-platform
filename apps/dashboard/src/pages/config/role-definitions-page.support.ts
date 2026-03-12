@@ -55,9 +55,7 @@ export interface RoleModelOption {
   source: 'catalog' | 'existing';
 }
 
-interface KnownCapability extends CapabilityOption {}
-
-const KNOWN_CAPABILITY_CATALOG: KnownCapability[] = [
+const KNOWN_CAPABILITY_CATALOG: CapabilityOption[] = [
   {
     value: 'llm-api',
     label: 'LLM API',
@@ -174,26 +172,7 @@ const KNOWN_CAPABILITY_CATALOG: KnownCapability[] = [
   },
 ];
 
-export const KNOWN_TOOLS = [
-  'shell_exec',
-  'file_read',
-  'file_write',
-  'file_edit',
-  'file_list',
-  'git_status',
-  'git_diff',
-  'git_log',
-  'git_commit',
-  'git_push',
-  'artifact_upload',
-  'artifact_list',
-  'artifact_read',
-  'memory_read',
-  'memory_write',
-  'web_fetch',
-  'web_search',
-  'escalate',
-];
+export const KNOWN_TOOLS = ['shell_exec', 'file_read', 'file_write', 'file_edit', 'file_list', 'git_status', 'git_diff', 'git_log', 'git_commit', 'git_push', 'artifact_upload', 'artifact_list', 'artifact_read', 'memory_read', 'memory_write', 'web_fetch', 'web_search', 'escalate'];
 
 export function createRoleForm(role?: RoleDefinition | null): RoleFormState {
   return {

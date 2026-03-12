@@ -34,4 +34,10 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain("label: 'Trigger Overview'");
     expect(source).toContain("href: '/config/triggers'");
   });
+
+  it('exposes a single canonical runtime navigation entry', () => {
+    const source = readFileSync(resolve(import.meta.dirname, './layout.tsx'), 'utf8');
+    expect(source).toContain("label: 'Runtimes'");
+    expect(source).not.toContain("label: 'Runtime Defaults'");
+  });
 });

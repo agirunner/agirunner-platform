@@ -14,6 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildAssignmentRoleRows,
   formatContextWindow,
   reasoningLabel,
   reasoningBadgeVariant,
@@ -56,7 +57,9 @@ describe('LlmProvidersPage renders three sections', () => {
   it('renders the Model Assignments section', () => {
     expect(source).toContain('Model Assignments');
     expect(source).toContain('RoleAssignmentsSection');
-    expect(source).toContain('ROLE_NAMES');
+    expect(source).toContain('fetchRoleDefinitions');
+    expect(source).toContain('buildAssignmentRoleRows');
+    expect(source).not.toContain('const ROLE_NAMES');
   });
 
   it('renders dynamic ReasoningControl based on model schema', () => {
@@ -157,5 +160,67 @@ describe('reasoningBadgeVariant', () => {
   it('returns default for models with reasoning support', () => {
     const config = { type: 'effort' as const, options: ['low', 'medium', 'high'], default: 'high' };
     expect(reasoningBadgeVariant(config)).toBe('default');
+  });
+});
+
+describe('buildAssignmentRoleRows', () => {
+  it('prefers active catalog roles and sorts them alphabetically', () => {
+    const rows = buildAssignmentRoleRows(
+      [
+        { id: '2', name: 'reviewer', description: 'Reviews output', is_active: true },
+        { id: '1', name: 'architect', description: 'Shapes the system', is_active: true },
+      ],
+      [],
+    );
+
+    expect(rows).toEqual([
+      {
+        name: 'architect',
+        description: 'Shapes the system',
+        isActive: true,
+        source: 'catalog',
+      },
+      {
+        name: 'reviewer',
+        description: 'Reviews output',
+        isActive: true,
+        source: 'catalog',
+      },
+    ]);
+  });
+
+  it('keeps stale assignment rows visible after active catalog roles', () => {
+    const rows = buildAssignmentRoleRows(
+      [
+        { id: '1', name: 'developer', description: 'Builds features', is_active: true },
+        { id: '2', name: 'qa', description: 'Validates releases', is_active: false },
+      ],
+      [
+        { role_name: 'developer', primary_model_id: 'model-1' },
+        { role_name: 'qa', primary_model_id: 'model-2' },
+        { role_name: 'orchestrator', primary_model_id: 'model-3' },
+      ],
+    );
+
+    expect(rows).toEqual([
+      {
+        name: 'developer',
+        description: 'Builds features',
+        isActive: true,
+        source: 'catalog',
+      },
+      {
+        name: 'orchestrator',
+        description: null,
+        isActive: false,
+        source: 'assignment',
+      },
+      {
+        name: 'qa',
+        description: 'Validates releases',
+        isActive: false,
+        source: 'catalog',
+      },
+    ]);
   });
 });
