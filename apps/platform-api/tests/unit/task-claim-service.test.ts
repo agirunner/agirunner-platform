@@ -596,6 +596,20 @@ describe('TaskClaimService', () => {
         if (sql.includes('UPDATE agents SET current_task_id')) {
           return { rowCount: 1, rows: [] };
         }
+        if (sql.includes('UPDATE tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-encrypted-resolved',
+              workflow_id: 'wf-1',
+              state: 'claimed',
+              role: 'developer',
+              capabilities_required: ['llm-api'],
+              priority: 'normal',
+              metadata: {},
+            }],
+          };
+        }
         if (sql.includes('workflow_name')) {
           return { rowCount: 0, rows: [] };
         }
@@ -733,6 +747,20 @@ describe('TaskClaimService', () => {
         if (sql.includes('UPDATE agents SET current_task_id')) {
           return { rowCount: 1, rows: [] };
         }
+        if (sql.includes('UPDATE tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-encrypted-resolved',
+              workflow_id: 'wf-1',
+              state: 'claimed',
+              role: 'developer',
+              capabilities_required: ['llm-api'],
+              priority: 'normal',
+              metadata: {},
+            }],
+          };
+        }
         if (sql.includes('workflow_name')) {
           return { rowCount: 0, rows: [] };
         }
@@ -845,6 +873,117 @@ describe('TaskClaimService', () => {
       llm_api_key: 'provider-api-key',
       llm_extra_headers: { Authorization: 'Bearer secret-token' },
     });
+  });
+
+  it('creates claim handles from encrypted resolved provider secrets even without a provider id', async () => {
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
+    const encryptedApiKey = storeProviderSecret('provider-api-key');
+    const client = {
+      query: vi.fn(async (sql: string, _params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-encrypted-resolved',
+              workflow_id: 'wf-1',
+              state: 'ready',
+              role: 'developer',
+              capabilities_required: ['llm-api'],
+              priority: 'normal',
+              metadata: {},
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-encrypted-resolved',
+              workflow_id: 'wf-1',
+              state: 'claimed',
+              role: 'developer',
+              capabilities_required: ['llm-api'],
+              priority: 'normal',
+              metadata: {},
+            }],
+          };
+        }
+        if (sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT api_key_secret_ref')) {
+          throw new Error('provider secret lookup should not run when provider id is absent');
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => ({
+        provider: {
+          name: 'OpenAI',
+          providerId: null,
+          providerType: 'openai',
+          authMode: 'api_key',
+          apiKeySecretRef: encryptedApiKey,
+          baseUrl: 'https://api.openai.test/v1',
+        },
+        model: {
+          modelId: 'gpt-5',
+          contextWindow: null,
+          endpointType: 'responses',
+          reasoningConfig: null,
+        },
+        reasoningConfig: null,
+      })),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['llm-api'],
+    });
+
+    expect(task?.credentials).toEqual({
+      llm_provider: 'openai',
+      llm_model: 'gpt-5',
+      llm_api_key_claim_handle: expect.stringMatching(/^claim:v1:/),
+      llm_base_url: 'https://api.openai.test/v1',
+      llm_endpoint_type: 'responses',
+    });
+    expect(task?.credentials).not.toHaveProperty('llm_api_key_secret_ref');
   });
 });
 

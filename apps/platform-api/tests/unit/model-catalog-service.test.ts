@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
+import { configureProviderSecretEncryptionKey } from '../../src/lib/oauth-crypto.js';
 import { ModelCatalogService } from '../../src/services/model-catalog-service.js';
 
 function createMockPool() {
@@ -45,6 +46,7 @@ describe('ModelCatalogService', () => {
 
   beforeEach(() => {
     process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
+    configureProviderSecretEncryptionKey(process.env.WEBHOOK_ENCRYPTION_KEY);
     pool = createMockPool();
     service = new ModelCatalogService(pool as never);
   });

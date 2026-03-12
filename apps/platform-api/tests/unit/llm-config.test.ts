@@ -333,7 +333,7 @@ describe('ModelCatalogService — LLM config enhancements', () => {
   });
 
   describe('resolveRoleConfig', () => {
-    it('decrypts stored provider api keys for internal runtime use', async () => {
+    it('keeps stored provider api keys encrypted in resolved role config', async () => {
       const encryptedProvider = {
         ...sampleProvider,
         api_key_secret_ref: storeProviderSecret('sk-runtime-secret'),
@@ -347,7 +347,8 @@ describe('ModelCatalogService — LLM config enhancements', () => {
 
       const resolved = await service.resolveRoleConfig(TENANT_ID, 'developer');
 
-      expect(resolved?.provider.apiKeySecretRef).toBe('sk-runtime-secret');
+      expect(resolved?.provider.apiKeySecretRef).toBe(encryptedProvider.api_key_secret_ref);
+      expect(resolved?.provider.apiKeySecretRef).not.toBe('sk-runtime-secret');
     });
   });
 });
