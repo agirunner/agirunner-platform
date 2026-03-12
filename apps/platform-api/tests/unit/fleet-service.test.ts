@@ -38,6 +38,10 @@ const sampleDesiredStateWithSecrets = {
   environment: {
     SAFE_NAME: 'worker-a',
     API_TOKEN: 'top-secret-token',
+    opaque: 'sk-live-readback-secret',
+    secrets_bundle: {
+      username: 'service-user',
+    },
     nested: {
       authorization: 'Bearer nested-secret',
       keep_ref: 'secret:RUNTIME_KEY',
@@ -101,6 +105,10 @@ describe('FleetService', () => {
       expect(result[0]?.environment).toEqual({
         SAFE_NAME: 'worker-a',
         API_TOKEN: 'redacted://fleet-environment-secret',
+        opaque: 'redacted://fleet-environment-secret',
+        secrets_bundle: {
+          username: 'redacted://fleet-environment-secret',
+        },
         nested: {
           authorization: 'redacted://fleet-environment-secret',
           keep_ref: 'secret:RUNTIME_KEY',
@@ -133,6 +141,10 @@ describe('FleetService', () => {
       expect(result.environment).toEqual({
         SAFE_NAME: 'worker-a',
         API_TOKEN: 'redacted://fleet-environment-secret',
+        opaque: 'redacted://fleet-environment-secret',
+        secrets_bundle: {
+          username: 'redacted://fleet-environment-secret',
+        },
         nested: {
           authorization: 'redacted://fleet-environment-secret',
           keep_ref: 'secret:RUNTIME_KEY',
@@ -159,7 +171,14 @@ describe('FleetService', () => {
         cpuLimit: '2',
         memoryLimit: '2g',
         networkPolicy: 'restricted',
-        environment: sampleDesiredStateWithSecrets.environment,
+        environment: {
+          SAFE_NAME: 'worker-a',
+          API_TOKEN: 'secret:OPENAI_RUNTIME_TOKEN',
+          nested: {
+            authorization: 'secret:RUNTIME_AUTHORIZATION',
+            keep_ref: 'secret:RUNTIME_KEY',
+          },
+        },
         llmApiKeySecretRef: 'secret:OPENAI_API_KEY',
         replicas: 1,
         enabled: true,
@@ -171,6 +190,10 @@ describe('FleetService', () => {
       expect(result.environment).toEqual({
         SAFE_NAME: 'worker-a',
         API_TOKEN: 'redacted://fleet-environment-secret',
+        opaque: 'redacted://fleet-environment-secret',
+        secrets_bundle: {
+          username: 'redacted://fleet-environment-secret',
+        },
         nested: {
           authorization: 'redacted://fleet-environment-secret',
           keep_ref: 'secret:RUNTIME_KEY',
@@ -180,6 +203,72 @@ describe('FleetService', () => {
       expect(params).toContain('orchestrator');
       const sql = pool.query.mock.calls[0][0] as string;
       expect(sql).toContain('INSERT INTO worker_desired_state');
+    });
+
+    it('rejects plaintext llm api keys in desired state writes', async () => {
+      await expect(
+        service.createWorker(TENANT_ID, {
+          workerName: 'test-worker',
+          role: 'developer',
+          poolKind: 'specialist',
+          runtimeImage: 'agirunner-runtime:latest',
+          cpuLimit: '2',
+          memoryLimit: '2g',
+          networkPolicy: 'restricted',
+          environment: {},
+          llmApiKeySecretRef: 'sk-live-secret',
+          replicas: 1,
+          enabled: true,
+        }),
+      ).rejects.toThrow('llmApiKeySecretRef must use secret: references');
+      expect(pool.query).not.toHaveBeenCalled();
+    });
+
+    it('rejects plaintext secret-bearing environment values in desired state writes', async () => {
+      await expect(
+        service.createWorker(TENANT_ID, {
+          workerName: 'test-worker',
+          role: 'developer',
+          poolKind: 'specialist',
+          runtimeImage: 'agirunner-runtime:latest',
+          cpuLimit: '2',
+          memoryLimit: '2g',
+          networkPolicy: 'restricted',
+          environment: {
+            API_TOKEN: 'top-secret-token',
+            nested: {
+              authorization: 'Bearer nested-secret',
+            },
+          },
+          replicas: 1,
+          enabled: true,
+        }),
+      ).rejects.toThrow(
+        'Environment field API_TOKEN must use secret: references instead of plaintext secret values',
+      );
+      expect(pool.query).not.toHaveBeenCalled();
+    });
+
+    it('rejects secret-shaped plaintext values under non-secret environment keys', async () => {
+      await expect(
+        service.createWorker(TENANT_ID, {
+          workerName: 'test-worker',
+          role: 'developer',
+          poolKind: 'specialist',
+          runtimeImage: 'agirunner-runtime:latest',
+          cpuLimit: '2',
+          memoryLimit: '2g',
+          networkPolicy: 'restricted',
+          environment: {
+            opaque: 'sk-live-secret',
+          },
+          replicas: 1,
+          enabled: true,
+        }),
+      ).rejects.toThrow(
+        'Environment field opaque must use secret: references instead of plaintext secret values',
+      );
+      expect(pool.query).not.toHaveBeenCalled();
     });
   });
 
@@ -222,6 +311,21 @@ describe('FleetService', () => {
       expect(result.id).toBe(WORKER_ID);
       expect(result).not.toHaveProperty('llm_api_key_secret_ref');
       expect(result.llm_api_key_secret_ref_configured).toBe(true);
+    });
+
+    it('rejects plaintext secret-bearing nested environment updates', async () => {
+      await expect(
+        service.updateWorker(TENANT_ID, WORKER_ID, {
+          environment: {
+            nested: {
+              authorization: 'Bearer nested-secret',
+            },
+          },
+        }),
+      ).rejects.toThrow(
+        'Environment field nested.authorization must use secret: references instead of plaintext secret values',
+      );
+      expect(pool.query).not.toHaveBeenCalled();
     });
   });
 

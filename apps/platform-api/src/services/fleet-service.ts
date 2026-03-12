@@ -144,30 +144,41 @@ function toPublicDesiredStateRow(row: DesiredStateRow): PublicDesiredStateRow {
   };
 }
 
-function redactEnvironmentSecrets(environment: Record<string, unknown>): Record<string, unknown> {
+function redactEnvironmentSecrets(
+  environment: Record<string, unknown>,
+  inheritedSecret = false,
+): Record<string, unknown> {
   return Object.fromEntries(
-    Object.entries(environment).map(([key, value]) => [key, redactEnvironmentValue(key, value)]),
+    Object.entries(environment).map(([key, value]) => {
+      const branchIsSecret = inheritedSecret || isSecretLikeKey(key);
+      return [key, redactEnvironmentValue(value, branchIsSecret)];
+    }),
   );
 }
 
-function redactEnvironmentValue(key: string, value: unknown): unknown {
+function redactEnvironmentValue(value: unknown, inheritedSecret: boolean): unknown {
   if (Array.isArray(value)) {
-    return value.map((entry) => redactEnvironmentValue(key, entry));
+    return value.map((entry) => redactEnvironmentValue(entry, inheritedSecret));
   }
 
   if (value && typeof value === 'object') {
-    return redactEnvironmentSecrets(value as Record<string, unknown>);
+    return redactEnvironmentSecrets(value as Record<string, unknown>, inheritedSecret);
   }
 
   if (typeof value !== 'string') {
     return value;
   }
 
-  if (isSecretReference(value) || !isSecretLikeKey(key)) {
+  const normalized = value.trim();
+  if (normalized.length === 0 || isSecretReference(normalized)) {
     return value;
   }
 
-  return FLEET_ENV_SECRET_REDACTION;
+  if (inheritedSecret || isSecretLikeValue(normalized)) {
+    return FLEET_ENV_SECRET_REDACTION;
+  }
+
+  return value;
 }
 
 function isSecretReference(value: string): boolean {
@@ -230,6 +241,77 @@ function isSecretLikeValue(value: string): boolean {
   return secretLikeValuePattern.test(normalized);
 }
 
+function validateDesiredStateSecrets(input: {
+  environment?: Record<string, unknown>;
+  llmApiKeySecretRef?: string;
+}): void {
+  validateEnvironmentSecrets(input.environment ?? {}, []);
+  validateLlmSecretRef(input.llmApiKeySecretRef);
+}
+
+function validateEnvironmentSecrets(
+  environment: Record<string, unknown>,
+  path: string[],
+): void {
+  for (const [key, value] of Object.entries(environment)) {
+    validateEnvironmentValue(key, value, [...path, key], isSecretLikeKey(key));
+  }
+}
+
+function validateEnvironmentValue(
+  key: string,
+  value: unknown,
+  path: string[],
+  inheritedSecret: boolean,
+): void {
+  if (Array.isArray(value)) {
+    for (const [index, entry] of value.entries()) {
+      validateEnvironmentValue(key, entry, [...path, String(index)], inheritedSecret);
+    }
+    return;
+  }
+
+  if (value && typeof value === 'object') {
+    for (const [nestedKey, nestedValue] of Object.entries(value as Record<string, unknown>)) {
+      validateEnvironmentValue(
+        nestedKey,
+        nestedValue,
+        [...path, nestedKey],
+        inheritedSecret || isSecretLikeKey(nestedKey),
+      );
+    }
+    return;
+  }
+
+  if (typeof value !== 'string') {
+    return;
+  }
+
+  const normalized = value.trim();
+  if (normalized.length === 0 || isSecretReference(normalized)) {
+    return;
+  }
+
+  if (inheritedSecret || isSecretLikeValue(normalized)) {
+    throw new ValidationError(
+      `Environment field ${path.join('.')} must use secret: references instead of plaintext secret values`,
+    );
+  }
+}
+
+function validateLlmSecretRef(value: string | undefined): void {
+  if (value === undefined) {
+    return;
+  }
+  const normalized = value.trim();
+  if (normalized.length === 0) {
+    return;
+  }
+  if (!normalized.toLowerCase().startsWith('secret:')) {
+    throw new ValidationError('llmApiKeySecretRef must use secret: references');
+  }
+}
+
 export class FleetService {
   private readonly logger: FleetLogger;
 
@@ -269,6 +351,7 @@ export class FleetService {
 
   async createWorker(tenantId: string, input: CreateDesiredStateInput): Promise<PublicDesiredStateRow> {
     const validated = createDesiredStateSchema.parse(input);
+    validateDesiredStateSecrets(validated);
 
     const result = await this.pool.query<DesiredStateRow>(
       `INSERT INTO worker_desired_state (
@@ -299,6 +382,7 @@ export class FleetService {
 
   async updateWorker(tenantId: string, id: string, input: UpdateDesiredStateInput): Promise<PublicDesiredStateRow> {
     const validated = updateDesiredStateSchema.parse(input);
+    validateDesiredStateSecrets(validated);
     const setClauses: string[] = [];
     const values: unknown[] = [tenantId, id];
     let paramIndex = 3;
