@@ -827,6 +827,11 @@ export function WorkflowActivationsCard(props: {
   const processingCount = props.activations.filter((activation) =>
     ['processing', 'running', 'in_progress'].includes(activation.state),
   ).length;
+  const needsAttentionCount = props.activations.filter((activation) =>
+    activation.recovery_status ||
+    activation.redispatched_task_id ||
+    ['failed', 'stale', 'cancelled'].includes(activation.state),
+  ).length;
   const recoveredCount = props.activations.filter(
     (activation) => Boolean(activation.recovery_status),
   ).length;
@@ -847,9 +852,10 @@ export function WorkflowActivationsCard(props: {
         {props.isLoading ? <p className="text-sm text-muted">Loading activations...</p> : null}
         {props.hasError ? <p className="text-sm text-red-600">Failed to load activations.</p> : null}
         {props.activations.length > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <ActivationMetric label="Activation batches" value={String(props.activations.length)} />
             <ActivationMetric label="In flight" value={String(processingCount)} />
+            <ActivationMetric label="Needs attention" value={String(needsAttentionCount)} />
             <ActivationMetric label="Queued events" value={String(queuedEventCount)} />
           </div>
         ) : null}
@@ -909,7 +915,13 @@ export function WorkflowActivationsCard(props: {
                 ) : null}
               </div>
               {describeActivationRecovery(activation) ? (
-                <p className="text-sm text-muted">{describeActivationRecovery(activation)}</p>
+                <div className="grid gap-2 rounded-xl border border-amber-300/70 bg-amber-50/80 p-4 dark:border-amber-900/70 dark:bg-amber-950/20">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <strong className="text-sm text-foreground">Activation attention</strong>
+                    <Badge variant="warning">Recovery signal</Badge>
+                  </div>
+                  <p className="text-sm text-muted">{describeActivationRecovery(activation)}</p>
+                </div>
               ) : null}
               <div className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-4">
                 <div className="grid gap-2">
@@ -948,8 +960,11 @@ export function WorkflowActivationsCard(props: {
                     props.onSelectActivation?.(activation.activation_id ?? activation.id)
                   }
                 >
-                  Activation {activation.activation_id ?? activation.id}
+                  Highlight activation
                 </Button>
+                <Badge variant="outline">
+                  {summarizeIdentifier(activation.activation_id ?? activation.id)}
+                </Badge>
                 <Link
                   to={`/logs?workflow=${activation.workflow_id}&activation=${activation.activation_id ?? activation.id}&view=debug`}
                   className="text-sm text-muted underline-offset-4 hover:underline"
@@ -974,73 +989,78 @@ export function WorkflowActivationsCard(props: {
                 </Link>
               </div>
               {activation.events && activation.events.length > 0 ? (
-                <ul className="grid gap-3">
-                  {activation.events.map((event) => {
-                    const eventDescriptor = describeActivationEvent(
-                      activation.workflow_id,
-                      activation.activation_id ?? activation.id,
-                      event.event_type,
-                      event.payload,
-                      event.reason,
-                      event.queued_at,
-                    );
-                    const eventPayloadPacket = describeReviewPacket(
-                      event.payload,
-                      'activation event payload',
-                    );
-                    return (
-                      <li key={event.id} className="grid gap-2 rounded-md border border-border/60 bg-surface/70 p-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="grid gap-1">
-                            <strong>{eventDescriptor.headline}</strong>
-                            <p className="text-sm text-muted">
-                              {event.summary?.trim() || eventDescriptor.summary || 'Activation event packet available.'}
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Badge variant={badgeVariantForState(event.state)}>{event.state}</Badge>
-                            <Badge variant="outline">{eventPayloadPacket.typeLabel}</Badge>
-                          </div>
-                        </div>
-                        {eventDescriptor.scope ? <p className="text-sm text-muted">{eventDescriptor.scope}</p> : null}
-                        <div className="flex flex-wrap gap-2">
-                          <Badge variant="secondary">Event {summarizeIdentifier(event.id)}</Badge>
-                          <Badge variant="outline" title={formatAbsoluteTimestamp(event.queued_at)}>
-                            Queued {formatRelativeTimestamp(event.queued_at)}
-                          </Badge>
-                        </div>
-                        <div className="grid gap-2 rounded-lg border border-border/70 bg-background/80 p-3">
-                          <div className="text-sm font-medium text-foreground">
-                            {eventPayloadPacket.summary}
-                          </div>
-                          <p className="text-sm leading-6 text-muted">{eventPayloadPacket.detail}</p>
-                          {eventPayloadPacket.badges.length > 0 ? (
-                            <div className="flex flex-wrap gap-2">
-                              {eventPayloadPacket.badges.map((badge) => (
-                                <Badge key={badge} variant="outline">
-                                  {badge}
-                                </Badge>
-                              ))}
+                <details className="rounded-xl border border-border/70 bg-background/80 p-4 shadow-sm">
+                  <summary className="cursor-pointer text-sm font-medium text-foreground">
+                    Open event batch ({activation.events.length})
+                  </summary>
+                  <ul className="mt-4 grid gap-3">
+                    {activation.events.map((event) => {
+                      const eventDescriptor = describeActivationEvent(
+                        activation.workflow_id,
+                        activation.activation_id ?? activation.id,
+                        event.event_type,
+                        event.payload,
+                        event.reason,
+                        event.queued_at,
+                      );
+                      const eventPayloadPacket = describeReviewPacket(
+                        event.payload,
+                        'activation event payload',
+                      );
+                      return (
+                        <li key={event.id} className="grid gap-2 rounded-md border border-border/60 bg-surface/70 p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="grid gap-1">
+                              <strong>{eventDescriptor.headline}</strong>
+                              <p className="text-sm text-muted">
+                                {event.summary?.trim() || eventDescriptor.summary || 'Activation event packet available.'}
+                              </p>
                             </div>
-                          ) : null}
-                          {eventPayloadPacket.hasStructuredDetail ? (
-                            <details className="rounded-lg border border-border/70 bg-surface/70 p-3">
-                              <summary className="cursor-pointer text-sm font-medium text-foreground">
-                                Open event payload
-                              </summary>
-                              <div className="mt-3">
-                                <StructuredRecordView
-                                  data={toStructuredDetailViewData(event.payload)}
-                                  emptyMessage="No activation payload."
-                                />
+                            <div className="flex flex-wrap gap-2">
+                              <Badge variant={badgeVariantForState(event.state)}>{event.state}</Badge>
+                              <Badge variant="outline">{eventPayloadPacket.typeLabel}</Badge>
+                            </div>
+                          </div>
+                          {eventDescriptor.scope ? <p className="text-sm text-muted">{eventDescriptor.scope}</p> : null}
+                          <div className="flex flex-wrap gap-2">
+                            <Badge variant="secondary">Event {summarizeIdentifier(event.id)}</Badge>
+                            <Badge variant="outline" title={formatAbsoluteTimestamp(event.queued_at)}>
+                              Queued {formatRelativeTimestamp(event.queued_at)}
+                            </Badge>
+                          </div>
+                          <div className="grid gap-2 rounded-lg border border-border/70 bg-background/80 p-3">
+                            <div className="text-sm font-medium text-foreground">
+                              {eventPayloadPacket.summary}
+                            </div>
+                            <p className="text-sm leading-6 text-muted">{eventPayloadPacket.detail}</p>
+                            {eventPayloadPacket.badges.length > 0 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {eventPayloadPacket.badges.map((badge) => (
+                                  <Badge key={badge} variant="outline">
+                                    {badge}
+                                  </Badge>
+                                ))}
                               </div>
-                            </details>
-                          ) : null}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
+                            ) : null}
+                            {eventPayloadPacket.hasStructuredDetail ? (
+                              <details className="rounded-lg border border-border/70 bg-surface/70 p-3">
+                                <summary className="cursor-pointer text-sm font-medium text-foreground">
+                                  Open event payload
+                                </summary>
+                                <div className="mt-3">
+                                  <StructuredRecordView
+                                    data={toStructuredDetailViewData(event.payload)}
+                                    emptyMessage="No activation payload."
+                                  />
+                                </div>
+                              </details>
+                            ) : null}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </details>
               ) : null}
             </article>
           );

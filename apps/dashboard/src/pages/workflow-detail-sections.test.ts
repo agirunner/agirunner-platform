@@ -87,6 +87,11 @@ describe('workflow detail sections source', () => {
     expect(source).toContain('describeTimelineEvent');
     expect(source).toContain('describeReviewPacket');
     expect(source).toContain('describeActivationRecovery');
+    expect(source).toContain('Needs attention');
+    expect(source).toContain('Activation attention');
+    expect(source).toContain('Recovery signal');
+    expect(source).toContain('Highlight activation');
+    expect(source).toContain('Open event batch');
     expect(source).toContain('recovery_status');
     expect(source).toContain('stale_started_at');
     expect(source).toContain('redispatched_task_id');
