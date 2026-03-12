@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 
 import type { DashboardEventRecord } from '../lib/api.js';
 import { Badge } from '../components/ui/badge.js';
+import { Button } from '../components/ui/button.js';
 import {
   Card,
   CardContent,
@@ -23,7 +24,10 @@ interface TimelineDescriptor {
 export function WorkflowInteractionTimelineCard(props: {
   workflowId: string;
   isLoading: boolean;
+  isLoadingMore?: boolean;
   hasError: boolean;
+  hasMore?: boolean;
+  onLoadMore?: () => void;
   events: DashboardEventRecord[];
 }) {
   const events = sortEventsOldestFirst(props.events);
@@ -51,6 +55,18 @@ export function WorkflowInteractionTimelineCard(props: {
           <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
             No workflow activity recorded yet.
           </p>
+        ) : null}
+        {props.hasMore ? (
+          <div className="flex justify-start">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={props.onLoadMore}
+              disabled={props.isLoadingMore}
+            >
+              {props.isLoadingMore ? 'Loading older activity...' : 'Load older activity'}
+            </Button>
+          </div>
         ) : null}
         <ol className="grid gap-4">
           {events.map((event) => (

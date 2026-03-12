@@ -66,6 +66,9 @@ describe('WorkflowCreationService', () => {
               },
             },
           });
+          expect(params?.[12]).toBe(500000);
+          expect(params?.[13]).toBe(125.5);
+          expect(params?.[14]).toBe(1440);
           return {
             rowCount: 1,
             rows: [{
@@ -117,6 +120,11 @@ describe('WorkflowCreationService', () => {
             model_id: '00000000-0000-0000-0000-000000000022',
             reasoning_config: { effort: 'high' },
           },
+        },
+        budget: {
+          token_budget: 500000,
+          cost_cap_usd: 125.5,
+          max_duration_minutes: 1440,
         },
       },
     );

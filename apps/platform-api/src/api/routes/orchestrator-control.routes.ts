@@ -96,6 +96,11 @@ const orchestratorTaskEscalateSchema = orchestratorTaskMutationSchema.extend({
   reason: z.string().min(1).max(4000),
 });
 
+const orchestratorTaskMessageSchema = orchestratorTaskMutationSchema.extend({
+  message: z.string().min(1).max(4000),
+  urgency: z.enum(['info', 'important', 'critical']).optional(),
+});
+
 const gateRequestSchema = z.object({
   request_id: z.string().min(1).max(255),
   summary: z.string().min(1).max(4000),
@@ -480,6 +485,56 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
+    '/api/v1/orchestrator/tasks/:taskId/tasks/:managedTaskId/message',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; managedTaskId: string };
+      const body = parseOrThrow(orchestratorTaskMessageSchema.safeParse(request.body));
+      const taskScope = await withManagedSpecialistTask(
+        request.auth!,
+        params.taskId,
+        params.managedTaskId,
+      );
+      const stored = await runIdempotentMutation(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'send_task_message',
+        body.request_id,
+        async (client) => {
+          const managedTask = await app.taskService.getTask(request.auth!.tenantId, params.managedTaskId) as Record<string, unknown>;
+          const delivery = await deliverManagedTaskMessage(
+            app,
+            request.auth!,
+            taskScope,
+            managedTask,
+            body,
+            client,
+          );
+          return delivery;
+        },
+      );
+      return { data: stored };
+    },
+  );
+
+  app.get(
+    '/api/v1/orchestrator/tasks/:taskId/workflow/budget',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string };
+      const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
+        request.auth!,
+        params.taskId,
+      );
+      return {
+        data: await app.workflowService.getWorkflowBudget(request.auth!.tenantId, taskScope.workflow_id),
+      };
+    },
+  );
+
+  app.post(
     '/api/v1/orchestrator/tasks/:taskId/stages/:stageName/request-gate',
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
@@ -840,6 +895,72 @@ async function loadManagedSpecialistTask(
     throw new ValidationError('Managed task must be a specialist task');
   }
   return task;
+}
+
+async function deliverManagedTaskMessage(
+  app: FastifyInstance,
+  identity: ApiKeyIdentity,
+  taskScope: { workflow_id: string; id: string; stage_name: string | null; activation_id: string | null },
+  managedTask: Record<string, unknown>,
+  input: z.infer<typeof orchestratorTaskMessageSchema>,
+  client: import('../../db/database.js').DatabaseClient,
+) {
+  const issuedAt = new Date().toISOString();
+  const urgency = input.urgency ?? 'info';
+  const isInProgress = managedTask.state === 'in_progress';
+  const workerId =
+    typeof managedTask.assigned_worker_id === 'string' ? managedTask.assigned_worker_id : null;
+  const delivered =
+    isInProgress &&
+    workerId !== null &&
+    app.workerConnectionHub?.sendToWorker(workerId, {
+      type: 'task.message',
+      task_id: managedTask.id,
+      workflow_id: taskScope.workflow_id,
+      activation_id: taskScope.activation_id,
+      orchestrator_task_id: taskScope.id,
+      message_id: input.request_id,
+      urgency,
+      message: input.message,
+      issued_at: issuedAt,
+    }) === true;
+
+  await app.eventService.emit(
+    {
+      tenantId: identity.tenantId,
+      type: 'task.message_sent',
+      entityType: 'task',
+      entityId: String(managedTask.id),
+      actorType: identity.scope,
+      actorId: identity.keyPrefix,
+      data: {
+        workflow_id: taskScope.workflow_id,
+        task_id: managedTask.id,
+        stage_name: managedTask.stage_name ?? taskScope.stage_name,
+        urgency,
+        delivered,
+        message_length: input.message.length,
+        assigned_worker_id: workerId,
+      },
+    },
+    client,
+  );
+
+  return {
+    success: true,
+    delivered,
+    task_id: managedTask.id,
+    message_id: input.request_id,
+    urgency,
+    issued_at: issuedAt,
+    delivery_state: delivered
+      ? 'delivered'
+      : !isInProgress
+        ? 'task_not_in_progress'
+        : workerId === null
+          ? 'worker_unassigned'
+          : 'worker_unavailable',
+  };
 }
 
 interface ChildWorkflowLinkage {

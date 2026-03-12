@@ -185,6 +185,72 @@ describe('dashboard api auth/session behavior', () => {
     expect(workflow).toEqual({ id: 'pipe-1' });
   });
 
+  it('loads workflow events through the cursor-based workflow api surface', async () => {
+    writeSession({ accessToken: 'events-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: 42,
+              type: 'workflow.activation_started',
+              entity_type: 'workflow',
+              entity_id: 'workflow-1',
+              actor_type: 'orchestrator',
+              actor_id: 'task-1',
+              data: { workflow_id: 'workflow-1', activation_id: 'activation-1' },
+              created_at: '2026-03-12T12:00:00.000Z',
+            },
+          ],
+          meta: {
+            has_more: true,
+            next_after: 42,
+          },
+        }),
+        { status: 200 },
+      ),
+    ) as unknown as typeof fetch;
+
+    const api = createDashboardApi({
+      client: {} as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+    const response = await api.listWorkflowEvents('workflow-1', {
+      limit: '20',
+      after: '100',
+    });
+
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://localhost:8080/api/v1/workflows/workflow-1/events?limit=20&after=100',
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer events-token',
+        }),
+      }),
+    );
+    expect(response).toEqual({
+      data: [
+        {
+          id: 42,
+          type: 'workflow.activation_started',
+          entity_type: 'workflow',
+          entity_id: 'workflow-1',
+          actor_type: 'orchestrator',
+          actor_id: 'task-1',
+          data: { workflow_id: 'workflow-1', activation_id: 'activation-1' },
+          created_at: '2026-03-12T12:00:00.000Z',
+        },
+      ],
+      meta: {
+        has_more: true,
+        next_after: '42',
+      },
+    });
+  });
+
   it('updates playbooks through the dashboard api surface', async () => {
     writeSession({ accessToken: 'api-token', tenantId: 'tenant-1' });
 

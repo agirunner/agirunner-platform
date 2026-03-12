@@ -35,11 +35,10 @@ describe('events routes', () => {
     const { eventRoutes } = await import('../../src/api/routes/events.routes.js');
     const query = vi
       .fn()
-      .mockResolvedValueOnce({ rows: [{ count: '1' }], rowCount: 1 })
-      .mockResolvedValueOnce({
+      .mockResolvedValue({
         rows: [
           {
-            id: 1,
+            id: 19,
             type: 'work_item.updated',
             entity_type: 'work_item',
             entity_id: 'wi-1',
@@ -64,36 +63,64 @@ describe('events routes', () => {
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/v1/events?workflow_id=wf-1&work_item_id=wi-1&stage_name=implementation&activation_id=activation-1&gate_id=gate-1',
+      url: '/api/v1/events?workflow_id=wf-1&work_item_id=wi-1&stage_name=implementation&activation_id=activation-1&gate_id=gate-1&types=work_item.updated&after=20&limit=10',
       headers: { authorization: 'Bearer test' },
     });
 
     expect(response.statusCode).toBe(200);
-    const [countSql, countParams] = query.mock.calls[0];
-    const [selectSql, selectParams] = query.mock.calls[1];
+    const [selectSql, selectParams] = query.mock.calls[0];
 
-    expect(countSql).toContain("COALESCE(data->>'workflow_id', '') = $");
-    expect(countSql).toContain("COALESCE(data->>'work_item_id', CASE WHEN entity_type = 'work_item' THEN entity_id::text ELSE '' END) = $");
-    expect(countSql).toContain("COALESCE(data->>'stage_name', '') = $");
-    expect(countSql).toContain("COALESCE(data->>'activation_id', '') = $");
-    expect(countSql).toContain("COALESCE(data->>'gate_id', '') = $");
-    expect(countParams.slice(0, 6)).toEqual([
+    expect(selectSql).toContain(
+      "COALESCE(data->>'workflow_id', CASE WHEN entity_type = 'workflow' THEN entity_id::text ELSE '' END) = $",
+    );
+    expect(selectSql).toContain(
+      "COALESCE(data->>'work_item_id', CASE WHEN entity_type = 'work_item' THEN entity_id::text ELSE '' END) = $",
+    );
+    expect(selectSql).toContain("COALESCE(data->>'stage_name', '') = $");
+    expect(selectSql).toContain("COALESCE(data->>'activation_id', '') = $");
+    expect(selectSql).toContain("COALESCE(data->>'gate_id', CASE WHEN entity_type = 'gate' THEN entity_id::text ELSE '' END) = $");
+    expect(selectSql).toContain('type = ANY(');
+    expect(selectSql).toContain('id < $');
+    expect(selectSql).toContain('ORDER BY id DESC');
+    expect(selectParams).toEqual([
       'tenant-1',
       'wf-1',
       'wi-1',
       'implementation',
       'activation-1',
       'gate-1',
+      ['work_item.updated'],
+      20,
+      11,
     ]);
-    expect(selectParams).toEqual(['tenant-1', 'wf-1', 'wi-1', 'implementation', 'activation-1', 'gate-1', 20, 0]);
+    expect(response.json()).toEqual({
+      data: [
+        {
+          id: 19,
+          type: 'work_item.updated',
+          entity_type: 'work_item',
+          entity_id: 'wi-1',
+          data: {
+            workflow_id: 'wf-1',
+            work_item_id: 'wi-1',
+            stage_name: 'implementation',
+            activation_id: 'activation-1',
+            gate_id: 'gate-1',
+          },
+        },
+      ],
+      meta: {
+        has_more: false,
+        next_after: null,
+      },
+    });
   });
 
   it('redacts secret-bearing event data in list responses', async () => {
     const { eventRoutes } = await import('../../src/api/routes/events.routes.js');
     const query = vi
       .fn()
-      .mockResolvedValueOnce({ rows: [{ count: '1' }], rowCount: 1 })
-      .mockResolvedValueOnce({
+      .mockResolvedValue({
         rows: [
           {
             id: 1,
@@ -145,10 +172,8 @@ describe('events routes', () => {
         },
       ],
       meta: {
-        total: 1,
-        page: 1,
-        per_page: 20,
-        pages: 1,
+        has_more: false,
+        next_after: null,
       },
     });
   });

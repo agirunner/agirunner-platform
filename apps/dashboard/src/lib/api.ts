@@ -51,6 +51,16 @@ export interface DashboardEventRecord {
   created_at: string;
 }
 
+export interface DashboardCursorPageMeta {
+  has_more: boolean;
+  next_after: string | null;
+}
+
+export interface DashboardEventPage {
+  data: DashboardEventRecord[];
+  meta: DashboardCursorPageMeta;
+}
+
 export interface DashboardApiKeyRecord {
   id: string;
   scope: string;
@@ -1109,6 +1119,10 @@ export interface DashboardApi {
   ): Promise<DashboardWorkflowResolvedModelsResponse>;
   getWorkflowBoard(workflowId: string): Promise<DashboardWorkflowBoardResponse>;
   listWorkflowStages(workflowId: string): Promise<DashboardWorkflowStageRecord[]>;
+  listWorkflowEvents(
+    workflowId: string,
+    filters?: Record<string, string>,
+  ): Promise<DashboardEventPage>;
   listWorkflowWorkItems(workflowId: string): Promise<DashboardWorkflowWorkItemRecord[]>;
   getWorkflowWorkItem(
     workflowId: string,
@@ -1315,9 +1329,7 @@ export interface DashboardApi {
   ): Promise<DashboardGovernanceRetentionPolicy>;
   getLoggingConfig(): Promise<DashboardLoggingConfig>;
   updateLoggingConfig(payload: DashboardLoggingConfig): Promise<DashboardLoggingConfig>;
-  listEvents(
-    filters?: Record<string, string>,
-  ): Promise<{ data: DashboardEventRecord[]; meta?: Record<string, unknown> }>;
+  listEvents(filters?: Record<string, string>): Promise<DashboardEventPage>;
   listApiKeys(): Promise<DashboardApiKeyRecord[]>;
   createApiKey(payload: {
     scope: 'agent' | 'worker' | 'admin';
@@ -1507,6 +1519,22 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
   ): Promise<T> {
     const response = await requestJson<{ data: T }>(path, options);
     return response.data;
+  }
+
+  function normalizeEventPage(page: {
+    data?: DashboardEventRecord[];
+    meta?: { has_more?: boolean; next_after?: string | number | null };
+  }): DashboardEventPage {
+    return {
+      data: page.data ?? [],
+      meta: {
+        has_more: Boolean(page.meta?.has_more),
+        next_after:
+          page.meta?.next_after === null || page.meta?.next_after === undefined
+            ? null
+            : String(page.meta.next_after),
+      },
+    };
   }
 
   async function requestBinary(
@@ -1843,6 +1871,17 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           { method: 'GET' },
         ),
       ),
+    listWorkflowEvents: (workflowId, filters) =>
+      withRefresh(async () =>
+        normalizeEventPage(
+          await requestJson<{
+            data: DashboardEventRecord[];
+            meta?: { has_more?: boolean; next_after?: string | number | null };
+          }>(`/api/v1/workflows/${workflowId}/events${buildQueryString(filters)}`, {
+            method: 'GET',
+          }),
+        ),
+      ),
     listWorkflowDocuments: (workflowId) =>
       withRefresh(() =>
         requestData<DashboardResolvedDocumentReference[]>(
@@ -2113,10 +2152,14 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         }),
       ),
     listEvents: (filters) =>
-      withRefresh(() =>
-        requestJson<{ data: DashboardEventRecord[] }>(
-          `/api/v1/events${buildQueryString(filters)}`,
-          { method: 'GET' },
+      withRefresh(async () =>
+        normalizeEventPage(
+          await requestJson<{
+            data: DashboardEventRecord[];
+            meta?: { has_more?: boolean; next_after?: string | number | null };
+          }>(`/api/v1/events${buildQueryString(filters)}`, {
+            method: 'GET',
+          }),
         ),
       ),
     listApiKeys: () =>

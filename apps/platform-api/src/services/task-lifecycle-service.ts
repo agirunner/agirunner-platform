@@ -78,6 +78,11 @@ interface TaskLifecycleDependencies {
     status: 'completed' | 'failed',
     client: DatabaseClient,
   ) => Promise<void>;
+  evaluateWorkflowBudget?: (
+    tenantId: string,
+    workflowId: string,
+    client: DatabaseClient,
+  ) => Promise<void>;
   parallelismService?: PlaybookTaskParallelismService;
 }
 
@@ -444,6 +449,9 @@ export class TaskLifecycleService {
             actorId: 'task_state_transition',
           },
         );
+        if (this.deps.evaluateWorkflowBudget) {
+          await this.deps.evaluateWorkflowBudget(identity.tenantId, task.workflow_id as string, client);
+        }
       }
 
       if (ownsClient) {

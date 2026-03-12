@@ -9,6 +9,7 @@ import { buildResolvedConfigView } from './config-hierarchy-service.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { WorkflowActivationService } from './workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
+import { WorkflowBudgetService } from './workflow-budget-service.js';
 import { WorkflowCancellationService } from './workflow-cancellation-service.js';
 import { WorkflowControlService } from './workflow-control-service.js';
 import { WorkflowCreationService } from './workflow-creation-service.js';
@@ -53,6 +54,7 @@ export class WorkflowService {
   private readonly projectTimelineService: ProjectTimelineService;
   private readonly activationService: WorkflowActivationService;
   private readonly activationDispatchService: WorkflowActivationDispatchService;
+  private readonly budgetService: WorkflowBudgetService;
   private readonly workItemService: WorkItemService;
   private readonly stageService: WorkflowStageService;
   private readonly playbookControlService: PlaybookWorkflowControlService;
@@ -90,6 +92,15 @@ export class WorkflowService {
         WORKFLOW_ACTIVATION_STALE_AFTER_MS: workflowActivationStaleAfterMs,
       },
     });
+    this.budgetService = new WorkflowBudgetService(
+      pool,
+      eventService,
+      {
+        WORKFLOW_BUDGET_WARNING_RATIO: config.WORKFLOW_BUDGET_WARNING_RATIO,
+      },
+      this.activationService,
+      this.activationDispatchService,
+    );
     this.stageService = new WorkflowStageService(pool);
     this.creationService = new WorkflowCreationService({
       pool,
@@ -126,6 +137,14 @@ export class WorkflowService {
 
   createWorkflow(identity: ApiKeyIdentity, input: CreateWorkflowInput) {
     return this.creationService.createWorkflow(identity, input);
+  }
+
+  getWorkflowBudget(tenantId: string, workflowId: string, client?: DatabaseClient) {
+    return this.budgetService.getBudgetSnapshot(tenantId, workflowId, client);
+  }
+
+  evaluateWorkflowBudget(tenantId: string, workflowId: string, client?: DatabaseClient) {
+    return this.budgetService.evaluatePolicy(tenantId, workflowId, client);
   }
 
   async getEffectiveModel(tenantId: string, workflowId: string) {

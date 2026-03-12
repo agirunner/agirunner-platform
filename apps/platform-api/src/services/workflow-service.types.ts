@@ -1,6 +1,29 @@
 import type { AppEnv } from '../config/schema.js';
 import type { ArtifactStorageEnv } from '../content/storage-config.js';
 
+export interface WorkflowBudgetInput {
+  token_budget?: number;
+  cost_cap_usd?: number;
+  max_duration_minutes?: number;
+}
+
+export interface WorkflowBudgetSnapshot {
+  tokens_used: number;
+  tokens_limit: number | null;
+  cost_usd: number;
+  cost_limit_usd: number | null;
+  elapsed_minutes: number;
+  duration_limit_minutes: number | null;
+  task_count: number;
+  orchestrator_activations: number;
+  tokens_remaining: number | null;
+  cost_remaining_usd: number | null;
+  time_remaining_minutes: number | null;
+  warning_dimensions: string[];
+  exceeded_dimensions: string[];
+  warning_threshold_ratio: number;
+}
+
 export interface CreateWorkflowInput {
   playbook_id: string;
   project_id?: string;
@@ -9,6 +32,7 @@ export interface CreateWorkflowInput {
   metadata?: Record<string, unknown>;
   config_overrides?: Record<string, unknown>;
   instruction_config?: Record<string, unknown>;
+  budget?: WorkflowBudgetInput;
 }
 
 export interface ListWorkflowQuery {
@@ -30,7 +54,10 @@ export interface WorkflowWorkItemSummary {
 
 export type WorkflowServiceConfig = Pick<AppEnv, 'TASK_DEFAULT_TIMEOUT_MINUTES'> &
   Partial<
-    Pick<AppEnv, 'WORKFLOW_ACTIVATION_DELAY_MS' | 'WORKFLOW_ACTIVATION_STALE_AFTER_MS'>
+    Pick<
+      AppEnv,
+      'WORKFLOW_ACTIVATION_DELAY_MS' | 'WORKFLOW_ACTIVATION_STALE_AFTER_MS' | 'WORKFLOW_BUDGET_WARNING_RATIO'
+    >
   > &
   Partial<Pick<AppEnv, 'TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS'>> &
   ArtifactStorageEnv;

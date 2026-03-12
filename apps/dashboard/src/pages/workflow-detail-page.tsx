@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import {
@@ -141,10 +141,15 @@ export function WorkflowDetailPage(): JSX.Element {
     queryFn: () => dashboardApi.listTasks({ workflow_id: workflowId }) as Promise<TaskListResult>,
     enabled: workflowId.length > 0,
   });
-  const historyQuery = useQuery({
+  const historyQuery = useInfiniteQuery({
     queryKey: ['workflow-history', workflowId],
-    queryFn: () =>
-      dashboardApi.listEvents({ entity_type: 'workflow', entity_id: workflowId, per_page: '20' }),
+    queryFn: ({ pageParam }) =>
+      dashboardApi.listWorkflowEvents(workflowId, {
+        limit: '20',
+        ...(pageParam ? { after: pageParam } : {}),
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.meta.next_after ?? undefined,
     enabled: workflowId.length > 0,
   });
   const configQuery = useQuery({
@@ -283,6 +288,10 @@ export function WorkflowDetailPage(): JSX.Element {
   ]);
 
   const summary = useMemo(() => summarizeTasks(taskQuery.data?.data ?? []), [taskQuery.data?.data]);
+  const historyEvents = useMemo(
+    () => historyQuery.data?.pages.flatMap((page) => page.data) ?? [],
+    [historyQuery.data],
+  );
   const costSummary = useMemo(() => {
     const tasks = taskQuery.data?.data ?? [];
     return tasks.reduce(
@@ -936,7 +945,10 @@ export function WorkflowDetailPage(): JSX.Element {
           workflowId={workflowId}
           isLoading={historyQuery.isLoading}
           hasError={Boolean(historyQuery.error)}
-          events={historyQuery.data?.data ?? []}
+          isLoadingMore={historyQuery.isFetchingNextPage}
+          hasMore={historyQuery.hasNextPage}
+          onLoadMore={() => void historyQuery.fetchNextPage()}
+          events={historyEvents}
         />
       </div>
 

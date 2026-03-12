@@ -26,7 +26,11 @@ export const meteringRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const body = recordSchema.parse(request.body);
       const service = new MeteringService(app.pgPool);
-      return service.record(request.auth!.tenantId, body);
+      const event = await service.record(request.auth!.tenantId, body);
+      if (body.workflowId) {
+        await app.workflowService.evaluateWorkflowBudget(request.auth!.tenantId, body.workflowId);
+      }
+      return event;
     },
   );
 

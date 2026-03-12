@@ -629,4 +629,186 @@ describe('orchestratorControlRoutes', () => {
     );
     expect(response.json().data).toEqual(escalatedTask);
   });
+
+  it('reads the scoped workflow budget for an orchestrator task', async () => {
+    const workflowService = {
+      getWorkflowBudget: vi.fn().mockResolvedValue({
+        tokens_used: 1200,
+        tokens_limit: 5000,
+        cost_usd: 1.5,
+      }),
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-orch-budget']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-orch-budget',
+              workflow_id: 'workflow-1',
+              project_id: 'project-1',
+              work_item_id: null,
+              stage_name: 'implementation',
+              activation_id: 'activation-1',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', workflowService);
+    app.decorate('taskService', { createTask: vi.fn() });
+    app.decorate('projectService', {
+      patchProjectMemory: vi.fn(),
+      removeProjectMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/orchestrator/tasks/task-orch-budget/workflow/budget',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(workflowService.getWorkflowBudget).toHaveBeenCalledWith('tenant-1', 'workflow-1');
+    expect(response.json().data).toEqual(
+      expect.objectContaining({ tokens_used: 1200, cost_usd: 1.5 }),
+    );
+  });
+
+  it('sends live managed-task messages through the worker connection hub', async () => {
+    const managedTask = {
+      id: 'task-managed-1',
+      workflow_id: 'workflow-1',
+      is_orchestrator_task: false,
+      state: 'in_progress',
+      assigned_worker_id: 'worker-1',
+      stage_name: 'implementation',
+    };
+    const taskService = {
+      createTask: vi.fn(),
+      getTask: vi.fn().mockResolvedValue(managedTask),
+    };
+    const sendToWorker = vi.fn().mockReturnValue(true);
+    const emit = vi.fn(async () => undefined);
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'send_task_message', 'msg-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              response: {
+                success: true,
+                delivered: true,
+                task_id: 'task-managed-1',
+                message_id: 'msg-1',
+                urgency: 'important',
+                delivery_state: 'delivered',
+              },
+            }],
+          };
+        }
+        throw new Error(`unexpected client query: ${sql} ${JSON.stringify(params)}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-orch-message']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-orch-message',
+              workflow_id: 'workflow-1',
+              project_id: 'project-1',
+              work_item_id: null,
+              stage_name: 'implementation',
+              activation_id: 'activation-1',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => client),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit });
+    app.decorate('workflowService', { getWorkflowBudget: vi.fn() });
+    app.decorate('workerConnectionHub', { sendToWorker });
+    app.decorate('taskService', taskService);
+    app.decorate('projectService', {
+      patchProjectMemory: vi.fn(),
+      removeProjectMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orch-message/tasks/task-managed-1/message',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'msg-1',
+        message: 'Focus on the failing API regression first.',
+        urgency: 'important',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(taskService.getTask).toHaveBeenCalledWith('tenant-1', 'task-managed-1');
+    expect(sendToWorker).toHaveBeenCalledWith(
+      'worker-1',
+      expect.objectContaining({
+        type: 'task.message',
+        task_id: 'task-managed-1',
+        message_id: 'msg-1',
+        urgency: 'important',
+      }),
+    );
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'task.message_sent',
+        entityId: 'task-managed-1',
+      }),
+      client,
+    );
+    expect(response.json().data).toEqual(
+      expect.objectContaining({
+        success: true,
+        delivered: true,
+        message_id: 'msg-1',
+      }),
+    );
+  });
 });

@@ -89,8 +89,8 @@ export class WorkflowCreationService {
         `INSERT INTO workflows (
            tenant_id, project_id, playbook_id, playbook_version, name, state, lifecycle,
            current_stage, parameters, metadata, resolved_config, config_layers,
-           instruction_config, orchestration_state
-         ) VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $10, $11, $12, '{}'::jsonb)
+           instruction_config, token_budget, cost_cap_usd, max_duration_minutes, orchestration_state
+         ) VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, '{}'::jsonb)
          RETURNING *`,
         [
           identity.tenantId,
@@ -105,6 +105,9 @@ export class WorkflowCreationService {
           resolvedConfig.resolved,
           resolvedConfig.layers,
           input.instruction_config ?? null,
+          input.budget?.token_budget ?? null,
+          input.budget?.cost_cap_usd ?? null,
+          input.budget?.max_duration_minutes ?? null,
         ],
       );
       const workflow = workflowResult.rows[0] as PersistedWorkflowRow;

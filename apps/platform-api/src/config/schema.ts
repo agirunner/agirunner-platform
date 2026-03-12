@@ -27,6 +27,7 @@ export const envSchema = z
     TASK_DEFAULT_TIMEOUT_MINUTES: z.coerce.number().int().min(1).default(30),
     WORKFLOW_ACTIVATION_DELAY_MS: z.coerce.number().int().min(0).default(10000),
     WORKFLOW_ACTIVATION_STALE_AFTER_MS: z.coerce.number().int().min(1).default(300000),
+    WORKFLOW_BUDGET_WARNING_RATIO: z.coerce.number().gt(0).lte(1).default(0.8),
     TASK_MAX_SUBTASK_DEPTH: z.coerce.number().int().min(1).default(3),
     TASK_MAX_SUBTASKS_PER_PARENT: z.coerce.number().int().min(1).default(20),
     ARTIFACT_STORAGE_BACKEND: z.enum(['local', 's3', 'gcs', 'azure']).default('local'),

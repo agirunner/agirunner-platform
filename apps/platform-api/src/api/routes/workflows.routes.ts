@@ -11,12 +11,16 @@ import {
   updateWorkflowDocument,
 } from '../../services/document-reference-service.js';
 import { ApprovalQueueService } from '../../services/approval-queue-service.js';
+import {
+  EventQueryService,
+  parseCursorAfter,
+  parseCursorLimit,
+} from '../../services/event-query-service.js';
 import { WorkflowChainingService } from '../../services/workflow-chaining-service.js';
 import { PlaybookWorkflowControlService } from '../../services/playbook-workflow-control-service.js';
 import { WorkflowActivationDispatchService } from '../../services/workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from '../../services/workflow-activation-service.js';
 import { WorkflowStateService } from '../../services/workflow-state-service.js';
-import { sanitizeEventRows } from '../../services/event-service.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
 
 const roleModelOverrideSchema = z.object({
@@ -27,6 +31,12 @@ const roleModelOverrideSchema = z.object({
 
 const modelOverridesSchema = z.record(z.string().min(1).max(120), roleModelOverrideSchema);
 
+const workflowBudgetSchema = z.object({
+  token_budget: z.number().int().positive().optional(),
+  cost_cap_usd: z.number().positive().optional(),
+  max_duration_minutes: z.number().int().positive().optional(),
+});
+
 const workflowCreateSchema = z.object({
   playbook_id: z.string().uuid(),
   project_id: z.string().uuid().optional(),
@@ -35,6 +45,7 @@ const workflowCreateSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
   config_overrides: z.record(z.unknown()).optional(),
   instruction_config: z.record(z.unknown()).optional(),
+  budget: workflowBudgetSchema.optional(),
   model_overrides: modelOverridesSchema.optional(),
 });
 
@@ -123,6 +134,7 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
   const workflowService = app.workflowService;
   const workflowChainingService = new WorkflowChainingService(app.pgPool, workflowService);
   const approvalQueueService = new ApprovalQueueService(app.pgPool);
+  const eventQueryService = new EventQueryService(app.pgPool);
   const toolResultService = new WorkflowToolResultService(app.pgPool);
   const playbookControlService = new PlaybookWorkflowControlService({
     pool: app.pgPool,
@@ -187,6 +199,17 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
+    '/api/v1/workflows/:id/budget',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      return {
+        data: await workflowService.getWorkflowBudget(request.auth!.tenantId, params.id),
+      };
+    },
+  );
+
+  app.get(
     '/api/v1/workflows/:id/board',
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
@@ -210,6 +233,7 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const query = request.query as {
+        types?: string;
         event_type?: string;
         entity_type?: string;
         entity_id?: string;
@@ -217,80 +241,22 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
         stage_name?: string;
         activation_id?: string;
         gate_id?: string;
-        page?: string;
-        per_page?: string;
+        after?: string;
+        limit?: string;
       };
-      const page = Number(query.page ?? DEFAULT_PAGE);
-      const perPage = Number(query.per_page ?? DEFAULT_PER_PAGE);
-      if (
-        !Number.isFinite(page) ||
-        page <= 0 ||
-        !Number.isFinite(perPage) ||
-        perPage <= 0 ||
-        perPage > MAX_PER_PAGE
-      ) {
-        throw new ValidationError('Invalid pagination values');
-      }
-
-      const conditions = [
-        'tenant_id = $1',
-        `(entity_id = $2 OR COALESCE(data->>'workflow_id', CASE WHEN entity_type = 'workflow' THEN entity_id::text ELSE '' END) = $2)`,
-      ];
-      const values: unknown[] = [request.auth!.tenantId, params.id];
-
-      const exactFilters: Array<[string | undefined, string]> = [
-        [query.entity_type, 'entity_type'],
-        [query.entity_id, 'entity_id'],
-        [
-          query.work_item_id,
-          "COALESCE(data->>'work_item_id', CASE WHEN entity_type = 'work_item' THEN entity_id::text ELSE '' END)",
-        ],
-        [query.stage_name, "COALESCE(data->>'stage_name', '')"],
-        [query.activation_id, "COALESCE(data->>'activation_id', '')"],
-        [query.gate_id, "COALESCE(data->>'gate_id', '')"],
-      ];
-
-      exactFilters.forEach(([value, column]) => {
-        if (!value) {
-          return;
-        }
-        values.push(value);
-        conditions.push(`${column} = $${values.length}`);
+      return eventQueryService.listEvents({
+        tenantId: request.auth!.tenantId,
+        workflowScopeId: params.id,
+        entityTypes: parseCsv(query.entity_type),
+        entityId: query.entity_id,
+        workItemId: query.work_item_id,
+        stageName: query.stage_name,
+        activationId: query.activation_id,
+        gateId: query.gate_id,
+        eventTypes: parseCsv(query.types ?? query.event_type),
+        after: parseCursorAfter(query.after),
+        limit: parseCursorLimit(query.limit),
       });
-
-      const eventTypes = parseCsv(query.event_type);
-      if (eventTypes?.length) {
-        values.push(eventTypes);
-        conditions.push(`type = ANY($${values.length}::text[])`);
-      }
-
-      const offset = (page - 1) * perPage;
-      const whereClause = conditions.join(' AND ');
-      const totalResult = await app.pgPool.query<{ count: string }>(
-        `SELECT COUNT(*)::text AS count FROM events WHERE ${whereClause}`,
-        values,
-      );
-      values.push(perPage, offset);
-      const rows = await app.pgPool.query(
-        `SELECT *
-           FROM events
-          WHERE ${whereClause}
-          ORDER BY created_at DESC
-          LIMIT $${values.length - 1}
-          OFFSET $${values.length}`,
-        values,
-      );
-
-      const total = Number(totalResult.rows[0]?.count ?? '0');
-      return {
-        data: sanitizeEventRows(rows.rows),
-        meta: {
-          total,
-          page,
-          per_page: perPage,
-          pages: Math.ceil(total / perPage) || 1,
-        },
-      };
     },
   );
 

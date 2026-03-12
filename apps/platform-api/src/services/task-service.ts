@@ -20,6 +20,7 @@ import { OrchestratorGrantService } from './orchestrator-grant-service.js';
 import { RoleDefinitionService } from './role-definition-service.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
+import { WorkflowBudgetService } from './workflow-budget-service.js';
 const DEFAULT_CANCEL_SIGNAL_GRACE_PERIOD_MS = 60_000;
 const DEFAULT_WORKFLOW_ACTIVATION_DELAY_MS = 10_000;
 const DEFAULT_WORKFLOW_ACTIVATION_STALE_AFTER_MS = 300_000;
@@ -146,6 +147,13 @@ export class TaskService {
       projectTimelineService,
       logService,
     );
+    const workflowBudgetService = new WorkflowBudgetService(
+      pool,
+      eventService,
+      {
+        WORKFLOW_BUDGET_WARNING_RATIO: config.WORKFLOW_BUDGET_WARNING_RATIO,
+      },
+    );
     const workflowActivationDispatchService = new WorkflowActivationDispatchService({
       pool,
       eventService,
@@ -176,6 +184,9 @@ export class TaskService {
         workflowActivationDispatchService.finalizeActivationForTask.bind(
           workflowActivationDispatchService,
         ),
+      evaluateWorkflowBudget: async (tenantId, workflowId, client) => {
+        await workflowBudgetService.evaluatePolicy(tenantId, workflowId, client);
+      },
       parallelismService,
     });
 

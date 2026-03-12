@@ -116,6 +116,19 @@ describe('workflow detail interaction timeline', () => {
     expect(source).toContain('WorkflowInteractionTimelineCard');
     expect(source).not.toContain('WorkflowHistoryCard');
   });
+
+  it('pages workflow activity through the workflow-scoped cursor api', () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, './workflow-detail-page.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('useInfiniteQuery');
+    expect(source).toContain('dashboardApi.listWorkflowEvents(workflowId');
+    expect(source).toContain("getNextPageParam: (lastPage) => lastPage.meta.next_after ?? undefined");
+    expect(source).toContain('historyQuery.fetchNextPage()');
+    expect(source).not.toContain("dashboardApi.listEvents({ entity_type: 'workflow', entity_id: workflowId, per_page: '20' })");
+  });
 });
 
 describe('workflow detail deep links', () => {
