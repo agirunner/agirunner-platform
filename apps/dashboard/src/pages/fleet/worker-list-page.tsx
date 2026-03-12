@@ -167,7 +167,7 @@ function RegisterWorkerDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => (!open ? resetAndClose() : undefined)}>
-      <DialogContent>
+      <DialogContent className="max-h-[80vh] max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Register Fleet Worker</DialogTitle>
           <DialogDescription>
@@ -404,12 +404,12 @@ export function WorkerListPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Server className="h-6 w-6 text-muted-foreground" />
           <h1 className="text-2xl font-semibold">Workers</h1>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)}>
+        <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
           <Plus className="h-4 w-4" />
           Register Worker
         </Button>

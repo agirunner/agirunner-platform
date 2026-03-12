@@ -385,7 +385,7 @@ function ConnectOAuthDialog(): JSX.Element {
         <Link2 className="h-4 w-4" />
         Connect Subscription
       </Button>
-      <DialogContent>
+      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Connect Subscription Provider</DialogTitle>
         </DialogHeader>
@@ -613,7 +613,7 @@ function AddProviderDialog(): JSX.Element {
         <Plus className="h-4 w-4" />
         Add Provider
       </Button>
-      <DialogContent>
+      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add LLM Provider</DialogTitle>
         </DialogHeader>

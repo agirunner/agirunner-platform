@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 
+import type { AppEnv } from '../../config/schema.js';
 import { shouldRejectImpossibleScopeTask } from '../../validation/impossible-scope.js';
 
 interface ExecuteRequestBody {
@@ -89,8 +90,18 @@ function shouldFailAsImpossible(payload: ExecuteRequestBody): boolean {
 
 type ExecuteRouteMode = 'disabled' | 'test-simulated' | 'test-execution-backed';
 
-function resolveExecuteRouteMode(env: NodeJS.ProcessEnv = process.env): ExecuteRouteMode {
-  const mode = env.EXECUTE_ROUTE_MODE?.trim().toLowerCase();
+type ExecuteRouteConfig = Pick<
+  AppEnv,
+  | 'EXECUTE_ROUTE_MODE'
+  | 'LIVE_EXECUTOR_API_BASE_URL'
+  | 'LIVE_AUTH_LLM_API_BASE_URL'
+  | 'LIVE_EVALUATION_MODEL'
+  | 'LIVE_AUTH_LLM_MODEL'
+  | 'OPENAI_API_KEY'
+>;
+
+function resolveExecuteRouteMode(config: ExecuteRouteConfig): ExecuteRouteMode {
+  const mode = config.EXECUTE_ROUTE_MODE?.trim().toLowerCase();
 
   if (mode === 'test-simulated') {
     return 'test-simulated';
@@ -101,25 +112,25 @@ function resolveExecuteRouteMode(env: NodeJS.ProcessEnv = process.env): ExecuteR
   return 'disabled';
 }
 
-function isExecuteRouteEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  return resolveExecuteRouteMode(env) !== 'disabled';
+function isExecuteRouteEnabled(config: ExecuteRouteConfig): boolean {
+  return resolveExecuteRouteMode(config) !== 'disabled';
 }
 
-function isExecutionBackedModeEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  return resolveExecuteRouteMode(env) === 'test-execution-backed';
+function isExecutionBackedModeEnabled(config: ExecuteRouteConfig): boolean {
+  return resolveExecuteRouteMode(config) === 'test-execution-backed';
 }
 
-function resolveOpenAiApiBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+function resolveOpenAiApiBaseUrl(config: ExecuteRouteConfig): string {
   const configured =
-    env.LIVE_EXECUTOR_API_BASE_URL?.trim() ||
-    env.LIVE_AUTH_LLM_API_BASE_URL?.trim() ||
+    config.LIVE_EXECUTOR_API_BASE_URL?.trim() ||
+    config.LIVE_AUTH_LLM_API_BASE_URL?.trim() ||
     'https://api.openai.com/v1';
 
   return configured.replace(/\/+$/, '');
 }
 
-function resolveOpenAiModel(env: NodeJS.ProcessEnv = process.env): string {
-  return env.LIVE_EVALUATION_MODEL?.trim() || env.LIVE_AUTH_LLM_MODEL?.trim() || 'gpt-4.1-mini';
+function resolveOpenAiModel(config: ExecuteRouteConfig): string {
+  return config.LIVE_EVALUATION_MODEL?.trim() || config.LIVE_AUTH_LLM_MODEL?.trim() || 'gpt-4.1-mini';
 }
 
 function safeParseJson<T>(raw: string): T | null {
@@ -294,9 +305,9 @@ function ensureOpenAiResult(payload: unknown): OpenAiTaskResult {
 
 async function buildExecutionBackedOutput(
   payload: ExecuteRequestBody,
-  env: NodeJS.ProcessEnv = process.env,
+  config: ExecuteRouteConfig,
 ): Promise<Record<string, unknown>> {
-  const apiKey = env.OPENAI_API_KEY?.trim();
+  const apiKey = config.OPENAI_API_KEY?.trim();
   if (!apiKey) {
     throw new Error(
       'OPENAI_API_KEY is required when EXECUTE_ROUTE_MODE=execution-backed (fail-closed).',
@@ -317,14 +328,14 @@ async function buildExecutionBackedOutput(
     `Task context: ${safeStringify(payload.context)}`,
   ].join('\n');
 
-  const response = await fetch(`${resolveOpenAiApiBaseUrl(env)}/chat/completions`, {
+  const response = await fetch(`${resolveOpenAiApiBaseUrl(config)}/chat/completions`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: resolveOpenAiModel(env),
+      model: resolveOpenAiModel(config),
       temperature: 0.2,
       messages: [
         {
@@ -442,8 +453,10 @@ async function buildExecutionBackedOutput(
 }
 
 export async function executeRoutes(app: FastifyInstance): Promise<void> {
+  const executeConfig: ExecuteRouteConfig = app.config;
+
   app.get('/execute', async (_request, reply) => {
-    if (!isExecuteRouteEnabled()) {
+    if (!isExecuteRouteEnabled(executeConfig)) {
       return reply.status(404).send({
         error: 'execute_route_disabled',
         message:
@@ -455,7 +468,7 @@ export async function executeRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post<{ Body: ExecuteRequestBody }>('/execute', async (request, reply) => {
-    if (!isExecuteRouteEnabled()) {
+    if (!isExecuteRouteEnabled(executeConfig)) {
       return reply.status(404).send({
         error: 'execute_route_disabled',
         message:
@@ -473,9 +486,9 @@ export async function executeRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
-    if (isExecutionBackedModeEnabled()) {
+    if (isExecutionBackedModeEnabled(executeConfig)) {
       try {
-        return reply.status(200).send(await buildExecutionBackedOutput(payload));
+        return reply.status(200).send(await buildExecutionBackedOutput(payload, executeConfig));
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         const missingKey = message.includes('OPENAI_API_KEY is required');

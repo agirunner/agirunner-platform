@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -863,6 +864,16 @@ function EscalationCard({ task, onResolve, onSkip, onCancel, isLoading }: Escala
           {task.workflow_id && <span>Board: {task.workflow_id.slice(0, 8)}</span>}
           <span>Escalation depth: {escalationDepth}/{maxDepth}</span>
           <span className="font-mono">Step {task.id.slice(0, 8)}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 text-xs">
+          {task.workflow_id ? (
+            <Link to={`/work/workflows/${task.workflow_id}`} className="underline-offset-4 hover:underline">
+              Open board
+            </Link>
+          ) : null}
+          <Link to={`/work/tasks/${task.id}`} className="underline-offset-4 hover:underline">
+            Open step detail
+          </Link>
         </div>
 
         <div className="flex flex-wrap gap-2 pt-1">

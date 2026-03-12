@@ -15,4 +15,12 @@ describe('warm pools two-pool source', () => {
     expect(source).toContain('Specialist Warm Pool');
     expect(source).toContain('PoolBadge');
   });
+
+  it('removes the fake pool size dialog and routes operators to real worker controls', () => {
+    const source = readSource();
+    expect(source).toContain('Manage Workers');
+    expect(source).toContain('worker desired state');
+    expect(source).not.toContain('Configure Pool Size');
+    expect(source).not.toContain('PoolSizeDialog');
+  });
 });

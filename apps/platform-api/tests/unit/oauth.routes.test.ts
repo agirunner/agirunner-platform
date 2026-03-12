@@ -62,6 +62,7 @@ describe('oauth routes', () => {
 
     app = fastify();
     registerErrorHandler(app);
+    app.decorate('config', { DASHBOARD_URL: 'http://localhost:3000' } as never);
     app.decorate('oauthService', {
       handleCallback: vi.fn().mockRejectedValue(
         new Error('OAuth token exchange failed: 401 access_token=sk-secret-value'),
@@ -99,6 +100,7 @@ describe('oauth routes', () => {
 
     app = fastify();
     registerErrorHandler(app);
+    app.decorate('config', { DASHBOARD_URL: 'http://localhost:3000' } as never);
     app.decorate('oauthService', {
       handleCallback: vi.fn().mockRejectedValue(new Error('Provider not configured for OAuth')),
       initiateFlow: vi.fn(),

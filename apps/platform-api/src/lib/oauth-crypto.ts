@@ -5,6 +5,15 @@ const PROVIDER_SECRET_VERSION = 'v1';
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
 const GCM_IV_LENGTH_BYTES = 12;
 const EXTERNAL_SECRET_REFERENCE_PREFIXES = ['secret:', 'redacted://'];
+let configuredEncryptionKey: Buffer | null = null;
+
+export function configureProviderSecretEncryptionKey(rawKey: string): void {
+  const normalized = rawKey.trim();
+  if (!normalized) {
+    throw new Error('WEBHOOK_ENCRYPTION_KEY is required for provider secret encryption');
+  }
+  configuredEncryptionKey = createHash('sha256').update(normalized, 'utf8').digest();
+}
 
 export function storeOAuthToken(plaintext: string): string {
   return encryptProviderSecret(plaintext);
@@ -89,9 +98,8 @@ function decryptProviderSecret(secret: string): string {
 }
 
 function deriveKey(): Buffer {
-  const rawKey = process.env.WEBHOOK_ENCRYPTION_KEY?.trim();
-  if (!rawKey) {
+  if (!configuredEncryptionKey) {
     throw new Error('WEBHOOK_ENCRYPTION_KEY is required for provider secret encryption');
   }
-  return createHash('sha256').update(rawKey, 'utf8').digest();
+  return configuredEncryptionKey;
 }

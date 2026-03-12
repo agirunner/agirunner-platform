@@ -1,10 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Link2, Loader2 } from 'lucide-react';
 
 import { dashboardApi } from '../lib/api.js';
 import type { DashboardPlaybookRecord } from '../lib/api.js';
+import {
+  buildParametersFromDrafts,
+  buildStructuredObject,
+  defaultParameterDraftValue,
+  mergeStructuredObjects,
+  readLaunchDefinition,
+  type StructuredEntryDraft,
+} from '../pages/config/playbook-launch-support.js';
 import { Button } from './ui/button.js';
 import {
   Dialog,
@@ -21,7 +29,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select.js';
-import { Textarea } from './ui/textarea.js';
+import {
+  ChainParameterField,
+  ChainStructuredEntryEditor,
+} from './chain-workflow-parameters.js';
 
 interface ChainWorkflowDialogProps {
   isOpen: boolean;
@@ -37,7 +48,9 @@ export function ChainWorkflowDialog(props: ChainWorkflowDialogProps): JSX.Elemen
 
   const [targetId, setTargetId] = useState(props.defaultPlaybookId ?? '');
   const [name, setName] = useState(`${props.defaultWorkflowName} follow-up`);
-  const [parametersJson, setParametersJson] = useState('');
+  const [parameterDrafts, setParameterDrafts] = useState<Record<string, string>>({});
+  const [extraParameterDrafts, setExtraParameterDrafts] = useState<StructuredEntryDraft[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const playbooksQuery = useQuery({
     queryKey: ['playbooks'],
@@ -46,6 +59,14 @@ export function ChainWorkflowDialog(props: ChainWorkflowDialogProps): JSX.Elemen
   });
 
   const playbooks: DashboardPlaybookRecord[] = playbooksQuery.data?.data ?? [];
+  const selectedPlaybook = useMemo(
+    () => playbooks.find((playbook) => playbook.id === targetId) ?? null,
+    [playbooks, targetId],
+  );
+  const launchDefinition = useMemo(
+    () => readLaunchDefinition(selectedPlaybook),
+    [selectedPlaybook],
+  );
 
   useEffect(() => {
     if (!props.isOpen) {
@@ -53,12 +74,10 @@ export function ChainWorkflowDialog(props: ChainWorkflowDialogProps): JSX.Elemen
     }
     setTargetId(props.defaultPlaybookId ?? '');
     setName(`${props.defaultWorkflowName} follow-up`);
-    setParametersJson('');
-  }, [
-    props.defaultPlaybookId,
-    props.defaultWorkflowName,
-    props.isOpen,
-  ]);
+    setParameterDrafts({});
+    setExtraParameterDrafts([]);
+    setErrorMessage(null);
+  }, [props.defaultPlaybookId, props.defaultWorkflowName, props.isOpen]);
 
   useEffect(() => {
     if (targetId || playbooks.length === 0) {
@@ -67,11 +86,27 @@ export function ChainWorkflowDialog(props: ChainWorkflowDialogProps): JSX.Elemen
     setTargetId(playbooks[0].id);
   }, [playbooks, targetId]);
 
+  useEffect(() => {
+    setParameterDrafts((current) => {
+      const next: Record<string, string> = {};
+      for (const spec of launchDefinition.parameterSpecs) {
+        next[spec.key] =
+          current[spec.key] ??
+          defaultParameterDraftValue(spec.defaultValue, spec.inputType);
+      }
+      return next;
+    });
+  }, [launchDefinition.parameterSpecs]);
+
   const chainMutation = useMutation({
     mutationFn: () => {
-      const parameters = parseParameters(parametersJson);
+      const parameters = mergeStructuredObjects(
+        buildParametersFromDrafts(launchDefinition.parameterSpecs, parameterDrafts),
+        buildStructuredObject(extraParameterDrafts, 'Parameter overrides'),
+        'Parameter overrides',
+      );
       return dashboardApi.chainWorkflow(props.sourceWorkflowId, {
-        playbook_id: targetId || undefined,
+        playbook_id: targetId,
         name: name || undefined,
         parameters,
       });
@@ -79,11 +114,15 @@ export function ChainWorkflowDialog(props: ChainWorkflowDialogProps): JSX.Elemen
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['workflow', props.sourceWorkflowId] });
       props.onOpenChange(false);
+      setErrorMessage(null);
       const created = extractId(data);
       if (created) {
         navigate(`/work/workflows/${created}`);
       }
     },
+    onError: (error) => {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to chain workflow.');
+    }
   });
 
   const isSubmitDisabled = chainMutation.isPending || !name.trim() || !targetId;
@@ -137,19 +176,44 @@ export function ChainWorkflowDialog(props: ChainWorkflowDialogProps): JSX.Elemen
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Parameter Overrides (JSON)</label>
-            <Textarea
-              placeholder='{"key": "value"}'
-              value={parametersJson}
-              onChange={(event) => setParametersJson(event.target.value)}
-              className="min-h-[80px] font-mono text-xs"
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Parameter Overrides</label>
+              <p className="text-xs text-muted">
+                Configure playbook-defined follow-up inputs without hand-editing raw JSON.
+              </p>
+            </div>
+            {launchDefinition.parameterSpecs.length > 0 ? (
+              <div className="grid gap-4 rounded-md border border-border p-3">
+                {launchDefinition.parameterSpecs.map((spec) => (
+                  <ChainParameterField
+                    key={spec.key}
+                    spec={spec}
+                    value={parameterDrafts[spec.key] ?? ''}
+                    onChange={(value) => {
+                      setErrorMessage(null);
+                      setParameterDrafts((current) => ({ ...current, [spec.key]: value }));
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted">
+                This playbook does not define parameter specs yet. Add structured overrides below
+                if the follow-up workflow needs extra inputs.
+              </p>
+            )}
+            <ChainStructuredEntryEditor
+              drafts={extraParameterDrafts}
+              onChange={(drafts) => {
+                setErrorMessage(null);
+                setExtraParameterDrafts(drafts);
+              }}
+              addLabel="Add parameter"
             />
           </div>
 
-          {chainMutation.isError ? (
-            <p className="text-sm text-red-600">Failed to chain workflow. Please try again.</p>
-          ) : null}
+          {errorMessage ? <p className="text-sm text-red-600">{errorMessage}</p> : null}
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => props.onOpenChange(false)}>
@@ -164,22 +228,6 @@ export function ChainWorkflowDialog(props: ChainWorkflowDialogProps): JSX.Elemen
       </DialogContent>
     </Dialog>
   );
-}
-
-function parseParameters(json: string): Record<string, unknown> | undefined {
-  const trimmed = json.trim();
-  if (!trimmed) {
-    return undefined;
-  }
-  try {
-    const parsed = JSON.parse(trimmed);
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      return parsed as Record<string, unknown>;
-    }
-    return undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 function extractId(data: unknown): string | undefined {

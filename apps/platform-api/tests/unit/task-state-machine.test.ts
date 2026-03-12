@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   canTransitionState,
+  normalizeLegacyTaskStateAlias,
   normalizeTaskState,
   toStoredTaskState,
 } from '../../src/orchestration/task-state-machine.js';
@@ -69,16 +70,20 @@ describe('task state machine', () => {
     }
   });
 
-  it('keeps legacy aliases behind explicit normalization helpers only', () => {
-    expect(normalizeTaskState('running')).toBe('in_progress');
-    expect(normalizeTaskState('awaiting_escalation')).toBe('escalated');
-    expect(toStoredTaskState('running')).toBe('in_progress');
-    expect(toStoredTaskState('awaiting_escalation')).toBe('escalated');
+  it('accepts only canonical states in the primary state-machine helpers', () => {
+    expect(normalizeTaskState('running')).toBeNull();
+    expect(normalizeTaskState('awaiting_escalation')).toBeNull();
+    expect(() => toStoredTaskState('running')).toThrow("Unknown task state 'running'");
+    expect(() => toStoredTaskState('awaiting_escalation')).toThrow(
+      "Unknown task state 'awaiting_escalation'",
+    );
   });
 
-  it('still tolerates legacy aliases only inside the state-machine compatibility layer', () => {
-    expect(canTransitionState('claimed', 'running')).toBe(true);
-    expect(canTransitionState('running', 'awaiting_escalation')).toBe(true);
-    expect(canTransitionState('running', 'completed')).toBe(true);
+  it('keeps legacy aliases in an explicit compatibility helper only', () => {
+    expect(normalizeLegacyTaskStateAlias('running')).toBe('in_progress');
+    expect(normalizeLegacyTaskStateAlias('awaiting_escalation')).toBe('escalated');
+    expect(canTransitionState('claimed', 'running')).toBe(false);
+    expect(canTransitionState('running', 'awaiting_escalation')).toBe(false);
+    expect(canTransitionState('running', 'completed')).toBe(false);
   });
 });

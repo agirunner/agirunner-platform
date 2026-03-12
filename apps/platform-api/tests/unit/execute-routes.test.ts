@@ -38,6 +38,14 @@ describe('execute route impossible-scope policy alignment', () => {
 
   async function createApp(): Promise<FastifyInstance> {
     app = fastify();
+    app.decorate('config', {
+      EXECUTE_ROUTE_MODE: process.env.EXECUTE_ROUTE_MODE ?? 'disabled',
+      LIVE_EXECUTOR_API_BASE_URL: process.env.LIVE_EXECUTOR_API_BASE_URL,
+      LIVE_AUTH_LLM_API_BASE_URL: process.env.LIVE_AUTH_LLM_API_BASE_URL,
+      LIVE_EVALUATION_MODEL: process.env.LIVE_EVALUATION_MODEL,
+      LIVE_AUTH_LLM_MODEL: process.env.LIVE_AUTH_LLM_MODEL,
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    } as never);
     await app.register(executeRoutes);
     return app;
   }

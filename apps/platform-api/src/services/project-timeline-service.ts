@@ -74,7 +74,7 @@ export class ProjectTimelineService {
         ORDER BY created_at ASC`,
       [tenantId, workflowId],
     );
-    const [eventsResult, stagesResult, workItemsResult] = await Promise.all([
+    const [eventsResult, stagesResult, workItemsResult, activationsResult, gatesResult] = await Promise.all([
       db.query(
         `SELECT e.type, e.actor_type, e.actor_id, e.data, e.created_at
            FROM events e
@@ -137,6 +137,26 @@ export class ProjectTimelineService {
           ORDER BY created_at ASC`,
         [tenantId, workflowId],
       ),
+      db.query(
+        `SELECT activation_id, state, reason, event_type, COALESCE(payload->>'task_id', '') AS task_id,
+                queued_at, started_at, consumed_at, completed_at, error
+           FROM workflow_activations
+          WHERE tenant_id = $1
+            AND workflow_id = $2
+            AND activation_id IS NOT NULL
+          ORDER BY queued_at ASC`,
+        [tenantId, workflowId],
+      ),
+      db.query(
+        `SELECT id, stage_name, status, request_summary, recommendation, concerns, key_artifacts,
+                requested_by_type, requested_by_id, requested_at,
+                decision_feedback, decided_by_type, decided_by_id, decided_at
+           FROM workflow_stage_gates
+          WHERE tenant_id = $1
+            AND workflow_id = $2
+          ORDER BY requested_at ASC`,
+        [tenantId, workflowId],
+      ),
     ]);
     const summary = buildWorkflowSummary(
       workflow,
@@ -145,6 +165,8 @@ export class ProjectTimelineService {
       eventsResult.rows as Array<Record<string, unknown>>,
       stagesResult.rows as Array<Record<string, unknown>>,
       workItemsResult.rows as Array<Record<string, unknown>>,
+      activationsResult.rows as Array<Record<string, unknown>>,
+      gatesResult.rows as Array<Record<string, unknown>>,
     );
 
     await db.query(
@@ -217,6 +239,8 @@ function buildWorkflowSummary(
   events: Array<Record<string, unknown>>,
   stages: Array<Record<string, unknown>> = [],
   workItems: Array<Record<string, unknown>> = [],
+  activations: Array<Record<string, unknown>> = [],
+  gates: Array<Record<string, unknown>> = [],
 ) {
   return buildPlaybookRunSummary({
     workflow: workflowRow,
@@ -254,6 +278,34 @@ function buildWorkflowSummary(
       data: asRecord(row.data),
       created_at: new Date(String(row.created_at)),
     })),
+    activations: activations.map((row) => ({
+      activation_id: typeof row.activation_id === 'string' && row.activation_id.length > 0 ? row.activation_id : null,
+      state: String(row.state),
+      reason: typeof row.reason === 'string' && row.reason.length > 0 ? row.reason : null,
+      event_type: String(row.event_type),
+      task_id: typeof row.task_id === 'string' && row.task_id.length > 0 ? row.task_id : null,
+      queued_at: new Date(String(row.queued_at)),
+      started_at: asDate(row.started_at),
+      consumed_at: asDate(row.consumed_at),
+      completed_at: asDate(row.completed_at),
+      error: asRecordOrNull(row.error),
+    })),
+    gates: gates.map((row) => ({
+      id: String(row.id),
+      stage_name: String(row.stage_name),
+      status: String(row.status),
+      request_summary: String(row.request_summary),
+      recommendation: typeof row.recommendation === 'string' && row.recommendation.length > 0 ? row.recommendation : null,
+      concerns: Array.isArray(row.concerns) ? row.concerns : [],
+      key_artifacts: Array.isArray(row.key_artifacts) ? row.key_artifacts : [],
+      requested_by_type: String(row.requested_by_type),
+      requested_by_id: typeof row.requested_by_id === 'string' && row.requested_by_id.length > 0 ? row.requested_by_id : null,
+      requested_at: new Date(String(row.requested_at)),
+      decision_feedback: typeof row.decision_feedback === 'string' && row.decision_feedback.length > 0 ? row.decision_feedback : null,
+      decided_by_type: typeof row.decided_by_type === 'string' && row.decided_by_type.length > 0 ? row.decided_by_type : null,
+      decided_by_id: typeof row.decided_by_id === 'string' && row.decided_by_id.length > 0 ? row.decided_by_id : null,
+      decided_at: asDate(row.decided_at),
+    })),
   });
 }
 
@@ -270,4 +322,11 @@ function asDate(value: unknown): Date | null {
   }
   const date = value instanceof Date ? value : new Date(String(value));
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function asRecordOrNull(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
 }

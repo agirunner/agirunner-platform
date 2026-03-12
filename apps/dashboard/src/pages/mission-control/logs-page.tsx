@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Download } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import {
   dashboardApi,
@@ -28,11 +28,26 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/ta
 const PAGE_SIZE = '50';
 const SUMMARY_DETAIL_MODE = 'summary';
 
+interface LogsPageProps {
+  scopedWorkflowId?: string;
+}
+
 export function LogsPage(): JSX.Element {
+  return <LogsSurface />;
+}
+
+export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
   const [cursor, setCursor] = useState<string | null>(null);
   const [pagedEntries, setPagedEntries] = useState<LogEntry[]>([]);
-  const filters = useMemo(() => readInspectorFilters(searchParams), [searchParams]);
+  const scopedWorkflowId = props.scopedWorkflowId?.trim() ?? '';
+  const filters = useMemo(() => {
+    const nextFilters = readInspectorFilters(searchParams);
+    if (scopedWorkflowId) {
+      nextFilters.workflowId = scopedWorkflowId;
+    }
+    return nextFilters;
+  }, [scopedWorkflowId, searchParams]);
   const selectedLogId = useMemo(
     () => readSelectedInspectorLogId(searchParams),
     [searchParams],
@@ -122,7 +137,16 @@ export function LogsPage(): JSX.Element {
   );
 
   function updateFilters(nextFilters: InspectorFilters): void {
-    setSearchParams((current) => writeInspectorFilters(current, nextFilters), {
+    setSearchParams((current) => {
+      const next = writeInspectorFilters(current, {
+        ...nextFilters,
+        workflowId: scopedWorkflowId || nextFilters.workflowId,
+      });
+      if (scopedWorkflowId) {
+        next.delete('workflow');
+      }
+      return next;
+    }, {
       replace: true,
     });
   }
@@ -160,6 +184,12 @@ export function LogsPage(): JSX.Element {
   const selectedEntryPermalink = selectedEntry
     ? buildInspectorPermalink(searchParams, selectedEntry.id, selectedView)
     : null;
+  const workflowContextLink = selectedEntry?.workflow_id
+    ? buildWorkflowContextLink(selectedEntry)
+    : null;
+  const taskRecordLink = selectedEntry?.task_id
+    ? `/work/tasks/${selectedEntry.task_id}`
+    : null;
 
   async function handleExport(): Promise<void> {
     const blob = await dashboardApi.exportLogs(baseFilters);
@@ -174,48 +204,69 @@ export function LogsPage(): JSX.Element {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+    <div data-testid="execution-inspector-surface" className="flex flex-col gap-6 p-6">
+      <section className="flex flex-col gap-3 rounded-3xl border border-border/70 bg-card/80 p-6 shadow-sm lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">Execution Inspector</h1>
           <p className="text-sm text-muted">
             Summary, delivery, and debug views over work-item, stage, gate, runtime, and platform execution traces.
           </p>
+          {scopedWorkflowId ? (
+            <div className="text-sm">
+              <Link className="underline-offset-4 hover:underline" to={`/work/workflows/${scopedWorkflowId}`}>
+                Back to Workflow Board
+              </Link>
+            </div>
+          ) : null}
         </div>
-        <Button variant="outline" onClick={() => void handleExport()}>
-          <Download className="h-4 w-4" />
-          Export
-        </Button>
-        {selectedEntryPermalink ? (
-          <Button variant="outline" asChild>
-            <a href={selectedEntryPermalink}>Permalink</a>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={() => void handleExport()}>
+            <Download className="h-4 w-4" />
+            Export
           </Button>
-        ) : null}
-      </div>
+          {workflowContextLink ? (
+            <Button variant="outline" asChild>
+              <Link to={workflowContextLink}>Board context</Link>
+            </Button>
+          ) : null}
+          {taskRecordLink ? (
+            <Button variant="outline" asChild>
+              <Link to={taskRecordLink}>Task record</Link>
+            </Button>
+          ) : null}
+          {selectedEntryPermalink ? (
+            <Button variant="outline" asChild>
+              <a href={selectedEntryPermalink}>Permalink</a>
+            </Button>
+          ) : null}
+        </div>
+      </section>
 
-      <ExecutionInspectorFilterBar
-        filters={filters}
-        operationOptions={(operationsQuery.data?.data ?? []).map((item) => ({
-          value: item.operation,
-          label: item.operation,
-        }))}
-        roleOptions={(rolesQuery.data?.data ?? []).map((item) => ({
-          value: item.role,
-          label: item.role,
-        }))}
-        actorOptions={(actorsQuery.data?.data ?? []).map((item) => ({
-          value: item.actor_id,
-          label: item.actor_name || `${item.actor_type}:${item.actor_id}`,
-        }))}
-        onChange={(next) => {
-          updateFilters(next);
-          updateSelection(null);
-        }}
-        onReset={() => {
-          updateFilters(DEFAULT_INSPECTOR_FILTERS);
-          updateSelection(null);
-        }}
-      />
+      <section className="rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
+        <ExecutionInspectorFilterBar
+          filters={filters}
+          operationOptions={(operationsQuery.data?.data ?? []).map((item) => ({
+            value: item.operation,
+            label: item.operation,
+          }))}
+          roleOptions={(rolesQuery.data?.data ?? []).map((item) => ({
+            value: item.role,
+            label: item.role,
+          }))}
+          actorOptions={(actorsQuery.data?.data ?? []).map((item) => ({
+            value: item.actor_id,
+            label: item.actor_name || `${item.actor_type}:${item.actor_id}`,
+          }))}
+          onChange={(next) => {
+            updateFilters(next);
+            updateSelection(null);
+          }}
+          onReset={() => {
+            updateFilters(DEFAULT_INSPECTOR_FILTERS);
+            updateSelection(null);
+          }}
+        />
+      </section>
 
       <Tabs value={selectedView} onValueChange={(value) => updateView(value as 'summary' | 'detailed' | 'debug')} className="space-y-4">
         <TabsList>
@@ -288,4 +339,21 @@ function buildInspectorPermalink(
     next.set('view', view);
   }
   return `/logs?${next.toString()}`;
+}
+
+function buildWorkflowContextLink(entry: LogEntry): string {
+  const next = new URLSearchParams();
+  if (entry.work_item_id) {
+    next.set('work_item', entry.work_item_id);
+  }
+  if (entry.activation_id) {
+    next.set('activation', entry.activation_id);
+  }
+  if (entry.stage_name && !entry.work_item_id && !entry.activation_id) {
+    next.set('stage', entry.stage_name);
+  }
+  const query = next.toString();
+  return query
+    ? `/work/workflows/${entry.workflow_id}?${query}`
+    : `/work/workflows/${entry.workflow_id}`;
 }

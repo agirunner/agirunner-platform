@@ -1,4 +1,5 @@
 import type { DatabaseQueryable } from '../db/database.js';
+import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { currentStageNameFromStages, type WorkflowStageResponse } from './workflow-stage-service.js';
 
 interface ActivationRow {
@@ -8,6 +9,8 @@ interface ActivationRow {
   event_type: string;
   payload: Record<string, unknown>;
   state: string;
+  dispatch_attempt: number;
+  dispatch_token: string | null;
   queued_at: Date;
   started_at: Date | null;
   consumed_at: Date | null;
@@ -62,7 +65,7 @@ export async function buildOrchestratorTaskContext(
       activationId
         ? db.query<ActivationRow>(
             `SELECT id, activation_id, reason, event_type, payload, state, queued_at, started_at,
-                    consumed_at, completed_at, summary, error
+                    dispatch_attempt, dispatch_token, consumed_at, completed_at, summary, error
                FROM workflow_activations
               WHERE tenant_id = $1
                 AND (id = $2 OR activation_id = $2)
@@ -127,7 +130,7 @@ export async function buildOrchestratorTaskContext(
       ),
       db.query<Record<string, unknown>>(
         `SELECT id, activation_id, reason, event_type, payload, state, queued_at, started_at,
-                consumed_at, completed_at, summary, error
+                dispatch_attempt, dispatch_token, consumed_at, completed_at, summary, error
            FROM workflow_activations
           WHERE tenant_id = $1
             AND workflow_id = $2
@@ -150,7 +153,7 @@ export async function buildOrchestratorTaskContext(
     id: workflow.id,
     name: workflow.name,
     lifecycle: workflow.lifecycle,
-    active_stages: mergeActiveStageNames(activeStages, stagesRes.rows),
+    active_stages: mergeActiveStageNames(activeStages, stagesRes.rows, workflow.playbook_definition),
     metadata: workflow.metadata ?? {},
     playbook: {
       name: workflow.playbook_name,
@@ -178,6 +181,8 @@ function serializeActivation(row: ActivationRow) {
   return {
     ...row,
     queued_at: row.queued_at.toISOString(),
+    dispatch_attempt: row.dispatch_attempt,
+    dispatch_token: row.dispatch_token,
     started_at: row.started_at?.toISOString() ?? null,
     consumed_at: row.consumed_at?.toISOString() ?? null,
     completed_at: row.completed_at?.toISOString() ?? null,
@@ -218,13 +223,49 @@ function activeStageNames(rows: Record<string, unknown>[]): string[] {
 function mergeActiveStageNames(
   workItemStages: string[],
   stageRows: Record<string, unknown>[],
+  definition: unknown,
 ): string[] {
   const gateStages = stageRows
     .filter((row) => isActiveContinuousGateState(row.gate_status))
     .map((row) => String(row.name));
-  return Array.from(new Set([...workItemStages, ...gateStages]));
+  return orderStageNamesByDefinition(Array.from(new Set([...workItemStages, ...gateStages])), definition);
 }
 
 function isActiveContinuousGateState(gateStatus: unknown) {
   return gateStatus === 'awaiting_approval' || gateStatus === 'changes_requested' || gateStatus === 'rejected';
+}
+
+function orderStageNamesByDefinition(stageNames: string[], definition: unknown): string[] {
+  if (stageNames.length <= 1) {
+    return stageNames;
+  }
+  const stageOrder = readPlaybookStageOrder(definition);
+  if (stageOrder.length === 0) {
+    return stageNames;
+  }
+  const remaining = new Set(stageNames);
+  const ordered: string[] = [];
+  for (const stageName of stageOrder) {
+    if (!remaining.has(stageName)) {
+      continue;
+    }
+    ordered.push(stageName);
+    remaining.delete(stageName);
+  }
+  for (const stageName of stageNames) {
+    if (!remaining.has(stageName)) {
+      continue;
+    }
+    ordered.push(stageName);
+    remaining.delete(stageName);
+  }
+  return ordered;
+}
+
+function readPlaybookStageOrder(definition: unknown): string[] {
+  try {
+    return parsePlaybookDefinition(definition).stages.map((stage) => stage.name);
+  } catch {
+    return [];
+  }
 }

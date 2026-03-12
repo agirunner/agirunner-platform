@@ -61,10 +61,18 @@ export function normalizeTaskState(state: string | null | undefined): CanonicalT
   if (!state) {
     return null;
   }
-  if (state in legacyTaskStateAliases) {
-    return legacyTaskStateAliases[state as LegacyTaskStateAlias];
-  }
   return taskStates.includes(state as CanonicalTaskState) ? (state as CanonicalTaskState) : null;
+}
+
+export function normalizeLegacyTaskStateAlias(
+  state: string | null | undefined,
+): CanonicalTaskState | null {
+  if (!state) {
+    return null;
+  }
+  return state in legacyTaskStateAliases
+    ? legacyTaskStateAliases[state as LegacyTaskStateAlias]
+    : null;
 }
 
 export function toStoredTaskState(state: string): CanonicalTaskState {

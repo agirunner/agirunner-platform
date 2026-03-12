@@ -44,6 +44,7 @@ import {
   TableCell,
 } from '../../components/ui/table.js';
 import { buildWorkflowDetailPermalink } from '../workflow-detail-permalinks.js';
+import { describeTimelineEvent } from '../workflow-history-card.js';
 import {
   countBlockedBoardItems,
   countOpenBoardItems,
@@ -86,6 +87,7 @@ interface TaskRecord {
   assigned_worker?: string | null;
   workflow_id?: string;
   work_item_id?: string | null;
+  activation_id?: string | null;
   stage_name?: string | null;
   role?: string | null;
   retry_count?: number;
@@ -510,6 +512,8 @@ export function LiveBoardPage(): JSX.Element {
         liveStages={liveStages}
         gateReviews={filteredStageGates.length}
         workersOnline={onlineWorkers.length}
+        blockedWorkItems={filteredBlockedItems.length}
+        failedSteps={filteredFailedTasks.length}
         needsAction={needsAction}
       />
 
@@ -540,23 +544,73 @@ interface KpiCardsProps {
   liveStages: number;
   gateReviews: number;
   workersOnline: number;
+  blockedWorkItems: number;
+  failedSteps: number;
   needsAction: number;
 }
 
 function KpiCards(props: KpiCardsProps): JSX.Element {
   const cards = [
-    { label: 'Live Boards', value: props.activeBoards, icon: WorkflowIcon, color: 'text-blue-600' },
-    { label: 'Open Work Items', value: props.openWorkItems, icon: Activity, color: 'text-green-600' },
-    { label: 'Live Stages', value: props.liveStages, icon: Cpu, color: 'text-indigo-600' },
-    { label: 'Stage Gates', value: props.gateReviews, icon: CheckCircle2, color: 'text-amber-600' },
-    { label: 'Workers Online', value: props.workersOnline, icon: Server, color: 'text-indigo-600' },
-    { label: 'Containers Running', value: props.workersOnline, icon: Container, color: 'text-purple-600' },
-    { label: 'Cost Today', value: '$--', icon: DollarSign, color: 'text-emerald-600' },
-    { label: 'Needs Action', value: props.needsAction, icon: AlertTriangle, color: props.needsAction > 0 ? 'text-amber-600' : 'text-muted' },
+    {
+      label: 'Live Boards',
+      value: props.activeBoards,
+      detail: 'Boards with active work or gates',
+      icon: WorkflowIcon,
+      color: 'text-blue-600',
+    },
+    {
+      label: 'Open Work Items',
+      value: props.openWorkItems,
+      detail: 'Non-terminal work across visible boards',
+      icon: Activity,
+      color: 'text-green-600',
+    },
+    {
+      label: 'Live Stages',
+      value: props.liveStages,
+      detail: 'Distinct active stage names',
+      icon: Cpu,
+      color: 'text-indigo-600',
+    },
+    {
+      label: 'Stage Gates',
+      value: props.gateReviews,
+      detail: 'Human gate packets waiting',
+      icon: CheckCircle2,
+      color: 'text-amber-600',
+    },
+    {
+      label: 'Blocked Work',
+      value: props.blockedWorkItems,
+      detail: 'Items in blocked board columns',
+      icon: Container,
+      color: props.blockedWorkItems > 0 ? 'text-rose-600' : 'text-muted',
+    },
+    {
+      label: 'Failed Steps',
+      value: props.failedSteps,
+      detail: 'Specialist steps needing review',
+      icon: DollarSign,
+      color: props.failedSteps > 0 ? 'text-rose-600' : 'text-muted',
+    },
+    {
+      label: 'Workers Online',
+      value: props.workersOnline,
+      detail: 'Available worker capacity',
+      icon: Server,
+      color: 'text-indigo-600',
+    },
+    {
+      label: 'Needs Action',
+      value: props.needsAction,
+      detail: 'Combined gates, blocked work, and step interventions',
+      icon: AlertTriangle,
+      color: props.needsAction > 0 ? 'text-amber-600' : 'text-muted',
+    },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
       {cards.map((card) => (
         <Card key={card.label}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -565,6 +619,7 @@ function KpiCards(props: KpiCardsProps): JSX.Element {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{card.value}</div>
+            <p className="mt-2 text-xs leading-5 text-muted">{card.detail}</p>
           </CardContent>
         </Card>
       ))}
@@ -612,11 +667,15 @@ function NeedsAttentionSection({ approvalTasks, failedTasks, blockedItems, stage
           <AlertTriangle className="h-5 w-5 text-amber-600" />
           Operator Queue ({items.length + stageGates.length + blockedItems.length})
         </CardTitle>
+        <p className="text-sm text-muted">
+          Use this board to triage what needs attention, then step into the approval queue or board
+          detail flow for the actual decision and recovery work.
+        </p>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
           {stageGates.map((gate) => (
-            <div key={`${gate.workflow_id}:${gate.stage_name}`} className="flex items-center justify-between rounded-md border p-3">
+            <div key={`${gate.workflow_id}:${gate.stage_name}`} className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 flex-1">
                 <Link
                   to={buildWorkflowDetailPermalink(gate.workflow_id, {
@@ -632,15 +691,24 @@ function NeedsAttentionSection({ approvalTasks, failedTasks, blockedItems, stage
                 </div>
                 <p className="mt-1 text-xs text-muted">{gate.stage_goal}</p>
               </div>
-              <div className="ml-4 shrink-0">
+              <div className="flex shrink-0 gap-2 sm:ml-4">
                 <Button size="sm" asChild>
-                  <Link to={`/work/approvals`}>Open Gate</Link>
+                  <Link to="/work/approvals?view=gates">Open approvals</Link>
+                </Button>
+                <Button size="sm" variant="outline" asChild>
+                  <Link
+                    to={buildWorkflowDetailPermalink(gate.workflow_id, {
+                      gateStageName: gate.stage_name,
+                    })}
+                  >
+                    Open board gate
+                  </Link>
                 </Button>
               </div>
             </div>
           ))}
           {blockedItems.map((item) => (
-            <div key={`${item.workflowId}:${item.title}:${item.stageName}`} className="flex items-center justify-between rounded-md border p-3">
+            <div key={`${item.workflowId}:${item.title}:${item.stageName}`} className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 flex-1">
                 <Link
                   to={buildWorkflowDetailPermalink(item.workflowId, {
@@ -656,10 +724,21 @@ function NeedsAttentionSection({ approvalTasks, failedTasks, blockedItems, stage
                 </div>
                 <p className="mt-1 truncate text-xs text-muted">{item.title}</p>
               </div>
+              <div className="flex shrink-0 gap-2 sm:ml-4">
+                <Button size="sm" variant="outline" asChild>
+                  <Link
+                    to={buildWorkflowDetailPermalink(item.workflowId, {
+                      workItemId: item.workItemId,
+                    })}
+                  >
+                    Open work item
+                  </Link>
+                </Button>
+              </div>
             </div>
           ))}
           {items.map((task) => (
-            <div key={task.id} className="flex items-center justify-between rounded-md border p-3">
+            <div key={task.id} className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium text-sm">{task.title ?? task.name ?? task.id}</p>
                 <div className="mt-1 flex items-center gap-2">
@@ -674,16 +753,29 @@ function NeedsAttentionSection({ approvalTasks, failedTasks, blockedItems, stage
                   )}
                 </div>
               </div>
-              <div className="ml-4 flex shrink-0 gap-2">
-                {resolveTaskOperatorState(task) === 'awaiting_approval' && (
-                  <>
-                    <Button size="sm" onClick={() => dashboardApi.approveTask(task.id)}>Approve Step</Button>
-                    <Button size="sm" variant="outline" onClick={() => dashboardApi.rejectTask(task.id, { feedback: 'Rejected from live board' })}>Reject Step</Button>
-                  </>
-                )}
-                {resolveTaskOperatorState(task) === 'failed' && (
-                  <Button size="sm" variant="outline" onClick={() => dashboardApi.retryTask(task.id)}>Retry Step</Button>
-                )}
+              <div className="flex shrink-0 flex-wrap gap-2 sm:ml-4">
+                {task.workflow_id && task.work_item_id ? (
+                  <Button size="sm" asChild>
+                    <Link
+                      to={buildWorkflowDetailPermalink(task.workflow_id, {
+                        workItemId: task.work_item_id,
+                        ...(task.activation_id ? { activationId: task.activation_id } : {}),
+                      })}
+                    >
+                      Open work-item flow
+                    </Link>
+                  </Button>
+                ) : null}
+                {resolveTaskOperatorState(task) === 'awaiting_approval' ? (
+                  <Button size="sm" variant="outline" asChild>
+                    <Link to="/work/approvals?view=tasks">Open approvals</Link>
+                  </Button>
+                ) : null}
+                <Button size="sm" variant="outline" asChild>
+                  <Link to={`/work/tasks/${task.id}`}>
+                    {resolveTaskOperatorState(task) === 'failed' ? 'Open failed step' : 'Open step record'}
+                  </Link>
+                </Button>
               </div>
             </div>
           ))}
@@ -944,10 +1036,13 @@ function LiveEventStream({ events }: LiveEventStreamProps): JSX.Element {
         ) : (
           <div className="space-y-2">
             {events.map((evt) => (
-              <div key={evt.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
-                <div className="flex items-center gap-3">
-                  <Badge variant="secondary">{evt.type}</Badge>
-                  <span className="text-muted">{evt.entity_type}/{evt.entity_id?.slice(0, 8)}</span>
+              <div key={evt.id} className="flex items-start justify-between gap-3 rounded-md border p-3 text-sm">
+                <div className="min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={eventBadgeVariant(evt.type)}>{describeTimelineEvent(evt).headline}</Badge>
+                    <span className="text-muted">{describeEventScope(evt)}</span>
+                  </div>
+                  <p className="truncate text-foreground">{describeTimelineEvent(evt).summary ?? 'Recent operator activity recorded.'}</p>
                 </div>
                 <span className="text-xs text-muted">
                   {new Date(evt.created_at).toLocaleTimeString()}
@@ -959,4 +1054,38 @@ function LiveEventStream({ events }: LiveEventStreamProps): JSX.Element {
       </CardContent>
     </Card>
   );
+}
+
+function describeEventScope(event: DashboardEventRecord): string {
+  const descriptor = describeTimelineEvent(event);
+  const parts: string[] = [];
+  if (descriptor.actor) {
+    parts.push(descriptor.actor);
+  }
+  if (descriptor.stageName) {
+    parts.push(`stage ${descriptor.stageName}`);
+  }
+  if (descriptor.workItemId) {
+    parts.push(`work item ${descriptor.workItemId.slice(0, 8)}`);
+  }
+  if (descriptor.taskId) {
+    parts.push(`task ${descriptor.taskId.slice(0, 8)}`);
+  }
+  if (parts.length === 0) {
+    parts.push(`${event.entity_type}/${event.entity_id?.slice(0, 8) ?? 'unknown'}`);
+  }
+  return parts.join(' • ');
+}
+
+function eventBadgeVariant(eventType: string): 'secondary' | 'warning' | 'destructive' | 'success' {
+  if (eventType.includes('escalat') || eventType.includes('gate.reject') || eventType.includes('failed')) {
+    return 'destructive';
+  }
+  if (eventType.includes('request_changes') || eventType.includes('gate_requested')) {
+    return 'warning';
+  }
+  if (eventType.includes('completed') || eventType.includes('approve')) {
+    return 'success';
+  }
+  return 'secondary';
 }

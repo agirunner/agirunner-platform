@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 import { tenants } from './tenants.js';
 import { workflows } from './workflows.js';
@@ -20,6 +20,8 @@ export const workflowActivations = pgTable(
     eventType: text('event_type').notNull(),
     payload: jsonb('payload').notNull().default({}),
     state: text('state').notNull().default('queued'),
+    dispatchAttempt: integer('dispatch_attempt').notNull().default(0),
+    dispatchToken: uuid('dispatch_token'),
     queuedAt: timestamp('queued_at', { withTimezone: true }).notNull().defaultNow(),
     startedAt: timestamp('started_at', { withTimezone: true }),
     consumedAt: timestamp('consumed_at', { withTimezone: true }),

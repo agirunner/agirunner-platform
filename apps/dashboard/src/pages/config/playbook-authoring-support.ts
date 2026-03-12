@@ -50,6 +50,8 @@ export interface PlaybookAuthoringDraft {
   stages: StageDraft[];
   parameters: ParameterDraft[];
   orchestrator: {
+    instructions: string;
+    tools: string[];
     check_interval: string;
     stale_threshold: string;
     max_rework_iterations: string;
@@ -62,6 +64,19 @@ export interface PlaybookAuthoringDraft {
     orchestrator_pool: RuntimePoolDraft;
     specialist_pool: RuntimePoolDraft;
   };
+}
+
+export interface PlaybookAuthoringSummary {
+  roleCount: number;
+  columnCount: number;
+  blockedColumnCount: number;
+  terminalColumnCount: number;
+  stageCount: number;
+  gatedStageCount: number;
+  parameterCount: number;
+  requiredParameterCount: number;
+  secretParameterCount: number;
+  runtimeOverrideCount: number;
 }
 
 export function createDefaultAuthoringDraft(lifecycle: PlaybookLifecycle): PlaybookAuthoringDraft {
@@ -108,6 +123,8 @@ export function createDefaultAuthoringDraft(lifecycle: PlaybookLifecycle): Playb
           ],
     parameters: [],
     orchestrator: {
+      instructions: '',
+      tools: [],
       check_interval: '5m',
       stale_threshold: '30m',
       max_rework_iterations: '3',
@@ -272,6 +289,14 @@ export function buildPlaybookDefinition(
   };
 
   const orchestrator = compactRecord({
+    instructions: draft.orchestrator.instructions.trim(),
+    tools: Array.from(
+      new Set(
+        draft.orchestrator.tools
+          .map((value) => value.trim())
+          .filter((value) => value.length > 0),
+      ),
+    ),
     check_interval: draft.orchestrator.check_interval.trim(),
     stale_threshold: draft.orchestrator.stale_threshold.trim(),
     max_rework_iterations: parseOptionalInt(draft.orchestrator.max_rework_iterations),
@@ -453,6 +478,8 @@ function readParameters(value: unknown): ParameterDraft[] {
 function readOrchestrator(value: unknown): PlaybookAuthoringDraft['orchestrator'] {
   const record = asRecord(value);
   return {
+    instructions: readString(record.instructions),
+    tools: readStringArray(record.tools),
     check_interval: readString(record.check_interval),
     stale_threshold: readString(record.stale_threshold),
     max_rework_iterations: readNumberish(record.max_rework_iterations),
@@ -462,6 +489,55 @@ function readOrchestrator(value: unknown): PlaybookAuthoringDraft['orchestrator'
       typeof record.allow_parallel_work_items === 'boolean'
         ? record.allow_parallel_work_items
         : createDefaultAuthoringDraft('continuous').orchestrator.allow_parallel_work_items,
+  };
+}
+
+export function summarizePlaybookAuthoringDraft(
+  draft: PlaybookAuthoringDraft,
+): PlaybookAuthoringSummary {
+  const roles = draft.roles.map((entry) => entry.value.trim()).filter(Boolean);
+  const columns = draft.columns.filter(
+    (column) =>
+      column.id.trim().length > 0 ||
+      column.label.trim().length > 0 ||
+      column.description.trim().length > 0 ||
+      column.is_blocked ||
+      column.is_terminal,
+  );
+  const stages = draft.stages.filter(
+    (stage) =>
+      stage.name.trim().length > 0 ||
+      stage.goal.trim().length > 0 ||
+      stage.involves.trim().length > 0 ||
+      stage.guidance.trim().length > 0 ||
+      stage.human_gate,
+  );
+  const parameters = draft.parameters.filter(
+    (parameter) =>
+      parameter.name.trim().length > 0 ||
+      parameter.category.trim().length > 0 ||
+      parameter.maps_to.trim().length > 0 ||
+      parameter.description.trim().length > 0 ||
+      parameter.default_value.trim().length > 0 ||
+      parameter.required ||
+      parameter.secret,
+  );
+  const runtimeOverrideCount = [
+    draft.runtime.orchestrator_pool.enabled !== false,
+    draft.runtime.specialist_pool.enabled !== false,
+  ].filter(Boolean).length;
+
+  return {
+    roleCount: roles.length,
+    columnCount: columns.length,
+    blockedColumnCount: columns.filter((column) => column.is_blocked).length,
+    terminalColumnCount: columns.filter((column) => column.is_terminal).length,
+    stageCount: stages.length,
+    gatedStageCount: stages.filter((stage) => stage.human_gate).length,
+    parameterCount: parameters.length,
+    requiredParameterCount: parameters.filter((parameter) => parameter.required).length,
+    secretParameterCount: parameters.filter((parameter) => parameter.secret).length,
+    runtimeOverrideCount,
   };
 }
 

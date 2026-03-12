@@ -81,6 +81,28 @@ export interface DashboardRoleModelOverride {
   reasoning_config?: Record<string, unknown> | null;
 }
 
+export interface DashboardLlmProviderRecord {
+  id: string;
+  name: string;
+  auth_mode?: string | null;
+  credentials_configured?: boolean;
+}
+
+export interface DashboardLlmModelRecord {
+  id: string;
+  model_id: string;
+  provider_id?: string | null;
+  provider_name?: string | null;
+  is_enabled?: boolean;
+}
+
+export interface DashboardToolTagRecord {
+  id: string;
+  name: string;
+  description?: string | null;
+  category?: string | null;
+}
+
 export interface DashboardEffectiveModelResolution {
   source: 'base' | 'project' | 'workflow';
   resolved: {
@@ -410,6 +432,27 @@ export interface DashboardProjectSpecRecord {
   updated_at?: string;
 }
 
+export interface DashboardPlatformInstructionRecord {
+  tenant_id?: string;
+  version: number;
+  content: string;
+  format?: string;
+  updated_at?: string | null;
+  updated_by_type?: string | null;
+  updated_by_id?: string | null;
+}
+
+export interface DashboardPlatformInstructionVersionRecord {
+  id: string;
+  tenant_id?: string;
+  version: number;
+  content: string;
+  format?: string;
+  created_at?: string | null;
+  created_by_type?: string | null;
+  created_by_id?: string | null;
+}
+
 export interface DashboardProjectResourceRecord {
   id?: string;
   type?: string;
@@ -500,6 +543,33 @@ export interface DashboardResolvedDocumentReference {
   };
 }
 
+export interface DashboardWorkflowDocumentCreateInput {
+  logical_name: string;
+  source: 'repository' | 'artifact' | 'external';
+  title?: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+  repository?: string;
+  path?: string;
+  url?: string;
+  task_id?: string;
+  artifact_id?: string;
+  logical_path?: string;
+}
+
+export interface DashboardWorkflowDocumentUpdateInput {
+  source?: 'repository' | 'artifact' | 'external';
+  title?: string | null;
+  description?: string | null;
+  metadata?: Record<string, unknown>;
+  repository?: string | null;
+  path?: string | null;
+  url?: string | null;
+  task_id?: string | null;
+  artifact_id?: string | null;
+  logical_path?: string | null;
+}
+
 export interface DashboardTaskArtifactRecord {
   id: string;
   workflow_id?: string | null;
@@ -531,6 +601,13 @@ export interface DashboardTaskArtifactDownload {
   content_type: string;
   file_name?: string | null;
   size_bytes: number;
+}
+
+export interface DashboardTaskArtifactUploadInput {
+  path: string;
+  content_base64: string;
+  content_type?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface DashboardCustomizationManagedFile {
@@ -942,7 +1019,19 @@ export interface DashboardApi {
     projectId: string,
     roles?: string[],
   ): Promise<DashboardProjectResolvedModelsResponse>;
+  getPlatformInstructions(): Promise<DashboardPlatformInstructionRecord>;
+  updatePlatformInstructions(payload: {
+    content: string;
+    format?: 'text' | 'markdown';
+  }): Promise<DashboardPlatformInstructionRecord>;
+  clearPlatformInstructions(): Promise<DashboardPlatformInstructionRecord>;
+  listPlatformInstructionVersions(): Promise<DashboardPlatformInstructionVersionRecord[]>;
+  getPlatformInstructionVersion(version: number): Promise<DashboardPlatformInstructionVersionRecord>;
   getProjectSpec(projectId: string): Promise<DashboardProjectSpecRecord>;
+  updateProjectSpec(
+    projectId: string,
+    payload: Record<string, unknown>,
+  ): Promise<DashboardProjectSpecRecord>;
   listProjectResources(projectId: string): Promise<{ data: DashboardProjectResourceRecord[] }>;
   listProjectTools(projectId: string): Promise<{ data: DashboardProjectToolCatalog }>;
   patchProjectMemory(
@@ -1044,6 +1133,16 @@ export interface DashboardApi {
   ): Promise<{ history: DashboardWorkItemMemoryHistoryEntry[] }>;
   listWorkflowActivations(workflowId: string): Promise<DashboardWorkflowActivationRecord[]>;
   listWorkflowDocuments(workflowId: string): Promise<DashboardResolvedDocumentReference[]>;
+  createWorkflowDocument(
+    workflowId: string,
+    payload: DashboardWorkflowDocumentCreateInput,
+  ): Promise<DashboardResolvedDocumentReference>;
+  updateWorkflowDocument(
+    workflowId: string,
+    logicalName: string,
+    payload: DashboardWorkflowDocumentUpdateInput,
+  ): Promise<DashboardResolvedDocumentReference>;
+  deleteWorkflowDocument(workflowId: string, logicalName: string): Promise<void>;
   listPlaybooks(): Promise<{ data: DashboardPlaybookRecord[] }>;
   getPlaybook(playbookId: string): Promise<DashboardPlaybookRecord>;
   createPlaybook(payload: {
@@ -1065,6 +1164,9 @@ export interface DashboardApi {
       definition: Record<string, unknown>;
     },
   ): Promise<DashboardPlaybookRecord>;
+  listToolTags(): Promise<DashboardToolTagRecord[]>;
+  listLlmProviders(): Promise<DashboardLlmProviderRecord[]>;
+  listLlmModels(): Promise<DashboardLlmModelRecord[]>;
   createWorkflow(payload: {
     playbook_id: string;
     name: string;
@@ -1119,7 +1221,7 @@ export interface DashboardApi {
   chainWorkflow(
     workflowId: string,
     payload: {
-      playbook_id?: string;
+      playbook_id: string;
       name?: string;
       parameters?: Record<string, unknown>;
     },
@@ -1127,8 +1229,13 @@ export interface DashboardApi {
   listTasks(filters?: Record<string, string>): Promise<unknown>;
   getTask(id: string): Promise<unknown>;
   listTaskArtifacts(taskId: string): Promise<DashboardTaskArtifactRecord[]>;
+  uploadTaskArtifact(
+    taskId: string,
+    payload: DashboardTaskArtifactUploadInput,
+  ): Promise<DashboardTaskArtifactRecord>;
   readTaskArtifactContent(taskId: string, artifactId: string): Promise<DashboardTaskArtifactContent>;
   downloadTaskArtifact(taskId: string, artifactId: string): Promise<DashboardTaskArtifactDownload>;
+  deleteTaskArtifact(taskId: string, artifactId: string): Promise<void>;
   listWorkers(): Promise<unknown>;
   listAgents(): Promise<unknown>;
   getApprovalQueue(): Promise<DashboardApprovalQueueResponse>;
@@ -1487,10 +1594,54 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           { method: 'GET' },
         ),
       ),
+    getPlatformInstructions: () =>
+      withRefresh(() =>
+        requestData<DashboardPlatformInstructionRecord>('/api/v1/platform/instructions', {
+          method: 'GET',
+        }),
+      ),
+    updatePlatformInstructions: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardPlatformInstructionRecord>('/api/v1/platform/instructions', {
+          method: 'PUT',
+          body: payload as Record<string, unknown>,
+        }),
+      ),
+    clearPlatformInstructions: () =>
+      withRefresh(() =>
+        requestData<DashboardPlatformInstructionRecord>('/api/v1/platform/instructions', {
+          method: 'DELETE',
+        }),
+      ),
+    listPlatformInstructionVersions: () =>
+      withRefresh(() =>
+        requestData<DashboardPlatformInstructionVersionRecord[]>(
+          '/api/v1/platform/instructions/versions',
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    getPlatformInstructionVersion: (version) =>
+      withRefresh(() =>
+        requestData<DashboardPlatformInstructionVersionRecord>(
+          `/api/v1/platform/instructions/versions/${version}`,
+          {
+            method: 'GET',
+          },
+        ),
+      ),
     getProjectSpec: (projectId) =>
       withRefresh(() =>
         requestData<DashboardProjectSpecRecord>(`/api/v1/projects/${projectId}/spec`, {
           method: 'GET',
+        }),
+      ),
+    updateProjectSpec: (projectId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardProjectSpecRecord>(`/api/v1/projects/${projectId}/spec`, {
+          method: 'PUT',
+          body: payload,
         }),
       ),
     listProjectResources: (projectId) =>
@@ -1681,6 +1832,35 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           { method: 'GET' },
         ),
       ),
+    createWorkflowDocument: (workflowId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardResolvedDocumentReference>(
+          `/api/v1/workflows/${workflowId}/documents`,
+          {
+            method: 'POST',
+            body: payload as unknown as Record<string, unknown>,
+          },
+        ),
+      ),
+    updateWorkflowDocument: (workflowId, logicalName, payload) =>
+      withRefresh(() =>
+        requestData<DashboardResolvedDocumentReference>(
+          `/api/v1/workflows/${workflowId}/documents/${encodeURIComponent(logicalName)}`,
+          {
+            method: 'PATCH',
+            body: payload as Record<string, unknown>,
+          },
+        ),
+      ),
+    deleteWorkflowDocument: (workflowId, logicalName) =>
+      withRefresh(() =>
+        requestJson<Record<string, never>>(
+          `/api/v1/workflows/${workflowId}/documents/${encodeURIComponent(logicalName)}`,
+          {
+            method: 'DELETE',
+          },
+        ).then(() => undefined),
+      ),
     listPlaybooks: () =>
       withRefresh(async () => ({
         data: (await client.listPlaybooks()) as DashboardPlaybookRecord[],
@@ -1695,6 +1875,18 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(
         () =>
           client.updatePlaybook(playbookId, payload as never) as Promise<DashboardPlaybookRecord>,
+      ),
+    listLlmProviders: () =>
+      withRefresh(() =>
+        requestData<DashboardLlmProviderRecord[]>('/api/v1/config/llm/providers', {
+          method: 'GET',
+        }),
+      ),
+    listLlmModels: () =>
+      withRefresh(() =>
+        requestData<DashboardLlmModelRecord[]>('/api/v1/config/llm/models', {
+          method: 'GET',
+        }),
       ),
     createWorkflow: (payload) =>
       withRefresh(
@@ -1743,6 +1935,13 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           method: 'GET',
         }),
       ),
+    uploadTaskArtifact: (taskId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardTaskArtifactRecord>(`/api/v1/tasks/${taskId}/artifacts`, {
+          method: 'POST',
+          body: payload as unknown as Record<string, unknown>,
+        }),
+      ),
     readTaskArtifactContent: (taskId, artifactId) =>
       withRefresh(async () => {
         const response = await requestBinary(`/api/v1/tasks/${taskId}/artifacts/${artifactId}`, {
@@ -1767,6 +1966,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           size_bytes: Number(response.headers.get('content-length') ?? '0'),
         };
       }),
+    deleteTaskArtifact: (taskId, artifactId) =>
+      withRefresh(() =>
+        requestJson<Record<string, never>>(`/api/v1/tasks/${taskId}/artifacts/${artifactId}`, {
+          method: 'DELETE',
+        }).then(() => undefined),
+      ),
     listWorkers: () => withRefresh(() => client.listWorkers()),
     listAgents: () => withRefresh(() => client.listAgents()),
     getApprovalQueue: () =>
@@ -1831,6 +2036,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         requestData<
           Array<{ id: string; name: string; description: string | null; is_active: boolean }>
         >('/api/v1/config/roles', {
+          method: 'GET',
+        }),
+      ),
+    listToolTags: () =>
+      withRefresh(() =>
+        requestData<DashboardToolTagRecord[]>('/api/v1/tools', {
           method: 'GET',
         }),
       ),
@@ -2206,7 +2417,7 @@ export function buildSearchResults(
     id: item.id,
     label: item.name ?? item.id,
     subtitle: item.status ?? 'playbook',
-    href: `/config/playbooks/${item.id}/launch`,
+    href: `/config/playbooks/${item.id}`,
   }));
 
   return [

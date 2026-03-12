@@ -1,7 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import { ModelCatalogService } from '../../src/services/model-catalog-service.js';
-import { storeProviderSecret } from '../../src/lib/oauth-crypto.js';
+import { configureProviderSecretEncryptionKey, storeProviderSecret } from '../../src/lib/oauth-crypto.js';
+
+configureProviderSecretEncryptionKey('test-encryption-key');
 
 function createMockPool() {
   return { query: vi.fn() };

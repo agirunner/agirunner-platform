@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 
 import type { AppEnv } from '../config/schema.js';
@@ -22,6 +24,8 @@ interface QueuedActivationRow {
   event_type: string;
   payload: Record<string, unknown>;
   state: string;
+  dispatch_attempt: number;
+  dispatch_token: string | null;
   queued_at: Date;
   started_at: Date | null;
   consumed_at: Date | null;
@@ -40,6 +44,10 @@ interface WorkflowDispatchRow {
   playbook_id: string;
   playbook_name: string;
   playbook_outcome: string | null;
+  project_repository_url: string | null;
+  project_settings: Record<string, unknown> | null;
+  workflow_git_branch: string | null;
+  workflow_parameters: Record<string, unknown> | null;
 }
 
 interface ActivationTaskRow {
@@ -52,6 +60,7 @@ interface ExistingActivationTaskRow extends ActivationTaskRow {
   activation_id: string | null;
   is_orchestrator_task: boolean;
   title: string;
+  metadata: Record<string, unknown> | null;
   output: Record<string, unknown> | null;
   error: Record<string, unknown> | null;
 }
@@ -62,6 +71,7 @@ interface ActivationTaskDefinition {
   input: Record<string, unknown>;
   roleConfig: Record<string, unknown>;
   environment: Record<string, unknown>;
+  resourceBindings: Record<string, unknown>[];
   metadata: Record<string, unknown>;
 }
 
@@ -144,6 +154,15 @@ export class WorkflowActivationDispatchService {
                AND t.is_orchestrator_task = true
                AND t.state = ANY($1::task_state[])
           )
+          AND NOT EXISTS (
+            SELECT 1
+              FROM workflow_activations active
+             WHERE active.tenant_id = wa.tenant_id
+               AND active.workflow_id = wa.workflow_id
+               AND active.state = 'processing'
+               AND active.consumed_at IS NULL
+               AND active.id = active.activation_id
+          )
         ORDER BY wa.workflow_id, wa.queued_at ASC
         LIMIT $3`,
       [ACTIVE_ORCHESTRATOR_TASK_STATES, this.getActivationDelayMs(), limit],
@@ -151,7 +170,14 @@ export class WorkflowActivationDispatchService {
 
     let dispatched = 0;
     for (const row of result.rows) {
-      const taskId = await this.dispatchActivation(row.tenant_id, row.id);
+      let taskId: string | null = null;
+      try {
+        taskId = await this.dispatchActivation(row.tenant_id, row.id);
+      } catch (error) {
+        if (!isActiveActivationConstraintError(error)) {
+          throw error;
+        }
+      }
       if (taskId) {
         dispatched += 1;
       }
@@ -172,9 +198,26 @@ export class WorkflowActivationDispatchService {
           AND wa.consumed_at IS NULL
           AND wa.started_at <= now() - ($1 * interval '1 millisecond')
           AND w.state IN ('pending', 'active')
-        ORDER BY wa.started_at ASC
+          AND (
+            COALESCE(wa.error->'recovery'->>'status', '') <> 'stale_detected'
+            OR NOT EXISTS (
+              SELECT 1
+                FROM tasks t
+               WHERE t.tenant_id = wa.tenant_id
+                 AND t.workflow_id = wa.workflow_id
+                 AND t.activation_id = wa.id
+                 AND t.is_orchestrator_task = true
+                 AND t.state = ANY($3::task_state[])
+            )
+          )
+        ORDER BY
+          CASE
+            WHEN COALESCE(wa.error->'recovery'->>'status', '') = 'stale_detected' THEN 1
+            ELSE 0
+          END,
+          wa.started_at ASC
         LIMIT $2`,
-      [this.getStaleActivationThresholdMs(), limit],
+      [this.getStaleActivationThresholdMs(), limit, ACTIVE_ORCHESTRATOR_TASK_STATES],
     );
 
     const totals: ActivationRecoveryResult = {
@@ -204,10 +247,12 @@ export class WorkflowActivationDispatchService {
       return;
     }
 
+    const dispatchAttempt = readTaskDispatchAttempt(task);
     const isFinalizable = await this.lockFinalizableActivation(
       tenantId,
       String(task.workflow_id),
       String(task.activation_id),
+      dispatchAttempt,
       client,
     );
     if (!isFinalizable) {
@@ -234,6 +279,7 @@ export class WorkflowActivationDispatchService {
                   consumed_at = now(),
                   completed_at = now(),
                   summary = $4,
+                  dispatch_token = NULL,
                   error = CASE
                     WHEN jsonb_typeof(error->'recovery') = 'object'
                       THEN jsonb_build_object('recovery', error->'recovery')
@@ -244,12 +290,13 @@ export class WorkflowActivationDispatchService {
               AND (id = $3 OR activation_id = $3)
               AND consumed_at IS NULL
           RETURNING id, tenant_id, workflow_id, activation_id, request_id, reason, event_type, payload,
-                    state, queued_at, started_at, consumed_at, completed_at, summary, error`
+                    state, dispatch_attempt, dispatch_token, queued_at, started_at, consumed_at, completed_at, summary, error`
         : `UPDATE workflow_activations
               SET state = 'queued',
                   activation_id = NULL,
                   started_at = NULL,
                   completed_at = NULL,
+                  dispatch_token = NULL,
                   summary = $4,
                   error = $5
             WHERE tenant_id = $1
@@ -257,7 +304,7 @@ export class WorkflowActivationDispatchService {
               AND (id = $3 OR activation_id = $3)
               AND consumed_at IS NULL
           RETURNING id, tenant_id, workflow_id, activation_id, request_id, reason, event_type, payload,
-                    state, queued_at, started_at, consumed_at, completed_at, summary, error`,
+                    state, dispatch_attempt, dispatch_token, queued_at, started_at, consumed_at, completed_at, summary, error`,
       status === 'completed'
         ? [tenantId, task.workflow_id, task.activation_id, summary]
         : [tenantId, task.workflow_id, task.activation_id, summary, error],
@@ -323,6 +370,19 @@ export class WorkflowActivationDispatchService {
         return null;
       }
 
+      const hasProcessingActivation = await this.hasProcessingActivation(
+        activation.tenant_id,
+        activation.workflow_id,
+        activation.id,
+        client,
+      );
+      if (hasProcessingActivation) {
+        if (ownsClient) {
+          await client.query('COMMIT');
+        }
+        return null;
+      }
+
       if (!options.ignoreDelay && !isReadyForDispatch(activation, this.getActivationDelayMs())) {
         if (ownsClient) {
           await client.query('COMMIT');
@@ -349,7 +409,7 @@ export class WorkflowActivationDispatchService {
         return null;
       }
       const activationAnchor = findActivationAnchor(activation.id, activationBatch);
-      const taskRequestId = `activation:${activationAnchor.id}`;
+      const taskRequestId = buildActivationTaskRequestId(activationAnchor);
       const taskDefinition = buildActivationTaskDefinition(workflow, activationAnchor, activationBatch);
       const taskResult = await client.query<ActivationTaskRow>(
         `INSERT INTO tasks (
@@ -381,7 +441,7 @@ export class WorkflowActivationDispatchService {
            metadata
          ) VALUES (
            $1, $2, $3, $4, $5, $6, 'high', 'ready', '{}'::uuid[], false, false,
-           $7, '{}'::jsonb, $8::text[], $9::jsonb, $10::jsonb, '[]'::jsonb, $11, $12, true, $13, NULL, NULL, false, 0, $14::jsonb
+           $7, '{}'::jsonb, $8::text[], $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, true, $14, NULL, NULL, false, 0, $15::jsonb
          )
          ON CONFLICT (tenant_id, workflow_id, request_id)
          WHERE request_id IS NOT NULL
@@ -399,6 +459,7 @@ export class WorkflowActivationDispatchService {
           ['orchestrator'],
           taskDefinition.roleConfig,
           taskDefinition.environment,
+          JSON.stringify(taskDefinition.resourceBindings),
           activationAnchor.id,
           taskRequestId,
           this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES,
@@ -495,6 +556,9 @@ export class WorkflowActivationDispatchService {
       if (ownsClient) {
         await client.query('ROLLBACK');
       }
+      if (isActiveActivationConstraintError(error)) {
+        return null;
+      }
       throw error;
     } finally {
       if (ownsClient) {
@@ -534,8 +598,13 @@ export class WorkflowActivationDispatchService {
     tenantId: string,
     workflowId: string,
     activationId: string,
+    dispatchAttempt: number | null,
     client: DatabaseClient,
   ): Promise<boolean> {
+    const params =
+      dispatchAttempt === null
+        ? [tenantId, workflowId, activationId]
+        : [tenantId, workflowId, activationId, dispatchAttempt];
     const result = await client.query<{ id: string }>(
       `SELECT id
          FROM workflow_activations
@@ -545,8 +614,9 @@ export class WorkflowActivationDispatchService {
           AND activation_id = $3
           AND state = 'processing'
           AND consumed_at IS NULL
+          ${dispatchAttempt === null ? 'AND dispatch_attempt >= 1' : 'AND dispatch_attempt = $4'}
         FOR UPDATE`,
-      [tenantId, workflowId, activationId],
+      params,
     );
     return (result.rowCount ?? 0) > 0;
   }
@@ -558,7 +628,7 @@ export class WorkflowActivationDispatchService {
   ): Promise<QueuedActivationRow | null> {
     const result = await client.query<QueuedActivationRow>(
       `SELECT id, tenant_id, workflow_id, activation_id, request_id, reason, event_type, payload,
-              state, queued_at, started_at, consumed_at, completed_at, summary, error
+              state, dispatch_attempt, dispatch_token, queued_at, started_at, consumed_at, completed_at, summary, error
          FROM workflow_activations
         WHERE tenant_id = $1
           AND id = $2
@@ -585,6 +655,27 @@ export class WorkflowActivationDispatchService {
           AND state = ANY($3::task_state[])
         LIMIT 1`,
       [tenantId, workflowId, ACTIVE_ORCHESTRATOR_TASK_STATES],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  private async hasProcessingActivation(
+    tenantId: string,
+    workflowId: string,
+    activationId: string,
+    client: DatabaseClient,
+  ): Promise<boolean> {
+    const result = await client.query(
+      `SELECT 1
+         FROM workflow_activations
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND state = 'processing'
+          AND consumed_at IS NULL
+          AND id = activation_id
+          AND id <> $3
+        LIMIT 1`,
+      [tenantId, workflowId, activationId],
     );
     return (result.rowCount ?? 0) > 0;
   }
@@ -625,11 +716,18 @@ export class WorkflowActivationDispatchService {
               COALESCE(active_work_items.active_stages, '{}'::text[]) AS active_stages,
               w.playbook_id,
               p.name AS playbook_name,
-              p.outcome AS playbook_outcome
+              p.outcome AS playbook_outcome,
+              proj.repository_url AS project_repository_url,
+              proj.settings AS project_settings,
+              w.git_branch AS workflow_git_branch,
+              w.parameters AS workflow_parameters
          FROM workflows w
          JOIN playbooks p
            ON p.tenant_id = w.tenant_id
           AND p.id = w.playbook_id
+         LEFT JOIN projects proj
+           ON proj.tenant_id = w.tenant_id
+          AND proj.id = w.project_id
          LEFT JOIN LATERAL (
            SELECT ARRAY_AGG(DISTINCT active_stage_name ORDER BY active_stage_name) AS active_stages
              FROM (
@@ -658,9 +756,12 @@ export class WorkflowActivationDispatchService {
     activation: QueuedActivationRow,
     client: DatabaseClient,
   ): Promise<QueuedActivationRow[]> {
+    const dispatchToken = randomUUID();
     const result = await client.query<QueuedActivationRow>(
       `UPDATE workflow_activations
           SET activation_id = $3,
+              dispatch_attempt = dispatch_attempt + 1,
+              dispatch_token = $4::uuid,
               started_at = COALESCE(started_at, now()),
               state = CASE WHEN id = $3 THEN 'processing' ELSE state END
         WHERE tenant_id = $1
@@ -668,8 +769,8 @@ export class WorkflowActivationDispatchService {
           AND consumed_at IS NULL
           AND activation_id IS NULL
       RETURNING id, tenant_id, workflow_id, activation_id, request_id, reason, event_type, payload,
-                state, queued_at, started_at, consumed_at, completed_at, summary, error`,
-      [activation.tenant_id, activation.workflow_id, activation.id],
+                state, dispatch_attempt, dispatch_token, queued_at, started_at, consumed_at, completed_at, summary, error`,
+      [activation.tenant_id, activation.workflow_id, activation.id, dispatchToken],
     );
     return result.rows.sort((left, right) => left.queued_at.getTime() - right.queued_at.getTime());
   }
@@ -689,6 +790,7 @@ export class WorkflowActivationDispatchService {
               activation_id,
               is_orchestrator_task,
               title,
+              metadata,
               output,
               error
          FROM tasks
@@ -739,8 +841,9 @@ export class WorkflowActivationDispatchService {
               input = $5::jsonb,
               role_config = $6::jsonb,
               environment = $7::jsonb,
-              metadata = $8::jsonb,
-              activation_id = $9::uuid,
+              resource_bindings = $8::jsonb,
+              metadata = $9::jsonb,
+              activation_id = $10::uuid,
               assigned_agent_id = NULL,
               assigned_worker_id = NULL,
               claimed_at = NULL,
@@ -762,6 +865,7 @@ export class WorkflowActivationDispatchService {
         taskDefinition.input,
         taskDefinition.roleConfig,
         taskDefinition.environment,
+        JSON.stringify(taskDefinition.resourceBindings),
         taskDefinition.metadata,
         activationId,
       ],
@@ -833,6 +937,7 @@ export class WorkflowActivationDispatchService {
         `UPDATE workflow_activations
             SET state = 'queued',
                 activation_id = NULL,
+                dispatch_token = NULL,
                 started_at = NULL,
                 summary = COALESCE(summary, 'Recovered stale workflow activation'),
                 error = jsonb_strip_nulls(
@@ -854,7 +959,7 @@ export class WorkflowActivationDispatchService {
             AND (id = $3 OR activation_id = $3)
             AND consumed_at IS NULL
         RETURNING id, tenant_id, workflow_id, activation_id, request_id, reason, event_type, payload,
-                  state, queued_at, started_at, consumed_at, completed_at, summary, error`,
+                  state, dispatch_attempt, dispatch_token, queued_at, started_at, consumed_at, completed_at, summary, error`,
         [
           tenantId,
           staleState.workflow_id,
@@ -938,6 +1043,8 @@ export class WorkflowActivationDispatchService {
               wa.event_type,
               wa.payload,
               wa.state,
+              wa.dispatch_attempt,
+              wa.dispatch_token,
               wa.queued_at,
               wa.started_at,
               wa.consumed_at,
@@ -1049,17 +1156,21 @@ function buildActivationTaskDefinition(
   activation: QueuedActivationRow,
   activationBatch: QueuedActivationRow[],
 ): ActivationTaskDefinition {
+  const repository = resolveWorkflowRepositoryContext(workflow);
   return {
     title: buildActivationTaskTitle(workflow, activation),
     stageName: activationTaskStageName(workflow, activationBatch),
     input: buildActivationTaskInput(workflow, activation, activationBatch),
     roleConfig: buildActivationRoleConfig(),
-    environment: { execution_mode: 'orchestrator' },
+    environment: buildActivationEnvironment(repository),
+    resourceBindings: buildActivationResourceBindings(repository),
     metadata: {
       activation_event_type: activation.event_type,
       activation_reason: 'queued_events',
       activation_request_id: activation.request_id,
       activation_event_count: activationBatch.length,
+      activation_dispatch_attempt: activation.dispatch_attempt,
+      activation_dispatch_token: activation.dispatch_token,
     },
   };
 }
@@ -1069,12 +1180,16 @@ function buildActivationTaskInput(
   activation: QueuedActivationRow,
   activationBatch: QueuedActivationRow[],
 ): Record<string, unknown> {
+  const repository = resolveWorkflowRepositoryContext(workflow);
   return {
     activation_id: activation.id,
     activation_reason: 'queued_events',
+    activation_dispatch_attempt: activation.dispatch_attempt,
+    activation_dispatch_token: activation.dispatch_token,
     lifecycle: workflow.lifecycle,
     ...(workflow.lifecycle !== 'continuous' ? { current_stage: workflow.current_stage } : {}),
     active_stages: workflow.active_stages,
+    repository: buildActivationRepositoryInput(repository),
     events: activationBatch.map((event) => ({
       queue_id: event.id,
       type: event.event_type,
@@ -1095,8 +1210,19 @@ function buildActivationTaskInput(
       workflow.playbook_outcome
         ? `Target outcome: ${workflow.playbook_outcome}.`
         : null,
+      repository.repository_url
+        ? `Repository: ${repository.repository_url}.`
+        : null,
+      repository.base_branch
+        ? `Base branch: ${repository.base_branch}.`
+        : null,
+      repository.feature_branch
+        ? `Feature branch for repo-backed specialist work: ${repository.feature_branch}.`
+        : null,
       'Review the attached workflow, playbook, work item, and activation context before deciding on the next step.',
       'Use the available workflow management tools to create work items, create tasks, advance stages, request gates, review task outputs, and update project memory when needed.',
+      'Every mutating workflow management tool call must include a unique request_id.',
+      'Repository-backed specialist tasks must include repository execution context so the runtime can clone, validate, commit, and push safely.',
       'Use the repository, git, shell, artifact, and escalation tools to validate the situation before acting.',
       'Return a concise operator-facing summary of what changed, what is blocked, and the next action you recommend.',
     ]
@@ -1108,6 +1234,10 @@ function buildActivationTaskInput(
       'State the next recommended workflow action clearly.',
     ],
   };
+}
+
+function buildActivationTaskRequestId(activation: QueuedActivationRow): string {
+  return `activation:${activation.id}:dispatch:${activation.dispatch_attempt}`;
 }
 
 function activationTaskStageName(
@@ -1142,6 +1272,8 @@ function buildActivationRoleConfig(): Record<string, unknown> {
     system_prompt: [
       'You are the workflow orchestrator.',
       'Assess workflow state, inspect repository artifacts when needed, and take the next management action directly through the workflow control tools.',
+      'Always include a unique request_id on mutating workflow control tool calls.',
+      'When assigning repository-backed specialist work, include the repository execution context and required git binding details in the task payload.',
       'Be brief, concrete, and operational.',
     ].join(' '),
     tools: [
@@ -1179,6 +1311,82 @@ function buildActivationRoleConfig(): Record<string, unknown> {
   };
 }
 
+interface WorkflowRepositoryContext {
+  repository_url: string | null;
+  base_branch: string | null;
+  feature_branch: string | null;
+  git_user_name: string | null;
+  git_user_email: string | null;
+  git_token_secret_ref: string | null;
+}
+
+function resolveWorkflowRepositoryContext(workflow: WorkflowDispatchRow): WorkflowRepositoryContext {
+  const parameters = asRecord(workflow.workflow_parameters);
+  const projectSettings = asRecord(workflow.project_settings);
+  return {
+    repository_url:
+      asNullableString(parameters.repository_url)
+      ?? asNullableString(parameters.repo)
+      ?? asNullableString(workflow.project_repository_url),
+    base_branch:
+      asNullableString(workflow.workflow_git_branch)
+      ?? asNullableString(parameters.base_branch)
+      ?? asNullableString(parameters.branch)
+      ?? asNullableString(projectSettings.default_branch),
+    feature_branch:
+      asNullableString(parameters.feature_branch)
+      ?? asNullableString(parameters.target_branch),
+    git_user_name:
+      asNullableString(parameters.git_user_name)
+      ?? asNullableString(parameters.gitUserName)
+      ?? asNullableString(projectSettings.git_user_name),
+    git_user_email:
+      asNullableString(parameters.git_user_email)
+      ?? asNullableString(parameters.gitUserEmail)
+      ?? asNullableString(projectSettings.git_user_email),
+    git_token_secret_ref:
+      asNullableString(parameters.git_token_secret_ref)
+      ?? asNullableString(parameters.gitTokenSecretRef)
+      ?? asNullableString(projectSettings.git_token_secret_ref),
+  };
+}
+
+function buildActivationEnvironment(repository: WorkflowRepositoryContext): Record<string, unknown> {
+  return {
+    execution_mode: 'orchestrator',
+    ...(repository.repository_url ? { repository_url: repository.repository_url } : {}),
+    ...(repository.base_branch ? { branch: repository.base_branch } : {}),
+    ...(repository.git_user_name ? { git_user_name: repository.git_user_name } : {}),
+    ...(repository.git_user_email ? { git_user_email: repository.git_user_email } : {}),
+  };
+}
+
+function buildActivationRepositoryInput(repository: WorkflowRepositoryContext): Record<string, unknown> | null {
+  const details = {
+    ...(repository.repository_url ? { repository_url: repository.repository_url } : {}),
+    ...(repository.base_branch ? { base_branch: repository.base_branch } : {}),
+    ...(repository.feature_branch ? { feature_branch: repository.feature_branch } : {}),
+    ...(repository.git_user_name ? { git_user_name: repository.git_user_name } : {}),
+    ...(repository.git_user_email ? { git_user_email: repository.git_user_email } : {}),
+  };
+  return Object.keys(details).length > 0 ? details : null;
+}
+
+function buildActivationResourceBindings(repository: WorkflowRepositoryContext): Record<string, unknown>[] {
+  if (!repository.repository_url || !repository.git_token_secret_ref) {
+    return [];
+  }
+  return [
+    {
+      type: 'git_repository',
+      repository_url: repository.repository_url,
+      credentials: {
+        token: repository.git_token_secret_ref,
+      },
+    },
+  ];
+}
+
 function buildActivationSummary(
   task: Record<string, unknown>,
   status: 'completed' | 'failed',
@@ -1210,6 +1418,21 @@ function asNullableString(value: unknown) {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function readTaskDispatchAttempt(task: Record<string, unknown>): number | null {
+  const metadata = task.metadata;
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return null;
+  }
+  const value = (metadata as Record<string, unknown>).activation_dispatch_attempt;
+  return typeof value === 'number' && Number.isInteger(value) ? value : null;
+}
+
 function isReadyForDispatch(activation: QueuedActivationRow, activationDelayMs: number): boolean {
   if (activation.event_type === 'work_item.created') {
     return true;
@@ -1237,4 +1460,12 @@ function hasReportedStaleRecovery(
 
 function isActiveOrchestratorTaskState(state: string | null): boolean {
   return state != null && ACTIVE_ORCHESTRATOR_TASK_STATES.includes(state as (typeof ACTIVE_ORCHESTRATOR_TASK_STATES)[number]);
+}
+
+function isActiveActivationConstraintError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const record = error as { code?: string; constraint?: string };
+  return record.code === '23505' && record.constraint === 'idx_workflow_activations_active';
 }

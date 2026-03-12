@@ -1,15 +1,34 @@
-import type { FastifyInstance } from 'fastify';
-import { randomBytes, randomUUID } from 'node:crypto';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
+import { randomBytes } from 'node:crypto';
 
 import { authenticateApiKey } from '../../auth/fastify-auth-hook.js';
 import { withRole, roleToScope } from '../../auth/rbac.js';
-import { issueUserAccessToken, issueUserRefreshToken } from '../../auth/jwt.js';
+import { issueUserAccessToken } from '../../auth/jwt.js';
 import { DEFAULT_TENANT_ID } from '../../db/seed.js';
 import { ForbiddenError, UnauthorizedError } from '../../errors/domain-errors.js';
 import type { CreateUserInput, UpdateUserInput } from '../../services/user-service.js';
 
+const ACCESS_COOKIE_NAME = 'agirunner_access_token';
+
+function accessCookieOptions(useSecureCookie: boolean) {
+  return {
+    httpOnly: true,
+    secure: useSecureCookie,
+    sameSite: 'strict' as const,
+    path: '/',
+  };
+}
+
+function shouldUseSecureCookie(request: FastifyRequest): boolean {
+  const forwarded = request.headers['x-forwarded-proto'];
+  const protocolHeader = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+  const protocol = (protocolHeader ?? request.protocol ?? '').toLowerCase();
+  return protocol === 'https';
+}
+
 export async function userRoutes(app: FastifyInstance): Promise<void> {
   const userService = app.userService;
+  const dashboardUrl = app.config.AGIRUNNER_DASHBOARD_URL ?? app.config.DASHBOARD_URL;
 
   app.post<{ Body: Record<string, unknown> }>(
     '/api/v1/auth/register',
@@ -25,7 +44,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     const { provider } = request.params as { provider: string };
     const { getSSOProviderConfig, buildAuthorizationUrl } = await import('../../auth/sso-provider.js');
 
-    const config = getSSOProviderConfig(provider);
+    const config = getSSOProviderConfig(provider, app.config);
     if (!config) {
       reply.status(400);
       return { error: `SSO provider '${provider}' is not configured` };
@@ -61,7 +80,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     }
     reply.clearCookie(cookieName, { path: '/' });
 
-    const config = getSSOProviderConfig(provider);
+    const config = getSSOProviderConfig(provider, app.config);
     if (!config) {
       reply.status(400);
       return { error: `SSO provider '${provider}' is not configured` };
@@ -86,19 +105,13 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
       scope,
       email: user.email,
     });
-    const refreshToken = await issueUserRefreshToken(app, {
-      userId: user.id,
-      tenantId: user.tenantId,
-      role: user.role,
-      scope,
-      email: user.email,
-      tokenId: randomUUID(),
-    });
 
-    const dashboardUrl = process.env['AGIRUNNER_DASHBOARD_URL'] ?? 'http://localhost:3000';
-    return reply.redirect(
-      `${dashboardUrl}/auth/callback?access_token=${accessToken}&refresh_token=${refreshToken}`,
+    reply.setCookie(
+      ACCESS_COOKIE_NAME,
+      accessToken,
+      accessCookieOptions(shouldUseSecureCookie(request)),
     );
+    return reply.redirect(`${dashboardUrl}/auth/callback`);
   });
 
   app.get(

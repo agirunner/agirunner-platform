@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Save } from 'lucide-react';
 
 import { dashboardApi } from '../../lib/api.js';
@@ -22,12 +22,22 @@ import {
   type PlaybookAuthoringDraft,
 } from './playbook-authoring-support.js';
 import { PlaybookAuthoringForm } from './playbook-authoring-form.js';
+import {
+  buildPlaybookRestorePayload,
+  buildPlaybookRevisionChain,
+  buildPlaybookRevisionDiff,
+} from './playbook-detail-support.js';
+import {
+  PlaybookControlCenterCard,
+  PlaybookRevisionHistoryCard,
+} from './playbook-detail-sections.js';
 
 const DEFAULT_LIFECYCLE = 'continuous';
 
 export function PlaybookDetailPage(): JSX.Element {
   const params = useParams<{ id: string }>();
   const playbookId = params.id ?? '';
+  const navigate = useNavigate();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
@@ -45,12 +55,25 @@ export function PlaybookDetailPage(): JSX.Element {
     queryFn: () => dashboardApi.getPlaybook(playbookId),
     enabled: playbookId.length > 0,
   });
+  const playbooksQuery = useQuery({
+    queryKey: ['playbooks'],
+    queryFn: () => dashboardApi.listPlaybooks(),
+  });
+  const roleDefinitionsQuery = useQuery({
+    queryKey: ['role-definitions', 'active'],
+    queryFn: () => dashboardApi.listRoleDefinitions(),
+  });
+  const llmProvidersQuery = useQuery({
+    queryKey: ['llm-providers'],
+    queryFn: () => dashboardApi.listLlmProviders(),
+  });
+  const llmModelsQuery = useQuery({
+    queryKey: ['llm-models'],
+    queryFn: () => dashboardApi.listLlmModels(),
+  });
+  const [comparedRevisionId, setComparedRevisionId] = useState('');
 
-  useEffect(() => {
-    const playbook = playbookQuery.data;
-    if (!playbook || loadedPlaybookId === playbook.id) {
-      return;
-    }
+  function loadPlaybook(playbook: NonNullable<typeof playbookQuery.data>): void {
     const nextLifecycle = playbook.lifecycle ?? DEFAULT_LIFECYCLE;
     setName(playbook.name);
     setSlug(playbook.slug);
@@ -58,10 +81,51 @@ export function PlaybookDetailPage(): JSX.Element {
     setOutcome(playbook.outcome);
     setLifecycle(nextLifecycle);
     setDraft(hydratePlaybookAuthoringDraft(nextLifecycle, playbook.definition));
+    setLoadedPlaybookId(playbook.id);
+  }
+
+  useEffect(() => {
+    const playbook = playbookQuery.data;
+    if (!playbook || loadedPlaybookId === playbook.id) {
+      return;
+    }
+    loadPlaybook(playbook);
     setDefinitionError(null);
     setMessage(null);
-    setLoadedPlaybookId(playbook.id);
   }, [loadedPlaybookId, playbookQuery.data]);
+
+  const revisions = useMemo(() => {
+    const playbook = playbookQuery.data;
+    const allPlaybooks = playbooksQuery.data?.data ?? [];
+    if (!playbook) {
+      return [];
+    }
+    return buildPlaybookRevisionChain(allPlaybooks, playbook);
+  }, [playbookQuery.data, playbooksQuery.data?.data]);
+
+  useEffect(() => {
+    if (revisions.length === 0) {
+      return;
+    }
+    const fallbackRevisionId =
+      revisions.find((revision) => revision.id !== playbookId)?.id ?? revisions[0]?.id ?? '';
+    setComparedRevisionId((current) =>
+      current && revisions.some((revision) => revision.id === current) ? current : fallbackRevisionId,
+    );
+  }, [playbookId, revisions]);
+
+  const comparedRevision = useMemo(
+    () => revisions.find((revision) => revision.id === comparedRevisionId) ?? null,
+    [comparedRevisionId, revisions],
+  );
+
+  const revisionDiff = useMemo(() => {
+    const playbook = playbookQuery.data;
+    if (!playbook || !comparedRevision) {
+      return [];
+    }
+    return buildPlaybookRevisionDiff(playbook, comparedRevision);
+  }, [comparedRevision, playbookQuery.data]);
 
   const updateMutation = useMutation({
     mutationFn: async () => {
@@ -79,13 +143,39 @@ export function PlaybookDetailPage(): JSX.Element {
       });
     },
     onSuccess: (playbook) => {
-      setLoadedPlaybookId(playbook.id);
+      loadPlaybook(playbook);
       setDefinitionError(null);
-      setMessage('Playbook saved.');
+      setMessage(`Playbook saved as v${playbook.version}.`);
+      void playbooksQuery.refetch();
+      void navigate(`/config/playbooks/${playbook.id}`, { replace: true });
     },
     onError: (error) => {
       setMessage(null);
       setDefinitionError(error instanceof Error ? error.message : 'Failed to save playbook.');
+    },
+  });
+  const restoreMutation = useMutation({
+    mutationFn: async () => {
+      if (!comparedRevision) {
+        throw new Error('Choose a revision to restore.');
+      }
+      if (comparedRevision.id === playbookId) {
+        throw new Error('Select an older version before restoring.');
+      }
+      return dashboardApi.updatePlaybook(playbookId, buildPlaybookRestorePayload(comparedRevision));
+    },
+    onSuccess: (playbook) => {
+      loadPlaybook(playbook);
+      setDefinitionError(null);
+      setMessage(`Restored v${playbook.version} from an earlier revision.`);
+      void playbooksQuery.refetch();
+      void navigate(`/config/playbooks/${playbook.id}`, { replace: true });
+    },
+    onError: (error) => {
+      setMessage(null);
+      setDefinitionError(
+        error instanceof Error ? error.message : 'Failed to restore playbook revision.',
+      );
     },
   });
 
@@ -119,6 +209,9 @@ export function PlaybookDetailPage(): JSX.Element {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link to="/config/roles">Manage Roles</Link>
+          </Button>
           <Button asChild variant="outline">
             <Link to={`/config/playbooks/${playbook.id}/launch`}>Launch</Link>
           </Button>
@@ -168,8 +261,32 @@ export function PlaybookDetailPage(): JSX.Element {
               Created {formatDate(playbook.created_at)}. Updated {formatDate(playbook.updated_at)}.
             </div>
           </div>
+          <div className="grid gap-2 text-sm md:col-span-2">
+            <span className="font-medium">Configuration model</span>
+            <div className="rounded-md border border-border bg-muted/20 p-3 text-sm text-muted">
+              Configure playbook-specific orchestrator instructions, tool grants, cadence, and runtime pools below.
+              Reusable prompts, model preferences, and escalation policy for specialist or orchestrator roles live on the Role Definitions page.
+            </div>
+          </div>
         </CardContent>
       </Card>
+
+      <PlaybookControlCenterCard
+        playbook={playbook}
+        activeRoleCount={(roleDefinitionsQuery.data ?? []).filter((role) => role.is_active).length}
+        llmProviders={llmProvidersQuery.data ?? []}
+        llmModels={llmModelsQuery.data ?? []}
+      />
+
+      <PlaybookRevisionHistoryCard
+        currentPlaybook={playbook}
+        revisions={revisions.length > 0 ? revisions : [playbook]}
+        comparedRevisionId={comparedRevisionId || playbook.id}
+        diffRows={revisionDiff}
+        onComparedRevisionChange={setComparedRevisionId}
+        onRestore={() => restoreMutation.mutate()}
+        isRestoring={restoreMutation.isPending}
+      />
 
       <PlaybookAuthoringForm
         draft={draft}

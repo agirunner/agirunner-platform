@@ -1,8 +1,21 @@
+import type { ReactNode } from 'react';
+
 import type {
   DashboardProjectRecord,
   DashboardResolvedDocumentReference,
 } from '../lib/api.js';
 import { StructuredRecordView } from '../components/structured-data.js';
+import { Badge } from '../components/ui/badge.js';
+import { Button } from '../components/ui/button.js';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../components/ui/card.js';
+import { Input } from '../components/ui/input.js';
+import { Textarea } from '../components/ui/textarea.js';
 import type { DashboardProjectMemoryEntry } from './workflow-detail-support.js';
 
 export function WorkflowDocumentsCard(props: {
@@ -11,33 +24,46 @@ export function WorkflowDocumentsCard(props: {
   documents: DashboardResolvedDocumentReference[];
 }) {
   return (
-    <div className="card">
-      <h3>Workflow Documents</h3>
-      <p className="muted">Reference material available to workers in this workflow.</p>
-      {props.isLoading ? <p>Loading documents...</p> : null}
-      {props.hasError ? <p style={{ color: '#dc2626' }}>Failed to load workflow documents.</p> : null}
-      <div className="grid">
-        {props.documents.map((document) => (
-          <article key={document.logical_name} className="card timeline-entry">
-            <div className="row" style={{ justifyContent: 'space-between' }}>
-              <strong>{document.title ?? document.logical_name}</strong>
-              <span className="status-badge">{document.scope}</span>
-            </div>
-            <p className="muted">{document.description ?? document.source}</p>
-            <div className="row">
-              <span className="status-badge">Source: {document.source}</span>
-              {document.task_id ? <span className="status-badge">Task: {document.task_id}</span> : null}
-            </div>
-            {document.repository && document.path ? <p className="muted">{document.repository}:{document.path}</p> : null}
-            {document.url ? <a href={document.url} target="_blank" rel="noreferrer">Open external reference</a> : null}
-            {document.artifact ? <a href={document.artifact.download_url}>Download artifact-backed document</a> : null}
-          </article>
-        ))}
-        {props.documents.length === 0 && !props.isLoading && !props.hasError ? (
-          <p className="muted">No workflow documents registered yet.</p>
+    <Card>
+      <CardHeader>
+        <CardTitle>Workflow Documents</CardTitle>
+        <CardDescription>
+          Reference material available to workers in this workflow.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <SurfaceMessage tone="default" show={props.isLoading}>
+          Loading documents...
+        </SurfaceMessage>
+        <SurfaceMessage tone="destructive" show={props.hasError}>
+          Failed to load workflow documents.
+        </SurfaceMessage>
+        {!props.isLoading && !props.hasError ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SummaryPanel
+              label="Available references"
+              value={String(props.documents.length)}
+              detail="Resolved documents in operator scope."
+            />
+            <SummaryPanel
+              label="Artifact-backed"
+              value={String(props.documents.filter((document) => document.artifact).length)}
+              detail="Documents backed by downloadable board artifacts."
+            />
+          </div>
         ) : null}
-      </div>
-    </div>
+        <div className="grid gap-3">
+          {props.documents.map((document) => (
+            <DocumentCard key={document.logical_name} document={document} />
+          ))}
+          {props.documents.length === 0 && !props.isLoading && !props.hasError ? (
+            <div className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted">
+              No workflow documents registered yet.
+            </div>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -55,35 +81,225 @@ export function ProjectMemoryCard(props: {
   onSave(): void;
 }) {
   return (
-    <div className="card">
-      <h3>Project Memory</h3>
-      <p className="muted">Operator-visible shared memory for future runs and workers.</p>
-      {props.isLoading ? <p>Loading project memory...</p> : null}
-      {props.hasError ? <p style={{ color: '#dc2626' }}>Failed to load project memory.</p> : null}
-      {props.project ? <p className="muted">Project: {props.project.name}</p> : null}
-      <div className="grid">
-        {props.entries.map((entry) => (
-          <article key={entry.key} className="card timeline-entry">
-            <div className="row" style={{ justifyContent: 'space-between' }}>
-              <strong>{entry.key}</strong>
-              <span className="status-badge">memory</span>
-            </div>
-            <StructuredRecordView data={entry.value} emptyMessage="No memory payload." />
-          </article>
-        ))}
-        {props.entries.length === 0 && !props.isLoading && !props.hasError ? (
-          <p className="muted">No project memory recorded yet.</p>
+    <Card>
+      <CardHeader>
+        <CardTitle>Project Memory</CardTitle>
+        <CardDescription>
+          Operator-visible shared memory for future runs and workers.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <SurfaceMessage tone="default" show={props.isLoading}>
+          Loading project memory...
+        </SurfaceMessage>
+        <SurfaceMessage tone="destructive" show={props.hasError}>
+          Failed to load project memory.
+        </SurfaceMessage>
+        {props.project ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SummaryPanel
+              label="Project"
+              value={props.project.name}
+              detail="Shared memory propagates to future board runs and operators."
+            />
+            <SummaryPanel
+              label="Memory entries"
+              value={String(props.entries.length)}
+              detail="Current operator-visible keys."
+            />
+          </div>
         ) : null}
+        <div className="grid gap-3">
+          {props.entries.map((entry) => (
+            <Card key={entry.key} className="border-border/70 bg-border/10 shadow-none">
+              <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-3">
+                <div className="grid gap-1">
+                  <CardTitle className="text-base">{entry.key}</CardTitle>
+                  <CardDescription>Shared operator memory entry</CardDescription>
+                </div>
+                <Badge variant="outline">Memory</Badge>
+              </CardHeader>
+              <CardContent>
+                <StructuredRecordView data={entry.value} emptyMessage="No memory payload." />
+              </CardContent>
+            </Card>
+          ))}
+          {props.entries.length === 0 && !props.isLoading && !props.hasError ? (
+            <div className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted">
+              No project memory recorded yet.
+            </div>
+          ) : null}
+        </div>
+        <div className="grid gap-4 rounded-xl border border-border/70 bg-gradient-to-br from-border/10 via-surface to-surface p-4 shadow-sm">
+          <div className="grid gap-1">
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+              Memory compose
+            </div>
+            <div className="text-sm leading-6 text-muted">
+              Add a structured project note for future runs, downstream child boards, and operator handoff.
+            </div>
+          </div>
+          <div className="grid gap-1.5">
+            <label htmlFor="project-memory-key" className="text-sm font-medium text-foreground">
+              Memory key
+            </label>
+            <Input
+              id="project-memory-key"
+              value={props.memoryKey}
+              onChange={(event) => props.onMemoryKeyChange(event.target.value)}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <label
+              htmlFor="project-memory-value"
+              className="text-sm font-medium text-foreground"
+            >
+              Memory value
+            </label>
+            <Textarea
+              id="project-memory-value"
+              rows={6}
+              value={props.memoryValue}
+              onChange={(event) => props.onMemoryValueChange(event.target.value)}
+            />
+            <p className="text-xs text-muted">
+              Enter an object-shaped JSON payload. The preview below shows how operators and agents
+              will read the entry.
+            </p>
+          </div>
+          <MemoryDraftPreview value={props.memoryValue} />
+          <SurfaceMessage tone="destructive" show={Boolean(props.memoryError)}>
+            {props.memoryError}
+          </SurfaceMessage>
+          <SurfaceMessage tone="success" show={Boolean(props.memoryMessage)}>
+            {props.memoryMessage}
+          </SurfaceMessage>
+          <div className="flex justify-end">
+            <Button type="button" onClick={props.onSave}>
+              Save Memory Entry
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DocumentCard(props: {
+  document: DashboardResolvedDocumentReference;
+}): JSX.Element {
+  const { document } = props;
+  const hasLocation = document.repository && document.path;
+
+  return (
+    <Card className="border-border/70 bg-border/10 shadow-none">
+      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-3">
+        <div className="grid gap-1">
+          <CardTitle className="text-base">
+            {document.title ?? document.logical_name}
+          </CardTitle>
+          <CardDescription>{document.description ?? document.source}</CardDescription>
+        </div>
+        <Badge variant="outline">{document.scope}</Badge>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="secondary">Source: {document.source}</Badge>
+          {document.task_id ? <Badge variant="secondary">Task: {document.task_id}</Badge> : null}
+        </div>
+        {hasLocation ? (
+          <p className="rounded-lg border border-border/60 bg-background/70 px-3 py-2 text-sm text-muted">
+            {document.repository}:{document.path}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap gap-2">
+          {document.url ? (
+            <Button asChild variant="outline" size="sm">
+              <a href={document.url} target="_blank" rel="noreferrer">
+                Open External Reference
+              </a>
+            </Button>
+          ) : null}
+          {document.artifact ? (
+            <Button asChild variant="outline" size="sm">
+              <a href={document.artifact.download_url}>
+                Download Artifact-Backed Document
+              </a>
+            </Button>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SurfaceMessage(props: {
+  tone: 'default' | 'destructive' | 'success';
+  show: boolean;
+  children: ReactNode;
+}): JSX.Element | null {
+  if (!props.show) {
+    return null;
+  }
+
+  const className =
+    props.tone === 'destructive'
+      ? 'rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200'
+      : props.tone === 'success'
+        ? 'rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200'
+        : 'rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted';
+
+  return <p className={className}>{props.children}</p>;
+}
+
+function MemoryDraftPreview(props: { value: string }): JSX.Element {
+  const parsed = parseMemoryDraft(props.value);
+  return (
+    <div className="grid gap-2 rounded-md border border-border/70 bg-background/70 p-4">
+      <div className="text-sm font-medium">Structured preview</div>
+      {parsed.error ? (
+        <p className="text-sm text-red-600">{parsed.error}</p>
+      ) : (
+        <StructuredRecordView data={parsed.value} emptyMessage="No memory payload." />
+      )}
+    </div>
+  );
+}
+
+function parseMemoryDraft(value: string): { value: Record<string, unknown> | null; error: string | null } {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return { value: {}, error: null };
+  }
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {
+        value: null,
+        error: 'Memory preview requires a JSON object with key/value entries.',
+      };
+    }
+    return { value: parsed as Record<string, unknown>, error: null };
+  } catch {
+    return {
+      value: null,
+      error: 'Memory preview requires valid JSON before this entry can be saved.',
+    };
+  }
+}
+
+function SummaryPanel(props: {
+  label: string;
+  value: string;
+  detail: string;
+}): JSX.Element {
+  return (
+    <div className="grid gap-1 rounded-xl border border-border/70 bg-border/10 p-4">
+      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+        {props.label}
       </div>
-      <label htmlFor="project-memory-key">Memory key</label>
-      <input id="project-memory-key" className="input" value={props.memoryKey} onChange={(event) => props.onMemoryKeyChange(event.target.value)} />
-      <label htmlFor="project-memory-value">Memory value (JSON)</label>
-      <textarea id="project-memory-value" className="input" rows={6} value={props.memoryValue} onChange={(event) => props.onMemoryValueChange(event.target.value)} />
-      {props.memoryError ? <p style={{ color: '#dc2626' }}>{props.memoryError}</p> : null}
-      {props.memoryMessage ? <p style={{ color: '#16a34a' }}>{props.memoryMessage}</p> : null}
-      <div className="row" style={{ justifyContent: 'flex-end' }}>
-        <button type="button" className="button" onClick={props.onSave}>Save Memory Entry</button>
-      </div>
+      <div className="text-base font-semibold text-foreground">{props.value}</div>
+      <div className="text-sm leading-6 text-muted">{props.detail}</div>
     </div>
   );
 }

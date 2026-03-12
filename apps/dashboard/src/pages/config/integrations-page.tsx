@@ -53,6 +53,21 @@ const KIND_FIELDS: Record<IntegrationKind, string[]> = {
   github_issues: ['owner', 'repo', 'token'],
 };
 
+const INTEGRATION_EVENT_OPTIONS = [
+  'workflow.created',
+  'workflow.completed',
+  'workflow.failed',
+  'workflow.cancelled',
+  'workflow.gate_requested',
+  'work_item.created',
+  'work_item.updated',
+  'task.created',
+  'task.completed',
+  'task.failed',
+  'task.escalated',
+  'task.awaiting_approval',
+] as const;
+
 function kindVariant(kind: IntegrationKind) {
   const map: Record<IntegrationKind, 'default' | 'secondary' | 'outline' | 'warning'> = {
     webhook: 'default',
@@ -74,14 +89,14 @@ function normalizeIntegrations(
 interface AddIntegrationForm {
   kind: IntegrationKind;
   workflow_id: string;
-  subscriptions: string;
+  subscriptions: string[];
   config: Record<string, string>;
 }
 
 const INITIAL_FORM: AddIntegrationForm = {
   kind: 'webhook',
   workflow_id: '',
-  subscriptions: '',
+  subscriptions: [],
   config: {},
 };
 
@@ -91,15 +106,18 @@ function AddIntegrationDialog() {
   const [form, setForm] = useState<AddIntegrationForm>(INITIAL_FORM);
 
   const configFields = KIND_FIELDS[form.kind] ?? [];
+  const workflowsQuery = useQuery({
+    queryKey: ['workflow-options'],
+    queryFn: () => dashboardApi.listWorkflows(),
+  });
+  const workflowOptions = workflowsQuery.data?.data ?? [];
 
   const mutation = useMutation({
     mutationFn: () =>
       dashboardApi.createIntegration({
         kind: form.kind,
         workflow_id: form.workflow_id || undefined,
-        subscriptions: form.subscriptions
-          ? form.subscriptions.split(',').map((s) => s.trim())
-          : undefined,
+        subscriptions: form.subscriptions.length > 0 ? form.subscriptions : undefined,
         config: form.config,
       }),
     onSuccess: () => {
@@ -120,25 +138,35 @@ function AddIntegrationDialog() {
     }));
   }
 
+  function toggleSubscription(eventType: string) {
+    setForm((prev) => ({
+      ...prev,
+      subscriptions: prev.subscriptions.includes(eventType)
+        ? prev.subscriptions.filter((value) => value !== eventType)
+        : [...prev.subscriptions, eventType],
+    }));
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <Button onClick={() => setIsOpen(true)}>
         <Plus className="h-4 w-4" />
         Add Integration
       </Button>
-      <DialogContent>
+      <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Integration</DialogTitle>
         </DialogHeader>
         <form
-          className="space-y-4"
+          className="space-y-5"
           onSubmit={(e) => {
             e.preventDefault();
             mutation.mutate();
           }}
         >
+          <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Kind</label>
+            <label className="text-sm font-medium">Integration kind</label>
             <Select
               value={form.kind}
               onValueChange={(v) =>
@@ -162,30 +190,55 @@ function AddIntegrationDialog() {
             </Select>
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">
-              Workflow ID (optional, leave blank for global)
-            </label>
-            <Input
-              placeholder="workflow-uuid"
-              value={form.workflow_id}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, workflow_id: e.target.value }))
+            <label className="text-sm font-medium">Workflow scope</label>
+            <Select
+              value={form.workflow_id || '__global__'}
+              onValueChange={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  workflow_id: value === '__global__' ? '' : value,
+                }))
               }
-            />
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Global integration" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__global__">Global integration</SelectItem>
+                {workflowOptions.map((workflow) => (
+                  <SelectItem key={workflow.id} value={workflow.id}>
+                    {workflow.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">
-              Subscriptions (comma-separated)
-            </label>
-            <Input
-              placeholder="workflow.completed, task.failed"
-              value={form.subscriptions}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, subscriptions: e.target.value }))
-              }
-            />
           </div>
 
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Subscribed events</label>
+            <p className="text-sm text-muted">
+              Select the workflow and task events this integration should receive. Leave everything unchecked to follow the backend default.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {INTEGRATION_EVENT_OPTIONS.map((eventType) => {
+                const selected = form.subscriptions.includes(eventType);
+                return (
+                  <Button
+                    key={eventType}
+                    type="button"
+                    variant={selected ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => toggleSubscription(eventType)}
+                  >
+                    {eventType}
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
           {configFields.map((field) => (
             <div key={field} className="space-y-2">
               <label className="text-sm font-medium capitalize">
@@ -203,6 +256,7 @@ function AddIntegrationDialog() {
               />
             </div>
           ))}
+          </div>
 
           {mutation.error && (
             <p className="text-sm text-red-600">{String(mutation.error)}</p>
@@ -250,7 +304,7 @@ function DeleteConfirmDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-h-[70vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Delete Integration</DialogTitle>
         </DialogHeader>

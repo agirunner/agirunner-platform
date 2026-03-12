@@ -63,7 +63,7 @@ export type AcceptedTaskStateFilter = PublicTaskState;
 
 export type TaskServiceConfig = Pick<AppEnv, 'TASK_DEFAULT_TIMEOUT_MINUTES'> &
   Partial<
-    Pick<AppEnv, 'WORKFLOW_ACTIVATION_DELAY_MS' | 'WORKFLOW_ACTIVATION_STALE_AFTER_MS'>
+    Pick<AppEnv, 'WORKFLOW_ACTIVATION_DELAY_MS' | 'WORKFLOW_ACTIVATION_STALE_AFTER_MS' | 'WEBHOOK_ENCRYPTION_KEY'>
   > &
   Partial<Pick<AppEnv, 'TASK_MAX_SUBTASK_DEPTH' | 'TASK_MAX_SUBTASKS_PER_PARENT'>> &
   Partial<Pick<AppEnv, 'ARTIFACT_ACCESS_URL_TTL_SECONDS'>> & {

@@ -112,7 +112,8 @@ describe('dashboard api auth/session behavior', () => {
     await api.login('ar_admin_test_key');
 
     expect(readSession()).toEqual({ accessToken: 'ephemeral-token', tenantId: 'tenant-1' });
-    expect(localStorage.getItem('agirunner.tenantId')).toBe('tenant-1');
+    expect(sessionStorage.getItem('agirunner.tenantId')).toBe('tenant-1');
+    expect(localStorage.getItem('agirunner.tenantId')).toBeNull();
     expect(localStorage.getItem('agirunner.accessToken')).toBeNull();
     expect(sessionStorage.getItem('agirunner.accessToken')).toBe('ephemeral-token');
   });
@@ -182,6 +183,40 @@ describe('dashboard api auth/session behavior', () => {
       name: 'Test Run',
     });
     expect(workflow).toEqual({ id: 'pipe-1' });
+  });
+
+  it('updates playbooks through the dashboard api surface', async () => {
+    writeSession({ accessToken: 'api-token', tenantId: 'tenant-1' });
+
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listWorkflows: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getWorkflow: vi.fn(),
+      updatePlaybook: vi.fn().mockResolvedValue({ id: 'playbook-1', name: 'Delivery' }),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      client: client as never,
+      baseUrl: 'http://localhost:8080',
+    });
+    const playbook = await api.updatePlaybook('playbook-1', {
+      name: 'Delivery',
+      outcome: 'Ship work',
+      definition: { lifecycle: 'continuous' },
+    });
+
+    expect(client.updatePlaybook).toHaveBeenCalledWith('playbook-1', {
+      name: 'Delivery',
+      outcome: 'Ship work',
+      definition: { lifecycle: 'continuous' },
+    });
+    expect(playbook).toEqual({ id: 'playbook-1', name: 'Delivery' });
   });
 
   it('supports model override endpoints through typed dashboard methods', async () => {
@@ -1203,6 +1238,131 @@ describe('dashboard api auth/session behavior', () => {
     );
   });
 
+  it('manages workflow documents and task artifacts through typed dashboard mutations', async () => {
+    writeSession({ accessToken: 'content-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn() as unknown as typeof fetch;
+    vi.mocked(fetcher)
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              logical_name: 'project_brief',
+              scope: 'workflow',
+              source: 'repository',
+              title: 'Project Brief',
+              description: 'Primary brief',
+              metadata: { audience: 'operator' },
+              repository: 'org/repo',
+              path: 'docs/brief.md',
+            },
+          }),
+          { status: 201 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              logical_name: 'project_brief',
+              scope: 'workflow',
+              source: 'external',
+              title: 'Project Brief',
+              description: 'Updated brief',
+              metadata: { audience: 'operator' },
+              url: 'https://example.com/brief',
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              id: 'artifact-2',
+              task_id: 'task-1',
+              logical_path: 'artifact:task-1/report.md',
+              content_type: 'text/markdown',
+              size_bytes: 128,
+              checksum_sha256: 'abc',
+              metadata: { source: 'smoke' },
+              retention_policy: {},
+              created_at: '2026-03-12T00:00:00.000Z',
+              download_url: '/api/v1/tasks/task-1/artifacts/artifact-2',
+            },
+          }),
+          { status: 201 },
+        ),
+      )
+      .mockResolvedValueOnce(new Response('{}', { status: 200 })) as unknown as typeof fetch;
+
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listWorkflows: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    const createdDocument = await api.createWorkflowDocument('pipe-1', {
+      logical_name: 'project_brief',
+      source: 'repository',
+      repository: 'org/repo',
+      path: 'docs/brief.md',
+      metadata: { audience: 'operator' },
+    });
+    const updatedDocument = await api.updateWorkflowDocument('pipe-1', 'project_brief', {
+      source: 'external',
+      url: 'https://example.com/brief',
+      description: 'Updated brief',
+    });
+    await api.deleteWorkflowDocument('pipe-1', 'project_brief');
+    const uploadedArtifact = await api.uploadTaskArtifact('task-1', {
+      path: 'artifact:task-1/report.md',
+      content_base64: 'Ym9keQ==',
+      content_type: 'text/markdown',
+      metadata: { source: 'smoke' },
+    });
+    await api.deleteTaskArtifact('task-1', 'artifact-2');
+
+    expect(createdDocument.logical_name).toBe('project_brief');
+    expect(updatedDocument.source).toBe('external');
+    expect(uploadedArtifact.id).toBe('artifact-2');
+    expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
+      'http://localhost:8080/api/v1/workflows/pipe-1/documents',
+    );
+    expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
+      'http://localhost:8080/api/v1/workflows/pipe-1/documents/project_brief',
+    );
+    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
+      'http://localhost:8080/api/v1/workflows/pipe-1/documents/project_brief',
+    );
+    expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
+      'http://localhost:8080/api/v1/tasks/task-1/artifacts',
+    );
+    expect(vi.mocked(fetcher).mock.calls[4][0]).toBe(
+      'http://localhost:8080/api/v1/tasks/task-1/artifacts/artifact-2',
+    );
+    expect(vi.mocked(fetcher).mock.calls[0][1]?.method).toBe('POST');
+    expect(vi.mocked(fetcher).mock.calls[1][1]?.method).toBe('PATCH');
+    expect(vi.mocked(fetcher).mock.calls[2][1]?.method).toBe('DELETE');
+    expect(vi.mocked(fetcher).mock.calls[3][1]?.method).toBe('POST');
+    expect(vi.mocked(fetcher).mock.calls[4][1]?.method).toBe('DELETE');
+  });
+
   it('loads split fleet pool status and fleet worker desired state through typed dashboard methods', async () => {
     writeSession({ accessToken: 'fleet-token', tenantId: 'tenant-1' });
 
@@ -1380,6 +1540,160 @@ describe('dashboard api auth/session behavior', () => {
       'http://localhost:8080/api/v1/fleet/workers/worker-2',
     );
   });
+
+  it('uses persisted platform instruction endpoints for current state, versions, restore, and clear', async () => {
+    writeSession({ accessToken: 'api-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: { version: 3, content: '# Current', format: 'markdown' },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [{ id: 'ver-2', version: 2, content: '# Older', format: 'markdown' }],
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: { version: 4, content: '# Restored', format: 'markdown' },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: { version: 5, content: '', format: 'text' },
+          }),
+          { status: 200 },
+        ),
+      ) as unknown as typeof fetch;
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listWorkflows: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    await expect(api.getPlatformInstructions()).resolves.toMatchObject({ version: 3 });
+    await expect(api.listPlatformInstructionVersions()).resolves.toMatchObject([
+      { version: 2 },
+    ]);
+    await expect(
+      api.updatePlatformInstructions({ content: '# Restored', format: 'markdown' }),
+    ).resolves.toMatchObject({ version: 4 });
+    await expect(api.clearPlatformInstructions()).resolves.toMatchObject({
+      version: 5,
+      content: '',
+    });
+
+    expect(fetcher).toHaveBeenNthCalledWith(
+      1,
+      'http://localhost:8080/api/v1/platform/instructions',
+      expect.objectContaining({
+        method: 'GET',
+        credentials: 'include',
+        headers: expect.objectContaining({ Authorization: 'Bearer api-token' }),
+      }),
+    );
+    expect(fetcher).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:8080/api/v1/platform/instructions/versions',
+      expect.objectContaining({
+        method: 'GET',
+        credentials: 'include',
+      }),
+    );
+    expect(fetcher).toHaveBeenNthCalledWith(
+      3,
+      'http://localhost:8080/api/v1/platform/instructions',
+      expect.objectContaining({
+        method: 'PUT',
+        credentials: 'include',
+      }),
+    );
+    expect(fetcher).toHaveBeenNthCalledWith(
+      4,
+      'http://localhost:8080/api/v1/platform/instructions',
+      expect.objectContaining({
+        method: 'DELETE',
+        credentials: 'include',
+      }),
+    );
+  });
+
+  it('updates project spec through the dashboard api surface', async () => {
+    writeSession({ accessToken: 'spec-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            data: {
+              project_id: 'project-1',
+              version: 4,
+              config: { repository: 'agisnap/agirunner-test-fixtures' },
+            },
+          }),
+          { status: 200 },
+        ),
+      ) as unknown as typeof fetch;
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listWorkflows: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    await expect(
+      api.updateProjectSpec('project-1', {
+        config: { repository: 'agisnap/agirunner-test-fixtures' },
+      }),
+    ).resolves.toMatchObject({ version: 4 });
+
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://localhost:8080/api/v1/projects/project-1/spec',
+      expect.objectContaining({
+        method: 'PUT',
+        credentials: 'include',
+      }),
+    );
+  });
 });
 
 describe('dashboard global search', () => {
@@ -1404,7 +1718,7 @@ describe('dashboard global search', () => {
     expect(results[0].href).toBe('/work/workflows/workflow-1');
     expect(results[1].href).toBe('/work/tasks/task-1');
     expect(results[2].href).toBe('/projects/project-1');
-    expect(results[3].href).toBe('/config/playbooks/playbook-1/launch');
+    expect(results[3].href).toBe('/config/playbooks/playbook-1');
     expect(results[4].href).toBe('/fleet/workers');
     expect(results[5].href).toBe('/fleet/agents');
   });

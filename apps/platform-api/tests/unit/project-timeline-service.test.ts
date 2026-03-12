@@ -259,6 +259,64 @@ describe('ProjectTimelineService', () => {
           ],
         };
       }
+      if (sql.includes('FROM workflow_activations')) {
+        return {
+          rowCount: 2,
+          rows: [
+            {
+              activation_id: 'activation-1',
+              state: 'processing',
+              reason: 'task.agent_escalated',
+              event_type: 'task.agent_escalated',
+              task_id: 'task-1',
+              queued_at: '2026-03-10T00:48:00.000Z',
+              started_at: '2026-03-10T00:48:30.000Z',
+              consumed_at: null,
+              completed_at: null,
+              error: null,
+            },
+            {
+              activation_id: 'activation-2',
+              state: 'completed',
+              reason: 'child_workflow.completed',
+              event_type: 'child_workflow.completed',
+              task_id: null,
+              queued_at: '2026-03-10T00:49:30.000Z',
+              started_at: '2026-03-10T00:49:45.000Z',
+              consumed_at: '2026-03-10T00:54:00.000Z',
+              completed_at: '2026-03-10T00:54:00.000Z',
+              error: {
+                recovery: {
+                  status: 'stale_detected',
+                },
+              },
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM workflow_stage_gates')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: 'gate-1',
+              stage_name: 'review',
+              status: 'approved',
+              request_summary: 'Ready for review',
+              recommendation: 'approve',
+              concerns: [],
+              key_artifacts: [],
+              requested_by_type: 'agent',
+              requested_by_id: 'agent-1',
+              requested_at: '2026-03-10T00:50:00.000Z',
+              decision_feedback: 'Looks good',
+              decided_by_type: 'admin',
+              decided_by_id: 'admin-1',
+              decided_at: '2026-03-10T00:55:00.000Z',
+            },
+          ],
+        };
+      }
       if (sql.includes('SELECT memory FROM projects')) {
         return { rowCount: 1, rows: [{ memory: {} }] };
       }
@@ -274,7 +332,9 @@ describe('ProjectTimelineService', () => {
       expect.objectContaining({
         workflow_id: 'workflow-1',
         activation_activity: expect.objectContaining({
-          queued_count: 2,
+          queued_count: 0,
+          started_count: 2,
+          stale_detected_count: 1,
           batches: expect.arrayContaining([
             expect.objectContaining({ activation_id: 'activation-1' }),
             expect.objectContaining({ activation_id: 'activation-2' }),
@@ -475,6 +535,48 @@ describe('ProjectTimelineService', () => {
           ],
         };
       }
+      if (sql.includes('FROM workflow_activations')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              activation_id: 'activation-1',
+              state: 'completed',
+              reason: 'work_item.created',
+              event_type: 'work_item.created',
+              task_id: null,
+              queued_at: '2026-03-10T00:12:00.000Z',
+              started_at: '2026-03-10T00:12:05.000Z',
+              consumed_at: '2026-03-10T00:12:10.000Z',
+              completed_at: '2026-03-10T00:12:10.000Z',
+              error: null,
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM workflow_stage_gates')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: 'gate-2',
+              stage_name: 'review',
+              status: 'awaiting_approval',
+              request_summary: 'Ready for signoff',
+              recommendation: 'approve',
+              concerns: [],
+              key_artifacts: [],
+              requested_by_type: 'agent',
+              requested_by_id: 'agent-1',
+              requested_at: '2026-03-10T00:13:00.000Z',
+              decision_feedback: null,
+              decided_by_type: null,
+              decided_by_id: null,
+              decided_at: null,
+            },
+          ],
+        };
+      }
       if (sql.includes('SELECT memory FROM projects')) {
         return { rowCount: 1, rows: [{ memory: {} }] };
       }
@@ -506,6 +608,127 @@ describe('ProjectTimelineService', () => {
     expect(modernSummary).not.toHaveProperty('task_counts');
     expect((modernSummary.stage_metrics as Array<Record<string, unknown>>)[0]).not.toHaveProperty(
       'task_counts',
+    );
+  });
+
+  it('normalizes continuous stage status from work-item and gate posture before persisting terminal summaries', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('SELECT * FROM workflows')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: 'workflow-3',
+              name: 'Continuous flow',
+              state: 'active',
+              lifecycle: 'continuous',
+              playbook_id: 'playbook-3',
+              project_id: 'project-1',
+              metadata: {},
+              created_at: '2026-03-10T00:00:00.000Z',
+              started_at: '2026-03-10T00:10:00.000Z',
+              completed_at: null,
+            },
+          ],
+        };
+      }
+      if (sql.includes('SELECT * FROM tasks')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('FROM workflow_artifacts')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('FROM events')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('FROM workflow_stages')) {
+        return {
+          rowCount: 3,
+          rows: [
+            {
+              name: 'triage',
+              goal: 'Sort',
+              human_gate: false,
+              status: 'pending',
+              gate_status: 'not_requested',
+              iteration_count: 0,
+              summary: null,
+              started_at: null,
+              completed_at: null,
+            },
+            {
+              name: 'review',
+              goal: 'Review',
+              human_gate: true,
+              status: 'pending',
+              gate_status: 'awaiting_approval',
+              iteration_count: 0,
+              summary: null,
+              started_at: null,
+              completed_at: null,
+            },
+            {
+              name: 'done',
+              goal: 'Done',
+              human_gate: false,
+              status: 'pending',
+              gate_status: 'not_requested',
+              iteration_count: 0,
+              summary: null,
+              started_at: null,
+              completed_at: null,
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM workflow_work_items')) {
+        return {
+          rowCount: 2,
+          rows: [
+            {
+              id: 'wi-1',
+              stage_name: 'triage',
+              column_id: 'todo',
+              title: 'Sort intake',
+              completed_at: null,
+            },
+            {
+              id: 'wi-2',
+              stage_name: 'done',
+              column_id: 'done',
+              title: 'Finished item',
+              completed_at: '2026-03-10T00:20:00.000Z',
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM workflow_activations')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('FROM workflow_stage_gates')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('SELECT memory FROM projects')) {
+        return { rowCount: 1, rows: [{ memory: {} }] };
+      }
+      return { rowCount: 0, rows: [] };
+    });
+    const service = new ProjectTimelineService({ query } as never);
+
+    const summary = await service.recordWorkflowTerminalState('tenant-1', 'workflow-3');
+
+    expect(summary).toEqual(
+      expect.objectContaining({
+        lifecycle: 'continuous',
+        work_item_activity: expect.objectContaining({
+          active_stage_names: ['triage', 'review'],
+        }),
+        stage_activity: [
+          expect.objectContaining({ name: 'triage', status: 'active' }),
+          expect.objectContaining({ name: 'review', status: 'awaiting_gate' }),
+          expect.objectContaining({ name: 'done', status: 'completed' }),
+        ],
+      }),
     );
   });
 });

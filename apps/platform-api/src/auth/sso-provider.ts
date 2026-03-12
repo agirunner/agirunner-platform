@@ -1,3 +1,5 @@
+import type { AppEnv } from '../config/schema.js';
+
 export interface SSOProviderConfig {
   clientId: string;
   clientSecret: string;
@@ -11,15 +13,23 @@ export interface SSOUserInfo {
   provider: string;
 }
 
-export function getSSOProviderConfig(provider: string): SSOProviderConfig | null {
-  const prefix = `AGIRUNNER_SSO_${provider.toUpperCase()}`;
-  const clientId = process.env[`${prefix}_CLIENT_ID`];
-  const clientSecret = process.env[`${prefix}_CLIENT_SECRET`];
-  const redirectUri = process.env[`${prefix}_REDIRECT_URI`] ?? process.env['AGIRUNNER_BASE_URL'];
+type SsoProviderEnv = Pick<
+  AppEnv,
+  | 'AGIRUNNER_BASE_URL'
+  | 'AGIRUNNER_SSO_GOOGLE_CLIENT_ID'
+  | 'AGIRUNNER_SSO_GOOGLE_CLIENT_SECRET'
+  | 'AGIRUNNER_SSO_GOOGLE_REDIRECT_URI'
+  | 'AGIRUNNER_SSO_GITHUB_CLIENT_ID'
+  | 'AGIRUNNER_SSO_GITHUB_CLIENT_SECRET'
+  | 'AGIRUNNER_SSO_GITHUB_REDIRECT_URI'
+>;
 
-  if (!clientId || !clientSecret) return null;
-
-  return { clientId, clientSecret, redirectUri: redirectUri ?? '' };
+export function getSSOProviderConfig(provider: string, env: SsoProviderEnv): SSOProviderConfig | null {
+  const config = readProviderConfig(provider, env);
+  if (!config.clientId || !config.clientSecret) {
+    return null;
+  }
+  return config;
 }
 
 export function buildAuthorizationUrl(provider: string, config: SSOProviderConfig, state: string): string {
@@ -53,6 +63,25 @@ export async function exchangeCodeForUser(
       return exchangeGitHub(config, code);
     default:
       throw new Error(`Unsupported SSO provider: ${provider}`);
+  }
+}
+
+function readProviderConfig(provider: string, env: SsoProviderEnv): SSOProviderConfig {
+  switch (provider) {
+    case 'google':
+      return {
+        clientId: env.AGIRUNNER_SSO_GOOGLE_CLIENT_ID ?? '',
+        clientSecret: env.AGIRUNNER_SSO_GOOGLE_CLIENT_SECRET ?? '',
+        redirectUri: env.AGIRUNNER_SSO_GOOGLE_REDIRECT_URI ?? env.AGIRUNNER_BASE_URL ?? '',
+      };
+    case 'github':
+      return {
+        clientId: env.AGIRUNNER_SSO_GITHUB_CLIENT_ID ?? '',
+        clientSecret: env.AGIRUNNER_SSO_GITHUB_CLIENT_SECRET ?? '',
+        redirectUri: env.AGIRUNNER_SSO_GITHUB_REDIRECT_URI ?? env.AGIRUNNER_BASE_URL ?? '',
+      };
+    default:
+      return { clientId: '', clientSecret: '', redirectUri: '' };
   }
 }
 

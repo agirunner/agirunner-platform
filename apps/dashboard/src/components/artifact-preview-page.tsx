@@ -33,10 +33,7 @@ export function ArtifactPreviewPage(): JSX.Element {
     enabled: taskId.length > 0,
   });
 
-  const artifact = useMemo(
-    () => artifactListQuery.data?.find((entry) => entry.id === artifactId) ?? null,
-    [artifactId, artifactListQuery.data],
-  );
+  const artifact = useMemo(() => artifactListQuery.data?.find((entry) => entry.id === artifactId) ?? null, [artifactId, artifactListQuery.data]);
   const previewDescriptor = artifact
     ? describeArtifactPreview(artifact.content_type, artifact.logical_path)
     : null;
@@ -51,14 +48,11 @@ export function ArtifactPreviewPage(): JSX.Element {
     enabled: shouldFetchPreview,
   });
 
-  const previewMarkup =
-    previewDescriptor && previewQuery.data
-      ? renderArtifactPreviewMarkup(previewQuery.data.content_text, previewDescriptor)
-      : '';
-  const previewText =
-    previewDescriptor && previewQuery.data
-      ? formatArtifactPreviewText(previewQuery.data.content_text, previewDescriptor)
-      : '';
+  const previewMarkup = previewDescriptor && previewQuery.data ? renderArtifactPreviewMarkup(previewQuery.data.content_text, previewDescriptor) : '';
+  const previewText = previewDescriptor && previewQuery.data ? formatArtifactPreviewText(previewQuery.data.content_text, previewDescriptor) : '';
+  const artifactName = artifact?.logical_path.split('/').pop() ?? artifact?.id ?? 'artifact';
+  const previewModeLabel = getPreviewModeLabel(artifact, previewDescriptor);
+  const previewLimitLabel = formatFileSize(MAX_INLINE_ARTIFACT_PREVIEW_BYTES);
 
   async function handleCopyPermalink() {
     const permalink = `${window.location.origin}${buildArtifactPermalink(taskId, artifactId)}`;
@@ -93,8 +87,16 @@ export function ArtifactPreviewPage(): JSX.Element {
 
   if (artifactListQuery.isLoading) {
     return (
-      <div className="flex items-center justify-center p-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted" />
+      <div className="flex min-h-[40vh] items-center justify-center p-12">
+        <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card px-5 py-4 shadow-sm">
+          <Loader2 className="h-5 w-5 animate-spin text-muted" />
+          <div>
+            <p className="text-sm font-medium">Loading artifact preview</p>
+            <p className="text-xs text-muted-foreground">
+              Fetching artifact metadata and inline preview eligibility.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -102,108 +104,229 @@ export function ArtifactPreviewPage(): JSX.Element {
   if (artifactListQuery.error || !artifact || !previewDescriptor) {
     return (
       <div className="space-y-6 p-6">
-        <Card>
-          <CardContent className="py-6 text-sm text-red-600">
-            Failed to load artifact preview.
-          </CardContent>
-        </Card>
+        <section className="rounded-[28px] border border-rose-200 bg-rose-50/80 p-6 shadow-sm">
+          <div className="space-y-2">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-rose-700">
+              Artifact preview unavailable
+            </p>
+            <h1 className="text-2xl font-semibold text-rose-950">Failed to load artifact preview</h1>
+            <p className="max-w-2xl text-sm text-rose-800">
+              The dashboard could not resolve this artifact or its preview metadata. Re-open the
+              task record and retry from the artifact list.
+            </p>
+          </div>
+        </section>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-muted" />
-            <h1 className="text-2xl font-semibold">{artifact.logical_path}</h1>
+    <div data-testid="artifact-preview-surface" className="space-y-6 p-6">
+      <section className="rounded-[32px] border border-border/70 bg-gradient-to-br from-card via-card to-muted/20 p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-6">
+          <div className="max-w-3xl space-y-4">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                Artifact preview
+              </p>
+              <div className="flex items-center gap-3">
+                <span className="rounded-2xl border border-border/70 bg-background/80 p-3">
+                  <Package className="h-5 w-5 text-muted-foreground" />
+                </span>
+                <div className="space-y-1">
+                  <h1 className="text-2xl font-semibold tracking-tight">{artifactName}</h1>
+                  <p className="font-mono text-xs text-muted-foreground">{artifact.logical_path}</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline">{artifact.content_type}</Badge>
+              <Badge variant="outline">{formatFileSize(artifact.size_bytes)}</Badge>
+              <Badge variant="secondary">{previewModeLabel}</Badge>
+              <Badge variant="outline">task {artifact.task_id}</Badge>
+            </div>
+            <div data-testid="artifact-preview-metadata-grid" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <ArtifactMetadataCard label="Artifact ID" value={artifact.id} helper="Stable operator reference for audit and handoff." />
+              <ArtifactMetadataCard label="Task record" value={`Task ${artifact.task_id}`} helper="Source execution record that produced this artifact." />
+              <ArtifactMetadataCard label="Preview policy" value={previewModeLabel} helper={`Inline previews are capped at ${previewLimitLabel}.`} />
+              <ArtifactMetadataCard label="Inspection path" value={previewDescriptor.kind === 'binary' ? 'Download original' : 'Rendered and raw'} helper="Operators can inspect the rendered view, raw content, or download the source." />
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">{artifact.content_type}</Badge>
-            <Badge variant="outline">{formatFileSize(artifact.size_bytes)}</Badge>
-            <Badge variant="secondary">task {artifact.task_id}</Badge>
+            <Button asChild variant="outline" size="sm">
+              <Link to={`/work/tasks/${artifact.task_id}`}>Back to task record</Link>
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => void handleCopyPermalink()}>
+              <Copy className="h-4 w-4" />
+              Copy Permalink
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => void handleDownload()} disabled={isDownloading}>
+              {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Download
+            </Button>
+            <Button asChild size="sm">
+              <Link to={buildArtifactPermalink(taskId, artifactId)}>Open Permalink</Link>
+            </Button>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => void handleCopyPermalink()}>
-            <Copy className="h-4 w-4" />
-            Copy Permalink
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => void handleDownload()} disabled={isDownloading}>
-            {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            Download
-          </Button>
-          <Button asChild size="sm">
-            <Link to={`/work/tasks/${artifact.task_id}`}>Open Task</Link>
-          </Button>
-        </div>
-      </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <FileText className="h-4 w-4" />
-            Preview
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {!previewDescriptor.canPreview ? (
-            <BinaryPreviewNotice artifactSize={artifact.size_bytes} />
-          ) : artifact.size_bytes > MAX_INLINE_ARTIFACT_PREVIEW_BYTES ? (
-            <LargePreviewNotice artifactSize={artifact.size_bytes} />
-          ) : previewQuery.isLoading ? (
-            <div className="flex items-center gap-2 text-sm text-muted">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading artifact preview...
+      <section className="rounded-[32px] border border-border/70 bg-card/80 p-5 shadow-sm">
+        <div className="grid gap-4 lg:grid-cols-3">
+          <article className="rounded-2xl border border-border/60 bg-background/80 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Review checklist
+            </p>
+            <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <li>Confirm the rendered view matches the expected artifact path and content type.</li>
+              <li>Use the raw tab to inspect the source payload before approving downstream work.</li>
+              <li>Download the original file when the inline view is truncated or unavailable.</li>
+            </ul>
+          </article>
+          <article className="rounded-2xl border border-border/60 bg-background/80 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Source context
+            </p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              This preview stays tied to the task record that produced it, so operators can jump back
+              to the originating execution trace, logs, and workflow review packet without losing context.
+            </p>
+          </article>
+          <article className="rounded-2xl border border-border/60 bg-background/80 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Safety posture
+            </p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Markdown and HTML previews are sanitized before rendering. Unsafe scripts, frames, and
+              executable links are stripped so operators can review model-authored content safely.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section className="rounded-[32px] border border-border/70 bg-card/80 p-5 shadow-sm">
+        <Card className="border-border/60 shadow-none">
+          <CardHeader className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="space-y-1">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <FileText className="h-4 w-4" />
+                  Preview workspace
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Review the rendered document and its raw payload before making operator decisions.
+                </p>
+              </div>
+              <Badge variant="outline">Inline limit {previewLimitLabel}</Badge>
             </div>
-          ) : previewQuery.error ? (
-            <p className="text-sm text-red-600">Failed to load artifact content.</p>
-          ) : (
-            <Tabs defaultValue="rendered">
-              <TabsList>
-                <TabsTrigger value="rendered">Rendered</TabsTrigger>
-                <TabsTrigger value="raw">Raw</TabsTrigger>
-              </TabsList>
-              <TabsContent value="rendered">
-                {previewDescriptor.kind === 'markdown' || previewDescriptor.kind === 'html' ? (
-                  <article
-                    className="prose prose-sm max-w-none rounded-md border bg-border/10 p-4"
-                    dangerouslySetInnerHTML={{ __html: previewMarkup }}
-                  />
-                ) : (
-                  <pre className="overflow-x-auto rounded-md border bg-border/10 p-4 text-xs">
-                    <code>{previewText}</code>
-                  </pre>
-                )}
-              </TabsContent>
-              <TabsContent value="raw">
-                <pre className="overflow-x-auto rounded-md border bg-border/10 p-4 text-xs">
-                  <code>{previewQuery.data?.content_text ?? ''}</code>
-                </pre>
-              </TabsContent>
-            </Tabs>
-          )}
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!previewDescriptor.canPreview ? (
+              <BinaryPreviewNotice artifactSize={artifact.size_bytes} />
+            ) : artifact.size_bytes > MAX_INLINE_ARTIFACT_PREVIEW_BYTES ? (
+              <LargePreviewNotice artifactSize={artifact.size_bytes} />
+            ) : previewQuery.isLoading ? (
+              <PreviewStateNotice
+                title="Loading inline preview"
+                body="Fetching the artifact body and preparing the rendered inspection view."
+                accent="muted"
+                icon={<Loader2 className="h-4 w-4 animate-spin" />}
+              />
+            ) : previewQuery.error ? (
+              <PreviewStateNotice
+                title="Inline preview failed"
+                body="The artifact metadata loaded, but the content body could not be fetched. Download the source file or retry from the task record."
+                accent="danger"
+                icon={<FileText className="h-4 w-4" />}
+              />
+            ) : (
+              <Tabs defaultValue="rendered" data-testid="artifact-preview-tabs" className="space-y-4">
+                <TabsList className="grid w-full max-w-sm grid-cols-2">
+                  <TabsTrigger value="rendered">Rendered</TabsTrigger>
+                  <TabsTrigger value="raw">Raw</TabsTrigger>
+                </TabsList>
+                <TabsContent value="rendered">
+                  {previewDescriptor.kind === 'markdown' || previewDescriptor.kind === 'html' ? (
+                    <article className="prose prose-slate max-w-none rounded-2xl border border-border/70 bg-muted/20 p-5" dangerouslySetInnerHTML={{ __html: previewMarkup }} />
+                  ) : (
+                    <pre className="min-h-[320px] overflow-x-auto rounded-2xl border border-border/70 bg-muted/20 p-5 text-xs"><code>{previewText}</code></pre>
+                  )}
+                </TabsContent>
+                <TabsContent value="raw">
+                  <pre className="min-h-[320px] overflow-x-auto rounded-2xl border border-border/70 bg-slate-950 p-5 text-xs text-slate-100"><code>{previewQuery.data?.content_text ?? ''}</code></pre>
+                </TabsContent>
+              </Tabs>
+            )}
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }
 
 function BinaryPreviewNotice(props: { artifactSize: number }): JSX.Element {
   return (
-    <div className="rounded-md border bg-border/10 p-4 text-sm text-muted">
-      This artifact is not previewable inline. Use the download action to inspect the original file.
-      <div className="mt-2">Artifact size: {formatFileSize(props.artifactSize)}</div>
-    </div>
+    <PreviewStateNotice
+      title="Download-only artifact"
+      body={`This artifact cannot be rendered safely inline. Download the original file to inspect ${formatFileSize(props.artifactSize)} of source material.`}
+      accent="muted"
+      icon={<Package className="h-4 w-4" />}
+    />
   );
 }
 
 function LargePreviewNotice(props: { artifactSize: number }): JSX.Element {
   return (
-    <div className="rounded-md border bg-border/10 p-4 text-sm text-muted">
-      Inline preview is limited to {formatFileSize(MAX_INLINE_ARTIFACT_PREVIEW_BYTES)} to keep the
-      dashboard responsive. This artifact is {formatFileSize(props.artifactSize)}.
+    <PreviewStateNotice
+      title="Inline preview limit reached"
+      body={`Inline preview is limited to ${formatFileSize(MAX_INLINE_ARTIFACT_PREVIEW_BYTES)} to keep the operator surface responsive. This artifact is ${formatFileSize(props.artifactSize)}.`}
+      accent="muted"
+      icon={<FileText className="h-4 w-4" />}
+    />
+  );
+}
+
+function ArtifactMetadataCard(props: { label: string; value: string; helper: string }): JSX.Element {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-background/80 p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        {props.label}
+      </p>
+      <p className="mt-2 break-all text-sm font-medium">{props.value}</p>
+      <p className="mt-2 text-xs leading-5 text-muted-foreground">{props.helper}</p>
     </div>
   );
+}
+
+function PreviewStateNotice(props: { title: string; body: string; accent: 'muted' | 'danger'; icon: JSX.Element }): JSX.Element {
+  const className = props.accent === 'danger' ? 'border-rose-200 bg-rose-50/80 text-rose-900' : 'border-border/70 bg-muted/30 text-foreground';
+  return (
+    <div className={`rounded-2xl border p-4 ${className}`}>
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 rounded-xl border border-current/10 bg-background/80 p-2">
+          {props.icon}
+        </span>
+        <div className="space-y-1">
+          <p className="text-sm font-semibold">{props.title}</p>
+          <p className="text-sm leading-6 text-muted-foreground">{props.body}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getPreviewModeLabel(
+  artifact: { size_bytes: number } | null,
+  previewDescriptor: { canPreview: boolean } | null,
+): string {
+  if (!artifact || !previewDescriptor) {
+    return 'Preview unavailable';
+  }
+  if (!previewDescriptor.canPreview) {
+    return 'Download only';
+  }
+  if (artifact.size_bytes > MAX_INLINE_ARTIFACT_PREVIEW_BYTES) {
+    return 'Download or raw source';
+  }
+  return 'Inline preview ready';
 }

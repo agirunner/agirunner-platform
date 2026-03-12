@@ -1,5 +1,5 @@
 import type { DatabaseQueryable } from '../db/database.js';
-import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 
 type DocumentSource = 'repository' | 'artifact' | 'external';
@@ -59,6 +59,33 @@ export interface ResolvedDocumentReference {
     content_type?: string;
     download_url: string;
   };
+}
+
+export interface CreateWorkflowDocumentInput {
+  logical_name: string;
+  source: DocumentSource;
+  title?: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+  repository?: string;
+  path?: string;
+  url?: string;
+  task_id?: string;
+  artifact_id?: string;
+  logical_path?: string;
+}
+
+export interface UpdateWorkflowDocumentInput {
+  source?: DocumentSource;
+  title?: string | null;
+  description?: string | null;
+  metadata?: Record<string, unknown>;
+  repository?: string | null;
+  path?: string | null;
+  url?: string | null;
+  task_id?: string | null;
+  artifact_id?: string | null;
+  logical_path?: string | null;
 }
 
 interface NormalizedDocumentDefinition {
@@ -187,6 +214,117 @@ export async function registerTaskOutputDocuments(
         normalized.metadata,
       ],
     );
+  }
+}
+
+export async function createWorkflowDocument(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+  input: CreateWorkflowDocumentInput,
+): Promise<ResolvedDocumentReference> {
+  const workflow = await loadWorkflowScope(db, tenantId, workflowId);
+  const existing = await findWorkflowDocument(db, tenantId, workflowId, input.logical_name);
+  if (existing) {
+    throw new ConflictError('Workflow document already exists');
+  }
+
+  const normalized = normalizeApiWorkflowDocumentInput(input.logical_name, input);
+  const artifact = await resolveWorkflowApiArtifactReference(
+    db,
+    tenantId,
+    workflowId,
+    normalized,
+  );
+  const result = await db.query<WorkflowDocumentRow>(
+    `INSERT INTO workflow_documents (
+       tenant_id, workflow_id, project_id, task_id, logical_name, source, location,
+       artifact_id, content_type, title, description, metadata
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)
+     RETURNING id, logical_name, source, location, artifact_id, content_type,
+               title, description, metadata, task_id, created_at`,
+    [
+      tenantId,
+      workflowId,
+      workflow.project_id,
+      normalized.task_id ?? null,
+      input.logical_name,
+      normalized.source,
+      documentLocation(normalized, artifact),
+      artifact?.id ?? null,
+      artifact?.content_type ?? null,
+      normalized.title ?? null,
+      normalized.description ?? null,
+      workflowDocumentMetadata(normalized),
+    ],
+  );
+  return buildWorkflowDocumentReference(result.rows[0]);
+}
+
+export async function updateWorkflowDocument(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+  logicalName: string,
+  input: UpdateWorkflowDocumentInput,
+): Promise<ResolvedDocumentReference> {
+  await loadWorkflowScope(db, tenantId, workflowId);
+  const current = await requireWorkflowDocument(db, tenantId, workflowId, logicalName);
+  const merged = mergeWorkflowDocumentUpdate(current, input);
+  const normalized = normalizeApiWorkflowDocumentInput(logicalName, merged);
+  const artifact = await resolveWorkflowApiArtifactReference(
+    db,
+    tenantId,
+    workflowId,
+    normalized,
+  );
+  const result = await db.query<WorkflowDocumentRow>(
+    `UPDATE workflow_documents
+        SET task_id = $4,
+            source = $5,
+            location = $6,
+            artifact_id = $7,
+            content_type = $8,
+            title = $9,
+            description = $10,
+            metadata = $11::jsonb
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND logical_name = $3
+      RETURNING id, logical_name, source, location, artifact_id, content_type,
+                title, description, metadata, task_id, created_at`,
+    [
+      tenantId,
+      workflowId,
+      logicalName,
+      normalized.task_id ?? null,
+      normalized.source,
+      documentLocation(normalized, artifact),
+      artifact?.id ?? null,
+      artifact?.content_type ?? null,
+      normalized.title ?? null,
+      normalized.description ?? null,
+      workflowDocumentMetadata(normalized),
+    ],
+  );
+  return buildWorkflowDocumentReference(result.rows[0]);
+}
+
+export async function deleteWorkflowDocument(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+  logicalName: string,
+): Promise<void> {
+  const result = await db.query(
+    `DELETE FROM workflow_documents
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND logical_name = $3`,
+    [tenantId, workflowId, logicalName],
+  );
+  if (!result.rowCount) {
+    throw new NotFoundError('Workflow document not found');
   }
 }
 
@@ -341,6 +479,73 @@ function buildWorkflowDocumentReference(
   };
 }
 
+interface WorkflowApiDocumentDefinition extends NormalizedDocumentDefinition {
+  task_id?: string;
+}
+
+function normalizeApiWorkflowDocumentInput(
+  logicalName: string,
+  input: CreateWorkflowDocumentInput | WorkflowDocumentApiShape,
+): WorkflowApiDocumentDefinition {
+  const normalized = normalizeDocumentDefinition(logicalName, input, 'workflow_api');
+  return {
+    ...normalized,
+    task_id: asOptionalString(input.task_id),
+  };
+}
+
+interface WorkflowDocumentApiShape {
+  source: DocumentSource;
+  title?: string | null;
+  description?: string | null;
+  metadata?: Record<string, unknown>;
+  repository?: string | null;
+  path?: string | null;
+  url?: string | null;
+  task_id?: string | null;
+  artifact_id?: string | null;
+  logical_path?: string | null;
+}
+
+async function resolveWorkflowApiArtifactReference(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+  document: WorkflowApiDocumentDefinition,
+): Promise<ArtifactLookupRow | null> {
+  if (document.source !== 'artifact') {
+    return null;
+  }
+  if (!document.task_id) {
+    throw new ValidationError('Artifact-backed workflow documents must provide task_id');
+  }
+
+  const result = await db.query<ArtifactLookupRow>(
+    `SELECT id, task_id, logical_path, content_type
+       FROM workflow_artifacts
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND task_id = $3
+        AND (
+          ($4::uuid IS NOT NULL AND id = $4::uuid)
+          OR ($5::text IS NOT NULL AND logical_path = $5)
+        )
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [
+      tenantId,
+      workflowId,
+      document.task_id,
+      document.artifact_id ?? null,
+      document.logical_path ?? null,
+    ],
+  );
+  if (!result.rowCount) {
+    throw new ValidationError('Artifact-backed workflow documents must reference an existing workflow artifact');
+  }
+  return result.rows[0];
+}
+
 async function resolveArtifactReference(
   db: DatabaseQueryable,
   tenantId: string,
@@ -400,7 +605,7 @@ function documentLocation(
 function normalizeDocumentDefinition(
   logicalName: string,
   value: unknown,
-  sourceContext: 'project_spec' | 'task_output',
+  sourceContext: 'project_spec' | 'task_output' | 'workflow_api',
 ): NormalizedDocumentDefinition {
   const entry = requireRecord(value, `Document '${logicalName}' must be an object`);
   const source = entry.source;
@@ -455,6 +660,109 @@ function normalizeDocumentDefinition(
     metadata,
     artifact_id: artifactId,
     logical_path: logicalPath,
+  };
+}
+
+async function findWorkflowDocument(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+  logicalName: string,
+): Promise<WorkflowDocumentRow | null> {
+  const result = await db.query<WorkflowDocumentRow>(
+    `SELECT id, logical_name, source, location, artifact_id, content_type, title, description, metadata, task_id, created_at
+       FROM workflow_documents
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND logical_name = $3
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [tenantId, workflowId, logicalName],
+  );
+  return result.rows[0] ?? null;
+}
+
+async function requireWorkflowDocument(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+  logicalName: string,
+): Promise<WorkflowDocumentRow> {
+  const document = await findWorkflowDocument(db, tenantId, workflowId, logicalName);
+  if (!document) {
+    throw new NotFoundError('Workflow document not found');
+  }
+  return document;
+}
+
+function mergeWorkflowDocumentUpdate(
+  current: WorkflowDocumentRow,
+  input: UpdateWorkflowDocumentInput,
+): WorkflowDocumentApiShape {
+  const source = input.source ?? current.source;
+  const metadata = input.metadata ?? asRecord(current.metadata);
+  const currentRepository = typeof metadata.repository === 'string'
+    ? metadata.repository
+    : readRepositoryMetadata(current);
+
+  return {
+    source,
+    title: input.title === undefined ? current.title : input.title,
+    description: input.description === undefined ? current.description : input.description,
+    metadata,
+    repository:
+      source === 'repository'
+        ? input.repository === undefined
+          ? currentRepository
+          : input.repository
+        : undefined,
+    path:
+      source === 'repository'
+        ? input.path === undefined
+          ? current.location
+          : input.path
+        : undefined,
+    url:
+      source === 'external'
+        ? input.url === undefined
+          ? current.location
+          : input.url
+        : undefined,
+    task_id:
+      source === 'artifact'
+        ? input.task_id === undefined
+          ? current.task_id
+          : input.task_id
+        : undefined,
+    artifact_id:
+      source === 'artifact'
+        ? input.artifact_id === undefined
+          ? current.artifact_id
+          : input.artifact_id
+        : undefined,
+    logical_path:
+      source === 'artifact'
+        ? input.logical_path === undefined
+          ? current.location
+          : input.logical_path
+        : undefined,
+  };
+}
+
+function readRepositoryMetadata(current: WorkflowDocumentRow): string | undefined {
+  const metadata = asRecord(current.metadata);
+  return typeof metadata.repository === 'string' ? metadata.repository : undefined;
+}
+
+function workflowDocumentMetadata(
+  document: WorkflowApiDocumentDefinition,
+): Record<string, unknown> {
+  if (document.source !== 'repository' || !document.repository) {
+    return document.metadata;
+  }
+  return {
+    ...document.metadata,
+    repository: document.repository,
   };
 }
 

@@ -207,6 +207,35 @@ describe('orchestratorControlRoutes', () => {
     expect(workflowService.createWorkflowWorkItem).not.toHaveBeenCalled();
   });
 
+  it('rejects create_work_item without request_id', async () => {
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', { query: vi.fn(), connect: vi.fn() });
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', { createTask: vi.fn() });
+    app.decorate('projectService', {
+      patchProjectMemory: vi.fn(),
+      removeProjectMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-replay/work-items',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        title: 'Recovered work item',
+        goal: 'Changed replay text after recovery',
+      },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json().error.code).toBe('SCHEMA_VALIDATION_FAILED');
+  });
+
   it('writes orchestrator memory into an explicitly targeted work-item scope', async () => {
     const workItemId = '11111111-1111-4111-8111-111111111111';
     const workflowService = {
@@ -305,5 +334,299 @@ describe('orchestratorControlRoutes', () => {
       }),
       client,
     );
+  });
+
+  it('rejects memory_delete without request_id', async () => {
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', { query: vi.fn(), connect: vi.fn() });
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', { createTask: vi.fn() });
+    app.decorate('projectService', {
+      patchProjectMemory: vi.fn(),
+      removeProjectMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/orchestrator/tasks/task-memory/memory/memory-key',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json().error.code).toBe('SCHEMA_VALIDATION_FAILED');
+  });
+
+  it('updates specialist task input through the idempotent orchestrator bridge', async () => {
+    const updatedTask = {
+      id: 'task-specialist',
+      workflow_id: 'workflow-1',
+      is_orchestrator_task: false,
+      input: { scope: 'narrowed' },
+    };
+    const taskService = {
+      createTask: vi.fn(),
+      getTask: vi.fn().mockResolvedValue(updatedTask),
+      updateTaskInput: vi.fn().mockResolvedValue(updatedTask),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'update_task_input', 'task-input-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return { rowCount: 1, rows: [{ response: updatedTask }] };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-orchestrator']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-orchestrator',
+              workflow_id: 'workflow-1',
+              project_id: 'project-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'implementation',
+              activation_id: 'activation-1',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => client),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', taskService);
+    app.decorate('projectService', {
+      patchProjectMemory: vi.fn(),
+      removeProjectMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/task-specialist/input',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'task-input-1',
+        input: { scope: 'narrowed' },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(taskService.getTask).toHaveBeenCalledWith('tenant-1', 'task-specialist');
+    expect(taskService.updateTaskInput).toHaveBeenCalledWith(
+      'tenant-1',
+      'task-specialist',
+      { scope: 'narrowed' },
+      client,
+    );
+    expect(response.json().data).toEqual(updatedTask);
+  });
+
+  it('approves a specialist task through the replay-safe orchestrator bridge', async () => {
+    const approvedTask = {
+      id: 'task-specialist',
+      workflow_id: 'workflow-1',
+      is_orchestrator_task: false,
+      state: 'ready',
+    };
+    const taskService = {
+      createTask: vi.fn(),
+      getTask: vi.fn().mockResolvedValue(approvedTask),
+      approveTask: vi.fn().mockResolvedValue(approvedTask),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'approve_task', 'approve-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return { rowCount: 1, rows: [{ response: approvedTask }] };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-orchestrator']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-orchestrator',
+              workflow_id: 'workflow-1',
+              project_id: 'project-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'implementation',
+              activation_id: 'activation-1',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => client),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', taskService);
+    app.decorate('projectService', {
+      patchProjectMemory: vi.fn(),
+      removeProjectMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/task-specialist/approve',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'approve-1',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(taskService.approveTask).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'task-specialist',
+      client,
+    );
+    expect(response.json().data).toEqual(approvedTask);
+  });
+
+  it('escalates a specialist task to human review through the replay-safe orchestrator bridge', async () => {
+    const escalatedTask = {
+      id: 'task-specialist',
+      workflow_id: 'workflow-1',
+      is_orchestrator_task: false,
+      state: 'escalated',
+    };
+    const taskService = {
+      createTask: vi.fn(),
+      getTask: vi.fn().mockResolvedValue(escalatedTask),
+      escalateTask: vi.fn().mockResolvedValue(escalatedTask),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'escalate_to_human', 'escalate-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return { rowCount: 1, rows: [{ response: escalatedTask }] };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-orchestrator']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-orchestrator',
+              workflow_id: 'workflow-1',
+              project_id: 'project-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'implementation',
+              activation_id: 'activation-1',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => client),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', taskService);
+    app.decorate('projectService', {
+      patchProjectMemory: vi.fn(),
+      removeProjectMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/task-specialist/escalate-to-human',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'escalate-1',
+        reason: 'Needs product approval',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(taskService.escalateTask).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'task-specialist',
+      {
+        reason: 'Needs product approval',
+        escalation_target: 'human',
+      },
+      client,
+    );
+    expect(response.json().data).toEqual(escalatedTask);
   });
 });

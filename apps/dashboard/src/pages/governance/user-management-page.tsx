@@ -57,10 +57,13 @@ interface UpdateUserPayload {
 
 function authHeaders(): Record<string, string> {
   const session = readSession();
-  return {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${session?.accessToken}`,
   };
+  if (session?.accessToken) {
+    headers.Authorization = `Bearer ${session.accessToken}`;
+  }
+  return headers;
 }
 
 function normalizeUsers(response: unknown): User[] {
@@ -74,6 +77,7 @@ function normalizeUsers(response: unknown): User[] {
 async function fetchUsers(): Promise<User[]> {
   const resp = await fetch(`${API_BASE_URL}/api/v1/users`, {
     headers: authHeaders(),
+    credentials: 'include',
   });
   if (!resp.ok) {
     throw new Error(`HTTP ${resp.status}`);
@@ -85,6 +89,7 @@ async function registerUser(payload: CreateUserPayload): Promise<User> {
   const resp = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
     method: 'POST',
     headers: authHeaders(),
+    credentials: 'include',
     body: JSON.stringify(payload),
   });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -96,6 +101,7 @@ async function updateUser(userId: string, payload: UpdateUserPayload): Promise<U
   const resp = await fetch(`${API_BASE_URL}/api/v1/users/${userId}`, {
     method: 'PATCH',
     headers: authHeaders(),
+    credentials: 'include',
     body: JSON.stringify(payload),
   });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -107,6 +113,7 @@ async function deleteUser(userId: string): Promise<void> {
   const resp = await fetch(`${API_BASE_URL}/api/v1/users/${userId}`, {
     method: 'DELETE',
     headers: authHeaders(),
+    credentials: 'include',
   });
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 }
@@ -170,7 +177,7 @@ function CreateUserDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) resetAndClose(); }}>
-      <DialogContent>
+      <DialogContent className="max-h-[80vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create User</DialogTitle>
           <DialogDescription>Add a new user to the platform.</DialogDescription>
@@ -239,7 +246,7 @@ function EditUserDialog({
   }
 
   return (
-    <Dialog
+      <Dialog
       open={isOpen}
       onOpenChange={(open) => {
         if (!open) onClose();
@@ -249,7 +256,7 @@ function EditUserDialog({
         }
       }}
     >
-      <DialogContent>
+      <DialogContent className="max-h-[75vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit User</DialogTitle>
           <DialogDescription>
@@ -322,7 +329,7 @@ function DeactivateDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent>
+      <DialogContent className="max-h-[70vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Deactivate User</DialogTitle>
           <DialogDescription>
@@ -345,6 +352,54 @@ function DeactivateDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function UserCards({
+  users,
+  onEdit,
+  onDeactivate,
+}: {
+  users: User[];
+  onEdit: (user: User) => void;
+  onDeactivate: (user: User) => void;
+}): JSX.Element {
+  return (
+    <div className="grid gap-3 lg:hidden">
+      {users.map((user) => (
+        <div key={user.id} className="rounded-lg border border-border/70 bg-card p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold">{user.display_name}</div>
+              <div className="truncate text-xs text-muted-foreground">{user.email}</div>
+            </div>
+            <Badge variant={user.status === 'active' ? 'success' : 'secondary'} className="capitalize">
+              {user.status}
+            </Badge>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Badge variant={roleVariant(user.role)} className="capitalize">
+              {formatRoleLabel(user.role)}
+            </Badge>
+            <Badge variant="outline">
+              {user.last_login ? `Last login ${new Date(user.last_login).toLocaleDateString()}` : 'Never logged in'}
+            </Badge>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => onEdit(user)}>
+              <Pencil className="h-3.5 w-3.5" />
+              Edit
+            </Button>
+            {user.status === 'active' ? (
+              <Button variant="destructive" size="sm" onClick={() => onDeactivate(user)}>
+                <UserX className="h-3.5 w-3.5" />
+                Deactivate
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -390,12 +445,12 @@ export function UserManagementPage(): JSX.Element {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Users className="h-6 w-6 text-muted-foreground" />
           <h1 className="text-2xl font-semibold">User Management</h1>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)}>
+        <Button onClick={() => setIsCreateOpen(true)} className="w-full sm:w-auto">
           <Plus className="h-4 w-4" />
           Create User
         </Button>
@@ -404,6 +459,13 @@ export function UserManagementPage(): JSX.Element {
       {users.length === 0 ? (
         <p className="text-muted-foreground">No users found.</p>
       ) : (
+        <>
+        <UserCards
+          users={users}
+          onEdit={(user) => setEditTarget(user)}
+          onDeactivate={(user) => setDeactivateTarget(user)}
+        />
+        <div className="hidden lg:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -459,6 +521,8 @@ export function UserManagementPage(): JSX.Element {
             ))}
           </TableBody>
         </Table>
+        </div>
+        </>
       )}
 
       <CreateUserDialog isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />

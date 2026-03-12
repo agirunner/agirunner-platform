@@ -34,3 +34,130 @@
 body {
   @apply bg-background text-foreground font-sans antialiased;
 }
+
+a {
+  @apply text-accent underline-offset-2 hover:underline;
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-border bg-surface p-4 shadow-sm space-y-4;
+  }
+
+  .timeline-entry {
+    @apply rounded-lg border border-border/70 bg-background/60 p-4 space-y-3;
+  }
+
+  .row {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .muted {
+    @apply text-sm text-muted;
+  }
+
+  .status-badge {
+    @apply inline-flex items-center rounded-full border border-border bg-background px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground;
+  }
+
+  .status-ready,
+  .status-pending,
+  .status-awaiting_approval {
+    @apply border-blue-200 bg-blue-50 text-blue-700;
+  }
+
+  .status-in_progress,
+  .status-running,
+  .status-processing {
+    @apply border-amber-200 bg-amber-50 text-amber-700;
+  }
+
+  .status-blocked,
+  .status-escalated,
+  .status-paused {
+    @apply border-orange-200 bg-orange-50 text-orange-700;
+  }
+
+  .status-completed,
+  .status-approved {
+    @apply border-green-200 bg-green-50 text-green-700;
+  }
+
+  .status-failed,
+  .status-cancelled,
+  .status-rejected {
+    @apply border-red-200 bg-red-50 text-red-700;
+  }
+
+  .button {
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-border/20 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .input {
+    @apply w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  .table {
+    @apply w-full border-collapse text-left text-sm;
+  }
+
+  .table thead {
+    @apply bg-background/70;
+  }
+
+  .table th {
+    @apply border-b border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground;
+  }
+
+  .table td {
+    @apply border-b border-border/60 px-3 py-2 align-top;
+  }
+
+  .workflow-lane-grid {
+    @apply grid gap-4 xl:grid-cols-3;
+  }
+
+  .two {
+    @apply gap-4 xl:grid-cols-[1.6fr,1fr];
+  }
+
+  .workflow-lane {
+    @apply min-h-[18rem];
+  }
+
+  .workflow-item-card {
+    @apply transition-colors hover:border-accent/40 hover:bg-background/80;
+  }
+
+  .mission-grid {
+    @apply grid flex-1 gap-3 sm:grid-cols-2 xl:grid-cols-3;
+  }
+
+  .mission-metric {
+    @apply rounded-lg border border-border bg-background/70 p-3;
+  }
+
+  .structured-record {
+    @apply grid gap-3;
+  }
+
+  .structured-record-row {
+    @apply grid gap-1 rounded-md border border-border/60 bg-background/70 p-3;
+  }
+
+  .structured-list {
+    @apply list-disc space-y-1 pl-5;
+  }
+
+  .structured-stack {
+    @apply grid gap-3;
+  }
+
+  .structured-subsection {
+    @apply rounded-md border border-border/60 bg-background/50 p-3;
+  }
+
+  .search-results {
+    @apply grid gap-3;
+  }
+}

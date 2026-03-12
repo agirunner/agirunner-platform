@@ -117,21 +117,22 @@ describe('FR-031a: live workflow execution view', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-032: workflow list view', () => {
   it('workflow-list-page exports WorkflowListPage component', () => {
-    const source = readComponent('pages/workflow-list-page.tsx');
+    const source = readComponent('pages/work/workflow-list-page.tsx');
     expect(source).toContain('export function WorkflowListPage');
   });
 
-  it('workflow-list-page keeps workflow state only as a fallback signal', () => {
-    const source = readComponent('pages/workflow-list-page.tsx');
-    expect(source).toContain('Delivery Posture Fallback');
-    expect(source).toContain('describeDeliveryPostureLabel');
+  it('workflow-list-page uses board posture and operator summaries', () => {
+    const source = readComponent('pages/work/workflow-list-page.tsx');
+    expect(source).toContain('Board Posture');
+    expect(source).toContain('describeOperatorSignal');
+    expect(source).toContain('describeWorkItemSummary');
   });
 
-  it('workflow-list-page includes AI planning launch controls', () => {
-    const source = readComponent('pages/workflow-list-page.tsx');
-    expect(source).toContain('Start With AI Planning');
-    expect(source).toContain('createPlanningWorkflow');
-    expect(source).toContain('listProjects');
+  it('workflow-list-page includes V2 launch controls', () => {
+    const source = readComponent('pages/work/workflow-list-page.tsx');
+    expect(source).toContain('Launch Playbook');
+    expect(source).toContain('SavedViews');
+    expect(source).toContain('normalizeWorkflows');
   });
 });
 
@@ -145,30 +146,29 @@ describe('FR-032: workflow list view', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-033 / FR-034 / FR-035 / FR-035a / FR-036 / FR-213: task detail page', () => {
   it('task-detail-page exports TaskDetailPage component', () => {
-    const source = readComponent('pages/task-detail-page.tsx');
+    const source = readComponent('pages/work/task-detail-page.tsx');
     expect(source).toContain('export function TaskDetailPage');
   });
 
   it('task-detail-page fetches full task data via getTask', () => {
-    const source = readComponent('pages/task-detail-page.tsx');
+    const source = readComponent('pages/work/task-detail-page.tsx');
     expect(source).toContain('getTask');
     expect(source).toContain('useQuery');
   });
 
   it('task-detail-page renders structured task inspection views', () => {
-    const source = readComponent('pages/task-detail-page.tsx');
-    expect(source).toContain('StructuredRecordView');
-    expect(source).toContain('Execution Summary');
-    expect(source).toContain('Operator Actions');
+    const source = readComponent('pages/work/task-detail-page.tsx');
+    expect(source).toContain('LogViewer');
+    expect(source).toContain('Output');
+    expect(source).toContain('TaskActionButtons');
   });
 
-  it('task-detail-page surfaces clarification and rework details beyond raw JSON', () => {
-    const source = readComponent('pages/task-detail-page.tsx');
-    expect(source).toContain('Clarification & Rework');
-    expect(source).toContain('Escalation Response');
-    expect(source).toContain('readClarificationHistory');
-    expect(source).toContain('readReworkDetails');
-    expect(source).toContain('normalizeTaskState');
+  it('task-detail-page uses work-item-first operator controls and current step labels', () => {
+    const source = readComponent('pages/work/task-detail-page.tsx');
+    expect(source).toContain('Open Work Item Flow');
+    expect(source).toContain('Specialist step');
+    expect(source).toContain('Escalated specialist step');
+    expect(source).toContain('normalizeTaskStatus');
   });
 
   it('task-detail-page exposes produced artifact inspection links', () => {
@@ -193,7 +193,7 @@ describe('FR-036a / FR-423 / FR-717: workflow detail and dependency graph', () =
 
   it('workflow-detail-page renders task dependency graph as a list', () => {
     const source = `${readComponent('pages/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail-sections.tsx')}`;
-    expect(source).toContain('Execution Graph');
+    expect(source).toContain('Execution Steps');
     expect(source).toContain('depends_on');
   });
 
@@ -206,7 +206,7 @@ describe('FR-036a / FR-423 / FR-717: workflow detail and dependency graph', () =
     const source = `${readComponent('pages/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail-sections.tsx')}`;
     expect(source).toContain('Create Work Item');
     expect(source).toContain('Live stages');
-    expect(source).toContain('Activation Queue');
+    expect(source).toContain('Orchestrator Activations');
     expect(source).toContain('Resolved Config');
     expect(source).toContain('Project Timeline');
     expect(source).not.toContain('Manual Rework');
@@ -363,7 +363,7 @@ describe('operator information architecture', () => {
   });
 
   it('integrations page exposes integration lifecycle controls', () => {
-    const source = readComponent('pages/integrations-page.tsx');
+    const source = readComponent('pages/config/integrations-page.tsx');
     expect(source).toContain('export function IntegrationsPage');
     expect(source).toContain('createIntegration');
     expect(source).toContain('updateIntegration');
@@ -382,10 +382,10 @@ describe('operator information architecture', () => {
 // FR-429: Workflow list view with filters
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-429: workflow list view with filters', () => {
-  it('workflow-list-page renders the workflow table with fallback state filtering capability', () => {
-    const source = readComponent('pages/workflow-list-page.tsx');
+  it('workflow-list-page renders the workflow table with board posture filtering capability', () => {
+    const source = readComponent('pages/work/workflow-list-page.tsx');
     expect(source).toContain('WorkflowListPage');
-    expect(source).toContain('Delivery Posture Fallback');
+    expect(source).toContain('Board Posture');
   });
 
   it('listTasks API supports workflow_id filter for scoped task view', () => {
@@ -395,9 +395,9 @@ describe('FR-429: workflow list view with filters', () => {
   });
 
   it('workflow-list-page subscribes to SSE to refresh list on workflow events', () => {
-    const source = readComponent('pages/workflow-list-page.tsx');
-    expect(source).toContain('subscribeToEvents');
-    expect(source).toContain('workflow.');
+    const source = readComponent('pages/work/workflow-list-page.tsx');
+    expect(source).toContain('queryKey: [\'workflows\']');
+    expect(source).toContain('dashboardApi.listWorkflows');
   });
 });
 

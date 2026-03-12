@@ -22,4 +22,11 @@ describe('memory browser page source', () => {
     expect(source).toContain('normalizeWorkItemMemoryEntries');
     expect(source).toContain('Read-only scoped memory entries');
   });
+
+  it('supports discoverable project-scoped memory routes', () => {
+    const source = readSource();
+    expect(source).toContain('scopedProjectId');
+    expect(source).toContain('Back to Project');
+    expect(source).toContain('disabled={scopedProjectId.length > 0}');
+  });
 });

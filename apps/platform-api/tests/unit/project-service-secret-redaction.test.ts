@@ -131,4 +131,40 @@ describe('ProjectService secret redaction', () => {
       [TENANT_ID, PROJECT_ID, expect.stringMatching(/^enc:v\d+:/)],
     );
   });
+
+  it('redacts secret-like settings and memory values even when the field name is not secret-like', async () => {
+    const pool = {
+      query: vi.fn().mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{
+          ...projectRow,
+          settings: {
+            endpoint: {
+              auth: 'Bearer top-secret',
+              session: 'eyJhbGciOiJIUzI1NiJ9.payload.signature',
+            },
+          },
+          memory: {
+            summary: 'Bearer operator-secret',
+            session: 'eyJhbGciOiJIUzI1NiJ9.payload.signature',
+          },
+        }],
+      }),
+    };
+
+    const service = new ProjectService(pool as never, createEventService() as never);
+
+    const result = await service.getProject(TENANT_ID, PROJECT_ID);
+
+    expect(result.settings).toEqual({
+      endpoint: {
+        auth: 'redacted://project-settings-secret',
+        session: 'redacted://project-settings-secret',
+      },
+    });
+    expect(result.memory).toEqual({
+      summary: 'redacted://project-memory-secret',
+      session: 'redacted://project-memory-secret',
+    });
+  });
 });

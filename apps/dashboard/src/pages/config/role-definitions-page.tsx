@@ -1,32 +1,11 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Loader2,
-  ChevronDown,
-  ChevronRight,
-  Pencil,
-  ShieldCheck,
-} from 'lucide-react';
-import { readSession } from '../../lib/session.js';
-import { cn } from '../../lib/utils.js';
-import { Button } from '../../components/ui/button.js';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ChevronDown, ChevronRight, Loader2, Pencil, Plus, ShieldCheck } from 'lucide-react';
+
 import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog.js';
 import { Input } from '../../components/ui/input.js';
-import { Textarea } from '../../components/ui/textarea.js';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '../../components/ui/dialog.js';
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from '../../components/ui/table.js';
 import {
   Select,
   SelectContent,
@@ -34,6 +13,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select.js';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../../components/ui/table.js';
+import { Textarea } from '../../components/ui/textarea.js';
+import { readSession } from '../../lib/session.js';
+import { cn } from '../../lib/utils.js';
 
 interface RoleDefinition {
   id: string;
@@ -42,61 +32,23 @@ interface RoleDefinition {
   system_prompt?: string;
   allowed_tools?: string[];
   capabilities?: string[];
-  model?: string;
+  model_preference?: string;
   verification_strategy?: string;
   escalation_target?: string | null;
   max_escalation_depth?: number;
 }
 
-interface RoleEditForm {
+interface RoleFormState {
   name: string;
   description: string;
-  system_prompt: string;
-  allowed_tools: string[];
-  verification_strategy: string;
-  escalation_target: string | null;
-  max_escalation_depth: number;
+  systemPrompt: string;
+  allowedTools: string[];
+  verificationStrategy: string;
+  escalationTarget: string | null;
+  maxEscalationDepth: number;
 }
 
-const API_BASE_URL =
-  import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
-
-function getAuthHeaders(): Record<string, string> {
-  const session = readSession();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (session?.accessToken) {
-    headers.Authorization = `Bearer ${session.accessToken}`;
-  }
-  return headers;
-}
-
-async function fetchRoles(): Promise<RoleDefinition[]> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/config/roles`, {
-    headers: getAuthHeaders(),
-    credentials: 'include',
-  });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body = await response.json();
-  return body.data ?? body;
-}
-
-async function updateRole(
-  roleId: string,
-  payload: Partial<RoleEditForm>,
-): Promise<RoleDefinition> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/config/roles/${roleId}`, {
-    method: 'PATCH',
-    headers: getAuthHeaders(),
-    credentials: 'include',
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body = await response.json();
-  return body.data ?? body;
-}
-
+const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 const KNOWN_TOOLS = [
   'shell_exec',
   'file_read',
@@ -114,296 +66,176 @@ const KNOWN_TOOLS = [
   'escalate',
 ];
 
-function RoleRow({ role, allRoles }: { role: RoleDefinition; allRoles: RoleDefinition[] }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-
-  return (
-    <>
-      <TableRow
-        className={cn('cursor-pointer', isExpanded && 'border-b-0')}
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <TableCell>
-          <div className="flex items-center gap-2">
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4 text-muted" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-muted" />
-            )}
-            <span className="font-medium">{role.name}</span>
-          </div>
-        </TableCell>
-        <TableCell className="text-sm text-muted">
-          {role.description ?? '-'}
-        </TableCell>
-        <TableCell>
-          <Badge variant="outline">
-            {role.allowed_tools?.length ?? 0}
-          </Badge>
-        </TableCell>
-        <TableCell className="font-mono text-xs">
-          {role.model ?? 'default'}
-        </TableCell>
-        <TableCell>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsEditing(true);
-            }}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-        </TableCell>
-      </TableRow>
-      {isExpanded && (
-        <TableRow>
-          <TableCell colSpan={5} className="bg-border/10">
-            <div className="space-y-3 py-2">
-              {role.system_prompt && (
-                <div>
-                  <p className="text-xs font-medium text-muted mb-1">
-                    System Prompt Preview
-                  </p>
-                  <p className="text-sm bg-surface rounded p-2 font-mono whitespace-pre-wrap max-h-32 overflow-auto">
-                    {role.system_prompt.length > 300
-                      ? `${role.system_prompt.slice(0, 300)}...`
-                      : role.system_prompt}
-                  </p>
-                </div>
-              )}
-              {role.capabilities && role.capabilities.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-muted mb-1">
-                    Capabilities
-                  </p>
-                  <div className="flex flex-wrap gap-1">
-                    {role.capabilities.map((cap) => (
-                      <Badge key={cap} variant="secondary">
-                        {cap}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {role.allowed_tools && role.allowed_tools.length > 0 && (
-                <div>
-                  <p className="text-xs font-medium text-muted mb-1">
-                    Allowed Tools
-                  </p>
-                  <div className="flex flex-wrap gap-1">
-                    {role.allowed_tools.map((tool) => (
-                      <Badge key={tool} variant="outline">
-                        {tool}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </TableCell>
-        </TableRow>
-      )}
-      {isEditing && (
-        <RoleEditDialog
-          role={role}
-          allRoles={allRoles}
-          onClose={() => setIsEditing(false)}
-        />
-      )}
-    </>
-  );
+function getAuthHeaders(): Record<string, string> {
+  const session = readSession();
+  return {
+    'Content-Type': 'application/json',
+    ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
+  };
 }
 
-function RoleEditDialog({
-  role,
-  allRoles,
-  onClose,
-}: {
-  role: RoleDefinition;
-  allRoles: RoleDefinition[];
-  onClose: () => void;
+function listAvailableTools(role?: RoleDefinition | null): string[] {
+  return [...new Set([...(role?.allowed_tools ?? []), ...KNOWN_TOOLS])].sort();
+}
+
+function createRoleForm(role?: RoleDefinition | null): RoleFormState {
+  return {
+    name: role?.name ?? '',
+    description: role?.description ?? '',
+    systemPrompt: role?.system_prompt ?? '',
+    allowedTools: role?.allowed_tools ?? [],
+    verificationStrategy: role?.verification_strategy ?? 'none',
+    escalationTarget: role?.escalation_target ?? null,
+    maxEscalationDepth: role?.max_escalation_depth ?? 5,
+  };
+}
+
+function buildRolePayload(form: RoleFormState) {
+  return {
+    name: form.name.trim(),
+    description: form.description.trim() || undefined,
+    systemPrompt: form.systemPrompt.trim() || undefined,
+    allowedTools: form.allowedTools,
+    verificationStrategy: form.verificationStrategy,
+    escalationTarget: form.escalationTarget,
+    maxEscalationDepth: form.escalationTarget ? form.maxEscalationDepth : undefined,
+  };
+}
+
+async function fetchRoles(): Promise<RoleDefinition[]> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/config/roles`, {
+    headers: getAuthHeaders(),
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const body = await response.json();
+  return body.data ?? body;
+}
+
+async function createRole(form: RoleFormState): Promise<RoleDefinition> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/config/roles`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(buildRolePayload(form)),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const body = await response.json();
+  return body.data ?? body;
+}
+
+async function updateRole(roleId: string, form: RoleFormState): Promise<RoleDefinition> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/config/roles/${roleId}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(buildRolePayload(form)),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const body = await response.json();
+  return body.data ?? body;
+}
+
+function RoleDialog(props: {
+  role?: RoleDefinition | null;
+  roles: RoleDefinition[];
+  onClose(): void;
 }) {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState<RoleEditForm>({
-    name: role.name,
-    description: role.description ?? '',
-    system_prompt: role.system_prompt ?? '',
-    allowed_tools: role.allowed_tools ?? [],
-    verification_strategy: role.verification_strategy ?? 'none',
-    escalation_target: role.escalation_target ?? null,
-    max_escalation_depth: role.max_escalation_depth ?? 5,
-  });
-
-  const otherRoles = allRoles.filter((r) => r.id !== role.id);
-
+  const [form, setForm] = useState<RoleFormState>(createRoleForm(props.role));
   const mutation = useMutation({
-    mutationFn: () =>
-      updateRole(role.id, {
-        ...form,
-        escalation_target: form.escalation_target,
-        max_escalation_depth: form.escalation_target != null ? form.max_escalation_depth : undefined,
-      } as Partial<RoleEditForm> & { escalation_target: string | null; max_escalation_depth?: number }),
+    mutationFn: () => (props.role ? updateRole(props.role.id, form) : createRole(form)),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['roles'] });
-      onClose();
+      void queryClient.invalidateQueries({ queryKey: ['roles'] });
+      props.onClose();
     },
   });
+  const otherRoles = props.roles.filter((role) => role.id !== props.role?.id);
+  const availableTools = listAvailableTools(props.role);
 
   function toggleTool(tool: string) {
-    setForm((prev) => {
-      const hasIt = prev.allowed_tools.includes(tool);
-      return {
-        ...prev,
-        allowed_tools: hasIt
-          ? prev.allowed_tools.filter((t) => t !== tool)
-          : [...prev.allowed_tools, tool],
-      };
-    });
+    setForm((current) => ({
+      ...current,
+      allowedTools: current.allowedTools.includes(tool)
+        ? current.allowedTools.filter((value) => value !== tool)
+        : [...current.allowedTools, tool],
+    }));
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg">
+    <Dialog open onOpenChange={(open) => !open && props.onClose()}>
+      <DialogContent className="max-h-[85vh] max-w-4xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Role: {role.name}</DialogTitle>
+          <DialogTitle>{props.role ? `Edit Role: ${props.role.name}` : 'Create Role'}</DialogTitle>
         </DialogHeader>
         <form
           className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
+          onSubmit={(event) => {
+            event.preventDefault();
             mutation.mutate();
           }}
         >
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Name</label>
-            <Input
-              value={form.name}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, name: e.target.value }))
-              }
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Description</label>
-            <Input
-              value={form.description}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, description: e.target.value }))
-              }
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">System Prompt</label>
-            <Textarea
-              value={form.system_prompt}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, system_prompt: e.target.value }))
-              }
-              rows={5}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Allowed Tools</label>
-            <div className="grid grid-cols-2 gap-2">
-              {KNOWN_TOOLS.map((tool) => (
-                <label
-                  key={tool}
-                  className="flex items-center gap-2 text-sm cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={form.allowed_tools.includes(tool)}
-                    onChange={() => toggleTool(tool)}
-                    className="rounded"
-                  />
+          <label className="grid gap-2 text-sm">
+            <span className="font-medium">Name</span>
+            <Input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required />
+          </label>
+          <label className="grid gap-2 text-sm">
+            <span className="font-medium">Description</span>
+            <Input value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} />
+          </label>
+          <label className="grid gap-2 text-sm">
+            <span className="font-medium">System Prompt</span>
+            <Textarea value={form.systemPrompt} onChange={(event) => setForm((current) => ({ ...current, systemPrompt: event.target.value }))} rows={6} />
+          </label>
+          <div className="grid gap-2 text-sm">
+            <span className="font-medium">Allowed Tools</span>
+            <p className="text-xs text-muted">Existing grants that are no longer in the standard catalog still stay editable here.</p>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {availableTools.map((tool) => (
+                <label key={tool} className="flex items-center gap-2 rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-sm">
+                  <input type="checkbox" checked={form.allowedTools.includes(tool)} onChange={() => toggleTool(tool)} className="rounded" />
                   {tool}
                 </label>
               ))}
             </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Verification Strategy</label>
-            <Select
-              value={form.verification_strategy}
-              onValueChange={(v) =>
-                setForm((prev) => ({ ...prev, verification_strategy: v }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                <SelectItem value="peer_review">Peer Review</SelectItem>
-                <SelectItem value="human_approval">Human Approval</SelectItem>
-                <SelectItem value="automated_test">Automated Test</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="grid gap-2 text-sm">
+              <span className="font-medium">Verification Strategy</span>
+              <Select value={form.verificationStrategy} onValueChange={(value) => setForm((current) => ({ ...current, verificationStrategy: value }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="peer_review">Peer review</SelectItem>
+                  <SelectItem value="human_approval">Human approval</SelectItem>
+                  <SelectItem value="automated_test">Automated test</SelectItem>
+                </SelectContent>
+              </Select>
+            </label>
+            <label className="grid gap-2 text-sm">
+              <span className="font-medium">Escalation Target</span>
+              <Select value={form.escalationTarget ?? '__none__'} onValueChange={(value) => setForm((current) => ({ ...current, escalationTarget: value === '__none__' ? null : value }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">None</SelectItem>
+                  <SelectItem value="human">Human</SelectItem>
+                  {otherRoles.map((role) => <SelectItem key={role.id} value={role.name}>{role.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </label>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Escalation Target</label>
-            <Select
-              value={form.escalation_target ?? '__none__'}
-              onValueChange={(v) =>
-                setForm((prev) => ({
-                  ...prev,
-                  escalation_target: v === '__none__' ? null : v,
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">None</SelectItem>
-                <SelectItem value="human">Human</SelectItem>
-                {otherRoles.map((r) => (
-                  <SelectItem key={r.name} value={r.name}>
-                    {r.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted">
-              Where escalations go when this role&apos;s agent requests help or exhausts retries.
-            </p>
-          </div>
-          {form.escalation_target != null && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Max Escalation Depth</label>
-              <Input
-                type="number"
-                min={1}
-                max={10}
-                value={form.max_escalation_depth}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    max_escalation_depth: Math.max(1, Math.min(10, Number(e.target.value))),
-                  }))
-                }
-              />
-              <p className="text-xs text-muted">
-                Maximum recursive escalation depth before the task fails (1-10).
-              </p>
-            </div>
-          )}
-          {mutation.error && (
-            <p className="text-sm text-red-600">{String(mutation.error)}</p>
-          )}
+          {form.escalationTarget ? (
+            <label className="grid gap-2 text-sm">
+              <span className="font-medium">Max Escalation Depth</span>
+              <Input type="number" min={1} max={10} value={form.maxEscalationDepth} onChange={(event) => setForm((current) => ({ ...current, maxEscalationDepth: Math.max(1, Math.min(10, Number(event.target.value) || 1)) }))} />
+            </label>
+          ) : null}
+          {mutation.error ? <p className="text-sm text-red-600">{String(mutation.error)}</p> : null}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
+            <Button type="button" variant="outline" onClick={props.onClose}>Cancel</Button>
             <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending && (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              )}
-              Save
+              {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {props.role ? 'Save' : 'Create Role'}
             </Button>
           </div>
         </form>
@@ -412,67 +244,70 @@ function RoleEditDialog({
   );
 }
 
-export function RoleDefinitionsPage(): JSX.Element {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['roles'],
-    queryFn: fetchRoles,
-  });
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          Failed to load roles: {String(error)}
-        </div>
-      </div>
-    );
-  }
-
-  const roles = Array.isArray(data) ? data : [];
-
+function RoleRow(props: { role: RoleDefinition; roles: RoleDefinition[]; onEdit(role: RoleDefinition): void }) {
+  const [isExpanded, setIsExpanded] = useState(false);
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Role Definitions</h1>
-        <p className="text-sm text-muted">
-          Define agent roles, permissions, and capability sets.
-        </p>
-      </div>
+    <>
+      <TableRow className={cn('cursor-pointer', isExpanded && 'border-b-0')} onClick={() => setIsExpanded((value) => !value)}>
+        <TableCell><div className="flex items-center gap-2">{isExpanded ? <ChevronDown className="h-4 w-4 text-muted" /> : <ChevronRight className="h-4 w-4 text-muted" />}<span className="font-medium">{props.role.name}</span></div></TableCell>
+        <TableCell className="text-sm text-muted">{props.role.description ?? '-'}</TableCell>
+        <TableCell><Badge variant="outline">{props.role.allowed_tools?.length ?? 0}</Badge></TableCell>
+        <TableCell className="font-mono text-xs">{props.role.model_preference ?? 'default'}</TableCell>
+        <TableCell><Button size="icon" variant="ghost" onClick={(event) => { event.stopPropagation(); props.onEdit(props.role); }}><Pencil className="h-4 w-4" /></Button></TableCell>
+      </TableRow>
+      {isExpanded ? (
+        <TableRow>
+          <TableCell colSpan={5} className="bg-border/10">
+            <div className="space-y-3 py-2">
+              {props.role.system_prompt ? <p className="rounded bg-surface p-3 font-mono text-sm whitespace-pre-wrap">{props.role.system_prompt}</p> : null}
+              {props.role.capabilities?.length ? <div className="flex flex-wrap gap-1">{props.role.capabilities.map((capability) => <Badge key={capability} variant="secondary">{capability}</Badge>)}</div> : null}
+              {props.role.allowed_tools?.length ? <div className="flex flex-wrap gap-1">{props.role.allowed_tools.map((tool) => <Badge key={tool} variant="outline">{tool}</Badge>)}</div> : null}
+            </div>
+          </TableCell>
+        </TableRow>
+      ) : null}
+    </>
+  );
+}
 
+export function RoleDefinitionsPage(): JSX.Element {
+  const [editingRole, setEditingRole] = useState<RoleDefinition | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const rolesQuery = useQuery({ queryKey: ['roles'], queryFn: fetchRoles });
+
+  if (rolesQuery.isLoading) {
+    return <div className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-muted" /></div>;
+  }
+  if (rolesQuery.error) {
+    return <div className="p-6"><div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">Failed to load roles: {String(rolesQuery.error)}</div></div>;
+  }
+
+  const roles = rolesQuery.data ?? [];
+  return (
+    <div className="space-y-6 p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">Role Definitions</h1>
+          <p className="text-sm text-muted">Define agent roles, prompts, tool grants, and escalation behavior.</p>
+        </div>
+        <Button onClick={() => setIsCreating(true)}><Plus className="h-4 w-4" />Create Role</Button>
+      </div>
       {roles.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-muted">
-          <ShieldCheck className="h-12 w-12 mb-4" />
-          <p className="font-medium">No roles defined</p>
-          <p className="text-sm mt-1">
-            Roles will appear here once configured.
-          </p>
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/70 bg-muted/10 py-12 text-center text-muted">
+          <ShieldCheck className="h-12 w-12" />
+          <div>
+            <p className="font-medium">No roles defined</p>
+            <p className="text-sm">Create the first role definition to configure specialists and orchestrator behavior.</p>
+          </div>
         </div>
       ) : (
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Role Name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Tools</TableHead>
-              <TableHead>Model</TableHead>
-              <TableHead className="w-[60px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {roles.map((role) => (
-              <RoleRow key={role.id} role={role} allRoles={roles} />
-            ))}
-          </TableBody>
+          <TableHeader><TableRow><TableHead>Role Name</TableHead><TableHead>Description</TableHead><TableHead>Tools</TableHead><TableHead>Model</TableHead><TableHead className="w-[60px]">Actions</TableHead></TableRow></TableHeader>
+          <TableBody>{roles.map((role) => <RoleRow key={role.id} role={role} roles={roles} onEdit={setEditingRole} />)}</TableBody>
         </Table>
       )}
+      {isCreating ? <RoleDialog roles={roles} onClose={() => setIsCreating(false)} /> : null}
+      {editingRole ? <RoleDialog role={editingRole} roles={roles} onClose={() => setEditingRole(null)} /> : null}
     </div>
   );
 }

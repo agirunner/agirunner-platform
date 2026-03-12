@@ -28,6 +28,9 @@ describe('gate detail card source', () => {
     expect(source).toContain('Gate ID');
     expect(source).toContain('Approve Gate');
     expect(source).toContain('Reject Gate');
+    expect(source).toContain('Follow-up error details');
+    expect(source).toContain('StructuredRecordView');
+    expect(source).not.toContain('JSON.stringify(resume.error)');
     expect(source).toContain('actOnGate(');
     expect(source).toContain('buildApprovalQueueGatePermalink');
   });
@@ -36,5 +39,13 @@ describe('gate detail card source', () => {
     const source = readSource();
     expect(source).toContain("props.source === 'workflow-detail'");
     expect(source).toContain("location.hash === `#gate-${props.gate.stage_name}`");
+  });
+
+  it('keeps the request-changes dialog scroll-safe for long review packets', () => {
+    const source = readSource();
+    expect(source).toContain('DialogContent className="sm:max-w-lg"');
+    expect(source).toContain('max-h-[75vh]');
+    expect(source).toContain('overflow-y-auto');
+    expect(source).toContain('className="min-h-[140px]"');
   });
 });

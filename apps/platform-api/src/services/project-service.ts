@@ -6,6 +6,7 @@ import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-
 import { readModelOverride, type ModelOverride } from './config-hierarchy-service.js';
 import { EventService } from './event-service.js';
 import type { ProjectMemoryMutationContext } from './project-memory-scope-service.js';
+import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 import { encryptWebhookSecret, decryptWebhookSecret, isWebhookSecretEncrypted } from './webhook-secret-crypto.js';
 
 interface ProjectListQuery {
@@ -36,7 +37,6 @@ interface UpdateProjectInput {
 type ProjectRow = TenantRow & Record<string, unknown>;
 const PROJECT_MEMORY_SECRET_REDACTION = 'redacted://project-memory-secret';
 const PROJECT_SETTINGS_SECRET_REDACTION = 'redacted://project-settings-secret';
-const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
 
 function byteLengthJson(value: Record<string, unknown>): number {
   return Buffer.byteLength(JSON.stringify(value), 'utf8');
@@ -50,50 +50,14 @@ function normalizeRecord(value: unknown): Record<string, unknown> {
 }
 
 function sanitizeMemoryEventValue(key: string, value: unknown): unknown {
-  return sanitizeSecretLikeValue(value, isSecretLikeKey(key));
+  return sanitizeSecretLikeRecord(
+    { [key]: value },
+    { redactionValue: PROJECT_MEMORY_SECRET_REDACTION },
+  )[key];
 }
 
 function sanitizeProjectRecordValue(key: string, value: unknown, redactionValue: string): unknown {
-  return sanitizeSecretLikeValue(value, isSecretLikeKey(key), redactionValue);
-}
-
-function sanitizeSecretLikeValue(
-  value: unknown,
-  inheritedSecret: boolean,
-  redactionValue = PROJECT_MEMORY_SECRET_REDACTION,
-): unknown {
-  if (typeof value === 'string') {
-    return inheritedSecret && !isSecretReference(value)
-      ? redactionValue
-      : value;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => sanitizeSecretLikeValue(item, inheritedSecret, redactionValue));
-  }
-
-  if (!value || typeof value !== 'object') {
-    return value;
-  }
-
-  const sanitized: Record<string, unknown> = {};
-  for (const [nestedKey, nestedValue] of Object.entries(value as Record<string, unknown>)) {
-    sanitized[nestedKey] = sanitizeSecretLikeValue(
-      nestedValue,
-      inheritedSecret || isSecretLikeKey(nestedKey),
-      redactionValue,
-    );
-  }
-  return sanitized;
-}
-
-function isSecretReference(value: string): boolean {
-  const normalized = value.trim().toLowerCase();
-  return normalized.startsWith('secret:') || normalized.startsWith('redacted://');
-}
-
-function isSecretLikeKey(key: string): boolean {
-  return secretLikeKeyPattern.test(key);
+  return sanitizeSecretLikeRecord({ [key]: value }, { redactionValue })[key];
 }
 
 function isUniqueViolation(error: unknown, constraint: string): boolean {

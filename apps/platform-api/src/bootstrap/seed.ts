@@ -6,6 +6,7 @@
  */
 import type pg from 'pg';
 
+import type { AppEnv } from '../config/schema.js';
 import {
   BUILT_IN_PLAYBOOKS,
 } from '../catalogs/built-in-playbooks.js';
@@ -23,9 +24,12 @@ import { DEFAULT_TENANT_ID } from '../db/seed.js';
 // Public entry point
 // ---------------------------------------------------------------------------
 
-export async function seedConfigTables(pool: pg.Pool): Promise<void> {
+export async function seedConfigTables(
+  pool: pg.Pool,
+  config?: Pick<AppEnv, 'AGIRUNNER_ADMIN_EMAIL'>,
+): Promise<void> {
   await seedRolesAndDefaults(pool);
-  await seedAdminUser(pool);
+  await seedAdminUser(pool, config?.AGIRUNNER_ADMIN_EMAIL);
   await seedBuiltInPlaybooks(pool);
 }
 
@@ -175,7 +179,7 @@ async function seedRuntimeDefaults(
 // Admin user
 // ---------------------------------------------------------------------------
 
-async function seedAdminUser(pool: pg.Pool): Promise<void> {
+async function seedAdminUser(pool: pg.Pool, adminEmail = 'admin@agirunner.local'): Promise<void> {
   const userService = new UserService(pool);
 
   const existing = await userService.listUsers(DEFAULT_TENANT_ID);
@@ -183,15 +187,13 @@ async function seedAdminUser(pool: pg.Pool): Promise<void> {
     return;
   }
 
-  const email = process.env.AGIRUNNER_ADMIN_EMAIL ?? 'admin@agirunner.local';
-
   await userService.createUser(DEFAULT_TENANT_ID, {
-    email,
+    email: adminEmail,
     displayName: 'Admin',
     role: 'org_admin',
   });
 
-  console.info(`[seed] Admin user created: ${email}`);
+  console.info(`[seed] Admin user created: ${adminEmail}`);
 }
 
 async function seedBuiltInPlaybooks(pool: pg.Pool): Promise<void> {

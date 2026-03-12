@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
@@ -15,8 +15,23 @@ import { buildArtifactPermalink } from '../components/artifact-preview-support.j
 import { StructuredRecordView } from '../components/structured-data.js';
 import { Badge } from '../components/ui/badge.js';
 import { Button } from '../components/ui/button.js';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../components/ui/card.js';
 import { Input } from '../components/ui/input.js';
 import { Textarea } from '../components/ui/textarea.js';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../components/ui/table.js';
 import {
   Select,
   SelectContent,
@@ -25,6 +40,7 @@ import {
   SelectValue,
 } from '../components/ui/select.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs.js';
+import { cn } from '../lib/utils.js';
 import {
   buildWorkItemBreadcrumbs,
   flattenArtifactsByTask,
@@ -51,6 +67,14 @@ interface WorkflowWorkItemDetailPanelProps {
   onWorkItemChanged(): Promise<unknown> | unknown;
   onClearSelection(): void;
 }
+
+const sectionFrameClass =
+  'rounded-xl border border-border/70 bg-border/10 p-4 shadow-sm';
+const metaRowClass = 'flex flex-wrap items-center gap-2';
+const mutedBodyClass = 'text-sm leading-6 text-muted';
+const fieldStackClass = 'grid gap-2';
+const loadingTextClass = 'rounded-lg border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted';
+const errorTextClass = 'rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700';
 
 export function WorkflowWorkItemDetailPanel(
   props: WorkflowWorkItemDetailPanelProps,
@@ -217,123 +241,143 @@ export function WorkflowWorkItemDetailPanel(
       (canEditParent ? parentWorkItemId : ''));
 
   return (
-    <div className="card">
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-      <div className="grid" style={{ gap: '0.5rem' }}>
-          <div className="row">
-            <h3 style={{ margin: 0 }}>Work Item Detail</h3>
-            <Badge variant="outline">{props.tasks.length} linked steps</Badge>
-            {artifactQuery.data ? <Badge variant="outline">{artifactQuery.data.length} artifacts</Badge> : null}
+    <Card
+      className="overflow-hidden border-border/80 bg-surface/95 shadow-md"
+      data-testid="work-item-detail-shell"
+    >
+      <CardHeader className="gap-4 border-b border-border/70 bg-gradient-to-br from-surface via-surface to-border/10">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="grid gap-3">
+            <div className={metaRowClass}>
+              <Badge variant="outline">Selected operator surface</Badge>
+              <Badge variant="outline">{props.tasks.length} linked steps</Badge>
+              {artifactQuery.data ? (
+                <Badge variant="outline">{artifactQuery.data.length} artifacts</Badge>
+              ) : null}
+            </div>
+            <div className="grid gap-2">
+              <CardTitle className="text-xl">Work Item Detail</CardTitle>
+              <CardDescription className="max-w-3xl text-sm leading-6">
+                Operator view of the selected work item, including linked execution steps,
+                artifacts, event history, and scoped memory.
+              </CardDescription>
+            </div>
           </div>
-          <p className="muted">
-            Operator view of the selected work item, including linked execution steps, artifacts,
-            event history, and scoped memory.
-          </p>
+          <Button variant="outline" onClick={props.onClearSelection}>
+            Clear Selection
+          </Button>
         </div>
-        <button type="button" className="button" onClick={props.onClearSelection}>
-          Clear Selection
-        </button>
-      </div>
+      </CardHeader>
 
-      {workItemQuery.isLoading ? <p>Loading work item...</p> : null}
-      {workItemQuery.error ? (
-        <p style={{ color: '#dc2626' }}>Failed to load work item detail.</p>
-      ) : null}
-      {workItem ? (
-        <WorkItemHeader
-          workItem={boardWorkItem ?? workItem}
-          breadcrumbs={workItemBreadcrumbs}
-          childCount={milestoneChildren.length}
-          onSelectWorkItem={props.onSelectWorkItem}
-        />
-      ) : null}
-
-      {milestoneOperatorSummary ? (
-        <MilestoneOperatorSummarySection summary={milestoneOperatorSummary} />
-      ) : null}
-
-      {workItem ? (
-        <WorkItemOperatorSection
-          isMilestone={isMilestoneWorkItem(boardWorkItem)}
-          columns={props.columns}
-          stages={props.stages}
-          parentMilestones={parentMilestones}
-          stageName={stageName}
-          columnId={columnId}
-          ownerRole={ownerRole}
-          parentWorkItemId={parentWorkItemId}
-          childTitle={childTitle}
-          childGoal={childGoal}
-          onStageNameChange={setStageName}
-          onColumnIdChange={setColumnId}
-          onOwnerRoleChange={setOwnerRole}
-          onParentWorkItemIdChange={setParentWorkItemId}
-          onChildTitleChange={setChildTitle}
-          onChildGoalChange={setChildGoal}
-          onSave={() => updateWorkItemMutation.mutate()}
-          onCreateChild={() => createChildMutation.mutate()}
-          isSaving={updateWorkItemMutation.isPending}
-          isCreatingChild={createChildMutation.isPending}
-          hasChanges={hasOperatorChanges}
-          message={operatorMessage}
-          error={operatorError}
-        />
-      ) : null}
-
-      <Tabs defaultValue="steps" className="grid" data-testid="work-item-detail-tabs">
-        <TabsList>
-          <TabsTrigger value="steps">Steps</TabsTrigger>
-          <TabsTrigger value="memory">Memory</TabsTrigger>
-          <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
-          <TabsTrigger value="history">Event History</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="steps" className="grid">
-          <WorkItemTasksSection
-            workflowId={props.workflowId}
-            tasks={props.tasks}
-            isMilestone={isMilestoneWorkItem(boardWorkItem)}
+      <CardContent className="grid gap-6 p-5">
+        {workItemQuery.isLoading ? (
+          <p className={loadingTextClass}>Loading work item...</p>
+        ) : null}
+        {workItemQuery.error ? (
+          <p className={errorTextClass}>Failed to load work item detail.</p>
+        ) : null}
+        {workItem ? (
+          <WorkItemHeader
+            workItem={boardWorkItem ?? workItem}
+            breadcrumbs={workItemBreadcrumbs}
             childCount={milestoneChildren.length}
-            onWorkItemChanged={props.onWorkItemChanged}
+            linkedTaskCount={props.tasks.length}
+            artifactCount={artifactQuery.data?.length ?? 0}
+            onSelectWorkItem={props.onSelectWorkItem}
           />
-        </TabsContent>
+        ) : null}
 
-        <TabsContent value="memory" className="grid">
-          <WorkItemMemorySection
-            isLoading={memoryQuery.isLoading}
-            hasError={Boolean(memoryQuery.error)}
-            entries={memoryEntries}
-            history={memoryHistory}
-            isHistoryLoading={memoryHistoryQuery.isLoading}
-            hasHistoryError={Boolean(memoryHistoryQuery.error)}
+        {milestoneOperatorSummary ? (
+          <MilestoneOperatorSummarySection summary={milestoneOperatorSummary} />
+        ) : null}
+
+        {workItem ? (
+          <WorkItemOperatorSection
+            isMilestone={isMilestoneWorkItem(boardWorkItem)}
+            columns={props.columns}
+            stages={props.stages}
+            parentMilestones={parentMilestones}
+            stageName={stageName}
+            columnId={columnId}
+            ownerRole={ownerRole}
+            parentWorkItemId={parentWorkItemId}
+            childTitle={childTitle}
+            childGoal={childGoal}
+            onStageNameChange={setStageName}
+            onColumnIdChange={setColumnId}
+            onOwnerRoleChange={setOwnerRole}
+            onParentWorkItemIdChange={setParentWorkItemId}
+            onChildTitleChange={setChildTitle}
+            onChildGoalChange={setChildGoal}
+            onSave={() => updateWorkItemMutation.mutate()}
+            onCreateChild={() => createChildMutation.mutate()}
+            isSaving={updateWorkItemMutation.isPending}
+            isCreatingChild={createChildMutation.isPending}
+            hasChanges={hasOperatorChanges}
+            message={operatorMessage}
+            error={operatorError}
           />
-        </TabsContent>
+        ) : null}
 
-        <TabsContent value="artifacts" className="grid">
-          <WorkItemArtifactsSection
-            isLoading={artifactQuery.isLoading}
-            hasError={Boolean(artifactQuery.error)}
-            tasks={props.tasks}
-            artifacts={artifactQuery.data ?? []}
+        <Tabs
+          defaultValue="steps"
+          className="grid gap-4"
+          data-testid="work-item-detail-tabs"
+        >
+          <TabsList className="flex h-auto w-full flex-wrap gap-2 rounded-xl border border-border/70 bg-border/10 p-1">
+            <TabsTrigger value="steps">Steps</TabsTrigger>
+            <TabsTrigger value="memory">Memory</TabsTrigger>
+            <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
+            <TabsTrigger value="history">Event History</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="steps" className="mt-0 grid">
+            <WorkItemTasksSection
+              workflowId={props.workflowId}
+              tasks={props.tasks}
+              isMilestone={isMilestoneWorkItem(boardWorkItem)}
+              childCount={milestoneChildren.length}
+              onWorkItemChanged={props.onWorkItemChanged}
+            />
+          </TabsContent>
+
+          <TabsContent value="memory" className="mt-0 grid">
+            <WorkItemMemorySection
+              isLoading={memoryQuery.isLoading}
+              hasError={Boolean(memoryQuery.error)}
+              entries={memoryEntries}
+              history={memoryHistory}
+              isHistoryLoading={memoryHistoryQuery.isLoading}
+              hasHistoryError={Boolean(memoryHistoryQuery.error)}
+            />
+          </TabsContent>
+
+          <TabsContent value="artifacts" className="mt-0 grid">
+            <WorkItemArtifactsSection
+              isLoading={artifactQuery.isLoading}
+              hasError={Boolean(artifactQuery.error)}
+              tasks={props.tasks}
+              artifacts={artifactQuery.data ?? []}
+            />
+          </TabsContent>
+
+          <TabsContent value="history" className="mt-0 grid">
+            <WorkItemEventHistorySection
+              isLoading={eventQuery.isLoading}
+              hasError={Boolean(eventQuery.error)}
+              events={events}
+            />
+          </TabsContent>
+        </Tabs>
+
+        {isMilestoneWorkItem(boardWorkItem) ? (
+          <MilestoneChildrenSection
+            children={milestoneChildren}
+            onSelectWorkItem={props.onSelectWorkItem}
           />
-        </TabsContent>
-
-        <TabsContent value="history" className="grid">
-          <WorkItemEventHistorySection
-            isLoading={eventQuery.isLoading}
-            hasError={Boolean(eventQuery.error)}
-            events={events}
-          />
-        </TabsContent>
-      </Tabs>
-
-      {isMilestoneWorkItem(boardWorkItem) ? (
-        <MilestoneChildrenSection
-          children={milestoneChildren}
-          onSelectWorkItem={props.onSelectWorkItem}
-        />
-      ) : null}
-    </div>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -363,124 +407,189 @@ function WorkItemOperatorSection(props: {
   error: string | null;
 }): JSX.Element {
   return (
-    <div className="grid" style={{ gap: '0.75rem', marginTop: '0.75rem' }}>
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <strong>Operator Flow Controls</strong>
+    <section
+      className="grid gap-4 rounded-xl border border-border/70 bg-gradient-to-br from-border/10 via-surface to-surface p-4 shadow-sm"
+      data-testid="work-item-operator-controls"
+    >
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="grid gap-2">
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+            Operator flow controls
+          </div>
+          <strong className="text-base">Operator Flow Controls</strong>
+        </div>
         {props.isMilestone ? (
           <Badge variant="outline">Milestone operator mode</Badge>
         ) : (
           <Badge variant="outline">Child/top-level operator mode</Badge>
         )}
       </div>
-      <p className="muted">
+      <p className={mutedBodyClass}>
         Adjust board placement, stage ownership, and milestone nesting without leaving the work-item operator view.
       </p>
-      <div className="grid md:grid-cols-2" style={{ gap: '0.75rem' }}>
-        <label className="grid" style={{ gap: '0.35rem' }}>
-          <span>Stage</span>
-          <Select value={props.stageName} onValueChange={props.onStageNameChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select stage" />
-            </SelectTrigger>
-            <SelectContent>
-              {props.stages.map((stage) => (
-                <SelectItem key={stage.id} value={stage.name}>
-                  {stage.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </label>
-        <label className="grid" style={{ gap: '0.35rem' }}>
-          <span>Board column</span>
-          <Select value={props.columnId} onValueChange={props.onColumnIdChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select column" />
-            </SelectTrigger>
-            <SelectContent>
-              {props.columns.map((column) => (
-                <SelectItem key={column.id} value={column.id}>
-                  {column.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </label>
-        {!props.isMilestone ? (
-          <label className="grid" style={{ gap: '0.35rem' }}>
-            <span>Reparent under milestone</span>
-            <Select
-              value={props.parentWorkItemId || '__none__'}
-              onValueChange={(value) =>
-                props.onParentWorkItemIdChange(value === '__none__' ? '' : value)
-              }
-            >
+      <OperatorSectionCard
+        eyebrow="Board placement"
+        title="Stage and board routing"
+        description="Keep the work item in the correct stage and visible board column while execution is in flight."
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className={fieldStackClass}>
+            <span className="text-sm font-medium text-foreground">Stage</span>
+            <Select value={props.stageName} onValueChange={props.onStageNameChange}>
               <SelectTrigger>
-                <SelectValue placeholder="Top-level work item" />
+                <SelectValue placeholder="Select stage" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">Top-level work item</SelectItem>
-                {props.parentMilestones.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.title}
+                {props.stages.map((stage) => (
+                  <SelectItem key={stage.id} value={stage.name}>
+                    {stage.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </label>
-        ) : (
-          <div className="rounded-md border bg-border/10 p-3 text-sm text-muted">
-            Parent milestones stay top-level. Move or reparent child work items instead of nesting milestones.
-          </div>
-        )}
-        <label className="grid" style={{ gap: '0.35rem' }}>
-          <span>{props.isMilestone ? 'Owner role' : 'Owner role override'}</span>
-          <Input
-            value={props.ownerRole}
-            onChange={(event) => props.onOwnerRoleChange(event.target.value)}
-            placeholder={props.isMilestone ? 'Leave empty for milestones' : 'e.g. developer'}
-          />
-        </label>
-      </div>
-      {props.error ? <p style={{ color: '#dc2626' }}>{props.error}</p> : null}
-      {props.message ? <p className="muted">{props.message}</p> : null}
-      <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <label className={fieldStackClass}>
+            <span className="text-sm font-medium text-foreground">Board column</span>
+            <Select value={props.columnId} onValueChange={props.onColumnIdChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select column" />
+              </SelectTrigger>
+              <SelectContent>
+                {props.columns.map((column) => (
+                  <SelectItem key={column.id} value={column.id}>
+                    {column.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+        </div>
+      </OperatorSectionCard>
+
+      <OperatorSectionCard
+        eyebrow="Ownership and linkage"
+        title={props.isMilestone ? 'Milestone ownership' : 'Ownership and milestone linkage'}
+        description={
+          props.isMilestone
+            ? 'Milestones stay top-level and coordinate child delivery rather than nesting under another parent.'
+            : 'Adjust responsibility and milestone grouping without leaving the selected work-item flow.'
+        }
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          {!props.isMilestone ? (
+            <label className={fieldStackClass}>
+              <span className="text-sm font-medium text-foreground">Reparent under milestone</span>
+              <Select
+                value={props.parentWorkItemId || '__none__'}
+                onValueChange={(value) =>
+                  props.onParentWorkItemIdChange(value === '__none__' ? '' : value)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Top-level work item" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Top-level work item</SelectItem>
+                  {props.parentMilestones.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+          ) : (
+            <div className="rounded-lg border border-border/70 bg-border/10 p-4 text-sm leading-6 text-muted">
+              Parent milestones stay top-level. Move or reparent child work items instead of nesting milestones.
+            </div>
+          )}
+          <label className={fieldStackClass}>
+            <span className="text-sm font-medium text-foreground">
+              {props.isMilestone ? 'Owner role' : 'Owner role override'}
+            </span>
+            <Input
+              value={props.ownerRole}
+              onChange={(event) => props.onOwnerRoleChange(event.target.value)}
+              placeholder={props.isMilestone ? 'Leave empty for milestones' : 'e.g. developer'}
+            />
+          </label>
+        </div>
+      </OperatorSectionCard>
+      {props.error ? <p className={errorTextClass}>{props.error}</p> : null}
+      {props.message ? (
+        <p className="rounded-lg border border-border/70 bg-surface px-4 py-3 text-sm text-muted">
+          {props.message}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/70 bg-surface/70 px-4 py-3">
+        <div className="flex flex-wrap gap-2">
+          <Badge variant={props.hasChanges ? 'warning' : 'outline'}>
+            {props.hasChanges ? 'Unsaved operator changes' : 'No pending control changes'}
+          </Badge>
+          {props.isMilestone ? (
+            <Badge variant="secondary">Milestone flow</Badge>
+          ) : (
+            <Badge variant="secondary">Work-item flow</Badge>
+          )}
+        </div>
         <Button onClick={props.onSave} disabled={!props.hasChanges || props.isSaving}>
           {props.isSaving ? 'Saving…' : 'Save Operator Changes'}
         </Button>
       </div>
       {props.isMilestone ? (
-        <div className="grid" style={{ gap: '0.75rem' }}>
-          <strong>Create child work item</strong>
-          <p className="muted">
-            Break this milestone into child deliverables so operators can track each downstream work item separately.
-          </p>
-          <label className="grid" style={{ gap: '0.35rem' }}>
-            <span>Title</span>
-            <Input
-              value={props.childTitle}
-              onChange={(event) => props.onChildTitleChange(event.target.value)}
-              placeholder="e.g. Implement auth service"
-            />
-          </label>
-          <label className="grid" style={{ gap: '0.35rem' }}>
-            <span>Goal</span>
-            <Input
-              value={props.childGoal}
-              onChange={(event) => props.onChildGoalChange(event.target.value)}
-              placeholder="Describe the child deliverable."
-            />
-          </label>
-          <div className="row" style={{ justifyContent: 'flex-end' }}>
-            <Button
-              onClick={props.onCreateChild}
-              disabled={props.childTitle.trim().length === 0 || props.isCreatingChild}
-            >
-              {props.isCreatingChild ? 'Creating…' : 'Create Child Work Item'}
-            </Button>
+        <OperatorSectionCard
+          eyebrow="Milestone decomposition"
+          title="Create child work item"
+          description="Break this milestone into child deliverables so operators can track each downstream work item separately."
+        >
+          <div className="grid gap-4">
+            <label className={fieldStackClass}>
+              <span className="text-sm font-medium text-foreground">Title</span>
+              <Input
+                value={props.childTitle}
+                onChange={(event) => props.onChildTitleChange(event.target.value)}
+                placeholder="e.g. Implement auth service"
+              />
+            </label>
+            <label className={fieldStackClass}>
+              <span className="text-sm font-medium text-foreground">Goal</span>
+              <Input
+                value={props.childGoal}
+                onChange={(event) => props.onChildGoalChange(event.target.value)}
+                placeholder="Describe the child deliverable."
+              />
+            </label>
+            <div className="flex justify-end">
+              <Button
+                onClick={props.onCreateChild}
+                disabled={props.childTitle.trim().length === 0 || props.isCreatingChild}
+              >
+                {props.isCreatingChild ? 'Creating…' : 'Create Child Work Item'}
+              </Button>
+            </div>
           </div>
-        </div>
+        </OperatorSectionCard>
       ) : null}
+    </section>
+  );
+}
+
+function OperatorSectionCard(props: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  children: ReactNode;
+}): JSX.Element {
+  return (
+    <div className={cn(sectionFrameClass, 'grid gap-4')}>
+      <div className="grid gap-2">
+        <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+          {props.eyebrow}
+        </div>
+        <strong className="text-base">{props.title}</strong>
+        <p className={mutedBodyClass}>{props.description}</p>
+      </div>
+      {props.children}
     </div>
   );
 }
@@ -494,71 +603,77 @@ function WorkItemMemorySection(props: {
   hasHistoryError: boolean;
 }): JSX.Element {
   if (props.isLoading) {
-    return <p>Loading work-item memory...</p>;
+    return <p className={loadingTextClass}>Loading work-item memory...</p>;
   }
   if (props.hasError) {
-    return <p style={{ color: '#dc2626' }}>Failed to load work-item memory.</p>;
+    return <p className={errorTextClass}>Failed to load work-item memory.</p>;
   }
 
   return (
-    <div className="grid" style={{ gap: '1rem' }}>
-      <div className="grid" style={{ gap: '0.75rem' }}>
-        <div className="row" style={{ justifyContent: 'space-between' }}>
-          <strong>Current memory</strong>
+    <div className="grid gap-4">
+      <section className="grid gap-3 rounded-xl border border-border/70 bg-surface p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <strong className="text-base">Current memory</strong>
           <Badge variant="outline">{props.entries.length} entries</Badge>
         </div>
         {props.entries.length === 0 ? (
-          <p className="muted">No work-item memory entries recorded yet.</p>
+          <p className={mutedBodyClass}>No work-item memory entries recorded yet.</p>
         ) : (
           props.entries.map((entry) => (
-            <article key={`${entry.key}:${entry.event_id}`} className="card timeline-entry">
-              <div className="row" style={{ justifyContent: 'space-between' }}>
+            <article
+              key={`${entry.key}:${entry.event_id}`}
+              className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4"
+            >
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <strong>{entry.key}</strong>
                 <Badge variant="outline">{entry.stage_name ?? 'work item scope'}</Badge>
               </div>
-              <div className="row">
+              <div className={metaRowClass}>
                 <Badge variant="outline">{entry.actor_type}</Badge>
                 {entry.task_id ? <Badge variant="outline">task {entry.task_id}</Badge> : null}
-                <span className="muted">{formatTimestamp(entry.updated_at)}</span>
+                <span className="text-xs text-muted">{formatTimestamp(entry.updated_at)}</span>
               </div>
               <StructuredRecordView data={entry.value} emptyMessage="No memory payload." />
             </article>
           ))
         )}
-      </div>
+      </section>
 
-      <div className="grid" style={{ gap: '0.75rem' }}>
-        <div className="row" style={{ justifyContent: 'space-between' }}>
-          <strong>Memory history</strong>
+      <section className="grid gap-3 rounded-xl border border-border/70 bg-surface p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <strong className="text-base">Memory history</strong>
           <Badge variant="outline">{props.history.length} events</Badge>
         </div>
-        {props.isHistoryLoading ? <p>Loading memory history...</p> : null}
+        {props.isHistoryLoading ? <p className={loadingTextClass}>Loading memory history...</p> : null}
         {props.hasHistoryError ? (
-          <p style={{ color: '#dc2626' }}>Failed to load work-item memory history.</p>
+          <p className={errorTextClass}>Failed to load work-item memory history.</p>
         ) : null}
         {!props.isHistoryLoading && !props.hasHistoryError && props.history.length === 0 ? (
-          <p className="muted">No work-item memory history recorded yet.</p>
+          <p className={mutedBodyClass}>No work-item memory history recorded yet.</p>
         ) : null}
         {!props.isHistoryLoading && !props.hasHistoryError
           ? props.history.map((entry) => (
-              <article key={`history:${entry.event_id}`} className="card timeline-entry">
-                <div className="row" style={{ justifyContent: 'space-between' }}>
+              <article
+                key={`history:${entry.event_id}`}
+                className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4"
+              >
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <strong>{entry.key}</strong>
                   <Badge variant={entry.event_type === 'deleted' ? 'secondary' : 'outline'}>
                     {entry.event_type}
                   </Badge>
                 </div>
-                <div className="row">
+                <div className={metaRowClass}>
                   <Badge variant="outline">{entry.actor_type}</Badge>
                   {entry.stage_name ? <Badge variant="outline">{entry.stage_name}</Badge> : null}
                   {entry.task_id ? <Badge variant="outline">task {entry.task_id}</Badge> : null}
-                  <span className="muted">{formatTimestamp(entry.updated_at)}</span>
+                  <span className="text-xs text-muted">{formatTimestamp(entry.updated_at)}</span>
                 </div>
                 <StructuredRecordView data={entry.value} emptyMessage="No memory payload." />
               </article>
             ))
           : null}
-      </div>
+      </section>
     </div>
   );
 }
@@ -567,26 +682,28 @@ function WorkItemHeader(props: {
   workItem: DashboardGroupedWorkItemRecord;
   breadcrumbs: string[];
   childCount: number;
+  linkedTaskCount: number;
+  artifactCount: number;
   onSelectWorkItem(workItemId: string): void;
 }): JSX.Element {
   const { workItem } = props;
   const milestone = isMilestoneWorkItem(workItem);
   const completedChildren = workItem.children_completed ?? workItem.children?.filter((child) => child.completed_at).length ?? 0;
   return (
-    <div className="grid" style={{ gap: '0.75rem', marginTop: '0.75rem' }}>
-      <div className="row">
+    <section className="grid gap-4 rounded-xl border border-border/70 bg-gradient-to-br from-border/10 via-surface to-surface p-4 shadow-sm">
+      <div className={metaRowClass}>
         <Badge variant="outline">Operator breadcrumb</Badge>
-        <span className="muted">
+        <span className="text-sm text-muted">
           {(props.breadcrumbs.length > 0 ? props.breadcrumbs : [workItem.title]).join(' / ')}
           {workItem.stage_name ? ` / ${workItem.stage_name}` : ''}
         </span>
       </div>
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div className="grid" style={{ gap: '0.5rem' }}>
-          <strong>{workItem.title}</strong>
-          {workItem.goal ? <p className="muted">{workItem.goal}</p> : null}
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="grid gap-2">
+          <strong className="text-xl leading-tight">{workItem.title}</strong>
+          {workItem.goal ? <p className={mutedBodyClass}>{workItem.goal}</p> : null}
         </div>
-        <div className="row">
+        <div className={cn(metaRowClass, 'xl:max-w-[45%] xl:justify-end')}>
           <Badge variant="outline">{workItem.stage_name}</Badge>
           <Badge variant="outline">{workItem.priority}</Badge>
           <Badge variant="outline">{workItem.column_id}</Badge>
@@ -599,38 +716,57 @@ function WorkItemHeader(props: {
           {workItem.completed_at ? <Badge variant="secondary">completed</Badge> : null}
         </div>
       </div>
-      <div className="row">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <DetailStatCard
+          label="Stage group"
+          value={workItem.stage_name ?? 'Unassigned'}
+          detail="Current stage routing"
+        />
+        <DetailStatCard
+          label="Board placement"
+          value={workItem.column_id ?? 'Unassigned'}
+          detail="Active board column"
+        />
+        <DetailStatCard
+          label="Execution steps"
+          value={String(props.linkedTaskCount)}
+          detail="Linked operator-visible steps"
+        />
+        <DetailStatCard
+          label="Artifacts"
+          value={String(props.artifactCount)}
+          detail="Previewable outputs"
+        />
+      </div>
+      <div className={metaRowClass}>
         {workItem.owner_role ? <Badge variant="outline">{workItem.owner_role}</Badge> : null}
         {workItem.task_count !== undefined ? (
           <Badge variant="outline">{workItem.task_count} linked steps</Badge>
         ) : null}
         {workItem.parent_work_item_id ? (
-          <button
+          <Button
             type="button"
-            className="status-badge"
+            size="sm"
+            variant="outline"
             onClick={() => props.onSelectWorkItem(workItem.parent_work_item_id as string)}
           >
             Open parent milestone
-          </button>
+          </Button>
         ) : null}
       </div>
       {workItem.acceptance_criteria ? (
-        <div className="rounded-md border bg-border/10 p-3 text-sm">
+        <div className="rounded-xl border border-border/70 bg-border/10 p-4 text-sm">
           <strong>Acceptance criteria</strong>
-          <p className="muted" style={{ marginTop: '0.35rem' }}>
-            {workItem.acceptance_criteria}
-          </p>
+          <p className="mt-2 text-sm leading-6 text-muted">{workItem.acceptance_criteria}</p>
         </div>
       ) : null}
       {workItem.notes ? (
-        <div className="rounded-md border bg-border/10 p-3 text-sm">
+        <div className="rounded-xl border border-border/70 bg-border/10 p-4 text-sm">
           <strong>Notes</strong>
-          <p className="muted" style={{ marginTop: '0.35rem' }}>
-            {workItem.notes}
-          </p>
+          <p className="mt-2 text-sm leading-6 text-muted">{workItem.notes}</p>
         </div>
       ) : null}
-    </div>
+    </section>
   );
 }
 
@@ -647,32 +783,35 @@ function MilestoneOperatorSummarySection(props: {
   };
 }): JSX.Element {
   return (
-    <div className="grid md:grid-cols-3" style={{ gap: '0.75rem', marginTop: '0.75rem' }}>
-      <article className="rounded-md border bg-border/10 p-3">
+    <section
+      className="grid gap-4 md:grid-cols-3"
+      data-testid="milestone-operator-summary"
+    >
+      <article className="rounded-xl border border-border/70 bg-border/10 p-4 shadow-sm">
         <div className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
           Milestone group summary
         </div>
-        <div className="row">
+        <div className={metaRowClass}>
           <Badge variant="outline">{props.summary.totalChildren} child items</Badge>
           <Badge variant="outline">{props.summary.completedChildren} complete</Badge>
           <Badge variant="outline">{props.summary.openChildren} open</Badge>
         </div>
       </article>
-      <article className="rounded-md border bg-border/10 p-3">
+      <article className="rounded-xl border border-border/70 bg-border/10 p-4 shadow-sm">
         <div className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
           Operator attention
         </div>
-        <div className="row">
+        <div className={metaRowClass}>
           <Badge variant="warning">{props.summary.awaitingStepReviews} step reviews</Badge>
           <Badge variant="destructive">{props.summary.failedSteps} failed steps</Badge>
           <Badge variant="outline">{props.summary.inFlightSteps} in flight</Badge>
         </div>
       </article>
-      <article className="rounded-md border bg-border/10 p-3">
+      <article className="rounded-xl border border-border/70 bg-border/10 p-4 shadow-sm">
         <div className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
           Active footprint
         </div>
-        <div className="row">
+        <div className={metaRowClass}>
           <Badge variant="outline">
             {props.summary.activeStageNames.length} live stage
             {props.summary.activeStageNames.length === 1 ? '' : 's'}
@@ -683,7 +822,7 @@ function MilestoneOperatorSummarySection(props: {
           </Badge>
         </div>
       </article>
-    </div>
+    </section>
   );
 }
 
@@ -695,55 +834,83 @@ function WorkItemTasksSection(props: {
   onWorkItemChanged(): Promise<unknown> | unknown;
 }): JSX.Element {
   if (props.tasks.length === 0) {
-    return <p className="muted">No execution steps are linked to this work item yet.</p>;
+    return (
+      <div className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted">
+        No execution steps are linked to this work item yet.
+      </div>
+    );
   }
 
   return (
-    <div className="grid" style={{ gap: '0.75rem' }}>
+    <section className="grid gap-4 rounded-xl border border-border/70 bg-surface p-4 shadow-sm">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <DetailStatCard
+          label="Linked steps"
+          value={String(props.tasks.length)}
+          detail="Execution records anchored here"
+        />
+        <DetailStatCard
+          label="Approvals pending"
+          value={String(
+            props.tasks.filter(
+              (task) =>
+                task.state === 'awaiting_approval' || task.state === 'output_pending_review',
+            ).length,
+          )}
+          detail="Operator decisions still needed"
+        />
+        <DetailStatCard
+          label="Retries available"
+          value={String(props.tasks.filter((task) => task.state === 'failed').length)}
+          detail="Failed steps that can be re-run"
+        />
+      </div>
       {props.isMilestone ? (
-        <p className="muted">
+        <p className={mutedBodyClass}>
           Showing execution steps linked to this milestone and its {props.childCount} child work items.
         </p>
       ) : (
-        <p className="muted">
+        <p className={mutedBodyClass}>
           Linked execution steps stay here so approvals, rework, and retries remain anchored to the selected work item.
         </p>
       )}
-      <table className="table">
-        <thead>
-          <tr>
-            <th>Step</th>
-            <th>State</th>
-            <th>Role</th>
-            <th>Stage</th>
-            <th>Dependencies</th>
-            <th>Operator flow</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Step</TableHead>
+            <TableHead>State</TableHead>
+            <TableHead>Role</TableHead>
+            <TableHead>Stage</TableHead>
+            <TableHead>Dependencies</TableHead>
+            <TableHead>Operator flow</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {props.tasks.map((task) => (
-            <tr key={task.id}>
-              <td>
+            <TableRow key={task.id}>
+              <TableCell>
                 <Link to={`/work/tasks/${task.id}`}>{task.title}</Link>
-              </td>
-              <td>
-                <span className={`status-badge status-${task.state}`}>{task.state}</span>
-              </td>
-              <td>{task.role ?? 'Unassigned'}</td>
-              <td>{task.stage_name ?? 'unassigned'}</td>
-              <td>{task.depends_on.length > 0 ? task.depends_on.join(', ') : '—'}</td>
-              <td>
+              </TableCell>
+              <TableCell>
+                <Badge variant={taskStateBadgeVariant(task.state)}>
+                  {formatTaskStateLabel(task.state)}
+                </Badge>
+              </TableCell>
+              <TableCell>{task.role ?? 'Unassigned'}</TableCell>
+              <TableCell>{task.stage_name ?? 'unassigned'}</TableCell>
+              <TableCell>{task.depends_on.length > 0 ? task.depends_on.join(', ') : '—'}</TableCell>
+              <TableCell className="min-w-[18rem]">
                 <WorkItemTaskActionCell
                   workflowId={props.workflowId}
                   task={task}
                   onWorkItemChanged={props.onWorkItemChanged}
                 />
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </TableBody>
+      </Table>
+    </section>
   );
 }
 
@@ -819,12 +986,12 @@ function WorkItemTaskActionCell(props: {
   const canRetry = state === 'failed';
 
   return (
-    <div className="grid" style={{ gap: '0.35rem' }}>
-      <div className="row">
+    <div className="grid gap-3">
+      <div className={metaRowClass}>
         <Link to={`/work/tasks/${props.task.id}`}>Open step record</Link>
         {workItemPermalink ? <Link to={workItemPermalink}>Focus work item</Link> : null}
       </div>
-      <div className="row">
+      <div className={metaRowClass}>
         {canApprove ? (
           <Button
             size="sm"
@@ -850,9 +1017,9 @@ function WorkItemTaskActionCell(props: {
           </Button>
         ) : null}
       </div>
-      {error ? <p style={{ color: '#dc2626' }}>{error}</p> : null}
+      {error ? <p className={errorTextClass}>{error}</p> : null}
       {isChangesDialogOpen ? (
-        <div className="grid" style={{ gap: '0.35rem' }}>
+        <div className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-3">
           <Textarea
             value={feedback}
             onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) =>
@@ -861,7 +1028,7 @@ function WorkItemTaskActionCell(props: {
             placeholder="Describe the operator changes needed..."
             rows={3}
           />
-          <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <div className="flex flex-wrap justify-end gap-2">
             <Button variant="outline" onClick={() => setIsChangesDialogOpen(false)}>
               Cancel
             </Button>
@@ -913,45 +1080,55 @@ function MilestoneChildrenSection(props: {
   );
 
   return (
-    <div className="grid" style={{ gap: '0.75rem', marginTop: '1rem' }}>
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <strong>Milestone children</strong>
+    <section className="grid gap-4 rounded-xl border border-border/70 bg-surface p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <strong className="text-base">Milestone children</strong>
         <Badge variant="outline">{props.children.length} items</Badge>
       </div>
-      <p className="muted">
+      <p className={mutedBodyClass}>
         Child work items inherit this milestone’s operator context but can move independently across the board.
       </p>
       {props.children.length === 0 ? (
-        <p className="muted">No child work items are linked to this milestone yet.</p>
+        <div className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted">
+          No child work items are linked to this milestone yet.
+        </div>
       ) : (
         Object.entries(groupedByStage).map(([stageName, children]) => (
-          <div key={stageName} className="grid" style={{ gap: '0.5rem' }}>
-            <div className="row">
+          <div key={stageName} className="grid gap-3">
+            <div className={metaRowClass}>
               <Badge variant="outline">Stage group</Badge>
               <strong>{stageName}</strong>
-              <span className="muted">{children.length} child items</span>
+              <span className="text-sm text-muted">{children.length} child items</span>
             </div>
             {children.map((child) => (
-              <article key={child.id} className="card timeline-entry">
-                <div className="row" style={{ justifyContent: 'space-between' }}>
-                  <button type="button" className="text-left" onClick={() => props.onSelectWorkItem(child.id)}>
-                    <strong>{child.title}</strong>
-                  </button>
-                  <div className="row">
+              <article
+                key={child.id}
+                className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-auto justify-start px-0 text-left text-base font-semibold"
+                    onClick={() => props.onSelectWorkItem(child.id)}
+                  >
+                    {child.title}
+                  </Button>
+                  <div className={metaRowClass}>
                     <Badge variant="outline">{child.column_id}</Badge>
                     {child.completed_at ? <Badge variant="secondary">completed</Badge> : null}
                   </div>
                 </div>
-                <div className="row">
+                <div className={metaRowClass}>
                   <Badge variant="outline">Open child work-item flow</Badge>
                 </div>
-                {child.goal ? <p className="muted">{child.goal}</p> : null}
+                {child.goal ? <p className={mutedBodyClass}>{child.goal}</p> : null}
               </article>
             ))}
           </div>
         ))
       )}
-    </div>
+    </section>
   );
 }
 
@@ -962,37 +1139,54 @@ function WorkItemArtifactsSection(props: {
   artifacts: DashboardWorkItemArtifactRecord[];
 }): JSX.Element {
   if (props.isLoading) {
-    return <p>Loading work-item artifacts...</p>;
+    return <p className={loadingTextClass}>Loading work-item artifacts...</p>;
   }
   if (props.hasError) {
-    return <p style={{ color: '#dc2626' }}>Failed to load work-item artifacts.</p>;
+    return <p className={errorTextClass}>Failed to load work-item artifacts.</p>;
   }
   if (props.tasks.length === 0) {
-    return <p className="muted">Artifacts appear after linked steps upload them.</p>;
+    return (
+      <div className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted">
+        Artifacts appear after linked steps upload them.
+      </div>
+    );
   }
   if (props.artifacts.length === 0) {
-    return <p className="muted">No artifacts recorded for this work item yet.</p>;
+    return (
+      <div className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted">
+        No artifacts recorded for this work item yet.
+      </div>
+    );
   }
 
   return (
-    <div className="grid">
+    <section className="grid gap-3 rounded-xl border border-border/70 bg-surface p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <strong className="text-base">Artifacts</strong>
+        <Badge variant="outline">{props.artifacts.length} previewable outputs</Badge>
+      </div>
       {props.artifacts.map((artifact) => (
-        <article key={artifact.id} className="card timeline-entry">
-          <div className="row" style={{ justifyContent: 'space-between' }}>
+        <article
+          key={artifact.id}
+          className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4"
+        >
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <strong>{artifact.logical_path}</strong>
             <Badge variant="outline">{artifact.content_type}</Badge>
           </div>
-          <div className="row">
+          <div className={metaRowClass}>
             <Badge variant="outline">{artifact.task_title}</Badge>
             <Badge variant="outline">{artifact.size_bytes} bytes</Badge>
           </div>
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <span className="muted">{new Date(artifact.created_at).toLocaleString()}</span>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-xs text-muted">
+              {new Date(artifact.created_at).toLocaleString()}
+            </span>
             <Link to={buildArtifactPermalink(artifact.task_id, artifact.id)}>Preview artifact</Link>
           </div>
         </article>
       ))}
-    </div>
+    </section>
   );
 }
 
@@ -1002,29 +1196,86 @@ function WorkItemEventHistorySection(props: {
   events: DashboardEventRecord[];
 }): JSX.Element {
   if (props.isLoading) {
-    return <p>Loading work-item history...</p>;
+    return <p className={loadingTextClass}>Loading work-item history...</p>;
   }
   if (props.hasError) {
-    return <p style={{ color: '#dc2626' }}>Failed to load work-item history.</p>;
+    return <p className={errorTextClass}>Failed to load work-item history.</p>;
   }
   if (props.events.length === 0) {
-    return <p className="muted">No work-item events recorded yet.</p>;
+    return (
+      <div className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted">
+        No work-item events recorded yet.
+      </div>
+    );
   }
 
   return (
-    <ul className="search-results">
-      {props.events.map((event) => (
-        <li key={event.id}>
-          <strong>{event.type}</strong>
-          <span className="muted"> {new Date(event.created_at).toLocaleString()}</span>
-          <StructuredRecordView data={event.data} emptyMessage="No event payload." />
-        </li>
-      ))}
-    </ul>
+    <section className="grid gap-4 rounded-xl border border-border/70 bg-surface p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <strong className="text-base">Event history</strong>
+        <Badge variant="outline">{props.events.length} entries</Badge>
+      </div>
+      <ul className="grid gap-3" data-testid="work-item-history-list">
+        {props.events.map((event) => (
+          <li
+            key={event.id}
+            className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4 shadow-sm"
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <strong>{event.type}</strong>
+              <span className="text-xs text-muted">
+                {new Date(event.created_at).toLocaleString()}
+              </span>
+            </div>
+            <StructuredRecordView data={event.data} emptyMessage="No event payload." />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
+}
+
+function taskStateBadgeVariant(
+  state: DashboardWorkItemTaskRecord['state'],
+): 'destructive' | 'outline' | 'secondary' | 'success' | 'warning' {
+  switch (state) {
+    case 'completed':
+      return 'success';
+    case 'failed':
+    case 'cancelled':
+      return 'destructive';
+    case 'awaiting_approval':
+    case 'output_pending_review':
+    case 'blocked':
+      return 'warning';
+    case 'in_progress':
+      return 'secondary';
+    default:
+      return 'outline';
+  }
+}
+
+function formatTaskStateLabel(state: DashboardWorkItemTaskRecord['state']): string {
+  return state.replaceAll('_', ' ');
 }
 
 function formatTimestamp(value: string): string {
   const timestamp = Date.parse(value);
   return Number.isNaN(timestamp) ? value : new Date(timestamp).toLocaleString();
+}
+
+function DetailStatCard(props: {
+  label: string;
+  value: string;
+  detail: string;
+}): JSX.Element {
+  return (
+    <div className="grid gap-1 rounded-xl border border-border/70 bg-background/80 p-4">
+      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+        {props.label}
+      </div>
+      <div className="text-sm font-semibold text-foreground">{props.value}</div>
+      <div className="text-xs leading-5 text-muted">{props.detail}</div>
+    </div>
+  );
 }

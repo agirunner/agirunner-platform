@@ -1,4 +1,8 @@
-import type { DashboardPlaybookRecord, DashboardRoleModelOverride } from '../../lib/api.js';
+import type {
+  DashboardPlaybookRecord,
+  DashboardProjectRecord,
+  DashboardRoleModelOverride,
+} from '../../lib/api.js';
 
 export type StructuredValueType = 'string' | 'number' | 'boolean' | 'json';
 
@@ -9,6 +13,7 @@ export interface LaunchParameterSpec {
   inputType: StructuredValueType | 'select';
   defaultValue?: unknown;
   options: string[];
+  mapsTo?: string;
 }
 
 export interface LaunchDefinitionSummary {
@@ -30,7 +35,7 @@ export interface RoleOverrideDraft {
   role: string;
   provider: string;
   model: string;
-  reasoningConfig: string;
+  reasoningEntries: StructuredEntryDraft[];
 }
 
 let draftCounter = 0;
@@ -115,8 +120,10 @@ export function buildModelOverrides(
     const role = draft.role.trim();
     const provider = draft.provider.trim();
     const model = draft.model.trim();
-    const reasoning = draft.reasoningConfig.trim();
-    if (!role && !provider && !model && !reasoning) {
+    const reasoningEntries = draft.reasoningEntries.filter(
+      (entry) => entry.key.trim().length > 0 || entry.value.trim().length > 0,
+    );
+    if (!role && !provider && !model && reasoningEntries.length === 0) {
       continue;
     }
     if (!role) {
@@ -128,9 +135,13 @@ export function buildModelOverrides(
     if (!provider || !model) {
       throw new Error(`Workflow model override '${role}' must include both provider and model.`);
     }
-    const reasoningConfig = reasoning
-      ? parseJsonRecord(reasoning, `Workflow model override '${role}' reasoning`)
-      : undefined;
+    const reasoningConfig =
+      reasoningEntries.length > 0
+        ? buildStructuredObject(
+            reasoningEntries,
+            `Workflow model override '${role}' reasoning`,
+          )
+        : undefined;
     overrides[role] = {
       provider,
       model,
@@ -171,7 +182,7 @@ export function createRoleOverrideDraft(role = ''): RoleOverrideDraft {
     role,
     provider: '',
     model: '',
-    reasoningConfig: '',
+    reasoningEntries: [],
   };
 }
 
@@ -186,6 +197,17 @@ export function syncRoleOverrideDrafts(
     return role.length === 0 || !roles.includes(role);
   });
   return [...ordered, ...custom];
+}
+
+export function readMappedProjectParameterDraft(
+  spec: LaunchParameterSpec,
+  project: DashboardProjectRecord | null,
+): string | undefined {
+  const mappedValue = readMappedProjectValue(project, spec.mapsTo);
+  if (mappedValue === undefined) {
+    return undefined;
+  }
+  return defaultParameterDraftValue(mappedValue, spec.inputType);
 }
 
 function readParameterSpecs(value: unknown): LaunchParameterSpec[] {
@@ -213,6 +235,7 @@ function readParameterSpec(value: unknown): LaunchParameterSpec | null {
     inputType,
     defaultValue,
     options,
+    mapsTo: readNonEmptyString(record.maps_to) ?? readNonEmptyString(record.mapsTo) ?? undefined,
   };
 }
 
@@ -351,4 +374,28 @@ function readNonEmptyString(value: unknown): string | undefined {
 function nextDraftId(prefix: string): string {
   draftCounter += 1;
   return `${prefix}-${draftCounter}`;
+}
+
+function readMappedProjectValue(
+  project: DashboardProjectRecord | null,
+  mapsTo: string | undefined,
+): unknown {
+  if (!project || !mapsTo) {
+    return undefined;
+  }
+  const normalized = mapsTo.trim().replace(/^project\./, '');
+  if (!normalized) {
+    return undefined;
+  }
+  let current: unknown = project;
+  for (const segment of normalized.split('.')) {
+    if (!segment) {
+      return undefined;
+    }
+    if (!current || typeof current !== 'object' || Array.isArray(current)) {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[segment];
+  }
+  return current;
 }

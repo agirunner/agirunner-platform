@@ -14,18 +14,27 @@ describe('playbook launch model override source', () => {
 
   it('builds structured launch controls instead of raw JSON textareas', () => {
     const source = readSource();
+    expect(source).toContain('Structured launch flow');
+    expect(source).toContain('Launch Readiness');
+    expect(source).toContain('Playbook Snapshot');
+    expect(source).toContain('LaunchReadinessPanel');
+    expect(source).toContain('LaunchDefinitionSnapshot');
     expect(source).toContain('Playbook Parameters');
     expect(source).toContain('Metadata Entries');
     expect(source).toContain('Workflow Model Overrides');
     expect(source).toContain('RoleOverrideEditor');
     expect(source).toContain('StructuredEntryEditor');
+    expect(source).toContain('Reasoning Config Entries');
+    expect(source).not.toContain('Reasoning Config JSON');
   });
 
   it('assembles the existing workflow create contract from structured launch state', () => {
     const source = readSource();
     expect(source).toContain('buildParametersFromDrafts');
+    expect(source).toContain('readMappedProjectParameterDraft');
     expect(source).toContain("buildStructuredObject(metadataDrafts, 'Metadata')");
     expect(source).toContain('buildModelOverrides(modelOverrideDrafts)');
+    expect(source).toContain('readLaunchValidationError');
     expect(source).toContain('dashboardApi.createWorkflow({');
     expect(source).toContain('model_overrides: modelOverrides');
     expect(source).toContain('Resolved Effective Models');

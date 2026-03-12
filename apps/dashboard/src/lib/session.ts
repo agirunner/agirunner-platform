@@ -8,7 +8,7 @@ export interface SessionTokens {
   tenantId: string;
 }
 
-export function readSession(): SessionTokens | null {
+function readLegacyTenantId(): string | null {
   if (typeof localStorage === 'undefined') {
     return null;
   }
@@ -18,8 +18,35 @@ export function readSession(): SessionTokens | null {
     return null;
   }
 
-  const persistedAccessToken =
-    typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem(ACCESS_TOKEN_KEY);
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.setItem(TENANT_KEY, tenantId);
+  }
+  localStorage.removeItem(TENANT_KEY);
+  return tenantId;
+}
+
+function readTenantId(): string | null {
+  if (typeof sessionStorage !== 'undefined') {
+    const tenantId = sessionStorage.getItem(TENANT_KEY);
+    if (tenantId) {
+      return tenantId;
+    }
+  }
+
+  return readLegacyTenantId();
+}
+
+export function readSession(): SessionTokens | null {
+  if (typeof sessionStorage === 'undefined') {
+    return null;
+  }
+
+  const tenantId = readTenantId();
+  if (!tenantId) {
+    return null;
+  }
+
+  const persistedAccessToken = sessionStorage.getItem(ACCESS_TOKEN_KEY);
   accessToken = persistedAccessToken;
 
   return { accessToken: persistedAccessToken, tenantId };
@@ -27,24 +54,26 @@ export function readSession(): SessionTokens | null {
 
 export function writeSession(nextSession: SessionTokens): void {
   accessToken = nextSession.accessToken;
-  if (typeof localStorage !== 'undefined') {
-    localStorage.setItem(TENANT_KEY, nextSession.tenantId);
-  }
   if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.setItem(TENANT_KEY, nextSession.tenantId);
     if (nextSession.accessToken) {
       sessionStorage.setItem(ACCESS_TOKEN_KEY, nextSession.accessToken);
     } else {
       sessionStorage.removeItem(ACCESS_TOKEN_KEY);
     }
   }
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem(TENANT_KEY);
+  }
 }
 
 export function clearSession(): void {
   accessToken = null;
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.removeItem(TENANT_KEY);
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+  }
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem(TENANT_KEY);
-  }
-  if (typeof sessionStorage !== 'undefined') {
-    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
   }
 }

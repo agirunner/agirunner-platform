@@ -44,6 +44,8 @@ const playbookDefinitionSchema = z.object({
   lifecycle: z.enum(['standard', 'continuous']).default('standard'),
   orchestrator: z
     .object({
+      instructions: z.string().max(20000).optional(),
+      tools: z.array(z.string().min(1).max(120)).max(64).optional(),
       check_interval: z.string().max(120).optional(),
       stale_threshold: z.string().max(120).optional(),
       max_rework_iterations: z.number().int().min(0).optional(),

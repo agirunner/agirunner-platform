@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
@@ -7,14 +7,17 @@ import { PlaybookWorkflowControlService } from '../../services/playbook-workflow
 import { WorkflowActivationDispatchService } from '../../services/workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from '../../services/workflow-activation-service.js';
 import { WorkflowStateService } from '../../services/workflow-state-service.js';
+import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
 
 const gateDecisionSchema = z.object({
+  request_id: z.string().min(1).max(255).optional(),
   action: z.enum(['approve', 'reject', 'request_changes']),
   feedback: z.string().min(1).max(4000).optional(),
 });
 
 export const approvalQueueRoutes: FastifyPluginAsync = async (app) => {
   const approvalQueueService = new ApprovalQueueService(app.pgPool);
+  const toolResultService = new WorkflowToolResultService(app.pgPool);
   const playbookControlService = new PlaybookWorkflowControlService({
     pool: app.pgPool,
     eventService: app.eventService,
@@ -43,8 +46,70 @@ export const approvalQueueRoutes: FastifyPluginAsync = async (app) => {
   app.post('/api/v1/approvals/:gateId', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
     const params = request.params as { gateId: string };
     const body = gateDecisionSchema.parse(request.body);
+    const gate = await approvalQueueService.getGate(request.auth!.tenantId, params.gateId);
+    const { request_id: requestId, ...decision } = body;
     return {
-      data: await playbookControlService.actOnGate(request.auth!, params.gateId, body),
+      data: await runIdempotentGateDecision(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        gate.workflow_id,
+        'act_on_gate',
+        requestId,
+        (client) => playbookControlService.actOnGate(request.auth!, params.gateId, decision, client),
+      ),
     };
   });
 };
+
+async function runIdempotentGateDecision<T extends Record<string, unknown>>(
+  app: FastifyInstance,
+  toolResultService: WorkflowToolResultService,
+  tenantId: string,
+  workflowId: string,
+  toolName: string,
+  requestId: string | undefined,
+  run: (client: import('../../db/database.js').DatabaseClient) => Promise<T>,
+): Promise<T> {
+  const normalizedRequestId = requestId?.trim();
+  const client = await app.pgPool.connect();
+  try {
+    await client.query('BEGIN');
+    if (normalizedRequestId) {
+      await toolResultService.lockRequest(tenantId, workflowId, toolName, normalizedRequestId, client);
+      const existing = await toolResultService.getResult(
+        tenantId,
+        workflowId,
+        toolName,
+        normalizedRequestId,
+        client,
+      );
+      if (existing) {
+        await client.query('COMMIT');
+        return existing as T;
+      }
+    }
+
+    const result = await run(client);
+    if (normalizedRequestId) {
+      const stored = await toolResultService.storeResult(
+        tenantId,
+        workflowId,
+        toolName,
+        normalizedRequestId,
+        result,
+        client,
+      );
+      await client.query('COMMIT');
+      return stored as T;
+    }
+
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}

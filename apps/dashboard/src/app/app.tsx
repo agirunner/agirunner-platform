@@ -1,11 +1,14 @@
 import { Component, lazy, Suspense, useEffect } from 'react';
 import type { ComponentType, ErrorInfo, ReactNode } from 'react';
-import { Navigate, Outlet, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
 
 import { DashboardLayout } from '../components/layout.js';
-import { clearSession, readSession, writeSession } from '../lib/session.js';
+import { completeSsoBrowserSession, hasDashboardSession } from '../lib/auth-session.js';
+import { clearSession } from '../lib/session.js';
 
 import { applyTheme, readTheme } from './theme.js';
+
+const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 
 /* ── Chunk-resilient lazy loader ──────────────────────────────────────── */
 
@@ -52,6 +55,7 @@ const CostDashboardPage = lazyWithRetry(() => import('../pages/mission-control/c
 
 const WorkflowListPage = lazyWithRetry(() => import('../pages/work/workflow-list-page.js').then((m) => ({ default: m.WorkflowListPage })));
 const WorkflowDetailPage = lazyWithRetry(() => import('../pages/workflow-detail-page.js').then((m) => ({ default: m.WorkflowDetailPage })));
+const WorkflowInspectorPage = lazyWithRetry(() => import('../pages/work/workflow-inspector-page.js').then((m) => ({ default: m.WorkflowInspectorPage })));
 const TaskListPage = lazyWithRetry(() => import('../pages/work/task-list-page.js').then((m) => ({ default: m.TaskListPage })));
 const TaskDetailPage = lazyWithRetry(() => import('../pages/work/task-detail-page.js').then((m) => ({ default: m.TaskDetailPage })));
 const ArtifactPreviewPage = lazyWithRetry(() => import('../components/artifact-preview-page.js').then((m) => ({ default: m.ArtifactPreviewPage })));
@@ -61,6 +65,9 @@ const ProjectListPage = lazyWithRetry(() => import('../pages/projects/project-li
 const ProjectDetailPage = lazyWithRetry(() => import('../pages/projects/project-detail-page.js').then((m) => ({ default: m.ProjectDetailPage })));
 const MemoryBrowserPage = lazyWithRetry(() => import('../pages/projects/memory-browser-page.js').then((m) => ({ default: m.MemoryBrowserPage })));
 const ContentBrowserPage = lazyWithRetry(() => import('../pages/projects/content-browser-page.js').then((m) => ({ default: m.ContentBrowserPage })));
+const ProjectMemoryBrowserPage = lazyWithRetry(() => import('../pages/projects/project-memory-browser-page.js').then((m) => ({ default: m.ProjectMemoryBrowserPage })));
+const ProjectContentBrowserPage = lazyWithRetry(() => import('../pages/projects/project-content-browser-page.js').then((m) => ({ default: m.ProjectContentBrowserPage })));
+const ProjectArtifactBrowserPage = lazyWithRetry(() => import('../pages/projects/project-artifact-browser-page.js').then((m) => ({ default: m.ProjectArtifactBrowserPage })));
 
 const RoleDefinitionsPage = lazyWithRetry(() => import('../pages/config/role-definitions-page.js').then((m) => ({ default: m.RoleDefinitionsPage })));
 const LlmProvidersPage = lazyWithRetry(() => import('../pages/config/llm-providers-page.js').then((m) => ({ default: m.LlmProvidersPage })));
@@ -71,7 +78,6 @@ const AiConfigAssistantPage = lazyWithRetry(() => import('../pages/config/ai-con
 const PlaybookListPage = lazyWithRetry(() => import('../pages/config/playbook-list-page.js').then((m) => ({ default: m.PlaybookListPage })));
 const PlaybookDetailPage = lazyWithRetry(() => import('../pages/config/playbook-detail-page.js').then((m) => ({ default: m.PlaybookDetailPage })));
 const PlaybookLaunchPage = lazyWithRetry(() => import('../pages/config/playbook-launch-page.js').then((m) => ({ default: m.PlaybookLaunchPage })));
-const RuntimeDefaultsPage = lazyWithRetry(() => import('../pages/config/runtime-defaults-page.js').then((m) => ({ default: m.RuntimeDefaultsPage })));
 const ToolsPage = lazyWithRetry(() => import('../pages/config/tools-page.js').then((m) => ({ default: m.ToolsPage })));
 const WebhooksPage = lazyWithRetry(() => import('../pages/config/webhooks-page.js').then((m) => ({ default: m.WebhooksPage })));
 const WorkItemTriggersPage = lazyWithRetry(() => import('../pages/config/work-item-triggers-page.js').then((m) => ({ default: m.WorkItemTriggersPage })));
@@ -189,6 +195,7 @@ export function App(): JSX.Element {
             {/* Work */}
             <Route path="/work/workflows" element={<WorkflowListPage />} />
             <Route path="/work/workflows/:id" element={<WorkflowDetailPage />} />
+            <Route path="/work/workflows/:id/inspector" element={<WorkflowInspectorPage />} />
             <Route path="/work/tasks" element={<TaskListPage />} />
             <Route path="/work/tasks/:id" element={<TaskDetailPage />} />
             <Route path="/artifacts/tasks/:taskId/:artifactId" element={<ArtifactPreviewPage />} />
@@ -197,6 +204,9 @@ export function App(): JSX.Element {
             {/* Projects */}
             <Route path="/projects" element={<ProjectListPage />} />
             <Route path="/projects/:id" element={<ProjectDetailPage />} />
+            <Route path="/projects/:id/memory" element={<ProjectMemoryBrowserPage />} />
+            <Route path="/projects/:id/content" element={<ProjectContentBrowserPage />} />
+            <Route path="/projects/:id/artifacts" element={<ProjectArtifactBrowserPage />} />
             <Route path="/projects/memory" element={<MemoryBrowserPage />} />
             <Route path="/projects/content" element={<ContentBrowserPage />} />
 
@@ -211,7 +221,7 @@ export function App(): JSX.Element {
             <Route path="/config/integrations" element={<IntegrationsPage />} />
             <Route path="/config/instructions" element={<PlatformInstructionsPage />} />
             <Route path="/config/assistant" element={<AiConfigAssistantPage />} />
-            <Route path="/config/runtime-defaults" element={<RuntimeDefaultsPage />} />
+            <Route path="/config/runtime-defaults" element={<Navigate to="/config/runtimes" replace />} />
             <Route path="/config/tools" element={<ToolsPage />} />
             <Route path="/config/webhooks" element={<WebhooksPage />} />
             <Route path="/config/triggers" element={<WorkItemTriggersPage />} />
@@ -241,17 +251,16 @@ export function App(): JSX.Element {
 
 function RequireAuth(): JSX.Element {
   const navigate = useNavigate();
-  const session = readSession();
-  const hasToken = Boolean(session?.accessToken);
+  const isAuthenticated = hasDashboardSession();
 
   useEffect(() => {
-    if (!hasToken) {
+    if (!isAuthenticated) {
       clearSession();
       navigate('/login', { replace: true });
     }
-  }, [navigate, hasToken]);
+  }, [navigate, isAuthenticated]);
 
-  if (!hasToken) {
+  if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
@@ -260,22 +269,53 @@ function RequireAuth(): JSX.Element {
 
 function SSOCallbackPage(): JSX.Element {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    const accessToken = searchParams.get('access_token');
-    const refreshToken = searchParams.get('refresh_token');
+    let isActive = true;
 
-    if (accessToken) {
-      writeSession({ accessToken, tenantId: 'default' });
-      if (refreshToken) {
-        localStorage.setItem('refresh_token', refreshToken);
+    async function completeSignIn(): Promise<void> {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const payload = (await response.json()) as {
+          data?: {
+            tenant_id?: string;
+          };
+        };
+
+        const tenantId = payload.data?.tenant_id?.trim();
+        if (!tenantId) {
+          throw new Error('Missing tenant context');
+        }
+
+        const completed = completeSsoBrowserSession(
+          new URLSearchParams({ tenant_id: tenantId }),
+        );
+        if (!isActive) {
+          return;
+        }
+
+        navigate(completed ? '/' : '/login', { replace: true });
+      } catch {
+        clearSession();
+        if (isActive) {
+          navigate('/login', { replace: true });
+        }
       }
-      navigate('/', { replace: true });
-    } else {
-      navigate('/login', { replace: true });
     }
-  }, [navigate, searchParams]);
+
+    void completeSignIn();
+
+    return () => {
+      isActive = false;
+    };
+  }, [navigate]);
 
   return (
     <div className="flex min-h-screen items-center justify-center">

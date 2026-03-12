@@ -1,10 +1,15 @@
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
-import { listWorkflowDocuments } from '../../services/document-reference-service.js';
+import {
+  createWorkflowDocument,
+  deleteWorkflowDocument,
+  listWorkflowDocuments,
+  updateWorkflowDocument,
+} from '../../services/document-reference-service.js';
 import { ApprovalQueueService } from '../../services/approval-queue-service.js';
 import { WorkflowChainingService } from '../../services/workflow-chaining-service.js';
 import { PlaybookWorkflowControlService } from '../../services/playbook-workflow-control-service.js';
@@ -12,6 +17,7 @@ import { WorkflowActivationDispatchService } from '../../services/workflow-activ
 import { WorkflowActivationService } from '../../services/workflow-activation-service.js';
 import { WorkflowStateService } from '../../services/workflow-state-service.js';
 import { sanitizeEventRows } from '../../services/event-service.js';
+import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
 
 const roleModelOverrideSchema = z.object({
   provider: z.string().min(1).max(120),
@@ -33,12 +39,13 @@ const workflowCreateSchema = z.object({
 });
 
 const stageGateSchema = z.object({
+  request_id: z.string().min(1).max(255).optional(),
   action: z.enum(['approve', 'reject', 'request_changes']),
   feedback: z.string().min(1).max(4000).optional(),
 });
 
 const workflowChainSchema = z.object({
-  playbook_id: z.string().uuid().optional(),
+  playbook_id: z.string().uuid(),
   name: z.string().min(1).max(255).optional(),
   parameters: z.record(z.unknown()).optional(),
 });
@@ -70,6 +77,37 @@ const workItemUpdateSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
 });
 
+const workflowDocumentCreateSchema = z.object({
+  logical_name: z.string().min(1).max(255),
+  source: z.enum(['repository', 'artifact', 'external']),
+  title: z.string().max(4000).optional(),
+  description: z.string().max(8000).optional(),
+  metadata: z.record(z.unknown()).optional(),
+  repository: z.string().min(1).max(255).optional(),
+  path: z.string().min(1).max(4000).optional(),
+  url: z.string().url().optional(),
+  task_id: z.string().uuid().optional(),
+  artifact_id: z.string().uuid().optional(),
+  logical_path: z.string().min(1).max(4000).optional(),
+});
+
+const workflowDocumentUpdateSchema = z
+  .object({
+    source: z.enum(['repository', 'artifact', 'external']).optional(),
+    title: z.string().max(4000).nullable().optional(),
+    description: z.string().max(8000).nullable().optional(),
+    metadata: z.record(z.unknown()).optional(),
+    repository: z.string().min(1).max(255).nullable().optional(),
+    path: z.string().min(1).max(4000).nullable().optional(),
+    url: z.string().url().nullable().optional(),
+    task_id: z.string().uuid().nullable().optional(),
+    artifact_id: z.string().uuid().nullable().optional(),
+    logical_path: z.string().min(1).max(4000).nullable().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: 'At least one field is required',
+  });
+
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
     return result.data;
@@ -85,6 +123,7 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
   const workflowService = app.workflowService;
   const workflowChainingService = new WorkflowChainingService(app.pgPool, workflowService);
   const approvalQueueService = new ApprovalQueueService(app.pgPool);
+  const toolResultService = new WorkflowToolResultService(app.pgPool);
   const playbookControlService = new PlaybookWorkflowControlService({
     pool: app.pgPool,
     eventService: app.eventService,
@@ -432,8 +471,17 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string; name: string };
       const body = parseOrThrow(stageGateSchema.safeParse(request.body));
+      const { request_id: requestId, ...decision } = body;
       return {
-        data: await workflowService.actOnStageGate(request.auth!, params.id, params.name, body),
+        data: await runIdempotentGateDecision(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'act_on_stage_gate',
+          requestId,
+          (client) => playbookControlService.actOnStageGate(request.auth!, params.id, params.name, decision, client),
+        ),
       };
     },
   );
@@ -445,7 +493,16 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string; gateId: string };
       const body = parseOrThrow(stageGateSchema.safeParse(request.body));
       await approvalQueueService.getGate(request.auth!.tenantId, params.gateId, params.id);
-      const gate = await playbookControlService.actOnGate(request.auth!, params.gateId, body);
+      const { request_id: requestId, ...decision } = body;
+      const gate = await runIdempotentGateDecision(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        params.id,
+        'act_on_gate',
+        requestId,
+        (client) => playbookControlService.actOnGate(request.auth!, params.gateId, decision, client),
+      );
       return { data: gate };
     },
   );
@@ -457,6 +514,50 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const documents = await listWorkflowDocuments(app.pgPool, request.auth!.tenantId, params.id);
       return { data: documents };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/documents',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(workflowDocumentCreateSchema.safeParse(request.body));
+      const document = await createWorkflowDocument(app.pgPool, request.auth!.tenantId, params.id, body);
+      return reply.status(201).send({ data: document });
+    },
+  );
+
+  app.patch(
+    '/api/v1/workflows/:id/documents/:logicalName',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string; logicalName: string };
+      const body = parseOrThrow(workflowDocumentUpdateSchema.safeParse(request.body));
+      return {
+        data: await updateWorkflowDocument(
+          app.pgPool,
+          request.auth!.tenantId,
+          params.id,
+          decodeURIComponent(params.logicalName),
+          body,
+        ),
+      };
+    },
+  );
+
+  app.delete(
+    '/api/v1/workflows/:id/documents/:logicalName',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request, reply) => {
+      const params = request.params as { id: string; logicalName: string };
+      await deleteWorkflowDocument(
+        app.pgPool,
+        request.auth!.tenantId,
+        params.id,
+        decodeURIComponent(params.logicalName),
+      );
+      return reply.status(204).send();
     },
   );
 
@@ -560,13 +661,11 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(workflowChainSchema.safeParse(request.body ?? {}));
-      const workflow = body.playbook_id
-        ? await workflowChainingService.chainWorkflowExplicit(request.auth!, params.id, body)
-        : await workflowChainingService.chainWorkflowFromSuggestedPlan(
-            request.auth!,
-            params.id,
-            body,
-          );
+      const workflow = await workflowChainingService.chainWorkflowExplicit(
+        request.auth!,
+        params.id,
+        body,
+      );
       return reply.status(201).send({ data: workflow });
     },
   );
@@ -581,6 +680,58 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 };
+
+async function runIdempotentGateDecision<T extends Record<string, unknown>>(
+  app: FastifyInstance,
+  toolResultService: WorkflowToolResultService,
+  tenantId: string,
+  workflowId: string,
+  toolName: string,
+  requestId: string | undefined,
+  run: (client: import('../../db/database.js').DatabaseClient) => Promise<T>,
+): Promise<T> {
+  const normalizedRequestId = requestId?.trim();
+  const client = await app.pgPool.connect();
+  try {
+    await client.query('BEGIN');
+    if (normalizedRequestId) {
+      await toolResultService.lockRequest(tenantId, workflowId, toolName, normalizedRequestId, client);
+      const existing = await toolResultService.getResult(
+        tenantId,
+        workflowId,
+        toolName,
+        normalizedRequestId,
+        client,
+      );
+      if (existing) {
+        await client.query('COMMIT');
+        return existing as T;
+      }
+    }
+
+    const result = await run(client);
+    if (normalizedRequestId) {
+      const stored = await toolResultService.storeResult(
+        tenantId,
+        workflowId,
+        toolName,
+        normalizedRequestId,
+        result,
+        client,
+      );
+      await client.query('COMMIT');
+      return stored as T;
+    }
+
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
 
 function mergeWorkflowMetadata(
   metadata: Record<string, unknown> | undefined,

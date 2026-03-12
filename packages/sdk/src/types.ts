@@ -164,6 +164,33 @@ export interface ResolvedDocumentReference {
   };
 }
 
+export interface CreateWorkflowDocumentInput {
+  logical_name: string;
+  source: 'repository' | 'artifact' | 'external';
+  title?: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+  repository?: string;
+  path?: string;
+  url?: string;
+  task_id?: string;
+  artifact_id?: string;
+  logical_path?: string;
+}
+
+export interface UpdateWorkflowDocumentInput {
+  source?: 'repository' | 'artifact' | 'external';
+  title?: string | null;
+  description?: string | null;
+  metadata?: Record<string, unknown>;
+  repository?: string | null;
+  path?: string | null;
+  url?: string | null;
+  task_id?: string | null;
+  artifact_id?: string | null;
+  logical_path?: string | null;
+}
+
 export interface TaskArtifact {
   id: string;
   workflow_id?: string | null;

@@ -164,4 +164,43 @@ describe('ArtifactService', () => {
     expect(preview.artifact).not.toHaveProperty('access_url_expires_at');
     expect(storage.createAccessUrl).not.toHaveBeenCalled();
   });
+
+  it('redacts secret-like metadata values even when the field name is not secret-like', async () => {
+    const pool = {
+      query: vi.fn().mockResolvedValue({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'artifact-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'wf-1',
+            project_id: 'proj-1',
+            task_id: 'task-1',
+            logical_path: 'artifact:wf-1/report.md',
+            storage_backend: 'local',
+            storage_key: 'tenant-1/wf-1/artifact-1/report.md',
+            content_type: 'text/markdown; charset=utf-8',
+            size_bytes: 256,
+            checksum_sha256: 'abc123',
+            metadata: {
+              note: 'Bearer runtime-secret',
+              session: 'eyJhbGciOiJIUzI1NiJ9.payload.signature',
+            },
+            retention_policy: {},
+            expires_at: null,
+            created_at: new Date('2026-03-12T10:00:00.000Z'),
+          },
+        ],
+      }),
+    };
+    const storage = createStorage();
+    const service = new ArtifactService(pool as never, storage as never, 900, 1024);
+
+    const preview = await service.previewTaskArtifact('tenant-1', 'task-1', 'artifact-1');
+
+    expect(preview.artifact.metadata).toEqual({
+      note: 'redacted://artifact-metadata-secret',
+      session: 'redacted://artifact-metadata-secret',
+    });
+  });
 });

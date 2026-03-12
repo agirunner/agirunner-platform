@@ -140,6 +140,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
       toTaskResponse,
       getTaskContext,
       resolveRoleConfig,
+      claimHandleSecret: 'test-claim-handle-secret',
     };
   }
 
@@ -168,7 +169,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     expect(roleConfig.system_prompt).toContain('You are a coder');
   });
 
-  it('preserves LLM credentials in role_config alongside system_prompt', async () => {
+  it('preserves LLM credential metadata alongside system_prompt without serializing plaintext claim secrets', async () => {
     const deps = buildMockDeps({
       instructionLayers: {
         platform: { content: 'Be safe', format: 'text' },
@@ -195,7 +196,8 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     expect(roleConfig.system_prompt).toContain('Be safe');
     expect(credentials.llm_provider).toBe('openai');
     expect(credentials.llm_model).toBe('gpt-4');
-    expect(credentials.llm_api_key).toBe('sk-test');
+    expect(credentials.llm_api_key_claim_handle).toMatch(/^claim:v1:/);
+    expect(credentials.llm_api_key).toBeUndefined();
   });
 
   it('does not set system_prompt when no instruction layers exist', async () => {

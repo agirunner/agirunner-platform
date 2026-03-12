@@ -140,7 +140,7 @@ function CreateToolDialog(): JSX.Element {
         <Plus className="h-4 w-4" />
         Add Tool
       </Button>
-      <DialogContent>
+      <DialogContent className="max-h-[75vh] max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Tool</DialogTitle>
         </DialogHeader>

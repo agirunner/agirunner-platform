@@ -9,7 +9,11 @@ import { createLogger } from '../observability/logger.js';
 import type { ApiKeyScope } from './scope.js';
 
 const DUMMY_API_KEY_HASH = '$2a$12$C6UzMDM.H6dfI/f/IKcEeO5m8j6jVWeItPxX2VINeodIZ6Tn6PvxW';
-const logger = createLogger(process.env.LOG_LEVEL ?? 'info');
+let logger = createLogger('info');
+
+export function configureApiKeyLogging(level: string): void {
+  logger = createLogger(level);
+}
 
 export interface ApiKeyIdentity {
   id: string;

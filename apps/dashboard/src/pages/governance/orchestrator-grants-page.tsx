@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Lock, Plus, Trash2 } from 'lucide-react';
+import { dashboardApi } from '../../lib/api.js';
 import { readSession } from '../../lib/session.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -22,6 +23,7 @@ import {
 } from '../../components/ui/dialog.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
+const GRANT_PERMISSION_OPTIONS = ['read', 'write', 'execute'] as const;
 
 interface OrchestratorGrant {
   id: string;
@@ -41,10 +43,13 @@ interface CreateGrantPayload {
 
 function authHeaders(): Record<string, string> {
   const session = readSession();
-  return {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${session?.accessToken}`,
   };
+  if (session?.accessToken) {
+    headers.Authorization = `Bearer ${session.accessToken}`;
+  }
+  return headers;
 }
 
 function normalizeGrants(response: unknown): OrchestratorGrant[] {
@@ -56,7 +61,8 @@ function normalizeGrants(response: unknown): OrchestratorGrant[] {
 async function fetchGrants(): Promise<OrchestratorGrant[]> {
   const session = readSession();
   const resp = await fetch(`${API_BASE_URL}/api/v1/orchestrator-grants`, {
-    headers: { Authorization: `Bearer ${session?.accessToken}` },
+    headers: session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : undefined,
+    credentials: 'include',
   });
   if (!resp.ok) {
     if (resp.status === 404) {
@@ -74,6 +80,7 @@ async function createGrant(payload: CreateGrantPayload): Promise<OrchestratorGra
   const resp = await fetch(`${API_BASE_URL}/api/v1/orchestrator-grants`, {
     method: 'POST',
     headers: authHeaders(),
+    credentials: 'include',
     body: JSON.stringify(payload),
   });
   if (!resp.ok) {
@@ -86,7 +93,8 @@ async function revokeGrant(grantId: string): Promise<void> {
   const session = readSession();
   const resp = await fetch(`${API_BASE_URL}/api/v1/orchestrator-grants/${grantId}`, {
     method: 'DELETE',
-    headers: { Authorization: `Bearer ${session?.accessToken}` },
+    headers: session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : undefined,
+    credentials: 'include',
   });
   if (!resp.ok) {
     throw new Error(`HTTP ${resp.status}`);
@@ -103,7 +111,11 @@ function CreateGrantDialog({
   const queryClient = useQueryClient();
   const [agentId, setAgentId] = useState('');
   const [workflowId, setWorkflowId] = useState('');
-  const [permissions, setPermissions] = useState('');
+  const [permissions, setPermissions] = useState<string[]>([]);
+  const workflowsQuery = useQuery({
+    queryKey: ['workflow-grant-options'],
+    queryFn: () => dashboardApi.listWorkflows(),
+  });
 
   const mutation = useMutation({
     mutationFn: createGrant,
@@ -116,28 +128,32 @@ function CreateGrantDialog({
   function resetAndClose(): void {
     setAgentId('');
     setWorkflowId('');
-    setPermissions('');
+    setPermissions([]);
     onClose();
+  }
+
+  function togglePermission(permission: string): void {
+    setPermissions((current) =>
+      current.includes(permission)
+        ? current.filter((value) => value !== permission)
+        : [...current, permission],
+    );
   }
 
   function handleSubmit(e: React.FormEvent): void {
     e.preventDefault();
-    const permList = permissions
-      .split(',')
-      .map((p) => p.trim())
-      .filter(Boolean);
-    if (permList.length === 0 || !agentId.trim() || !workflowId.trim()) return;
+    if (permissions.length === 0 || !agentId.trim() || !workflowId.trim()) return;
 
     mutation.mutate({
       agent_id: agentId.trim(),
       workflow_id: workflowId.trim(),
-      permissions: permList,
+      permissions,
     });
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) resetAndClose(); }}>
-      <DialogContent>
+      <DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create Grant</DialogTitle>
           <DialogDescription>
@@ -145,6 +161,7 @@ function CreateGrantDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <label htmlFor="grant-agent-id" className="text-sm font-medium">Agent ID</label>
             <Input
@@ -156,23 +173,37 @@ function CreateGrantDialog({
             />
           </div>
           <div className="space-y-2">
-            <label htmlFor="grant-workflow" className="text-sm font-medium">Workflow ID</label>
-            <Input
-              id="grant-workflow"
+            <label className="text-sm font-medium">Workflow Scope</label>
+            <select
+              className="flex h-10 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm"
               value={workflowId}
               onChange={(e) => setWorkflowId(e.target.value)}
-              placeholder="workflow-uuid"
               required
-            />
+            >
+              <option value="">Select workflow</option>
+              {(workflowsQuery.data?.data ?? []).map((workflow) => (
+                <option key={workflow.id} value={workflow.id}>
+                  {workflow.name}
+                </option>
+              ))}
+            </select>
+          </div>
           </div>
           <div className="space-y-2">
-            <label htmlFor="grant-permissions" className="text-sm font-medium">Permissions (comma-separated)</label>
-            <Input
-              id="grant-permissions"
-              value={permissions}
-              onChange={(e) => setPermissions(e.target.value)}
-              placeholder="read, write, execute"
-            />
+            <label className="text-sm font-medium">Permissions</label>
+            <div className="flex flex-wrap gap-2">
+              {GRANT_PERMISSION_OPTIONS.map((permission) => (
+                <Button
+                  key={permission}
+                  type="button"
+                  size="sm"
+                  variant={permissions.includes(permission) ? 'default' : 'outline'}
+                  onClick={() => togglePermission(permission)}
+                >
+                  {permission}
+                </Button>
+              ))}
+            </div>
           </div>
           {mutation.isError && (
             <p className="text-sm text-red-600">Failed to create grant. Please try again.</p>
@@ -186,6 +217,58 @@ function CreateGrantDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function GrantCards({
+  grants,
+  onRevoke,
+  isRevoking,
+}: {
+  grants: OrchestratorGrant[];
+  onRevoke: (grantId: string) => void;
+  isRevoking: boolean;
+}): JSX.Element {
+  return (
+    <div className="grid gap-3 lg:hidden">
+      {grants.map((grant) => (
+        <div key={grant.id} className="rounded-lg border border-border/70 bg-card p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <div className="text-sm font-semibold">Grant {grant.id.slice(0, 8)}</div>
+              <div className="text-xs text-muted-foreground">Created {new Date(grant.created_at).toLocaleString()}</div>
+            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={isRevoking}
+              onClick={() => onRevoke(grant.id)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Revoke
+            </Button>
+          </div>
+          <dl className="mt-3 grid gap-3 text-sm">
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Agent</dt>
+              <dd className="font-mono text-xs break-all">{grant.agent_id}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Workflow</dt>
+              <dd className="font-mono text-xs break-all">{grant.workflow_id}</dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Permissions</dt>
+              <dd className="mt-1 flex flex-wrap gap-1">
+                {grant.permissions.map((perm) => (
+                  <Badge key={perm} variant="secondary">{perm}</Badge>
+                ))}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -255,12 +338,12 @@ export function OrchestratorGrantsPage(): JSX.Element {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Lock className="h-6 w-6 text-muted-foreground" />
           <h1 className="text-2xl font-semibold">Orchestrator Grants</h1>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)}>
+        <Button onClick={() => setIsCreateOpen(true)} className="w-full sm:w-auto">
           <Plus className="h-4 w-4" />
           Create Grant
         </Button>
@@ -269,6 +352,13 @@ export function OrchestratorGrantsPage(): JSX.Element {
       {grants.length === 0 ? (
         <p className="text-muted-foreground">No orchestrator grants found.</p>
       ) : (
+        <>
+        <GrantCards
+          grants={grants}
+          onRevoke={(grantId) => revokeMutation.mutate(grantId)}
+          isRevoking={revokeMutation.isPending}
+        />
+        <div className="hidden lg:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -317,6 +407,8 @@ export function OrchestratorGrantsPage(): JSX.Element {
             ))}
           </TableBody>
         </Table>
+        </div>
+        </>
       )}
 
       <CreateGrantDialog isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />

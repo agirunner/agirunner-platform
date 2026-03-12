@@ -12,7 +12,7 @@ import { SchemaValidationFailedError, ValidationError } from '../../errors/domai
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
 
 const workItemCreateSchema = z.object({
-  request_id: z.string().min(1).max(255).optional(),
+  request_id: z.string().min(1).max(255),
   parent_work_item_id: z.string().uuid().optional(),
   stage_name: z.string().min(1).max(120).optional(),
   title: z.string().min(1).max(500),
@@ -26,7 +26,7 @@ const workItemCreateSchema = z.object({
 });
 
 const workItemUpdateSchema = z.object({
-  request_id: z.string().min(1).max(255).optional(),
+  request_id: z.string().min(1).max(255),
   parent_work_item_id: z.string().uuid().nullable().optional(),
   title: z.string().min(1).max(500).optional(),
   goal: z.string().max(4000).optional(),
@@ -40,7 +40,7 @@ const workItemUpdateSchema = z.object({
 });
 
 const orchestratorTaskCreateSchema = z.object({
-  request_id: z.string().max(255).optional(),
+  request_id: z.string().min(1).max(255),
   title: z.string().min(1).max(500),
   description: z.string().max(5000).optional(),
   work_item_id: z.string().uuid(),
@@ -65,8 +65,39 @@ const orchestratorTaskCreateSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
 });
 
+const orchestratorTaskInputUpdateSchema = z.object({
+  request_id: z.string().min(1).max(255),
+  input: z.record(z.unknown()),
+});
+
+const orchestratorTaskMutationSchema = z.object({
+  request_id: z.string().min(1).max(255),
+});
+
+const orchestratorTaskRetrySchema = orchestratorTaskMutationSchema.extend({
+  override_input: z.record(z.unknown()).optional(),
+  force: z.boolean().optional(),
+});
+
+const orchestratorTaskReworkSchema = orchestratorTaskMutationSchema.extend({
+  feedback: z.string().min(1).max(4000),
+  override_input: z.record(z.unknown()).optional(),
+  preferred_agent_id: z.string().uuid().optional(),
+  preferred_worker_id: z.string().uuid().optional(),
+});
+
+const orchestratorTaskReassignSchema = orchestratorTaskMutationSchema.extend({
+  preferred_agent_id: z.string().uuid().optional(),
+  preferred_worker_id: z.string().uuid().optional(),
+  reason: z.string().min(1).max(4000),
+});
+
+const orchestratorTaskEscalateSchema = orchestratorTaskMutationSchema.extend({
+  reason: z.string().min(1).max(4000),
+});
+
 const gateRequestSchema = z.object({
-  request_id: z.string().max(255).optional(),
+  request_id: z.string().min(1).max(255),
   summary: z.string().min(1).max(4000),
   recommendation: z.string().max(4000).optional(),
   key_artifacts: z.array(z.record(z.unknown())).max(50).optional(),
@@ -74,26 +105,26 @@ const gateRequestSchema = z.object({
 });
 
 const stageAdvanceSchema = z.object({
-  request_id: z.string().max(255).optional(),
+  request_id: z.string().min(1).max(255),
   to_stage_name: z.string().min(1).max(120).optional(),
   summary: z.string().max(4000).optional(),
 });
 
 const workflowCompleteSchema = z.object({
-  request_id: z.string().max(255).optional(),
+  request_id: z.string().min(1).max(255),
   stage_name: z.string().min(1).max(120).optional(),
   summary: z.string().min(1).max(4000),
 });
 
 const projectMemoryWriteSchema = z.object({
-  request_id: z.string().max(255).optional(),
+  request_id: z.string().min(1).max(255),
   key: z.string().min(1).max(256),
   value: z.unknown(),
   work_item_id: z.string().uuid().optional(),
 });
 
 const childWorkflowCreateSchema = z.object({
-  request_id: z.string().max(255).optional(),
+  request_id: z.string().min(1).max(255),
   playbook_id: z.string().uuid(),
   name: z.string().min(1).max(255),
   parent_context: z.string().max(8000).optional(),
@@ -110,6 +141,10 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   throw new SchemaValidationFailedError('Invalid request body', { issues: result.error.flatten() });
 }
 
+const projectMemoryDeleteQuerySchema = z.object({
+  request_id: z.string().min(1).max(255),
+});
+
 export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
   const toolResultService = new WorkflowToolResultService(app.pgPool);
   const taskScopeService = new TaskAgentScopeService(app.pgPool);
@@ -124,6 +159,19 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
       config: app.config,
     }),
   });
+
+  const withManagedSpecialistTask = async (
+    identity: ApiKeyIdentity,
+    orchestratorTaskId: string,
+    managedTaskId: string,
+  ) => {
+    const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
+      identity,
+      orchestratorTaskId,
+    );
+    await loadManagedSpecialistTask(app, identity, taskScope.workflow_id, managedTaskId);
+    return taskScope;
+  };
 
   app.post(
     '/api/v1/orchestrator/tasks/:taskId/work-items',
@@ -185,6 +233,183 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
+    '/api/v1/orchestrator/tasks/:taskId/tasks/:managedTaskId/approve',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; managedTaskId: string };
+      const body = parseOrThrow(orchestratorTaskMutationSchema.safeParse(request.body));
+      const taskScope = await withManagedSpecialistTask(
+        request.auth!,
+        params.taskId,
+        params.managedTaskId,
+      );
+      const stored = await runIdempotentMutation(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'approve_task',
+        body.request_id,
+        (client) => app.taskService.approveTask(request.auth!, params.managedTaskId, client),
+      );
+      return { data: stored };
+    },
+  );
+
+  app.post(
+    '/api/v1/orchestrator/tasks/:taskId/tasks/:managedTaskId/approve-output',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; managedTaskId: string };
+      const body = parseOrThrow(orchestratorTaskMutationSchema.safeParse(request.body));
+      const taskScope = await withManagedSpecialistTask(
+        request.auth!,
+        params.taskId,
+        params.managedTaskId,
+      );
+      const stored = await runIdempotentMutation(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'approve_task_output',
+        body.request_id,
+        (client) => app.taskService.approveTaskOutput(request.auth!, params.managedTaskId, client),
+      );
+      return { data: stored };
+    },
+  );
+
+  app.post(
+    '/api/v1/orchestrator/tasks/:taskId/tasks/:managedTaskId/rework',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; managedTaskId: string };
+      const body = parseOrThrow(orchestratorTaskReworkSchema.safeParse(request.body));
+      const taskScope = await withManagedSpecialistTask(
+        request.auth!,
+        params.taskId,
+        params.managedTaskId,
+      );
+      const stored = await runIdempotentMutation(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'request_rework',
+        body.request_id,
+        (client) => app.taskService.requestTaskChanges(request.auth!, params.managedTaskId, body, client),
+      );
+      return { data: stored };
+    },
+  );
+
+  app.post(
+    '/api/v1/orchestrator/tasks/:taskId/tasks/:managedTaskId/retry',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; managedTaskId: string };
+      const body = parseOrThrow(orchestratorTaskRetrySchema.safeParse(request.body ?? {}));
+      const taskScope = await withManagedSpecialistTask(
+        request.auth!,
+        params.taskId,
+        params.managedTaskId,
+      );
+      const stored = await runIdempotentMutation(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'retry_task',
+        body.request_id,
+        (client) => app.taskService.retryTask(request.auth!, params.managedTaskId, body, client),
+      );
+      return { data: stored };
+    },
+  );
+
+  app.post(
+    '/api/v1/orchestrator/tasks/:taskId/tasks/:managedTaskId/cancel',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; managedTaskId: string };
+      const body = parseOrThrow(orchestratorTaskMutationSchema.safeParse(request.body));
+      const taskScope = await withManagedSpecialistTask(
+        request.auth!,
+        params.taskId,
+        params.managedTaskId,
+      );
+      const stored = await runIdempotentMutation(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'cancel_task',
+        body.request_id,
+        (client) => app.taskService.cancelTask(request.auth!, params.managedTaskId, client),
+      );
+      return { data: stored };
+    },
+  );
+
+  app.post(
+    '/api/v1/orchestrator/tasks/:taskId/tasks/:managedTaskId/reassign',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; managedTaskId: string };
+      const body = parseOrThrow(orchestratorTaskReassignSchema.safeParse(request.body));
+      const taskScope = await withManagedSpecialistTask(
+        request.auth!,
+        params.taskId,
+        params.managedTaskId,
+      );
+      const stored = await runIdempotentMutation(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'reassign_task',
+        body.request_id,
+        (client) => app.taskService.reassignTask(request.auth!, params.managedTaskId, body, client),
+      );
+      return { data: stored };
+    },
+  );
+
+  app.post(
+    '/api/v1/orchestrator/tasks/:taskId/tasks/:managedTaskId/escalate-to-human',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; managedTaskId: string };
+      const body = parseOrThrow(orchestratorTaskEscalateSchema.safeParse(request.body));
+      const taskScope = await withManagedSpecialistTask(
+        request.auth!,
+        params.taskId,
+        params.managedTaskId,
+      );
+      const stored = await runIdempotentMutation(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'escalate_to_human',
+        body.request_id,
+        (client) =>
+          app.taskService.escalateTask(
+            request.auth!,
+            params.managedTaskId,
+            {
+              reason: body.reason,
+              escalation_target: 'human',
+            },
+            client,
+          ),
+      );
+      return { data: stored };
+    },
+  );
+
+  app.post(
     '/api/v1/orchestrator/tasks/:taskId/tasks',
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request, reply) => {
@@ -222,6 +447,35 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
           ),
       );
       return reply.status(201).send({ data: task });
+    },
+  );
+
+  app.patch(
+    '/api/v1/orchestrator/tasks/:taskId/tasks/:managedTaskId/input',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; managedTaskId: string };
+      const body = parseOrThrow(orchestratorTaskInputUpdateSchema.safeParse(request.body));
+      const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
+        request.auth!,
+        params.taskId,
+      );
+      await loadManagedSpecialistTask(
+        app,
+        request.auth!,
+        taskScope.workflow_id,
+        params.managedTaskId,
+      );
+      const stored = await runIdempotentMutation(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'update_task_input',
+        body.request_id,
+        (client) => app.taskService.updateTaskInput(request.auth!.tenantId, params.managedTaskId, body.input, client),
+      );
+      return { data: stored };
     },
   );
 
@@ -366,7 +620,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const params = request.params as { taskId: string; key: string };
-      const query = request.query as { request_id?: string };
+      const query = parseOrThrow(projectMemoryDeleteQuerySchema.safeParse(request.query));
       const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
         request.auth!,
         params.taskId,
@@ -570,6 +824,22 @@ function isWorkflowCreateRequestConflict(error: unknown) {
   }
   const pgError = error as { code?: string; constraint?: string };
   return pgError.code === '23505' && pgError.constraint === 'idx_workflows_parent_create_request';
+}
+
+async function loadManagedSpecialistTask(
+  app: FastifyInstance,
+  identity: ApiKeyIdentity,
+  workflowId: string,
+  taskId: string,
+) {
+  const task = await app.taskService.getTask(identity.tenantId, taskId) as Record<string, unknown>;
+  if (task.workflow_id !== workflowId) {
+    throw new ValidationError('Managed task must belong to the orchestrator workflow');
+  }
+  if (task.is_orchestrator_task) {
+    throw new ValidationError('Managed task must be a specialist task');
+  }
+  return task;
 }
 
 interface ChildWorkflowLinkage {

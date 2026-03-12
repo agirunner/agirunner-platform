@@ -54,7 +54,33 @@ describe('project detail automation tab source', () => {
     expect(source).toContain('Project Model Overrides');
     expect(source).toContain('dashboardApi.getProjectModelOverrides(project.id)');
     expect(source).toContain('dashboardApi.getResolvedProjectModels(project.id)');
+    expect(source).toContain('dashboardApi.listLlmProviders()');
+    expect(source).toContain('dashboardApi.listLlmModels()');
     expect(source).toContain('dashboardApi.patchProject(project.id, {');
     expect(source).toContain('Resolved Effective Models');
+    expect(source).toContain('<RoleOverrideEditor');
+    expect(source).not.toContain('Project model overrides must be valid JSON');
+  });
+
+  it('replaces raw project spec JSON editing with structured spec/config/instruction editors', () => {
+    const source = readSource();
+    expect(source).toContain('Save Spec');
+    expect(source).toContain('Config Entries');
+    expect(source).toContain('Instruction Entries');
+    expect(source).toContain('Resource Entries');
+    expect(source).toContain('Document Entries');
+    expect(source).toContain('Tool Entries');
+    expect(source).toContain('Edit project configuration as structured key/value entries');
+    expect(source).toContain('Edit structured project instructions and document references');
+    expect(source).toContain('dashboardApi.updateProjectSpec(projectId, nextSpec)');
+    expect(source).not.toContain('Save (read-only)');
+  });
+
+  it('uses bounded workflow stage and role options in the automation form when they are available', () => {
+    const source = readSource();
+    expect(source).toContain('dashboardApi.listRoleDefinitions()');
+    expect(source).toContain('dashboardApi.getWorkflow(form.workflowId)');
+    expect(source).toContain('<option value="">Select stage</option>');
+    expect(source).toContain('<option value="">Select role</option>');
   });
 });

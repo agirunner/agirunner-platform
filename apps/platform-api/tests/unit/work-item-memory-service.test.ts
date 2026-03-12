@@ -216,4 +216,49 @@ describe('WorkItemService work-item memory support', () => {
       secret_ref: 'secret:DB_PASSWORD',
     });
   });
+
+  it('redacts secret-like memory values even when the memory key is not secret-like', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{ id: 'wi-1', workflow_id: 'wf-1', project_id: 'project-1' }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: 21,
+              type: 'project.memory_updated',
+              actor_type: 'agent',
+              actor_id: 'agent:key',
+              created_at: '2026-03-11T12:00:00.000Z',
+              data: {
+                key: 'summary',
+                value: {
+                  note: 'Bearer real-secret',
+                  session: 'eyJhbGciOiJIUzI1NiJ9.payload.signature',
+                },
+                workflow_id: 'wf-1',
+                work_item_id: 'wi-1',
+              },
+            },
+          ],
+          rowCount: 1,
+        }),
+    };
+    const service = new WorkItemService(
+      pool as never,
+      { emit: vi.fn() } as never,
+      { enqueueForWorkflow: vi.fn() } as never,
+      { dispatchActivation: vi.fn() } as never,
+    );
+
+    const result = await service.getWorkItemMemoryHistory('tenant-1', 'wf-1', 'wi-1', 50);
+
+    expect(result.history[0]?.value).toEqual({
+      note: 'redacted://project-memory-secret',
+      session: 'redacted://project-memory-secret',
+    });
+  });
 });

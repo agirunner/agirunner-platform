@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+const optionalUrl = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim().length === 0 ? undefined : value),
+  z.string().url().optional(),
+);
+
 export const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -69,13 +74,27 @@ export const envSchema = z
     GOVERNANCE_TASK_ARCHIVE_AFTER_DAYS: z.coerce.number().int().min(1).default(90),
     GOVERNANCE_TASK_DELETE_AFTER_DAYS: z.coerce.number().int().min(1).default(365),
     GOVERNANCE_EXECUTION_LOG_RETENTION_DAYS: z.coerce.number().int().min(1).default(30),
-    /** @deprecated Configure per-project git webhook secrets via PUT /api/v1/projects/:id/git-webhook instead. */
-    GIT_WEBHOOK_GITHUB_SECRET: z.string().optional(),
-    /** @deprecated Configure per-project git webhook secrets via PUT /api/v1/projects/:id/git-webhook instead. */
-    GIT_WEBHOOK_GITEA_SECRET: z.string().optional(),
-    /** @deprecated Configure per-project git webhook secrets via PUT /api/v1/projects/:id/git-webhook instead. */
-    GIT_WEBHOOK_GITLAB_SECRET: z.string().optional(),
     GIT_WEBHOOK_MAX_PER_MINUTE: z.coerce.number().int().min(1).default(120),
+    DASHBOARD_URL: z.string().url().default('http://localhost:3000'),
+    AGIRUNNER_DASHBOARD_URL: optionalUrl,
+    AGIRUNNER_BASE_URL: optionalUrl,
+    AGIRUNNER_ADMIN_EMAIL: z.string().email().default('admin@agirunner.local'),
+    AGIRUNNER_SSO_GOOGLE_CLIENT_ID: z.string().optional(),
+    AGIRUNNER_SSO_GOOGLE_CLIENT_SECRET: z.string().optional(),
+    AGIRUNNER_SSO_GOOGLE_REDIRECT_URI: optionalUrl,
+    AGIRUNNER_SSO_GITHUB_CLIENT_ID: z.string().optional(),
+    AGIRUNNER_SSO_GITHUB_CLIENT_SECRET: z.string().optional(),
+    AGIRUNNER_SSO_GITHUB_REDIRECT_URI: optionalUrl,
+    RUNTIME_URL: optionalUrl,
+    RUNTIME_API_KEY: z.string().optional(),
+    EXECUTE_ROUTE_MODE: z
+      .enum(['disabled', 'test-simulated', 'test-execution-backed'])
+      .default('disabled'),
+    LIVE_EXECUTOR_API_BASE_URL: optionalUrl,
+    LIVE_AUTH_LLM_API_BASE_URL: optionalUrl,
+    LIVE_EVALUATION_MODEL: z.string().optional(),
+    LIVE_AUTH_LLM_MODEL: z.string().optional(),
+    OPENAI_API_KEY: z.string().optional(),
     LIFECYCLE_AGENT_HEARTBEAT_CHECK_INTERVAL_MS: z.coerce.number().int().min(1).default(15000),
     LIFECYCLE_WORKER_HEARTBEAT_CHECK_INTERVAL_MS: z.coerce.number().int().min(1).default(15000),
     LIFECYCLE_TASK_TIMEOUT_CHECK_INTERVAL_MS: z.coerce.number().int().min(1).default(60000),

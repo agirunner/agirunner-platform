@@ -60,6 +60,14 @@ const claimSchema = z.object({
   include_context: z.boolean().optional(),
 });
 
+const claimCredentialResolveSchema = z.object({
+  llm_api_key_claim_handle: z.string().min(1).optional(),
+  llm_extra_headers_claim_handle: z.string().min(1).optional(),
+}).refine(
+  (value) => Boolean(value.llm_api_key_claim_handle || value.llm_extra_headers_claim_handle),
+  { message: 'At least one claim credential handle is required.' },
+);
+
 const taskControlSchema = z.object({
   agent_id: z.string().uuid().optional(),
   worker_id: z.string().uuid().optional(),
@@ -271,6 +279,17 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
         return reply.status(204).send();
       }
       return reply.status(200).send({ data: task });
+    },
+  );
+
+  app.post(
+    '/api/v1/tasks/:id/claim-credentials',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(claimCredentialResolveSchema.safeParse(request.body));
+      const credentials = await taskService.resolveClaimCredentials(request.auth!, params.id, body);
+      return { data: credentials };
     },
   );
 

@@ -145,7 +145,7 @@ export function PlaybookListPage(): JSX.Element {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create Playbook</DialogTitle>
             <DialogDescription>

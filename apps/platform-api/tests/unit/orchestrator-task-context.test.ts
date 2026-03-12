@@ -15,8 +15,38 @@ describe('buildOrchestratorTaskContext', () => {
               metadata: {},
               playbook_name: 'Continuous Flow',
               playbook_outcome: 'Ship work',
-              playbook_definition: {},
+              playbook_definition: {
+                board: { columns: [{ id: 'todo', label: 'Todo' }] },
+                stages: [
+                  { name: 'triage', goal: 'Sort incoming work' },
+                  { name: 'implementation', goal: 'Implement work' },
+                  { name: 'review', goal: 'Review work' },
+                ],
+                lifecycle: 'continuous',
+              },
             }],
+          };
+        }
+        if (sql.includes('FROM workflow_activations')) {
+          return {
+            rows: [
+              {
+                id: 'activation-1',
+                activation_id: 'activation-1',
+                reason: 'work_item.created',
+                event_type: 'work_item.created',
+                payload: { work_item_id: 'wi-1' },
+                state: 'processing',
+                dispatch_attempt: 2,
+                dispatch_token: 'dispatch-token-1',
+                queued_at: new Date('2026-03-11T00:00:00Z'),
+                started_at: new Date('2026-03-11T00:00:05Z'),
+                consumed_at: null,
+                completed_at: null,
+                summary: null,
+                error: null,
+              },
+            ],
           };
         }
         if (sql.includes('FROM workflow_stages')) {
@@ -30,8 +60,8 @@ describe('buildOrchestratorTaskContext', () => {
         if (sql.includes('FROM workflow_work_items')) {
           return {
             rows: [
-              { id: 'wi-1', stage_name: 'triage', completed_at: null },
-              { id: 'wi-2', stage_name: 'implementation', completed_at: null },
+              { id: 'wi-1', stage_name: 'implementation', completed_at: null },
+              { id: 'wi-2', stage_name: 'triage', completed_at: null },
               { id: 'wi-3', stage_name: 'triage', completed_at: null },
               { id: 'wi-4', stage_name: 'done', completed_at: '2026-03-11T00:00:00.000Z' },
             ],
@@ -45,6 +75,7 @@ describe('buildOrchestratorTaskContext', () => {
       id: 'task-1',
       workflow_id: 'workflow-1',
       is_orchestrator_task: true,
+      activation_id: 'activation-1',
     });
 
     expect(context?.workflow).toEqual(
@@ -54,5 +85,11 @@ describe('buildOrchestratorTaskContext', () => {
       }),
     );
     expect(context?.workflow).not.toHaveProperty('current_stage');
+    expect(context?.activation).toEqual(
+      expect.objectContaining({
+        dispatch_attempt: 2,
+        dispatch_token: 'dispatch-token-1',
+      }),
+    );
   });
 });

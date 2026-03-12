@@ -1,4 +1,5 @@
 import type { DatabaseQueryable } from '../db/database.js';
+import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { listTaskDocuments } from './document-reference-service.js';
 import { normalizeInstructionDocument } from './instruction-policy.js';
 import { buildOrchestratorTaskContext } from './orchestrator-task-context.js';
@@ -29,7 +30,15 @@ export async function buildTaskContext(
   const [projectRes, workflowRes, depsRes, documents] = await Promise.all([
     task.project_id
       ? db.query(
-          'SELECT id, name, description, memory FROM projects WHERE tenant_id = $1 AND id = $2',
+          `SELECT id,
+                  name,
+                  description,
+                  repository_url,
+                  settings,
+                  memory
+             FROM projects
+            WHERE tenant_id = $1
+              AND id = $2`,
           [tenantId, task.project_id],
         )
       : Promise.resolve({ rows: [] }),
@@ -64,7 +73,14 @@ export async function buildTaskContext(
 
   const workflowRow = workflowRes.rows[0] as Record<string, unknown> | undefined;
   const workItem = await loadWorkItemContext(db, tenantId, task);
-  const activeStages = workflowRow ? await loadWorkflowActiveStages(db, tenantId, String(workflowRow.id)) : [];
+  const activeStages = workflowRow
+    ? await loadWorkflowActiveStages(
+        db,
+        tenantId,
+        String(workflowRow.id),
+        workflowRow.playbook_definition,
+      )
+    : [];
   const currentStage =
     workflowRow && workflowRow.lifecycle !== 'continuous'
       ? await loadWorkflowCurrentStage(db, tenantId, String(workflowRow.id))
@@ -164,6 +180,7 @@ async function loadWorkflowActiveStages(
   db: DatabaseQueryable,
   tenantId: string,
   workflowId: string,
+  definition: unknown,
 ): Promise<string[]> {
   const result = await db.query<{ stage_name: string }>(
     `SELECT DISTINCT stage_name
@@ -184,7 +201,7 @@ async function loadWorkflowActiveStages(
       ORDER BY stage_name ASC`,
     [tenantId, workflowId],
   );
-  return result.rows.map((row) => row.stage_name);
+  return orderStageNamesByDefinition(result.rows.map((row) => row.stage_name), definition);
 }
 
 async function loadWorkflowCurrentStage(
@@ -514,6 +531,41 @@ function toWorkflowRelationRef(workflowId: string, row?: Record<string, unknown>
     is_terminal: ['completed', 'failed', 'cancelled'].includes(asOptionalString(row?.state) ?? ''),
     link: `/workflows/${workflowId}`,
   };
+}
+
+function orderStageNamesByDefinition(stageNames: string[], definition: unknown): string[] {
+  if (stageNames.length <= 1) {
+    return stageNames;
+  }
+  const stageOrder = readPlaybookStageOrder(definition);
+  if (stageOrder.length === 0) {
+    return stageNames;
+  }
+  const remaining = new Set(stageNames);
+  const ordered: string[] = [];
+  for (const stageName of stageOrder) {
+    if (!remaining.has(stageName)) {
+      continue;
+    }
+    ordered.push(stageName);
+    remaining.delete(stageName);
+  }
+  for (const stageName of stageNames) {
+    if (!remaining.has(stageName)) {
+      continue;
+    }
+    ordered.push(stageName);
+    remaining.delete(stageName);
+  }
+  return ordered;
+}
+
+function readPlaybookStageOrder(definition: unknown): string[] {
+  try {
+    return parsePlaybookDefinition(definition).stages.map((stage) => stage.name);
+  } catch {
+    return [];
+  }
 }
 
 function asOptionalNumber(value: unknown): number | undefined {

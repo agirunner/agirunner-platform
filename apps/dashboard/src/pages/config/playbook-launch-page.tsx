@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Loader2, Plus, Rocket, Trash2 } from 'lucide-react';
 
 import {
   dashboardApi,
   type DashboardEffectiveModelResolution,
+  type DashboardLlmModelRecord,
+  type DashboardLlmProviderRecord,
   type DashboardPlaybookRecord,
   type DashboardProjectRecord,
   type DashboardProjectResolvedModelsResponse,
@@ -32,6 +34,7 @@ import {
   defaultParameterDraftValue,
   mergeStructuredObjects,
   readLaunchDefinition,
+  readMappedProjectParameterDraft,
   syncRoleOverrideDrafts,
   type LaunchParameterSpec,
   type RoleOverrideDraft,
@@ -50,6 +53,7 @@ export function PlaybookLaunchPage(): JSX.Element {
   const [metadataDrafts, setMetadataDrafts] = useState<StructuredEntryDraft[]>([]);
   const [modelOverrideDrafts, setModelOverrideDrafts] = useState<RoleOverrideDraft[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const autoFilledParameterDraftsRef = useRef<Record<string, string>>({});
 
   const playbooksQuery = useQuery({
     queryKey: ['playbooks'],
@@ -59,12 +63,30 @@ export function PlaybookLaunchPage(): JSX.Element {
     queryKey: ['projects'],
     queryFn: () => dashboardApi.listProjects(),
   });
+  const llmProvidersQuery = useQuery({
+    queryKey: ['llm-providers'],
+    queryFn: () => dashboardApi.listLlmProviders(),
+  });
+  const llmModelsQuery = useQuery({
+    queryKey: ['llm-models'],
+    queryFn: () => dashboardApi.listLlmModels(),
+  });
 
   const selectedPlaybook = useMemo(
     () => (playbooksQuery.data?.data ?? []).find((playbook) => playbook.id === selectedPlaybookId) ?? null,
     [playbooksQuery.data?.data, selectedPlaybookId],
   );
   const launchDefinition = useMemo(() => readLaunchDefinition(selectedPlaybook), [selectedPlaybook]);
+  const hasAdditionalParameters = extraParameterDrafts.length > 0;
+  const hasMetadataEntries = metadataDrafts.length > 0;
+  const hasWorkflowOverrides = modelOverrideDrafts.some(
+    (draft) =>
+      draft.provider.trim().length > 0 ||
+      draft.model.trim().length > 0 ||
+      draft.reasoningEntries.some(
+        (entry) => entry.key.trim().length > 0 || entry.value.trim().length > 0,
+      ),
+  );
   const workflowOverrides = useMemo(
     () => readWorkflowOverrides(modelOverrideDrafts),
     [modelOverrideDrafts],
@@ -92,6 +114,14 @@ export function PlaybookLaunchPage(): JSX.Element {
       !workflowOverrides.error &&
       (Object.keys(workflowOverrides.value ?? {}).length > 0 || projectId.length > 0),
   });
+  const validationError = readLaunchValidationError(
+    selectedPlaybookId,
+    workflowName,
+    workflowOverrides.error,
+  );
+  const playbooks = playbooksQuery.data?.data ?? [];
+  const projects = projectsQuery.data?.data ?? [];
+  const selectedProject = projects.find((project) => project.id === projectId) ?? null;
 
   useEffect(() => {
     if (!workflowName.trim() && selectedPlaybook) {
@@ -100,18 +130,47 @@ export function PlaybookLaunchPage(): JSX.Element {
   }, [selectedPlaybook, workflowName]);
 
   useEffect(() => {
+    setSelectedPlaybookId(params.id ?? '');
+  }, [params.id]);
+
+  useEffect(() => {
     setParameterDrafts((current) => {
-      const next: Record<string, string> = {};
+      const next = { ...current };
+      const nextAutoFilled: Record<string, string> = {};
       for (const spec of launchDefinition.parameterSpecs) {
-        next[spec.key] = current[spec.key] ?? defaultParameterDraftValue(spec.defaultValue, spec.inputType);
+        const defaultValue = defaultParameterDraftValue(spec.defaultValue, spec.inputType);
+        const mappedValue = readMappedProjectParameterDraft(spec, selectedProject);
+        const currentValue = current[spec.key];
+        const priorAutoFilled = autoFilledParameterDraftsRef.current[spec.key];
+        if (mappedValue !== undefined) {
+          nextAutoFilled[spec.key] = mappedValue;
+        }
+        const shouldAutofill =
+          mappedValue !== undefined &&
+          (currentValue === undefined
+            || currentValue === ''
+            || currentValue === defaultValue
+            || currentValue === priorAutoFilled);
+        if (shouldAutofill) {
+          next[spec.key] = mappedValue;
+          continue;
+        }
+        if (currentValue === undefined || currentValue === priorAutoFilled) {
+          next[spec.key] = defaultValue;
+        }
       }
+      autoFilledParameterDraftsRef.current = nextAutoFilled;
       return next;
     });
-  }, [launchDefinition.parameterSpecs]);
+  }, [launchDefinition.parameterSpecs, selectedProject]);
 
   useEffect(() => {
     setModelOverrideDrafts((current) => syncRoleOverrideDrafts(launchDefinition.roles, current));
   }, [launchDefinition.roles]);
+
+  useEffect(() => {
+    setError(null);
+  }, [selectedPlaybookId, workflowName, projectId, extraParameterDrafts, metadataDrafts, modelOverrideDrafts]);
 
   const launchMutation = useMutation({
     mutationFn: async () => {
@@ -139,18 +198,36 @@ export function PlaybookLaunchPage(): JSX.Element {
     },
   });
 
-  const playbooks = playbooksQuery.data?.data ?? [];
-  const projects = projectsQuery.data?.data ?? [];
-  const canLaunch = Boolean(selectedPlaybookId && workflowName.trim());
+  const canLaunch = !validationError && !launchMutation.isPending;
 
   return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Launch Playbook</h1>
-        <p className="text-sm text-muted">
-          Create a new workflow run from a playbook with structured run inputs, board-aware context,
-          and role-based model overrides.
-        </p>
+    <div data-testid="playbook-launch-surface" className="space-y-6 p-6">
+      <div className="space-y-3 rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
+          <Link to="/config/playbooks" className="underline-offset-4 hover:underline">
+            Back to Playbooks
+          </Link>
+          {selectedPlaybookId ? (
+            <Link
+              to={`/config/playbooks/${selectedPlaybookId}`}
+              className="underline-offset-4 hover:underline"
+            >
+              Open Playbook Detail
+            </Link>
+          ) : null}
+        </div>
+        <div>
+          <h1 className="text-2xl font-semibold">Launch Playbook</h1>
+          <p className="text-sm text-muted">
+            Create a new workflow run from a playbook with structured run inputs, board-aware context,
+            and role-based model overrides.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="secondary">Structured launch flow</Badge>
+          <Badge variant="outline">Board-aware context</Badge>
+          <Badge variant="outline">Role-based model policy</Badge>
+        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr,0.8fr]">
@@ -159,43 +236,84 @@ export function PlaybookLaunchPage(): JSX.Element {
             <CardTitle>Run Configuration</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-6">
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Playbook</span>
-              <Select value={selectedPlaybookId} onValueChange={setSelectedPlaybookId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a playbook" />
-                </SelectTrigger>
-                <SelectContent>
-                  {playbooks.map((playbook) => (
-                    <SelectItem key={playbook.id} value={playbook.id}>
-                      {playbook.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
+            <div className="grid gap-4 rounded-xl border border-border/70 bg-muted/10 p-4">
+              <div className="grid gap-1">
+                <div className="text-sm font-medium text-foreground">Run Identity</div>
+                <p className="text-sm text-muted">
+                  Choose the playbook, name the run, and decide whether it belongs to a project before launch.
+                </p>
+              </div>
 
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Workflow Name</span>
-              <Input value={workflowName} onChange={(event) => setWorkflowName(event.target.value)} />
-            </label>
+              <label className="grid gap-2 text-sm">
+                <span className="font-medium">Playbook</span>
+                <Select
+                  value={selectedPlaybookId}
+                  onValueChange={(value) => {
+                    setSelectedPlaybookId(value);
+                    setError(null);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a playbook" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {playbooks.map((playbook) => (
+                      <SelectItem key={playbook.id} value={playbook.id}>
+                        {playbook.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
 
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Project</span>
-              <Select value={projectId || '__none__'} onValueChange={(value) => setProjectId(value === '__none__' ? '' : value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Standalone workflow" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Standalone workflow</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
+              <label className="grid gap-2 text-sm">
+                <span className="font-medium">Workflow Name</span>
+                <Input
+                  value={workflowName}
+                  onChange={(event) => setWorkflowName(event.target.value)}
+                  placeholder="e.g. Customer onboarding board run"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm">
+                <span className="font-medium">Project</span>
+                <Select value={projectId || '__none__'} onValueChange={(value) => setProjectId(value === '__none__' ? '' : value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Standalone workflow" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Standalone workflow</SelectItem>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+            </div>
+
+            <StructuredSection
+              title="Launch Readiness"
+              description="Review the launch essentials before starting the run."
+            >
+              <LaunchReadinessPanel
+                selectedPlaybook={selectedPlaybook}
+                selectedProject={selectedProject}
+                workflowName={workflowName}
+                hasStructuredParameters={launchDefinition.parameterSpecs.length > 0 || hasAdditionalParameters}
+                hasMetadataEntries={hasMetadataEntries}
+                hasWorkflowOverrides={hasWorkflowOverrides}
+                validationError={validationError}
+              />
+            </StructuredSection>
+
+            <StructuredSection
+              title="Playbook Snapshot"
+              description="Preview the board shape, stages, and declared roles that will frame this run."
+            >
+              <LaunchDefinitionSnapshot launchDefinition={launchDefinition} />
+            </StructuredSection>
 
             <StructuredSection
               title="Playbook Parameters"
@@ -268,27 +386,41 @@ export function PlaybookLaunchPage(): JSX.Element {
               <RoleOverrideEditor
                 drafts={modelOverrideDrafts}
                 playbookRoles={launchDefinition.roles}
+                providers={llmProvidersQuery.data ?? []}
+                models={llmModelsQuery.data ?? []}
                 onChange={(drafts) => {
                   setError(null);
                   setModelOverrideDrafts(drafts);
                 }}
               />
+              {llmProvidersQuery.error || llmModelsQuery.error ? (
+                <p className="text-sm text-red-600">
+                  Failed to load provider or model options for workflow overrides.
+                </p>
+              ) : null}
             </StructuredSection>
 
             {workflowOverrides.error ? (
               <p className="text-sm text-red-600">{workflowOverrides.error}</p>
             ) : null}
+            {validationError ? <p className="text-sm text-red-600">{validationError}</p> : null}
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-            <div className="flex justify-end">
+            <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/10 p-4">
+              <div className="space-y-1">
+                <div className="text-sm font-medium text-foreground">Ready to launch</div>
+                <p className="text-sm text-muted">
+                  Start the run with the selected playbook and the structured inputs above.
+                </p>
+              </div>
               <Button
                 onClick={() => launchMutation.mutate()}
-                disabled={!canLaunch || launchMutation.isPending}
+                disabled={!canLaunch}
               >
                 {launchMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
                 Launch Run
               </Button>
-            </div>
+            </section>
           </CardContent>
         </Card>
 
@@ -315,12 +447,100 @@ function StructuredSection(props: {
   children: ReactNode;
 }): JSX.Element {
   return (
-    <div className="space-y-3 rounded-md border border-border p-4">
-      <div>
+    <section className="space-y-3 rounded-md border border-border p-4">
+      <header>
         <div className="font-medium">{props.title}</div>
         <p className="text-sm text-muted">{props.description}</p>
-      </div>
+      </header>
       {props.children}
+    </section>
+  );
+}
+
+function LaunchReadinessPanel(props: {
+  selectedPlaybook: DashboardPlaybookRecord | null;
+  selectedProject: DashboardProjectRecord | null;
+  workflowName: string;
+  hasStructuredParameters: boolean;
+  hasMetadataEntries: boolean;
+  hasWorkflowOverrides: boolean;
+  validationError: string | null;
+}): JSX.Element {
+  const checks = [
+    {
+      label: 'Playbook selected',
+      detail: props.selectedPlaybook?.name ?? 'Choose the playbook to launch.',
+      isReady: Boolean(props.selectedPlaybook),
+    },
+    {
+      label: 'Workflow named',
+      detail: props.workflowName.trim() || 'Enter a descriptive run name.',
+      isReady: props.workflowName.trim().length > 0,
+    },
+    {
+      label: 'Project context',
+      detail: props.selectedProject?.name ?? 'Standalone workflow',
+      isReady: true,
+    },
+    {
+      label: 'Structured launch inputs',
+      detail: props.hasStructuredParameters
+        ? 'Parameters are configured through structured controls.'
+        : 'This run will start with playbook defaults only.',
+      isReady: true,
+    },
+    {
+      label: 'Metadata and model policy',
+      detail: props.hasMetadataEntries || props.hasWorkflowOverrides
+        ? 'Metadata or workflow model policy is configured.'
+        : 'Using existing defaults and no workflow-specific overrides.',
+      isReady: true,
+    },
+  ];
+
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      {checks.map((check) => (
+        <div key={check.label} className="rounded-md border border-border bg-muted/20 p-3 text-sm">
+          <div className="flex items-center justify-between gap-2">
+            <div className="font-medium">{check.label}</div>
+            <Badge variant={check.isReady ? 'secondary' : 'destructive'}>
+              {check.isReady ? 'Ready' : 'Action needed'}
+            </Badge>
+          </div>
+          <p className="mt-2 text-muted">{check.detail}</p>
+        </div>
+      ))}
+      <div className="md:col-span-2 rounded-md border border-border bg-surface p-3 text-sm">
+        <div className="font-medium">Launch status</div>
+        <p className="mt-2 text-muted">
+          {props.validationError ?? 'All required launch inputs are present.'}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function LaunchDefinitionSnapshot(props: {
+  launchDefinition: ReturnType<typeof readLaunchDefinition>;
+}): JSX.Element {
+  return (
+    <div className="grid gap-3">
+      <SummaryList
+        title="Board Columns"
+        values={props.launchDefinition.boardColumns.map((column) => column.label)}
+        emptyMessage="No board columns defined."
+      />
+      <SummaryList
+        title="Live Stages"
+        values={props.launchDefinition.stageNames}
+        emptyMessage="No stages defined."
+      />
+      <SummaryList
+        title="Playbook Roles"
+        values={props.launchDefinition.roles}
+        emptyMessage="No explicit roles declared."
+      />
     </div>
   );
 }
@@ -358,16 +578,16 @@ function StructuredEntryEditor(props: {
   addLabel: string;
 }): JSX.Element {
   return (
-    <div className="space-y-3 rounded-md border border-dashed border-border p-3">
-      <div className="space-y-1">
+    <section className="space-y-3 rounded-md border border-dashed border-border p-3">
+      <header className="space-y-1">
         <div className="text-sm font-medium">{props.title}</div>
         {props.description ? <p className="text-xs text-muted">{props.description}</p> : null}
-      </div>
+      </header>
       {props.drafts.length === 0 ? (
         <p className="text-sm text-muted">No entries added yet.</p>
       ) : (
         props.drafts.map((draft) => (
-          <div key={draft.id} className="grid gap-3 rounded-md border border-border p-3">
+          <article key={draft.id} className="grid gap-3 rounded-md border border-border p-3">
             <div className="grid gap-3 md:grid-cols-[1.1fr,0.7fr,1.2fr,auto]">
               <label className="grid gap-1 text-xs">
                 <span className="font-medium">Key</span>
@@ -414,22 +634,29 @@ function StructuredEntryEditor(props: {
                 </Button>
               </div>
             </div>
-          </div>
+          </article>
         ))
       )}
       <Button type="button" variant="outline" onClick={() => props.onChange([...props.drafts, createStructuredEntryDraft()])}>
         <Plus className="h-4 w-4" />
         {props.addLabel}
       </Button>
-    </div>
+    </section>
   );
 }
 
 function RoleOverrideEditor(props: {
   drafts: RoleOverrideDraft[];
   playbookRoles: string[];
+  providers: DashboardLlmProviderRecord[];
+  models: DashboardLlmModelRecord[];
   onChange(drafts: RoleOverrideDraft[]): void;
 }): JSX.Element {
+  const enabledModels = useMemo(
+    () => props.models.filter((model) => model.is_enabled !== false),
+    [props.models],
+  );
+
   return (
     <div className="space-y-3">
       {props.drafts.length === 0 ? (
@@ -437,6 +664,8 @@ function RoleOverrideEditor(props: {
       ) : (
         props.drafts.map((draft) => {
           const isPlaybookRole = props.playbookRoles.includes(draft.role.trim());
+          const selectedProvider = findProviderByDraft(props.providers, draft.provider);
+          const availableModels = listModelsForProvider(enabledModels, selectedProvider);
           return (
             <div key={draft.id} className="grid gap-3 rounded-md border border-border p-3">
               <div className="flex items-center justify-between">
@@ -468,30 +697,75 @@ function RoleOverrideEditor(props: {
                 </label>
                 <label className="grid gap-1 text-xs">
                   <span className="font-medium">Provider</span>
-                  <Input
-                    value={draft.provider}
-                    placeholder="openai"
-                    onChange={(event) => props.onChange(updateRoleDraft(props.drafts, draft.id, { provider: event.target.value }))}
-                  />
+                  <Select
+                    value={selectedProvider?.id ?? '__unset__'}
+                    onValueChange={(value) =>
+                      props.onChange(
+                        updateProviderForRoleDraft(
+                          props.drafts,
+                          draft.id,
+                          value,
+                          props.providers,
+                          enabledModels,
+                        ),
+                      )
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select provider" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__unset__">Unset</SelectItem>
+                      {props.providers.map((provider) => (
+                        <SelectItem key={provider.id} value={provider.id}>
+                          {provider.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </label>
-                <label className="grid gap-1 text-xs">
-                  <span className="font-medium">Model</span>
-                  <Input
-                    value={draft.model}
-                    placeholder="gpt-5"
-                    onChange={(event) => props.onChange(updateRoleDraft(props.drafts, draft.id, { model: event.target.value }))}
-                  />
-                </label>
-              </div>
               <label className="grid gap-1 text-xs">
-                <span className="font-medium">Reasoning Config JSON</span>
-                <Textarea
-                  value={draft.reasoningConfig}
-                  placeholder='{"effort":"medium"}'
-                  className="min-h-[100px] font-mono text-xs"
-                  onChange={(event) => props.onChange(updateRoleDraft(props.drafts, draft.id, { reasoningConfig: event.target.value }))}
-                />
+                <span className="font-medium">Model</span>
+                <Select
+                  value={draft.model || '__unset__'}
+                  onValueChange={(value) =>
+                    props.onChange(
+                      updateRoleDraft(props.drafts, draft.id, {
+                        model: value === '__unset__' ? '' : value,
+                      }),
+                    )
+                  }
+                  disabled={availableModels.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={selectedProvider ? 'Select model' : 'Select a provider first'}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__unset__">Unset</SelectItem>
+                    {availableModels.map((model) => (
+                      <SelectItem key={model.id} value={model.model_id}>
+                        {model.model_id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </label>
+              </div>
+              <p className="text-xs text-muted">
+                Choose from discovered models for the selected provider. Manage providers and model
+                discovery on the LLM Providers page.
+              </p>
+              <StructuredEntryEditor
+                title="Reasoning Config Entries"
+                description="Add only the reasoning settings this role needs as structured key/value entries."
+                drafts={draft.reasoningEntries}
+                addLabel="Add reasoning setting"
+                onChange={(reasoningEntries) =>
+                  props.onChange(updateRoleDraft(props.drafts, draft.id, { reasoningEntries }))
+                }
+              />
             </div>
           );
         })
@@ -560,6 +834,50 @@ function ValueInput(props: {
       onChange={(event) => props.onChange(event.target.value)}
     />
   );
+}
+
+function findProviderByDraft(
+  providers: DashboardLlmProviderRecord[],
+  providerName: string,
+): DashboardLlmProviderRecord | null {
+  const normalized = providerName.trim();
+  if (!normalized) {
+    return null;
+  }
+  return providers.find((provider) => provider.name === normalized) ?? null;
+}
+
+function listModelsForProvider(
+  models: DashboardLlmModelRecord[],
+  provider: DashboardLlmProviderRecord | null,
+): DashboardLlmModelRecord[] {
+  if (!provider) {
+    return [];
+  }
+  return models.filter(
+    (model) => model.provider_id === provider.id || model.provider_name === provider.name,
+  );
+}
+
+function updateProviderForRoleDraft(
+  drafts: RoleOverrideDraft[],
+  draftId: string,
+  providerId: string,
+  providers: DashboardLlmProviderRecord[],
+  models: DashboardLlmModelRecord[],
+): RoleOverrideDraft[] {
+  if (providerId === '__unset__') {
+    return updateRoleDraft(drafts, draftId, { provider: '', model: '' });
+  }
+  const provider = providers.find((entry) => entry.id === providerId);
+  if (!provider) {
+    return drafts;
+  }
+  const allowedModels = listModelsForProvider(models, provider).map((model) => model.model_id);
+  const currentDraft = drafts.find((entry) => entry.id === draftId);
+  const nextModel =
+    currentDraft && allowedModels.includes(currentDraft.model) ? currentDraft.model : '';
+  return updateRoleDraft(drafts, draftId, { provider: provider.name, model: nextModel });
 }
 
 function PlaybookSummaryCard(props: {
@@ -739,4 +1057,21 @@ function readWorkflowOverrides(
       error: error instanceof Error ? error.message : 'Workflow model overrides are invalid.',
     };
   }
+}
+
+function readLaunchValidationError(
+  selectedPlaybookId: string,
+  workflowName: string,
+  workflowOverrideError?: string,
+): string | null {
+  if (!selectedPlaybookId) {
+    return 'Select a playbook before launching a run.';
+  }
+  if (!workflowName.trim()) {
+    return 'Workflow Name is required before launch.';
+  }
+  if (workflowOverrideError) {
+    return workflowOverrideError;
+  }
+  return null;
 }

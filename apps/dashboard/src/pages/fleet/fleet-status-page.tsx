@@ -10,7 +10,6 @@ import {
   Play,
   Server,
 } from 'lucide-react';
-import { readSession } from '../../lib/session.js';
 import { cn } from '../../lib/utils.js';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card.js';
 import { Badge } from '../../components/ui/badge.js';
@@ -299,7 +298,26 @@ function EventsTable({
           <p className="text-sm text-muted">No events found.</p>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className="grid gap-3 md:hidden">
+              {events.map((event) => (
+                <div key={event.id} className="rounded-lg border border-border/70 bg-muted/10 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="text-sm font-semibold">{event.event_type}</div>
+                      <div className="text-xs text-muted">{formatTimestamp(event.created_at)}</div>
+                    </div>
+                    <Badge variant={LEVEL_VARIANT[event.level] ?? 'secondary'}>
+                      {event.level}
+                    </Badge>
+                  </div>
+                  <div className="mt-2 space-y-1 text-xs">
+                    <div className="text-muted">Runtime {event.runtime_id ? truncateId(event.runtime_id) : '-'}</div>
+                    <div className="text-muted">{formatEventDetails(event)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs text-muted">
@@ -407,11 +425,15 @@ export function FleetStatusPage(): JSX.Element {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center gap-2">
-        <Container className="h-6 w-6 text-muted-foreground" />
-        <h1 className="text-2xl font-semibold">Fleet Status</h1>
-        <Loader2 className="ml-2 h-4 w-4 animate-spin text-muted" />
-        <span className="text-xs text-muted">Auto-refreshing</span>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-2">
+          <Container className="h-6 w-6 text-muted-foreground" />
+          <h1 className="text-2xl font-semibold">Fleet Status</h1>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Auto-refreshing
+        </div>
       </div>
 
       <GlobalOverview status={status} />

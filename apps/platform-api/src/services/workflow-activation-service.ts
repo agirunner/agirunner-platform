@@ -36,6 +36,8 @@ interface ActivationRow {
   event_type: string;
   payload: Record<string, unknown> | null;
   state: string;
+  dispatch_attempt: number;
+  dispatch_token: string | null;
   queued_at: Date;
   started_at: Date | null;
   consumed_at: Date | null;
@@ -129,7 +131,7 @@ export class WorkflowActivationService {
 
     const result = await this.pool.query<ActivationRow>(
       `SELECT id, workflow_id, activation_id, request_id, reason, event_type, payload, state,
-              queued_at, started_at, consumed_at, completed_at, summary, error
+              dispatch_attempt, dispatch_token, queued_at, started_at, consumed_at, completed_at, summary, error
          FROM workflow_activations
         WHERE ${conditions.join(' AND ')}
         ORDER BY queued_at ASC, id ASC`,
@@ -150,7 +152,7 @@ export class WorkflowActivationService {
     await this.assertWorkflow(tenantId, workflowId);
     const result = await this.pool.query<ActivationRow>(
       `SELECT id, workflow_id, activation_id, request_id, reason, event_type, payload, state,
-              queued_at, started_at, consumed_at, completed_at, summary, error
+              dispatch_attempt, dispatch_token, queued_at, started_at, consumed_at, completed_at, summary, error
          FROM workflow_activations
         WHERE tenant_id = $1
           AND workflow_id = $2
@@ -190,6 +192,8 @@ function toActivationResponse(row: ActivationRow, rows: ActivationRow[] = [row])
       redactionValue: 'redacted://activation-secret',
     }),
     state: deriveActivationState(row),
+    dispatch_attempt: row.dispatch_attempt,
+    dispatch_token: row.dispatch_token,
     queued_at: row.queued_at.toISOString(),
     started_at: row.started_at?.toISOString() ?? null,
     consumed_at: row.consumed_at?.toISOString() ?? null,
@@ -231,6 +235,8 @@ function serializeEvent(row: WorkflowActivationEventRow) {
       redactionValue: 'redacted://activation-secret',
     }),
     state: deriveActivationState(row),
+    dispatch_attempt: row.dispatch_attempt,
+    dispatch_token: row.dispatch_token,
     queued_at: row.queued_at.toISOString(),
     started_at: row.started_at?.toISOString() ?? null,
     consumed_at: row.consumed_at?.toISOString() ?? null,

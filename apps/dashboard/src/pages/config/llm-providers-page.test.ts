@@ -39,6 +39,7 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('LLM Providers');
     expect(source).toContain('Add Provider');
     expect(source).toContain('ProviderCard');
+    expect(source).toContain('max-h-[85vh] max-w-2xl overflow-y-auto');
   });
 
   it('treats provider api keys as write-only', () => {

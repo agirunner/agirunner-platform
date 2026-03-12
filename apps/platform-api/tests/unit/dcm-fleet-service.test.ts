@@ -605,6 +605,7 @@ describe('FleetService DCM', () => {
         'runtime.started',
         'runtime.task.claimed',
         'runtime.task.completed',
+        'runtime.task.escalated',
         'runtime.task.failed',
         'runtime.idle',
         'runtime.draining',

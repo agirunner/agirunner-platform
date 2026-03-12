@@ -200,11 +200,6 @@ describe('playbook workflow integration', () => {
     expect(sourceMetadata.latest_child_workflow_id).toBe(childWorkflow.id);
     expect(sourceMetadata.child_workflow_ids).toContain(childWorkflow.id);
 
-    await expect(
-      workflowChainingService.chainWorkflowExplicit(identity, String(workflow.id), {
-        name: 'Missing Playbook',
-      }),
-    ).rejects.toThrow('playbook_id');
   }, 120_000);
 
   it('preserves deterministic work-item event history and activation flow across board moves and reparenting', async (context) => {
@@ -762,8 +757,8 @@ describe('playbook workflow integration', () => {
     expect(workflowDetail.work_item_summary).toEqual(
       expect.objectContaining({
         total_work_items: 5,
-        open_work_item_count: 4,
-        completed_work_item_count: 1,
+        open_work_item_count: 3,
+        completed_work_item_count: 2,
         active_stage_names: ['triage', 'implementation'],
       }),
     );

@@ -138,4 +138,47 @@ describe('webhook routes', () => {
       },
     ]);
   });
+
+  it('rejects git webhooks when the matched project has no configured per-project secret', async () => {
+    const { webhookRoutes } = await import('../../src/api/routes/webhooks.routes.js');
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('config', { GIT_WEBHOOK_MAX_PER_MINUTE: 60 } as never);
+    app.log.warn = vi.fn();
+    app.decorate('pgPool', { query: vi.fn() });
+    app.decorate('projectService', {
+      findProjectByRepositoryUrl: vi.fn().mockResolvedValue({ id: 'project-1', tenant_id: 'tenant-1' }),
+      getGitWebhookSecret: vi.fn().mockResolvedValue(null),
+    });
+    app.decorate('taskLifecycleService', { receiveGitEvent: vi.fn() });
+    app.decorate('webhookService', {
+      registerWebhook: vi.fn(),
+      updateWebhook: vi.fn(),
+      listWebhooks: vi.fn(),
+      deleteWebhook: vi.fn(),
+    });
+    app.decorate('eventService', { emit: vi.fn() });
+
+    await app.register(webhookRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/webhooks/git',
+      headers: {
+        'x-github-event': 'push',
+        'x-hub-signature-256': 'sha256=deadbeef',
+      },
+      payload: {
+        repository: { clone_url: 'https://github.com/agisnap/agirunner-test-fixtures' },
+      },
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({
+      error: {
+        message: 'No matching project git webhook secret is configured',
+      },
+    });
+  });
 });

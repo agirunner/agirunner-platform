@@ -68,7 +68,14 @@ describe('FR-192: context versioning', () => {
             playbook_id: 'pb-1',
             playbook_name: 'SDLC',
             playbook_outcome: 'Shipped code',
-            playbook_definition: { board: { columns: [{ id: 'todo', label: 'Todo' }] }, stages: [] },
+            playbook_definition: {
+              board: { columns: [{ id: 'todo', label: 'Todo' }] },
+              stages: [
+                { name: 'build', goal: 'Build the change' },
+                { name: 'review', goal: 'Review the change' },
+              ],
+              lifecycle: 'continuous',
+            },
             metadata: {
               parent_workflow_id: 'wf-parent',
               child_workflow_ids: ['wf-child-1'],
@@ -82,7 +89,7 @@ describe('FR-192: context versioning', () => {
       }
       if (sql.includes('SELECT DISTINCT stage_name')) {
         return Promise.resolve({
-          rows: [{ stage_name: 'build' }, { stage_name: 'review' }],
+          rows: [{ stage_name: 'review' }, { stage_name: 'build' }],
         });
       }
       if (sql.includes('LEFT JOIN playbooks pb') && sql.includes('ANY($2::uuid[])')) {

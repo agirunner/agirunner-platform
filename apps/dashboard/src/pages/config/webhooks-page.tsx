@@ -37,9 +37,24 @@ interface WebhookRecord {
 
 interface CreateWebhookForm {
   url: string;
-  event_types: string;
+  event_types: string[];
   secret: string;
 }
+
+const WEBHOOK_EVENT_OPTIONS = [
+  'workflow.created',
+  'workflow.completed',
+  'workflow.failed',
+  'workflow.cancelled',
+  'workflow.gate_requested',
+  'work_item.created',
+  'work_item.updated',
+  'task.created',
+  'task.completed',
+  'task.failed',
+  'task.escalated',
+  'task.awaiting_approval',
+] as const;
 
 const API_BASE_URL =
   import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
@@ -112,7 +127,7 @@ async function deleteWebhook(id: string): Promise<void> {
 
 const INITIAL_FORM: CreateWebhookForm = {
   url: '',
-  event_types: '',
+  event_types: [],
   secret: '',
 };
 
@@ -125,9 +140,7 @@ function CreateWebhookDialog(): JSX.Element {
     mutationFn: () =>
       createWebhook({
         url: form.url,
-        event_types: form.event_types
-          ? form.event_types.split(',').map((s) => s.trim()).filter(Boolean)
-          : [],
+        event_types: form.event_types,
         secret: form.secret || undefined,
       }),
     onSuccess: () => {
@@ -141,13 +154,22 @@ function CreateWebhookDialog(): JSX.Element {
     },
   });
 
+  function toggleEventType(eventType: string): void {
+    setForm((prev) => ({
+      ...prev,
+      event_types: prev.event_types.includes(eventType)
+        ? prev.event_types.filter((value) => value !== eventType)
+        : [...prev.event_types, eventType],
+    }));
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <Button onClick={() => setIsOpen(true)} data-testid="add-webhook">
         <Plus className="h-4 w-4" />
         Add Webhook
       </Button>
-      <DialogContent>
+      <DialogContent className="max-h-[80vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Webhook</DialogTitle>
         </DialogHeader>
@@ -171,17 +193,26 @@ function CreateWebhookDialog(): JSX.Element {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">
-              Event Types (comma-separated, leave blank for all)
-            </label>
-            <Input
-              placeholder="workflow.completed, task.failed"
-              value={form.event_types}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, event_types: e.target.value }))
-              }
-              data-testid="webhook-events-input"
-            />
+            <label className="text-sm font-medium">Event Types</label>
+            <p className="text-sm text-muted">
+              Choose the events this endpoint should receive. Leave everything unchecked to receive all supported events.
+            </p>
+            <div className="flex flex-wrap gap-2" data-testid="webhook-events-input">
+              {WEBHOOK_EVENT_OPTIONS.map((eventType) => {
+                const selected = form.event_types.includes(eventType);
+                return (
+                  <Button
+                    key={eventType}
+                    type="button"
+                    variant={selected ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => toggleEventType(eventType)}
+                  >
+                    {eventType}
+                  </Button>
+                );
+              })}
+            </div>
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Secret (min 8 chars)</label>
@@ -241,7 +272,7 @@ function DeleteWebhookDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-h-[70vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Delete Webhook</DialogTitle>
         </DialogHeader>

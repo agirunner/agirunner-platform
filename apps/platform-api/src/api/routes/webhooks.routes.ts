@@ -89,18 +89,6 @@ function parseInboundProvider(
   throw new UnauthorizedError('Unsupported git webhook provider');
 }
 
-function getGlobalFallbackSecret(
-  config: { GIT_WEBHOOK_GITHUB_SECRET?: string; GIT_WEBHOOK_GITEA_SECRET?: string; GIT_WEBHOOK_GITLAB_SECRET?: string },
-  provider: 'github' | 'gitea' | 'gitlab',
-): string | undefined {
-  const map = {
-    github: config.GIT_WEBHOOK_GITHUB_SECRET,
-    gitea: config.GIT_WEBHOOK_GITEA_SECRET,
-    gitlab: config.GIT_WEBHOOK_GITLAB_SECRET,
-  };
-  return map[provider];
-}
-
 function constantTimeEquals(left: string, right: string): boolean {
   const leftBuffer = Buffer.from(left);
   const rightBuffer = Buffer.from(right);
@@ -222,7 +210,6 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
         app,
         inbound,
         repoUrl,
-        request,
       );
 
       verifySignature(identity, rawBody);
@@ -297,50 +284,28 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
 };
 
 async function resolveWebhookSecret(
-  app: { projectService: { findProjectByRepositoryUrl(url: string): Promise<{ id: string; tenant_id: string } | null>; getGitWebhookSecret(tenantId: string, projectId: string): Promise<{ provider: string; secret: string } | null> }; config: Record<string, unknown>; log: { warn(obj: Record<string, unknown>, msg: string): void } },
+  app: { projectService: { findProjectByRepositoryUrl(url: string): Promise<{ id: string; tenant_id: string } | null>; getGitWebhookSecret(tenantId: string, projectId: string): Promise<{ provider: string; secret: string } | null> } },
   inbound: { provider: 'github' | 'gitea' | 'gitlab'; eventType: string; signature?: string },
   repoUrl: string | undefined,
-  request: FastifyRequest,
 ): Promise<InboundWebhookIdentity> {
-  if (repoUrl) {
-    const project = await app.projectService.findProjectByRepositoryUrl(repoUrl);
-    if (project) {
-      const webhookConfig = await app.projectService.getGitWebhookSecret(
-        project.tenant_id,
-        project.id,
-      );
-      if (webhookConfig) {
-        return {
-          provider: inbound.provider,
-          eventType: inbound.eventType,
-          signature: inbound.signature,
-          secret: webhookConfig.secret,
-        };
-      }
-    }
-  }
-
-  /* @deprecated — global env var fallback. Configure per-project secrets instead. */
-  const globalSecret = getGlobalFallbackSecret(
-    request.server.config as unknown as Record<string, string | undefined>,
-    inbound.provider,
-  );
-
-  if (globalSecret) {
-    app.log.warn(
-      { provider: inbound.provider, repoUrl },
-      'git_webhook_using_deprecated_global_secret: configure per-project git webhook secrets instead',
-    );
-  }
-
-  if (!globalSecret && !repoUrl) {
+  if (!repoUrl) {
     throw new NotFoundError('No matching project found for webhook');
   }
-
+  const project = await app.projectService.findProjectByRepositoryUrl(repoUrl);
+  if (!project) {
+    throw new NotFoundError('No matching project found for webhook');
+  }
+  const webhookConfig = await app.projectService.getGitWebhookSecret(
+    project.tenant_id,
+    project.id,
+  );
+  if (!webhookConfig || webhookConfig.provider !== inbound.provider) {
+    throw new UnauthorizedError('No matching project git webhook secret is configured');
+  }
   return {
     provider: inbound.provider,
     eventType: inbound.eventType,
     signature: inbound.signature,
-    secret: globalSecret,
+    secret: webhookConfig.secret,
   };
 }

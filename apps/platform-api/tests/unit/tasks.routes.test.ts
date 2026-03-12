@@ -226,4 +226,58 @@ describe('tasks routes', () => {
       },
     }));
   });
+
+  it('resolves claim credential handles through the agent task route', async () => {
+    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const resolveClaimCredentials = vi.fn(async () => ({
+      llm_api_key: 'resolved-api-key',
+    }));
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('taskService', {
+      listTasks: vi.fn(),
+      createTask: vi.fn(),
+      getTask: vi.fn(),
+      updateTask: vi.fn(),
+      getTaskContext: vi.fn(),
+      getTaskGitActivity: vi.fn(),
+      claimTask: vi.fn(),
+      resolveClaimCredentials,
+      startTask: vi.fn(),
+      completeTask: vi.fn(),
+      failTask: vi.fn(),
+      approveTask: vi.fn(),
+      approveTaskOutput: vi.fn(),
+      retryTask: vi.fn(),
+      cancelTask: vi.fn(),
+      rejectTask: vi.fn(),
+      requestTaskChanges: vi.fn(),
+      skipTask: vi.fn(),
+      reassignTask: vi.fn(),
+      escalateTask: vi.fn(),
+      respondToEscalation: vi.fn(),
+      overrideTaskOutput: vi.fn(),
+      agentEscalate: vi.fn(),
+      resolveEscalation: vi.fn(),
+    });
+
+    await app.register(taskRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/11111111-1111-1111-1111-111111111111/claim-credentials',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        llm_api_key_claim_handle: 'claim:v1:test.test',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(resolveClaimCredentials).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      '11111111-1111-1111-1111-111111111111',
+      { llm_api_key_claim_handle: 'claim:v1:test.test' },
+    );
+  });
 });

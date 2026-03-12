@@ -47,6 +47,8 @@ import { seedConfigTables } from './seed.js';
 import { registerPlugins } from './plugins.js';
 import { registerRoutes } from './routes.js';
 import { registerWebsocketGateway } from './websocket.js';
+import { configureApiKeyLogging } from '../auth/api-key.js';
+import { configureProviderSecretEncryptionKey } from '../lib/oauth-crypto.js';
 
 function requireSecretValue(source: NodeJS.ProcessEnv, envName: 'JWT_SECRET' | 'WEBHOOK_ENCRYPTION_KEY'): string {
   const secretValue = source[envName];
@@ -88,6 +90,8 @@ export async function buildApp() {
 
   assertRequiredStartupSecrets();
   const config = loadEnv(process.env);
+  configureApiKeyLogging(config.LOG_LEVEL);
+  configureProviderSecretEncryptionKey(config.WEBHOOK_ENCRYPTION_KEY);
   const app = Fastify({
     logger: {
       level: config.LOG_LEVEL,
@@ -99,7 +103,7 @@ export async function buildApp() {
   const migrationsDir = path.join(currentDir, '..', 'db', 'migrations');
   await runMigrations(pool, migrationsDir);
   await seedDefaultTenant(pool, process.env);
-  await seedConfigTables(pool);
+  await seedConfigTables(pool, config);
 
   const eventService = new EventService(pool);
   const eventStreamService = new EventStreamService(pool);

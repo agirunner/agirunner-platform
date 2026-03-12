@@ -10,7 +10,7 @@ function readSource() {
 }
 
 describe('approval queue page source', () => {
-  it('prioritizes stage gates with richer summary metrics', () => {
+  it('prioritizes stage gates with stronger summary cards and section hierarchy', () => {
     const source = readSource();
     expect(source).toContain('Review stage gates first');
     expect(source).toContain('Oldest wait');
@@ -18,17 +18,23 @@ describe('approval queue page source', () => {
     expect(source).toContain('Awaiting follow-up');
     expect(source).toContain('Stage gates');
     expect(source).toContain('Step Approvals');
+    expect(source).toContain('QueueMetricCard');
+    expect(source).toContain('QueueSectionHeader');
+    expect(source).toContain('Human review packets waiting by stage.');
   });
 
-  it('renders richer stage gate context and artifact sections', () => {
+  it('renders stage-gate packets as queue cards with breadcrumbs and request-source context', () => {
     const source = readSource();
     expect(source).toContain('GateDetailCard');
     expect(source).toContain('source="approval-queue"');
-    expect(source).toContain('Queue priority');
+    expect(source).toContain('StageGateQueueCard');
+    expect(source).toContain('renderQueuePriorityLabel');
     expect(source).toContain('oldest wait first');
     expect(source).toContain('readGateDecisionSummary');
     expect(source).toContain('readGateResumptionSummary');
     expect(source).toContain('readGateRequestSourceSummary');
+    expect(source).toContain('Gate packet');
+    expect(source).toContain('Request source');
     expect(source).toContain('countPendingOrchestratorFollowUp');
   });
 
@@ -50,12 +56,13 @@ describe('approval queue page source', () => {
     expect(source).toContain('invalidateApprovalWorkflowQueries');
   });
 
-  it('renders task approval breadcrumbs with work-item, stage, role, and activation context', () => {
+  it('renders task approval breadcrumbs with work-item, role, activation, and board-flow context', () => {
     const source = readSource();
     expect(source).toContain('buildWorkflowDetailPermalink');
-    expect(source).toContain('Work item:');
-    expect(source).toContain('Stage:');
-    expect(source).toContain('Role:');
+    expect(source).toContain('buildTaskApprovalBreadcrumbs');
+    expect(source).toContain('Open board context');
+    expect(source).toContain('Activation ');
+    expect(source).toContain('QueueInfoTile');
     expect(source).toContain('Rework round');
     expect(source).toContain('Step approval');
     expect(source).toContain('Output gate');
@@ -63,5 +70,13 @@ describe('approval queue page source', () => {
     expect(source).toContain('Open Work Item Flow');
     expect(source).toContain('Open Step Record');
     expect(source).toContain('usesWorkItemOperatorFlow');
+  });
+
+  it('keeps request-changes dialogs scroll-safe on smaller viewports', () => {
+    const source = readSource();
+    expect(source).toContain('DialogContent className="sm:max-w-lg"');
+    expect(source).toContain('max-h-[75vh]');
+    expect(source).toContain('overflow-y-auto');
+    expect(source).toContain('className="min-h-[140px]"');
   });
 });

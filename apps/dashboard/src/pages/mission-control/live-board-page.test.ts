@@ -32,9 +32,27 @@ describe('live board page source', () => {
     expect(source).toContain('Search boards, work items, stages, gates, steps, or IDs');
     expect(source).toContain('describeAttentionStep');
     expect(source).toContain('resolveTaskOperatorState');
-    expect(source).toContain('Approve Step');
-    expect(source).toContain('Retry Step');
+    expect(source).toContain('Open approvals');
+    expect(source).toContain('Open work-item flow');
+    expect(source).toContain('Open failed step');
     expect(source).not.toContain("t.status === 'awaiting_approval'");
     expect(source).not.toContain("t.status === 'failed'");
+  });
+
+  it('uses truthful KPI cards and triage-first operator copy instead of placeholder metrics', () => {
+    const source = readSource();
+    expect(source).toContain('Blocked Work');
+    expect(source).toContain('Failed Steps');
+    expect(source).toContain('Combined gates, blocked work, and step interventions');
+    expect(source).not.toContain('Containers Running');
+    expect(source).not.toContain('Cost Today');
+  });
+
+  it('renders human-readable live activity instead of raw event type rows', () => {
+    const source = readSource();
+    expect(source).toContain('describeTimelineEvent');
+    expect(source).toContain('describeEventScope');
+    expect(source).toContain('Recent operator activity recorded.');
+    expect(source).not.toContain('Badge variant="secondary">{evt.type}');
   });
 });

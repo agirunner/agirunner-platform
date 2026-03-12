@@ -88,6 +88,8 @@ const ACTIVE_PARALLELISM_SLOT_STATES: TaskState[] = [
   'awaiting_approval',
   'output_pending_review',
 ];
+const DEFAULT_ORCHESTRATOR_ESCALATION_TARGET = 'human';
+const DEFAULT_ORCHESTRATOR_MAX_ESCALATION_DEPTH = 1;
 
 function asRecord(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -217,10 +219,14 @@ export class TaskLifecycleService {
     taskId: string,
     nextState: TaskState,
     options: TransitionOptions,
+    existingClient?: DatabaseClient,
   ) {
-    const client = await this.deps.pool.connect();
+    const client = existingClient ?? await this.deps.pool.connect();
+    const ownsClient = existingClient === undefined;
     try {
-      await client.query('BEGIN');
+      if (ownsClient) {
+        await client.query('BEGIN');
+      }
       const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId, client));
 
       if (!options.expectedStates.includes(task.state as TaskState)) {
@@ -440,13 +446,19 @@ export class TaskLifecycleService {
         );
       }
 
-      await client.query('COMMIT');
+      if (ownsClient) {
+        await client.query('COMMIT');
+      }
       return this.deps.toTaskResponse(updatedTask);
     } catch (error) {
-      await client.query('ROLLBACK');
+      if (ownsClient) {
+        await client.query('ROLLBACK');
+      }
       throw error;
     } finally {
-      client.release();
+      if (ownsClient) {
+        client.release();
+      }
     }
   }
 
@@ -673,8 +685,10 @@ export class TaskLifecycleService {
     });
   }
 
-  async approveTask(identity: ApiKeyIdentity, taskId: string) {
-    const currentTask = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+  async approveTask(identity: ApiKeyIdentity, taskId: string, client?: DatabaseClient) {
+    const currentTask = normalizeTaskRecord(
+      await this.deps.loadTaskOrThrow(identity.tenantId, taskId, client),
+    );
     if (
       (currentTask.state === 'ready' || currentTask.state === 'pending') &&
       matchesReviewMetadata(currentTask, { action: 'approve' })
@@ -689,11 +703,13 @@ export class TaskLifecycleService {
         review_updated_at: new Date().toISOString(),
       },
       reason: 'approved',
-    });
+    }, client);
   }
 
-  async approveTaskOutput(identity: ApiKeyIdentity, taskId: string) {
-    const currentTask = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+  async approveTaskOutput(identity: ApiKeyIdentity, taskId: string, client?: DatabaseClient) {
+    const currentTask = normalizeTaskRecord(
+      await this.deps.loadTaskOrThrow(identity.tenantId, taskId, client),
+    );
     if (
       currentTask.state === 'completed' &&
       matchesReviewMetadata(currentTask, { action: 'approve_output' })
@@ -713,15 +729,16 @@ export class TaskLifecycleService {
         await registerTaskOutputDocuments(client, identity.tenantId, updatedTask, updatedTask.output);
       },
       reason: 'output_review_approved',
-    });
+    }, client);
   }
 
   async retryTask(
     identity: ApiKeyIdentity,
     taskId: string,
     payload: { override_input?: Record<string, unknown>; force?: boolean } = {},
+    client?: DatabaseClient,
   ) {
-    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId, client));
     if (
       (task.state === 'ready' || task.state === 'pending')
       && task.assigned_agent_id == null
@@ -756,11 +773,11 @@ export class TaskLifecycleService {
       clearEscalationMetadata: true,
       overrideInput: payload.override_input,
       reason: payload.force ? 'manual_retry_forced' : 'manual_retry',
-    });
+    }, client);
   }
 
-  async cancelTask(identity: ApiKeyIdentity, taskId: string) {
-    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+  async cancelTask(identity: ApiKeyIdentity, taskId: string, client?: DatabaseClient) {
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId, client));
     if (task.state === 'cancelled') {
       return this.deps.toTaskResponse(task);
     }
@@ -795,7 +812,7 @@ export class TaskLifecycleService {
       clearLifecycleControlMetadata: true,
       clearEscalationMetadata: true,
       reason: 'cancelled',
-    });
+    }, client);
   }
 
   async rejectTask(identity: ApiKeyIdentity, taskId: string, payload: { feedback: string }) {
@@ -827,8 +844,9 @@ export class TaskLifecycleService {
       preferred_agent_id?: string;
       preferred_worker_id?: string;
     },
+    client?: DatabaseClient,
   ) {
-    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId, client));
     const nextInput = payload.override_input ?? {
       ...asRecord(task.input),
       review_feedback: payload.feedback,
@@ -906,7 +924,7 @@ export class TaskLifecycleService {
           );
         },
         reason: 'max_rework_exceeded',
-      });
+      }, client);
     }
 
     return this.applyStateTransition(identity, taskId, 'ready', {
@@ -934,7 +952,7 @@ export class TaskLifecycleService {
           : {}),
       },
       reason: 'review_requested_changes',
-    });
+    }, client);
   }
 
   async skipTask(identity: ApiKeyIdentity, taskId: string, payload: { reason: string }) {
@@ -976,8 +994,9 @@ export class TaskLifecycleService {
     identity: ApiKeyIdentity,
     taskId: string,
     payload: { preferred_agent_id?: string; preferred_worker_id?: string; reason: string },
+    client?: DatabaseClient,
   ) {
-    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId, client));
     if (
       (task.state === 'ready' || task.state === 'pending') &&
       matchesReviewMetadata(task, {
@@ -1027,15 +1046,16 @@ export class TaskLifecycleService {
         review_updated_at: new Date().toISOString(),
       },
       reason: 'task_reassigned',
-    });
+    }, client);
   }
 
   async escalateTask(
     identity: ApiKeyIdentity,
     taskId: string,
     payload: { reason: string; escalation_target?: string },
+    client?: DatabaseClient,
   ) {
-    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId, client));
     if (
       task.state === 'escalated'
       && hasMatchingManualEscalation(task, payload.reason, payload.escalation_target)
@@ -1093,7 +1113,7 @@ export class TaskLifecycleService {
         );
       },
       reason: 'task_escalated',
-    });
+    }, client);
   }
 
   async overrideTaskOutput(
@@ -1222,13 +1242,16 @@ export class TaskLifecycleService {
     }
 
     const roleDef = await this.deps.getRoleByName(identity.tenantId, roleName);
-    if (!roleDef || !roleDef.escalation_target) {
+    const isOrchestratorTask = task.is_orchestrator_task === true;
+    const escalationTarget = roleDef?.escalation_target
+      ?? (isOrchestratorTask ? DEFAULT_ORCHESTRATOR_ESCALATION_TARGET : null);
+    if (!escalationTarget) {
       throw new ConflictError(`Escalation not configured for role '${roleName}'`);
     }
 
     const metadata = asRecord(task.metadata);
     const currentDepth = typeof metadata.escalation_depth === 'number' ? metadata.escalation_depth : 0;
-    const maxDepth = roleDef.max_escalation_depth;
+    const maxDepth = roleDef?.max_escalation_depth ?? DEFAULT_ORCHESTRATOR_MAX_ESCALATION_DEPTH;
 
     if (currentDepth >= maxDepth) {
       return this.applyStateTransition(identity, taskId, 'failed', {
@@ -1264,8 +1287,6 @@ export class TaskLifecycleService {
         reason: 'escalation_depth_exceeded',
       });
     }
-
-    const escalationTarget = roleDef.escalation_target;
 
     if (escalationTarget === 'human') {
       return this.applyStateTransition(identity, taskId, 'escalated', {

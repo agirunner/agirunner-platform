@@ -46,6 +46,36 @@ interface ActivationBatchSummary {
   latest_event_at: string;
 }
 
+interface WorkflowActivationSummaryRow {
+  activation_id: string | null;
+  state: string;
+  reason: string | null;
+  event_type: string;
+  task_id: string | null;
+  queued_at: Date;
+  started_at: Date | null;
+  consumed_at: Date | null;
+  completed_at: Date | null;
+  error: Record<string, unknown> | null;
+}
+
+interface WorkflowGateSummaryRow {
+  id: string;
+  stage_name: string;
+  status: string;
+  request_summary: string;
+  recommendation: string | null;
+  concerns: unknown[];
+  key_artifacts: unknown[];
+  requested_by_type: string;
+  requested_by_id: string | null;
+  requested_at: Date;
+  decision_feedback: string | null;
+  decided_by_type: string | null;
+  decided_by_id: string | null;
+  decided_at: Date | null;
+}
+
 interface EscalationChainSummary {
   source_task_id: string;
   escalation_task_id: string | null;
@@ -70,13 +100,19 @@ export function buildPlaybookRunSummary(params: {
   workItems: WorkflowWorkItemSummaryRow[];
   events: TimelineEventRow[];
   artifacts: ArtifactSummaryRow[];
+  activations?: WorkflowActivationSummaryRow[];
+  gates?: WorkflowGateSummaryRow[];
 }) {
   const metadata = asRecord(params.workflow.metadata);
   const relations = readWorkflowRelations(params.workflow, metadata);
   const lifecycle = readWorkflowLifecycle(params.workflow);
-  const activationActivity = buildActivationActivity(params.events);
-  const workItemActivity = buildWorkItemActivity(params.stages, params.workItems, params.events);
-  const gateActivity = buildGateActivity(params.stages, params.events);
+  const stages =
+    lifecycle === 'continuous'
+      ? normalizeContinuousStages(params.stages, params.workItems)
+      : params.stages;
+  const activationActivity = buildActivationActivity(params.activations ?? [], params.events);
+  const workItemActivity = buildWorkItemActivity(stages, params.workItems, params.events);
+  const gateActivity = buildGateActivity(stages, params.gates ?? [], params.events);
   const escalationActivity = buildEscalationActivity(params.tasks, params.events);
   const childWorkflowActivity = buildChildWorkflowActivity(metadata, relations, params.events);
   const orchestratorAnalytics = buildOrchestratorAnalytics(params.tasks, activationActivity);
@@ -110,10 +146,10 @@ export function buildPlaybookRunSummary(params: {
     child_workflow_activity: childWorkflowActivity,
     orchestrator_analytics: orchestratorAnalytics,
     stage_progression:
-      lifecycle === 'continuous' ? null : buildStageProgression(params.stages, params.workItems),
+      lifecycle === 'continuous' ? null : buildStageProgression(stages, params.workItems),
     stage_activity:
-      lifecycle === 'continuous' ? buildStageActivity(params.stages, params.workItems) : null,
-    stage_metrics: params.stages.map((stage) => {
+      lifecycle === 'continuous' ? buildStageActivity(stages, params.workItems) : null,
+    stage_metrics: stages.map((stage) => {
       const stageItems = params.workItems.filter((item) => item.stage_name === stage.name);
       return {
         name: stage.name,
@@ -130,7 +166,7 @@ export function buildPlaybookRunSummary(params: {
           by_column: countByColumn(stageItems),
         },
         timing: buildStageTiming(stage, params.events, stageItems),
-        gate_history: buildStageGateHistory(params.events, stage.name),
+        gate_history: buildStageGateHistory(params.gates ?? [], params.events, stage.name),
       };
     }),
     produced_artifacts: buildProducedArtifacts(params.tasks, params.artifacts),
@@ -139,9 +175,45 @@ export function buildPlaybookRunSummary(params: {
   };
 }
 
-function buildActivationActivity(events: TimelineEventRow[]) {
+function normalizeContinuousStages(
+  stages: WorkflowStageSummaryRow[],
+  workItems: WorkflowWorkItemSummaryRow[],
+): WorkflowStageSummaryRow[] {
+  return stages.map((stage) => ({
+    ...stage,
+    status: deriveContinuousStageStatus(stage, workItems),
+  }));
+}
+
+function buildActivationActivity(
+  activations: WorkflowActivationSummaryRow[],
+  events: TimelineEventRow[],
+) {
   const activationEvents = events.filter((event) => event.type.startsWith('workflow.activation_'));
+  const activationRows = activations.filter((row) => row.activation_id);
   const batches = new Map<string, ActivationBatchSummary>();
+
+  for (const row of activationRows) {
+    const activationId = row.activation_id;
+    if (!activationId) continue;
+    const batch = batches.get(activationId) ?? {
+      activation_id: activationId,
+      status: deriveActivationStatusFromRow(row),
+      reason: row.reason ?? null,
+      task_id: row.task_id ?? null,
+      event_count: 0,
+      trigger_event_types: [],
+      workflow_events: [],
+      latest_event_at: latestActivationTimestamp(row),
+    };
+    batch.status = deriveActivationStatusFromRow(row);
+    batch.reason = batch.reason ?? row.reason ?? null;
+    batch.task_id = batch.task_id ?? row.task_id ?? null;
+    batch.event_count += 1;
+    batch.trigger_event_types = appendUnique(batch.trigger_event_types, row.event_type);
+    batch.latest_event_at = maxIsoTimestamp(batch.latest_event_at, latestActivationTimestamp(row));
+    batches.set(activationId, batch);
+  }
 
   for (const event of activationEvents) {
     const data = asRecord(event.data);
@@ -152,7 +224,9 @@ function buildActivationActivity(events: TimelineEventRow[]) {
     batch.trigger_event_types = appendUnique(batch.trigger_event_types, asOptionalString(data.event_type));
     batch.reason = batch.reason ?? asOptionalString(data.reason) ?? null;
     batch.task_id = batch.task_id ?? asOptionalString(data.task_id) ?? null;
-    batch.event_count = Math.max(batch.event_count, Number(data.event_count ?? batch.event_count));
+    if (activationRows.length === 0) {
+      batch.event_count = Math.max(batch.event_count, Number(data.event_count ?? batch.event_count));
+    }
     batch.latest_event_at = event.created_at.toISOString();
     batch.status = deriveActivationStatus(batch.status, event.type);
     batches.set(activationId, batch);
@@ -161,14 +235,20 @@ function buildActivationActivity(events: TimelineEventRow[]) {
   const orderedBatches = [...batches.values()].sort((left, right) =>
     left.latest_event_at.localeCompare(right.latest_event_at),
   );
+  const staleDetectedCount = activationRows.length > 0
+    ? activationRows.filter((row) => readActivationRecoveryStatus(row.error) === 'stale_detected').length
+    : countEvents(activationEvents, 'workflow.activation_stale_detected');
+  const requeuedCount = activationRows.length > 0
+    ? activationRows.filter((row) => readActivationRecoveryStatus(row.error) === 'requeued').length
+    : countEvents(activationEvents, 'workflow.activation_requeued');
   return {
-    total_events: activationEvents.length,
-    queued_count: countEvents(activationEvents, 'workflow.activation_queued'),
-    started_count: countEvents(activationEvents, 'workflow.activation_started'),
-    completed_count: countEvents(activationEvents, 'workflow.activation_completed'),
-    failed_count: countEvents(activationEvents, 'workflow.activation_failed'),
-    requeued_count: countEvents(activationEvents, 'workflow.activation_requeued'),
-    stale_detected_count: countEvents(activationEvents, 'workflow.activation_stale_detected'),
+    total_events: activationRows.length > 0 ? activationRows.length : activationEvents.length,
+    queued_count: activationRows.length > 0 ? activationRows.filter((row) => row.state === 'queued').length : countEvents(activationEvents, 'workflow.activation_queued'),
+    started_count: activationRows.length > 0 ? activationRows.filter((row) => row.started_at).length : countEvents(activationEvents, 'workflow.activation_started'),
+    completed_count: activationRows.length > 0 ? activationRows.filter((row) => row.state === 'completed').length : countEvents(activationEvents, 'workflow.activation_completed'),
+    failed_count: activationRows.length > 0 ? activationRows.filter((row) => row.state === 'failed').length : countEvents(activationEvents, 'workflow.activation_failed'),
+    requeued_count: requeuedCount,
+    stale_detected_count: staleDetectedCount,
     latest_activation_id: orderedBatches[orderedBatches.length - 1]?.activation_id ?? null,
     latest_event_at: orderedBatches[orderedBatches.length - 1]?.latest_event_at ?? null,
     batches: orderedBatches,
@@ -209,18 +289,52 @@ function isContinuousAttentionStageStatus(status: string) {
   return status === 'active' || status === 'awaiting_gate' || status === 'blocked';
 }
 
-function buildGateActivity(stages: WorkflowStageSummaryRow[], events: TimelineEventRow[]) {
+function deriveContinuousStageStatus(
+  stage: WorkflowStageSummaryRow,
+  workItems: WorkflowWorkItemSummaryRow[],
+) {
+  const stageItems = workItems.filter((item) => item.stage_name === stage.name);
+  const openWorkItemCount = stageItems.filter((item) => !item.completed_at).length;
+  if (stage.gate_status === 'awaiting_approval') {
+    return 'awaiting_gate';
+  }
+  if (stage.gate_status === 'rejected') {
+    return 'blocked';
+  }
+  if (openWorkItemCount > 0 || stage.gate_status === 'changes_requested') {
+    return 'active';
+  }
+  if (stageItems.length > 0 || stage.gate_status === 'approved') {
+    return 'completed';
+  }
+  return 'pending';
+}
+
+function buildGateActivity(
+  stages: WorkflowStageSummaryRow[],
+  gates: WorkflowGateSummaryRow[],
+  events: TimelineEventRow[],
+) {
   const gateEvents = events.filter((event) => isGateEvent(event.type));
+  const openGateCount = gates.length > 0
+    ? gates.filter((gate) => gate.status === 'awaiting_approval').length
+    : stages.filter((stage) => stage.gate_status === 'awaiting_approval').length;
+  const latestGateEventAt = gates.length > 0
+    ? latestDate([
+        ...gates.map((gate) => gate.decided_at),
+        ...gates.map((gate) => gate.requested_at),
+      ])?.toISOString() ?? null
+    : gateEvents[gateEvents.length - 1]?.created_at.toISOString() ?? null;
   return {
-    open_gate_count: stages.filter((stage) => stage.gate_status === 'awaiting_approval').length,
-    requested_count: countEvents(gateEvents, 'stage.gate_requested'),
-    approved_count: countEvents(gateEvents, 'stage.gate.approve'),
-    rejected_count: countEvents(gateEvents, 'stage.gate.reject'),
-    changes_requested_count: countEvents(gateEvents, 'stage.gate.request_changes'),
+    open_gate_count: openGateCount,
+    requested_count: gates.length > 0 ? gates.length : countEvents(gateEvents, 'stage.gate_requested'),
+    approved_count: gates.length > 0 ? gates.filter((gate) => gate.status === 'approved').length : countEvents(gateEvents, 'stage.gate.approve'),
+    rejected_count: gates.length > 0 ? gates.filter((gate) => gate.status === 'rejected').length : countEvents(gateEvents, 'stage.gate.reject'),
+    changes_requested_count: gates.length > 0 ? gates.filter((gate) => gate.status === 'changes_requested').length : countEvents(gateEvents, 'stage.gate.request_changes'),
     attention_stage_names: stages
       .filter((stage) => ['awaiting_approval', 'changes_requested', 'rejected'].includes(stage.gate_status))
       .map((stage) => stage.name),
-    latest_gate_event_at: gateEvents[gateEvents.length - 1]?.created_at.toISOString() ?? null,
+    latest_gate_event_at: latestGateEventAt,
   };
 }
 
@@ -380,7 +494,46 @@ function buildStageTiming(
   };
 }
 
-function buildStageGateHistory(events: TimelineEventRow[], stageName: string) {
+function buildStageGateHistory(
+  gates: WorkflowGateSummaryRow[],
+  events: TimelineEventRow[],
+  stageName: string,
+) {
+  const gateHistory = gates
+    .filter((gate) => gate.stage_name === stageName)
+    .flatMap((gate) => {
+      const entries: Array<{
+        action: string;
+        actor_type: string;
+        actor_id: string | null;
+        recommendation?: string | null;
+        feedback?: string | null;
+        acted_at: string;
+      }> = [
+        {
+          action: 'requested',
+          actor_type: gate.requested_by_type,
+          actor_id: gate.requested_by_id,
+          recommendation: gate.recommendation,
+          feedback: gate.request_summary,
+          acted_at: gate.requested_at.toISOString(),
+        },
+      ];
+      if (gate.decided_at && gate.decided_by_type) {
+        entries.push({
+          action: normalizeGateDecisionAction(gate.status),
+          actor_type: gate.decided_by_type,
+          actor_id: gate.decided_by_id,
+          recommendation: gate.recommendation,
+          feedback: gate.decision_feedback ?? undefined,
+          acted_at: gate.decided_at.toISOString(),
+        });
+      }
+      return entries;
+    });
+  if (gateHistory.length > 0) {
+    return gateHistory.sort((left, right) => left.acted_at.localeCompare(right.acted_at));
+  }
   return events
     .filter((event) => asRecord(event.data).stage_name === stageName)
     .filter((event) => isGateEvent(event.type))
@@ -517,6 +670,39 @@ function deriveActivationStatus(currentStatus: string, eventType: string) {
   if (eventType === 'workflow.activation_started') return 'in_progress';
   if (eventType === 'workflow.activation_queued') return currentStatus === 'requeued' ? 'requeued' : 'queued';
   return currentStatus;
+}
+
+function deriveActivationStatusFromRow(row: WorkflowActivationSummaryRow) {
+  const recoveryStatus = readActivationRecoveryStatus(row.error);
+  if (recoveryStatus === 'stale_detected') return 'stale_detected';
+  if (recoveryStatus === 'requeued') return 'requeued';
+  if (row.state === 'failed') return 'failed';
+  if (row.state === 'completed') return 'completed';
+  if (row.started_at || row.state === 'processing') return 'in_progress';
+  return 'queued';
+}
+
+function readActivationRecoveryStatus(error: Record<string, unknown> | null) {
+  return asOptionalString(asRecord(asRecord(error).recovery).status);
+}
+
+function latestActivationTimestamp(row: WorkflowActivationSummaryRow) {
+  return (
+    row.completed_at?.toISOString()
+    ?? row.consumed_at?.toISOString()
+    ?? row.started_at?.toISOString()
+    ?? row.queued_at.toISOString()
+  );
+}
+
+function maxIsoTimestamp(left: string, right: string) {
+  return left.localeCompare(right) >= 0 ? left : right;
+}
+
+function normalizeGateDecisionAction(status: string) {
+  if (status === 'approved') return 'approve';
+  if (status === 'changes_requested') return 'request_changes';
+  return status;
 }
 
 function createEscalationChainSummary(

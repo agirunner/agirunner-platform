@@ -321,22 +321,28 @@ export class WorkflowService {
 
     const isPlaybookWorkflow = Boolean(workflowRow.playbook_id);
     if (isPlaybookWorkflow) {
-      const [workItems, activations, workflowStages] = await Promise.all([
+      const [workItems, activations, workflowStages, playbookDefinition] = await Promise.all([
         this.workItemService.listWorkflowWorkItems(tenantId, workflowId),
         this.activationService.listWorkflowActivations(tenantId, workflowId),
         this.stageService.listStages(tenantId, workflowId),
+        this.loadPlaybookDefinition(tenantId, String(workflowRow.playbook_id)),
       ]);
+      const workflowWithRelations = await this.attachWorkflowRelations(tenantId, [workflowRow]);
+      const workflowReadModel = {
+        ...asRecord(workflowWithRelations[0]),
+        playbook_definition: playbookDefinition,
+      };
+      const terminalColumns = readTerminalColumns(playbookDefinition);
       const activeStages = Array.from(
         new Set(
           workItems
-            .filter((item) => item.completed_at == null)
+            .filter((item) => isBoardItemOpen(item, terminalColumns))
             .map((item) => String(item.stage_name)),
         ),
       );
-      const workflowWithRelations = await this.attachWorkflowRelations(tenantId, [workflowRow]);
       const normalizedWorkflow = normalizeWorkflowReadModel(
-        sanitizeWorkflowReadModel(workflowWithRelations[0]),
-        buildWorkflowWorkItemSummary(workItems, workflowStages),
+        sanitizeWorkflowReadModel(workflowReadModel),
+        buildWorkflowWorkItemSummary(workItems, workflowStages, terminalColumns),
       );
       return {
         ...normalizedWorkflow,
@@ -675,6 +681,20 @@ export class WorkflowService {
   getProjectTimeline(tenantId: string, projectId: string) {
     return this.projectTimelineService.getProjectTimeline(tenantId, projectId);
   }
+
+  private async loadPlaybookDefinition(tenantId: string, playbookId: string): Promise<Record<string, unknown>> {
+    const result = await this.pool.query<{ definition: Record<string, unknown> }>(
+      `SELECT definition
+         FROM playbooks
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [tenantId, playbookId],
+    );
+    if (!result.rowCount) {
+      throw new NotFoundError('Playbook workflow not found');
+    }
+    return result.rows[0].definition ?? {};
+  }
 }
 
 function buildWorkflowRelations(
@@ -906,9 +926,10 @@ function readPlaybookStageOrder(definition: unknown): string[] {
 function buildWorkflowWorkItemSummary(
   workItems: Array<Record<string, unknown>>,
   workflowStages: Array<Pick<WorkflowStageResponse, 'name' | 'position' | 'gate_status'>>,
+  terminalColumns: Set<string>,
 ): WorkflowWorkItemSummary {
   const totalWorkItems = workItems.length;
-  const openWorkItems = workItems.filter((item) => item.completed_at == null);
+  const openWorkItems = workItems.filter((item) => isBoardItemOpen(item, terminalColumns));
   const gateActiveStages = workflowStages
     .filter((stage) => isActiveContinuousGateState(stage.gate_status))
     .map((stage) => stage.name);
@@ -928,6 +949,23 @@ function buildWorkflowWorkItemSummary(
     awaiting_gate_count: awaitingGateCount,
     active_stage_names: activeStageNames,
   };
+}
+
+function readTerminalColumns(definition: unknown): Set<string> {
+  try {
+    const parsed = parsePlaybookDefinition(definition);
+    return new Set(
+      parsed.board.columns
+        .filter((column) => Boolean(column.is_terminal))
+        .map((column) => String(column.id)),
+    );
+  } catch {
+    return new Set<string>();
+  }
+}
+
+function isBoardItemOpen(item: Record<string, unknown>, terminalColumns: Set<string>): boolean {
+  return !isCompletedBoardChild(item, terminalColumns);
 }
 
 function orderStageNames(

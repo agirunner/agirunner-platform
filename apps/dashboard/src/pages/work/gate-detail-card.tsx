@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, CheckCircle, FileText, Link2, Loader2, MessageSquare, XCircle } from 'lucide-react';
 
 import type { DashboardApprovalStageGateRecord } from '../../lib/api.js';
+import { StructuredRecordView } from '../../components/structured-data.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
@@ -396,7 +397,12 @@ export function GateDetailCard(props: {
                       </div>
                     ) : null}
                     {resume?.error ? (
-                      <p className="text-red-600">{JSON.stringify(resume.error)}</p>
+                      <div className="rounded-md border border-rose-200 bg-rose-50/80 p-3">
+                        <div className="mb-2 text-[11px] font-medium uppercase tracking-wide text-rose-800">
+                          Follow-up error details
+                        </div>
+                        <StructuredRecordView data={resume.error} emptyMessage="No structured error details recorded." />
+                      </div>
                     ) : null}
                   </div>
                 </div>
@@ -439,7 +445,13 @@ export function GateDetailCard(props: {
                 </div>
               ) : null}
               {detailQuery.isError ? (
-                <p className="text-xs text-red-600">Failed to refresh gate detail.</p>
+                <div className="rounded-md border border-rose-200 bg-rose-50/80 p-3 text-xs text-rose-900">
+                  <div className="font-medium">Gate refresh failed</div>
+                  <div className="mt-1 text-rose-800">
+                    The current review packet could not be refreshed. Use the workflow or approval
+                    permalink to retry once the gate API is healthy.
+                  </div>
+                </div>
               ) : null}
             </div>
             {isAwaitingApproval ? (
@@ -463,19 +475,20 @@ export function GateDetailCard(props: {
       </Card>
 
       <Dialog open={isChangesDialogOpen} onOpenChange={setIsChangesDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Request Gate Changes</DialogTitle>
             <DialogDescription>
               Provide feedback for &ldquo;{gate.workflow_name ?? workflowId} / {gate.stage_name}&rdquo;.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="grid max-h-[75vh] gap-4 overflow-y-auto pr-1">
             <Textarea
               placeholder="Describe the changes needed..."
               rows={4}
               value={feedback}
               onChange={(event) => setFeedback(event.target.value)}
+              className="min-h-[140px]"
             />
             {requestChangesMutation.isError ? (
               <p className="text-sm text-red-600">Failed to submit feedback. Please try again.</p>

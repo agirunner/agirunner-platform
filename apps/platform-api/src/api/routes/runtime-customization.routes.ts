@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync, FastifyReply } from 'fastify';
+import type { FastifyInstance, FastifyPluginAsync, FastifyReply } from 'fastify';
 import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
@@ -27,10 +27,10 @@ function parseBuildId(params: unknown): string {
   throw new ValidationError('Build id is required');
 }
 
-function createProxyClient(): RuntimeCustomizationProxyClient {
+function createProxyClient(app: FastifyInstance): RuntimeCustomizationProxyClient {
   return new RuntimeCustomizationProxyClient({
-    runtimeUrl: process.env.RUNTIME_URL,
-    runtimeApiKey: process.env.RUNTIME_API_KEY,
+    runtimeUrl: app.config.RUNTIME_URL,
+    runtimeApiKey: app.config.RUNTIME_API_KEY,
   });
 }
 
@@ -66,55 +66,55 @@ export const runtimeCustomizationRoutes: FastifyPluginAsync = async (app) => {
   const auth = { preHandler: [authenticateApiKey, withScope('admin')] };
 
   app.get('/api/v1/runtime/customizations/status', auth, async (_request, reply) => {
-    return sendProxyResponse(reply, await createProxyClient().getStatus());
+    return sendProxyResponse(reply, await createProxyClient(app).getStatus());
   });
 
   app.post('/api/v1/runtime/customizations/validate', auth, async (request, reply) => {
     return sendProxyResponse(
       reply,
-      await createProxyClient().validate(parseRequestBody(request.body)),
+      await createProxyClient(app).validate(parseRequestBody(request.body)),
     );
   });
 
   app.post('/api/v1/runtime/customizations/builds', auth, async (request, reply) => {
     return sendProxyResponse(
       reply,
-      await createProxyClient().createBuild(parseRequestBody(request.body)),
+      await createProxyClient(app).createBuild(parseRequestBody(request.body)),
     );
   });
 
   app.get('/api/v1/runtime/customizations/builds/:id', auth, async (request, reply) => {
     return sendProxyResponse(
       reply,
-      await createProxyClient().getBuild(parseBuildId(request.params)),
+      await createProxyClient(app).getBuild(parseBuildId(request.params)),
     );
   });
 
   app.post('/api/v1/runtime/customizations/links', auth, async (request, reply) => {
     return sendProxyResponse(
       reply,
-      await createProxyClient().createLink(parseRequestBody(request.body)),
+      await createProxyClient(app).createLink(parseRequestBody(request.body)),
     );
   });
 
   app.post('/api/v1/runtime/customizations/rollback', auth, async (request, reply) => {
     return sendProxyResponse(
       reply,
-      await createProxyClient().rollback(parseRequestBody(request.body)),
+      await createProxyClient(app).rollback(parseRequestBody(request.body)),
     );
   });
 
   app.post('/api/v1/runtime/customizations/reconstruct', auth, async (request, reply) => {
     return sendProxyResponse(
       reply,
-      await createProxyClient().reconstruct(parseRequestBody(request.body)),
+      await createProxyClient(app).reconstruct(parseRequestBody(request.body)),
     );
   });
 
   app.post('/api/v1/runtime/customizations/reconstruct/export', auth, async (request, reply) => {
     return sendProxyResponse(
       reply,
-      await createProxyClient().exportReconstructedArtifact(parseRequestBody(request.body)),
+      await createProxyClient(app).exportReconstructedArtifact(parseRequestBody(request.body)),
     );
   });
 };

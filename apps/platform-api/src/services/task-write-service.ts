@@ -20,6 +20,7 @@ interface TaskWriteDependencies {
   loadTaskOrThrow: (tenantId: string, taskId: string) => Promise<Record<string, unknown>>;
   toTaskResponse: (task: Record<string, unknown>) => Record<string, unknown>;
   parallelismService: PlaybookTaskParallelismService;
+  resolveRoleCapabilities?: (tenantId: string, roleName: string) => Promise<string[] | null>;
 }
 
 interface ParentTaskRow {
@@ -56,6 +57,9 @@ export class TaskWriteService {
       ? await this.applyParentTaskPolicies(identity, input)
       : input;
     normalizedInput = await this.applyLinkedWorkItemDefaults(identity.tenantId, normalizedInput, db);
+    this.assertWorkflowTaskLinkage(normalizedInput);
+    normalizedInput = await this.applyWorkflowExecutionDefaults(identity.tenantId, normalizedInput, db);
+    normalizedInput = await this.applyRoleCapabilityDefaults(identity.tenantId, normalizedInput);
     if (normalizedInput.request_id?.trim()) {
       const existing = await this.findExistingByRequestId(
         identity.tenantId,
@@ -232,6 +236,130 @@ export class TaskWriteService {
     };
   }
 
+  private async applyWorkflowExecutionDefaults(
+    tenantId: string,
+    input: CreateTaskInput,
+    db: DatabaseClient | DatabasePool,
+  ): Promise<CreateTaskInput> {
+    if (!input.workflow_id || input.is_orchestrator_task) {
+      return input;
+    }
+
+    const result = await db.query<{
+      repository_url: string | null;
+      settings: Record<string, unknown> | null;
+      git_branch: string | null;
+      parameters: Record<string, unknown> | null;
+    }>(
+      `SELECT p.repository_url,
+              p.settings,
+              w.git_branch,
+              w.parameters
+         FROM workflows w
+         LEFT JOIN projects p
+           ON p.tenant_id = w.tenant_id
+          AND p.id = w.project_id
+        WHERE w.tenant_id = $1
+          AND w.id = $2
+        LIMIT 1`,
+      [tenantId, input.workflow_id],
+    );
+    if (!result.rowCount) {
+      return input;
+    }
+
+    const workflow = result.rows[0];
+    const parameters = asRecord(workflow.parameters);
+    const projectSettings = asRecord(workflow.settings);
+    const environment = asRecord(input.environment);
+    const repositoryURL =
+      asNullableString(environment.repository_url)
+      ?? asNullableString(parameters.repository_url)
+      ?? asNullableString(parameters.repo)
+      ?? asNullableString(workflow.repository_url);
+    const branch =
+      asNullableString(environment.branch)
+      ?? asNullableString(parameters.feature_branch)
+      ?? asNullableString(parameters.target_branch)
+      ?? asNullableString(workflow.git_branch)
+      ?? asNullableString(parameters.base_branch)
+      ?? asNullableString(parameters.branch)
+      ?? asNullableString(projectSettings.default_branch);
+    const gitUserName =
+      asNullableString(environment.git_user_name)
+      ?? asNullableString(environment.gitUserName)
+      ?? asNullableString(parameters.git_user_name)
+      ?? asNullableString(parameters.gitUserName)
+      ?? asNullableString(projectSettings.git_user_name);
+    const gitUserEmail =
+      asNullableString(environment.git_user_email)
+      ?? asNullableString(environment.gitUserEmail)
+      ?? asNullableString(parameters.git_user_email)
+      ?? asNullableString(parameters.gitUserEmail)
+      ?? asNullableString(projectSettings.git_user_email);
+    const gitTokenSecretRef =
+      asNullableString(parameters.git_token_secret_ref)
+      ?? asNullableString(parameters.gitTokenSecretRef)
+      ?? asNullableString(projectSettings.git_token_secret_ref);
+
+    const nextEnvironment = {
+      ...environment,
+      ...(repositoryURL ? { repository_url: repositoryURL } : {}),
+      ...(branch ? { branch } : {}),
+      ...(gitUserName ? { git_user_name: gitUserName } : {}),
+      ...(gitUserEmail ? { git_user_email: gitUserEmail } : {}),
+    };
+    const nextBindings = mergeWorkflowGitBinding(
+      normalizeResourceBindings(input.resource_bindings),
+      repositoryURL,
+      gitTokenSecretRef,
+    );
+    const hasEnvironment = Object.keys(nextEnvironment).length > 0;
+    const hasBindings = nextBindings.length > 0 || Array.isArray(input.resource_bindings);
+
+    return {
+      ...input,
+      ...(hasEnvironment ? { environment: nextEnvironment } : {}),
+      ...(hasBindings ? { resource_bindings: nextBindings } : {}),
+    };
+  }
+
+  private assertWorkflowTaskLinkage(input: CreateTaskInput) {
+    if (!input.workflow_id || input.is_orchestrator_task) {
+      return;
+    }
+    if (input.work_item_id) {
+      return;
+    }
+    throw new ValidationError('workflow tasks must be linked to a work item');
+  }
+
+  private async applyRoleCapabilityDefaults(
+    tenantId: string,
+    input: CreateTaskInput,
+  ): Promise<CreateTaskInput> {
+    const provided = normalizeCapabilities(input.capabilities_required);
+    if (provided.length > 0) {
+      return {
+        ...input,
+        capabilities_required: provided,
+      };
+    }
+    const roleName = input.role?.trim();
+    if (!roleName) {
+      return input;
+    }
+    const resolved = await this.deps.resolveRoleCapabilities?.(tenantId, roleName);
+    const capabilities = normalizeCapabilities(resolved ?? [`role:${roleName}`]);
+    if (capabilities.length === 0) {
+      return input;
+    }
+    return {
+      ...input,
+      capabilities_required: capabilities,
+    };
+  }
+
   private async applyParentTaskPolicies(identity: ApiKeyIdentity, input: CreateTaskInput) {
     const parentTask = await this.loadParentTask(identity.tenantId, input.parent_id as string);
     await this.assertSubtaskDepth(identity.tenantId, parentTask);
@@ -394,6 +522,99 @@ export class TaskWriteService {
     if (!result.rowCount) throw new NotFoundError('Task not found');
     return this.deps.toTaskResponse(result.rows[0] as Record<string, unknown>);
   }
+
+  async updateTaskInput(
+    tenantId: string,
+    taskId: string,
+    input: Record<string, unknown>,
+    db: DatabaseClient | DatabasePool = this.deps.pool,
+  ) {
+    assertNoPlaintextSecrets('task input update payload', { input });
+    const task = await this.deps.loadTaskOrThrow(tenantId, taskId);
+    const currentState = String(task.state ?? '');
+    if (currentState === 'completed' || currentState === 'cancelled') {
+      throw new ConflictError('Terminal tasks cannot be edited');
+    }
+
+    const result = await db.query(
+      `UPDATE tasks
+          SET input = $3::jsonb,
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND id = $2
+        RETURNING *`,
+      [tenantId, taskId, input],
+    );
+    if (!result.rowCount) {
+      throw new NotFoundError('Task not found');
+    }
+
+    const updatedTask = result.rows[0] as Record<string, unknown>;
+    await this.deps.eventService.emit({
+      tenantId,
+      type: 'task.input_updated',
+      entityType: 'task',
+      entityId: taskId,
+      actorType: 'agent',
+      data: {
+        workflow_id: updatedTask.workflow_id ?? null,
+        work_item_id: updatedTask.work_item_id ?? null,
+        stage_name: updatedTask.stage_name ?? null,
+      },
+    }, 'release' in db ? db : undefined);
+    return this.deps.toTaskResponse(updatedTask);
+  }
+}
+
+function normalizeCapabilities(values: string[] | undefined | null): string[] {
+  return Array.from(
+    new Set(
+      (values ?? [])
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0),
+    ),
+  );
+}
+
+function mergeWorkflowGitBinding(
+  bindings: Record<string, unknown>[],
+  repositoryURL: string | null,
+  gitTokenSecretRef: string | null,
+): Record<string, unknown>[] {
+  if (!repositoryURL || !gitTokenSecretRef || bindings.some(isGitRepositoryBinding)) {
+    return bindings;
+  }
+  return [
+    ...bindings,
+    {
+      type: 'git_repository',
+      repository_url: repositoryURL,
+      credentials: {
+        token: gitTokenSecretRef,
+      },
+    },
+  ];
+}
+
+function normalizeResourceBindings(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === 'object');
+}
+
+function isGitRepositoryBinding(binding: Record<string, unknown>): boolean {
+  return asNullableString(binding.type) === 'git_repository';
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function asNullableString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 }
 
 function assertNoPlaintextSecrets(scope: string, sections: Record<string, unknown>) {

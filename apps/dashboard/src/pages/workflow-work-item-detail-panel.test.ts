@@ -10,6 +10,25 @@ function readSource() {
 }
 
 describe('workflow work item detail panel source', () => {
+  it('renders a dedicated operator shell with card and table primitives instead of legacy semantic classes', () => {
+    const source = readSource();
+    expect(source).toContain('data-testid="work-item-detail-shell"');
+    expect(source).toContain('data-testid="work-item-operator-controls"');
+    expect(source).toContain('data-testid="milestone-operator-summary"');
+    expect(source).toContain('data-testid="work-item-history-list"');
+    expect(source).toContain('CardHeader');
+    expect(source).toContain('CardContent');
+    expect(source).toContain('TableHeader');
+    expect(source).toContain('TableBody');
+    expect(source).not.toContain('className="card"');
+    expect(source).not.toContain('className="row"');
+    expect(source).not.toContain('className="button"');
+    expect(source).not.toContain('className="muted"');
+    expect(source).not.toContain('className="status-badge"');
+    expect(source).not.toContain('timeline-entry');
+    expect(source).not.toContain('className="table"');
+  });
+
   it('renders dedicated tabs for steps, memory, artifacts, and event history', () => {
     const source = readSource();
     expect(source).toContain('TabsTrigger value="steps"');
@@ -30,6 +49,13 @@ describe('workflow work item detail panel source', () => {
   it('surfaces milestone operator context with parent-child navigation and grouped task messaging', () => {
     const source = readSource();
     expect(source).toContain('Operator breadcrumb');
+    expect(source).toContain('Board placement');
+    expect(source).toContain('Stage and board routing');
+    expect(source).toContain('Ownership and linkage');
+    expect(source).toContain('Milestone decomposition');
+    expect(source).toContain('Unsaved operator changes');
+    expect(source).toContain('No pending control changes');
+    expect(source).toContain('OperatorSectionCard');
     expect(source).toContain('Milestone group summary');
     expect(source).toContain('Operator attention');
     expect(source).toContain('Active footprint');

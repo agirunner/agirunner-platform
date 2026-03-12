@@ -6,8 +6,6 @@ import {
   Plus,
   Trash2,
   Save,
-  Code2,
-  FileText,
   Calendar,
   Webhook,
   Zap,
@@ -15,6 +13,7 @@ import {
 import { dashboardApi } from '../../lib/api.js';
 import type {
   DashboardEffectiveModelResolution,
+  DashboardLlmModelRecord,
   DashboardProjectRecord,
   DashboardProjectSpecRecord,
   DashboardProjectResourceRecord,
@@ -46,19 +45,68 @@ import {
   TabsTrigger,
   TabsContent,
 } from '../../components/ui/tabs.js';
+import {
+  buildRoleModelOverrides,
+  buildStructuredObject,
+  createRoleOverrideDraft,
+  createStructuredEntryDraft,
+  hydrateRoleOverrideDrafts,
+  objectToStructuredDrafts,
+  type RoleOverrideDraft,
+  type StructuredEntryDraft,
+  type StructuredValueType,
+} from './project-detail-support.js';
 
 /* ------------------------------------------------------------------ */
 /*  Spec Tab                                                           */
 /* ------------------------------------------------------------------ */
 
 function SpecTab({ projectId }: { projectId: string }): JSX.Element {
-  const [isRawJson, setIsRawJson] = useState(false);
-  const [editedJson, setEditedJson] = useState('');
-  const [hasEdits, setHasEdits] = useState(false);
+  const queryClient = useQueryClient();
+  const [configDrafts, setConfigDrafts] = useState<StructuredEntryDraft[]>([]);
+  const [instructionDrafts, setInstructionDrafts] = useState<StructuredEntryDraft[]>([]);
+  const [resourceDrafts, setResourceDrafts] = useState<StructuredEntryDraft[]>([]);
+  const [documentDrafts, setDocumentDrafts] = useState<StructuredEntryDraft[]>([]);
+  const [toolDrafts, setToolDrafts] = useState<StructuredEntryDraft[]>([]);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['project-spec', projectId],
     queryFn: () => dashboardApi.getProjectSpec(projectId),
+  });
+
+  useEffect(() => {
+    if (!data) {
+      return;
+    }
+    setConfigDrafts(objectToStructuredDrafts(data.config));
+    setInstructionDrafts(objectToStructuredDrafts(data.instructions));
+    setResourceDrafts(objectToStructuredDrafts(data.resources));
+    setDocumentDrafts(objectToStructuredDrafts(data.documents));
+    setToolDrafts(objectToStructuredDrafts(data.tools));
+  }, [data]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const resources = buildStructuredObject(resourceDrafts, 'Project resources');
+      const documents = buildStructuredObject(documentDrafts, 'Project documents');
+      const tools = buildStructuredObject(toolDrafts, 'Project tools');
+      const nextSpec = {
+        ...(resources ? { resources } : {}),
+        ...(documents ? { documents } : {}),
+        ...(tools ? { tools } : {}),
+        config: buildStructuredObject(configDrafts, 'Project config') ?? {},
+        instructions: buildStructuredObject(instructionDrafts, 'Project instructions') ?? {},
+      };
+      return dashboardApi.updateProjectSpec(projectId, nextSpec);
+    },
+    onSuccess: async () => {
+      setSaveMessage('Project spec saved.');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['project-spec', projectId] }),
+        queryClient.invalidateQueries({ queryKey: ['project', projectId] }),
+      ]);
+    },
   });
 
   if (isLoading) {
@@ -70,47 +118,14 @@ function SpecTab({ projectId }: { projectId: string }): JSX.Element {
   }
 
   const spec = data as DashboardProjectSpecRecord;
-  const jsonString = JSON.stringify(spec, null, 2);
-
-  function handleJsonEdit(value: string) {
-    setEditedJson(value);
-    setHasEdits(true);
-  }
-
-  if (isRawJson) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Button variant="outline" size="sm" onClick={() => setIsRawJson(false)}>
-            <FileText className="h-4 w-4" />
-            Form View
-          </Button>
-          {hasEdits && (
-            <Button size="sm" disabled>
-              <Save className="h-4 w-4" />
-              Save (read-only)
-            </Button>
-          )}
-        </div>
-        <Card>
-          <CardContent className="p-0">
-            <Textarea
-              className="min-h-[400px] font-mono text-xs border-0 rounded-lg"
-              value={hasEdits ? editedJson : jsonString}
-              onChange={(e) => handleJsonEdit(e.target.value)}
-            />
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end">
-        <Button variant="outline" size="sm" onClick={() => { setIsRawJson(true); setEditedJson(jsonString); }}>
-          <Code2 className="h-4 w-4" />
-          Raw JSON
+      <div className="flex items-center justify-end gap-3">
+        {saveMessage ? <p className="text-sm text-green-600">{saveMessage}</p> : null}
+        <Button size="sm" disabled={saveMutation.isPending} onClick={() => saveMutation.mutate()}>
+          <Save className="h-4 w-4" />
+          Save Spec
         </Button>
       </div>
 
@@ -128,31 +143,101 @@ function SpecTab({ projectId }: { projectId: string }): JSX.Element {
         </CardContent>
       </Card>
 
-      {spec.config && Object.keys(spec.config).length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Config</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <pre className="overflow-x-auto rounded-md border bg-border/10 p-3 text-xs">
-              {JSON.stringify(spec.config, null, 2)}
-            </pre>
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Config</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <StructuredEntryEditor
+            title="Config Entries"
+            description="Edit project configuration as structured key/value entries instead of a raw JSON document."
+            drafts={configDrafts}
+            onChange={(drafts) => {
+              setSaveMessage(null);
+              setConfigDrafts(drafts);
+            }}
+            addLabel="Add config field"
+          />
+        </CardContent>
+      </Card>
 
-      {spec.instructions && Object.keys(spec.instructions).length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Instructions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <pre className="overflow-x-auto rounded-md border bg-border/10 p-3 text-xs">
-              {JSON.stringify(spec.instructions, null, 2)}
-            </pre>
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Instructions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <StructuredEntryEditor
+            title="Instruction Entries"
+            description="Edit structured project instructions and document references without switching to raw JSON."
+            drafts={instructionDrafts}
+            onChange={(drafts) => {
+              setSaveMessage(null);
+              setInstructionDrafts(drafts);
+            }}
+            addLabel="Add instruction field"
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Resources</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <StructuredEntryEditor
+            title="Resource Entries"
+            description="Edit project-scoped resource bindings and descriptors with structured entries."
+            drafts={resourceDrafts}
+            onChange={(drafts) => {
+              setSaveMessage(null);
+              setResourceDrafts(drafts);
+            }}
+            addLabel="Add resource entry"
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Documents</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <StructuredEntryEditor
+            title="Document Entries"
+            description="Edit project document references and metadata without switching to a raw JSON blob."
+            drafts={documentDrafts}
+            onChange={(drafts) => {
+              setSaveMessage(null);
+              setDocumentDrafts(drafts);
+            }}
+            addLabel="Add document entry"
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Tools</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <StructuredEntryEditor
+            title="Tool Entries"
+            description="Edit project tool policy entries as structured values rather than a read-only spec view."
+            drafts={toolDrafts}
+            onChange={(drafts) => {
+              setSaveMessage(null);
+              setToolDrafts(drafts);
+            }}
+            addLabel="Add tool entry"
+          />
+        </CardContent>
+      </Card>
+
+      {saveMutation.error ? (
+        <p className="text-sm text-red-600">
+          {saveMutation.error instanceof Error ? saveMutation.error.message : 'Failed to save project spec.'}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -643,6 +728,15 @@ function ScheduledTriggersTab({ project }: { project: DashboardProjectRecord }):
     queryKey: ['project-workflows', project.id],
     queryFn: () => dashboardApi.listWorkflows({ project_id: project.id, per_page: '100' }),
   });
+  const roleDefinitionsQuery = useQuery({
+    queryKey: ['role-definitions', 'active'],
+    queryFn: () => dashboardApi.listRoleDefinitions(),
+  });
+  const selectedWorkflowQuery = useQuery({
+    queryKey: ['workflow', form.workflowId, 'stages'],
+    queryFn: () => dashboardApi.getWorkflow(form.workflowId),
+    enabled: form.workflowId.length > 0,
+  });
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -667,11 +761,13 @@ function ScheduledTriggersTab({ project }: { project: DashboardProjectRecord }):
   });
 
   const workflows = (workflowsQuery.data?.data ?? []) as DashboardWorkflowRecord[];
+  const roleOptions = (roleDefinitionsQuery.data ?? []).map((role) => role.name).filter(Boolean);
   const scheduledTriggers = ((triggersQuery.data?.data ?? []) as DashboardScheduledWorkItemTriggerRecord[])
     .filter((trigger) => trigger.project_id === project.id)
     .sort((left, right) => left.next_fire_at.localeCompare(right.next_fire_at));
 
   const workflowOptions = workflows.filter((workflow) => workflow.id.length > 0);
+  const selectedWorkflowStages = selectedWorkflowQuery.data?.workflow_stages ?? [];
   const canCreate = form.name.trim() && form.workflowId && form.title.trim();
 
   return (
@@ -817,18 +913,56 @@ function ScheduledTriggersTab({ project }: { project: DashboardProjectRecord }):
                   onChange={(value) => setForm((current) => ({ ...current, title: value }))}
                   placeholder="Run daily inbox triage"
                 />
-                <InputField
-                  label="Stage name"
-                  value={form.stageName}
-                  onChange={(value) => setForm((current) => ({ ...current, stageName: value }))}
-                  placeholder="triage"
-                />
-                <InputField
-                  label="Owner role"
-                  value={form.ownerRole}
-                  onChange={(value) => setForm((current) => ({ ...current, ownerRole: value }))}
-                  placeholder="triager"
-                />
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">Stage name</label>
+                  {selectedWorkflowStages.length > 0 ? (
+                    <select
+                      className="w-full rounded-md border bg-surface px-3 py-2 text-sm"
+                      value={form.stageName}
+                      onChange={(event) =>
+                        setForm((current) => ({ ...current, stageName: event.target.value }))}
+                    >
+                      <option value="">Select stage</option>
+                      {selectedWorkflowStages.map((stage) => (
+                        <option key={stage.id} value={stage.name}>
+                          {stage.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <Input
+                      value={form.stageName}
+                      placeholder="triage"
+                      onChange={(event) =>
+                        setForm((current) => ({ ...current, stageName: event.target.value }))}
+                    />
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium">Owner role</label>
+                  {roleOptions.length > 0 ? (
+                    <select
+                      className="w-full rounded-md border bg-surface px-3 py-2 text-sm"
+                      value={form.ownerRole}
+                      onChange={(event) =>
+                        setForm((current) => ({ ...current, ownerRole: event.target.value }))}
+                    >
+                      <option value="">Select role</option>
+                      {roleOptions.map((role) => (
+                        <option key={role} value={role}>
+                          {role}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <Input
+                      value={form.ownerRole}
+                      placeholder="triager"
+                      onChange={(event) =>
+                        setForm((current) => ({ ...current, ownerRole: event.target.value }))}
+                    />
+                  )}
+                </div>
                 <InputField
                   label="First run (optional)"
                   type="datetime-local"
@@ -872,7 +1006,7 @@ function ScheduledTriggersTab({ project }: { project: DashboardProjectRecord }):
 
 function ModelOverridesTab({ project }: { project: DashboardProjectRecord }): JSX.Element {
   const queryClient = useQueryClient();
-  const [overrideText, setOverrideText] = useState('{\n  \n}');
+  const [overrideDrafts, setOverrideDrafts] = useState<RoleOverrideDraft[]>([]);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const overridesQuery = useQuery({
     queryKey: ['project-model-overrides', project.id],
@@ -882,17 +1016,28 @@ function ModelOverridesTab({ project }: { project: DashboardProjectRecord }): JS
     queryKey: ['project-resolved-models', project.id],
     queryFn: () => dashboardApi.getResolvedProjectModels(project.id),
   });
+  const providersQuery = useQuery({
+    queryKey: ['llm-providers'],
+    queryFn: () => dashboardApi.listLlmProviders(),
+  });
+  const modelsQuery = useQuery({
+    queryKey: ['llm-models'],
+    queryFn: () => dashboardApi.listLlmModels(),
+  });
 
   useEffect(() => {
     if (!overridesQuery.data) {
       return;
     }
-    setOverrideText(JSON.stringify(overridesQuery.data.model_overrides ?? {}, null, 2));
-  }, [overridesQuery.data]);
+    const resolvedRoles = Object.keys(resolvedQuery.data?.effective_models ?? {});
+    const overrideRoles = Object.keys(overridesQuery.data.model_overrides ?? {});
+    const roleNames = [...new Set([...resolvedRoles, ...overrideRoles])];
+    setOverrideDrafts(hydrateRoleOverrideDrafts(roleNames, overridesQuery.data.model_overrides ?? {}));
+  }, [overridesQuery.data, resolvedQuery.data]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const parsed = parseRoleModelOverridesJson(overrideText, 'Project model overrides');
+      const parsed = buildRoleModelOverrides(overrideDrafts) ?? {};
       return dashboardApi.patchProject(project.id, {
         settings: {
           ...asRecord(project.settings),
@@ -914,21 +1059,22 @@ function ModelOverridesTab({ project }: { project: DashboardProjectRecord }): JS
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Project Model Overrides</CardTitle>
+        <CardTitle>Project Model Overrides</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted">
-            Define role-scoped model overrides for workflows in this project. Each key is a role
-            name and each value must include `provider` and `model`.
+            Define role-scoped model overrides for workflows in this project with structured fields
+            instead of a raw JSON editor.
           </p>
-          <Textarea
-            value={overrideText}
-            onChange={(event) => {
+          <RoleOverrideEditor
+            drafts={overrideDrafts}
+            resolvedRoles={Object.keys(resolvedQuery.data?.effective_models ?? {})}
+            providerOptions={(providersQuery.data ?? []).map((provider) => provider.name)}
+            modelOptions={modelsQuery.data ?? []}
+            onChange={(drafts) => {
               setSaveMessage(null);
-              setOverrideText(event.target.value);
+              setOverrideDrafts(drafts);
             }}
-            className="min-h-[220px] font-mono text-xs"
-            placeholder={'{\n  "architect": {\n    "provider": "openai",\n    "model": "gpt-5"\n  }\n}'}
           />
           {saveMutation.error ? (
             <p className="text-sm text-red-600">
@@ -1034,6 +1180,236 @@ function TextAreaField(props: {
   );
 }
 
+function StructuredEntryEditor(props: {
+  title: string;
+  description?: string;
+  drafts: StructuredEntryDraft[];
+  onChange(drafts: StructuredEntryDraft[]): void;
+  addLabel: string;
+}): JSX.Element {
+  return (
+    <div className="space-y-3 rounded-md border border-dashed border-border p-3">
+      <div className="space-y-1">
+        <div className="text-sm font-medium">{props.title}</div>
+        {props.description ? <p className="text-xs text-muted">{props.description}</p> : null}
+      </div>
+      {props.drafts.length === 0 ? (
+        <p className="text-sm text-muted">No entries added yet.</p>
+      ) : (
+        props.drafts.map((draft) => (
+          <div key={draft.id} className="grid gap-3 rounded-md border border-border p-3">
+            <div className="grid gap-3 md:grid-cols-[1.1fr,0.7fr,1.2fr,auto]">
+              <label className="grid gap-1 text-xs">
+                <span className="font-medium">Key</span>
+                <Input
+                  value={draft.key}
+                  onChange={(event) => props.onChange(updateStructuredDraft(props.drafts, draft.id, { key: event.target.value }))}
+                />
+              </label>
+              <label className="grid gap-1 text-xs">
+                <span className="font-medium">Type</span>
+                <select
+                  className="w-full rounded-md border bg-surface px-3 py-2 text-sm"
+                  value={draft.valueType}
+                  onChange={(event) =>
+                    props.onChange(updateStructuredDraft(props.drafts, draft.id, { valueType: event.target.value as StructuredValueType }))
+                  }
+                >
+                  <option value="string">String</option>
+                  <option value="number">Number</option>
+                  <option value="boolean">Boolean</option>
+                  <option value="json">JSON</option>
+                </select>
+              </label>
+              <div className="grid gap-1 text-xs">
+                <span className="font-medium">Value</span>
+                <ValueInput
+                  valueType={draft.valueType}
+                  value={draft.value}
+                  onChange={(value) => props.onChange(updateStructuredDraft(props.drafts, draft.id, { value }))}
+                />
+              </div>
+              <div className="flex items-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => props.onChange(props.drafts.filter((entry) => entry.id !== draft.id))}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+      <Button type="button" variant="outline" onClick={() => props.onChange([...props.drafts, createStructuredEntryDraft()])}>
+        <Plus className="h-4 w-4" />
+        {props.addLabel}
+      </Button>
+    </div>
+  );
+}
+
+function RoleOverrideEditor(props: {
+  drafts: RoleOverrideDraft[];
+  resolvedRoles: string[];
+  providerOptions: string[];
+  modelOptions: DashboardLlmModelRecord[];
+  onChange(drafts: RoleOverrideDraft[]): void;
+}): JSX.Element {
+  return (
+    <div className="space-y-3">
+      {props.drafts.length === 0 ? (
+        <p className="text-sm text-muted">No project-specific model overrides configured.</p>
+      ) : (
+        props.drafts.map((draft) => {
+          const isResolvedRole = props.resolvedRoles.includes(draft.role.trim());
+          const providerOptions = ensureCurrentStringOption(props.providerOptions, draft.provider);
+          const modelOptions = ensureCurrentStringOption(
+            props.modelOptions
+              .filter(
+                (model) =>
+                  !draft.provider ||
+                  !model.provider_name ||
+                  model.provider_name === draft.provider,
+              )
+              .map((model) => model.model_id),
+            draft.model,
+          );
+          return (
+            <div key={draft.id} className="space-y-3 rounded-md border border-border p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Badge variant={isResolvedRole ? 'secondary' : 'outline'}>
+                    {isResolvedRole ? 'resolved role' : 'custom role'}
+                  </Badge>
+                  <span className="text-sm font-medium">{draft.role.trim() || 'New role override'}</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => props.onChange(props.drafts.filter((entry) => entry.id !== draft.id))}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <label className="grid gap-1 text-xs">
+                  <span className="font-medium">Role</span>
+                  <Input
+                    value={draft.role}
+                    onChange={(event) => props.onChange(updateRoleDraft(props.drafts, draft.id, { role: event.target.value }))}
+                  />
+                </label>
+                <label className="grid gap-1 text-xs">
+                  <span className="font-medium">Provider</span>
+                  <select
+                    className="w-full rounded-md border bg-surface px-3 py-2 text-sm"
+                    value={draft.provider}
+                    onChange={(event) =>
+                      props.onChange(
+                        updateRoleDraft(props.drafts, draft.id, {
+                          provider: event.target.value,
+                          model: '',
+                        }),
+                      )
+                    }
+                  >
+                    <option value="">Select provider</option>
+                    {providerOptions.map((provider) => (
+                      <option key={provider} value={provider}>
+                        {provider}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="grid gap-1 text-xs">
+                  <span className="font-medium">Model</span>
+                  <select
+                    className="w-full rounded-md border bg-surface px-3 py-2 text-sm"
+                    value={draft.model}
+                    onChange={(event) =>
+                      props.onChange(
+                        updateRoleDraft(props.drafts, draft.id, { model: event.target.value }),
+                      )
+                    }
+                  >
+                    <option value="">Select model</option>
+                    {modelOptions.map((model) => (
+                      <option key={model} value={model}>
+                        {model}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <label className="grid gap-1 text-xs">
+                <span className="font-medium">Reasoning Config JSON</span>
+                <Textarea
+                  value={draft.reasoningConfig}
+                  className="min-h-[100px] font-mono text-xs"
+                  placeholder='{"effort":"medium"}'
+                  onChange={(event) => props.onChange(updateRoleDraft(props.drafts, draft.id, { reasoningConfig: event.target.value }))}
+                />
+              </label>
+            </div>
+          );
+        })
+      )}
+      <Button type="button" variant="outline" onClick={() => props.onChange([...props.drafts, createRoleOverrideDraft()])}>
+        <Plus className="h-4 w-4" />
+        Add role override
+      </Button>
+    </div>
+  );
+}
+
+function ValueInput(props: {
+  valueType: StructuredValueType;
+  value: string;
+  onChange(value: string): void;
+}): JSX.Element {
+  if (props.valueType === 'boolean') {
+    return (
+      <select
+        className="w-full rounded-md border bg-surface px-3 py-2 text-sm"
+        value={props.value}
+        onChange={(event) => props.onChange(event.target.value)}
+      >
+        <option value="">Unset</option>
+        <option value="true">True</option>
+        <option value="false">False</option>
+      </select>
+    );
+  }
+  if (props.valueType === 'json') {
+    return (
+      <Textarea
+        value={props.value}
+        className="min-h-[100px] font-mono text-xs"
+        onChange={(event) => props.onChange(event.target.value)}
+      />
+    );
+  }
+  return (
+    <Input
+      type={props.valueType === 'number' ? 'number' : 'text'}
+      value={props.value}
+      onChange={(event) => props.onChange(event.target.value)}
+    />
+  );
+}
+
+function ensureCurrentStringOption(options: string[], currentValue: string): string[] {
+  const normalized = options.filter((value, index) => value && options.indexOf(value) === index);
+  if (currentValue && !normalized.includes(currentValue)) {
+    return [currentValue, ...normalized];
+  }
+  return normalized;
+}
+
 function ResolvedModelCards(props: {
   effectiveModels: Record<string, DashboardEffectiveModelResolution>;
 }): JSX.Element {
@@ -1132,33 +1508,26 @@ function buildScheduledTriggerPayload(projectId: string, form: ScheduledTriggerF
   return payload;
 }
 
-function parseRoleModelOverridesJson(
-  value: string,
-  label: string,
-): Record<string, DashboardRoleModelOverride> {
-  const trimmed = value.trim();
-  if (!trimmed || trimmed === '{' || trimmed === '{\n  \n}') {
-    return {};
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(trimmed);
-  } catch (error) {
-    throw new Error(`${label} must be valid JSON: ${error instanceof Error ? error.message : 'parse error'}`);
-  }
-
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error(`${label} must be a JSON object.`);
-  }
-
-  return parsed as Record<string, DashboardRoleModelOverride>;
-}
-
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function updateStructuredDraft(
+  drafts: StructuredEntryDraft[],
+  draftId: string,
+  patch: Partial<StructuredEntryDraft>,
+): StructuredEntryDraft[] {
+  return drafts.map((draft) => (draft.id === draftId ? { ...draft, ...patch } : draft));
+}
+
+function updateRoleDraft(
+  drafts: RoleOverrideDraft[],
+  draftId: string,
+  patch: Partial<RoleOverrideDraft>,
+): RoleOverrideDraft[] {
+  return drafts.map((draft) => (draft.id === draftId ? { ...draft, ...patch } : draft));
 }
 
 function statusBadgeVariant(status: string) {
@@ -1314,16 +1683,24 @@ export function ProjectDetailPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">{project.name}</h1>
           {project.description && (
             <p className="mt-1 text-sm text-muted">{project.description}</p>
           )}
         </div>
-        <Badge variant={project.is_active ? 'success' : 'secondary'}>
-          {project.is_active ? 'Active' : 'Inactive'}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/projects/${project.id}/memory`}>Memory Explorer</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/projects/${project.id}/artifacts`}>Artifact Explorer</Link>
+          </Button>
+          <Badge variant={project.is_active ? 'success' : 'secondary'}>
+            {project.is_active ? 'Active' : 'Inactive'}
+          </Badge>
+        </div>
       </div>
 
       <Tabs defaultValue="spec">

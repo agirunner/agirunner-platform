@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import {
   dashboardApi,
@@ -39,18 +39,26 @@ import {
 import {
   MissionControlCard,
   PlaybookBoardCard,
-  WorkflowHistoryCard,
   ProjectTimelineCard,
   TaskGraphCard,
   WorkflowActivationsCard,
   WorkflowStagesCard,
 } from './workflow-detail-sections.js';
+import { WorkflowInteractionTimelineCard } from './workflow-history-card.js';
 import { WorkflowDocumentsCard, ProjectMemoryCard } from './workflow-detail-content.js';
 import { invalidateWorkflowQueries } from './workflow-detail-query.js';
 import { buildWorkflowDetailHash } from './workflow-detail-permalinks.js';
 import { ChainWorkflowDialog } from '../components/chain-workflow-dialog.js';
 import { StructuredRecordView } from '../components/structured-data.js';
+import { Badge } from '../components/ui/badge.js';
 import { Button } from '../components/ui/button.js';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../components/ui/card.js';
 import { Input } from '../components/ui/input.js';
 import { Textarea } from '../components/ui/textarea.js';
 import {
@@ -98,6 +106,7 @@ function deriveWorkflowStageDisplay(
 export function WorkflowDetailPage(): JSX.Element {
   const params = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const workflowId = params.id ?? '';
   const queryClient = useQueryClient();
   const [memoryKey, setMemoryKey] = useState('last_operator_note');
@@ -201,6 +210,9 @@ export function WorkflowDetailPage(): JSX.Element {
   }, [stagesQuery.data, workItemStage]);
 
   useEffect(() => {
+    if (!boardQuery.data) {
+      return;
+    }
     const workItems = flattenGroupedWorkItems(groupWorkflowWorkItems(boardQuery.data?.work_items ?? []));
     const hasExplicitNonWorkItemSelection =
       selectedActivationId !== null || selectedChildWorkflowId !== null || selectedGateStageName !== null;
@@ -218,7 +230,7 @@ export function WorkflowDetailPage(): JSX.Element {
     }
     updateWorkflowSelection('work_item', workItems[0].id);
   }, [
-    boardQuery.data?.work_items,
+    boardQuery.data,
     selectedActivationId,
     selectedChildWorkflowId,
     selectedGateStageName,
@@ -237,6 +249,30 @@ export function WorkflowDetailPage(): JSX.Element {
       void invalidateWorkflowQueries(queryClient, workflowId, projectId);
     });
   }, [workflowId, projectId, queryClient]);
+
+  useEffect(() => {
+    if (!location.hash) {
+      return;
+    }
+    const targetId = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash;
+    if (!targetId) {
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(targetId);
+      target?.scrollIntoView({ block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    activationsQuery.data?.length,
+    boardQuery.data?.work_items,
+    location.hash,
+    selectedActivationId,
+    selectedChildWorkflowId,
+    selectedGateStageName,
+    selectedWorkItemId,
+    stagesQuery.data?.length,
+  ]);
 
   const summary = useMemo(() => summarizeTasks(taskQuery.data?.data ?? []), [taskQuery.data?.data]);
   const costSummary = useMemo(() => {
@@ -322,13 +358,15 @@ export function WorkflowDetailPage(): JSX.Element {
 
   if (workflowQuery.data && !workflowQuery.data.playbook_id) {
     return (
-      <section className="grid">
-        <div className="card">
-          <h2>Board Detail Unavailable</h2>
-          <p className="muted">
-            This detail view requires a playbook-backed board run.
-          </p>
-        </div>
+      <section className="grid gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Board Detail Unavailable</CardTitle>
+            <CardDescription>
+              This detail view requires a playbook-backed board run.
+            </CardDescription>
+          </CardHeader>
+        </Card>
       </section>
     );
   }
@@ -416,240 +454,441 @@ export function WorkflowDetailPage(): JSX.Element {
     );
   }
 
+  const workItemSummary = workflowQuery.data?.work_item_summary;
+  const activeStageNames = Array.from(
+    new Set([
+      ...(workItemSummary?.active_stage_names ?? []),
+      ...(workflowQuery.data?.active_stages ?? []),
+    ]),
+  );
+
   return (
-    <section className="grid">
-      <div className="grid two">
-        <div className="card">
-          <h2>Board Detail</h2>
-          {workflowQuery.isLoading ? <p>Loading board run...</p> : null}
-          {workflowQuery.error ? <p style={{ color: '#dc2626' }}>Failed to load board run</p> : null}
-          {workflowQuery.data ? (
-            <div className="grid">
-              <div className="row">
-                <strong>{workflowQuery.data.name}</strong>
-                <span className={`status-badge status-${workflowQuery.data.state}`}>
-                  {workflowQuery.data.state}
-                </span>
-                {isPlaybookWorkflow && stageDisplay.value ? (
-                  <span className="status-badge">{stageDisplay.label}: {stageDisplay.value}</span>
+    <section className="mx-auto grid w-full max-w-[1600px] gap-8 px-4 py-6 lg:px-6 xl:px-8">
+      <section data-testid="workflow-detail-operator-surface" className="grid gap-8">
+        <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.4fr)_minmax(340px,0.7fr)]">
+          <Card className="overflow-hidden border-border/80 bg-card shadow-md">
+            <CardHeader className="gap-4 border-b border-border/70 bg-gradient-to-br from-surface via-surface to-border/10">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <CardTitle>Board Detail</CardTitle>
+                  <CardDescription>
+                    Live operator view of the workflow, board state, and orchestration context.
+                  </CardDescription>
+                </div>
+                {workflowQuery.data ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant={workflowQuery.data.state === 'completed' ? 'success' : 'outline'}>
+                      {workflowQuery.data.state}
+                    </Badge>
+                    {isPlaybookWorkflow && stageDisplay.value ? (
+                      <Badge variant="secondary">{stageDisplay.label}: {stageDisplay.value}</Badge>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
-              <StructuredRecordView
-                data={workflowQuery.data.context}
-                emptyMessage="No workflow context is available yet."
-              />
-            </div>
-          ) : null}
-        </div>
+            </CardHeader>
+            <CardContent className="grid gap-5 p-5">
+              {workflowQuery.isLoading ? (
+                <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
+                  Loading board run...
+                </p>
+              ) : null}
+              {workflowQuery.error ? (
+                <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                  Failed to load board run.
+                </p>
+              ) : null}
+              {workflowQuery.data ? (
+                <>
+                  <div className="grid gap-5 rounded-2xl border border-border/70 bg-border/10 p-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted">
+                          Board Run
+                        </p>
+                        <h2 className="text-2xl font-semibold text-foreground">
+                          {workflowQuery.data.name}
+                        </h2>
+                        <p className="text-sm text-muted">
+                          {workflowQuery.data.playbook_name
+                            ? `${workflowQuery.data.playbook_name} orchestrated board run`
+                            : 'Playbook-backed orchestrated board run'}
+                          {workflowQuery.data.project_id ? ' linked to a project.' : '.'}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {workflowQuery.data.playbook_name ? (
+                          <Badge variant="outline">{workflowQuery.data.playbook_name}</Badge>
+                        ) : null}
+                        {workflowQuery.data.lifecycle ? (
+                          <Badge variant="secondary">{workflowQuery.data.lifecycle}</Badge>
+                        ) : null}
+                        {workflowQuery.data.project_id ? (
+                          <Badge variant="outline">Project-linked</Badge>
+                        ) : null}
+                        <Button asChild size="sm" variant="outline">
+                          <Link to={`/work/workflows/${workflowId}/inspector`}>Open Inspector</Link>
+                        </Button>
+                        {projectId ? (
+                          <Button asChild size="sm" variant="outline">
+                            <Link to={`/projects/${projectId}/artifacts?workflow=${workflowId}`}>Workflow Artifacts</Link>
+                          </Button>
+                        ) : null}
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <WorkflowSignalTile
+                          label="Open Work"
+                          value={String(workItemSummary?.open_work_item_count ?? 0)}
+                          detail="work items"
+                        />
+                        <WorkflowSignalTile
+                          label="Awaiting Gates"
+                          value={String(workItemSummary?.awaiting_gate_count ?? 0)}
+                          detail="stage reviews"
+                        />
+                        <WorkflowSignalTile
+                          label="Live Stages"
+                          value={String(activeStageNames.length)}
+                          detail={activeStageNames.length > 0 ? activeStageNames.join(', ') : 'none yet'}
+                        />
+                        <WorkflowSignalTile
+                          label="Execution Cost"
+                          value={`$${costSummary.totalCostUsd.toFixed(4)}`}
+                          detail="total run cost"
+                        />
+                      </div>
+                    </div>
+                    <dl className="grid gap-3 rounded-xl border border-border/70 bg-surface/80 p-4 text-sm">
+                      <div className="grid gap-1">
+                        <dt className="text-xs font-medium uppercase tracking-wide text-muted">
+                          Workflow ID
+                        </dt>
+                        <dd className="font-mono text-xs text-foreground">{workflowQuery.data.id}</dd>
+                      </div>
+                      <div className="grid gap-1">
+                        <dt className="text-xs font-medium uppercase tracking-wide text-muted">
+                          Created
+                        </dt>
+                        <dd className="text-foreground">
+                          {new Date(workflowQuery.data.created_at).toLocaleString()}
+                        </dd>
+                      </div>
+                      <div className="grid gap-1">
+                        <dt className="text-xs font-medium uppercase tracking-wide text-muted">
+                          Stage Signal
+                        </dt>
+                        <dd className="text-foreground">{stageDisplay.value ?? 'No active stage yet'}</dd>
+                      </div>
+                      <div className="grid gap-1">
+                        <dt className="text-xs font-medium uppercase tracking-wide text-muted">
+                          Project
+                        </dt>
+                        <dd className="text-foreground">
+                          {projectQuery.data?.name ?? (workflowQuery.data.project_id ? 'Linked project' : 'Standalone workflow')}
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+                  <div className="grid gap-3 rounded-2xl border border-border/70 bg-surface/80 p-5">
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-foreground">Operator Context</div>
+                      <p className="text-sm text-muted">
+                        Shared context, run parameters, and orchestration metadata attached to this board run.
+                      </p>
+                    </div>
+                    <StructuredRecordView
+                      data={workflowQuery.data.context}
+                      emptyMessage="No workflow context is available yet."
+                    />
+                  </div>
+                </>
+              ) : null}
+            </CardContent>
+          </Card>
 
-        <MissionControlCard
-          summary={summary}
-          totalCostUsd={costSummary.totalCostUsd}
-          onPause={() =>
-            void dashboardApi
-              .pauseWorkflow(workflowId)
-              .then(() => invalidateWorkflowQueries(queryClient, workflowId, projectId))
-          }
-          onResume={() =>
-            void dashboardApi
-              .resumeWorkflow(workflowId)
-              .then(() => invalidateWorkflowQueries(queryClient, workflowId, projectId))
-          }
-          onCancel={() =>
-            void dashboardApi
-              .cancelWorkflow(workflowId)
-              .then(() => invalidateWorkflowQueries(queryClient, workflowId, projectId))
-          }
-        />
-      </div>
-
-      {isPlaybookWorkflow ? (
-        <div className="card">
-          <h3>Create Work Item</h3>
-          <p className="muted">Add new work directly onto the playbook board.</p>
-          <div className="grid" style={{ gap: '0.75rem' }}>
-            <label className="grid" style={{ gap: '0.35rem' }}>
-              <span>Title</span>
-              <Input
-                value={workItemTitle}
-                onChange={(event) => {
-                  setWorkItemError(null);
-                  setWorkItemTitle(event.target.value);
-                }}
-                placeholder="e.g. Implement billing webhooks"
+          <div className="grid content-start gap-6">
+            <MissionControlCard
+              summary={summary}
+              totalCostUsd={costSummary.totalCostUsd}
+              onPause={() =>
+                void dashboardApi
+                  .pauseWorkflow(workflowId)
+                  .then(() => invalidateWorkflowQueries(queryClient, workflowId, projectId))
+              }
+              onResume={() =>
+                void dashboardApi
+                  .resumeWorkflow(workflowId)
+                  .then(() => invalidateWorkflowQueries(queryClient, workflowId, projectId))
+              }
+              onCancel={() =>
+                void dashboardApi
+                  .cancelWorkflow(workflowId)
+                  .then(() => invalidateWorkflowQueries(queryClient, workflowId, projectId))
+              }
+            />
+            <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-1">
+              <WorkflowSignalTile
+                label="Task health"
+                value={`${summary.in_progress} in progress`}
+                detail={`${summary.blocked} blocked, ${summary.failed} failed`}
               />
-            </label>
-            <label className="grid" style={{ gap: '0.35rem' }}>
-              <span>Stage</span>
-              <Select
-                value={workItemStage || '__auto__'}
-                onValueChange={(value) => setWorkItemStage(value === '__auto__' ? '' : value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Use default stage" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__auto__">Use default stage</SelectItem>
-                  {(stagesQuery.data ?? []).map((stage) => (
-                    <SelectItem key={stage.id} value={stage.name}>
-                      {stage.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-            <label className="grid" style={{ gap: '0.35rem' }}>
-              <span>Goal</span>
-              <Textarea
-                value={workItemGoal}
-                onChange={(event) => {
-                  setWorkItemError(null);
-                  setWorkItemGoal(event.target.value);
-                }}
-                className="min-h-[88px]"
-                placeholder="Describe the desired outcome and acceptance intent."
+              <WorkflowSignalTile
+                label="Board momentum"
+                value={`${workItemSummary?.completed_work_item_count ?? 0} complete`}
+                detail={`${workItemSummary?.open_work_item_count ?? 0} open work items`}
               />
-            </label>
-            {workItemError ? <p style={{ color: '#dc2626' }}>{workItemError}</p> : null}
-            <div className="row" style={{ justifyContent: 'flex-end' }}>
-              <Button
-                onClick={() => void createWorkItemMutation.mutate()}
-                disabled={createWorkItemMutation.isPending}
-              >
-                {createWorkItemMutation.isPending ? 'Creating…' : 'Create Work Item'}
-              </Button>
             </div>
           </div>
         </div>
-      ) : null}
 
-      <div className="card">
-        <h3>Launch Child Board</h3>
-        <p className="muted">Create a linked follow-up board run using a playbook.</p>
-        <div className="row" style={{ justifyContent: 'flex-end' }}>
-          <Button onClick={() => setIsChainDialogOpen(true)}>Create Child Board</Button>
-        </div>
-      </div>
+        {isPlaybookWorkflow ? (
+          <section className="rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.6fr)]">
+              <Card className="bg-surface/80">
+                <CardHeader>
+                  <CardTitle>Create Work Item</CardTitle>
+                  <CardDescription>
+                    Add new work directly onto the playbook board with a stage-aware form.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4">
+                <label className="grid gap-1.5">
+                  <span className="text-sm font-medium text-foreground">Title</span>
+                  <Input
+                    value={workItemTitle}
+                    onChange={(event) => {
+                      setWorkItemError(null);
+                      setWorkItemTitle(event.target.value);
+                    }}
+                    placeholder="e.g. Implement billing webhooks"
+                  />
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-sm font-medium text-foreground">Stage</span>
+                  <Select
+                    value={workItemStage || '__auto__'}
+                    onValueChange={(value) => setWorkItemStage(value === '__auto__' ? '' : value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Use default stage" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__auto__">Use default stage</SelectItem>
+                      {(stagesQuery.data ?? []).map((stage) => (
+                        <SelectItem key={stage.id} value={stage.name}>
+                          {stage.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+                <label className="grid gap-1.5">
+                  <span className="text-sm font-medium text-foreground">Goal</span>
+                  <Textarea
+                    value={workItemGoal}
+                    onChange={(event) => {
+                      setWorkItemError(null);
+                      setWorkItemGoal(event.target.value);
+                    }}
+                    className="min-h-[88px]"
+                    placeholder="Describe the desired outcome and acceptance intent."
+                  />
+                </label>
+                {workItemError ? (
+                  <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                    {workItemError}
+                  </p>
+                ) : null}
+                <div className="flex justify-end">
+                  <Button
+                    onClick={() => void createWorkItemMutation.mutate()}
+                    disabled={createWorkItemMutation.isPending}
+                  >
+                    {createWorkItemMutation.isPending ? 'Creating…' : 'Create Work Item'}
+                  </Button>
+                </div>
+                </CardContent>
+              </Card>
 
-      <PlaybookBoardCard
-        workflowId={workflowId}
-        board={boardQuery.data}
-        stages={stagesQuery.data ?? []}
-        isLoading={boardQuery.isLoading}
-        hasError={Boolean(boardQuery.error)}
-        selectedWorkItemId={selectedWorkItemId}
-        onSelectWorkItem={(workItemId) => updateWorkflowSelection('work_item', workItemId)}
-        onBoardChanged={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}
-      />
+              <Card className="bg-surface/80">
+                <CardHeader>
+                  <CardTitle>Launch Child Board</CardTitle>
+                  <CardDescription>
+                    Create a linked follow-up board run using a playbook and preserve lineage.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4">
+                  <div className="grid gap-3 rounded-lg border border-dashed border-border/70 bg-border/10 p-4">
+                    <p className="text-sm text-muted">
+                      Child workflows inherit parent context and stay linked for operator drill-in.
+                    </p>
+                    <div className="flex justify-end">
+                      <Button onClick={() => setIsChainDialogOpen(true)}>Create Child Board</Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+        ) : null}
 
-      {selectedWorkItemId ? (
-        <div id={buildWorkflowDetailHash({ workItemId: selectedWorkItemId }).slice(1)}>
-          <WorkflowWorkItemDetailPanel
+        <section className="rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
+          <PlaybookBoardCard
             workflowId={workflowId}
-            workItemId={selectedWorkItemId}
-            workItems={groupedWorkItems}
-            selectedWorkItem={selectedBoardWorkItem}
-            columns={boardQuery.data?.columns ?? []}
+            board={boardQuery.data}
             stages={stagesQuery.data ?? []}
-            tasks={selectedWorkItemTasks}
+            isLoading={boardQuery.isLoading}
+            hasError={Boolean(boardQuery.error)}
+            selectedWorkItemId={selectedWorkItemId}
             onSelectWorkItem={(workItemId) => updateWorkflowSelection('work_item', workItemId)}
-            onWorkItemChanged={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}
-            onClearSelection={() => clearWorkflowSelection('work_item')}
+            onBoardChanged={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}
+          />
+        </section>
+
+        {selectedWorkItemId ? (
+          <section
+            id={buildWorkflowDetailHash({ workItemId: selectedWorkItemId }).slice(1)}
+            className="rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm"
+          >
+            <WorkflowWorkItemDetailPanel
+              workflowId={workflowId}
+              workItemId={selectedWorkItemId}
+              workItems={groupedWorkItems}
+              selectedWorkItem={selectedBoardWorkItem}
+              columns={boardQuery.data?.columns ?? []}
+              stages={stagesQuery.data ?? []}
+              tasks={selectedWorkItemTasks}
+              onSelectWorkItem={(workItemId) => updateWorkflowSelection('work_item', workItemId)}
+              onWorkItemChanged={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}
+              onClearSelection={() => clearWorkflowSelection('work_item')}
+            />
+          </section>
+        ) : null}
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <WorkflowStagesCard
+            stages={stagesQuery.data ?? []}
+            isLoading={stagesQuery.isLoading}
+            hasError={Boolean(stagesQuery.error)}
+            selectedGateStageName={selectedGateStageName}
+            onSelectGate={(stageName) => updateWorkflowSelection('gate', stageName)}
+          />
+          <WorkflowActivationsCard
+            activations={activationsQuery.data ?? []}
+            isLoading={activationsQuery.isLoading}
+            hasError={Boolean(activationsQuery.error)}
+            selectedActivationId={selectedActivationId}
+            onSelectActivation={(activationId) =>
+              updateWorkflowSelection('activation', activationId)
+            }
           />
         </div>
-      ) : null}
+      </section>
 
-      <div className="grid two">
-        <WorkflowStagesCard
-          stages={stagesQuery.data ?? []}
-          isLoading={stagesQuery.isLoading}
-          hasError={Boolean(stagesQuery.error)}
-          selectedGateStageName={selectedGateStageName}
-          onSelectGate={(stageName) => updateWorkflowSelection('gate', stageName)}
-        />
-        <WorkflowActivationsCard
-          activations={activationsQuery.data ?? []}
-          isLoading={activationsQuery.isLoading}
-          hasError={Boolean(activationsQuery.error)}
-          selectedActivationId={selectedActivationId}
-          onSelectActivation={(activationId) =>
-            updateWorkflowSelection('activation', activationId)
-          }
-        />
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Card className="border-border/70 bg-card/80 shadow-sm">
+          <CardHeader>
+            <CardTitle>Model Overrides</CardTitle>
+            <CardDescription>
+              Board-run overrides take precedence over project-level model settings.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            {workflowModelOverridesQuery.isLoading ? (
+              <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
+                Loading model overrides...
+              </p>
+            ) : null}
+            {workflowModelOverridesQuery.error ? (
+              <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                Failed to load board-run model overrides.
+              </p>
+            ) : null}
+            {workflowModelOverridesQuery.data ? (
+              <StructuredRecordView
+                data={workflowModelOverridesQuery.data}
+                emptyMessage="No board-run model overrides configured."
+              />
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/70 bg-card/80 shadow-sm">
+          <CardHeader>
+            <CardTitle>Effective Models</CardTitle>
+            <CardDescription>
+              Resolved models after applying defaults, project overrides, and workflow launch overrides.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            {resolvedModelsQuery.isLoading ? (
+              <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
+                Resolving effective models...
+              </p>
+            ) : null}
+            {resolvedModelsQuery.error ? (
+              <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                Failed to load effective models.
+              </p>
+            ) : null}
+            {resolvedModelsQuery.data ? (
+              <ResolvedModelResolutionList effectiveModels={resolvedModelsQuery.data.effective_models} />
+            ) : null}
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="grid two">
-        <div className="card">
-          <h3>Model Overrides</h3>
-          <p className="muted">
-            Board-run overrides are set at launch time and take precedence over project-level model
-            overrides.
-          </p>
-          {workflowModelOverridesQuery.isLoading ? <p>Loading model overrides...</p> : null}
-          {workflowModelOverridesQuery.error ? (
-            <p style={{ color: '#dc2626' }}>Failed to load board-run model overrides.</p>
-          ) : null}
-          {workflowModelOverridesQuery.data ? (
-            <StructuredRecordView
-              data={workflowModelOverridesQuery.data}
-              emptyMessage="No board-run model overrides configured."
-            />
-          ) : null}
-        </div>
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Card className="border-border/70 bg-card/80 shadow-sm">
+          <CardHeader>
+            <CardTitle>Resolved Config</CardTitle>
+            <CardDescription>
+              Merged playbook, project, and board-run configuration for this operator surface.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            {configQuery.isLoading ? (
+              <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
+                Loading config...
+              </p>
+            ) : null}
+            {configQuery.error ? (
+              <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                Failed to load resolved config.
+              </p>
+            ) : null}
+            {configQuery.data ? (
+              <StructuredRecordView
+                data={configQuery.data}
+                emptyMessage="No resolved configuration available."
+              />
+            ) : null}
+          </CardContent>
+        </Card>
 
-        <div className="card">
-          <h3>Effective Models</h3>
-          <p className="muted">
-            Effective resolved models after applying base defaults, project overrides, and any
-            workflow launch overrides.
-          </p>
-          {resolvedModelsQuery.isLoading ? <p>Resolving effective models...</p> : null}
-          {resolvedModelsQuery.error ? (
-            <p style={{ color: '#dc2626' }}>Failed to load effective models.</p>
-          ) : null}
-          {resolvedModelsQuery.data ? (
-            <ResolvedModelResolutionList effectiveModels={resolvedModelsQuery.data.effective_models} />
-          ) : null}
-        </div>
+        <Card className="border-border/70 bg-card/80 shadow-sm">
+          <CardHeader>
+            <CardTitle>Board Summary</CardTitle>
+            <CardDescription>
+              Continuity summary written into project memory when the board run reaches a terminal state.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            {runSummary ? (
+              <StructuredRecordView
+                data={runSummary}
+                emptyMessage="Run summary becomes available after the workflow reaches terminal state."
+              />
+            ) : (
+              <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
+                Run summary becomes available after the workflow reaches terminal state.
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="grid two">
-        <div className="card">
-          <h3>Resolved Config</h3>
-          <p className="muted">
-            Merged playbook, project, and board-run configuration for this operator surface.
-          </p>
-          {configQuery.isLoading ? <p>Loading config...</p> : null}
-          {configQuery.error ? (
-            <p style={{ color: '#dc2626' }}>Failed to load resolved config.</p>
-          ) : null}
-          {configQuery.data ? (
-            <StructuredRecordView
-              data={configQuery.data}
-              emptyMessage="No resolved configuration available."
-            />
-          ) : null}
-        </div>
-
-        <div className="card">
-          <h3>Board Summary</h3>
-          <p className="muted">
-            Continuity summary written into project memory when the board run reaches a terminal state.
-          </p>
-          {runSummary ? (
-            <StructuredRecordView
-              data={runSummary}
-              emptyMessage="Run summary becomes available after the workflow reaches terminal state."
-            />
-          ) : (
-            <p className="muted">
-              Run summary becomes available after the workflow reaches terminal state.
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="grid two">
+      <div className="grid gap-6 xl:grid-cols-2">
         <WorkflowDocumentsCard
           isLoading={documentQuery.isLoading}
           hasError={Boolean(documentQuery.error)}
@@ -671,7 +910,7 @@ export function WorkflowDetailPage(): JSX.Element {
         />
       </div>
 
-      <div className="grid two">
+      <div className="grid gap-6 xl:grid-cols-2">
         <TaskGraphCard
           tasks={taskQuery.data?.data ?? []}
           stageGroups={stageGroups}
@@ -679,7 +918,8 @@ export function WorkflowDetailPage(): JSX.Element {
           hasError={Boolean(taskQuery.error)}
         />
 
-        <WorkflowHistoryCard
+        <WorkflowInteractionTimelineCard
+          workflowId={workflowId}
           isLoading={historyQuery.isLoading}
           hasError={Boolean(historyQuery.error)}
           events={historyQuery.data?.data ?? []}
@@ -715,30 +955,46 @@ function ResolvedModelResolutionList(props: {
 }): JSX.Element {
   const entries = Object.entries(props.effectiveModels);
   if (entries.length === 0) {
-    return <p className="muted">No resolved model information is available.</p>;
+    return <p className="text-sm text-muted">No resolved model information is available.</p>;
   }
 
   return (
-    <div className="grid" style={{ gap: '0.75rem' }}>
+    <div className="grid gap-3">
       {entries.map(([role, resolution]) => (
-        <div key={role} className="rounded-md border bg-border/10 p-3 text-sm">
-          <div className="row">
-            <strong>{role}</strong>
-            <span className="status-badge">{resolution.source}</span>
-            {resolution.fallback ? <span className="status-badge status-failed">fallback</span> : null}
+        <div key={role} className="grid gap-3 rounded-lg border border-border/70 bg-border/10 p-4 text-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <strong className="text-foreground">{role}</strong>
+            <Badge variant="secondary">{resolution.source}</Badge>
+            {resolution.fallback ? <Badge variant="destructive">fallback</Badge> : null}
           </div>
           {resolution.resolved ? (
-            <p className="muted">
+            <p className="text-sm text-muted">
               {resolution.resolved.provider.name} / {resolution.resolved.model.modelId}
             </p>
           ) : (
-            <p className="muted">No resolved model available.</p>
+            <p className="text-sm text-muted">No resolved model available.</p>
           )}
           {resolution.fallback_reason ? (
-            <p style={{ color: '#dc2626', marginTop: '0.35rem' }}>{resolution.fallback_reason}</p>
+            <p className="text-sm text-red-600">{resolution.fallback_reason}</p>
           ) : null}
         </div>
       ))}
+    </div>
+  );
+}
+
+function WorkflowSignalTile(props: {
+  label: string;
+  value: string;
+  detail: string;
+}): JSX.Element {
+  return (
+    <div className="grid gap-1 rounded-xl border border-border/70 bg-background/90 p-4 shadow-sm">
+      <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted">
+        {props.label}
+      </p>
+      <strong className="text-2xl font-semibold text-foreground">{props.value}</strong>
+      <p className="text-sm text-muted">{props.detail}</p>
     </div>
   );
 }

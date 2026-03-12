@@ -5,6 +5,7 @@ import {
   buildParametersFromDrafts,
   buildStructuredObject,
   defaultParameterDraftValue,
+  readMappedProjectParameterDraft,
   readLaunchDefinition,
   syncRoleOverrideDrafts,
 } from './playbook-launch-support.js';
@@ -52,6 +53,7 @@ describe('playbook launch support', () => {
         inputType: 'string',
         defaultValue: undefined,
         options: [],
+        mapsTo: undefined,
       },
       {
         key: 'urgency',
@@ -60,6 +62,7 @@ describe('playbook launch support', () => {
         inputType: 'select',
         defaultValue: undefined,
         options: ['low', 'high'],
+        mapsTo: undefined,
       },
       {
         key: 'retry_count',
@@ -68,6 +71,7 @@ describe('playbook launch support', () => {
         inputType: 'number',
         defaultValue: 2,
         options: [],
+        mapsTo: undefined,
       },
     ]);
   });
@@ -112,7 +116,7 @@ describe('playbook launch support', () => {
 
     expect(() =>
       buildModelOverrides([
-        { id: 'a', role: 'architect', provider: 'openai', model: '', reasoningConfig: '' },
+        { id: 'a', role: 'architect', provider: 'openai', model: '', reasoningEntries: [] },
       ]),
     ).toThrow(/must include both provider and model/i);
   });
@@ -121,8 +125,8 @@ describe('playbook launch support', () => {
     const synced = syncRoleOverrideDrafts(
       ['architect', 'developer'],
       [
-        { id: '1', role: 'architect', provider: 'openai', model: 'gpt-5', reasoningConfig: '' },
-        { id: '2', role: 'qa', provider: 'anthropic', model: 'claude-sonnet', reasoningConfig: '' },
+        { id: '1', role: 'architect', provider: 'openai', model: 'gpt-5', reasoningEntries: [] },
+        { id: '2', role: 'qa', provider: 'anthropic', model: 'claude-sonnet', reasoningEntries: [] },
       ],
     );
 
@@ -133,5 +137,45 @@ describe('playbook launch support', () => {
     expect(defaultParameterDraftValue(true, 'boolean')).toBe('true');
     expect(defaultParameterDraftValue({ branch: 'main' }, 'json')).toBe('{\n  "branch": "main"\n}');
     expect(defaultParameterDraftValue(undefined, 'string')).toBe('');
+  });
+
+  it('reads project-mapped launch parameter values through maps_to paths', () => {
+    const repositoryDraft = readMappedProjectParameterDraft(
+      {
+        key: 'repository_url',
+        label: 'Repository URL',
+        description: '',
+        inputType: 'string',
+        options: [],
+        mapsTo: 'project.repository_url',
+      },
+      {
+        id: 'project-1',
+        name: 'Demo',
+        slug: 'demo',
+        repository_url: 'https://github.com/agisnap/agirunner-test-fixtures',
+        settings: { default_branch: 'main' },
+      },
+    );
+    const branchDraft = readMappedProjectParameterDraft(
+      {
+        key: 'default_branch',
+        label: 'Default Branch',
+        description: '',
+        inputType: 'string',
+        options: [],
+        mapsTo: 'project.settings.default_branch',
+      },
+      {
+        id: 'project-1',
+        name: 'Demo',
+        slug: 'demo',
+        repository_url: 'https://github.com/agisnap/agirunner-test-fixtures',
+        settings: { default_branch: 'main' },
+      },
+    );
+
+    expect(repositoryDraft).toBe('https://github.com/agisnap/agirunner-test-fixtures');
+    expect(branchDraft).toBe('main');
   });
 });

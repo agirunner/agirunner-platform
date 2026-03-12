@@ -14,5 +14,7 @@ describe('worker list two-pool source', () => {
     expect(source).toContain('Orchestrator Workers');
     expect(source).toContain('Specialist Workers');
     expect(source).toContain('worker.pool_kind');
+    expect(source).toContain('max-h-[80vh] max-w-xl overflow-y-auto');
+    expect(source).toContain('className="w-full sm:w-auto"');
   });
 });

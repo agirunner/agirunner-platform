@@ -7,6 +7,7 @@ import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import type { ArtifactStorageAdapter } from '../content/artifact-storage.js';
 import { DEFAULT_ARTIFACT_CONTENT_TYPE } from '../content/storage-config.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
+import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 
 interface ArtifactRow {
   id: string;
@@ -32,7 +33,6 @@ interface ArtifactPreviewDescriptor {
 }
 
 const ARTIFACT_METADATA_SECRET_REDACTION = 'redacted://artifact-metadata-secret';
-const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
 
 export interface ArtifactResponse {
   id: string;
@@ -336,42 +336,9 @@ function decodeArtifactPayload(contentBase64: string): Buffer {
 }
 
 function sanitizeArtifactMetadata(metadata: Record<string, unknown>): Record<string, unknown> {
-  const sanitized: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(metadata)) {
-    sanitized[key] = sanitizeMetadataValue(value, isSecretLikeKey(key));
-  }
-  return sanitized;
-}
-
-function sanitizeMetadataValue(value: unknown, inheritedSecret: boolean): unknown {
-  if (typeof value === 'string') {
-    return inheritedSecret && !isSecretReference(value)
-      ? ARTIFACT_METADATA_SECRET_REDACTION
-      : value;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => sanitizeMetadataValue(item, inheritedSecret));
-  }
-
-  if (!value || typeof value !== 'object') {
-    return value;
-  }
-
-  const sanitized: Record<string, unknown> = {};
-  for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
-    sanitized[key] = sanitizeMetadataValue(nestedValue, inheritedSecret || isSecretLikeKey(key));
-  }
-  return sanitized;
-}
-
-function isSecretLikeKey(key: string): boolean {
-  return secretLikeKeyPattern.test(key);
-}
-
-function isSecretReference(value: string): boolean {
-  const normalized = value.trim().toLowerCase();
-  return normalized.startsWith('secret:') || normalized.startsWith('redacted://');
+  return sanitizeSecretLikeRecord(metadata, {
+    redactionValue: ARTIFACT_METADATA_SECRET_REDACTION,
+  });
 }
 
 function buildStorageKey(

@@ -1,6 +1,7 @@
 import type { DatabasePool } from '../db/database.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import type { ArtifactStorageAdapter } from '../content/artifact-storage.js';
+import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 import {
   type ArtifactResponse,
   assertArtifactPreviewEligible,
@@ -8,7 +9,6 @@ import {
 } from './artifact-service.js';
 
 const ARTIFACT_METADATA_SECRET_REDACTION = 'redacted://artifact-metadata-secret';
-const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
 
 interface ArtifactCatalogRow {
   id: string;
@@ -277,40 +277,7 @@ function normalizeLimit(value?: number): number {
 }
 
 function sanitizeArtifactMetadata(metadata: Record<string, unknown>): Record<string, unknown> {
-  const sanitized: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(metadata)) {
-    sanitized[key] = sanitizeMetadataValue(value, isSecretLikeKey(key));
-  }
-  return sanitized;
-}
-
-function sanitizeMetadataValue(value: unknown, inheritedSecret: boolean): unknown {
-  if (typeof value === 'string') {
-    return inheritedSecret && !isSecretReference(value)
-      ? ARTIFACT_METADATA_SECRET_REDACTION
-      : value;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => sanitizeMetadataValue(item, inheritedSecret));
-  }
-
-  if (!value || typeof value !== 'object') {
-    return value;
-  }
-
-  const sanitized: Record<string, unknown> = {};
-  for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
-    sanitized[key] = sanitizeMetadataValue(nestedValue, inheritedSecret || isSecretLikeKey(key));
-  }
-  return sanitized;
-}
-
-function isSecretLikeKey(key: string): boolean {
-  return secretLikeKeyPattern.test(key);
-}
-
-function isSecretReference(value: string): boolean {
-  const normalized = value.trim().toLowerCase();
-  return normalized.startsWith('secret:') || normalized.startsWith('redacted://');
+  return sanitizeSecretLikeRecord(metadata, {
+    redactionValue: ARTIFACT_METADATA_SECRET_REDACTION,
+  });
 }

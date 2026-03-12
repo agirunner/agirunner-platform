@@ -37,7 +37,14 @@ export class WorkflowCancellationService {
         return this.deps.getWorkflow(identity.tenantId, workflowId);
       }
 
-      const immediateCancellationStates = ['pending', 'ready', 'awaiting_approval', 'output_pending_review', 'failed'];
+      const immediateCancellationStates = [
+        'pending',
+        'ready',
+        'awaiting_approval',
+        'output_pending_review',
+        'failed',
+        'escalated',
+      ];
       const cancelledTasks = await client.query(
         `UPDATE tasks
          SET state = 'cancelled', state_changed_at = now(), assigned_agent_id = NULL,
@@ -167,6 +174,20 @@ export class WorkflowCancellationService {
         );
       }
 
+      const cancelledActivations = await client.query(
+        `UPDATE workflow_activations
+            SET state = 'cancelled',
+                consumed_at = COALESCE(consumed_at, now()),
+                completed_at = COALESCE(completed_at, now()),
+                summary = COALESCE(summary, 'Workflow cancelled by operator.'),
+                error = COALESCE(error, '{}'::jsonb) || jsonb_build_object('message', 'Workflow cancelled by operator.')
+          WHERE tenant_id = $1
+            AND workflow_id = $2
+            AND consumed_at IS NULL
+         RETURNING id`,
+        [identity.tenantId, workflowId],
+      );
+
       await client.query(
         `UPDATE workflows
             SET metadata = metadata || $3::jsonb,
@@ -210,6 +231,7 @@ export class WorkflowCancellationService {
           data: {
             cancelled_tasks: cancelledTasks.rowCount,
             signalled_tasks: signalledTasks,
+            cancelled_activations: cancelledActivations.rowCount,
             force_cancel_at: forceCancelAt.toISOString(),
           },
         },

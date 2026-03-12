@@ -7,15 +7,12 @@ function readSource() {
 }
 
 describe('playbook list page source', () => {
-  it('uses structured authoring sections instead of raw definition JSON editing', () => {
+  it('uses the shared structured authoring form instead of raw definition JSON editing', () => {
     const source = readSource();
-    expect(source).toContain('Team Roles');
-    expect(source).toContain('Board Columns');
-    expect(source).toContain('Workflow Stages');
-    expect(source).toContain('Orchestrator Parallelism');
-    expect(source).toContain('Runtime Controls');
-    expect(source).toContain('Playbook Parameters');
+    expect(source).toContain('PlaybookAuthoringForm');
     expect(source).not.toContain('Definition JSON');
     expect(source).toContain('buildPlaybookDefinition(');
+    expect(source).toContain('Manage');
+    expect(source).toContain('max-h-[90vh] max-w-5xl overflow-y-auto');
   });
 });

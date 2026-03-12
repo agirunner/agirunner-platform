@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { FileText, Loader2, Package } from 'lucide-react';
 
-import { dashboardApi } from '../../lib/api.js';
+import {
+  dashboardApi,
+  type DashboardResolvedDocumentReference,
+  type DashboardTaskArtifactRecord,
+  type DashboardWorkflowDocumentCreateInput,
+  type DashboardWorkflowDocumentUpdateInput,
+} from '../../lib/api.js';
+import { Button } from '../../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
+import { Input } from '../../components/ui/input.js';
 import {
   Select,
   SelectContent,
@@ -13,7 +21,9 @@ import {
   SelectValue,
 } from '../../components/ui/select.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
+import { Textarea } from '../../components/ui/textarea.js';
 import { Badge } from '../../components/ui/badge.js';
+import { StructuredRecordView } from '../../components/structured-data.js';
 import {
   buildWorkflowOptions,
   filterTasksByWorkItem,
@@ -21,15 +31,49 @@ import {
   normalizeTaskOptions,
   normalizeWorkItemOptions,
 } from './project-content-browser-support.js';
+import {
+  buildMetadataRecord,
+  createMetadataDraft,
+  createMetadataDraftsFromRecord,
+  type MetadataDraft,
+  type MetadataValueType,
+  updateMetadataDraft,
+} from './content-browser-metadata-support.js';
 import { ArtifactsTable, DocumentsTable } from './project-content-tables.js';
 
+interface ContentBrowserPageProps {
+  scopedProjectId?: string;
+  scopedWorkflowId?: string;
+  preferredTab?: 'documents' | 'artifacts';
+}
+
 export function ContentBrowserPage(): JSX.Element {
+  return <ContentBrowserSurface />;
+}
+
+export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.Element {
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [selectedProjectId, setSelectedProjectId] = useState(searchParams.get('project') ?? '');
-  const [selectedWorkflowId, setSelectedWorkflowId] = useState(searchParams.get('workflow') ?? '');
+  const scopedProjectId = props.scopedProjectId?.trim() ?? '';
+  const scopedWorkflowId = props.scopedWorkflowId?.trim() ?? '';
+  const preferredTab = props.preferredTab ?? 'documents';
+  const [selectedProjectId, setSelectedProjectId] = useState(scopedProjectId || (searchParams.get('project') ?? ''));
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState(scopedWorkflowId || (searchParams.get('workflow') ?? ''));
   const [selectedWorkItemId, setSelectedWorkItemId] = useState(searchParams.get('work_item') ?? '');
   const [selectedTaskId, setSelectedTaskId] = useState(searchParams.get('task') ?? '');
-  const activeTab = searchParams.get('tab') === 'artifacts' ? 'artifacts' : 'documents';
+  const [documentMode, setDocumentMode] = useState<'create' | 'edit'>('create');
+  const [editingLogicalName, setEditingLogicalName] = useState('');
+  const [documentDraft, setDocumentDraft] = useState(createEmptyDocumentDraft());
+  const [documentMetadataDrafts, setDocumentMetadataDrafts] = useState<MetadataDraft[]>([]);
+  const [documentError, setDocumentError] = useState<string | null>(null);
+  const [documentMessage, setDocumentMessage] = useState<string | null>(null);
+  const [artifactPath, setArtifactPath] = useState('');
+  const [artifactContentType, setArtifactContentType] = useState('');
+  const [artifactMetadataDrafts, setArtifactMetadataDrafts] = useState<MetadataDraft[]>([]);
+  const [artifactFile, setArtifactFile] = useState<File | null>(null);
+  const [artifactError, setArtifactError] = useState<string | null>(null);
+  const [artifactMessage, setArtifactMessage] = useState<string | null>(null);
+  const activeTab = searchParams.get('tab') === 'artifacts' ? 'artifacts' : preferredTab;
 
   const projectsQuery = useQuery({
     queryKey: ['projects'],
@@ -75,18 +119,159 @@ export function ContentBrowserPage(): JSX.Element {
   const selectedWorkflow = workflows.find((workflow) => workflow.id === selectedWorkflowId) ?? null;
   const selectedWorkItem = workItems.find((workItem) => workItem.id === selectedWorkItemId) ?? null;
   const selectedTask = filteredTasks.find((task) => task.id === selectedTaskId) ?? null;
+  const parsedDocumentMetadata = useMemo(
+    () => buildMetadataRecord(documentMetadataDrafts),
+    [documentMetadataDrafts],
+  );
+  const parsedArtifactMetadata = useMemo(
+    () => buildMetadataRecord(artifactMetadataDrafts),
+    [artifactMetadataDrafts],
+  );
+
+  useEffect(() => {
+    if (scopedProjectId && selectedProjectId !== scopedProjectId) {
+      setSelectedProjectId(scopedProjectId);
+    }
+  }, [scopedProjectId, selectedProjectId]);
+
+  useEffect(() => {
+    if (scopedWorkflowId && selectedWorkflowId !== scopedWorkflowId) {
+      setSelectedWorkflowId(scopedWorkflowId);
+    }
+  }, [scopedWorkflowId, selectedWorkflowId]);
+
+  const saveDocumentMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedWorkflowId) {
+        throw new Error('Select a workflow before managing documents.');
+      }
+      if (!documentDraft.logicalName.trim()) {
+        throw new Error('Logical name is required.');
+      }
+      if (parsedDocumentMetadata.error) {
+        throw new Error(parsedDocumentMetadata.error);
+      }
+
+      if (documentMode === 'edit' && editingLogicalName) {
+        return dashboardApi.updateWorkflowDocument(
+          selectedWorkflowId,
+          editingLogicalName,
+          buildDocumentUpdatePayload(documentDraft, parsedDocumentMetadata.value ?? {}),
+        );
+      }
+      return dashboardApi.createWorkflowDocument(
+        selectedWorkflowId,
+        buildDocumentCreatePayload(documentDraft, parsedDocumentMetadata.value ?? {}),
+      );
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['content-documents', selectedWorkflowId] });
+      setDocumentError(null);
+      setDocumentMessage(
+        documentMode === 'edit' ? 'Updated workflow document.' : 'Created workflow document.',
+      );
+      setDocumentMode('create');
+      setEditingLogicalName('');
+      setDocumentDraft(createEmptyDocumentDraft());
+      setDocumentMetadataDrafts([]);
+    },
+    onError: (error) => {
+      setDocumentMessage(null);
+      setDocumentError(error instanceof Error ? error.message : 'Failed to save workflow document.');
+    },
+  });
+
+  const deleteDocumentMutation = useMutation({
+    mutationFn: async (document: DashboardResolvedDocumentReference) => {
+      if (!selectedWorkflowId) {
+        throw new Error('Select a workflow before deleting documents.');
+      }
+      await dashboardApi.deleteWorkflowDocument(selectedWorkflowId, document.logical_name);
+      return document.logical_name;
+    },
+    onSuccess: async (logicalName) => {
+      await queryClient.invalidateQueries({ queryKey: ['content-documents', selectedWorkflowId] });
+      if (editingLogicalName === logicalName) {
+        setDocumentMode('create');
+        setEditingLogicalName('');
+        setDocumentDraft(createEmptyDocumentDraft());
+        setDocumentMetadataDrafts([]);
+      }
+      setDocumentError(null);
+      setDocumentMessage('Deleted workflow document.');
+    },
+    onError: (error) => {
+      setDocumentMessage(null);
+      setDocumentError(
+        error instanceof Error ? error.message : 'Failed to delete workflow document.',
+      );
+    },
+  });
+
+  const uploadArtifactMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedTaskId) {
+        throw new Error('Select a task before uploading artifacts.');
+      }
+      if (!artifactFile) {
+        throw new Error('Choose a file to upload.');
+      }
+      if (!artifactPath.trim()) {
+        throw new Error('Artifact path is required.');
+      }
+      if (parsedArtifactMetadata.error) {
+        throw new Error(parsedArtifactMetadata.error);
+      }
+      const contentBase64 = await readFileAsBase64(artifactFile);
+      return dashboardApi.uploadTaskArtifact(selectedTaskId, {
+        path: artifactPath.trim(),
+        content_base64: contentBase64,
+        content_type: artifactContentType.trim() || artifactFile.type || undefined,
+        metadata: parsedArtifactMetadata.value ?? {},
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['content-artifacts', selectedTaskId] });
+      setArtifactError(null);
+      setArtifactMessage('Uploaded task artifact.');
+      setArtifactFile(null);
+      setArtifactPath('');
+      setArtifactContentType('');
+      setArtifactMetadataDrafts([]);
+    },
+    onError: (error) => {
+      setArtifactMessage(null);
+      setArtifactError(error instanceof Error ? error.message : 'Failed to upload artifact.');
+    },
+  });
+
+  const deleteArtifactMutation = useMutation({
+    mutationFn: async (artifact: DashboardTaskArtifactRecord) => {
+      await dashboardApi.deleteTaskArtifact(artifact.task_id, artifact.id);
+      return artifact.id;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['content-artifacts', selectedTaskId] });
+      setArtifactError(null);
+      setArtifactMessage('Deleted task artifact.');
+    },
+    onError: (error) => {
+      setArtifactMessage(null);
+      setArtifactError(error instanceof Error ? error.message : 'Failed to delete artifact.');
+    },
+  });
 
   useEffect(() => {
     const next = new URLSearchParams();
-    if (selectedProjectId) next.set('project', selectedProjectId); else next.delete('project');
-    if (selectedWorkflowId) next.set('workflow', selectedWorkflowId); else next.delete('workflow');
+    if (!scopedProjectId && selectedProjectId) next.set('project', selectedProjectId); else next.delete('project');
+    if (!scopedWorkflowId && selectedWorkflowId) next.set('workflow', selectedWorkflowId); else next.delete('workflow');
     if (selectedWorkItemId) next.set('work_item', selectedWorkItemId); else next.delete('work_item');
     if (selectedTaskId) next.set('task', selectedTaskId); else next.delete('task');
-    if (activeTab !== 'documents') next.set('tab', activeTab); else next.delete('tab');
+    if (activeTab !== preferredTab) next.set('tab', activeTab); else next.delete('tab');
     if (next.toString() !== searchParams.toString()) {
       setSearchParams(next, { replace: true });
     }
-  }, [activeTab, searchParams, selectedProjectId, selectedTaskId, selectedWorkflowId, selectedWorkItemId, setSearchParams]);
+  }, [activeTab, preferredTab, scopedProjectId, scopedWorkflowId, searchParams, selectedProjectId, selectedTaskId, selectedWorkflowId, selectedWorkItemId, setSearchParams]);
 
   useEffect(() => {
     if (workflows.length === 0) {
@@ -119,6 +304,24 @@ export function ContentBrowserPage(): JSX.Element {
     }
   }, [filteredTasks, selectedTaskId]);
 
+  useEffect(() => {
+    setDocumentMode('create');
+    setEditingLogicalName('');
+    setDocumentDraft(createEmptyDocumentDraft());
+    setDocumentMetadataDrafts([]);
+    setDocumentError(null);
+    setDocumentMessage(null);
+  }, [selectedWorkflowId]);
+
+  useEffect(() => {
+    setArtifactError(null);
+    setArtifactMessage(null);
+    setArtifactFile(null);
+    setArtifactPath('');
+    setArtifactContentType('');
+    setArtifactMetadataDrafts([]);
+  }, [selectedTaskId]);
+
   return (
     <div className="space-y-6 p-6">
       <div>
@@ -126,6 +329,18 @@ export function ContentBrowserPage(): JSX.Element {
         <p className="text-sm text-muted-foreground">
           Browse workflow documents and work-item scoped artifacts with deep-linkable project, workflow, work item, and task filters.
         </p>
+        {scopedProjectId ? (
+          <div className="mt-2 flex flex-wrap gap-2 text-sm">
+            <Link className="underline-offset-4 hover:underline" to={`/projects/${scopedProjectId}`}>
+              Back to Project
+            </Link>
+            {selectedWorkflowId ? (
+              <Link className="underline-offset-4 hover:underline" to={`/work/workflows/${selectedWorkflowId}`}>
+                Open Workflow Board
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <Card>
@@ -142,6 +357,7 @@ export function ContentBrowserPage(): JSX.Element {
               </div>
             ) : (
             <Select
+                disabled={scopedProjectId.length > 0}
                 value={selectedProjectId}
                 onValueChange={(value) => {
                   setSelectedProjectId(value);
@@ -164,9 +380,12 @@ export function ContentBrowserPage(): JSX.Element {
             )}
           </div>
 
-          {projectsQuery.error ? (
-            <p className="text-sm text-red-600">Failed to load projects.</p>
-          ) : null}
+          <InlineStatusNotice
+            tone="error"
+            show={Boolean(projectsQuery.error)}
+            title="Project scope unavailable"
+            message="The dashboard could not load project options. Retry after the project list becomes available."
+          />
 
           {!selectedProjectId && !projectsQuery.isLoading ? (
             <div className="flex flex-col items-center py-8 text-muted-foreground">
@@ -207,9 +426,12 @@ export function ContentBrowserPage(): JSX.Element {
                 ) : (
                   <p className="text-sm text-muted-foreground">No workflows found for this project yet.</p>
                 )}
-                {timelineQuery.error ? (
-                  <p className="text-sm text-red-600">Failed to load project workflows.</p>
-                ) : null}
+                <InlineStatusNotice
+                  tone="error"
+                  show={Boolean(timelineQuery.error)}
+                  title="Workflow scope unavailable"
+                  message="The dashboard could not load workflows for this project."
+                />
               </div>
 
               {selectedWorkflow ? (
@@ -254,13 +476,239 @@ export function ContentBrowserPage(): JSX.Element {
               </TabsList>
 
               <TabsContent value="documents">
-                {documentsQuery.error ? (
-                  <p className="text-sm text-red-600">Failed to load workflow documents.</p>
-                ) : null}
+                <InlineStatusNotice
+                  tone="error"
+                  show={Boolean(documentsQuery.error)}
+                  title="Document inventory unavailable"
+                  message="The workflow document list could not be loaded."
+                />
+                <Card className="mb-4">
+                  <CardHeader>
+                    <CardTitle>Document Operator Controls</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-4">
+                    <p className="text-sm text-muted-foreground">
+                      Create, edit, and delete resolved workflow references without leaving the operator content browser.
+                    </p>
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <label className="grid gap-2">
+                        <span className="text-sm font-medium">Logical name</span>
+                        <Input
+                          value={documentDraft.logicalName}
+                          disabled={documentMode === 'edit'}
+                          onChange={(event) =>
+                            setDocumentDraft((current) => ({
+                              ...current,
+                              logicalName: event.target.value,
+                            }))
+                          }
+                          placeholder="e.g. project_brief"
+                        />
+                      </label>
+                      <label className="grid gap-2">
+                        <span className="text-sm font-medium">Source</span>
+                        <Select
+                          value={documentDraft.source}
+                          onValueChange={(value) =>
+                            setDocumentDraft((current) => ({
+                              ...current,
+                              source: value as DocumentDraft['source'],
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="repository">Repository</SelectItem>
+                            <SelectItem value="artifact">Artifact</SelectItem>
+                            <SelectItem value="external">External</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </label>
+                      <label className="grid gap-2">
+                        <span className="text-sm font-medium">Title</span>
+                        <Input
+                          value={documentDraft.title}
+                          onChange={(event) =>
+                            setDocumentDraft((current) => ({
+                              ...current,
+                              title: event.target.value,
+                            }))
+                          }
+                          placeholder="Visible operator title"
+                        />
+                      </label>
+                      <label className="grid gap-2">
+                        <span className="text-sm font-medium">Description</span>
+                        <Input
+                          value={documentDraft.description}
+                          onChange={(event) =>
+                            setDocumentDraft((current) => ({
+                              ...current,
+                              description: event.target.value,
+                            }))
+                          }
+                          placeholder="What this document is for"
+                        />
+                      </label>
+                      {documentDraft.source === 'repository' ? (
+                        <>
+                          <label className="grid gap-2">
+                            <span className="text-sm font-medium">Repository</span>
+                            <Input
+                              value={documentDraft.repository}
+                              onChange={(event) =>
+                                setDocumentDraft((current) => ({
+                                  ...current,
+                                  repository: event.target.value,
+                                }))
+                              }
+                              placeholder="owner/repo"
+                            />
+                          </label>
+                          <label className="grid gap-2">
+                            <span className="text-sm font-medium">Path</span>
+                            <Input
+                              value={documentDraft.path}
+                              onChange={(event) =>
+                                setDocumentDraft((current) => ({
+                                  ...current,
+                                  path: event.target.value,
+                                }))
+                              }
+                              placeholder="docs/brief.md"
+                            />
+                          </label>
+                        </>
+                      ) : null}
+                      {documentDraft.source === 'external' ? (
+                        <label className="grid gap-2 lg:col-span-2">
+                          <span className="text-sm font-medium">External URL</span>
+                          <Input
+                            value={documentDraft.url}
+                            onChange={(event) =>
+                              setDocumentDraft((current) => ({
+                                ...current,
+                                url: event.target.value,
+                              }))
+                            }
+                            placeholder="https://example.com/reference"
+                          />
+                        </label>
+                      ) : null}
+                      {documentDraft.source === 'artifact' ? (
+                        <>
+                          <label className="grid gap-2">
+                            <span className="text-sm font-medium">Task ID</span>
+                            <Input
+                              value={documentDraft.taskId}
+                              onChange={(event) =>
+                                setDocumentDraft((current) => ({
+                                  ...current,
+                                  taskId: event.target.value,
+                                }))
+                              }
+                              placeholder="Task UUID"
+                            />
+                          </label>
+                          <label className="grid gap-2">
+                            <span className="text-sm font-medium">Artifact ID</span>
+                            <Input
+                              value={documentDraft.artifactId}
+                              onChange={(event) =>
+                                setDocumentDraft((current) => ({
+                                  ...current,
+                                  artifactId: event.target.value,
+                                }))
+                              }
+                              placeholder="Artifact UUID"
+                            />
+                          </label>
+                          <label className="grid gap-2 lg:col-span-2">
+                            <span className="text-sm font-medium">Logical path</span>
+                            <Input
+                              value={documentDraft.logicalPath}
+                              onChange={(event) =>
+                                setDocumentDraft((current) => ({
+                                  ...current,
+                                  logicalPath: event.target.value,
+                                }))
+                              }
+                              placeholder="artifact:task-id/brief.md"
+                            />
+                          </label>
+                        </>
+                      ) : null}
+                      <MetadataEntryEditor
+                        title="Metadata"
+                        description="Attach structured document metadata as typed key/value entries."
+                        drafts={documentMetadataDrafts}
+                        onChange={setDocumentMetadataDrafts}
+                      />
+                    </div>
+                    <InlineStatusNotice
+                      tone="error"
+                      show={Boolean(parsedDocumentMetadata.error)}
+                      title="Metadata needs attention"
+                      message={parsedDocumentMetadata.error}
+                    />
+                    <InlineStatusNotice
+                      tone="error"
+                      show={Boolean(documentError)}
+                      title="Document action failed"
+                      message={documentError}
+                    />
+                    <InlineStatusNotice
+                      tone="success"
+                      show={Boolean(documentMessage)}
+                      title="Document action complete"
+                      message={documentMessage}
+                    />
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {documentMode === 'edit' ? (
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setDocumentMode('create');
+                            setEditingLogicalName('');
+                            setDocumentDraft(createEmptyDocumentDraft());
+                            setDocumentMetadataDrafts([]);
+                            setDocumentError(null);
+                            setDocumentMessage(null);
+                          }}
+                        >
+                          Cancel Edit
+                        </Button>
+                      ) : null}
+                      <Button
+                        onClick={() => saveDocumentMutation.mutate()}
+                        disabled={saveDocumentMutation.isPending || Boolean(parsedDocumentMetadata.error)}
+                      >
+                        {saveDocumentMutation.isPending
+                          ? 'Saving…'
+                          : documentMode === 'edit'
+                            ? 'Save Document Changes'
+                            : 'Create Workflow Document'}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
                 <DocumentsTable
                   documents={documentsQuery.data ?? []}
                   isLoading={documentsQuery.isLoading}
                   workflowId={selectedWorkflowId}
+                  activeLogicalName={editingLogicalName}
+                  deletingLogicalName={deleteDocumentMutation.variables?.logical_name ?? null}
+                  onEdit={(document) => {
+                    setDocumentMode('edit');
+                    setEditingLogicalName(document.logical_name);
+                    setDocumentDraft(createDocumentDraft(document));
+                    setDocumentMetadataDrafts(createMetadataDraftsFromRecord(document.metadata ?? {}));
+                    setDocumentError(null);
+                    setDocumentMessage(null);
+                  }}
+                  onDelete={(document) => deleteDocumentMutation.mutate(document)}
                 />
               </TabsContent>
 
@@ -294,9 +742,12 @@ export function ContentBrowserPage(): JSX.Element {
                       ) : (
                         <p className="text-sm text-muted-foreground">No work items found for this workflow yet.</p>
                       )}
-                      {workItemsQuery.error ? (
-                        <p className="text-sm text-red-600">Failed to load workflow work items.</p>
-                      ) : null}
+                      <InlineStatusNotice
+                        tone="error"
+                        show={Boolean(workItemsQuery.error)}
+                        title="Work-item scope unavailable"
+                        message="The dashboard could not load work items for this workflow."
+                      />
                     </div>
 
                     <div className="space-y-2">
@@ -326,9 +777,12 @@ export function ContentBrowserPage(): JSX.Element {
                             : 'No tasks found for this workflow yet.'}
                         </p>
                       )}
-                      {tasksQuery.error ? (
-                        <p className="text-sm text-red-600">Failed to load workflow tasks.</p>
-                      ) : null}
+                      <InlineStatusNotice
+                        tone="error"
+                        show={Boolean(tasksQuery.error)}
+                        title="Task scope unavailable"
+                        message="The dashboard could not load tasks for this workflow."
+                      />
                     </div>
 
                     {selectedTask || selectedWorkItem ? (
@@ -371,11 +825,97 @@ export function ContentBrowserPage(): JSX.Element {
                 </Card>
 
                 {selectedTaskId ? (
-                  <ArtifactsTable
-                    artifacts={artifactsQuery.data ?? []}
-                    isLoading={artifactsQuery.isLoading}
-                    taskId={selectedTaskId}
-                  />
+                  <>
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Artifact Operator Controls</CardTitle>
+                      </CardHeader>
+                      <CardContent className="grid gap-4">
+                        <p className="text-sm text-muted-foreground">
+                          Upload and remove task artifacts here. Artifact rename or metadata edit is not exposed by the current backend contract, so artifact management is create/delete plus preview/download.
+                        </p>
+                        <div className="grid gap-4 lg:grid-cols-2">
+                          <label className="grid gap-2 lg:col-span-2">
+                            <span className="text-sm font-medium">Source file</span>
+                            <Input
+                              type="file"
+                              onChange={(event) => {
+                                const nextFile = event.target.files?.[0] ?? null;
+                                setArtifactFile(nextFile);
+                                if (nextFile) {
+                                  setArtifactPath((current) => current || nextFile.name);
+                                  setArtifactContentType((current) => current || nextFile.type);
+                                }
+                              }}
+                            />
+                          </label>
+                          <label className="grid gap-2">
+                            <span className="text-sm font-medium">Logical path</span>
+                            <Input
+                              value={artifactPath}
+                              onChange={(event) => setArtifactPath(event.target.value)}
+                              placeholder="artifact:task-id/report.md"
+                            />
+                          </label>
+                          <label className="grid gap-2">
+                            <span className="text-sm font-medium">Content type</span>
+                            <Input
+                              value={artifactContentType}
+                              onChange={(event) => setArtifactContentType(event.target.value)}
+                              placeholder="text/markdown"
+                            />
+                          </label>
+                          <MetadataEntryEditor
+                            title="Metadata"
+                            description="Attach structured artifact metadata as typed key/value entries."
+                            drafts={artifactMetadataDrafts}
+                            onChange={setArtifactMetadataDrafts}
+                          />
+                        </div>
+                        <InlineStatusNotice
+                          tone="error"
+                          show={Boolean(parsedArtifactMetadata.error)}
+                          title="Metadata needs attention"
+                          message={parsedArtifactMetadata.error}
+                        />
+                        <InlineStatusNotice
+                          tone="error"
+                          show={Boolean(artifactError)}
+                          title="Artifact action failed"
+                          message={artifactError}
+                        />
+                        <InlineStatusNotice
+                          tone="success"
+                          show={Boolean(artifactMessage)}
+                          title="Artifact action complete"
+                          message={artifactMessage}
+                        />
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm text-muted-foreground">
+                            Selected task: {selectedTask?.title ?? selectedTaskId}
+                          </div>
+                          <Button
+                            onClick={() => uploadArtifactMutation.mutate()}
+                            disabled={
+                              uploadArtifactMutation.isPending ||
+                              !artifactFile ||
+                              artifactPath.trim().length === 0 ||
+                              Boolean(parsedArtifactMetadata.error)
+                            }
+                          >
+                            {uploadArtifactMutation.isPending ? 'Uploading…' : 'Upload Artifact'}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <ArtifactsTable
+                      artifacts={artifactsQuery.data ?? []}
+                      isLoading={artifactsQuery.isLoading}
+                      taskId={selectedTaskId}
+                      deletingArtifactId={deleteArtifactMutation.variables?.id ?? null}
+                      onDelete={(artifact) => deleteArtifactMutation.mutate(artifact)}
+                    />
+                  </>
                 ) : (
                   <div className="flex flex-col items-center rounded-md border py-12 text-muted-foreground">
                     <FileText className="mb-3 h-10 w-10" />
@@ -389,4 +929,257 @@ export function ContentBrowserPage(): JSX.Element {
       ) : null}
     </div>
   );
+}
+
+interface DocumentDraft {
+  logicalName: string;
+  source: 'repository' | 'artifact' | 'external';
+  title: string;
+  description: string;
+  repository: string;
+  path: string;
+  url: string;
+  taskId: string;
+  artifactId: string;
+  logicalPath: string;
+}
+
+function createEmptyDocumentDraft(): DocumentDraft {
+  return {
+    logicalName: '',
+    source: 'repository',
+    title: '',
+    description: '',
+    repository: '',
+    path: '',
+    url: '',
+    taskId: '',
+    artifactId: '',
+    logicalPath: '',
+  };
+}
+
+function createDocumentDraft(document: DashboardResolvedDocumentReference): DocumentDraft {
+  return {
+    logicalName: document.logical_name,
+    source: document.source,
+    title: document.title ?? '',
+    description: document.description ?? '',
+    repository: document.repository ?? '',
+    path: document.path ?? '',
+    url: document.url ?? '',
+    taskId: document.task_id ?? '',
+    artifactId: document.artifact?.id ?? '',
+    logicalPath: document.artifact?.logical_path ?? '',
+  };
+}
+
+function buildDocumentCreatePayload(
+  draft: DocumentDraft,
+  metadata: Record<string, unknown>,
+): DashboardWorkflowDocumentCreateInput {
+  const base = {
+    logical_name: draft.logicalName.trim(),
+    source: draft.source,
+    title: normalizeUndefinedString(draft.title),
+    description: normalizeUndefinedString(draft.description),
+    metadata,
+  };
+
+  if (draft.source === 'repository') {
+    return {
+      ...base,
+      repository: normalizeUndefinedString(draft.repository),
+      path: normalizeUndefinedString(draft.path),
+    };
+  }
+
+  if (draft.source === 'external') {
+    return {
+      ...base,
+      url: normalizeUndefinedString(draft.url),
+    };
+  }
+
+  return {
+    ...base,
+    task_id: normalizeUndefinedString(draft.taskId),
+    artifact_id: normalizeUndefinedString(draft.artifactId),
+    logical_path: normalizeUndefinedString(draft.logicalPath),
+  };
+}
+
+function buildDocumentUpdatePayload(
+  draft: DocumentDraft,
+  metadata: Record<string, unknown>,
+): DashboardWorkflowDocumentUpdateInput {
+  const base: DashboardWorkflowDocumentUpdateInput = {
+    source: draft.source,
+    title: normalizeNullableString(draft.title),
+    description: normalizeNullableString(draft.description),
+    metadata,
+  };
+
+  if (draft.source === 'repository') {
+    return {
+      ...base,
+      repository: normalizeNullableString(draft.repository),
+      path: normalizeNullableString(draft.path),
+      url: null,
+      task_id: null,
+      artifact_id: null,
+      logical_path: null,
+    };
+  }
+
+  if (draft.source === 'external') {
+    return {
+      ...base,
+      repository: null,
+      path: null,
+      url: normalizeNullableString(draft.url),
+      task_id: null,
+      artifact_id: null,
+      logical_path: null,
+    };
+  }
+
+  return {
+    ...base,
+    repository: null,
+    path: null,
+    url: null,
+    task_id: normalizeNullableString(draft.taskId),
+    artifact_id: normalizeNullableString(draft.artifactId),
+    logical_path: normalizeNullableString(draft.logicalPath),
+  };
+}
+
+function normalizeNullableString(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeUndefinedString(value: string): string | undefined {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function MetadataEntryEditor(props: {
+  title: string;
+  description: string;
+  drafts: MetadataDraft[];
+  onChange(drafts: MetadataDraft[]): void;
+}) {
+  const preview = buildMetadataRecord(props.drafts);
+  return (
+    <div className="grid gap-3 lg:col-span-2 rounded-md border border-dashed border-border/70 p-4">
+      <div className="space-y-1">
+        <div className="text-sm font-medium">{props.title}</div>
+        <p className="text-xs text-muted-foreground">{props.description}</p>
+      </div>
+      {props.drafts.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No metadata entries added.</p>
+      ) : (
+        props.drafts.map((draft) => (
+          <div key={draft.id} className="grid gap-3 rounded-md border border-border/70 p-3 md:grid-cols-[1fr,160px,1fr,auto]">
+            <label className="grid gap-1">
+              <span className="text-xs font-medium">Key</span>
+              <Input
+                value={draft.key}
+                onChange={(event) => props.onChange(updateMetadataDraft(props.drafts, draft.id, { key: event.target.value }))}
+              />
+            </label>
+            <label className="grid gap-1">
+              <span className="text-xs font-medium">Type</span>
+              <select
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={draft.valueType}
+                onChange={(event) =>
+                  props.onChange(updateMetadataDraft(props.drafts, draft.id, { valueType: event.target.value as MetadataValueType }))
+                }
+              >
+                <option value="string">String</option>
+                <option value="number">Number</option>
+                <option value="boolean">Boolean</option>
+                <option value="json">JSON object</option>
+              </select>
+            </label>
+            <label className="grid gap-1">
+              <span className="text-xs font-medium">Value</span>
+              {draft.valueType === 'boolean' ? (
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={draft.value}
+                  onChange={(event) => props.onChange(updateMetadataDraft(props.drafts, draft.id, { value: event.target.value }))}
+                >
+                  <option value="true">True</option>
+                  <option value="false">False</option>
+                </select>
+              ) : draft.valueType === 'json' ? (
+                <Textarea
+                  rows={4}
+                  className="font-mono text-xs"
+                  value={draft.value}
+                  onChange={(event) => props.onChange(updateMetadataDraft(props.drafts, draft.id, { value: event.target.value }))}
+                />
+              ) : (
+                <Input
+                  value={draft.value}
+                  onChange={(event) => props.onChange(updateMetadataDraft(props.drafts, draft.id, { value: event.target.value }))}
+                />
+              )}
+            </label>
+            <div className="flex items-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => props.onChange(props.drafts.filter((entry) => entry.id !== draft.id))}
+              >
+                Remove
+              </Button>
+            </div>
+          </div>
+        ))
+      )}
+      {preview.value ? <StructuredRecordView data={preview.value} emptyMessage="No metadata entries added." /> : null}
+      <div className="flex justify-between gap-2">
+        <Button type="button" variant="outline" onClick={() => props.onChange([...props.drafts, createMetadataDraft()])}>
+          Add metadata entry
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function InlineStatusNotice(props: {
+  tone: 'error' | 'success';
+  show: boolean;
+  title: string;
+  message?: string | null;
+}) {
+  if (!props.show || !props.message) {
+    return null;
+  }
+  const className =
+    props.tone === 'error'
+      ? 'border-rose-200 bg-rose-50/80 text-rose-900'
+      : 'border-emerald-200 bg-emerald-50/80 text-emerald-900';
+  return (
+    <div className={`rounded-md border p-3 text-sm ${className}`}>
+      <div className="font-medium">{props.title}</div>
+      <div className="mt-1 text-muted-foreground">{props.message}</div>
+    </div>
+  );
+}
+
+async function readFileAsBase64(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
 }

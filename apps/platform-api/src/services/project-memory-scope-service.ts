@@ -1,4 +1,5 @@
 import type { DatabasePool } from '../db/database.js';
+import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 
 export interface ProjectMemoryMutationContext {
   workflow_id?: string | null;
@@ -26,7 +27,6 @@ export interface WorkItemMemoryHistoryEntry extends WorkItemMemoryEntry {
 
 const PROJECT_MEMORY_EVENT_TYPES = ['project.memory_updated', 'project.memory_deleted'] as const;
 const PROJECT_MEMORY_SECRET_REDACTION = 'redacted://project-memory-secret';
-const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
 
 interface EventRow {
   id: number;
@@ -172,39 +172,8 @@ function readNullableString(value: unknown): string | null {
 }
 
 function sanitizeMemoryValue(key: string, value: unknown): unknown {
-  return sanitizeSecretLikeValue(value, isSecretLikeKey(key));
-}
-
-function sanitizeSecretLikeValue(value: unknown, inheritedSecret: boolean): unknown {
-  if (typeof value === 'string') {
-    return inheritedSecret && !isSecretReference(value)
-      ? PROJECT_MEMORY_SECRET_REDACTION
-      : value;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => sanitizeSecretLikeValue(item, inheritedSecret));
-  }
-
-  if (!value || typeof value !== 'object') {
-    return value;
-  }
-
-  const sanitized: Record<string, unknown> = {};
-  for (const [nestedKey, nestedValue] of Object.entries(value as Record<string, unknown>)) {
-    sanitized[nestedKey] = sanitizeSecretLikeValue(
-      nestedValue,
-      inheritedSecret || isSecretLikeKey(nestedKey),
-    );
-  }
-  return sanitized;
-}
-
-function isSecretLikeKey(key: string): boolean {
-  return secretLikeKeyPattern.test(key);
-}
-
-function isSecretReference(value: string): boolean {
-  const normalized = value.trim().toLowerCase();
-  return normalized.startsWith('secret:') || normalized.startsWith('redacted://');
+  return sanitizeSecretLikeRecord(
+    { [key]: value },
+    { redactionValue: PROJECT_MEMORY_SECRET_REDACTION },
+  )[key];
 }

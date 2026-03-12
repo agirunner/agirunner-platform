@@ -7,6 +7,7 @@ import type {
 } from '../../lib/api.js';
 import { buildArtifactPermalink } from '../../components/artifact-preview-support.js';
 import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
 import {
   Table,
   TableBody,
@@ -37,6 +38,10 @@ export function DocumentsTable(props: {
   documents: DashboardResolvedDocumentReference[];
   isLoading: boolean;
   workflowId: string;
+  activeLogicalName?: string | null;
+  deletingLogicalName?: string | null;
+  onEdit?(document: DashboardResolvedDocumentReference): void;
+  onDelete?(document: DashboardResolvedDocumentReference): void;
 }): JSX.Element {
   if (props.isLoading) {
     return (
@@ -64,6 +69,7 @@ export function DocumentsTable(props: {
           <TableHead>Type</TableHead>
           <TableHead>Source</TableHead>
           <TableHead>Created</TableHead>
+          <TableHead>Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -84,10 +90,34 @@ export function DocumentsTable(props: {
             <TableCell className="text-muted-foreground">
               {formatDate(doc.created_at)}
             </TableCell>
+            <TableCell>
+              <div className="flex flex-wrap gap-2">
+                {props.onEdit ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => props.onEdit?.(doc)}
+                    disabled={props.deletingLogicalName === doc.logical_name}
+                  >
+                    {props.activeLogicalName === doc.logical_name ? 'Editing' : 'Edit'}
+                  </Button>
+                ) : null}
+                {props.onDelete ? (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => props.onDelete?.(doc)}
+                    disabled={props.deletingLogicalName === doc.logical_name}
+                  >
+                    {props.deletingLogicalName === doc.logical_name ? 'Deleting…' : 'Delete'}
+                  </Button>
+                ) : null}
+              </div>
+            </TableCell>
           </TableRow>
         ))}
         <TableRow>
-          <TableCell colSpan={4}>
+          <TableCell colSpan={5}>
             <Link
               className="text-sm text-accent hover:underline"
               to={`/work/workflows/${props.workflowId}`}
@@ -105,6 +135,8 @@ export function ArtifactsTable(props: {
   artifacts: DashboardTaskArtifactRecord[];
   isLoading: boolean;
   taskId: string;
+  deletingArtifactId?: string | null;
+  onDelete?(artifact: DashboardTaskArtifactRecord): void;
 }): JSX.Element {
   if (props.isLoading) {
     return (
@@ -133,6 +165,7 @@ export function ArtifactsTable(props: {
           <TableHead>Size</TableHead>
           <TableHead>Created</TableHead>
           <TableHead>Preview</TableHead>
+          <TableHead>Manage</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -164,10 +197,27 @@ export function ArtifactsTable(props: {
                 Preview
               </Link>
             </TableCell>
+            <TableCell>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="outline">
+                  <a href={artifact.download_url}>Download</a>
+                </Button>
+                {props.onDelete ? (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => props.onDelete?.(artifact)}
+                    disabled={props.deletingArtifactId === artifact.id}
+                  >
+                    {props.deletingArtifactId === artifact.id ? 'Deleting…' : 'Delete'}
+                  </Button>
+                ) : null}
+              </div>
+            </TableCell>
           </TableRow>
         ))}
         <TableRow>
-          <TableCell colSpan={5}>
+          <TableCell colSpan={6}>
             <Link
               className="text-sm text-accent hover:underline"
               to={`/work/tasks/${props.taskId}`}

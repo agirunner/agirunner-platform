@@ -3,26 +3,25 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './workflow-list-page.tsx'), 'utf8');
+  return readFileSync(resolve(import.meta.dirname, './work/workflow-list-page.tsx'), 'utf8');
 }
 
 describe('workflow list page source', () => {
-  it('uses board-run posture labels instead of raw workflow-state fallbacks', () => {
+  it('uses board-first posture labels and operator summaries', () => {
     const source = readSource();
-    expect(source).toContain('Delivery Posture Fallback');
-    expect(source).toContain('resolveDeliveryPosture');
-    expect(source).toContain('describeDeliveryPostureLabel');
-    expect(source).toContain('Delivery Posture');
-    expect(source).toContain('No runs match current filters.');
-    expect(source).toContain('<h2>Board Runs</h2>');
-    expect(source).toContain('Loading board runs...');
+    expect(source).toContain('Delivery Boards');
+    expect(source).toContain('Board Posture');
+    expect(source).toContain('describeOperatorSignal');
+    expect(source).toContain('describeWorkItemSummary');
+    expect(source).toContain('describeGateSummary');
+    expect(source).toContain('No runs match the current filters.');
   });
 
-  it('uses playbook-oriented board-run planning language', () => {
+  it('uses current V2 launch and saved-view controls', () => {
     const source = readSource();
-    expect(source).toContain('playbook-aligned work plan ready for operator review');
-    expect(source).toContain('Run name');
-    expect(source).toContain('Start Planning Run');
-    expect(source).toContain('planning board run');
+    expect(source).toContain('Launch Playbook');
+    expect(source).toContain('SavedViews');
+    expect(source).toContain('statusFilter');
+    expect(source).toContain('typeFilter');
   });
 });

@@ -113,6 +113,7 @@ export class TaskService {
     this.queryService = new TaskQueryService(pool);
     const orchestratorGrantService = new OrchestratorGrantService(pool, eventService);
     const parallelismService = new PlaybookTaskParallelismService(pool);
+    const roleDefService = new RoleDefinitionService(pool);
     this.writeService = new TaskWriteService({
       pool,
       eventService,
@@ -122,6 +123,10 @@ export class TaskService {
       loadTaskOrThrow: this.queryService.loadTaskOrThrow.bind(this.queryService),
       toTaskResponse: this.queryService.toTaskResponse.bind(this.queryService),
       parallelismService,
+      resolveRoleCapabilities: async (tenantId: string, roleName: string) => {
+        const role = await roleDefService.getRoleByName(tenantId, roleName);
+        return role?.capabilities ?? null;
+      },
     });
 
     const artifactRetentionService = new ArtifactRetentionService(
@@ -150,7 +155,6 @@ export class TaskService {
         WORKFLOW_ACTIVATION_STALE_AFTER_MS: workflowActivationStaleAfterMs,
       },
     });
-    const roleDefService = new RoleDefinitionService(pool);
     this.lifecycleService = new TaskLifecycleService({
       pool,
       eventService,
@@ -183,6 +187,7 @@ export class TaskService {
       getTaskContext: this.queryService.getTaskContext.bind(this.queryService),
       resolveRoleConfig: modelCatalog.resolveRoleConfig.bind(modelCatalog),
       parallelismService,
+      claimHandleSecret: config.WEBHOOK_ENCRYPTION_KEY ?? '',
     });
 
     this.timeoutService = new TaskTimeoutService(
@@ -209,6 +214,14 @@ export class TaskService {
   updateTask(tenantId: string, taskId: string, payload: Record<string, unknown>) {
     return this.writeService.updateTask(tenantId, taskId, payload);
   }
+  updateTaskInput(
+    tenantId: string,
+    taskId: string,
+    input: Record<string, unknown>,
+    client?: DatabaseClient,
+  ) {
+    return this.writeService.updateTaskInput(tenantId, taskId, input, client);
+  }
   getTaskContext(tenantId: string, taskId: string, agentId?: string) {
     return this.queryService.getTaskContext(tenantId, taskId, agentId);
   }
@@ -224,6 +237,16 @@ export class TaskService {
     },
   ) {
     return this.claimService.claimTask(identity, payload);
+  }
+  resolveClaimCredentials(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: {
+      llm_api_key_claim_handle?: string;
+      llm_extra_headers_claim_handle?: string;
+    },
+  ) {
+    return this.claimService.resolveClaimCredentials(identity, taskId, payload);
   }
   startTask(
     identity: ApiKeyIdentity,
@@ -261,24 +284,25 @@ export class TaskService {
     return this.lifecycleService.failTask(identity, taskId, payload);
   }
 
-  approveTask(identity: ApiKeyIdentity, taskId: string) {
-    return this.lifecycleService.approveTask(identity, taskId);
+  approveTask(identity: ApiKeyIdentity, taskId: string, client?: DatabaseClient) {
+    return this.lifecycleService.approveTask(identity, taskId, client);
   }
 
-  approveTaskOutput(identity: ApiKeyIdentity, taskId: string) {
-    return this.lifecycleService.approveTaskOutput(identity, taskId);
+  approveTaskOutput(identity: ApiKeyIdentity, taskId: string, client?: DatabaseClient) {
+    return this.lifecycleService.approveTaskOutput(identity, taskId, client);
   }
 
   retryTask(
     identity: ApiKeyIdentity,
     taskId: string,
     payload: { override_input?: Record<string, unknown>; force?: boolean } = {},
+    client?: DatabaseClient,
   ) {
-    return this.lifecycleService.retryTask(identity, taskId, payload);
+    return this.lifecycleService.retryTask(identity, taskId, payload, client);
   }
 
-  cancelTask(identity: ApiKeyIdentity, taskId: string) {
-    return this.lifecycleService.cancelTask(identity, taskId);
+  cancelTask(identity: ApiKeyIdentity, taskId: string, client?: DatabaseClient) {
+    return this.lifecycleService.cancelTask(identity, taskId, client);
   }
 
   rejectTask(identity: ApiKeyIdentity, taskId: string, payload: { feedback: string }) {
@@ -294,8 +318,9 @@ export class TaskService {
       preferred_agent_id?: string;
       preferred_worker_id?: string;
     },
+    client?: DatabaseClient,
   ) {
-    return this.lifecycleService.requestTaskChanges(identity, taskId, payload);
+    return this.lifecycleService.requestTaskChanges(identity, taskId, payload, client);
   }
 
   skipTask(identity: ApiKeyIdentity, taskId: string, payload: { reason: string }) {
@@ -306,16 +331,18 @@ export class TaskService {
     identity: ApiKeyIdentity,
     taskId: string,
     payload: { preferred_agent_id?: string; preferred_worker_id?: string; reason: string },
+    client?: DatabaseClient,
   ) {
-    return this.lifecycleService.reassignTask(identity, taskId, payload);
+    return this.lifecycleService.reassignTask(identity, taskId, payload, client);
   }
 
   escalateTask(
     identity: ApiKeyIdentity,
     taskId: string,
     payload: { reason: string; escalation_target?: string },
+    client?: DatabaseClient,
   ) {
-    return this.lifecycleService.escalateTask(identity, taskId, payload);
+    return this.lifecycleService.escalateTask(identity, taskId, payload, client);
   }
 
   respondToEscalation(

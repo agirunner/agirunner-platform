@@ -44,10 +44,50 @@ describe('WorkflowActivationDispatchService', () => {
     expect(dispatched).toBe(1);
   });
 
+  it('continues dispatching later workflows when one activation hits the active-processing uniqueness guard', async () => {
+    const pool = {
+      query: vi.fn(async () => ({
+        rowCount: 3,
+        rows: [
+          { id: 'activation-1', tenant_id: 'tenant-1', workflow_id: 'workflow-1' },
+          { id: 'activation-2', tenant_id: 'tenant-1', workflow_id: 'workflow-2' },
+          { id: 'activation-3', tenant_id: 'tenant-1', workflow_id: 'workflow-3' },
+        ],
+      })),
+      connect: vi.fn(),
+    };
+    const service = new WorkflowActivationDispatchService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+    const duplicateError = Object.assign(new Error('duplicate key value violates unique constraint'), {
+      code: '23505',
+      constraint: 'idx_workflow_activations_active',
+    });
+    const dispatchSpy = vi
+      .spyOn(service, 'dispatchActivation')
+      .mockRejectedValueOnce(duplicateError)
+      .mockResolvedValueOnce('task-2')
+      .mockResolvedValueOnce(null);
+
+    const dispatched = await service.dispatchQueuedActivations(3);
+
+    expect(dispatchSpy).toHaveBeenCalledTimes(3);
+    expect(dispatched).toBe(1);
+  });
+
   it('dispatches an idle work item activation immediately into a batched orchestrator task', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes("state = 'processing'") && sql.includes('id = activation_id')) {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('FROM workflow_activations') && sql.includes('FOR UPDATE SKIP LOCKED')) {
@@ -63,6 +103,8 @@ describe('WorkflowActivationDispatchService', () => {
               event_type: 'work_item.created',
               payload: { work_item_id: 'wi-1' },
               state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
               queued_at: new Date('2026-03-11T00:00:00Z'),
               started_at: null,
               consumed_at: null,
@@ -88,11 +130,22 @@ describe('WorkflowActivationDispatchService', () => {
               playbook_id: 'playbook-1',
               playbook_name: 'SDLC',
               playbook_outcome: 'Ship tested code',
+              project_repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
+              project_settings: { default_branch: 'main' },
+              workflow_git_branch: null,
+              workflow_parameters: {
+                branch: 'main',
+                feature_branch: 'smoke/test/fix',
+                git_user_name: 'Smoke Bot',
+                git_user_email: 'smoke@example.com',
+                git_token_secret_ref: 'secret:GITHUB_PAT',
+              },
             }],
           };
         }
         if (sql.includes('SET activation_id = $3')) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'activation-1']);
+          expect(params?.slice(0, 3)).toEqual(['tenant-1', 'workflow-1', 'activation-1']);
+          expect(params?.[3]).toEqual(expect.any(String));
           return {
             rowCount: 2,
             rows: [
@@ -106,6 +159,8 @@ describe('WorkflowActivationDispatchService', () => {
                 event_type: 'work_item.created',
                 payload: { work_item_id: 'wi-1' },
                 state: 'processing',
+                dispatch_attempt: 1,
+                dispatch_token: 'dispatch-token-1',
                 queued_at: new Date('2026-03-11T00:00:00Z'),
                 started_at: new Date('2026-03-11T00:00:10Z'),
                 consumed_at: null,
@@ -123,6 +178,8 @@ describe('WorkflowActivationDispatchService', () => {
                 event_type: 'task.completed',
                 payload: { task_id: 'task-9', work_item_id: 'wi-2', stage_name: 'implementation' },
                 state: 'queued',
+                dispatch_attempt: 1,
+                dispatch_token: 'dispatch-token-1',
                 queued_at: new Date('2026-03-11T00:00:05Z'),
                 started_at: new Date('2026-03-11T00:00:10Z'),
                 consumed_at: null,
@@ -139,6 +196,8 @@ describe('WorkflowActivationDispatchService', () => {
             expect.objectContaining({
               activation_id: 'activation-1',
               activation_reason: 'queued_events',
+              activation_dispatch_attempt: 1,
+              activation_dispatch_token: 'dispatch-token-1',
               active_stages: ['implementation'],
               events: [
                 expect.objectContaining({ queue_id: 'activation-1', type: 'work_item.created' }),
@@ -146,6 +205,22 @@ describe('WorkflowActivationDispatchService', () => {
               ],
             }),
           );
+          expect(params?.[9]).toEqual(
+            expect.objectContaining({
+              execution_mode: 'orchestrator',
+              repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
+              branch: 'main',
+              git_user_name: 'Smoke Bot',
+              git_user_email: 'smoke@example.com',
+            }),
+          );
+          expect(params?.[10]).toBe(JSON.stringify([
+            {
+              type: 'git_repository',
+              repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
+              credentials: { token: 'secret:GITHUB_PAT' },
+            },
+          ]));
           return { rowCount: 1, rows: [{ id: 'task-1' }] };
         }
         throw new Error(`unexpected query: ${sql}`);
@@ -182,6 +257,8 @@ describe('WorkflowActivationDispatchService', () => {
           ? { work_item_id: 'wi-root' }
           : { task_id: `task-${index}`, work_item_id: `wi-${index}`, stage_name: 'implementation' },
       state: index === 0 ? 'processing' : 'queued',
+      dispatch_attempt: 1,
+      dispatch_token: 'dispatch-token-1',
       queued_at: new Date(`2026-03-11T00:00:${String(index % 60).padStart(2, '0')}Z`),
       started_at: new Date('2026-03-11T00:02:00Z'),
       consumed_at: null,
@@ -192,7 +269,10 @@ describe('WorkflowActivationDispatchService', () => {
 
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes("state = 'processing'") && sql.includes('id = activation_id')) {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('FROM workflow_activations') && sql.includes('FOR UPDATE SKIP LOCKED')) {
@@ -221,7 +301,8 @@ describe('WorkflowActivationDispatchService', () => {
           };
         }
         if (sql.includes('SET activation_id = $3')) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'activation-1']);
+          expect(params?.slice(0, 3)).toEqual(['tenant-1', 'workflow-1', 'activation-1']);
+          expect(params?.[3]).toEqual(expect.any(String));
           return {
             rowCount: activationRows.length,
             rows: activationRows,
@@ -233,6 +314,8 @@ describe('WorkflowActivationDispatchService', () => {
             expect.objectContaining({
               activation_id: 'activation-1',
               activation_reason: 'queued_events',
+              activation_dispatch_attempt: 1,
+              activation_dispatch_token: 'dispatch-token-1',
               active_stages: ['implementation'],
               events: expect.arrayContaining([
                 expect.objectContaining({ queue_id: 'activation-1', type: 'work_item.created' }),
@@ -273,10 +356,149 @@ describe('WorkflowActivationDispatchService', () => {
     ).toHaveLength(1);
   });
 
+  it('hydrates orchestrator activation tasks with repository execution defaults', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes("state = 'processing'") && sql.includes('id = activation_id')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes('FOR UPDATE SKIP LOCKED')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-repo',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'req-repo',
+              reason: 'workflow.created',
+              event_type: 'workflow.created',
+              payload: { stage_name: 'requirements' },
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date('2026-03-12T00:00:00Z'),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = true')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              name: 'Workflow Repo',
+              project_id: 'project-1',
+              lifecycle: 'standard',
+              current_stage: 'requirements',
+              active_stages: [],
+              playbook_id: 'playbook-1',
+              playbook_name: 'SDLC',
+              playbook_outcome: 'Ship code',
+              project_repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
+              project_settings: { default_branch: 'main' },
+              workflow_git_branch: null,
+              workflow_parameters: {
+                branch: 'main',
+                feature_branch: 'smoke/feature-1',
+                git_user_name: 'Smoke Bot',
+                git_user_email: 'smoke@example.test',
+                git_token_secret_ref: 'secret:GITHUB_PAT',
+              },
+            }],
+          };
+        }
+        if (sql.includes('SET activation_id = $3')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-repo',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: 'activation-repo',
+              request_id: 'req-repo',
+              reason: 'workflow.created',
+              event_type: 'workflow.created',
+              payload: { stage_name: 'requirements' },
+              state: 'processing',
+              dispatch_attempt: 1,
+              dispatch_token: 'dispatch-token-repo',
+              queued_at: new Date('2026-03-12T00:00:00Z'),
+              started_at: new Date('2026-03-12T00:00:01Z'),
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('INSERT INTO tasks')) {
+          expect(params?.[9]).toEqual({
+            execution_mode: 'orchestrator',
+            repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
+            branch: 'main',
+            git_user_name: 'Smoke Bot',
+            git_user_email: 'smoke@example.test',
+          });
+          expect(JSON.parse(String(params?.[10] ?? '[]'))).toEqual([
+            {
+              type: 'git_repository',
+              repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
+              credentials: {
+                token: 'secret:GITHUB_PAT',
+              },
+            },
+          ]);
+          expect(params?.[6]).toEqual(
+            expect.objectContaining({
+              repository: {
+                repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
+                base_branch: 'main',
+                feature_branch: 'smoke/feature-1',
+                git_user_name: 'Smoke Bot',
+                git_user_email: 'smoke@example.test',
+              },
+            }),
+          );
+          return { rowCount: 1, rows: [{ id: 'task-repo' }] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new WorkflowActivationDispatchService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+
+    const taskId = await service.dispatchActivation('tenant-1', 'activation-repo');
+
+    expect(taskId).toBe('task-repo');
+  });
+
   it('defers non-immediate activations until the batching delay elapses', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes("state = 'processing'") && sql.includes('id = activation_id')) {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('FROM workflow_activations') && sql.includes('FOR UPDATE SKIP LOCKED')) {
@@ -292,6 +514,8 @@ describe('WorkflowActivationDispatchService', () => {
               event_type: 'task.completed',
               payload: { task_id: 'task-9' },
               state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
               queued_at: new Date(Date.now() - 5_000),
               started_at: null,
               consumed_at: null,
@@ -329,7 +553,10 @@ describe('WorkflowActivationDispatchService', () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes("state = 'processing'") && sql.includes('id = activation_id')) {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('FROM workflow_activations') && sql.includes('FOR UPDATE SKIP LOCKED')) {
@@ -345,6 +572,8 @@ describe('WorkflowActivationDispatchService', () => {
               event_type: 'work_item.created',
               payload: { work_item_id: 'wi-1' },
               state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
               queued_at: new Date('2026-03-11T00:00:00Z'),
               started_at: null,
               consumed_at: null,
@@ -386,6 +615,8 @@ describe('WorkflowActivationDispatchService', () => {
               event_type: 'work_item.created',
               payload: { work_item_id: 'wi-1' },
               state: 'processing',
+              dispatch_attempt: 1,
+              dispatch_token: 'dispatch-token-1',
               queued_at: new Date('2026-03-11T00:00:00Z'),
               started_at: new Date('2026-03-11T00:00:10Z'),
               consumed_at: null,
@@ -400,7 +631,7 @@ describe('WorkflowActivationDispatchService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('FROM tasks') && sql.includes('request_id = $3') && sql.includes('is_orchestrator_task = true')) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'activation:activation-1']);
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'activation:activation-1:dispatch:1']);
           return {
             rowCount: 1,
             rows: [{
@@ -410,6 +641,7 @@ describe('WorkflowActivationDispatchService', () => {
               activation_id: 'activation-1',
               is_orchestrator_task: true,
               title: 'Orchestrate Workflow One: work_item.created',
+              metadata: { activation_dispatch_attempt: 1 },
               output: null,
               error: null,
             }],
@@ -440,7 +672,10 @@ describe('WorkflowActivationDispatchService', () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes("state = 'processing'") && sql.includes('id = activation_id')) {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('FROM workflow_activations') && sql.includes('FOR UPDATE SKIP LOCKED')) {
@@ -456,6 +691,8 @@ describe('WorkflowActivationDispatchService', () => {
               event_type: 'work_item.created',
               payload: { work_item_id: 'wi-1' },
               state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
               queued_at: new Date('2026-03-11T00:00:00Z'),
               started_at: null,
               consumed_at: null,
@@ -498,6 +735,8 @@ describe('WorkflowActivationDispatchService', () => {
                 event_type: 'work_item.created',
                 payload: { work_item_id: 'wi-1' },
                 state: 'processing',
+                dispatch_attempt: 1,
+                dispatch_token: 'dispatch-token-1',
                 queued_at: new Date('2026-03-11T00:00:00Z'),
                 started_at: new Date('2026-03-11T00:00:10Z'),
                 consumed_at: null,
@@ -515,6 +754,8 @@ describe('WorkflowActivationDispatchService', () => {
                 event_type: 'task.completed',
                 payload: { task_id: 'task-9', work_item_id: 'wi-2', stage_name: 'implementation' },
                 state: 'queued',
+                dispatch_attempt: 1,
+                dispatch_token: 'dispatch-token-1',
                 queued_at: new Date('2026-03-11T00:00:05Z'),
                 started_at: new Date('2026-03-11T00:00:10Z'),
                 consumed_at: null,
@@ -529,7 +770,7 @@ describe('WorkflowActivationDispatchService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('FROM tasks') && sql.includes('request_id = $3') && sql.includes('is_orchestrator_task = true')) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'activation:activation-1']);
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'activation:activation-1:dispatch:1']);
           return {
             rowCount: 1,
             rows: [{
@@ -539,31 +780,44 @@ describe('WorkflowActivationDispatchService', () => {
               activation_id: 'activation-1',
               is_orchestrator_task: true,
               title: 'Orchestrate Workflow One: work_item.created',
+              metadata: { activation_dispatch_attempt: 1 },
               output: { summary: 'old output' },
               error: { message: 'old failure' },
             }],
           };
         }
         if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
-          expect(params).toEqual([
-            'tenant-1',
-            'task-existing',
-            'Orchestrate Workflow One: work_item.created',
-            'implementation',
+          expect(params?.[0]).toBe('tenant-1');
+          expect(params?.[1]).toBe('task-existing');
+          expect(params?.[2]).toBe('Orchestrate Workflow One: work_item.created');
+          expect(params?.[3]).toBe('implementation');
+          expect(params?.[4]).toEqual(
             expect.objectContaining({
               activation_id: 'activation-1',
               activation_reason: 'queued_events',
+              activation_dispatch_attempt: 1,
+              activation_dispatch_token: 'dispatch-token-1',
               active_stages: ['implementation'],
               events: [
                 expect.objectContaining({ queue_id: 'activation-1', type: 'work_item.created' }),
                 expect.objectContaining({ queue_id: 'activation-2', type: 'task.completed' }),
               ],
             }),
-            expect.any(Object),
-            { execution_mode: 'orchestrator' },
-            expect.objectContaining({ activation_event_count: 2 }),
-            'activation-1',
-          ]);
+          );
+          expect(params?.[5]).toEqual(expect.any(Object));
+          expect(params?.[6]).toEqual({ execution_mode: 'orchestrator' });
+          expect(params?.[7]).toBe('[]');
+          expect(params?.[8]).toEqual(
+            expect.objectContaining({
+              activation_event_count: 2,
+              activation_dispatch_attempt: 1,
+              activation_dispatch_token: 'dispatch-token-1',
+              activation_event_type: 'work_item.created',
+              activation_reason: 'queued_events',
+              activation_request_id: 'req-1',
+            }),
+          );
+          expect(params?.[9]).toBe('activation-1');
           return { rowCount: 1, rows: [{ id: 'task-existing' }] };
         }
         throw new Error(`unexpected query: ${sql}`);
@@ -616,7 +870,10 @@ describe('WorkflowActivationDispatchService', () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const client = {
       query: vi.fn(async (sql: string) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes("state = 'processing'") && sql.includes('id = activation_id')) {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('FROM workflow_activations') && sql.includes('FOR UPDATE SKIP LOCKED')) {
@@ -1050,7 +1307,7 @@ describe('WorkflowActivationDispatchService', () => {
   it('requeues and redispatches stale activations that lost their orchestrator task', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('FROM workflow_activations wa') && sql.includes('FOR UPDATE SKIP LOCKED')) {
@@ -1188,7 +1445,7 @@ describe('WorkflowActivationDispatchService', () => {
   it('records stale orchestrator detections without requeueing when the task is still active', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('FROM workflow_activations wa') && sql.includes('FOR UPDATE SKIP LOCKED')) {
@@ -1233,8 +1490,13 @@ describe('WorkflowActivationDispatchService', () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const service = new WorkflowActivationDispatchService({
       pool: {
-        query: vi.fn(async (sql: string) => {
+        query: vi.fn(async (sql: string, params?: unknown[]) => {
           if (sql.includes('SELECT wa.id, wa.tenant_id')) {
+            expect(params).toEqual([
+              300_000,
+              20,
+              ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+            ]);
             return { rowCount: 1, rows: [{ id: 'activation-8', tenant_id: 'tenant-1' }] };
           }
           throw new Error(`unexpected pool query: ${sql}`);
@@ -1280,7 +1542,7 @@ describe('WorkflowActivationDispatchService', () => {
   it('does not emit duplicate stale-detected events once the same stuck task was already reported', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('FROM workflow_activations wa') && sql.includes('FOR UPDATE SKIP LOCKED')) {
@@ -1320,9 +1582,14 @@ describe('WorkflowActivationDispatchService', () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const service = new WorkflowActivationDispatchService({
       pool: {
-        query: vi.fn(async (sql: string) => {
+        query: vi.fn(async (sql: string, params?: unknown[]) => {
           if (sql.includes('SELECT wa.id, wa.tenant_id')) {
-            return { rowCount: 1, rows: [{ id: 'activation-9', tenant_id: 'tenant-1' }] };
+            expect(params).toEqual([
+              300_000,
+              20,
+              ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+            ]);
+            return { rowCount: 0, rows: [] };
           }
           throw new Error(`unexpected pool query: ${sql}`);
         }),
@@ -1344,6 +1611,48 @@ describe('WorkflowActivationDispatchService', () => {
       reported: 0,
       details: [],
     });
+    expect(eventService.emit).not.toHaveBeenCalled();
+    expect(client.query).not.toHaveBeenCalled();
+  });
+
+  it('ignores completion from a stale orchestrator dispatch attempt', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const service = new WorkflowActivationDispatchService({
+      pool: { query: vi.fn(), connect: vi.fn() } as never,
+      eventService: eventService as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('SELECT id') && sql.includes('dispatch_attempt = $4')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'activation-1', 1]);
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    await service.finalizeActivationForTask(
+      'tenant-1',
+      {
+        id: 'task-1',
+        workflow_id: 'workflow-1',
+        activation_id: 'activation-1',
+        is_orchestrator_task: true,
+        metadata: {
+          activation_dispatch_attempt: 1,
+        },
+        output: { summary: 'stale completion' },
+      },
+      'completed',
+      client as never,
+    );
+
+    expect(client.query).toHaveBeenCalledTimes(1);
     expect(eventService.emit).not.toHaveBeenCalled();
   });
 });

@@ -24,7 +24,15 @@ import {
   groupWorkflowWorkItems,
   type DashboardGroupedWorkItemRecord,
 } from './workflow-work-item-detail-support.js';
+import { Badge } from '../components/ui/badge.js';
 import { Button } from '../components/ui/button.js';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../components/ui/card.js';
 import {
   Select,
   SelectContent,
@@ -32,6 +40,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select.js';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../components/ui/table.js';
 
 interface MissionControlSummary {
   total: number;
@@ -50,27 +66,55 @@ export function MissionControlCard(props: {
   onCancel(): void;
 }) {
   return (
-    <div className="card">
-      <h3>Mission Control</h3>
-      <p className="muted">Operator controls and live board health for this board run.</p>
-      <div className="row" style={{ justifyContent: 'flex-end' }}>
-        <button type="button" className="button" onClick={props.onPause}>Pause</button>
-        <button type="button" className="button" onClick={props.onResume}>Resume</button>
-        <button type="button" className="button" onClick={props.onCancel}>Cancel</button>
-      </div>
-      <div className="row mission-grid">
-        <MissionMetric label="Total" value={props.summary.total} />
-        <MissionMetric label="Ready" value={props.summary.ready} />
-        <MissionMetric label="In Progress" value={props.summary.in_progress} />
-        <MissionMetric label="Blocked" value={props.summary.blocked} />
-        <MissionMetric label="Completed" value={props.summary.completed} />
-        <MissionMetric label="Failed" value={props.summary.failed} />
-      </div>
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <span className="muted">Stage changes, retries, and approvals should flow through work items and gates.</span>
-        <strong>${props.totalCostUsd.toFixed(4)}</strong>
-      </div>
-    </div>
+    <Card className="border-border/80 bg-card shadow-sm">
+      <CardHeader className="gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <CardTitle>Mission Control</CardTitle>
+            <CardDescription>
+              Operator controls and live board health for this board run.
+            </CardDescription>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={props.onPause}>
+              Pause
+            </Button>
+            <Button variant="outline" size="sm" onClick={props.onResume}>
+              Resume
+            </Button>
+            <Button variant="destructive" size="sm" onClick={props.onCancel}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <MissionMetric label="Total" value={props.summary.total} />
+          <MissionMetric label="Ready" value={props.summary.ready} />
+          <MissionMetric label="In Progress" value={props.summary.in_progress} />
+          <MissionMetric label="Blocked" value={props.summary.blocked} />
+          <MissionMetric label="Completed" value={props.summary.completed} />
+          <MissionMetric label="Failed" value={props.summary.failed} />
+        </div>
+        <div className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-foreground">Operator posture</p>
+              <p className="text-sm text-muted">
+                Stage changes, retries, approvals, and escalations all flow through work items and gates.
+              </p>
+            </div>
+            <div className="rounded-lg border border-border/70 bg-background/90 px-3 py-2 text-right shadow-sm">
+              <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted">
+                Cost to Date
+              </p>
+              <p className="text-lg font-semibold text-foreground">${props.totalCostUsd.toFixed(4)}</p>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -81,36 +125,61 @@ export function TaskGraphCard(props: {
   hasError: boolean;
 }) {
   return (
-    <div className="card">
-      <h3>Execution Steps</h3>
-      <p className="muted">Execution steps grouped by board stage for faster operator scanning.</p>
-      {props.isLoading ? <p>Loading tasks...</p> : null}
-      {props.hasError ? <p style={{ color: '#dc2626' }}>Failed to load tasks</p> : null}
-      <div className="grid">
+    <Card>
+      <CardHeader>
+        <CardTitle>Execution Steps</CardTitle>
+        <CardDescription>
+          Execution steps grouped by board stage for faster operator scanning.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {props.isLoading ? (
+          <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
+            Loading tasks...
+          </p>
+        ) : null}
+        {props.hasError ? (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+            Failed to load tasks.
+          </p>
+        ) : null}
         {props.stageGroups.map((group) => (
-          <div key={group.stageName} className="card timeline-entry">
-            <div className="row" style={{ justifyContent: 'space-between' }}>
-              <strong>{group.stageName}</strong>
-              <span className="status-badge">{group.tasks.length} steps</span>
-            </div>
-            <table className="table">
-              <thead>
-                <tr><th>Step</th><th>State</th><th>Depends On</th></tr>
-              </thead>
-              <tbody>
-                {group.tasks.map((task) => (
-                  <tr key={task.id}>
-                    <td><Link to={`/work/tasks/${task.id}`}>{task.title}</Link></td>
-                    <td><span className={`status-badge status-${task.state}`}>{task.state}</span></td>
-                    <td>{task.depends_on.length > 0 ? task.depends_on.join(', ') : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Card key={group.stageName} className="border-border/70 bg-border/10 shadow-none">
+            <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 pb-3">
+              <div className="grid gap-1">
+                <CardTitle className="text-base">{group.stageName}</CardTitle>
+                <CardDescription>Execution steps anchored to this board stage.</CardDescription>
+              </div>
+              <Badge variant="secondary">{group.tasks.length} steps</Badge>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Step</TableHead>
+                    <TableHead>State</TableHead>
+                    <TableHead>Depends On</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {group.tasks.map((task) => (
+                    <TableRow key={task.id}>
+                      <TableCell className="font-medium">
+                        <Link to={`/work/tasks/${task.id}`}>{task.title}</Link>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={badgeVariantForState(task.state)}>{task.state}</Badge>
+                      </TableCell>
+                      <TableCell>{task.depends_on.length > 0 ? task.depends_on.join(', ') : '—'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         ))}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -140,122 +209,162 @@ export function PlaybookBoardCard(props: {
   }, [boardMode, milestoneGroups.length]);
 
   return (
-    <div className="card">
-      <h3>Work Board</h3>
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <p className="muted">
-          {boardMode === 'grouped'
-            ? 'Grouped board mode keeps parent milestones first-class and nests child deliverables under them.'
-            : 'Ungrouped board mode shows every work item directly in its current board column.'}
-        </p>
-        <div className="row">
-          <button
-            type="button"
-            className="button"
-            aria-pressed={boardMode === 'grouped'}
-            onClick={() => setBoardMode('grouped')}
-            disabled={milestoneGroups.length === 0}
-          >
-            Grouped by Milestone
-          </button>
-          <button
-            type="button"
-            className="button"
-            aria-pressed={boardMode === 'ungrouped'}
-            onClick={() => setBoardMode('ungrouped')}
-          >
-            Flat Board
-          </button>
+    <Card>
+      <CardHeader className="gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <CardTitle>Work Board</CardTitle>
+            <CardDescription>
+              {boardMode === 'grouped'
+                ? 'Grouped board mode keeps parent milestones first-class and nests child deliverables under them.'
+                : 'Ungrouped board mode shows every work item directly in its current board column.'}
+            </CardDescription>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant={boardMode === 'grouped' ? 'default' : 'outline'}
+              size="sm"
+              aria-pressed={boardMode === 'grouped'}
+              onClick={() => setBoardMode('grouped')}
+              disabled={milestoneGroups.length === 0}
+            >
+              Grouped by Milestone
+            </Button>
+            <Button
+              type="button"
+              variant={boardMode === 'ungrouped' ? 'default' : 'outline'}
+              size="sm"
+              aria-pressed={boardMode === 'ungrouped'}
+              onClick={() => setBoardMode('ungrouped')}
+            >
+              Flat Board
+            </Button>
+          </div>
         </div>
-      </div>
-      {props.isLoading ? <p>Loading board...</p> : null}
-      {props.hasError ? <p style={{ color: '#dc2626' }}>Failed to load work board.</p> : null}
-      {props.board ? (
-        <div className="grid gap-4">
-          {props.board.stage_summary.length > 0 ? (
-            <div className="grid gap-3 md:grid-cols-3">
-              {props.board.stage_summary.map((stage) => (
-                <article key={stage.name} className="rounded-md border bg-border/10 p-4">
-                  <div className="row" style={{ justifyContent: 'space-between' }}>
-                    <strong>{stage.name}</strong>
-                    <span className="status-badge">
-                      {stage.completed_count}/{stage.work_item_count}
-                    </span>
-                  </div>
-                  <p className="muted">{stage.goal}</p>
-                </article>
-              ))}
-            </div>
-          ) : null}
-          <div className="workflow-lane-grid">
-            {props.board.columns.map((column) => {
-              const flatItems = props.board?.work_items.filter((item) => item.column_id === column.id) ?? [];
-              const groupedItems = [
-                ...milestoneGroups.filter((item) => item.column_id === column.id),
-                ...standaloneRoots.filter((item) => item.column_id === column.id),
-              ];
-              const visibleCount = boardMode === 'grouped' ? groupedItems.length : flatItems.length;
-              return (
-                <article key={column.id} className="card workflow-lane">
-                  <div className="row" style={{ justifyContent: 'space-between' }}>
-                    <strong>{column.label}</strong>
-                    <span className="status-badge">{visibleCount}</span>
-                  </div>
-                  {column.description ? <p className="muted">{column.description}</p> : null}
-                  <div className="grid">
-                    {boardMode === 'grouped'
-                      ? groupedItems.map((item) =>
-                          isMilestoneRecord(item) ? (
-                            <MilestoneGroupCard
-                              key={item.id}
-                              workflowId={props.workflowId}
-                              columns={props.board!.columns}
-                              stages={props.stages}
-                              milestone={item}
-                              selectedWorkItemId={props.selectedWorkItemId}
-                              onSelectWorkItem={props.onSelectWorkItem}
-                              onBoardChanged={props.onBoardChanged}
-                            />
-                          ) : (
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {props.isLoading ? (
+          <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
+            Loading board...
+          </p>
+        ) : null}
+        {props.hasError ? (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+            Failed to load work board.
+          </p>
+        ) : null}
+        {props.board ? (
+          <div className="grid gap-4">
+            {props.board.stage_summary.length > 0 ? (
+              <div className="grid gap-3 md:grid-cols-3">
+                {props.board.stage_summary.map((stage) => (
+                  <article
+                    key={stage.name}
+                    className="grid gap-2 rounded-xl border border-border/70 bg-gradient-to-br from-border/10 via-surface to-surface p-4 shadow-sm"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="grid gap-1">
+                        <strong>{stage.name}</strong>
+                        <span className="text-xs text-muted">Stage snapshot</span>
+                      </div>
+                      <Badge variant="secondary">
+                        {stage.completed_count}/{stage.work_item_count}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted">{stage.goal}</p>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {props.board.columns.map((column) => {
+                const flatItems =
+                  props.board?.work_items.filter((item) => item.column_id === column.id) ?? [];
+                const groupedItems = [
+                  ...milestoneGroups.filter((item) => item.column_id === column.id),
+                  ...standaloneRoots.filter((item) => item.column_id === column.id),
+                ];
+                const visibleCount =
+                  boardMode === 'grouped' ? groupedItems.length : flatItems.length;
+                return (
+                  <Card key={column.id} className="border-border/70 bg-surface/90">
+                    <CardHeader className="gap-3 pb-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <CardTitle className="text-base">{column.label}</CardTitle>
+                        <Badge variant="secondary">{visibleCount}</Badge>
+                      </div>
+                      {column.description ? (
+                        <CardDescription>{column.description}</CardDescription>
+                      ) : null}
+                    </CardHeader>
+                    <CardContent className="grid gap-3">
+                      {boardMode === 'grouped'
+                        ? groupedItems.map((item) =>
+                            isMilestoneRecord(item) ? (
+                              <MilestoneGroupCard
+                                key={item.id}
+                                workflowId={props.workflowId}
+                                columns={props.board!.columns}
+                                stages={props.stages}
+                                milestone={item}
+                                selectedWorkItemId={props.selectedWorkItemId}
+                                onSelectWorkItem={props.onSelectWorkItem}
+                                onBoardChanged={props.onBoardChanged}
+                              />
+                            ) : (
+                              <BoardWorkItemCard
+                                key={item.id}
+                                workflowId={props.workflowId}
+                                columns={props.board!.columns}
+                                stages={props.stages}
+                                item={item}
+                                parentTitle={
+                                  item.parent_work_item_id
+                                    ? workItemsById.get(item.parent_work_item_id)?.title
+                                    : undefined
+                                }
+                                selectedWorkItemId={props.selectedWorkItemId}
+                                onSelectWorkItem={props.onSelectWorkItem}
+                                onBoardChanged={props.onBoardChanged}
+                                locationSearch={location.search}
+                                locationHash={location.hash}
+                              />
+                            ),
+                          )
+                        : flatItems.map((item) => (
                             <BoardWorkItemCard
                               key={item.id}
                               workflowId={props.workflowId}
                               columns={props.board!.columns}
                               stages={props.stages}
                               item={item}
-                              parentTitle={item.parent_work_item_id ? workItemsById.get(item.parent_work_item_id)?.title : undefined}
+                              parentTitle={
+                                item.parent_work_item_id
+                                  ? workItemsById.get(item.parent_work_item_id)?.title
+                                  : undefined
+                              }
                               selectedWorkItemId={props.selectedWorkItemId}
                               onSelectWorkItem={props.onSelectWorkItem}
                               onBoardChanged={props.onBoardChanged}
                               locationSearch={location.search}
                               locationHash={location.hash}
                             />
-                          ),
-                        )
-                      : flatItems.map((item) => (
-                          <BoardWorkItemCard
-                            key={item.id}
-                            workflowId={props.workflowId}
-                            columns={props.board!.columns}
-                            stages={props.stages}
-                            item={item}
-                            parentTitle={item.parent_work_item_id ? workItemsById.get(item.parent_work_item_id)?.title : undefined}
-                            selectedWorkItemId={props.selectedWorkItemId}
-                            onSelectWorkItem={props.onSelectWorkItem}
-                            onBoardChanged={props.onBoardChanged}
-                            locationSearch={location.search}
-                            locationHash={location.hash}
-                          />
-                        ))}
-                    {visibleCount === 0 ? <p className="muted">No work items.</p> : null}
-                  </div>
-                </article>
-              );
-            })}
+                          ))}
+                      {visibleCount === 0 ? (
+                        <div className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted">
+                          No work items.
+                        </div>
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ) : null}
-    </div>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -273,28 +382,28 @@ function MilestoneGroupCard(props: {
   const progressPercent = totalChildren === 0 ? 0 : Math.round((completedChildren / totalChildren) * 100);
 
   return (
-    <article className="card timeline-entry">
-      <div className="row" style={{ justifyContent: 'space-between' }}>
+    <article className="grid gap-3 rounded-lg border border-border/70 bg-border/10 p-4">
+      <div className="flex items-start justify-between gap-3">
         <button
           type="button"
           className="text-left"
           aria-pressed={props.selectedWorkItemId === props.milestone.id}
           onClick={() => props.onSelectWorkItem?.(props.milestone.id)}
         >
-          <strong>{props.milestone.title}</strong>
+          <strong className="text-foreground">{props.milestone.title}</strong>
         </button>
-        <div className="row">
-          <span className="status-badge">Milestone</span>
-          <span className="status-badge">{progressPercent}% complete</span>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline">Milestone</Badge>
+          <Badge variant="secondary">{progressPercent}% complete</Badge>
         </div>
       </div>
-      {props.milestone.goal ? <p className="muted">{props.milestone.goal}</p> : null}
-      <div className="row">
-        <span className="status-badge">
+      {props.milestone.goal ? <p className="text-sm text-muted">{props.milestone.goal}</p> : null}
+      <div className="flex flex-wrap gap-2">
+        <Badge variant="secondary">
           {completedChildren}/{totalChildren} child items complete
-        </span>
-        <span className="status-badge">{props.milestone.stage_name}</span>
-        <span className="status-badge">{props.milestone.column_id}</span>
+        </Badge>
+        <Badge variant="outline">{props.milestone.stage_name}</Badge>
+        <Badge variant="outline">{props.milestone.column_id}</Badge>
       </div>
       <BoardMoveControls
         workflowId={props.workflowId}
@@ -344,32 +453,36 @@ function BoardWorkItemCard(props: {
     <article
       key={props.item.id}
       id={`work-item-${props.item.id}`}
-      className={props.compact ? 'rounded-md border bg-border/10 p-3' : 'card workflow-item-card'}
+      className={
+        props.compact
+          ? 'grid gap-3 rounded-lg border border-border/70 bg-surface/80 p-3'
+          : 'grid gap-3 rounded-lg border border-border/70 bg-border/10 p-4 shadow-sm'
+      }
       data-selected={props.selectedWorkItemId === props.item.id ? 'true' : 'false'}
     >
-      <div className="row" style={{ justifyContent: 'space-between' }}>
+      <div className="flex items-start justify-between gap-3">
         <button
           type="button"
           className="text-left"
           aria-pressed={props.selectedWorkItemId === props.item.id}
           onClick={() => props.onSelectWorkItem?.(props.item.id)}
         >
-          <strong>{props.item.title}</strong>
+          <strong className="text-foreground">{props.item.title}</strong>
         </button>
-        <div className="row">
-          {props.item.completed_at ? <span className="status-badge status-completed">completed</span> : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {props.item.completed_at ? <Badge variant="success">completed</Badge> : null}
           <Link
             to={buildWorkflowDetailPermalink(props.item.workflow_id, {
               workItemId: props.item.id,
             })}
-            className="muted"
+            className="text-sm text-muted underline-offset-4 hover:underline"
           >
             Permalink
           </Link>
         </div>
       </div>
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <span className="status-badge">
+      <div className="flex flex-wrap gap-2">
+        <Badge variant="secondary">
           {props.locationSearch &&
           isWorkflowDetailTargetHighlighted(
             props.locationSearch,
@@ -379,25 +492,27 @@ function BoardWorkItemCard(props: {
           )
             ? 'Highlighted'
             : props.item.stage_name}
-        </span>
+        </Badge>
       </div>
-      <div className="row">
-        <span className="status-badge">{props.item.priority}</span>
-        {props.item.owner_role ? <span className="status-badge">{props.item.owner_role}</span> : null}
-        {isMilestoneRecord(props.item) ? <span className="status-badge">Milestone</span> : null}
-        {props.parentTitle ? <span className="status-badge">Milestone: {props.parentTitle}</span> : null}
+      <div className="flex flex-wrap gap-2">
+        <Badge variant="outline">{props.item.priority}</Badge>
+        {props.item.owner_role ? <Badge variant="outline">{props.item.owner_role}</Badge> : null}
+        {isMilestoneRecord(props.item) ? <Badge variant="outline">Milestone</Badge> : null}
+        {props.parentTitle ? <Badge variant="outline">Milestone: {props.parentTitle}</Badge> : null}
         {props.item.task_count !== undefined ? (
-          <span className="status-badge">{props.item.task_count} tasks</span>
+          <Badge variant="secondary">{props.item.task_count} tasks</Badge>
         ) : null}
         {isMilestoneRecord(props.item) ? (
-          <span className="status-badge">
+          <Badge variant="secondary">
             {readCompletedChildren(props.item)}/{readChildCount(props.item)} children
-          </span>
+          </Badge>
         ) : null}
       </div>
-      {props.item.goal ? <p className="muted">{props.item.goal}</p> : null}
-      {props.item.acceptance_criteria ? <p className="muted">Acceptance: {props.item.acceptance_criteria}</p> : null}
-      {props.item.notes ? <p className="muted">Notes: {props.item.notes}</p> : null}
+      {props.item.goal ? <p className="text-sm text-muted">{props.item.goal}</p> : null}
+      {props.item.acceptance_criteria ? (
+        <p className="text-sm text-muted">Acceptance: {props.item.acceptance_criteria}</p>
+      ) : null}
+      {props.item.notes ? <p className="text-sm text-muted">Notes: {props.item.notes}</p> : null}
       <BoardMoveControls
         workflowId={props.workflowId}
         workItemId={props.item.id}
@@ -441,8 +556,10 @@ function BoardMoveControls(props: {
   const hasChanges = columnId !== props.initialColumnId || stageName !== props.initialStageName;
 
   return (
-    <div className="grid gap-2" style={{ marginTop: '0.5rem' }}>
-      <span className="muted">Grouped move controls</span>
+    <div className="grid gap-2 rounded-md border border-border/60 bg-surface/70 p-3">
+      <span className="text-xs font-medium uppercase tracking-wide text-muted">
+        Board move controls
+      </span>
       <div className="grid gap-2 md:grid-cols-2">
         <Select value={columnId} onValueChange={setColumnId}>
           <SelectTrigger>
@@ -469,7 +586,7 @@ function BoardMoveControls(props: {
           </SelectContent>
         </Select>
       </div>
-      <div className="row" style={{ justifyContent: 'flex-end' }}>
+      <div className="flex justify-end">
         <Button onClick={() => moveMutation.mutate()} disabled={!hasChanges || moveMutation.isPending}>
           {moveMutation.isPending ? 'Moving…' : 'Apply Board Move'}
         </Button>
@@ -522,18 +639,25 @@ export function WorkflowStagesCard(props: {
   }
 
   return (
-    <div className="card">
-      <h3>Stage Gates</h3>
-      <p className="muted">Stage goals, gate detail, and stable gate permalinks for this playbook board run.</p>
-      {props.isLoading ? <p>Loading stages...</p> : null}
-      {props.hasError ? <p style={{ color: '#dc2626' }}>Failed to load board stages.</p> : null}
-      {gatesQuery.isError ? <p style={{ color: '#dc2626' }}>Failed to load board gate detail.</p> : null}
-      <div className="grid">
+    <Card>
+      <CardHeader>
+        <CardTitle>Stage Gates</CardTitle>
+        <CardDescription>
+          Stage goals, gate detail, and stable gate permalinks for this playbook board run.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {props.isLoading ? <p className="text-sm text-muted">Loading stages...</p> : null}
+        {props.hasError ? <p className="text-sm text-red-600">Failed to load board stages.</p> : null}
+        {gatesQuery.isError ? (
+          <p className="text-sm text-red-600">Failed to load board gate detail.</p>
+        ) : null}
+        <div className="grid gap-4">
         {props.stages.map((stage) => (
           <article
             key={stage.id}
             id={`gate-${stage.name}`}
-            className="card timeline-entry"
+            className="grid gap-3 rounded-lg border border-border/70 bg-border/10 p-4"
             data-highlighted={
               props.selectedGateStageName === stage.name ||
               isWorkflowDetailTargetHighlighted(location.search, location.hash, 'gate', stage.name)
@@ -541,35 +665,31 @@ export function WorkflowStagesCard(props: {
                 : 'false'
             }
           >
-            <div className="row" style={{ justifyContent: 'space-between' }}>
+            <div className="flex items-start justify-between gap-3">
               <strong>{stage.position + 1}. {stage.name}</strong>
-              <div className="row">
-                <span className={`status-badge status-${stage.status}`}>{stage.status}</span>
-                <span className="status-badge">Gate: {stage.gate_status}</span>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant={badgeVariantForState(stage.status)}>{stage.status}</Badge>
+                <Badge variant="outline">Gate: {stage.gate_status}</Badge>
               </div>
             </div>
-            <p className="muted">{stage.goal}</p>
-            {stage.guidance ? <p className="muted">{stage.guidance}</p> : null}
-            <div className="row">
-              <span className="status-badge">Iterations: {stage.iteration_count}</span>
-              {stage.human_gate ? <span className="status-badge">Human Gate</span> : null}
+            <p className="text-sm text-muted">{stage.goal}</p>
+            {stage.guidance ? <p className="text-sm text-muted">{stage.guidance}</p> : null}
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">Iterations: {stage.iteration_count}</Badge>
+              {stage.human_gate ? <Badge variant="outline">Human Gate</Badge> : null}
               {stage.started_at ? (
-                <span className="status-badge">
+                <Badge variant="outline">
                   Started {new Date(stage.started_at).toLocaleDateString()}
-                </span>
+                </Badge>
               ) : null}
-              <button
-                type="button"
-                className="status-badge"
-                onClick={() => props.onSelectGate?.(stage.name)}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={() => props.onSelectGate?.(stage.name)}>
                 Gate focus
-              </button>
+              </Button>
               <Link
                 to={buildWorkflowDetailPermalink(workflowId, {
                   gateStageName: stage.name,
                 })}
-                className="muted"
+                className="text-sm text-muted underline-offset-4 hover:underline"
               >
                 Permalink
               </Link>
@@ -586,8 +706,9 @@ export function WorkflowStagesCard(props: {
             ) : null}
           </article>
         ))}
-      </div>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -601,17 +722,22 @@ export function WorkflowActivationsCard(props: {
   const location = useLocation();
 
   return (
-    <div className="card">
-      <h3>Orchestrator Activations</h3>
-      <p className="muted">Queued and completed orchestrator activations for this board run.</p>
-      {props.isLoading ? <p>Loading activations...</p> : null}
-      {props.hasError ? <p style={{ color: '#dc2626' }}>Failed to load activations.</p> : null}
-      <div className="grid">
+    <Card>
+      <CardHeader>
+        <CardTitle>Orchestrator Activations</CardTitle>
+        <CardDescription>
+          Queued and completed orchestrator activations for this board run.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {props.isLoading ? <p className="text-sm text-muted">Loading activations...</p> : null}
+        {props.hasError ? <p className="text-sm text-red-600">Failed to load activations.</p> : null}
+        <div className="grid gap-4">
         {props.activations.map((activation) => (
           <article
             key={activation.id}
             id={`activation-${activation.activation_id ?? activation.id}`}
-            className="card timeline-entry"
+            className="grid gap-3 rounded-lg border border-border/70 bg-border/10 p-4"
             data-highlighted={
               props.selectedActivationId === (activation.activation_id ?? activation.id) ||
               isWorkflowDetailTargetHighlighted(
@@ -624,51 +750,66 @@ export function WorkflowActivationsCard(props: {
                 : 'false'
             }
           >
-            <div className="row" style={{ justifyContent: 'space-between' }}>
+            <div className="flex items-start justify-between gap-3">
               <strong>{activation.event_type}</strong>
-              <span className={`status-badge status-${activation.state}`}>{activation.state}</span>
+              <Badge variant={badgeVariantForState(activation.state)}>{activation.state}</Badge>
             </div>
-            <p className="muted">{activation.reason}</p>
-            <p className="muted">Queued: {new Date(activation.queued_at).toLocaleString()}</p>
+            <p className="text-sm text-muted">{activation.reason}</p>
+            <p className="text-sm text-muted">Queued: {new Date(activation.queued_at).toLocaleString()}</p>
             {describeActivationRecovery(activation) ? (
-              <p className="muted">{describeActivationRecovery(activation)}</p>
+              <p className="text-sm text-muted">{describeActivationRecovery(activation)}</p>
             ) : null}
-            <div className="row">
-              <button
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
                 type="button"
-                className="status-badge"
+                variant="outline"
+                size="sm"
                 onClick={() =>
                   props.onSelectActivation?.(activation.activation_id ?? activation.id)
                 }
               >
                 Activation {activation.activation_id ?? activation.id}
-              </button>
-              <span className="status-badge">
+              </Button>
+              <Badge variant="secondary">
                 {activation.event_count ?? activation.events?.length ?? 1} events
-              </span>
+              </Badge>
               {activation.recovery_status ? (
-                <span className="status-badge">{activation.recovery_status}</span>
+                <Badge variant="outline">{activation.recovery_status}</Badge>
+              ) : null}
+              <Link
+                to={`/logs?workflow=${activation.workflow_id}&activation=${activation.activation_id ?? activation.id}&view=debug`}
+                className="text-sm text-muted underline-offset-4 hover:underline"
+              >
+                Open logs
+              </Link>
+              {activation.redispatched_task_id ? (
+                <Link
+                  to={`/work/tasks/${activation.redispatched_task_id}`}
+                  className="text-sm text-muted underline-offset-4 hover:underline"
+                >
+                  Redispatched task
+                </Link>
               ) : null}
               <Link
                 to={buildWorkflowDetailPermalink(activation.workflow_id, {
                   activationId: activation.activation_id ?? activation.id,
                 })}
-                className="muted"
+                className="text-sm text-muted underline-offset-4 hover:underline"
               >
                 Permalink
               </Link>
             </div>
             <StructuredRecordView data={activation.payload} emptyMessage="No activation payload." />
             {activation.events && activation.events.length > 0 ? (
-              <ul className="search-results">
+              <ul className="grid gap-3">
                 {activation.events.map((event) => (
-                  <li key={event.id}>
-                    <div className="row" style={{ justifyContent: 'space-between' }}>
+                  <li key={event.id} className="grid gap-2 rounded-md border border-border/60 bg-surface/70 p-3">
+                    <div className="flex items-start justify-between gap-3">
                       <strong>{event.event_type}</strong>
-                      <span className={`status-badge status-${event.state}`}>{event.state}</span>
+                      <Badge variant={badgeVariantForState(event.state)}>{event.state}</Badge>
                     </div>
-                    <p className="muted">{event.reason}</p>
-                    <p className="muted">Queued: {new Date(event.queued_at).toLocaleString()}</p>
+                    <p className="text-sm text-muted">{event.reason}</p>
+                    <p className="text-sm text-muted">Queued: {new Date(event.queued_at).toLocaleString()}</p>
                     <StructuredRecordView data={event.payload} emptyMessage="No activation payload." />
                   </li>
                 ))}
@@ -677,10 +818,11 @@ export function WorkflowActivationsCard(props: {
           </article>
         ))}
         {props.activations.length === 0 && !props.isLoading && !props.hasError ? (
-          <p className="muted">No workflow activations recorded yet.</p>
+          <p className="text-sm text-muted">No workflow activations recorded yet.</p>
         ) : null}
-      </div>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -704,29 +846,6 @@ function describeActivationRecovery(activation: DashboardWorkflowActivationRecor
   return details.length > 0 ? details.join(' • ') : null;
 }
 
-export function WorkflowHistoryCard(props: {
-  isLoading: boolean;
-  hasError: boolean;
-  events: Array<{ id: string; type: string; created_at: string; data?: Record<string, unknown> }>;
-}) {
-  return (
-    <div className="card">
-      <h3>Workflow History</h3>
-      {props.isLoading ? <p>Loading history...</p> : null}
-      {props.hasError ? <p style={{ color: '#dc2626' }}>Failed to load workflow history.</p> : null}
-      <ul className="search-results">
-        {props.events.map((event) => (
-              <li key={event.id}>
-                <strong>{event.type}</strong>
-                <span className="muted"> {new Date(event.created_at).toLocaleString()}</span>
-                <StructuredRecordView data={event.data} emptyMessage="No event payload." />
-              </li>
-            ))}
-          </ul>
-    </div>
-  );
-}
-
 export function ProjectTimelineCard(props: {
   isLoading: boolean;
   hasError: boolean;
@@ -738,17 +857,22 @@ export function ProjectTimelineCard(props: {
   const location = useLocation();
 
   return (
-    <div className="card">
-      <h3>Project Timeline</h3>
-      <p className="muted">Run-level continuity for this project, including chained lineage.</p>
-      {props.isLoading ? <p>Loading timeline...</p> : null}
-      {props.hasError ? <p style={{ color: '#dc2626' }}>Failed to load project timeline.</p> : null}
-      <div className="grid">
+    <Card>
+      <CardHeader>
+        <CardTitle>Project Timeline</CardTitle>
+        <CardDescription>
+          Run-level continuity for this project, including chained lineage.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {props.isLoading ? <p className="text-sm text-muted">Loading timeline...</p> : null}
+        {props.hasError ? <p className="text-sm text-red-600">Failed to load project timeline.</p> : null}
+        <div className="grid gap-4">
         {props.entries.map((entry) => (
           <article
             key={entry.workflow_id}
             id={`child-workflow-${entry.workflow_id}`}
-            className="card timeline-entry"
+            className="grid gap-3 rounded-lg border border-border/70 bg-border/10 p-4"
             data-highlighted={
               props.selectedChildWorkflowId === entry.workflow_id ||
               isWorkflowDetailTargetHighlighted(
@@ -761,24 +885,29 @@ export function ProjectTimelineCard(props: {
                 : 'false'
             }
           >
-            <div className="row" style={{ justifyContent: 'space-between' }}>
+            <div className="flex items-start justify-between gap-3">
               <strong>{entry.name}</strong>
-              <span className={`status-badge status-${entry.state}`}>{entry.state}</span>
+              <Badge variant={badgeVariantForState(entry.state)}>{entry.state}</Badge>
             </div>
-            <p className="muted">{entry.completed_at ? new Date(entry.completed_at).toLocaleString() : 'In progress'}</p>
-            <div className="row">
-              <span className="status-badge">Duration: {entry.duration_seconds ?? 0}s</span>
-              <span className="status-badge">Artifacts: {entry.produced_artifacts?.length ?? 0}</span>
+            <p className="text-sm text-muted">
+              {entry.completed_at ? new Date(entry.completed_at).toLocaleString() : 'In progress'}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary">Duration: {entry.duration_seconds ?? 0}s</Badge>
+              <Badge variant="secondary">
+                Artifacts: {entry.produced_artifacts?.length ?? 0}
+              </Badge>
             </div>
-            <div className="row" style={{ justifyContent: 'space-between' }}>
-              <button
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Button
                 type="button"
-                className="muted"
+                variant="ghost"
+                size="sm"
                 onClick={() => props.onSelectChildWorkflow?.(entry.workflow_id)}
               >
                 Highlight lineage
-              </button>
-              <div className="row">
+              </Button>
+              <div className="flex flex-wrap items-center gap-3">
                 {entry.workflow_id !== props.currentWorkflowId ? (
                   <Link to={`/work/workflows/${entry.workflow_id}`}>Open workflow</Link>
                 ) : null}
@@ -786,7 +915,7 @@ export function ProjectTimelineCard(props: {
                   to={buildWorkflowDetailPermalink(props.currentWorkflowId, {
                     childWorkflowId: entry.workflow_id,
                   })}
-                  className="muted"
+                  className="text-sm text-muted underline-offset-4 hover:underline"
                 >
                   Permalink
                 </Link>
@@ -794,16 +923,41 @@ export function ProjectTimelineCard(props: {
             </div>
           </article>
         ))}
-      </div>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
 function MissionMetric({ label, value }: { label: string; value: number }): JSX.Element {
   return (
-    <div className="card mission-metric">
-      <p className="muted">{label}</p>
-      <strong>{value}</strong>
+    <div className="grid gap-1 rounded-xl border border-border/70 bg-background/90 p-4 shadow-sm">
+      <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted">{label}</p>
+      <strong className="text-2xl text-foreground">{value}</strong>
     </div>
   );
+}
+
+function badgeVariantForState(
+  state: string | null | undefined,
+): 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' {
+  switch (state) {
+    case 'completed':
+    case 'approved':
+      return 'success';
+    case 'failed':
+    case 'rejected':
+    case 'cancelled':
+      return 'destructive';
+    case 'blocked':
+    case 'escalated':
+    case 'awaiting_approval':
+      return 'warning';
+    case 'in_progress':
+    case 'running':
+    case 'processing':
+      return 'default';
+    default:
+      return 'outline';
+  }
 }

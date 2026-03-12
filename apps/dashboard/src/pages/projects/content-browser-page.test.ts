@@ -24,4 +24,28 @@ describe('content browser page source', () => {
     expect(source).toContain('Work item');
     expect(source).toContain('filterTasksByWorkItem');
   });
+
+  it('adds first-class workflow document and artifact operator controls', () => {
+    const source = readSource();
+    expect(source).toContain('Document Operator Controls');
+    expect(source).toContain('Artifact Operator Controls');
+    expect(source).toContain('MetadataEntryEditor');
+    expect(source).toContain('Add metadata entry');
+    expect(source).not.toContain('Metadata (JSON)');
+    expect(source).toContain('createWorkflowDocument');
+    expect(source).toContain('updateWorkflowDocument');
+    expect(source).toContain('deleteWorkflowDocument');
+    expect(source).toContain('uploadTaskArtifact');
+    expect(source).toContain('deleteTaskArtifact');
+    expect(source).toContain('Create Workflow Document');
+    expect(source).toContain('Save Document Changes');
+    expect(source).toContain('Upload Artifact');
+  });
+
+  it('supports project-scoped content and artifact explorer routes', () => {
+    const source = readSource();
+    expect(source).toContain('scopedProjectId');
+    expect(source).toContain('preferredTab');
+    expect(source).toContain('Back to Project');
+  });
 });

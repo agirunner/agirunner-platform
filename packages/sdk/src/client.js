@@ -90,6 +90,26 @@ export class PlatformApiClient {
         const response = await this.request(`/api/v1/workflows/${workflowId}/documents`);
         return response.data;
     }
+    async createWorkflowDocument(workflowId, payload) {
+        const response = await this.request(`/api/v1/workflows/${workflowId}/documents`, {
+            method: 'POST',
+            body: payload,
+        });
+        return response.data;
+    }
+    async updateWorkflowDocument(workflowId, logicalName, payload) {
+        const response = await this.request(`/api/v1/workflows/${workflowId}/documents/${encodeURIComponent(logicalName)}`, {
+            method: 'PATCH',
+            body: payload,
+        });
+        return response.data;
+    }
+    async deleteWorkflowDocument(workflowId, logicalName) {
+        await this.request(`/api/v1/workflows/${workflowId}/documents/${encodeURIComponent(logicalName)}`, {
+            method: 'DELETE',
+            allowNoContent: true,
+        });
+    }
     async createWorkflow(payload) {
         const response = await this.request('/api/v1/workflows', {
             method: 'POST',

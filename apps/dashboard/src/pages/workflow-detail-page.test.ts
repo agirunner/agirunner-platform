@@ -99,10 +99,22 @@ describe('workflow detail model override display', () => {
 
     expect(source).toContain('dashboardApi.getWorkflowModelOverrides(workflowId)');
     expect(source).toContain('dashboardApi.getResolvedWorkflowModels(workflowId)');
-    expect(source).toContain('<h3>Model Overrides</h3>');
-    expect(source).toContain('<h3>Effective Models</h3>');
+    expect(source).toContain('<CardTitle>Model Overrides</CardTitle>');
+    expect(source).toContain('<CardTitle>Effective Models</CardTitle>');
     expect(source).toContain('ResolvedModelResolutionList');
-    expect(source).toContain('Board-run overrides are set at launch time');
+    expect(source).toContain('Board-run overrides take precedence over project-level model settings.');
+  });
+});
+
+describe('workflow detail interaction timeline', () => {
+  it('uses the human-readable interaction timeline card instead of the raw workflow history list', () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, './workflow-detail-page.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('WorkflowInteractionTimelineCard');
+    expect(source).not.toContain('WorkflowHistoryCard');
   });
 });
 
@@ -129,9 +141,21 @@ describe('workflow detail deep links', () => {
       'utf8',
     );
 
+    expect(source).toContain('if (!boardQuery.data) {');
     expect(source).toContain('hasExplicitNonWorkItemSelection');
     expect(source).toContain('selectedActivationId !== null || selectedChildWorkflowId !== null || selectedGateStageName !== null');
     expect(source).toContain('if (hasExplicitNonWorkItemSelection) {');
+  });
+
+  it('scrolls targeted deep-link sections into view after the board data resolves', () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, './workflow-detail-page.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('useLocation');
+    expect(source).toContain('document.getElementById(targetId)');
+    expect(source).toContain("target?.scrollIntoView({ block: 'start' })");
   });
 
   it('hydrates child workflow lineage from workflow relations when project timeline is lagging', () => {
@@ -193,9 +217,9 @@ describe('workflow detail deep links', () => {
       'utf8',
     );
 
-    expect(source).toContain('<h2>Board Detail</h2>');
-    expect(source).toContain('<h3>Launch Child Board</h3>');
+    expect(source).toContain('<CardTitle>Board Detail</CardTitle>');
+    expect(source).toContain('<CardTitle>Launch Child Board</CardTitle>');
     expect(source).toContain('Create Child Board');
-    expect(source).toContain('<h3>Board Summary</h3>');
+    expect(source).toContain('<CardTitle>Board Summary</CardTitle>');
   });
 });

@@ -1,7 +1,10 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { NotFoundError } from '../errors/domain-errors.js';
-import { normalizeTaskState } from '../orchestration/task-state-machine.js';
+import {
+  normalizeLegacyTaskStateAlias,
+  normalizeTaskState,
+} from '../orchestration/task-state-machine.js';
 import { sanitizeSecretLikeValue } from './secret-redaction.js';
 import { buildTaskContext } from './task-context-service.js';
 import type { ListTaskQuery } from './task-service.types.js';
@@ -158,5 +161,8 @@ function isSecretLikeKey(key: string): boolean {
 }
 
 function normalizeResponseTaskState(value: unknown): unknown {
-  return typeof value === 'string' ? (normalizeTaskState(value) ?? value) : value;
+  if (typeof value !== 'string') {
+    return value;
+  }
+  return normalizeTaskState(value) ?? normalizeLegacyTaskStateAlias(value) ?? value;
 }

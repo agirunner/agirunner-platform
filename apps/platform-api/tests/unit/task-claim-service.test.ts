@@ -1,7 +1,15 @@
+import { createHmac } from 'node:crypto';
+
 import { describe, expect, it, vi } from 'vitest';
 
-import { storeOAuthToken, storeProviderSecret } from '../../src/lib/oauth-crypto.js';
+import {
+  configureProviderSecretEncryptionKey,
+  storeOAuthToken,
+  storeProviderSecret,
+} from '../../src/lib/oauth-crypto.js';
 import { TaskClaimService } from '../../src/services/task-claim-service.js';
+
+configureProviderSecretEncryptionKey('test-encryption-key');
 
 const identity = {
   id: 'key-1',
@@ -15,7 +23,7 @@ const identity = {
 function createClient(executionMode: 'specialist' | 'orchestrator') {
   return {
     query: vi.fn(async (sql: string, _params?: unknown[]) => {
-      if (sql === 'BEGIN' || sql === 'COMMIT') {
+      if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
         return { rowCount: 0, rows: [] };
       }
       if (sql.includes('UPDATE tasks')) {
@@ -50,6 +58,7 @@ function createService(client: { query: ReturnType<typeof vi.fn>; release: Retur
     eventService: { emit: vi.fn() } as never,
     toTaskResponse: (task) => task,
     getTaskContext: vi.fn(async () => ({})),
+    claimHandleSecret: 'test-claim-handle-secret',
   });
 }
 
@@ -99,7 +108,7 @@ describe('TaskClaimService', () => {
   it('skips ready tasks that are blocked by playbook parallelism caps', async () => {
     const client = {
       query: vi.fn(async (sql: string, _params?: unknown[]) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
@@ -142,7 +151,7 @@ describe('TaskClaimService', () => {
       release: vi.fn(),
     };
 
-    const pool = { connect: vi.fn(async () => client) };
+    const pool = { connect: vi.fn(async () => client), query: client.query };
     const parallelismService = {
       shouldQueueForCapacity: vi
         .fn()
@@ -155,6 +164,7 @@ describe('TaskClaimService', () => {
       toTaskResponse: (task) => task,
       getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
       parallelismService: parallelismService as never,
+      claimHandleSecret: 'test-claim-handle-secret',
     });
 
     const task = await service.claimTask(identity, {
@@ -173,7 +183,7 @@ describe('TaskClaimService', () => {
   it('returns claim-time secret references without echoing secrets in role_config', async () => {
     const client = {
       query: vi.fn(async (sql: string, _params?: unknown[]) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
@@ -237,7 +247,7 @@ describe('TaskClaimService', () => {
       release: vi.fn(),
     };
 
-    const pool = { connect: vi.fn(async () => client) };
+    const pool = { connect: vi.fn(async () => client), query: client.query };
     const service = new TaskClaimService({
       pool: pool as never,
       eventService: { emit: vi.fn(async () => undefined) } as never,
@@ -260,6 +270,7 @@ describe('TaskClaimService', () => {
         },
         reasoningConfig: null,
       })),
+      claimHandleSecret: 'test-claim-handle-secret',
     });
 
     const task = await service.claimTask(identity, {
@@ -277,12 +288,125 @@ describe('TaskClaimService', () => {
     expect((task?.role_config as Record<string, unknown>).llm_api_key).toBeUndefined();
   });
 
-  it('returns runtime-consumable oauth credentials instead of encrypted at-rest values', async () => {
+  it('resolves claim credentials from task-level llm provider and model overrides', async () => {
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
+    const encryptedProviderSecret = storeProviderSecret('override-provider-secret');
+    const client = {
+      query: vi.fn(async (sql: string, _params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-direct-model',
+              workflow_id: 'wf-1',
+              state: 'ready',
+              role: 'developer',
+              project_id: null,
+              role_config: {
+                llm_provider: 'Smoke Provider',
+                llm_model: 'gpt-smoke',
+                tools: ['shell'],
+              },
+              metadata: {},
+            }],
+          };
+        }
+        if (sql.includes("FROM llm_models m") && sql.includes('JOIN llm_providers p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              provider_id: 'provider-override',
+              provider_name: 'Smoke Provider',
+              provider_base_url: 'https://provider.example/v1',
+              provider_api_key_secret_ref: encryptedProviderSecret,
+              provider_auth_mode: 'api_key',
+              provider_metadata: { providerType: 'openai' },
+              model_id: 'gpt-smoke',
+              model_context_window: 64000,
+              model_endpoint_type: 'responses',
+              model_reasoning_config: null,
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-direct-model',
+              workflow_id: 'wf-1',
+              state: 'claimed',
+              role: 'developer',
+              role_config: {
+                llm_provider: 'Smoke Provider',
+                llm_model: 'gpt-smoke',
+                tools: ['shell'],
+              },
+              metadata: {},
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT') && sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => null),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['llm-api'],
+    });
+
+    expect(task?.credentials).toEqual({
+      llm_provider: 'openai',
+      llm_model: 'gpt-smoke',
+      llm_api_key_claim_handle: expect.stringMatching(/^claim:v1:/),
+      llm_base_url: 'https://provider.example/v1',
+      llm_endpoint_type: 'responses',
+    });
+    expect((task?.credentials as Record<string, unknown>).llm_api_key).toBeUndefined();
+  });
+
+  it('returns task-bound oauth claim handles instead of decrypted at-rest values', async () => {
     process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
     const encryptedAccessToken = storeOAuthToken('oauth-access-token');
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
@@ -365,7 +489,7 @@ describe('TaskClaimService', () => {
       release: vi.fn(),
     };
 
-    const pool = { connect: vi.fn(async () => client) };
+    const pool = { connect: vi.fn(async () => client), query: client.query };
     const service = new TaskClaimService({
       pool: pool as never,
       eventService: { emit: vi.fn(async () => undefined) } as never,
@@ -388,6 +512,7 @@ describe('TaskClaimService', () => {
         },
         reasoningConfig: null,
       })),
+      claimHandleSecret: 'test-claim-handle-secret',
     });
 
     const task = await service.claimTask(identity, {
@@ -398,25 +523,24 @@ describe('TaskClaimService', () => {
     expect(task?.credentials).toEqual(expect.objectContaining({
       llm_provider: 'openai',
       llm_model: 'gpt-5',
-      llm_api_key: 'oauth-access-token',
+      llm_api_key_claim_handle: expect.stringMatching(/^claim:v1:/),
       llm_base_url: 'https://api.openai.test/v1',
       llm_endpoint_type: 'responses',
       llm_auth_mode: 'oauth',
-      llm_extra_headers: {
-        'chatgpt-account-id': 'acct_123',
-        'OpenAI-Beta': 'responses=experimental',
-      },
+      llm_extra_headers_claim_handle: expect.stringMatching(/^claim:v1:/),
     }));
     expect(task?.credentials).not.toHaveProperty('llm_api_key_secret_ref');
     expect(task?.credentials).not.toHaveProperty('llm_extra_headers_secret_ref');
+    expect(task?.credentials).not.toHaveProperty('llm_api_key');
+    expect(task?.credentials).not.toHaveProperty('llm_extra_headers');
   });
 
-  it('decrypts encrypted provider api keys before returning the claim payload', async () => {
+  it('returns task-bound handles instead of decrypted provider api keys on claim payloads', async () => {
     process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
     const encryptedApiKey = storeProviderSecret('provider-api-key');
     const client = {
       query: vi.fn(async (sql: string, _params?: unknown[]) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
@@ -466,6 +590,12 @@ describe('TaskClaimService', () => {
         if (sql.includes('workflow_name')) {
           return { rowCount: 0, rows: [] };
         }
+        if (sql.includes('SELECT api_key_secret_ref')) {
+          return {
+            rowCount: 1,
+            rows: [{ api_key_secret_ref: encryptedApiKey }],
+          };
+        }
         if (sql.includes('SELECT escalation_target, allowed_tools')) {
           return { rowCount: 0, rows: [] };
         }
@@ -474,7 +604,7 @@ describe('TaskClaimService', () => {
       release: vi.fn(),
     };
 
-    const pool = { connect: vi.fn(async () => client) };
+    const pool = { connect: vi.fn(async () => client), query: client.query };
     const service = new TaskClaimService({
       pool: pool as never,
       eventService: { emit: vi.fn(async () => undefined) } as never,
@@ -497,6 +627,7 @@ describe('TaskClaimService', () => {
         },
         reasoningConfig: null,
       })),
+      claimHandleSecret: 'test-claim-handle-secret',
     });
 
     const task = await service.claimTask(identity, {
@@ -507,10 +638,74 @@ describe('TaskClaimService', () => {
     expect(task?.credentials).toEqual({
       llm_provider: 'openai',
       llm_model: 'gpt-5',
-      llm_api_key: 'provider-api-key',
+      llm_api_key_claim_handle: expect.stringMatching(/^claim:v1:/),
       llm_base_url: 'https://api.openai.test/v1',
       llm_endpoint_type: 'responses',
     });
     expect(task?.credentials).not.toHaveProperty('llm_api_key_secret_ref');
   });
+
+  it('resolves task-bound claim handles only for the assigned agent', async () => {
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
+    const encryptedApiKey = storeProviderSecret('provider-api-key');
+    const encryptedHeaders = storeProviderSecret(JSON.stringify({ Authorization: 'Bearer secret-token' }));
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('SELECT assigned_agent_id')) {
+          return {
+            rowCount: 1,
+            rows: [{ assigned_agent_id: 'agent-1' }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql} :: ${JSON.stringify(params ?? [])}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskClaimService({
+      pool: { connect: vi.fn(async () => client), query: client.query } as never,
+      eventService: { emit: vi.fn() } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({})),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const credentials = await service.resolveClaimCredentials(
+      { ...identity, ownerId: 'agent-1' },
+      'task-1',
+      {
+        llm_api_key_claim_handle: 'claim:v1:' + Buffer.from(JSON.stringify({
+          task_id: 'task-1',
+          kind: 'llm_api_key',
+          stored_secret: encryptedApiKey,
+        }), 'utf8').toString('base64url') + '.' + createSignature('test-claim-handle-secret', {
+          task_id: 'task-1',
+          kind: 'llm_api_key',
+          stored_secret: encryptedApiKey,
+        }),
+        llm_extra_headers_claim_handle: 'claim:v1:' + Buffer.from(JSON.stringify({
+          task_id: 'task-1',
+          kind: 'llm_extra_headers',
+          stored_secret: encryptedHeaders,
+        }), 'utf8').toString('base64url') + '.' + createSignature('test-claim-handle-secret', {
+          task_id: 'task-1',
+          kind: 'llm_extra_headers',
+          stored_secret: encryptedHeaders,
+        }),
+      },
+    );
+
+    expect(credentials).toEqual({
+      llm_api_key: 'provider-api-key',
+      llm_extra_headers: { Authorization: 'Bearer secret-token' },
+    });
+  });
 });
+
+function createSignature(
+  secret: string,
+  payload: { task_id: string; kind: string; stored_secret: string },
+): string {
+  const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+  return createHmac('sha256', secret).update(encoded).digest('base64url');
+}

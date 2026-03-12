@@ -27,11 +27,24 @@ import {
   normalizeWorkItemOptions,
 } from './project-content-browser-support.js';
 
+interface MemoryBrowserPageProps {
+  scopedProjectId?: string;
+  scopedWorkflowId?: string;
+  scopedWorkItemId?: string;
+}
+
 export function MemoryBrowserPage(): JSX.Element {
+  return <MemoryBrowserSurface />;
+}
+
+export function MemoryBrowserSurface(props: MemoryBrowserPageProps = {}): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [selectedProjectId, setSelectedProjectId] = useState(searchParams.get('project') ?? '');
-  const [selectedWorkflowId, setSelectedWorkflowId] = useState(searchParams.get('workflow') ?? '');
-  const [selectedWorkItemId, setSelectedWorkItemId] = useState(searchParams.get('work_item') ?? '');
+  const scopedProjectId = props.scopedProjectId?.trim() ?? '';
+  const scopedWorkflowId = props.scopedWorkflowId?.trim() ?? '';
+  const scopedWorkItemId = props.scopedWorkItemId?.trim() ?? '';
+  const [selectedProjectId, setSelectedProjectId] = useState(scopedProjectId || (searchParams.get('project') ?? ''));
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState(scopedWorkflowId || (searchParams.get('workflow') ?? ''));
+  const [selectedWorkItemId, setSelectedWorkItemId] = useState(scopedWorkItemId || (searchParams.get('work_item') ?? ''));
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
 
   const projectsQuery = useQuery({
@@ -89,6 +102,24 @@ export function MemoryBrowserPage(): JSX.Element {
   const selectedWorkItem = workItems.find((workItem) => workItem.id === selectedWorkItemId) ?? null;
 
   useEffect(() => {
+    if (scopedProjectId && selectedProjectId !== scopedProjectId) {
+      setSelectedProjectId(scopedProjectId);
+    }
+  }, [scopedProjectId, selectedProjectId]);
+
+  useEffect(() => {
+    if (scopedWorkflowId && selectedWorkflowId !== scopedWorkflowId) {
+      setSelectedWorkflowId(scopedWorkflowId);
+    }
+  }, [scopedWorkflowId, selectedWorkflowId]);
+
+  useEffect(() => {
+    if (scopedWorkItemId && selectedWorkItemId !== scopedWorkItemId) {
+      setSelectedWorkItemId(scopedWorkItemId);
+    }
+  }, [scopedWorkItemId, selectedWorkItemId]);
+
+  useEffect(() => {
     if (workflows.length === 0) {
       setSelectedWorkflowId('');
       setSelectedWorkItemId('');
@@ -112,14 +143,14 @@ export function MemoryBrowserPage(): JSX.Element {
 
   useEffect(() => {
     const next = new URLSearchParams();
-    if (selectedProjectId) next.set('project', selectedProjectId); else next.delete('project');
-    if (selectedWorkflowId) next.set('workflow', selectedWorkflowId); else next.delete('workflow');
-    if (selectedWorkItemId) next.set('work_item', selectedWorkItemId); else next.delete('work_item');
+    if (!scopedProjectId && selectedProjectId) next.set('project', selectedProjectId); else next.delete('project');
+    if (!scopedWorkflowId && selectedWorkflowId) next.set('workflow', selectedWorkflowId); else next.delete('workflow');
+    if (!scopedWorkItemId && selectedWorkItemId) next.set('work_item', selectedWorkItemId); else next.delete('work_item');
     if (searchQuery) next.set('q', searchQuery); else next.delete('q');
     if (next.toString() !== searchParams.toString()) {
       setSearchParams(next, { replace: true });
     }
-  }, [searchParams, searchQuery, selectedProjectId, selectedWorkflowId, selectedWorkItemId, setSearchParams]);
+  }, [scopedProjectId, scopedWorkflowId, scopedWorkItemId, searchParams, searchQuery, selectedProjectId, selectedWorkflowId, selectedWorkItemId, setSearchParams]);
 
   return (
     <div className="space-y-6 p-6">
@@ -128,6 +159,18 @@ export function MemoryBrowserPage(): JSX.Element {
         <p className="text-sm text-muted">
           Browse project memory alongside workflow and work-item scoped context using deep-linkable v2 filters.
         </p>
+        {scopedProjectId ? (
+          <div className="mt-2 flex flex-wrap gap-2 text-sm">
+            <Link className="underline-offset-4 hover:underline" to={`/projects/${scopedProjectId}`}>
+              Back to Project
+            </Link>
+            {selectedWorkflowId ? (
+              <Link className="underline-offset-4 hover:underline" to={`/work/workflows/${selectedWorkflowId}`}>
+                Open Workflow Board
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <Card>
@@ -143,7 +186,7 @@ export function MemoryBrowserPage(): JSX.Element {
                 Loading projects...
               </div>
             ) : (
-              <Select value={selectedProjectId} onValueChange={(value) => {
+              <Select disabled={scopedProjectId.length > 0} value={selectedProjectId} onValueChange={(value) => {
                 setSelectedProjectId(value);
                 setSelectedWorkflowId('');
                 setSelectedWorkItemId('');

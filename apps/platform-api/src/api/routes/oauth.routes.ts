@@ -11,6 +11,7 @@ const GENERIC_OAUTH_ERROR = 'OAuth callback failed. Retry the connection or reco
 
 export const oauthRoutes: FastifyPluginAsync = async (app) => {
   const service = app.oauthService;
+  const dashboardUrl = app.config.DASHBOARD_URL;
 
   // ── Admin API routes ────────────────────────────────────────────────
 
@@ -82,8 +83,6 @@ export const oauthRoutes: FastifyPluginAsync = async (app) => {
     const code = url.searchParams.get('code');
     const state = url.searchParams.get('state');
     const error = url.searchParams.get('error');
-
-    const dashboardUrl = process.env.DASHBOARD_URL ?? 'http://localhost:3000';
 
     if (error) {
       res.writeHead(302, {

@@ -28,7 +28,7 @@ describe('workflow detail sections source', () => {
     expect(source).toContain('children_completed');
     expect(source).toContain('% complete');
     expect(source).toContain('Apply Board Move');
-    expect(source).toContain('Grouped move controls');
+    expect(source).toContain('Board move controls');
     expect(source).toContain('dashboardApi.updateWorkflowWorkItem');
   });
 
@@ -63,5 +63,7 @@ describe('workflow detail sections source', () => {
     expect(source).toContain('recovery_status');
     expect(source).toContain('stale_started_at');
     expect(source).toContain('redispatched_task_id');
+    expect(source).toContain('Open logs');
+    expect(source).toContain('Redispatched task');
   });
 });

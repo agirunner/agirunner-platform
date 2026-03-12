@@ -90,7 +90,6 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'LLM Providers', href: '/config/llm', icon: Cog },
       { label: 'Runtimes', href: '/config/runtimes', icon: Server },
       { label: 'Integrations', href: '/config/integrations', icon: Link2 },
-      { label: 'Runtime Defaults', href: '/config/runtime-defaults', icon: Settings2 },
       { label: 'Tools', href: '/config/tools', icon: Wrench },
       { label: 'Webhooks', href: '/config/webhooks', icon: Webhook },
       { label: 'Trigger Overview', href: '/config/triggers', icon: Zap },

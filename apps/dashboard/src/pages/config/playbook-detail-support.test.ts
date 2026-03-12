@@ -1,0 +1,158 @@
+import { describe, expect, it } from 'vitest';
+
+import type { DashboardPlaybookRecord } from '../../lib/api.js';
+import {
+  buildPlaybookRestorePayload,
+  buildPlaybookRevisionChain,
+  buildPlaybookRevisionDiff,
+  renderPlaybookSnapshot,
+  summarizePlaybookControls,
+} from './playbook-detail-support.js';
+
+describe('playbook detail support', () => {
+  it('sorts revisions newest first for the same slug', () => {
+    const current = createPlaybook(3);
+    const revisions = buildPlaybookRevisionChain(
+      [createPlaybook(1), createPlaybook(2), current, createPlaybook(5, { slug: 'other' })],
+      current,
+    );
+
+    expect(revisions.map((revision) => revision.version)).toEqual([3, 2, 1]);
+  });
+
+  it('builds structured revision diff rows for changed playbook controls', () => {
+    const current = createPlaybook(3, {
+      definition: {
+        orchestrator: {
+          check_interval: '10m',
+          max_active_tasks: 6,
+          max_active_tasks_per_work_item: 2,
+          allow_parallel_work_items: true,
+        },
+      },
+    });
+    const compared = createPlaybook(2, {
+      description: 'Older description',
+      definition: {
+        orchestrator: {
+          check_interval: '5m',
+          max_active_tasks: 2,
+          max_active_tasks_per_work_item: 1,
+          allow_parallel_work_items: false,
+        },
+      },
+    });
+
+    const diff = buildPlaybookRevisionDiff(current, compared);
+
+    expect(diff.find((row) => row.label === 'Description')).toMatchObject({
+      changed: true,
+      compared: 'Older description',
+    });
+    expect(diff.find((row) => row.label === 'Parallelism policy')).toMatchObject({
+      changed: true,
+    });
+  });
+
+  it('renders restore payloads and human-readable snapshots', () => {
+    const playbook = createPlaybook(4, {
+      description: 'Automates delivery',
+      definition: {
+        roles: ['developer', 'reviewer'],
+      },
+    });
+
+    const payload = buildPlaybookRestorePayload(playbook);
+    const summary = summarizePlaybookControls(playbook);
+    const snapshot = renderPlaybookSnapshot(playbook);
+
+    expect(payload).toMatchObject({
+      name: playbook.name,
+      slug: playbook.slug,
+      outcome: playbook.outcome,
+      definition: playbook.definition,
+    });
+    expect(summary.roles).toContain('developer');
+    expect(snapshot).toContain('Roles: developer, reviewer');
+    expect(snapshot).toContain('Orchestrator cadence:');
+  });
+});
+
+function createPlaybook(
+  version: number,
+  overrides: Partial<DashboardPlaybookRecord> & {
+    definition?: Record<string, unknown>;
+  } = {},
+): DashboardPlaybookRecord {
+  const baseDefinition: Record<string, unknown> = {
+    roles: ['developer'],
+    board: {
+      columns: [
+        { id: 'inbox', label: 'Inbox' },
+        { id: 'done', label: 'Done', is_terminal: true },
+      ],
+    },
+    stages: [{ name: 'delivery', goal: 'Ship the change', human_gate: version % 2 === 0 }],
+    lifecycle: 'continuous',
+    orchestrator: {
+      check_interval: '5m',
+      stale_threshold: '30m',
+      max_rework_iterations: 3,
+      max_active_tasks: 4,
+      max_active_tasks_per_work_item: 2,
+      allow_parallel_work_items: true,
+    },
+    runtime: {
+      pool_mode: 'warm',
+      max_runtimes: 2,
+      orchestrator_pool: {
+        pool_mode: 'warm',
+        max_runtimes: 1,
+      },
+      specialist_pool: {
+        pool_mode: 'cold',
+        max_runtimes: 4,
+      },
+    },
+    parameters: [{ name: 'goal', type: 'string', required: true }],
+  };
+
+  return {
+    id: `playbook-${version}`,
+    name: `Delivery Playbook`,
+    slug: 'delivery-playbook',
+    description: 'Current description',
+    outcome: 'Ship production-ready changes',
+    lifecycle: 'continuous',
+    version,
+    definition: mergeDefinition(baseDefinition, overrides.definition),
+    created_at: '2026-03-10T12:00:00Z',
+    updated_at: `2026-03-1${version}T12:00:00Z`,
+    ...overrides,
+  };
+}
+
+function mergeDefinition(
+  base: Record<string, unknown>,
+  overrides?: Record<string, unknown>,
+): Record<string, unknown> {
+  if (!overrides) {
+    return base;
+  }
+  return {
+    ...base,
+    ...overrides,
+    board: {
+      ...(base.board as Record<string, unknown>),
+      ...((overrides.board as Record<string, unknown> | undefined) ?? {}),
+    },
+    orchestrator: {
+      ...(base.orchestrator as Record<string, unknown>),
+      ...((overrides.orchestrator as Record<string, unknown> | undefined) ?? {}),
+    },
+    runtime: {
+      ...(base.runtime as Record<string, unknown>),
+      ...((overrides.runtime as Record<string, unknown> | undefined) ?? {}),
+    },
+  };
+}
