@@ -4,6 +4,7 @@ import type { ArtifactStorageEnv } from '../content/storage-config.js';
 export interface CreateTaskInput {
   title: string;
   description?: string;
+  type?: 'analysis' | 'code' | 'review' | 'test' | 'docs' | 'orchestration' | 'custom';
   priority?: string;
   workflow_id?: string;
   work_item_id?: string;
@@ -14,6 +15,7 @@ export interface CreateTaskInput {
   is_orchestrator_task?: boolean;
   parent_id?: string;
   role?: string;
+  credentials?: Record<string, string>;
   input?: Record<string, unknown>;
   context?: Record<string, unknown>;
   depends_on?: string[];

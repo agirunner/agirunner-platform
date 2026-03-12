@@ -11,14 +11,20 @@ import { TaskAgentScopeService } from '../../services/task-agent-scope-service.j
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
 
+const orchestratorTaskTypeSchema = z.enum(['analysis', 'code', 'review', 'test', 'docs', 'custom']);
+const credentialRefsSchema = z.record(z.string().min(1).max(255)).refine(
+  (record) => Object.values(record).every((value) => value.trim().startsWith('secret:')),
+  { message: 'credentials must use secret: references' },
+);
+
 const workItemCreateSchema = z.object({
   request_id: z.string().min(1).max(255),
   parent_work_item_id: z.string().uuid().optional(),
-  stage_name: z.string().min(1).max(120).optional(),
+  stage_name: z.string().min(1).max(120),
   title: z.string().min(1).max(500),
-  goal: z.string().max(4000).optional(),
-  acceptance_criteria: z.string().max(4000).optional(),
-  column_id: z.string().min(1).max(120).optional(),
+  goal: z.string().min(1).max(4000),
+  acceptance_criteria: z.string().min(1).max(4000),
+  column_id: z.string().min(1).max(120),
   owner_role: z.string().max(120).optional(),
   priority: z.enum(['critical', 'high', 'normal', 'low']).optional(),
   notes: z.string().max(4000).optional(),
@@ -42,14 +48,16 @@ const workItemUpdateSchema = z.object({
 const orchestratorTaskCreateSchema = z.object({
   request_id: z.string().min(1).max(255),
   title: z.string().min(1).max(500),
-  description: z.string().max(5000).optional(),
+  description: z.string().min(1).max(5000),
   work_item_id: z.string().uuid(),
-  stage_name: z.string().max(120).optional(),
+  stage_name: z.string().min(1).max(120),
   role: z.string().min(1).max(120),
+  type: orchestratorTaskTypeSchema.optional(),
   priority: z.enum(['critical', 'high', 'normal', 'low']).optional(),
   input: z.record(z.unknown()).optional(),
   context: z.record(z.unknown()).optional(),
   depends_on: z.array(z.string().uuid()).optional(),
+  credentials: credentialRefsSchema.optional(),
   requires_approval: z.boolean().optional(),
   requires_output_review: z.boolean().optional(),
   review_prompt: z.string().max(2000).optional(),
@@ -117,8 +125,8 @@ const stageAdvanceSchema = z.object({
 
 const workflowCompleteSchema = z.object({
   request_id: z.string().min(1).max(255),
-  stage_name: z.string().min(1).max(120).optional(),
   summary: z.string().min(1).max(4000),
+  final_artifacts: z.array(z.string().min(1).max(2000)).max(100).optional(),
 });
 
 const projectMemoryWriteSchema = z.object({
@@ -439,7 +447,6 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
               workflow_id: taskScope.workflow_id,
               project_id: taskScope.project_id ?? undefined,
               activation_id: taskScope.activation_id ?? undefined,
-              stage_name: body.stage_name,
               is_orchestrator_task: false,
               capabilities_required: body.capabilities_required ?? [body.role],
               metadata: {

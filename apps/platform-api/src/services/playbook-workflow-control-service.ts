@@ -105,8 +105,8 @@ export interface AdvanceStageInput {
 }
 
 export interface CompleteWorkflowInput {
-  stage_name?: string;
   summary: string;
+  final_artifacts?: string[];
 }
 
 interface NormalizedWorkItemUpdate {
@@ -531,40 +531,41 @@ export class PlaybookWorkflowControlService {
         workflow_id: workflowId,
         state: 'completed',
         summary: readCompletionSummary(workflow) ?? input.summary.trim(),
+        final_artifacts: readCompletionArtifacts(workflow),
       };
     }
 
-    if (input.stage_name) {
-      const stage = await this.loadStage(identity.tenantId, workflowId, input.stage_name, db);
-      if (workflow.active_stage_name !== stage.name) {
-        throw new ValidationError(`Stage '${stage.name}' is not the current workflow stage`);
-      }
+    const finalArtifacts = normalizeStringArray(input.final_artifacts);
+    if (workflow.active_stage_name) {
+      const stage = await this.loadStage(identity.tenantId, workflowId, workflow.active_stage_name, db);
       if (stage.human_gate && stage.gate_status !== 'approved') {
         throw new ValidationError(`Stage '${stage.name}' requires human approval before workflow completion`);
       }
-      await db.query(
-        `UPDATE workflow_stages
-            SET status = 'completed',
-                completed_at = COALESCE(completed_at, now()),
-                summary = COALESCE($4, summary),
-                updated_at = now()
-          WHERE tenant_id = $1
-            AND workflow_id = $2
-            AND name = $3`,
-        [identity.tenantId, workflowId, stage.name, input.summary.trim()],
-      );
-      await this.deps.eventService.emit(
-        {
-          tenantId: identity.tenantId,
-          type: 'stage.completed',
-          entityType: 'workflow',
-          entityId: workflowId,
-          actorType: identity.scope,
-          actorId: identity.keyPrefix,
-          data: { stage_name: stage.name, summary: input.summary.trim() },
-        },
-        db,
-      );
+      if (stage.status !== 'completed') {
+        await db.query(
+          `UPDATE workflow_stages
+              SET status = 'completed',
+                  completed_at = COALESCE(completed_at, now()),
+                  summary = COALESCE($4, summary),
+                  updated_at = now()
+            WHERE tenant_id = $1
+              AND workflow_id = $2
+              AND name = $3`,
+          [identity.tenantId, workflowId, stage.name, input.summary.trim()],
+        );
+        await this.deps.eventService.emit(
+          {
+            tenantId: identity.tenantId,
+            type: 'stage.completed',
+            entityType: 'workflow',
+            entityId: workflowId,
+            actorType: identity.scope,
+            actorId: identity.keyPrefix,
+            data: { stage_name: stage.name, summary: input.summary.trim() },
+          },
+          db,
+        );
+      }
     }
 
     const incompleteStages = await db.query<{ name: string }>(
@@ -583,11 +584,21 @@ export class PlaybookWorkflowControlService {
     await db.query(
       `UPDATE workflows
           SET current_stage = NULL,
-              orchestration_state = jsonb_set(orchestration_state, '{completion_summary}', to_jsonb($3::text), true),
+              orchestration_state = jsonb_set(
+                jsonb_set(
+                  COALESCE(orchestration_state, '{}'::jsonb),
+                  '{completion_summary}',
+                  to_jsonb($3::text),
+                  true
+                ),
+                '{final_artifacts}',
+                $4::jsonb,
+                true
+              ),
               updated_at = now()
         WHERE tenant_id = $1
           AND id = $2`,
-      [identity.tenantId, workflowId, input.summary.trim()],
+      [identity.tenantId, workflowId, input.summary.trim(), JSON.stringify(finalArtifacts)],
     );
     const state = await this.deps.stateService.recomputeWorkflowState(identity.tenantId, workflowId, db, {
       actorType: identity.scope,
@@ -604,7 +615,7 @@ export class PlaybookWorkflowControlService {
         entityId: workflowId,
         actorType: identity.scope,
         actorId: identity.keyPrefix,
-        data: { summary: input.summary.trim() },
+        data: { summary: input.summary.trim(), final_artifacts: finalArtifacts },
       },
       db,
     );
@@ -612,6 +623,7 @@ export class PlaybookWorkflowControlService {
       workflow_id: workflowId,
       state,
       summary: input.summary.trim(),
+      final_artifacts: finalArtifacts,
     };
   }
 
@@ -1151,6 +1163,14 @@ function readCompletionSummary(workflow: WorkflowContextRow) {
   }
   const value = state.completion_summary;
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function readCompletionArtifacts(workflow: WorkflowContextRow) {
+  const state = workflow.orchestration_state;
+  if (!state || typeof state !== 'object') {
+    return [] as string[];
+  }
+  return normalizeStringArray(state.final_artifacts);
 }
 
 function normalizeStringArray(value: unknown) {

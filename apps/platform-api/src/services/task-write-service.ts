@@ -46,6 +46,7 @@ export class TaskWriteService {
   ) {
     if (!input.title?.trim()) throw new ValidationError('title is required');
     assertNoPlaintextSecrets('task create payload', {
+      credentials: input.credentials,
       input: input.input,
       context: input.context,
       role_config: input.role_config,
@@ -91,6 +92,8 @@ export class TaskWriteService {
         ? { lifecycle_policy: { retry_policy: readTemplateLifecyclePolicy({ retry_policy: normalizedInput.retry_policy }, 'retry_policy')?.retry_policy } }
         : {}),
       ...(normalizedInput.description ? { description: normalizedInput.description } : {}),
+      ...(normalizedInput.type ? { task_type: normalizedInput.type } : {}),
+      ...(normalizedInput.credentials ? { credential_refs: normalizedInput.credentials } : {}),
       ...(normalizedInput.parent_id ? { parent_id: normalizedInput.parent_id } : {}),
       ...(normalizedInput.review_prompt ? { review_prompt: normalizedInput.review_prompt } : {}),
     };

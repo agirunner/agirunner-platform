@@ -1868,7 +1868,7 @@ describe('PlaybookWorkflowControlService', () => {
     const result = await service.completeWorkflow(
       { tenantId: 'tenant-1', scope: 'agent', ownerType: 'agent', ownerId: 'agent-1', keyPrefix: 'k1', id: 'key-1' },
       'workflow-1',
-      { stage_name: 'implementation', summary: 'Ship it' },
+      { summary: 'Ship it' },
       {} as never,
     );
 
@@ -1876,6 +1876,120 @@ describe('PlaybookWorkflowControlService', () => {
       workflow_id: 'workflow-1',
       state: 'completed',
       summary: 'Ship it',
+      final_artifacts: [],
     });
+  });
+
+  it('completes the active stage implicitly and records final artifacts when finishing a workflow', async () => {
+    const emit = vi.fn(async () => undefined);
+    const recomputeWorkflowState = vi.fn(async () => 'completed');
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              project_id: 'project-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'standard',
+              active_stage_name: 'implementation',
+              state: 'active',
+              orchestration_state: {},
+              definition,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_stages') && sql.includes('name = $3')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'stage-2',
+              name: 'implementation',
+              position: 1,
+              goal: 'Ship the feature',
+              guidance: null,
+              human_gate: false,
+              status: 'in_progress',
+              gate_status: 'not_requested',
+              iteration_count: 0,
+              summary: null,
+              metadata: {},
+              started_at: new Date('2026-03-11T01:00:00Z'),
+              completed_at: null,
+              updated_at: new Date('2026-03-11T01:00:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('UPDATE workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation', 'Ship it']);
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT name') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE workflows')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'Ship it',
+            JSON.stringify(['artifacts/release-notes.md', 'artifacts/test-report.json']),
+          ]);
+          return { rowCount: 1, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: { emit } as never,
+      stateService: { recomputeWorkflowState } as never,
+      activationService: { enqueueForWorkflow: vi.fn() } as never,
+      activationDispatchService: { dispatchActivation: vi.fn() } as never,
+    });
+
+    const result = await service.completeWorkflow(
+      { tenantId: 'tenant-1', scope: 'agent', ownerType: 'agent', ownerId: 'agent-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      {
+        summary: 'Ship it',
+        final_artifacts: ['artifacts/release-notes.md', 'artifacts/test-report.json'],
+      },
+      pool as never,
+    );
+
+    expect(result).toEqual({
+      workflow_id: 'workflow-1',
+      state: 'completed',
+      summary: 'Ship it',
+      final_artifacts: ['artifacts/release-notes.md', 'artifacts/test-report.json'],
+    });
+    expect(recomputeWorkflowState).toHaveBeenCalledWith(
+      'tenant-1',
+      'workflow-1',
+      pool,
+      expect.objectContaining({ actorId: 'k1', actorType: 'agent' }),
+    );
+    expect(emit).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        type: 'stage.completed',
+        data: { stage_name: 'implementation', summary: 'Ship it' },
+      }),
+      pool,
+    );
+    expect(emit).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        type: 'workflow.completed',
+        data: {
+          summary: 'Ship it',
+          final_artifacts: ['artifacts/release-notes.md', 'artifacts/test-report.json'],
+        },
+      }),
+      pool,
+    );
   });
 });

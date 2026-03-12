@@ -504,7 +504,6 @@ describe('playbook workflow integration', () => {
       identity,
       String(workflow.id),
       {
-        stage_name: 'implementation',
         summary: 'Release candidate shipped',
       },
     );
@@ -512,6 +511,7 @@ describe('playbook workflow integration', () => {
       workflow_id: workflow.id,
       state: 'completed',
       summary: 'Release candidate shipped',
+      final_artifacts: [],
     });
 
     const hydratedWorkflow = await harness.workflowService.getWorkflow(
@@ -1376,7 +1376,6 @@ describe('playbook workflow integration', () => {
         identity,
         String(childWorkflow.id),
         {
-          stage_name: 'implementation',
           summary: 'Child workflow delivered the requested outcome',
         },
       );

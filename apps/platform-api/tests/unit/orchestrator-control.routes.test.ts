@@ -191,6 +191,7 @@ describe('orchestratorControlRoutes', () => {
         request_id: 'smk120-item-1',
         title: 'Recovered work item',
         goal: 'Changed replay text after recovery',
+        acceptance_criteria: 'Recovered acceptance criteria',
         stage_name: 'triage',
         column_id: 'backlog',
       },
@@ -229,6 +230,9 @@ describe('orchestratorControlRoutes', () => {
       payload: {
         title: 'Recovered work item',
         goal: 'Changed replay text after recovery',
+        acceptance_criteria: 'Recovered acceptance criteria',
+        stage_name: 'triage',
+        column_id: 'backlog',
       },
     });
 
@@ -449,6 +453,149 @@ describe('orchestratorControlRoutes', () => {
       client,
     );
     expect(response.json().data).toEqual(updatedTask);
+  });
+
+  it('creates a specialist task with the canonical orchestrator contract fields', async () => {
+    const workItemId = '11111111-1111-4111-8111-111111111111';
+    const createdTask = {
+      id: 'task-specialist',
+      workflow_id: 'workflow-1',
+      work_item_id: workItemId,
+      stage_name: 'implementation',
+      role: 'developer',
+      state: 'pending',
+      metadata: {},
+    };
+    const taskService = {
+      createTask: vi.fn().mockResolvedValue(createdTask),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'create_task', 'create-task-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return { rowCount: 1, rows: [{ response: createdTask }] };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-orchestrator']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-orchestrator',
+              workflow_id: 'workflow-1',
+              project_id: 'project-1',
+              work_item_id: null,
+              stage_name: 'implementation',
+              activation_id: 'activation-1',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => client),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', taskService);
+    app.decorate('projectService', {
+      patchProjectMemory: vi.fn(),
+      removeProjectMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'create-task-1',
+        title: 'Implement auth flow',
+        description: 'Implement the authentication workflow end to end.',
+        work_item_id: workItemId,
+        stage_name: 'implementation',
+        role: 'developer',
+        type: 'code',
+        credentials: {
+          git_token_ref: 'secret:GITHUB_PAT',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(taskService.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      expect.objectContaining({
+        title: 'Implement auth flow',
+        description: 'Implement the authentication workflow end to end.',
+        work_item_id: workItemId,
+        stage_name: 'implementation',
+        role: 'developer',
+        type: 'code',
+        credentials: {
+          git_token_ref: 'secret:GITHUB_PAT',
+        },
+        metadata: expect.objectContaining({
+          created_by_orchestrator_task_id: 'task-orchestrator',
+          orchestrator_activation_id: 'activation-1',
+        }),
+      }),
+      client,
+    );
+    expect(response.json().data).toEqual(createdTask);
+  });
+
+  it('rejects create_task when canonical required fields are missing', async () => {
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', { query: vi.fn(), connect: vi.fn() });
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', { createTask: vi.fn() });
+    app.decorate('projectService', {
+      patchProjectMemory: vi.fn(),
+      removeProjectMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'create-task-2',
+        title: 'Implement auth flow',
+        work_item_id: '11111111-1111-4111-8111-111111111111',
+        role: 'developer',
+      },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json().error.code).toBe('SCHEMA_VALIDATION_FAILED');
   });
 
   it('approves a specialist task through the replay-safe orchestrator bridge', async () => {
