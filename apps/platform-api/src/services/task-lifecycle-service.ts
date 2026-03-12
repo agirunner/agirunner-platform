@@ -518,6 +518,32 @@ export class TaskLifecycleService {
     return 'pending';
   }
 
+  private async resolveCreatedSpecialistTaskState(
+    tenantId: string,
+    task: {
+      workflow_id?: string | null;
+      work_item_id?: string | null;
+      is_orchestrator_task?: boolean;
+    },
+    client: DatabaseClient,
+  ): Promise<'ready' | 'pending'> {
+    if (!this.deps.parallelismService) {
+      return 'ready';
+    }
+
+    const shouldQueue = await this.deps.parallelismService.shouldQueueForCapacity(
+      tenantId,
+      {
+        workflowId: task.workflow_id ?? null,
+        workItemId: task.work_item_id ?? null,
+        isOrchestratorTask: Boolean(task.is_orchestrator_task),
+        currentState: null,
+      },
+      client,
+    );
+    return shouldQueue ? 'pending' : 'ready';
+  }
+
   async startTask(
     identity: ApiKeyIdentity,
     taskId: string,
@@ -1552,13 +1578,19 @@ export class TaskLifecycleService {
         resolved_at: new Date().toISOString(),
       },
     };
+    const reopenedState = await this.resolveNextState(
+      identity.tenantId,
+      sourceTask,
+      'ready',
+      client,
+    );
 
     await client.query(
-      `UPDATE tasks SET state = 'ready', state_changed_at = now(), input = $3::jsonb,
+      `UPDATE tasks SET state = $4::task_state, state_changed_at = now(), input = $3::jsonb,
        assigned_agent_id = NULL, assigned_worker_id = NULL, claimed_at = NULL, started_at = NULL,
        output = NULL, error = NULL, metrics = NULL, git_info = NULL
        WHERE tenant_id = $1 AND id = $2`,
-      [identity.tenantId, sourceTaskId, nextInput],
+      [identity.tenantId, sourceTaskId, nextInput, toStoredTaskState(reopenedState)],
     );
 
     await this.deps.eventService.emit(
@@ -1571,7 +1603,7 @@ export class TaskLifecycleService {
         actorId: 'smart_escalation',
         data: {
           from_state: 'escalated',
-          to_state: 'ready',
+          to_state: reopenedState,
           reason: 'escalation_resolved',
         },
       },
@@ -1611,6 +1643,15 @@ export class TaskLifecycleService {
     client: DatabaseClient,
   ): Promise<Record<string, unknown>> {
     const title = `Escalation: ${String(sourceTask.title ?? 'task')}`;
+    const initialState = await this.resolveCreatedSpecialistTaskState(
+      identity.tenantId,
+      {
+        workflow_id: (sourceTask.workflow_id as string | null | undefined) ?? null,
+        work_item_id: (sourceTask.work_item_id as string | null | undefined) ?? null,
+        is_orchestrator_task: false,
+      },
+      client,
+    );
     const input = {
       escalation: true,
       source_task_id: sourceTask.id,
@@ -1628,19 +1669,22 @@ export class TaskLifecycleService {
 
     const escalationInsert = await client.query(
       `INSERT INTO tasks (
-         tenant_id, workflow_id, project_id, title, role, priority, state, depends_on,
+         tenant_id, workflow_id, work_item_id, project_id, title, role, stage_name, priority, state, depends_on,
          requires_approval, input, context, capabilities_required, role_config, environment,
          resource_bindings, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, metadata
        ) VALUES (
-         $1,$2,$3,$4,$5,'high','ready',$6::uuid[],$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
+         $1,$2,$3,$4,$5,$6,$7,'high',$8::task_state,$9::uuid[],$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21
        )
        RETURNING *`,
       [
         identity.tenantId,
         sourceTask.workflow_id ?? null,
+        sourceTask.work_item_id ?? null,
         sourceTask.project_id ?? null,
         title,
         targetRole,
+        sourceTask.stage_name ?? null,
+        initialState,
         [],
         false,
         input,
@@ -1668,7 +1712,7 @@ export class TaskLifecycleService {
         entityId: String(escalationTask.id),
         actorType: 'system',
         actorId: 'smart_escalation',
-        data: { state: 'ready' },
+        data: { state: initialState },
       },
       client,
     );
@@ -1695,22 +1739,34 @@ export class TaskLifecycleService {
     }
 
     const escalationTaskInput = buildEscalationTaskInput(task, escalation, failure);
+    const initialState = await this.resolveCreatedSpecialistTaskState(
+      identity.tenantId,
+      {
+        workflow_id: (escalationTaskInput.workflow_id as string | null | undefined) ?? null,
+        work_item_id: (escalationTaskInput.work_item_id as string | null | undefined) ?? null,
+        is_orchestrator_task: false,
+      },
+      client,
+    );
     const escalationInsert = await client.query(
       `INSERT INTO tasks (
-         tenant_id, workflow_id, project_id, title, role, priority, state, depends_on,
+         tenant_id, workflow_id, work_item_id, project_id, title, role, stage_name, priority, state, depends_on,
          requires_approval, input, context, capabilities_required, role_config, environment,
          resource_bindings, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, metadata
        ) VALUES (
-         $1,$2,$3,$4,$5,$6,'ready',$7::uuid[],$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
+         $1,$2,$3,$4,$5,$6,$7,$8,$9::task_state,$10::uuid[],$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22
        )
        RETURNING *`,
       [
         identity.tenantId,
         escalationTaskInput.workflow_id ?? null,
+        escalationTaskInput.work_item_id ?? null,
         escalationTaskInput.project_id ?? null,
         escalationTaskInput.title,
         escalationTaskInput.role ?? null,
+        escalationTaskInput.stage_name ?? null,
         escalationTaskInput.priority ?? 'normal',
+        initialState,
         [],
         false,
         escalationTaskInput.input ?? {},
@@ -1737,7 +1793,7 @@ export class TaskLifecycleService {
         entityId: String(escalationTask.id),
         actorType: 'system',
         actorId: 'lifecycle_policy',
-        data: { state: 'ready' },
+        data: { state: initialState },
       },
       client,
     );
@@ -1870,7 +1926,9 @@ function buildEscalationTaskInput(
     role: escalation.role,
     priority: 'high',
     workflow_id: task.workflow_id as string | undefined,
+    work_item_id: task.work_item_id as string | undefined,
     project_id: task.project_id as string | undefined,
+    stage_name: task.stage_name as string | undefined,
     parent_id: task.id as string,
     input: {
       source_task_id: task.id,

@@ -1265,6 +1265,121 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
   });
 
+  it('queues lifecycle escalation tasks in pending when playbook parallelism is full', async () => {
+    const eventService = { emit: vi.fn() };
+    const parallelismService = {
+      shouldQueueForCapacity: vi.fn(async () => true),
+      releaseQueuedReadyTasks: vi.fn(async () => 1),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-escalate-pending',
+                state: 'failed',
+                workflow_id: 'pipe-1',
+                work_item_id: 'wi-1',
+                stage_name: 'build',
+                title: 'Compile',
+                role: 'builder',
+                timeout_minutes: 20,
+                retry_count: 1,
+                error: { category: 'validation_error', message: 'bad input' },
+                metadata: {
+                  lifecycle_policy: {
+                    escalation: {
+                      enabled: true,
+                      role: 'orchestrator',
+                      title_template: 'Escalation: {{task_title}}',
+                    },
+                  },
+                },
+              },
+            ],
+          };
+        }
+        if (sql.startsWith('INSERT INTO tasks')) {
+          expect(values).toEqual(expect.arrayContaining(['wi-1', 'build', 'pending']));
+          return {
+            rowCount: 1,
+            rows: [{ id: 'escalation-queued' }],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-escalate-pending',
+        state: 'in_progress',
+        workflow_id: 'pipe-1',
+        work_item_id: 'wi-1',
+        stage_name: 'build',
+        project_id: null,
+        title: 'Compile',
+        role: 'builder',
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        timeout_minutes: 20,
+        retry_count: 1,
+        metadata: {
+          lifecycle_policy: {
+            escalation: {
+              enabled: true,
+              role: 'orchestrator',
+              title_template: 'Escalation: {{task_title}}',
+            },
+          },
+        },
+      }),
+      toTaskResponse: (task) => task,
+      parallelismService: parallelismService as never,
+    });
+
+    await service.failTask(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'ak',
+      },
+      'task-escalate-pending',
+      {
+        error: { category: 'validation_error', message: 'bad input', recoverable: false },
+      },
+    );
+
+    expect(parallelismService.shouldQueueForCapacity).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        workflowId: 'pipe-1',
+        workItemId: 'wi-1',
+        currentState: null,
+      }),
+      client,
+    );
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'task.created',
+        entityId: 'escalation-queued',
+        data: expect.objectContaining({ state: 'pending' }),
+      }),
+      client,
+    );
+  });
+
   it('moves a manually escalated task into escalated state and records operator guidance metadata', async () => {
     const eventService = { emit: vi.fn() };
     const client = {
@@ -1340,6 +1455,115 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'task.escalated' }),
       expect.anything(),
+    );
+  });
+
+  it('queues role-based escalation tasks in pending and preserves work-item scope when caps are full', async () => {
+    const eventService = { emit: vi.fn() };
+    const parallelismService = {
+      shouldQueueForCapacity: vi.fn(async () => true),
+      releaseQueuedReadyTasks: vi.fn(async () => 1),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET')) {
+          if (sql.includes('metadata = metadata || $3::jsonb')) {
+            return { rowCount: 1, rows: [] };
+          }
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-role-escalate',
+                state: 'escalated',
+                workflow_id: 'wf-1',
+                work_item_id: 'wi-role',
+                stage_name: 'build',
+                project_id: null,
+                assigned_agent_id: null,
+                assigned_worker_id: null,
+                role: 'developer',
+                title: 'Implement fix',
+                metadata: {
+                  escalation_reason: 'Need reviewer help',
+                  escalation_target: 'reviewer',
+                },
+              },
+            ],
+          };
+        }
+        if (sql.startsWith('INSERT INTO tasks')) {
+          expect(values).toEqual(expect.arrayContaining(['wi-role', 'build', 'pending']));
+          return {
+            rowCount: 1,
+            rows: [{ id: 'role-escalation-task' }],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-role-escalate',
+        state: 'in_progress',
+        workflow_id: 'wf-1',
+        work_item_id: 'wi-role',
+        stage_name: 'build',
+        project_id: null,
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        role: 'developer',
+        title: 'Implement fix',
+        input: { instructions: 'fix it' },
+        metadata: {},
+      }),
+      toTaskResponse: (task) => task,
+      getRoleByName: vi.fn(async () => ({
+        escalation_target: 'reviewer',
+        max_escalation_depth: 2,
+      })),
+      parallelismService: parallelismService as never,
+    });
+
+    await service.agentEscalate(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'ak',
+      },
+      'task-role-escalate',
+      {
+        reason: 'Need reviewer help',
+        context_summary: 'Waiting on a reviewer decision',
+      },
+    );
+
+    expect(parallelismService.shouldQueueForCapacity).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        workflowId: 'wf-1',
+        workItemId: 'wi-role',
+        currentState: null,
+      }),
+      client,
+    );
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'task.created',
+        entityId: 'role-escalation-task',
+        data: expect.objectContaining({ state: 'pending' }),
+      }),
+      client,
     );
   });
 
@@ -1560,6 +1784,136 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
 
     expect(result).toEqual(existingTask);
     expect(client.query).not.toHaveBeenCalled();
+  });
+
+  it('reopens an escalated source task in pending when escalation resolution would exceed playbook capacity', async () => {
+    const eventService = { emit: vi.fn() };
+    const parallelismService = {
+      shouldQueueForCapacity: vi.fn(async () => true),
+      releaseQueuedReadyTasks: vi.fn(async () => 1),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET') && !sql.includes('state = $4::task_state')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'escalation-task',
+                state: 'completed',
+                workflow_id: 'wf-1',
+                is_orchestrator_task: false,
+                assigned_agent_id: null,
+                assigned_worker_id: null,
+                role: 'reviewer',
+                output: { resolution: 'Ship it' },
+                metadata: { escalation_source_task_id: 'source-task' },
+              },
+            ],
+          };
+        }
+        if (sql.includes("WHERE tenant_id = $1 AND state = 'pending' AND $2 = ANY(depends_on)")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql === 'SELECT playbook_id FROM workflows WHERE tenant_id = $1 AND id = $2') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('SELECT * FROM tasks WHERE tenant_id = $1 AND id = $2 FOR UPDATE')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'source-task',
+                state: 'escalated',
+                workflow_id: 'wf-1',
+                work_item_id: 'wi-1',
+                stage_name: 'build',
+                assigned_agent_id: null,
+                assigned_worker_id: null,
+                input: {},
+                metadata: {},
+              },
+            ],
+          };
+        }
+        if (sql.includes('state = $4::task_state')) {
+          expect(values).toEqual([
+            'tenant-1',
+            'source-task',
+            expect.objectContaining({
+              escalation_resolution: expect.objectContaining({
+                resolved_by_role: 'reviewer',
+                resolved_by_task_id: 'escalation-task',
+              }),
+            }),
+            'pending',
+          ]);
+          return { rowCount: 1, rows: [] };
+        }
+        return { rowCount: 0, rows: [] };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'escalation-task',
+        state: 'in_progress',
+        workflow_id: 'wf-1',
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        role: 'reviewer',
+        role_config: {},
+        output: null,
+        metadata: { escalation_source_task_id: 'source-task' },
+      }),
+      toTaskResponse: (task) => task,
+      parallelismService: parallelismService as never,
+    });
+
+    await service.completeTask(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'ak',
+      },
+      'escalation-task',
+      {
+        output: { resolution: 'Ship it' },
+      },
+    );
+
+    expect(parallelismService.shouldQueueForCapacity).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        taskId: 'source-task',
+        workflowId: 'wf-1',
+        workItemId: 'wi-1',
+        currentState: 'escalated',
+      }),
+      client,
+    );
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'task.state_changed',
+        entityId: 'source-task',
+        actorId: 'smart_escalation',
+        data: expect.objectContaining({
+          from_state: 'escalated',
+          to_state: 'pending',
+          reason: 'escalation_resolved',
+        }),
+      }),
+      client,
+    );
   });
 
   it('treats a repeated skip as idempotent once the skipped output is already stored', async () => {

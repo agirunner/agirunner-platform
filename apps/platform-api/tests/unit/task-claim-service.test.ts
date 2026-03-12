@@ -26,6 +26,9 @@ function createClient(executionMode: 'specialist' | 'orchestrator') {
       if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
         return { rowCount: 0, rows: [] };
       }
+      if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+        return { rowCount: 0, rows: [] };
+      }
       if (sql.includes('UPDATE tasks')) {
         return { rowCount: 0, rows: [] };
       }
@@ -111,6 +114,9 @@ describe('TaskClaimService', () => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
         if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
           return { rowCount: 0, rows: [] };
         }
@@ -180,10 +186,141 @@ describe('TaskClaimService', () => {
     );
   });
 
+  it('only promotes expired retry-backoff tasks into ready when parallelism capacity allows it', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return {
+            rowCount: 2,
+            rows: [
+              {
+                id: 'task-retry-blocked',
+                workflow_id: 'wf-1',
+                work_item_id: 'wi-1',
+                is_orchestrator_task: false,
+                state: 'pending',
+              },
+              {
+                id: 'task-retry-open',
+                workflow_id: 'wf-1',
+                work_item_id: 'wi-2',
+                is_orchestrator_task: false,
+                state: 'pending',
+              },
+            ],
+          };
+        }
+        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
+          expect(params).toEqual(['tenant-1', 'task-retry-open']);
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [
+              { id: 'task-retry-open', workflow_id: 'wf-1', work_item_id: 'wi-2', state: 'ready', project_id: null },
+            ],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{ id: 'task-retry-open', workflow_id: 'wf-1', state: 'claimed', role_config: {}, metadata: {} }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT') && sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const parallelismService = {
+      shouldQueueForCapacity: vi
+        .fn()
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(false),
+    };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: eventService as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      parallelismService: parallelismService as never,
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['llm-api'],
+      workflow_id: 'wf-1',
+    });
+
+    expect(task?.id).toBe('task-retry-open');
+    expect(parallelismService.shouldQueueForCapacity).toHaveBeenNthCalledWith(
+      1,
+      'tenant-1',
+      expect.objectContaining({
+        taskId: 'task-retry-blocked',
+        workflowId: 'wf-1',
+        workItemId: 'wi-1',
+        currentState: 'pending',
+      }),
+      client,
+    );
+    expect(parallelismService.shouldQueueForCapacity).toHaveBeenNthCalledWith(
+      2,
+      'tenant-1',
+      expect.objectContaining({
+        taskId: 'task-retry-open',
+        workflowId: 'wf-1',
+        workItemId: 'wi-2',
+        currentState: 'pending',
+      }),
+      client,
+    );
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'task.state_changed',
+        entityId: 'task-retry-open',
+        data: expect.objectContaining({
+          from_state: 'pending',
+          to_state: 'ready',
+          reason: 'retry_backoff_elapsed',
+        }),
+      }),
+      client,
+    );
+  });
+
   it('returns claim-time secret references without echoing secrets in role_config', async () => {
     const client = {
       query: vi.fn(async (sql: string, _params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
@@ -294,6 +431,9 @@ describe('TaskClaimService', () => {
     const client = {
       query: vi.fn(async (sql: string, _params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
@@ -407,6 +547,9 @@ describe('TaskClaimService', () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
@@ -541,6 +684,9 @@ describe('TaskClaimService', () => {
     const client = {
       query: vi.fn(async (sql: string, _params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {

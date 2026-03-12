@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabasePool } from '../db/database.js';
+import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { AgentBusyError, ForbiddenError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import {
   isExternalSecretReference,
@@ -55,6 +55,14 @@ interface DirectModelLookupRow {
   model_reasoning_config: Record<string, unknown> | null;
 }
 
+interface RetryReadyTaskRow {
+  id: string;
+  workflow_id: string | null;
+  work_item_id: string | null;
+  is_orchestrator_task: boolean;
+  state: TaskState;
+}
+
 export class TaskClaimService {
   constructor(private readonly deps: TaskClaimDependencies) {}
 
@@ -72,17 +80,7 @@ export class TaskClaimService {
     const client = await this.deps.pool.connect();
     try {
       await client.query('BEGIN');
-      await client.query(
-        `UPDATE tasks
-            SET state = 'ready',
-                state_changed_at = now()
-          WHERE tenant_id = $1
-            AND state = 'pending'
-            AND metadata ? 'retry_available_at'
-            AND ($2::uuid IS NULL OR workflow_id = $2::uuid)
-            AND (metadata->>'retry_available_at')::timestamptz <= now()`,
-        [identity.tenantId, payload.workflow_id ?? null],
-      );
+      await this.promoteRetryReadyTasks(identity.tenantId, payload.workflow_id, client);
 
       const agentRes = await client.query('SELECT * FROM agents WHERE tenant_id = $1 AND id = $2 FOR UPDATE', [
         identity.tenantId,
@@ -279,6 +277,74 @@ export class TaskClaimService {
       throw error;
     } finally {
       client.release();
+    }
+  }
+
+  private async promoteRetryReadyTasks(
+    tenantId: string,
+    workflowId: string | undefined,
+    client: DatabaseClient,
+  ): Promise<void> {
+    const candidates = await client.query<RetryReadyTaskRow>(
+      `SELECT id, workflow_id, work_item_id, is_orchestrator_task, state
+         FROM tasks
+        WHERE tenant_id = $1
+          AND state = 'pending'
+          AND metadata ? 'retry_available_at'
+          AND ($2::uuid IS NULL OR workflow_id = $2::uuid)
+          AND (metadata->>'retry_available_at')::timestamptz <= now()
+        ORDER BY ${priorityCase} DESC, created_at ASC
+        FOR UPDATE SKIP LOCKED`,
+      [tenantId, workflowId ?? null],
+    );
+
+    for (const candidate of candidates.rows) {
+      const shouldQueue =
+        this.deps.parallelismService &&
+        (await this.deps.parallelismService.shouldQueueForCapacity(
+          tenantId,
+          {
+            taskId: candidate.id,
+            workflowId: candidate.workflow_id,
+            workItemId: candidate.work_item_id,
+            isOrchestratorTask: candidate.is_orchestrator_task,
+            currentState: candidate.state,
+          },
+          client,
+        ));
+      if (shouldQueue) {
+        continue;
+      }
+
+      const updated = await client.query(
+        `UPDATE tasks
+            SET state = 'ready',
+                state_changed_at = now()
+          WHERE tenant_id = $1
+            AND id = $2
+            AND state = 'pending'`,
+        [tenantId, candidate.id],
+      );
+      if (!updated.rowCount) {
+        continue;
+      }
+
+      await this.deps.eventService.emit(
+        {
+          tenantId,
+          type: 'task.state_changed',
+          entityType: 'task',
+          entityId: candidate.id,
+          actorType: 'system',
+          actorId: 'retry_backoff',
+          data: {
+            from_state: 'pending',
+            to_state: 'ready',
+            reason: 'retry_backoff_elapsed',
+          },
+        },
+        client,
+      );
     }
   }
 
