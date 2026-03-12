@@ -847,10 +847,28 @@ describe('orchestratorControlRoutes', () => {
     };
     const taskService = {
       createTask: vi.fn(),
-      getTask: vi.fn().mockResolvedValue(managedTask),
+      getTask: vi.fn(),
     };
     const sendToWorker = vi.fn().mockReturnValue(true);
     const emit = vi.fn(async () => undefined);
+    const messageRow = {
+      id: 'message-1',
+      tenant_id: 'tenant-1',
+      workflow_id: 'workflow-1',
+      task_id: 'task-managed-1',
+      orchestrator_task_id: 'task-orch-message',
+      activation_id: 'activation-1',
+      stage_name: 'implementation',
+      worker_id: 'worker-1',
+      request_id: 'msg-1',
+      urgency: 'important',
+      message: 'Focus on the failing API regression first.',
+      delivery_state: 'pending_delivery',
+      delivery_attempt_count: 0,
+      last_delivery_attempt_at: null,
+      delivered_at: null,
+      created_at: new Date('2026-03-12T00:00:00.000Z'),
+    };
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT') {
@@ -869,10 +887,72 @@ describe('orchestratorControlRoutes', () => {
             rows: [{
               response: {
                 success: true,
+                delivered: false,
+                task_id: 'task-managed-1',
+                message_id: 'msg-1',
+                urgency: 'important',
+                delivery_state: 'pending_delivery',
+              },
+            }],
+          };
+        }
+        if (sql.includes('SELECT id, workflow_id, is_orchestrator_task, state, assigned_worker_id, stage_name')) {
+          expect(params).toEqual(['tenant-1', 'task-managed-1']);
+          return {
+            rowCount: 1,
+            rows: [managedTask],
+          };
+        }
+        if (sql.includes('INSERT INTO orchestrator_task_messages')) {
+          return {
+            rowCount: 1,
+            rows: [messageRow],
+          };
+        }
+        if (sql.includes('FROM orchestrator_task_messages') && sql.includes('FOR UPDATE')) {
+          return {
+            rowCount: 1,
+            rows: [messageRow],
+          };
+        }
+        if (sql.includes("SET delivery_state = 'delivery_in_progress'")) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                ...messageRow,
+                delivery_state: 'delivery_in_progress',
+                delivery_attempt_count: 1,
+                last_delivery_attempt_at: new Date('2026-03-12T00:00:01.000Z'),
+              },
+            ],
+          };
+        }
+        if (sql.includes('UPDATE orchestrator_task_messages') && sql.includes('delivered_at = CASE WHEN $2 = \'delivered\'')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                ...messageRow,
+                delivery_state: 'delivered',
+                delivery_attempt_count: 1,
+                last_delivery_attempt_at: new Date('2026-03-12T00:00:01.000Z'),
+                delivered_at: new Date('2026-03-12T00:00:02.000Z'),
+              },
+            ],
+          };
+        }
+        if (sql.includes('UPDATE workflow_tool_results')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              response: {
+                success: true,
                 delivered: true,
                 task_id: 'task-managed-1',
                 message_id: 'msg-1',
                 urgency: 'important',
+                issued_at: '2026-03-12T00:00:00.000Z',
                 delivery_state: 'delivered',
               },
             }],
@@ -898,6 +978,22 @@ describe('orchestratorControlRoutes', () => {
               assigned_agent_id: 'agent-1',
               is_orchestrator_task: true,
               state: 'in_progress',
+            }],
+          };
+        }
+        if (sql.includes('UPDATE workflow_tool_results')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              response: {
+                success: true,
+                delivered: true,
+                task_id: 'task-managed-1',
+                message_id: 'msg-1',
+                urgency: 'important',
+                issued_at: '2026-03-12T00:00:00.000Z',
+                delivery_state: 'delivered',
+              },
             }],
           };
         }
@@ -933,7 +1029,7 @@ describe('orchestratorControlRoutes', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(taskService.getTask).toHaveBeenCalledWith('tenant-1', 'task-managed-1');
+    expect(taskService.getTask).not.toHaveBeenCalled();
     expect(sendToWorker).toHaveBeenCalledWith(
       'worker-1',
       expect.objectContaining({
@@ -946,6 +1042,13 @@ describe('orchestratorControlRoutes', () => {
     expect(emit).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'task.message_sent',
+        entityId: 'task-managed-1',
+      }),
+      client,
+    );
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'task.message_delivered',
         entityId: 'task-managed-1',
       }),
       client,

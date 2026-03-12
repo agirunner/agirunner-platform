@@ -75,4 +75,29 @@ export class WorkflowToolResultService {
     }
     return existing;
   }
+
+  async replaceResult(
+    tenantId: string,
+    workflowId: string,
+    toolName: string,
+    requestId: string,
+    response: Record<string, unknown>,
+    client?: DatabaseClient,
+  ): Promise<Record<string, unknown>> {
+    const db = client ?? this.pool;
+    const result = await db.query<StoredWorkflowToolResultRow>(
+      `UPDATE workflow_tool_results
+          SET response = $5::jsonb
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND tool_name = $3
+          AND request_id = $4
+      RETURNING response`,
+      [tenantId, workflowId, toolName, requestId, response],
+    );
+    if (!result.rowCount) {
+      throw new Error('Failed to update workflow tool result');
+    }
+    return result.rows[0].response;
+  }
 }

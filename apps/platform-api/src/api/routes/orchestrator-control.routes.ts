@@ -7,6 +7,7 @@ import { WorkflowActivationDispatchService } from '../../services/workflow-activ
 import { WorkflowActivationService } from '../../services/workflow-activation-service.js';
 import { WorkflowStateService } from '../../services/workflow-state-service.js';
 import { PlaybookWorkflowControlService } from '../../services/playbook-workflow-control-service.js';
+import { OrchestratorTaskMessageService } from '../../services/orchestrator-task-message-service.js';
 import { TaskAgentScopeService } from '../../services/task-agent-scope-service.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
@@ -161,6 +162,11 @@ const projectMemoryDeleteQuerySchema = z.object({
 export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
   const toolResultService = new WorkflowToolResultService(app.pgPool);
   const taskScopeService = new TaskAgentScopeService(app.pgPool);
+  const taskMessageService = new OrchestratorTaskMessageService(
+    app.pgPool,
+    app.eventService,
+    app.workerConnectionHub,
+  );
   const playbookControlService = new PlaybookWorkflowControlService({
     pool: app.pgPool,
     eventService: app.eventService,
@@ -497,10 +503,9 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { taskId: string; managedTaskId: string };
       const body = parseOrThrow(orchestratorTaskMessageSchema.safeParse(request.body));
-      const taskScope = await withManagedSpecialistTask(
+      const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
         request.auth!,
         params.taskId,
-        params.managedTaskId,
       );
       const stored = await runIdempotentMutation(
         app,
@@ -509,20 +514,29 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         taskScope.workflow_id,
         'send_task_message',
         body.request_id,
-        async (client) => {
-          const managedTask = await app.taskService.getTask(request.auth!.tenantId, params.managedTaskId) as Record<string, unknown>;
-          const delivery = await deliverManagedTaskMessage(
-            app,
+        (client) =>
+          taskMessageService.prepareMessage(
             request.auth!,
             taskScope,
-            managedTask,
+            params.managedTaskId,
             body,
             client,
-          );
-          return delivery;
-        },
+          ),
       );
-      return { data: stored };
+      const delivered =
+        (await taskMessageService.deliverPendingByRequestId(
+          request.auth!,
+          taskScope.workflow_id,
+          body.request_id,
+        )) ?? stored;
+      const finalResponse = await toolResultService.replaceResult(
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'send_task_message',
+        body.request_id,
+        delivered,
+      );
+      return { data: finalResponse };
     },
   );
 
@@ -902,72 +916,6 @@ async function loadManagedSpecialistTask(
     throw new ValidationError('Managed task must be a specialist task');
   }
   return task;
-}
-
-async function deliverManagedTaskMessage(
-  app: FastifyInstance,
-  identity: ApiKeyIdentity,
-  taskScope: { workflow_id: string; id: string; stage_name: string | null; activation_id: string | null },
-  managedTask: Record<string, unknown>,
-  input: z.infer<typeof orchestratorTaskMessageSchema>,
-  client: import('../../db/database.js').DatabaseClient,
-) {
-  const issuedAt = new Date().toISOString();
-  const urgency = input.urgency ?? 'info';
-  const isInProgress = managedTask.state === 'in_progress';
-  const workerId =
-    typeof managedTask.assigned_worker_id === 'string' ? managedTask.assigned_worker_id : null;
-  const delivered =
-    isInProgress &&
-    workerId !== null &&
-    app.workerConnectionHub?.sendToWorker(workerId, {
-      type: 'task.message',
-      task_id: managedTask.id,
-      workflow_id: taskScope.workflow_id,
-      activation_id: taskScope.activation_id,
-      orchestrator_task_id: taskScope.id,
-      message_id: input.request_id,
-      urgency,
-      message: input.message,
-      issued_at: issuedAt,
-    }) === true;
-
-  await app.eventService.emit(
-    {
-      tenantId: identity.tenantId,
-      type: 'task.message_sent',
-      entityType: 'task',
-      entityId: String(managedTask.id),
-      actorType: identity.scope,
-      actorId: identity.keyPrefix,
-      data: {
-        workflow_id: taskScope.workflow_id,
-        task_id: managedTask.id,
-        stage_name: managedTask.stage_name ?? taskScope.stage_name,
-        urgency,
-        delivered,
-        message_length: input.message.length,
-        assigned_worker_id: workerId,
-      },
-    },
-    client,
-  );
-
-  return {
-    success: true,
-    delivered,
-    task_id: managedTask.id,
-    message_id: input.request_id,
-    urgency,
-    issued_at: issuedAt,
-    delivery_state: delivered
-      ? 'delivered'
-      : !isInProgress
-        ? 'task_not_in_progress'
-        : workerId === null
-          ? 'worker_unassigned'
-          : 'worker_unavailable',
-  };
 }
 
 interface ChildWorkflowLinkage {

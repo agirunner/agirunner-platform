@@ -8,6 +8,7 @@ export * from './workflow-work-items.js';
 export * from './workflow-activations.js';
 export * from './workflow-stages.js';
 export * from './workflow-tool-results.js';
+export * from './orchestrator-task-messages.js';
 export * from './tasks.js';
 export * from './agents.js';
 export * from './workers.js';
