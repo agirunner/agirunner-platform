@@ -11,7 +11,6 @@ import {
   Workflow,
   Search,
   Clock3,
-  ArrowRight,
   GitBranch,
   ShieldAlert,
 } from 'lucide-react';
@@ -49,107 +48,21 @@ import {
   readGateRequestSourceSummary,
   readGateResumptionSummary,
 } from './gate-detail-support.js';
+import {
+  buildTaskApprovalBreadcrumbs,
+  computeWaitingTime,
+  countPendingOrchestratorFollowUp,
+  matchesApprovalSearch,
+  readTaskOperatorFlowLabel,
+  sortStageGates,
+  summarizeFirstGate,
+  summarizeOldestWaiting,
+  truncateOutput,
+  usesWorkItemOperatorFlow,
+} from './approval-queue-support.js';
+import { OperatorBreadcrumbTrail } from './operator-breadcrumb-trail.js';
 import { invalidateWorkflowQueries } from '../workflow-detail-query.js';
 import { buildWorkflowDetailPermalink } from '../workflow-detail-permalinks.js';
-
-function computeWaitingTime(createdAt: string): string {
-  const diffMs = Date.now() - new Date(createdAt).getTime();
-  const minutes = Math.floor(diffMs / 60_000);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ${minutes % 60}m`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ${hours % 24}h`;
-}
-
-function truncateOutput(output: unknown): string {
-  if (output === undefined || output === null) return '';
-  const text = typeof output === 'string' ? output : JSON.stringify(output);
-  if (text.length <= 200) return text;
-  return `${text.slice(0, 200)}...`;
-}
-
-function summarizeOldestWaiting(
-  stageGates: DashboardApprovalStageGateRecord[],
-  taskApprovals: DashboardApprovalTaskRecord[],
-): string {
-  const timestamps = [
-    ...stageGates.map((gate) => gate.updated_at),
-    ...taskApprovals.map((task) => task.created_at),
-  ];
-  if (timestamps.length === 0) {
-    return 'No approvals pending';
-  }
-  const oldest = timestamps.reduce((currentOldest, timestamp) =>
-    new Date(timestamp).getTime() < new Date(currentOldest).getTime() ? timestamp : currentOldest,
-  );
-  return `Oldest waiting ${computeWaitingTime(oldest)}`;
-}
-
-function sortStageGates(stageGates: DashboardApprovalStageGateRecord[]): DashboardApprovalStageGateRecord[] {
-  return [...stageGates].sort(
-    (left, right) => new Date(left.updated_at).getTime() - new Date(right.updated_at).getTime(),
-  );
-}
-
-function summarizeFirstGate(stageGates: DashboardApprovalStageGateRecord[]): string {
-  if (stageGates.length === 0) {
-    return 'No stage gates waiting';
-  }
-  return buildGateBreadcrumbs(stageGates[0]).join(' / ');
-}
-
-function countPendingOrchestratorFollowUp(
-  stageGates: DashboardApprovalStageGateRecord[],
-): number {
-  return stageGates.filter((gate) => {
-    const decisionAction = gate.human_decision?.action;
-    const resumeState = gate.orchestrator_resume?.state;
-    const activationId = gate.orchestrator_resume?.activation_id;
-    return Boolean(decisionAction) && !resumeState && !activationId;
-  }).length;
-}
-
-function matchesApprovalSearch(
-  query: string,
-  gate: DashboardApprovalStageGateRecord | DashboardApprovalTaskRecord,
-): boolean {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return true;
-  }
-  const searchCorpus = [
-    'stage_name' in gate ? gate.stage_name : '',
-    'stage_goal' in gate ? gate.stage_goal : '',
-    'summary' in gate ? gate.summary : '',
-    'recommendation' in gate ? gate.recommendation : '',
-    'workflow_name' in gate ? gate.workflow_name : '',
-    gate.workflow_id,
-    'work_item_title' in gate ? gate.work_item_title : '',
-    'work_item_id' in gate ? gate.work_item_id : '',
-    'role' in gate ? gate.role : '',
-    'activation_id' in gate ? gate.activation_id : '',
-    'title' in gate ? gate.title : '',
-    gate.id,
-    'gate_id' in gate ? gate.gate_id : '',
-    'request_summary' in gate ? gate.request_summary : '',
-    'decision_feedback' in gate ? gate.decision_feedback : '',
-    'human_decision' in gate ? gate.human_decision?.feedback : '',
-    'human_decision' in gate ? gate.human_decision?.action : '',
-    'orchestrator_resume' in gate ? gate.orchestrator_resume?.state : '',
-    'orchestrator_resume' in gate ? gate.orchestrator_resume?.event_type : '',
-    'orchestrator_resume' in gate ? gate.orchestrator_resume?.reason : '',
-    'orchestrator_resume' in gate ? gate.orchestrator_resume?.summary : '',
-    ...('requested_by_task' in gate ? readGateRequestSourceSummary(gate) : []),
-    ...('human_decision' in gate ? [readGateDecisionSummary(gate)] : []),
-    ...('orchestrator_resume' in gate ? [readGateResumptionSummary(gate)] : []),
-    ...('concerns' in gate ? gate.concerns : []),
-  ]
-    .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
-    .join(' ')
-    .toLowerCase();
-  return searchCorpus.includes(normalizedQuery);
-}
 
 function invalidateApprovalWorkflowQueries(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -161,10 +74,6 @@ function invalidateApprovalWorkflowQueries(
   return invalidateWorkflowQueries(queryClient, workflowId);
 }
 
-function usesWorkItemOperatorFlow(task: DashboardApprovalTaskRecord): boolean {
-  return Boolean(task.workflow_id && task.work_item_id);
-}
-
 function updateApprovalQueueSearchParams(
   setSearchParams: ReturnType<typeof useSearchParams>[1],
   updater: (params: URLSearchParams) => void,
@@ -174,23 +83,6 @@ function updateApprovalQueueSearchParams(
     updater(next);
     return next;
   }, { replace: true });
-}
-
-function buildTaskApprovalBreadcrumbs(task: DashboardApprovalTaskRecord): string[] {
-  const breadcrumbs: string[] = [];
-  if (task.workflow_name) {
-    breadcrumbs.push(task.workflow_name);
-  }
-  if (task.work_item_title) {
-    breadcrumbs.push(task.work_item_title);
-  }
-  if (task.stage_name) {
-    breadcrumbs.push(task.stage_name);
-  }
-  if (task.role) {
-    breadcrumbs.push(task.role);
-  }
-  return breadcrumbs;
 }
 
 function gateQueuePriorityVariant(index: number): 'destructive' | 'warning' | 'outline' {
@@ -259,6 +151,7 @@ function TaskApprovalCard({ task }: { task: DashboardApprovalTaskRecord }): JSX.
   const taskLabel = task.title ?? task.id;
   const workItemFlow = usesWorkItemOperatorFlow(task);
   const breadcrumbs = buildTaskApprovalBreadcrumbs(task);
+  const operatorFlowLabel = readTaskOperatorFlowLabel(task);
   const workflowContextLink =
     task.workflow_id && task.work_item_id
       ? buildWorkflowDetailPermalink(task.workflow_id, {
@@ -305,17 +198,12 @@ function TaskApprovalCard({ task }: { task: DashboardApprovalTaskRecord }): JSX.
                     : 'This step is waiting on a direct operator decision.'}
                 </CardDescription>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                {breadcrumbs.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-1">
-                    {breadcrumbs.map((crumb, index) => (
-                      <span key={`${task.id}:${crumb}:${index}`} className="inline-flex items-center gap-1">
-                        {index > 0 ? <ArrowRight className="h-3 w-3" /> : null}
-                        <span>{crumb}</span>
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
+              <div className="space-y-2">
+                <OperatorBreadcrumbTrail items={breadcrumbs} emptyLabel="No board context yet" />
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                  <Badge variant="secondary">{operatorFlowLabel}</Badge>
+                  {task.activation_id ? <Badge variant="outline">Activation: {task.activation_id}</Badge> : null}
+                </div>
                 {task.workflow_name && task.workflow_id ? (
                   <Link
                     to={workflowContextLink ?? `/work/workflows/${task.workflow_id}`}
@@ -327,13 +215,13 @@ function TaskApprovalCard({ task }: { task: DashboardApprovalTaskRecord }): JSX.
               </div>
             </div>
 
-            <div className="flex shrink-0 flex-wrap gap-2">
+            <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap">
               {workItemFlow && workflowContextLink ? (
                 <>
-                  <Button size="sm" asChild>
+                  <Button size="sm" className="w-full sm:w-auto" asChild>
                     <Link to={workflowContextLink}>Open Work Item Flow</Link>
                   </Button>
-                  <Button variant="outline" size="sm" asChild>
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
                     <Link to={`/work/tasks/${task.id}`}>Open Step Record</Link>
                   </Button>
                 </>
@@ -341,6 +229,7 @@ function TaskApprovalCard({ task }: { task: DashboardApprovalTaskRecord }): JSX.
                 <>
                   <Button
                     size="sm"
+                    className="w-full sm:w-auto"
                     disabled={isActionPending}
                     onClick={() => approveMutation.mutate()}
                   >
@@ -354,6 +243,7 @@ function TaskApprovalCard({ task }: { task: DashboardApprovalTaskRecord }): JSX.
                   <Button
                     variant="outline"
                     size="sm"
+                    className="w-full sm:w-auto"
                     disabled={isActionPending}
                     onClick={() => setIsChangesDialogOpen(true)}
                   >
@@ -363,6 +253,7 @@ function TaskApprovalCard({ task }: { task: DashboardApprovalTaskRecord }): JSX.
                   <Button
                     variant="destructive"
                     size="sm"
+                    className="w-full sm:w-auto"
                     disabled={isActionPending}
                     onClick={() => rejectMutation.mutate()}
                   >
@@ -373,13 +264,16 @@ function TaskApprovalCard({ task }: { task: DashboardApprovalTaskRecord }): JSX.
                     )}
                     Reject
                   </Button>
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
+                    <Link to={`/work/tasks/${task.id}`}>Open Step Record</Link>
+                  </Button>
                 </>
               )}
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4 pt-0">
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
             {task.workflow_name ? (
               <QueueInfoTile label="Board" value={task.workflow_name} />
             ) : null}
@@ -388,6 +282,7 @@ function TaskApprovalCard({ task }: { task: DashboardApprovalTaskRecord }): JSX.
             ) : null}
             {task.stage_name ? <QueueInfoTile label="Stage" value={task.stage_name} /> : null}
             {task.role ? <QueueInfoTile label="Role" value={task.role} /> : null}
+            <QueueInfoTile label="Operator flow" value={operatorFlowLabel} />
             <QueueInfoTile
               label="Step record"
               value={task.id}
@@ -535,26 +430,16 @@ function StageGateQueueCard(props: {
               <Badge variant="outline">{decisionSummary}</Badge>
               <Badge variant="outline">{resumptionSummary}</Badge>
             </div>
-            <div className="space-y-1">
-              <CardTitle className="text-base">{gate.stage_name}</CardTitle>
-              <CardDescription>
-                {gate.stage_goal || 'Human review packet for this stage gate.'}
-              </CardDescription>
-            </div>
-            <div className="flex flex-wrap items-center gap-1 text-xs text-muted">
-              {breadcrumbs.map((crumb, crumbIndex) => (
-                <span
-                  key={`${gate.workflow_id}:${gate.stage_name}:${crumb}:${crumbIndex}`}
-                  className="inline-flex items-center gap-1"
-                >
-                  {crumbIndex > 0 ? <ArrowRight className="h-3 w-3" /> : null}
-                  <span>{crumb}</span>
-                </span>
-              ))}
-            </div>
+              <div className="space-y-1">
+                <CardTitle className="text-base">{gate.stage_name}</CardTitle>
+                <CardDescription>
+                  {gate.stage_goal || 'Human review packet for this stage gate.'}
+                </CardDescription>
+              </div>
+            <OperatorBreadcrumbTrail items={breadcrumbs} />
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
-            <Button variant="outline" size="sm" asChild>
+            <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
               <Link
                 to={buildWorkflowDetailPermalink(gate.workflow_id, {
                   gateStageName: gate.stage_name,
@@ -577,8 +462,8 @@ function StageGateQueueCard(props: {
             monospace
           />
         </div>
-        {packetSummary.length > 0 || requestSource.length > 0 ? (
-          <div className="grid gap-3 lg:grid-cols-2">
+        {packetSummary.length > 0 || requestSource.length > 0 || resumptionSummary ? (
+          <div className="grid gap-3 lg:grid-cols-3">
             <div className="rounded-md border border-border/70 bg-border/10 p-3">
               <div className="mb-2 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted">
                 <GitBranch className="h-3.5 w-3.5" />
@@ -610,6 +495,16 @@ function StageGateQueueCard(props: {
                   </Badge>
                 ))}
               </div>
+            </div>
+            <div className="rounded-md border border-border/70 bg-border/10 p-3">
+              <div className="mb-2 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted">
+                <Workflow className="h-3.5 w-3.5" />
+                Orchestrator follow-up
+              </div>
+              <p className="text-xs text-muted">{resumptionSummary}</p>
+              {gate.orchestrator_resume?.reason ? (
+                <p className="mt-2 text-xs text-muted">{gate.orchestrator_resume.reason}</p>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -708,21 +603,21 @@ export function ApprovalQueuePage(): JSX.Element {
     <div className="space-y-6 p-6">
       <section className="space-y-5 rounded-3xl border border-border/70 bg-card/80 p-6 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold">Approval Queue</h1>
-            <Badge variant="secondary">{totalApprovals}</Badge>
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-semibold">Approval Queue</h1>
+              <Badge variant="secondary">{totalApprovals}</Badge>
+            </div>
+            <p className="text-sm text-muted">
+              Review stage gates first, then specialist step approvals and output gates that remain after orchestration.
+            </p>
           </div>
-          <p className="text-sm text-muted">
-            Review stage gates first, then specialist step approvals and output gates that remain after orchestration.
-          </p>
-        </div>
-        <div className="flex w-full flex-col gap-3 md:max-w-3xl">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
-              <Input
-                value={searchQuery}
+          <div className="flex w-full flex-col gap-3 md:max-w-3xl">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-end">
+              <div className="relative w-full lg:max-w-xs">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+                <Input
+                  value={searchQuery}
                 onChange={(event) =>
                   updateApprovalQueueSearchParams(setSearchParams, (next) => {
                     const value = event.target.value.trim();
@@ -736,89 +631,89 @@ export function ApprovalQueuePage(): JSX.Element {
                 placeholder="Search gates, boards, work items, stages, steps, or IDs"
                 className="pl-8"
               />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant={queueFilter === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() =>
+                    updateApprovalQueueSearchParams(setSearchParams, (next) => {
+                      next.delete('view');
+                    })
+                  }
+                >
+                  All
+                </Button>
+                <Button
+                  variant={queueFilter === 'gates' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() =>
+                    updateApprovalQueueSearchParams(setSearchParams, (next) => {
+                      next.set('view', 'gates');
+                    })
+                  }
+                >
+                  Gates
+                </Button>
+                <Button
+                  variant={queueFilter === 'tasks' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() =>
+                    updateApprovalQueueSearchParams(setSearchParams, (next) => {
+                      next.set('view', 'tasks');
+                    })
+                  }
+                >
+                  Steps
+                </Button>
+                <SavedViews
+                  storageKey="approval-queue"
+                  currentFilters={savedViewFilters}
+                  onApply={(filters) =>
+                    setSearchParams(
+                      {
+                        ...(filters.q ? { q: filters.q } : {}),
+                        ...(filters.view ? { view: filters.view } : {}),
+                      },
+                      { replace: true },
+                    )
+                  }
+                />
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant={queueFilter === 'all' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() =>
-                  updateApprovalQueueSearchParams(setSearchParams, (next) => {
-                    next.delete('view');
-                  })
-                }
-              >
-                All
-              </Button>
-              <Button
-                variant={queueFilter === 'gates' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() =>
-                  updateApprovalQueueSearchParams(setSearchParams, (next) => {
-                    next.set('view', 'gates');
-                  })
-                }
-              >
-                Gates
-              </Button>
-              <Button
-                variant={queueFilter === 'tasks' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() =>
-                  updateApprovalQueueSearchParams(setSearchParams, (next) => {
-                    next.set('view', 'tasks');
-                  })
-                }
-              >
-                Steps
-              </Button>
-              <SavedViews
-                storageKey="approval-queue"
-                currentFilters={savedViewFilters}
-                onApply={(filters) =>
-                  setSearchParams(
-                    {
-                      ...(filters.q ? { q: filters.q } : {}),
-                      ...(filters.view ? { view: filters.view } : {}),
-                    },
-                    { replace: true },
-                  )
-                }
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+              <QueueMetricCard
+                icon={<Workflow className="h-3.5 w-3.5" />}
+                label="Stage gates"
+                value={stageGates.length}
+                detail="Human review packets waiting by stage."
+              />
+              <QueueMetricCard
+                icon={<FileText className="h-3.5 w-3.5" />}
+                label="Specialist step reviews"
+                value={taskApprovals.length}
+                detail="Direct approvals or output reviews still owned by operators."
+              />
+              <QueueMetricCard
+                icon={<GitBranch className="h-3.5 w-3.5" />}
+                label="Awaiting follow-up"
+                value={`${pendingFollowUpCount} gates`}
+                detail="Human decisions recorded without a visible orchestrator follow-up yet."
+              />
+              <QueueMetricCard
+                icon={<Clock3 className="h-3.5 w-3.5" />}
+                label="Oldest wait"
+                value={oldestWaiting}
+                detail="Use this to clear stale queue items first."
+              />
+              <QueueMetricCard
+                icon={<ShieldAlert className="h-3.5 w-3.5" />}
+                label="First up"
+                value={firstGateSummary}
+                detail="The oldest stage gate currently waiting."
               />
             </div>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-            <QueueMetricCard
-              icon={<Workflow className="h-3.5 w-3.5" />}
-              label="Stage gates"
-              value={stageGates.length}
-              detail="Human review packets waiting by stage."
-            />
-            <QueueMetricCard
-              icon={<FileText className="h-3.5 w-3.5" />}
-              label="Specialist step reviews"
-              value={taskApprovals.length}
-              detail="Direct approvals or output reviews still owned by operators."
-            />
-            <QueueMetricCard
-              icon={<GitBranch className="h-3.5 w-3.5" />}
-              label="Awaiting follow-up"
-              value={`${pendingFollowUpCount} gates`}
-              detail="Human decisions recorded without a visible orchestrator follow-up yet."
-            />
-            <QueueMetricCard
-              icon={<Clock3 className="h-3.5 w-3.5" />}
-              label="Oldest wait"
-              value={oldestWaiting}
-              detail="Use this to clear stale queue items first."
-            />
-            <QueueMetricCard
-              icon={<ShieldAlert className="h-3.5 w-3.5" />}
-              label="First up"
-              value={firstGateSummary}
-              detail="The oldest stage gate currently waiting."
-            />
-          </div>
-        </div>
         </div>
       </section>
 

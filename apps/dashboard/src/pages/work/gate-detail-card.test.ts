@@ -10,6 +10,7 @@ describe('gate detail card source', () => {
   it('renders gate detail, permalinks, and gate-addressed actions', () => {
     const source = readSource();
     expect(source).toContain('Operator breadcrumbs');
+    expect(source).toContain('OperatorBreadcrumbTrail');
     expect(source).toContain('Review packet');
     expect(source).toContain('Lifecycle trail');
     expect(source).toContain('Request source');
@@ -47,5 +48,6 @@ describe('gate detail card source', () => {
     expect(source).toContain('max-h-[75vh]');
     expect(source).toContain('overflow-y-auto');
     expect(source).toContain('className="min-h-[140px]"');
+    expect(source).toContain('className="w-full sm:w-auto"');
   });
 });

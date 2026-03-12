@@ -28,13 +28,15 @@ describe('approval queue page source', () => {
     expect(source).toContain('GateDetailCard');
     expect(source).toContain('source="approval-queue"');
     expect(source).toContain('StageGateQueueCard');
+    expect(source).toContain('OperatorBreadcrumbTrail');
     expect(source).toContain('renderQueuePriorityLabel');
-    expect(source).toContain('oldest wait first');
+    expect(source).toContain('Oldest wait first');
     expect(source).toContain('readGateDecisionSummary');
     expect(source).toContain('readGateResumptionSummary');
     expect(source).toContain('readGateRequestSourceSummary');
     expect(source).toContain('Gate packet');
     expect(source).toContain('Request source');
+    expect(source).toContain('Orchestrator follow-up');
     expect(source).toContain('countPendingOrchestratorFollowUp');
   });
 
@@ -60,6 +62,8 @@ describe('approval queue page source', () => {
     const source = readSource();
     expect(source).toContain('buildWorkflowDetailPermalink');
     expect(source).toContain('buildTaskApprovalBreadcrumbs');
+    expect(source).toContain('readTaskOperatorFlowLabel');
+    expect(source).toContain('OperatorBreadcrumbTrail');
     expect(source).toContain('Open board context');
     expect(source).toContain('Activation ');
     expect(source).toContain('QueueInfoTile');
@@ -78,5 +82,7 @@ describe('approval queue page source', () => {
     expect(source).toContain('max-h-[75vh]');
     expect(source).toContain('overflow-y-auto');
     expect(source).toContain('className="min-h-[140px]"');
+    expect(source).toContain('className="w-full sm:w-auto"');
+    expect(source).toContain('flex-wrap items-center gap-2');
   });
 });

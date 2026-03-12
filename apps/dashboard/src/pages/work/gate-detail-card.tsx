@@ -12,6 +12,7 @@ import { Card, CardContent } from '../../components/ui/card.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog.js';
 import { actOnGate, getGateDetail, type DashboardGateDetailRecord } from './gate-api.js';
+import { OperatorBreadcrumbTrail } from './operator-breadcrumb-trail.js';
 import {
   buildGateBreadcrumbs,
   buildApprovalQueueGatePermalink,
@@ -206,9 +207,11 @@ export function GateDetailCard(props: {
                 ) : null}
                 <span>Waiting {computeWaitingTime(gate.updated_at)}</span>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wide text-muted">
-                <span>Operator breadcrumbs</span>
-                <span className="normal-case">{breadcrumbs.join(' / ')}</span>
+              <div className="space-y-2">
+                <div className="text-[11px] font-medium uppercase tracking-wide text-muted">
+                  Operator breadcrumbs
+                </div>
+                <OperatorBreadcrumbTrail items={breadcrumbs} />
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                 {requestSourceSummary.map((item) => (
@@ -252,7 +255,7 @@ export function GateDetailCard(props: {
               </div>
               <p className="text-sm">{gate.stage_goal?.trim() || 'No gate goal recorded.'}</p>
               <div className="grid gap-3 pt-1 md:grid-cols-2">
-                <div className="rounded-md border bg-border/10 p-3">
+                <div className="rounded-md border border-border/70 bg-border/10 p-3">
                   <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
                     Review packet
                   </div>
@@ -267,7 +270,7 @@ export function GateDetailCard(props: {
                     <p className="mt-2 text-xs text-muted">{gate.request_summary}</p>
                   ) : null}
                 </div>
-                <div className="rounded-md border bg-border/10 p-3">
+                <div className="rounded-md border border-border/70 bg-border/10 p-3">
                   <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
                     Lifecycle trail
                   </div>
@@ -282,7 +285,7 @@ export function GateDetailCard(props: {
                 </div>
               </div>
               {gate.requested_by_task ? (
-                <div className="rounded-md border bg-border/10 p-3">
+                <div className="rounded-md border border-border/70 bg-border/10 p-3">
                   <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
                     Request source
                   </div>
@@ -320,7 +323,7 @@ export function GateDetailCard(props: {
                 </div>
               ) : null}
               {gate.summary ? (
-                <div className="mt-2 rounded-md border bg-border/10 p-3">
+                <div className="mt-2 rounded-md border border-border/70 bg-border/10 p-3">
                   <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
                     Gate summary
                   </div>
@@ -328,7 +331,7 @@ export function GateDetailCard(props: {
                 </div>
               ) : null}
               <div className="grid gap-3 pt-1 md:grid-cols-2">
-                <div className="rounded-md border bg-border/10 p-3">
+                <div className="rounded-md border border-border/70 bg-border/10 p-3">
                   <div className="mb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted">
                     <CheckCircle className="h-3.5 w-3.5" />
                     Recommendation
@@ -337,7 +340,7 @@ export function GateDetailCard(props: {
                     {gate.recommendation?.trim() || 'No orchestrator recommendation recorded.'}
                   </p>
                 </div>
-                <div className="rounded-md border bg-border/10 p-3">
+                <div className="rounded-md border border-border/70 bg-border/10 p-3">
                   <div className="mb-1 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted">
                     <AlertTriangle className="h-3.5 w-3.5" />
                     Concerns
@@ -354,7 +357,7 @@ export function GateDetailCard(props: {
                 </div>
               </div>
               {decisionAction || decisionFeedback ? (
-                <div className="rounded-md border bg-border/10 p-3 text-xs text-muted">
+                <div className="rounded-md border border-border/70 bg-border/10 p-3 text-xs text-muted">
                   <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
                     Human decision
                   </div>
@@ -363,7 +366,7 @@ export function GateDetailCard(props: {
                 </div>
               ) : null}
               {decisionHistory.length > 0 ? (
-                <div className="rounded-md border bg-border/10 p-3 text-xs text-muted">
+                <div className="rounded-md border border-border/70 bg-border/10 p-3 text-xs text-muted">
                   <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
                     Decision history
                   </div>
@@ -378,7 +381,7 @@ export function GateDetailCard(props: {
                 </div>
               ) : null}
               {resume || decisionAction ? (
-                <div className="rounded-md border bg-border/10 p-3 text-xs text-muted">
+                <div className="rounded-md border border-border/70 bg-border/10 p-3 text-xs text-muted">
                   <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
                     Orchestrator follow-up
                   </div>
@@ -419,7 +422,7 @@ export function GateDetailCard(props: {
                       const taskId = typeof artifact.task_id === 'string' ? artifact.task_id : null;
                       const details = readArtifactMeta(artifact);
                       return (
-                        <div key={`${label}:${index}`} className="rounded-md border bg-border/10 p-3 text-xs">
+                        <div key={`${label}:${index}`} className="rounded-md border border-border/70 bg-border/10 p-3 text-xs">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 space-y-1">
                               {taskId ? (
@@ -455,16 +458,16 @@ export function GateDetailCard(props: {
               ) : null}
             </div>
             {isAwaitingApproval ? (
-              <div className="flex shrink-0 gap-2">
-                <Button size="sm" disabled={isActionPending || !gateId} onClick={() => approveMutation.mutate()}>
+              <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                <Button size="sm" className="w-full sm:w-auto" disabled={isActionPending || !gateId} onClick={() => approveMutation.mutate()}>
                   {approveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
                   Approve Gate
                 </Button>
-                <Button variant="outline" size="sm" disabled={isActionPending || !gateId} onClick={() => setIsChangesDialogOpen(true)}>
+                <Button variant="outline" size="sm" className="w-full sm:w-auto" disabled={isActionPending || !gateId} onClick={() => setIsChangesDialogOpen(true)}>
                   <MessageSquare className="h-4 w-4" />
                   Request Changes
                 </Button>
-                <Button variant="destructive" size="sm" disabled={isActionPending || !gateId} onClick={() => rejectMutation.mutate()}>
+                <Button variant="destructive" size="sm" className="w-full sm:w-auto" disabled={isActionPending || !gateId} onClick={() => rejectMutation.mutate()}>
                   {rejectMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
                   Reject Gate
                 </Button>

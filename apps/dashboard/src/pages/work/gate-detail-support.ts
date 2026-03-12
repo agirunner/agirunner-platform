@@ -73,20 +73,20 @@ export function isGateHighlighted(search: string, hash: string, gateId: string |
 
 export function buildGateBreadcrumbs(gate: GateIdentityShape): string[] {
   const breadcrumbs = [
-    readNonEmpty(gate.workflow_name) ?? readNonEmpty(gate.workflow_id) ?? 'Workflow',
-    readNonEmpty(gate.stage_name) ?? 'Stage gate',
+    `Board: ${readNonEmpty(gate.workflow_name) ?? readNonEmpty(gate.workflow_id) ?? 'Workflow'}`,
+    `Stage: ${readNonEmpty(gate.stage_name) ?? 'Stage gate'}`,
   ];
   const workItemTitle = readNonEmpty(gate.requested_by_task?.work_item_title);
   if (workItemTitle) {
-    breadcrumbs.push(workItemTitle);
+    breadcrumbs.push(`Work item: ${workItemTitle}`);
   }
   const taskTitle = readNonEmpty(gate.requested_by_task?.title);
+  const taskRole = readNonEmpty(gate.requested_by_task?.role);
   if (taskTitle) {
-    breadcrumbs.push(taskTitle);
-  } else {
-    const gateId = readGateId(gate);
-    breadcrumbs.push(gateId ? `Gate ${gateId}` : 'Gate');
+    breadcrumbs.push(taskRole ? `Step: ${taskTitle} • ${taskRole}` : `Step: ${taskTitle}`);
   }
+  const gateId = readGateId(gate);
+  breadcrumbs.push(gateId ? `Gate: ${gateId}` : 'Gate');
   return breadcrumbs;
 }
 
@@ -153,10 +153,17 @@ export function readGateResumptionSummary(gate: GateIdentityShape): string {
   if (resume) {
     const state = readNonEmpty(resume.state)?.replaceAll('_', ' ') ?? 'queued';
     const eventType = readNonEmpty(resume.event_type)?.replaceAll('_', ' ');
-    return [state, eventType].filter(Boolean).join(' • ');
+    const activationId = readNonEmpty(resume.activation_id);
+    const timing = readResumeTimingSummary(resume);
+    return [
+      state,
+      eventType,
+      activationId ? `activation ${activationId}` : null,
+      timing,
+    ].filter(Boolean).join(' • ');
   }
   if (readNonEmpty(gate.human_decision?.action)) {
-    return 'Decision recorded • awaiting orchestrator follow-up';
+    return 'Decision recorded • follow-up activation not visible yet';
   }
   return 'Follow-up not queued';
 }
@@ -170,6 +177,13 @@ export function readGateTimelineRows(gate: GateIdentityShape): Array<{ label: st
     label: 'Requested',
     value: readTimelineValue(gate.requested_at, requestedBy),
   });
+  const requestSource = readGateRequestSourceValue(gate);
+  if (requestSource) {
+    rows.push({
+      label: 'Request source',
+      value: requestSource,
+    });
+  }
   if (gate.decided_at || decidedBy) {
     rows.push({
       label: 'Last decision',
@@ -181,6 +195,13 @@ export function readGateTimelineRows(gate: GateIdentityShape): Array<{ label: st
     rows.push({
       label: 'Orchestrator follow-up',
       value: readResumeValue(gate.orchestrator_resume ?? null),
+    });
+  }
+  const activationId = readNonEmpty(gate.orchestrator_resume?.activation_id);
+  if (activationId) {
+    rows.push({
+      label: 'Activation',
+      value: activationId,
     });
   }
   rows.push({
@@ -251,6 +272,8 @@ function readResumeValue(
         activation_id?: string | null;
         state?: string | null;
         queued_at?: string | null;
+        started_at?: string | null;
+        completed_at?: string | null;
       }
     | null,
 ): string {
@@ -258,9 +281,43 @@ function readResumeValue(
     return 'not queued';
   }
   const state = readNonEmpty(resume.state)?.replaceAll('_', ' ') ?? 'queued';
-  const time = readTimeLabel(resume.queued_at);
   const activationId = readNonEmpty(resume.activation_id);
-  return [state, time, activationId ? `activation ${activationId}` : null].filter(Boolean).join(' • ');
+  const timing = readResumeTimingSummary(resume);
+  return [state, activationId ? `activation ${activationId}` : null, timing].filter(Boolean).join(' • ');
+}
+
+function readResumeTimingSummary(
+  resume: {
+    queued_at?: string | null;
+    started_at?: string | null;
+    completed_at?: string | null;
+  },
+): string | null {
+  const completed = readTimeLabel(resume.completed_at);
+  if (completed) {
+    return `completed ${completed}`;
+  }
+  const started = readTimeLabel(resume.started_at);
+  if (started) {
+    return `started ${started}`;
+  }
+  const queued = readTimeLabel(resume.queued_at);
+  if (queued) {
+    return `queued ${queued}`;
+  }
+  return null;
+}
+
+function readGateRequestSourceValue(gate: GateIdentityShape): string | null {
+  const workItemTitle = readNonEmpty(gate.requested_by_task?.work_item_title);
+  const taskTitle = readNonEmpty(gate.requested_by_task?.title);
+  const taskRole = readNonEmpty(gate.requested_by_task?.role);
+  const actor = readGateActorLabel(gate.requested_by_type, gate.requested_by_id);
+  return [
+    workItemTitle ? `work item ${workItemTitle}` : null,
+    taskTitle ? (taskRole ? `${taskTitle} • ${taskRole}` : taskTitle) : null,
+    actor ? `requested by ${actor}` : null,
+  ].filter(Boolean).join(' • ') || null;
 }
 
 function readNonEmpty(value: string | null | undefined): string | null {

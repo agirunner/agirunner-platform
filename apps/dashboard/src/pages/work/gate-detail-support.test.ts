@@ -43,11 +43,18 @@ describe('gate detail support', () => {
         requested_by_task: {
           id: 'task-1',
           title: 'Draft release notes',
+          role: 'writer',
           work_item_title: 'Ship onboarding polish',
         },
         gate_id: 'gate-1',
       }),
-    ).toEqual(['Customer Onboarding', 'qa', 'Ship onboarding polish', 'Draft release notes']);
+    ).toEqual([
+      'Board: Customer Onboarding',
+      'Stage: qa',
+      'Work item: Ship onboarding polish',
+      'Step: Draft release notes • writer',
+      'Gate: gate-1',
+    ]);
     expect(
       readGatePacketSummary({
         concerns: ['one', 'two'],
@@ -90,16 +97,18 @@ describe('gate detail support', () => {
       readGateResumptionSummary({
         human_decision: { action: 'approve' },
       }),
-    ).toBe('Decision recorded • awaiting orchestrator follow-up');
+    ).toBe('Decision recorded • follow-up activation not visible yet');
 
     expect(
       readGateResumptionSummary({
         orchestrator_resume: {
+          activation_id: 'activation-1',
           state: 'processing',
           event_type: 'gate_decision_recorded',
+          queued_at: '2026-03-12T12:01:00.000Z',
         },
       }),
-    ).toBe('processing • gate decision recorded');
+    ).toContain('processing • gate decision recorded • activation activation-1');
   });
 
   it('builds operator timeline rows for request and decision context', () => {
@@ -118,13 +127,18 @@ describe('gate detail support', () => {
       },
     });
 
-    expect(rows).toHaveLength(4);
+    expect(rows).toHaveLength(6);
     expect(rows[0].label).toBe('Requested');
     expect(rows[0].value).toContain('orchestrator:task-1');
-    expect(rows[1].label).toBe('Last decision');
-    expect(rows[1].value).toContain('admin:user-1');
-    expect(rows[2].label).toBe('Orchestrator follow-up');
-    expect(rows[2].value).toContain('processing');
-    expect(rows[3]).toEqual({ label: 'Status', value: 'awaiting approval' });
+    expect(rows[1]).toEqual({
+      label: 'Request source',
+      value: 'requested by orchestrator:task-1',
+    });
+    expect(rows[2].label).toBe('Last decision');
+    expect(rows[2].value).toContain('admin:user-1');
+    expect(rows[3].label).toBe('Orchestrator follow-up');
+    expect(rows[3].value).toContain('activation activation-1');
+    expect(rows[4]).toEqual({ label: 'Activation', value: 'activation-1' });
+    expect(rows[5]).toEqual({ label: 'Status', value: 'awaiting approval' });
   });
 });
