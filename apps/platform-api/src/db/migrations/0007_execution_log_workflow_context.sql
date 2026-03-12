@@ -4,24 +4,6 @@ ALTER TABLE public.execution_logs
   ADD COLUMN activation_id uuid,
   ADD COLUMN is_orchestrator_task boolean NOT NULL DEFAULT false;
 
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1
-      FROM information_schema.columns
-     WHERE table_schema = 'public'
-       AND table_name = 'execution_logs'
-       AND column_name = 'workflow_phase'
-  ) THEN
-    EXECUTE $sql$
-      UPDATE public.execution_logs
-         SET stage_name = workflow_phase
-       WHERE stage_name IS NULL
-         AND workflow_phase IS NOT NULL
-    $sql$;
-  END IF;
-END $$;
-
 CREATE INDEX idx_exlogs_work_item
   ON ONLY public.execution_logs USING btree (tenant_id, work_item_id, created_at DESC)
   INCLUDE (source, category, level, operation, status, duration_ms, workflow_id, task_id)

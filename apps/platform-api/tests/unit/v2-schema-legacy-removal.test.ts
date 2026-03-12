@@ -40,8 +40,9 @@ describe('v2 schema legacy removal', () => {
       'utf8',
     );
 
-    expect(executionLogMigration).toContain('information_schema.columns');
-    expect(executionLogMigration).toContain("column_name = 'workflow_phase'");
+    expect(executionLogMigration).not.toContain('information_schema.columns');
+    expect(executionLogMigration).not.toContain("column_name = 'workflow_phase'");
+    expect(executionLogMigration).toContain('ADD COLUMN stage_name text');
     expect(fleetPlaybookMigration).not.toContain("column_name = 'template_id'");
     expect(fleetPlaybookMigration).not.toContain('idx_runtime_heartbeats_template');
     expect(fleetPlaybookMigration).not.toContain('idx_fleet_events_template');
