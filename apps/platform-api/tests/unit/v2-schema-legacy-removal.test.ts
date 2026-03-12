@@ -32,7 +32,7 @@ describe('v2 schema legacy removal', () => {
     expect(source).not.toContain('runtime_heartbeats_template_id_fkey');
   });
 
-  it('keeps follow-on cleanup migrations tolerant of a clean base schema', () => {
+  it('keeps follow-on cleanup migrations V2-only once the base schema is clean', () => {
     const executionLogMigration = readFileSync(executionLogContextMigrationPath, 'utf8');
     const fleetPlaybookMigration = readFileSync(fleetPlaybookMigrationPath, 'utf8');
     const webhookWorkItemMigration = readFileSync(
@@ -42,9 +42,10 @@ describe('v2 schema legacy removal', () => {
 
     expect(executionLogMigration).toContain('information_schema.columns');
     expect(executionLogMigration).toContain("column_name = 'workflow_phase'");
-    expect(fleetPlaybookMigration).toContain("column_name = 'template_id'");
-    expect(fleetPlaybookMigration).toContain('DROP INDEX IF EXISTS idx_runtime_heartbeats_playbook');
-    expect(fleetPlaybookMigration).toContain('DROP INDEX IF EXISTS idx_fleet_events_playbook');
+    expect(fleetPlaybookMigration).not.toContain("column_name = 'template_id'");
+    expect(fleetPlaybookMigration).not.toContain('idx_runtime_heartbeats_template');
+    expect(fleetPlaybookMigration).not.toContain('idx_fleet_events_template');
+    expect(fleetPlaybookMigration).toContain('The canonical base schema is already playbook-based.');
     expect(webhookWorkItemMigration).toContain('DROP TABLE IF EXISTS webhook_task_triggers');
     expect(webhookWorkItemMigration).toContain('CREATE TABLE IF NOT EXISTS webhook_work_item_triggers');
   });
