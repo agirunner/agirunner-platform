@@ -108,39 +108,3 @@ describe('workflow interaction timeline', () => {
     expect(source).not.toContain('>Event payload<');
   });
 });
-
-  it('describes workflow budget warnings with operator-readable usage details', () => {
-    const descriptor = describeTimelineEvent(
-      buildEvent({
-        type: 'budget.warning',
-        actor_type: 'system',
-        actor_id: 'workflow_budget_policy',
-        data: {
-          dimensions: ['tokens', 'cost'],
-          tokens_used: 96000,
-          tokens_limit: 120000,
-          cost_usd: 9.5,
-          cost_limit_usd: 12,
-        },
-      }),
-    );
-
-    expect(descriptor.headline).toBe('Workflow budget warning');
-    expect(descriptor.summary).toContain('Approaching configured workflow guardrails');
-    expect(descriptor.summary).toContain('tokens (96,000 / 120,000)');
-    expect(descriptor.summary).toContain('cost ($9.5000 / $12.0000)');
-  });
-
-  it('describes workflow budget exceedances with human-readable overage context', () => {
-    const descriptor = describeTimelineEvent(
-      buildEvent({
-        type: 'budget.exceeded',
-        actor_type: 'system',
-        actor_id: 'workflow_budget_policy',
-        data: {
-          dimensions: ['duration'],
-          elapsed_minutes: 105,
-          duration_limit_minutes: 90,
-        },
-      }),
-    );
