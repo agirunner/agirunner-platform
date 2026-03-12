@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildCommandPaletteSearchItems,
+  buildCommandPaletteSections,
+  clearRecentCommandPaletteItems,
   COMMAND_PALETTE_MIN_QUERY_LENGTH,
   describeCommandPaletteState,
   filterCommandPaletteQuickLinks,
+  recordRecentCommandPaletteItem,
   moveCommandPaletteSelection,
+  readRecentCommandPaletteItems,
   shouldRunCommandPaletteSearch,
   type CommandPaletteItem,
 } from './layout-search.js';
@@ -33,6 +37,21 @@ const QUICK_LINKS: CommandPaletteItem[] = [
     kind: 'navigation',
   },
 ];
+
+function createStorageStub(seed: string | null = null) {
+  let value = seed;
+  return {
+    getItem() {
+      return value;
+    },
+    setItem(_key: string, next: string) {
+      value = next;
+    },
+    removeItem() {
+      value = null;
+    },
+  };
+}
 
 describe('command palette helpers', () => {
   it('requires a trimmed minimum query length before running workspace search', () => {
@@ -74,6 +93,81 @@ describe('command palette helpers', () => {
     ]);
   });
 
+  it('builds grouped command sections with actions, recents, quick links, and ranked search results', () => {
+    const sections = buildCommandPaletteSections({
+      query: 'auth',
+      actionItems: [
+        {
+          id: 'action:refresh-view',
+          label: 'Refresh current view',
+          meta: 'Workspace',
+          kind: 'action',
+          actionId: 'refresh-view',
+          keywords: ['refresh'],
+        },
+      ],
+      recentItems: [
+        {
+          id: 'workflow:recent-auth',
+          href: '/work/workflows/recent-auth',
+          label: 'Recent Auth Workflow',
+          meta: 'Workflows',
+          kind: 'workflow',
+        },
+      ],
+      quickLinks: QUICK_LINKS,
+      searchResults: [
+        {
+          id: 'workflow-1',
+          type: 'workflow',
+          label: 'Auth Workflow',
+          subtitle: 'review stage',
+          href: '/work/workflows/workflow-1',
+        },
+        {
+          id: 'task-1',
+          type: 'task',
+          label: 'Auth Review Task',
+          subtitle: 'in progress',
+          href: '/work/tasks/task-1',
+        },
+      ],
+    });
+
+    expect(sections.map((section) => section.title)).toEqual([
+      'Recent',
+      'Workflows',
+      'Tasks',
+    ]);
+  });
+
+  it('stores and clears recent palette items while skipping destructive actions', () => {
+    const storage = createStorageStub();
+    const recentWorkflow: CommandPaletteItem = {
+      id: 'workflow:recent-auth',
+      href: '/work/workflows/recent-auth',
+      label: 'Recent Auth Workflow',
+      meta: 'Workflows',
+      kind: 'workflow',
+    };
+
+    expect(recordRecentCommandPaletteItem(recentWorkflow, storage)).toEqual([recentWorkflow]);
+    expect(readRecentCommandPaletteItems(storage)).toEqual([recentWorkflow]);
+    expect(
+      recordRecentCommandPaletteItem(
+        {
+          id: 'action:logout',
+          label: 'Log out',
+          meta: 'Session',
+          kind: 'action',
+          actionId: 'logout',
+        },
+        storage,
+      ),
+    ).toEqual([recentWorkflow]);
+    expect(clearRecentCommandPaletteItems(storage)).toEqual([]);
+  });
+
   it('moves selection predictably for keyboard navigation', () => {
     expect(moveCommandPaletteSelection(-1, 0, 'next')).toBe(-1);
     expect(moveCommandPaletteSelection(-1, 3, 'next')).toBe(0);
@@ -93,8 +187,8 @@ describe('command palette helpers', () => {
         visibleItemCount: 0,
       }),
     ).toEqual({
-      title: 'Searching the workspace',
-      detail: 'Results update as you type. Keep typing to narrow the matches.',
+      title: 'Searching and ranking results',
+      detail: 'Actions, recent items, and quick links stay available while live results load.',
     });
 
     expect(
@@ -105,7 +199,7 @@ describe('command palette helpers', () => {
       }),
     ).toEqual({
       title: 'No matches yet',
-      detail: 'Try a different name, ID fragment, or status keyword.',
+      detail: 'Try a different name, ID fragment, status keyword, or action verb.',
     });
 
     expect(
@@ -115,8 +209,8 @@ describe('command palette helpers', () => {
         visibleItemCount: 2,
       }),
     ).toEqual({
-      title: 'Live results',
-      detail: 'Use arrow keys to move, Enter to open, and Escape to dismiss.',
+      title: 'Commands and results',
+      detail: 'Use arrow keys to move, Enter to open or run, and Escape to dismiss.',
     });
 
     expect(
@@ -126,8 +220,8 @@ describe('command palette helpers', () => {
         visibleItemCount: 3,
       }),
     ).toEqual({
-      title: 'Quick links',
-      detail: 'Jump to common destinations immediately, or keep typing to search everything.',
+      title: 'Actions, recent items, and quick links',
+      detail: 'Use arrow keys to move, Enter to open or run, and Escape to dismiss.',
     });
 
     expect(

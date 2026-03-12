@@ -49,5 +49,9 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain('Search the workspace');
     expect(source).toContain('describeCommandPaletteState');
     expect(source).toContain('shouldRunCommandPaletteSearch');
+    expect(source).toContain('buildCommandPaletteSections');
+    expect(source).toContain('recordRecentCommandPaletteItem');
+    expect(source).toContain('Actions');
+    expect(source).toContain('Recent');
   });
 });

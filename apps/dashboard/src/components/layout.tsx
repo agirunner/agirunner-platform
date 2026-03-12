@@ -43,11 +43,16 @@ import { cn } from '../lib/utils.js';
 import { readTheme } from '../app/theme.js';
 import {
   buildCommandPaletteSearchItems,
+  buildCommandPaletteSections,
+  clearRecentCommandPaletteItems,
   COMMAND_PALETTE_DEBOUNCE_MS,
   describeCommandPaletteState,
   filterCommandPaletteQuickLinks,
   moveCommandPaletteSelection,
+  readRecentCommandPaletteItems,
+  recordRecentCommandPaletteItem,
   shouldRunCommandPaletteSearch,
+  type CommandPaletteActionId,
   type CommandPaletteItem,
   type CommandPaletteStatus,
 } from './layout-search.js';
@@ -152,6 +157,9 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [activePaletteIndex, setActivePaletteIndex] = useState(-1);
+  const [recentPaletteItems, setRecentPaletteItems] = useState<CommandPaletteItem[]>(
+    () => readRecentCommandPaletteItems(),
+  );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const paletteItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -181,7 +189,65 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
     () => filterCommandPaletteQuickLinks(COMMAND_PALETTE_QUICK_LINKS, searchQuery),
     [searchQuery],
   );
-  const visiblePaletteItems = shouldSearchWorkspace ? searchItems : quickLinks;
+  const actionItems = useMemo<Array<CommandPaletteItem>>(
+    () => [
+      {
+        id: 'action:toggle-theme',
+        label: isDark ? 'Switch to light theme' : 'Switch to dark theme',
+        meta: 'Appearance',
+        kind: 'action',
+        actionId: 'toggle-theme',
+        keywords: ['theme', 'appearance', isDark ? 'light' : 'dark'],
+      },
+      {
+        id: 'action:refresh-view',
+        label: 'Refresh current view',
+        meta: 'Workspace',
+        kind: 'action',
+        actionId: 'refresh-view',
+        keywords: ['refresh', 'reload', 'invalidate'],
+      },
+      {
+        id: 'action:logout',
+        label: 'Log out',
+        meta: 'Session',
+        kind: 'action',
+        actionId: 'logout',
+        keywords: ['logout', 'sign out', 'session'],
+      },
+      {
+        id: 'action:clear-recents',
+        label: 'Clear recent items',
+        meta: 'Command Palette',
+        kind: 'action',
+        actionId: 'clear-recents',
+        keywords: ['recent', 'clear', 'history'],
+      },
+    ],
+    [isDark],
+  );
+  const visiblePaletteSections = useMemo(
+    () =>
+      buildCommandPaletteSections({
+        query: searchQuery,
+        actionItems,
+        recentItems: recentPaletteItems,
+        quickLinks,
+        searchResults,
+      }),
+    [actionItems, quickLinks, recentPaletteItems, searchQuery, searchResults],
+  );
+  const visiblePaletteRows = useMemo(() => {
+    let index = 0;
+    return visiblePaletteSections.map((section) => ({
+      ...section,
+      rows: section.items.map((item) => ({ item, index: index++ })),
+    }));
+  }, [visiblePaletteSections]);
+  const visiblePaletteItems = useMemo(
+    () => visiblePaletteRows.flatMap((section) => section.rows.map((row) => row.item)),
+    [visiblePaletteRows],
+  );
   const paletteState = useMemo(
     () =>
       describeCommandPaletteState({
@@ -208,7 +274,46 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
     setActivePaletteIndex(-1);
   }
 
+  useEffect(() => {
+    if (!searchOpen) {
+      return;
+    }
+    setRecentPaletteItems(readRecentCommandPaletteItems());
+  }, [searchOpen]);
+
+  function executeCommandPaletteAction(actionId: CommandPaletteActionId): void {
+    if (actionId === 'toggle-theme') {
+      onToggleTheme();
+      closeSearchPalette();
+      return;
+    }
+    if (actionId === 'refresh-view') {
+      void queryClient.invalidateQueries();
+      closeSearchPalette();
+      return;
+    }
+    if (actionId === 'clear-recents') {
+      setRecentPaletteItems(clearRecentCommandPaletteItems());
+      closeSearchPalette();
+      return;
+    }
+    void dashboardApi.logout().finally(() => {
+      clearSession();
+      queryClient.clear();
+      navigate('/login');
+      closeSearchPalette();
+    });
+  }
+
   function navigateToPaletteItem(item: CommandPaletteItem): void {
+    setRecentPaletteItems(recordRecentCommandPaletteItem(item));
+    if (item.actionId) {
+      executeCommandPaletteAction(item.actionId);
+      return;
+    }
+    if (!item.href) {
+      return;
+    }
     navigate(item.href);
     closeSearchPalette();
   }
@@ -524,53 +629,60 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
                 <p className="mt-1 text-xs leading-5">{paletteState.detail}</p>
               </div>
 
-              {visiblePaletteItems.length > 0 ? (
+              {visiblePaletteRows.length > 0 ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-3 px-1">
                     <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted">
-                      {shouldSearchWorkspace ? 'Results' : 'Quick links'}
+                      {shouldSearchWorkspace ? 'Commands and results' : 'Actions and shortcuts'}
                     </p>
                     <p className="text-xs text-muted">
-                      {shouldSearchWorkspace
-                        ? `${visiblePaletteItems.length} matches`
-                        : `${visiblePaletteItems.length} destinations`}
+                      {`${visiblePaletteItems.length} items`}
                     </p>
                   </div>
-                  <ul
+                  <div
                     id="dashboard-command-palette-results"
                     role="listbox"
-                    className="max-h-72 space-y-1 overflow-y-auto"
+                    className="max-h-72 space-y-3 overflow-y-auto"
                   >
-                    {visiblePaletteItems.map((item, index) => (
-                      <li key={item.id}>
-                        <button
-                          id={`dashboard-command-palette-item-${index}`}
-                          ref={(element) => {
-                            paletteItemRefs.current[index] = element;
-                          }}
-                          type="button"
-                          role="option"
-                          aria-selected={index === activePaletteIndex}
-                          className={cn(
-                            'flex w-full items-start justify-between gap-3 rounded-xl px-3 py-3 text-left text-sm transition-colors',
-                            index === activePaletteIndex
-                              ? 'bg-accent/10 text-foreground'
-                              : 'hover:bg-border/30',
-                          )}
-                          onMouseEnter={() => setActivePaletteIndex(index)}
-                          onClick={() => navigateToPaletteItem(item)}
-                        >
-                          <div className="min-w-0">
-                            <p className="font-medium text-foreground">{item.label}</p>
-                            <p className="truncate text-xs text-muted">{item.meta}</p>
-                          </div>
-                          <span className="rounded-full border border-border/70 px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted">
-                            {item.kind}
-                          </span>
-                        </button>
-                      </li>
+                    {visiblePaletteRows.map((section) => (
+                      <div key={section.id} className="space-y-1">
+                        <div className="px-1 text-[11px] font-medium uppercase tracking-[0.2em] text-muted">
+                          {section.title}
+                        </div>
+                        <ul className="space-y-1">
+                          {section.rows.map(({ item, index }) => (
+                            <li key={item.id}>
+                              <button
+                                id={`dashboard-command-palette-item-${index}`}
+                                ref={(element) => {
+                                  paletteItemRefs.current[index] = element;
+                                }}
+                                type="button"
+                                role="option"
+                                aria-selected={index === activePaletteIndex}
+                                className={cn(
+                                  'flex w-full items-start justify-between gap-3 rounded-xl px-3 py-3 text-left text-sm transition-colors',
+                                  index === activePaletteIndex
+                                    ? 'bg-accent/10 text-foreground'
+                                    : 'hover:bg-border/30',
+                                )}
+                                onMouseEnter={() => setActivePaletteIndex(index)}
+                                onClick={() => navigateToPaletteItem(item)}
+                              >
+                                <div className="min-w-0">
+                                  <p className="font-medium text-foreground">{item.label}</p>
+                                  <p className="truncate text-xs text-muted">{item.meta}</p>
+                                </div>
+                                <span className="rounded-full border border-border/70 px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted">
+                                  {item.kind}
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               ) : null}
 
