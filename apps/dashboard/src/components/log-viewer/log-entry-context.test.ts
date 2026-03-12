@@ -88,8 +88,11 @@ describe('log entry context', () => {
     expect(detailSource).toContain('Diagnostic handles');
     expect(detailSource).toContain('Recorded payload');
     expect(taskDetailSource).toContain('Execution Step Lifecycle');
+    expect(taskDetailSource).toContain('Specialist-step state changes, routing, and runtime handles');
     expect(taskDetailSource).toContain("label: 'Board'");
     expect(taskDetailSource).toContain("label: 'Step Title'");
+    expect(taskDetailSource).toContain("label: 'Work item'");
+    expect(taskDetailSource).toContain("label: 'Runtime handle'");
     expect(groupedTableSource).toContain('non-step');
   });
 });

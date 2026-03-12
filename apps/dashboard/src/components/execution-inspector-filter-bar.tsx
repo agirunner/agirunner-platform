@@ -41,6 +41,12 @@ export function ExecutionInspectorFilterBar(
   return (
     <Card>
       <CardContent className="space-y-4 p-5">
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Focus the execution slice</p>
+          <p className="text-sm text-muted">
+            Narrow the inspector by board, specialist step, stage, activation, role, or runtime emitter.
+          </p>
+        </div>
         <div className="grid gap-3 lg:grid-cols-[2fr_repeat(4,minmax(0,1fr))]">
           <label className="space-y-1">
             <span className="text-xs font-medium uppercase tracking-wide text-muted">
@@ -54,7 +60,7 @@ export function ExecutionInspectorFilterBar(
                 onChange={(event) =>
                   props.onChange({ ...props.filters, search: event.target.value })
                 }
-                placeholder="operation, error, payload text"
+                placeholder="operation, board, step, error, or payload text"
               />
             </div>
           </label>
@@ -71,7 +77,7 @@ export function ExecutionInspectorFilterBar(
             onChange={(value) => props.onChange({ ...props.filters, level: value })}
           />
           <FilterSelect
-            label="Operation"
+            label="Activity"
             value={props.filters.operation || '__all__'}
             options={props.operationOptions}
             includeAll
@@ -80,7 +86,7 @@ export function ExecutionInspectorFilterBar(
             }
           />
           <FilterSelect
-            label="Role"
+            label="Step role"
             value={props.filters.role || '__all__'}
             options={props.roleOptions}
             includeAll
@@ -89,7 +95,7 @@ export function ExecutionInspectorFilterBar(
             }
           />
           <FilterSelect
-            label="Actor"
+            label="Emitter"
             value={props.filters.actor || '__all__'}
             options={props.actorOptions}
             includeAll
@@ -101,27 +107,27 @@ export function ExecutionInspectorFilterBar(
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <FilterInput
-            label="Workflow ID"
+            label="Board ID"
             value={props.filters.workflowId}
             onChange={(value) => props.onChange({ ...props.filters, workflowId: value })}
           />
           <FilterInput
-            label="Task ID"
+            label="Step ID"
             value={props.filters.taskId}
             onChange={(value) => props.onChange({ ...props.filters, taskId: value })}
           />
           <FilterInput
-            label="Work Item ID"
+            label="Work item ID"
             value={props.filters.workItemId}
             onChange={(value) => props.onChange({ ...props.filters, workItemId: value })}
           />
           <FilterInput
-            label="Stage Name"
+            label="Stage"
             value={props.filters.stageName}
             onChange={(value) => props.onChange({ ...props.filters, stageName: value })}
           />
           <FilterInput
-            label="Activation ID"
+            label="Activation"
             value={props.filters.activationId}
             onChange={(value) => props.onChange({ ...props.filters, activationId: value })}
           />

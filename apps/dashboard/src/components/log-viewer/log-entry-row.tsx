@@ -57,6 +57,24 @@ function formatTimestamp(iso: string): string {
   return `${mon}/${day} ${hh}:${mm}:${ss}`;
 }
 
+function formatRelativeTime(iso: string): string {
+  const deltaSeconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  const absSeconds = Math.abs(deltaSeconds);
+  if (absSeconds < 60) {
+    return deltaSeconds >= 0 ? `${absSeconds}s ago` : `in ${absSeconds}s`;
+  }
+  const absMinutes = Math.round(absSeconds / 60);
+  if (absMinutes < 60) {
+    return deltaSeconds >= 0 ? `${absMinutes}m ago` : `in ${absMinutes}m`;
+  }
+  const absHours = Math.round(absMinutes / 60);
+  if (absHours < 24) {
+    return deltaSeconds >= 0 ? `${absHours}h ago` : `in ${absHours}h`;
+  }
+  const absDays = Math.round(absHours / 24);
+  return deltaSeconds >= 0 ? `${absDays}d ago` : `in ${absDays}d`;
+}
+
 function formatDuration(ms: number | null | undefined): string {
   if (ms == null) return '';
   if (ms < 1) return '<1ms';
@@ -247,10 +265,10 @@ export function LogTableHeader(): JSX.Element {
         <th className="px-1.5 py-1.5 text-left font-medium">Time</th>
         <th className="px-1.5 py-1.5 text-left font-medium">Category</th>
         <th className="px-1.5 py-1.5 text-left font-medium hidden lg:table-cell">Project</th>
-        <th className="px-1.5 py-1.5 text-left font-medium hidden lg:table-cell">Workflow</th>
+        <th className="px-1.5 py-1.5 text-left font-medium hidden lg:table-cell">Board</th>
         <th className="px-1.5 py-1.5 text-left font-medium hidden lg:table-cell">Role</th>
         <th className="px-1.5 py-1.5 text-left font-medium">Operation</th>
-        <th className="px-1.5 py-1.5 text-left font-medium hidden md:table-cell">Detail</th>
+        <th className="px-1.5 py-1.5 text-left font-medium hidden md:table-cell">Activity summary</th>
         <th className="px-1.5 py-1.5 text-right font-medium w-16">Duration</th>
       </tr>
     </thead>
@@ -313,8 +331,11 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
       </td>
 
       {/* Time */}
-      <td className="px-1.5 py-1 font-mono text-muted-foreground tabular-nums whitespace-nowrap">
-        {formatTimestamp(entry.created_at)}
+      <td
+        className="px-1.5 py-1 text-muted-foreground tabular-nums whitespace-nowrap"
+        title={formatTimestamp(entry.created_at)}
+      >
+        {formatRelativeTime(entry.created_at)}
       </td>
 
       {/* Category */}
@@ -332,7 +353,10 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
       {/* Project */}
       <td className="hidden lg:table-cell px-1.5 py-1">
         {entry.project_name || entry.project_id ? (
-          <span className="inline-block rounded bg-cyan-50 px-1.5 py-px text-[11px] leading-tight text-cyan-700 font-medium whitespace-nowrap max-w-[120px] truncate">
+          <span
+            className="inline-block rounded bg-cyan-50 px-1.5 py-px text-[11px] leading-tight text-cyan-700 font-medium whitespace-nowrap max-w-[120px] truncate"
+            title={entry.project_name ?? entry.project_id ?? undefined}
+          >
             {entry.project_name ?? entry.project_id!.slice(0, 8)}
           </span>
         ) : (
@@ -343,7 +367,10 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
       {/* Workflow */}
       <td className="hidden lg:table-cell px-1.5 py-1">
         {entry.workflow_name || entry.workflow_id ? (
-          <span className="inline-block rounded bg-purple-50 px-1.5 py-px text-[11px] leading-tight text-purple-700 font-medium whitespace-nowrap max-w-[120px] truncate">
+          <span
+            className="inline-block rounded bg-purple-50 px-1.5 py-px text-[11px] leading-tight text-purple-700 font-medium whitespace-nowrap max-w-[120px] truncate"
+            title={entry.workflow_name ?? entry.workflow_id ?? undefined}
+          >
             {entry.workflow_name ?? entry.workflow_id!.slice(0, 8)}
           </span>
         ) : (
@@ -354,7 +381,10 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
       {/* Role */}
       <td className="hidden lg:table-cell px-1.5 py-1">
         {role ? (
-          <span className="inline-block rounded bg-rose-50 px-1.5 py-px text-[11px] leading-tight text-rose-600 font-medium whitespace-nowrap">
+          <span
+            className="inline-block rounded bg-rose-50 px-1.5 py-px text-[11px] leading-tight text-rose-600 font-medium whitespace-nowrap"
+            title={role}
+          >
             {truncate(role, 16)}
           </span>
         ) : (

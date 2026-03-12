@@ -26,8 +26,8 @@ const FIELDS: readonly FieldDef[] = [
   { label: 'Step Count', key: 'task_count' },
   { label: 'Failed Steps', key: 'failed_task_count' },
   { label: 'Board', key: 'workflow_name' },
-  { label: 'Work Item ID', key: 'work_item_id', format: shortId },
-  { label: 'Activation ID', key: 'activation_id', format: shortId },
+  { label: 'Work item', key: 'work_item_id', format: shortId },
+  { label: 'Activation', key: 'activation_id', format: shortId },
   {
     label: 'Parameters',
     key: 'parameters',
@@ -37,9 +37,9 @@ const FIELDS: readonly FieldDef[] = [
     },
   },
   { label: 'Method', key: 'method' },
-  { label: 'Board ID', key: 'workflow_id', format: shortId },
-  { label: 'Runtime ID', key: 'runtime_id', format: shortId },
-  { label: 'Container ID', key: 'container_id', format: shortId },
+  { label: 'Board handle', key: 'workflow_id', format: shortId },
+  { label: 'Runtime handle', key: 'runtime_id', format: shortId },
+  { label: 'Container handle', key: 'container_id', format: shortId },
 ];
 
 export function LogEntryDetailTask({ payload }: { payload: Record<string, unknown> }): JSX.Element {
@@ -47,7 +47,10 @@ export function LogEntryDetailTask({ payload }: { payload: Record<string, unknow
 
   return (
     <div className="rounded-md border border-border p-4">
-      <h4 className="mb-3 text-sm font-semibold">Execution Step Lifecycle</h4>
+      <h4 className="mb-1 text-sm font-semibold">Execution Step Lifecycle</h4>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Specialist-step state changes, routing, and runtime handles captured for this activity.
+      </p>
       <div className="grid max-w-lg grid-cols-[auto_1fr] gap-x-6 gap-y-0 text-sm">
         {visible.map(({ label, key, format }) => (
           <Fragment key={key}>
