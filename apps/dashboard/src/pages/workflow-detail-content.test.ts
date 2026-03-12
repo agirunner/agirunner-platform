@@ -19,12 +19,13 @@ describe('workflow detail content source', () => {
     expect(source).toContain('Badge');
     expect(source).toContain('Button');
     expect(source).toContain('Input');
-    expect(source).toContain('Textarea');
+    expect(source).toContain('ChainStructuredEntryEditor');
     expect(source).toContain('DocumentCard');
     expect(source).toContain('SurfaceMessage');
     expect(source).toContain('MemoryDraftPreview');
     expect(source).toContain('Structured preview');
-    expect(source).not.toContain('Memory value (JSON)');
+    expect(source).toContain('Add memory field');
+    expect(source).not.toContain('Enter an object-shaped JSON payload.');
   });
 
   it('does not use the legacy semantic card, badge, or form classes', () => {

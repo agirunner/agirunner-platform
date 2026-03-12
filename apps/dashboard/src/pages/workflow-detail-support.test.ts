@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   groupTasksByStage,
-  parseMemoryValue,
   readProjectMemoryEntries,
   readWorkflowRunSummary,
 } from './workflow-detail-support.js';
@@ -36,15 +35,6 @@ describe('workflow detail workflow support', () => {
     });
 
     expect(summary).toEqual({ kind: 'run_summary', workflow_id: 'pipe-1' });
-  });
-
-  it('parses project memory value as JSON for dashboard editing', () => {
-    expect(parseMemoryValue('{"summary":"updated"}')).toEqual({
-      value: { summary: 'updated' },
-      error: undefined,
-    });
-    expect(parseMemoryValue('').error).toBe('Memory value must not be empty.');
-    expect(parseMemoryValue('{oops').error).toBe('Memory value must be valid JSON.');
   });
 
   it('reads project memory entries in sorted order', () => {

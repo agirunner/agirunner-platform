@@ -62,19 +62,6 @@ export function groupTasksByStage(
   }));
 }
 
-export function parseMemoryValue(value: string) {
-  const normalized = value.trim();
-  if (normalized.length === 0) {
-    return { value: '', error: 'Memory value must not be empty.' };
-  }
-
-  try {
-    return { value: JSON.parse(normalized), error: undefined };
-  } catch {
-    return { value: undefined, error: 'Memory value must be valid JSON.' };
-  }
-}
-
 export function readProjectMemoryEntries(project: unknown): DashboardProjectMemoryEntry[] {
   return Object.entries(asRecord(asRecord(project).memory))
     .map(([key, value]) => ({ key, value }))

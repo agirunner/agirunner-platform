@@ -20,7 +20,6 @@ import {
 import { subscribeToEvents } from '../lib/sse.js';
 import {
   groupTasksByStage,
-  parseMemoryValue,
   readWorkflowProjectId,
   readProjectMemoryEntries,
   readWorkflowRunSummary,
@@ -28,6 +27,12 @@ import {
   summarizeTasks,
   type DashboardWorkflowTaskRow,
 } from './workflow-detail-support.js';
+import {
+  buildStructuredObject,
+  createStructuredEntryDraft,
+  objectToStructuredDrafts,
+  type StructuredEntryDraft,
+} from './projects/project-detail-support.js';
 import { WorkflowWorkItemDetailPanel } from './workflow-work-item-detail-panel.js';
 import {
   findWorkItemById,
@@ -110,7 +115,10 @@ export function WorkflowDetailPage(): JSX.Element {
   const workflowId = params.id ?? '';
   const queryClient = useQueryClient();
   const [memoryKey, setMemoryKey] = useState('last_operator_note');
-  const [memoryValue, setMemoryValue] = useState('{\n  "summary": ""\n}');
+  const [memoryDrafts, setMemoryDrafts] = useState<StructuredEntryDraft[]>(() => {
+    const drafts = objectToStructuredDrafts({ summary: '' });
+    return drafts.length > 0 ? drafts : [createStructuredEntryDraft()];
+  });
   const [memoryError, setMemoryError] = useState<string | null>(null);
   const [memoryMessage, setMemoryMessage] = useState<string | null>(null);
   const [workItemTitle, setWorkItemTitle] = useState('');
@@ -372,7 +380,7 @@ export function WorkflowDetailPage(): JSX.Element {
   }
 
   async function handleMemorySave() {
-    const parsed = parseMemoryValue(memoryValue);
+    let parsedValue: Record<string, unknown> | undefined;
     if (!projectId) {
       setMemoryError('Project memory is only available for project-backed workflows.');
       return;
@@ -381,15 +389,21 @@ export function WorkflowDetailPage(): JSX.Element {
       setMemoryError('Memory key must not be empty.');
       return;
     }
-    if (parsed.error) {
-      setMemoryError(parsed.error);
+    try {
+      parsedValue = buildStructuredObject(memoryDrafts, 'Project memory');
+    } catch (error) {
+      setMemoryError(error instanceof Error ? error.message : 'Memory fields are invalid.');
+      return;
+    }
+    if (!parsedValue || Object.keys(parsedValue).length === 0) {
+      setMemoryError('Memory value must include at least one field.');
       return;
     }
     setMemoryError(null);
     setMemoryMessage(null);
     await dashboardApi.patchProjectMemory(projectId, {
       key: memoryKey.trim(),
-      value: parsed.value,
+      value: parsedValue,
     });
     setMemoryMessage(`Updated project memory key '${memoryKey.trim()}'.`);
     await invalidateWorkflowQueries(queryClient, workflowId, projectId);
@@ -901,11 +915,11 @@ export function WorkflowDetailPage(): JSX.Element {
           isLoading={projectQuery.isLoading}
           hasError={Boolean(projectQuery.error)}
           memoryKey={memoryKey}
-          memoryValue={memoryValue}
+          memoryDrafts={memoryDrafts}
           memoryError={memoryError}
           memoryMessage={memoryMessage}
           onMemoryKeyChange={setMemoryKey}
-          onMemoryValueChange={setMemoryValue}
+          onMemoryDraftsChange={setMemoryDrafts}
           onSave={() => void handleMemorySave()}
         />
       </div>

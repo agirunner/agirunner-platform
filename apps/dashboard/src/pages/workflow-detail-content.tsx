@@ -4,6 +4,7 @@ import type {
   DashboardProjectRecord,
   DashboardResolvedDocumentReference,
 } from '../lib/api.js';
+import { ChainStructuredEntryEditor } from '../components/chain-workflow-parameters.js';
 import { StructuredRecordView } from '../components/structured-data.js';
 import { Badge } from '../components/ui/badge.js';
 import { Button } from '../components/ui/button.js';
@@ -15,8 +16,11 @@ import {
   CardTitle,
 } from '../components/ui/card.js';
 import { Input } from '../components/ui/input.js';
-import { Textarea } from '../components/ui/textarea.js';
 import type { DashboardProjectMemoryEntry } from './workflow-detail-support.js';
+import {
+  buildStructuredObject,
+  type StructuredEntryDraft,
+} from './projects/project-detail-support.js';
 
 export function WorkflowDocumentsCard(props: {
   isLoading: boolean;
@@ -73,11 +77,11 @@ export function ProjectMemoryCard(props: {
   isLoading: boolean;
   hasError: boolean;
   memoryKey: string;
-  memoryValue: string;
+  memoryDrafts: StructuredEntryDraft[];
   memoryError?: string | null;
   memoryMessage?: string | null;
   onMemoryKeyChange(value: string): void;
-  onMemoryValueChange(value: string): void;
+  onMemoryDraftsChange(value: StructuredEntryDraft[]): void;
   onSave(): void;
 }) {
   return (
@@ -150,24 +154,18 @@ export function ProjectMemoryCard(props: {
             />
           </div>
           <div className="grid gap-1.5">
-            <label
-              htmlFor="project-memory-value"
-              className="text-sm font-medium text-foreground"
-            >
-              Memory value
-            </label>
-            <Textarea
-              id="project-memory-value"
-              rows={6}
-              value={props.memoryValue}
-              onChange={(event) => props.onMemoryValueChange(event.target.value)}
-            />
+            <div className="text-sm font-medium text-foreground">Memory fields</div>
             <p className="text-xs text-muted">
-              Enter an object-shaped JSON payload. The preview below shows how operators and agents
-              will read the entry.
+              Add structured key/value memory fields instead of hand-authoring a raw JSON object.
+              Use the JSON value type only when a single field needs nested object data.
             </p>
+            <ChainStructuredEntryEditor
+              drafts={props.memoryDrafts}
+              onChange={props.onMemoryDraftsChange}
+              addLabel="Add memory field"
+            />
           </div>
-          <MemoryDraftPreview value={props.memoryValue} />
+          <MemoryDraftPreview drafts={props.memoryDrafts} />
           <SurfaceMessage tone="destructive" show={Boolean(props.memoryError)}>
             {props.memoryError}
           </SurfaceMessage>
@@ -252,8 +250,8 @@ function SurfaceMessage(props: {
   return <p className={className}>{props.children}</p>;
 }
 
-function MemoryDraftPreview(props: { value: string }): JSX.Element {
-  const parsed = parseMemoryDraft(props.value);
+function MemoryDraftPreview(props: { drafts: StructuredEntryDraft[] }): JSX.Element {
+  const parsed = parseMemoryDrafts(props.drafts);
   return (
     <div className="grid gap-2 rounded-md border border-border/70 bg-background/70 p-4">
       <div className="text-sm font-medium">Structured preview</div>
@@ -266,24 +264,15 @@ function MemoryDraftPreview(props: { value: string }): JSX.Element {
   );
 }
 
-function parseMemoryDraft(value: string): { value: Record<string, unknown> | null; error: string | null } {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return { value: {}, error: null };
-  }
+function parseMemoryDrafts(
+  drafts: StructuredEntryDraft[],
+): { value: Record<string, unknown> | null; error: string | null } {
   try {
-    const parsed = JSON.parse(trimmed) as unknown;
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return {
-        value: null,
-        error: 'Memory preview requires a JSON object with key/value entries.',
-      };
-    }
-    return { value: parsed as Record<string, unknown>, error: null };
-  } catch {
+    return { value: buildStructuredObject(drafts, 'Project memory') ?? {}, error: null };
+  } catch (error) {
     return {
       value: null,
-      error: 'Memory preview requires valid JSON before this entry can be saved.',
+      error: error instanceof Error ? error.message : 'Memory preview contains invalid fields.',
     };
   }
 }
