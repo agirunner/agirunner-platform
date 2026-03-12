@@ -12,6 +12,7 @@ describe('runtime defaults page source', () => {
     expect(source).toContain("CardTitle className=\"text-2xl\">Runtimes</CardTitle>");
     expect(source).toContain('Agent container defaults');
     expect(source).toContain('Fleet limits');
+    expect(source).toContain('Web research');
     expect(source).not.toContain('JSON.parse');
   });
 
@@ -28,5 +29,11 @@ describe('runtime defaults page source', () => {
     expect(source).toContain('ActiveRuntimeImageCard');
     expect(source).toContain('BuildHistoryCard');
     expect(source).toContain('Clear a value and save to fall back to the platform default.');
+    expect(source).toContain('tools.web_search_provider');
+    expect(source).toContain('tools.web_search_base_url');
+    expect(source).toContain('tools.web_search_api_key_secret_ref');
+    expect(source).toContain('WEB_SEARCH_PROVIDER_OPTIONS');
+    expect(source).toContain('DuckDuckGo remains the built-in fallback');
+    expect(source).toContain('Use platform default');
   });
 });

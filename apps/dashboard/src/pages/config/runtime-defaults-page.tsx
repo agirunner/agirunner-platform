@@ -36,13 +36,15 @@ interface FieldDefinition {
   description: string;
   configType: 'string' | 'number';
   placeholder: string;
-  section: 'containers' | 'fleet';
+  section: 'containers' | 'fleet' | 'search';
 }
 
 type FormValues = Record<string, string>;
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 const PULL_POLICY_OPTIONS = ['always', 'if-not-present', 'never'] as const;
+const WEB_SEARCH_PROVIDER_OPTIONS = ['duckduckgo', 'serper', 'tavily'] as const;
+const PLATFORM_DEFAULT_SELECT_VALUE = '__default__';
 const FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'default_runtime_image',
@@ -91,6 +93,30 @@ const FIELD_DEFINITIONS: FieldDefinition[] = [
     configType: 'number',
     placeholder: '10',
     section: 'fleet',
+  },
+  {
+    key: 'tools.web_search_provider',
+    label: 'Web search provider',
+    description: 'Primary provider used by the runtime for web_search. DuckDuckGo remains the built-in fallback when the configured provider is unavailable.',
+    configType: 'string',
+    placeholder: 'duckduckgo',
+    section: 'search',
+  },
+  {
+    key: 'tools.web_search_base_url',
+    label: 'Provider base URL',
+    description: 'Optional override for the selected provider endpoint. Leave blank to use the provider default URL.',
+    configType: 'string',
+    placeholder: 'https://google.serper.dev/search',
+    section: 'search',
+  },
+  {
+    key: 'tools.web_search_api_key_secret_ref',
+    label: 'Provider API key secret ref',
+    description: 'Secret reference used when the provider requires an API key, for example secret:SERPER_API_KEY.',
+    configType: 'string',
+    placeholder: 'secret:SERPER_API_KEY',
+    section: 'search',
   },
 ];
 
@@ -181,12 +207,37 @@ function RuntimeField({
         <p className="text-xs leading-5 text-muted">{field.description}</p>
       </div>
       {field.key === 'default_pull_policy' ? (
-        <Select value={value} onValueChange={onChange}>
+        <Select
+          value={value || PLATFORM_DEFAULT_SELECT_VALUE}
+          onValueChange={(nextValue) =>
+            onChange(nextValue === PLATFORM_DEFAULT_SELECT_VALUE ? '' : nextValue)
+          }
+        >
           <SelectTrigger id={field.key} className="h-10" data-testid={`field-${field.key}`}>
             <SelectValue placeholder={field.placeholder} />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value={PLATFORM_DEFAULT_SELECT_VALUE}>Use platform default</SelectItem>
             {PULL_POLICY_OPTIONS.map((option) => (
+              <SelectItem key={option} value={option}>
+                {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : field.key === 'tools.web_search_provider' ? (
+        <Select
+          value={value || PLATFORM_DEFAULT_SELECT_VALUE}
+          onValueChange={(nextValue) =>
+            onChange(nextValue === PLATFORM_DEFAULT_SELECT_VALUE ? '' : nextValue)
+          }
+        >
+          <SelectTrigger id={field.key} className="h-10" data-testid={`field-${field.key}`}>
+            <SelectValue placeholder={field.placeholder} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={PLATFORM_DEFAULT_SELECT_VALUE}>Use platform default</SelectItem>
+            {WEB_SEARCH_PROVIDER_OPTIONS.map((option) => (
               <SelectItem key={option} value={option}>
                 {option}
               </SelectItem>
@@ -358,6 +409,13 @@ export function RuntimeDefaultsPage(): JSX.Element {
             title="Fleet limits"
             description="Global concurrency and capacity settings that affect all playbooks."
             fields={FIELD_DEFINITIONS.filter((field) => field.section === 'fleet')}
+            values={formValues}
+            onChange={updateField}
+          />
+          <RuntimeDefaultsSection
+            title="Web research"
+            description="Select the runtime web_search provider and any provider-specific endpoint or secret-ref settings."
+            fields={FIELD_DEFINITIONS.filter((field) => field.section === 'search')}
             values={formValues}
             onChange={updateField}
           />

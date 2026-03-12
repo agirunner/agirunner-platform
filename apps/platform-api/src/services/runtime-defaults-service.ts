@@ -5,6 +5,7 @@ import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 
 const CONFIG_TYPES = ['string', 'number', 'boolean', 'json'] as const;
+const WEB_SEARCH_PROVIDERS = new Set(['duckduckgo', 'serper', 'tavily']);
 
 const createDefaultSchema = z.object({
   configKey: z.string().min(1).max(200),
@@ -58,6 +59,7 @@ export class RuntimeDefaultsService {
 
   async createDefault(tenantId: string, input: CreateRuntimeDefaultInput): Promise<RuntimeDefaultRow> {
     const validated = createDefaultSchema.parse(input);
+    validateKnownRuntimeDefault(validated);
 
     const existing = await this.getByKey(tenantId, validated.configKey);
     if (existing) throw new ConflictError(`Runtime default "${validated.configKey}" already exists`);
@@ -79,6 +81,13 @@ export class RuntimeDefaultsService {
 
   async updateDefault(tenantId: string, id: string, input: UpdateRuntimeDefaultInput): Promise<RuntimeDefaultRow> {
     const validated = updateDefaultSchema.parse(input);
+    const current = await this.getDefault(tenantId, id);
+    validateKnownRuntimeDefault({
+      configKey: current.config_key,
+      configValue: validated.configValue ?? current.config_value,
+      configType: (validated.configType ?? current.config_type) as CreateRuntimeDefaultInput['configType'],
+      description: validated.description ?? current.description ?? undefined,
+    });
     const setClauses: string[] = [];
     const values: unknown[] = [tenantId, id];
     let paramIndex = 3;
@@ -97,7 +106,7 @@ export class RuntimeDefaultsService {
       }
     }
 
-    if (setClauses.length === 0) return this.getDefault(tenantId, id);
+    if (setClauses.length === 0) return current;
 
     setClauses.push('updated_at = NOW()');
 
@@ -111,6 +120,7 @@ export class RuntimeDefaultsService {
 
   async upsertDefault(tenantId: string, input: CreateRuntimeDefaultInput): Promise<RuntimeDefaultRow> {
     const validated = createDefaultSchema.parse(input);
+    validateKnownRuntimeDefault(validated);
 
     const result = await this.pool.query<RuntimeDefaultRow>(
       `INSERT INTO runtime_defaults (tenant_id, config_key, config_value, config_type, description)
@@ -135,5 +145,54 @@ export class RuntimeDefaultsService {
       [tenantId, id],
     );
     if (!result.rowCount) throw new NotFoundError('Runtime default not found');
+  }
+}
+
+function validateKnownRuntimeDefault(input: CreateRuntimeDefaultInput): void {
+  switch (input.configKey) {
+    case 'tools.web_search_provider': {
+      const provider = input.configValue.trim().toLowerCase();
+      if (input.configType !== 'string') {
+        throw new Error('tools.web_search_provider must use string config type');
+      }
+      if (!WEB_SEARCH_PROVIDERS.has(provider)) {
+        throw new Error('tools.web_search_provider must be one of: duckduckgo, serper, tavily');
+      }
+      return;
+    }
+    case 'tools.web_search_base_url': {
+      if (input.configType !== 'string') {
+        throw new Error('tools.web_search_base_url must use string config type');
+      }
+      const value = input.configValue.trim();
+      if (!value) {
+        return;
+      }
+      let parsed: URL;
+      try {
+        parsed = new URL(value);
+      } catch {
+        throw new Error('tools.web_search_base_url must be a valid http or https URL');
+      }
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        throw new Error('tools.web_search_base_url must be a valid http or https URL');
+      }
+      return;
+    }
+    case 'tools.web_search_api_key_secret_ref': {
+      if (input.configType !== 'string') {
+        throw new Error('tools.web_search_api_key_secret_ref must use string config type');
+      }
+      const value = input.configValue.trim();
+      if (!value) {
+        return;
+      }
+      if (!value.startsWith('secret:')) {
+        throw new Error('tools.web_search_api_key_secret_ref must use secret: references');
+      }
+      return;
+    }
+    default:
+      return;
   }
 }
