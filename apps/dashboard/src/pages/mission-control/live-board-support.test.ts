@@ -1,18 +1,28 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  countActiveSpecialistSteps,
   countBlockedBoardItems,
+  countEscalatedSteps,
   countOpenBoardItems,
+  countReworkHeavySteps,
+  countSpecialistReviewQueue,
   describeBoardHeadline,
   describeBoardProgress,
   describeBoardSpend,
+  describeBoardTokens,
   describeFleetHeadline,
+  describeOrchestratorPool,
+  describeRiskPosture,
+  describeSpecialistPool,
   describeWorkflowStage,
   describeWorkerCapacity,
   formatRelativeTimestamp,
   isLiveWorkflow,
   resolveBoardPosture,
+  summarizeActivationHealth,
   summarizeWorkerFleet,
+  summarizeVisibleTokenUsage,
 } from './live-board-support.js';
 
 describe('live board support', () => {
@@ -119,11 +129,76 @@ describe('live board support', () => {
       }),
     ).toBe('$12.35 reported');
     expect(
+      describeBoardTokens({
+        metrics: {
+          total_tokens: 42_500,
+        },
+      }),
+    ).toBe('42.5K tokens');
+    expect(
       formatRelativeTimestamp(
         '2026-03-12T11:45:00.000Z',
         new Date('2026-03-12T12:00:00.000Z').getTime(),
       ),
     ).toBe('15m ago');
+  });
+
+  it('summarizes orchestrator health, specialist posture, and token rollups for triage', () => {
+    const tasks = [
+      { status: 'ready', is_orchestrator_task: false, retry_count: 0 },
+      { status: 'awaiting_approval', is_orchestrator_task: false, retry_count: 0 },
+      { status: 'escalated', is_orchestrator_task: false, retry_count: 2 },
+      { status: 'in_progress', is_orchestrator_task: true, retry_count: 0 },
+    ];
+    const activations = [
+      { state: 'processing', event_count: 2 },
+      {
+        state: 'queued',
+        event_count: 1,
+        stale_started_at: '2026-03-12T12:00:00.000Z',
+        recovery_status: 'redispatched',
+        redispatched_task_id: 'task-1',
+      },
+    ];
+
+    expect(countActiveSpecialistSteps(tasks)).toBe(1);
+    expect(countSpecialistReviewQueue(tasks)).toBe(1);
+    expect(countEscalatedSteps(tasks)).toBe(1);
+    expect(countReworkHeavySteps(tasks)).toBe(1);
+
+    const activationSummary = summarizeActivationHealth(activations);
+    expect(activationSummary).toEqual({
+      inFlight: 1,
+      needsAttention: 1,
+      stale: 1,
+      recovered: 1,
+      queuedEvents: 3,
+    });
+    expect(describeOrchestratorPool(activationSummary)).toBe('1 active • 1 stale • 1 recovered');
+    expect(
+      describeSpecialistPool({
+        active: 1,
+        reviews: 1,
+        escalations: 1,
+        reworkHeavy: 1,
+      }),
+    ).toBe('1 active • 1 review • 1 escalated • 1 rework-heavy');
+    expect(
+      describeRiskPosture({
+        blocked: 2,
+        gates: 1,
+        failed: 1,
+        escalated: 1,
+        reworkHeavy: 1,
+        staleActivations: 1,
+      }),
+    ).toBe('2 blocked • 1 gates • 1 failed • 1 escalated • 1 rework-heavy • 1 stale');
+    expect(
+      summarizeVisibleTokenUsage([
+        { metrics: { total_tokens: 1_200 } },
+        { metrics: { prompt_tokens: 2_500, completion_tokens: 900 } },
+      ]),
+    ).toBe('4.6K tokens reported');
   });
 
   it('turns raw worker telemetry into operator-capacity summaries', () => {
