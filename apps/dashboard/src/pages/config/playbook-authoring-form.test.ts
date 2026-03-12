@@ -24,8 +24,10 @@ describe('playbook authoring form source', () => {
   it('uses tabs for progressive disclosure instead of one long linear stack', () => {
     const source = readSource();
     expect(source).toContain('data-testid="playbook-authoring-tabs"');
+    expect(source).toContain('sticky top-4');
     expect(source).toContain('TabsList');
     expect(source).toContain('TabsTrigger');
+    expect(source).toContain('sm:grid-cols-3');
     expect(source).toContain('Flow Design');
     expect(source).toContain('Automation Policy');
     expect(source).toContain('Launch and Runtime');

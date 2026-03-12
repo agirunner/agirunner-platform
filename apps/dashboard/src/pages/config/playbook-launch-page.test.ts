@@ -15,6 +15,8 @@ describe('playbook launch model override source', () => {
   it('builds structured launch controls instead of raw JSON textareas', () => {
     const source = readSource();
     expect(source).toContain('Structured launch flow');
+    expect(source).toContain('max-w-7xl');
+    expect(source).toContain('sticky bottom-4');
     expect(source).toContain('Launch Readiness');
     expect(source).toContain('Playbook Snapshot');
     expect(source).toContain('LaunchReadinessPanel');
@@ -28,6 +30,9 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('Max Duration (Minutes)');
     expect(source).toContain('Workflow Model Overrides');
     expect(source).toContain('RoleOverrideEditor');
+    expect(source).toContain('SelectWithCustomControl');
+    expect(source).toContain('Remove Entry');
+    expect(source).toContain('Remove Override');
     expect(source).toContain('StructuredEntryEditor');
     expect(source).toContain('Reasoning Config Entries');
     expect(source).not.toContain('Reasoning Config JSON');

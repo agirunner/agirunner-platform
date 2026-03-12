@@ -18,6 +18,7 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('moveDraftItem');
     expect(source).toContain('Move Earlier');
     expect(source).toContain('Move Later');
+    expect(source).toContain('Remove Role');
     expect(source).toContain('Column ${index + 1} of ${columnCount}');
     expect(source).toContain('Stage ${index + 1} of ${stageCount}');
     expect(source).toContain('Add team roles above to make them selectable here.');

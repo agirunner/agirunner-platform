@@ -1241,6 +1241,9 @@ export interface DashboardApi {
       definition: Record<string, unknown>;
     },
   ): Promise<DashboardPlaybookRecord>;
+  archivePlaybook(playbookId: string): Promise<DashboardPlaybookRecord>;
+  restorePlaybook(playbookId: string): Promise<DashboardPlaybookRecord>;
+  deletePlaybook(playbookId: string): Promise<void>;
   listToolTags(): Promise<DashboardToolTagRecord[]>;
   listLlmProviders(): Promise<DashboardLlmProviderRecord[]>;
   listLlmModels(): Promise<DashboardLlmModelRecord[]>;
@@ -2002,6 +2005,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         () =>
           client.updatePlaybook(playbookId, payload as never) as Promise<DashboardPlaybookRecord>,
       ),
+    archivePlaybook: (playbookId) =>
+      withRefresh(() => client.archivePlaybook(playbookId) as Promise<DashboardPlaybookRecord>),
+    restorePlaybook: (playbookId) =>
+      withRefresh(() => client.restorePlaybook(playbookId) as Promise<DashboardPlaybookRecord>),
+    deletePlaybook: (playbookId) =>
+      withRefresh(() => client.deletePlaybook(playbookId).then(() => undefined)),
     listLlmProviders: () =>
       withRefresh(() =>
         requestData<DashboardLlmProviderRecord[]>('/api/v1/config/llm/providers', {

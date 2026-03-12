@@ -44,6 +44,10 @@ import {
   type StructuredValueType,
   type WorkflowBudgetDraft,
 } from './playbook-launch-support.js';
+import {
+  SelectWithCustomControl,
+  type StructuredChoiceOption,
+} from './playbook-authoring-structured-controls.js';
 
 export function PlaybookLaunchPage(): JSX.Element {
   const navigate = useNavigate();
@@ -232,7 +236,10 @@ export function PlaybookLaunchPage(): JSX.Element {
   const canLaunch = !validationError && !launchMutation.isPending;
 
   return (
-    <div data-testid="playbook-launch-surface" className="space-y-6 p-6">
+    <div
+      data-testid="playbook-launch-surface"
+      className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8"
+    >
       <div className="space-y-3 rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
         <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
           <Link to="/config/playbooks" className="underline-offset-4 hover:underline">
@@ -261,7 +268,7 @@ export function PlaybookLaunchPage(): JSX.Element {
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr,0.8fr]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr),minmax(0,22rem)]">
         <Card>
           <CardHeader>
             <CardTitle>Run Configuration</CardTitle>
@@ -455,32 +462,51 @@ export function PlaybookLaunchPage(): JSX.Element {
               <div className="space-y-1">
                 <div className="text-sm font-medium text-foreground">Ready to launch</div>
                 <p className="text-sm text-muted">
-                  Start the run with the selected playbook and the structured inputs above.
+                  Start the run from the pinned launch bar after reviewing the structured inputs
+                  above.
                 </p>
               </div>
-              <Button
-                onClick={() => launchMutation.mutate()}
-                disabled={!canLaunch}
-              >
-                {launchMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
-                Launch Run
-              </Button>
+              <Badge variant={canLaunch ? 'secondary' : 'destructive'}>
+                {canLaunch ? 'Ready to launch' : 'Action needed'}
+              </Badge>
             </section>
           </CardContent>
         </Card>
 
-        <PlaybookSummaryCard
-          playbook={selectedPlaybook}
-          projects={projects}
-          selectedProjectId={projectId}
-          projectResolvedModels={projectResolvedModelsQuery.data}
-          previewData={previewQuery.data}
-          previewError={previewQuery.error}
-          previewLoading={previewQuery.isLoading}
-          workflowOverrides={workflowOverrides.value ?? {}}
-          launchDefinition={launchDefinition}
-          isLoading={playbooksQuery.isLoading || projectsQuery.isLoading}
-        />
+        <div className="space-y-4 xl:sticky xl:top-6">
+          <PlaybookSummaryCard
+            playbook={selectedPlaybook}
+            projects={projects}
+            selectedProjectId={projectId}
+            projectResolvedModels={projectResolvedModelsQuery.data}
+            previewData={previewQuery.data}
+            previewError={previewQuery.error}
+            previewLoading={previewQuery.isLoading}
+            workflowOverrides={workflowOverrides.value ?? {}}
+            launchDefinition={launchDefinition}
+            isLoading={playbooksQuery.isLoading || projectsQuery.isLoading}
+          />
+        </div>
+      </div>
+
+      <div className="sticky bottom-4 z-10">
+        <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-surface/95 p-4 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <div className="text-sm font-medium">Launch stays within reach while you scroll</div>
+            <p className="text-sm text-muted">
+              The launch bar remains pinned so long parameter, metadata, and override sections stay
+              usable on desktop and phone-sized layouts.
+            </p>
+          </div>
+          <Button onClick={() => launchMutation.mutate()} disabled={!canLaunch}>
+            {launchMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Rocket className="h-4 w-4" />
+            )}
+            Launch Run
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -492,10 +518,10 @@ function StructuredSection(props: {
   children: ReactNode;
 }): JSX.Element {
   return (
-    <section className="space-y-3 rounded-md border border-border p-4">
+    <section className="space-y-4 rounded-2xl border border-border/70 bg-card/60 p-4 sm:p-5">
       <header>
-        <div className="font-medium">{props.title}</div>
-        <p className="text-sm text-muted">{props.description}</p>
+        <div className="font-medium text-foreground">{props.title}</div>
+        <p className="mt-1 text-sm text-muted">{props.description}</p>
       </header>
       {props.children}
     </section>
@@ -717,7 +743,7 @@ function StructuredEntryEditor(props: {
       ) : (
         props.drafts.map((draft) => (
           <article key={draft.id} className="grid gap-3 rounded-md border border-border p-3">
-            <div className="grid gap-3 md:grid-cols-[1.1fr,0.7fr,1.2fr,auto]">
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.1fr),minmax(0,0.7fr),minmax(0,1.2fr),auto]">
               <label className="grid gap-1 text-xs">
                 <span className="font-medium">Key</span>
                 <Input
@@ -756,10 +782,11 @@ function StructuredEntryEditor(props: {
                 <Button
                   type="button"
                   variant="outline"
-                  size="icon"
+                  size="sm"
                   onClick={() => props.onChange(props.drafts.filter((entry) => entry.id !== draft.id))}
                 >
                   <Trash2 className="h-4 w-4" />
+                  Remove Entry
                 </Button>
               </div>
             </div>
@@ -785,6 +812,15 @@ function RoleOverrideEditor(props: {
     () => props.models.filter((model) => model.is_enabled !== false),
     [props.models],
   );
+  const roleOptions = useMemo<StructuredChoiceOption[]>(
+    () =>
+      props.playbookRoles.map((role) => ({
+        value: role,
+        label: role,
+        description: 'Declared in the selected playbook.',
+      })),
+    [props.playbookRoles],
+  );
 
   return (
     <div className="space-y-3">
@@ -796,7 +832,7 @@ function RoleOverrideEditor(props: {
           const selectedProvider = findProviderByDraft(props.providers, draft.provider);
           const availableModels = listModelsForProvider(enabledModels, selectedProvider);
           return (
-            <div key={draft.id} className="grid gap-3 rounded-md border border-border p-3">
+            <div key={draft.id} className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Badge variant={isPlaybookRole ? 'secondary' : 'outline'}>
@@ -808,21 +844,33 @@ function RoleOverrideEditor(props: {
                   <Button
                     type="button"
                     variant="outline"
-                    size="icon"
+                    size="sm"
                     onClick={() => props.onChange(props.drafts.filter((entry) => entry.id !== draft.id))}
                   >
                     <Trash2 className="h-4 w-4" />
+                    Remove Override
                   </Button>
                 ) : null}
               </div>
-              <div className="grid gap-3 md:grid-cols-3">
+              <div className="grid gap-3 lg:grid-cols-3">
                 <label className="grid gap-1 text-xs">
                   <span className="font-medium">Role</span>
-                  <Input
-                    value={draft.role}
-                    disabled={isPlaybookRole}
-                    onChange={(event) => props.onChange(updateRoleDraft(props.drafts, draft.id, { role: event.target.value }))}
-                  />
+                  {isPlaybookRole ? (
+                    <div className="rounded-md border border-border/70 bg-background/80 px-3 py-2 text-sm text-foreground">
+                      {draft.role}
+                    </div>
+                  ) : (
+                    <SelectWithCustomControl
+                      value={draft.role}
+                      options={availableRoleOverrideOptions(roleOptions, props.drafts, draft)}
+                      placeholder="Select a role"
+                      unsetLabel="Unset role"
+                      customPlaceholder="Custom role"
+                      onChange={(value) =>
+                        props.onChange(updateRoleDraft(props.drafts, draft.id, { role: value }))
+                      }
+                    />
+                  )}
                 </label>
                 <label className="grid gap-1 text-xs">
                   <span className="font-medium">Provider</span>
@@ -853,34 +901,34 @@ function RoleOverrideEditor(props: {
                     </SelectContent>
                   </Select>
                 </label>
-              <label className="grid gap-1 text-xs">
-                <span className="font-medium">Model</span>
-                <Select
-                  value={draft.model || '__unset__'}
-                  onValueChange={(value) =>
-                    props.onChange(
-                      updateRoleDraft(props.drafts, draft.id, {
-                        model: value === '__unset__' ? '' : value,
-                      }),
-                    )
-                  }
-                  disabled={availableModels.length === 0}
-                >
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={selectedProvider ? 'Select model' : 'Select a provider first'}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__unset__">Unset</SelectItem>
-                    {availableModels.map((model) => (
-                      <SelectItem key={model.id} value={model.model_id}>
-                        {model.model_id}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </label>
+                <label className="grid gap-1 text-xs">
+                  <span className="font-medium">Model</span>
+                  <Select
+                    value={draft.model || '__unset__'}
+                    onValueChange={(value) =>
+                      props.onChange(
+                        updateRoleDraft(props.drafts, draft.id, {
+                          model: value === '__unset__' ? '' : value,
+                        }),
+                      )
+                    }
+                    disabled={availableModels.length === 0}
+                  >
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={selectedProvider ? 'Select model' : 'Select a provider first'}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__unset__">Unset</SelectItem>
+                      {availableModels.map((model) => (
+                        <SelectItem key={model.id} value={model.model_id}>
+                          {model.model_id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
               </div>
               <p className="text-xs text-muted">
                 Choose from discovered models for the selected provider. Manage providers and model
@@ -959,6 +1007,7 @@ function ValueInput(props: {
   return (
     <Input
       type={props.valueType === 'number' ? 'number' : 'text'}
+      inputMode={props.valueType === 'number' ? 'decimal' : undefined}
       value={props.value}
       onChange={(event) => props.onChange(event.target.value)}
     />
@@ -1007,6 +1056,22 @@ function updateProviderForRoleDraft(
   const nextModel =
     currentDraft && allowedModels.includes(currentDraft.model) ? currentDraft.model : '';
   return updateRoleDraft(drafts, draftId, { provider: provider.name, model: nextModel });
+}
+
+function availableRoleOverrideOptions(
+  options: StructuredChoiceOption[],
+  drafts: RoleOverrideDraft[],
+  currentDraft: RoleOverrideDraft,
+): StructuredChoiceOption[] {
+  const claimedRoles = new Set(
+    drafts
+      .filter((draft) => draft.id !== currentDraft.id)
+      .map((draft) => draft.role.trim())
+      .filter(Boolean),
+  );
+  return options.filter(
+    (option) => option.value === currentDraft.role.trim() || !claimedRoles.has(option.value),
+  );
 }
 
 function PlaybookSummaryCard(props: {

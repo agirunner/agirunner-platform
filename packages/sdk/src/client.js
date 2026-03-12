@@ -226,6 +226,26 @@ export class PlatformApiClient {
         });
         return response.data;
     }
+    async archivePlaybook(playbookId) {
+        const response = await this.request(`/api/v1/playbooks/${playbookId}/archive`, {
+            method: 'PATCH',
+            body: { archived: true },
+        });
+        return response.data;
+    }
+    async restorePlaybook(playbookId) {
+        const response = await this.request(`/api/v1/playbooks/${playbookId}/archive`, {
+            method: 'PATCH',
+            body: { archived: false },
+        });
+        return response.data;
+    }
+    async deletePlaybook(playbookId) {
+        const response = await this.request(`/api/v1/playbooks/${playbookId}`, {
+            method: 'DELETE',
+        });
+        return response.data;
+    }
     async listTaskArtifacts(taskId) {
         const response = await this.request(`/api/v1/tasks/${taskId}/artifacts`);
         return response.data;

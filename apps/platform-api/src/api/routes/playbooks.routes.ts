@@ -26,6 +26,10 @@ const playbookUpdateSchema = z
     message: 'At least one field is required',
   });
 
+const playbookArchiveSchema = z.object({
+  archived: z.boolean(),
+});
+
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
     return result.data;
@@ -59,5 +63,22 @@ export const playbookRoutes: FastifyPluginAsync = async (app) => {
     const params = request.params as { id: string };
     const body = parseOrThrow(playbookCreateSchema.safeParse(request.body));
     return { data: await app.playbookService.replacePlaybook(request.auth!.tenantId, params.id, body) };
+  });
+
+  app.patch('/api/v1/playbooks/:id/archive', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
+    const params = request.params as { id: string };
+    const body = parseOrThrow(playbookArchiveSchema.safeParse(request.body));
+    return {
+      data: await app.playbookService.setPlaybookArchived(
+        request.auth!.tenantId,
+        params.id,
+        body.archived,
+      ),
+    };
+  });
+
+  app.delete('/api/v1/playbooks/:id', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
+    const params = request.params as { id: string };
+    return { data: await app.playbookService.deletePlaybook(request.auth!.tenantId, params.id) };
   });
 };

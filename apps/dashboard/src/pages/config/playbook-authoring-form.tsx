@@ -46,7 +46,7 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
   }
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-5">
       <Card>
         <CardHeader className="space-y-2">
           <CardTitle>Authoring Overview</CardTitle>
@@ -94,26 +94,28 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
       </Card>
 
       <Tabs defaultValue="flow-design" className="space-y-4" data-testid="playbook-authoring-tabs">
-        <TabsList className="h-auto w-full flex-wrap justify-start gap-2 rounded-xl bg-border/20 p-2">
-          <TabsTrigger
-            value="flow-design"
-            className="h-auto min-w-[12rem] flex-1 px-4 py-3 text-left"
-          >
-            <span className="font-medium">Flow Design</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="automation-policy"
-            className="h-auto min-w-[12rem] flex-1 px-4 py-3 text-left"
-          >
-            <span className="font-medium">Automation Policy</span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="launch-and-runtime"
-            className="h-auto min-w-[12rem] flex-1 px-4 py-3 text-left"
-          >
-            <span className="font-medium">Launch and Runtime</span>
-          </TabsTrigger>
-        </TabsList>
+        <div className="sticky top-4 z-10 -mx-1 rounded-2xl bg-background/95 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <TabsList className="grid h-auto w-full gap-2 rounded-xl bg-border/20 p-2 sm:grid-cols-3">
+            <TabsTrigger
+              value="flow-design"
+              className="h-auto min-h-11 w-full justify-start px-4 py-3 text-left"
+            >
+              <span className="font-medium">Flow Design</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="automation-policy"
+              className="h-auto min-h-11 w-full justify-start px-4 py-3 text-left"
+            >
+              <span className="font-medium">Automation Policy</span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="launch-and-runtime"
+              className="h-auto min-h-11 w-full justify-start px-4 py-3 text-left"
+            >
+              <span className="font-medium">Launch and Runtime</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="flow-design" className="space-y-4">
           <TeamRolesSection

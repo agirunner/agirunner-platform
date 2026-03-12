@@ -419,6 +419,38 @@ export class PlatformApiClient {
     return response.data;
   }
 
+  async archivePlaybook(playbookId: string): Promise<Playbook> {
+    const response = await this.request<ApiDataResponse<Playbook>>(
+      `/api/v1/playbooks/${playbookId}/archive`,
+      {
+        method: 'PATCH',
+        body: { archived: true },
+      },
+    );
+    return response.data;
+  }
+
+  async restorePlaybook(playbookId: string): Promise<Playbook> {
+    const response = await this.request<ApiDataResponse<Playbook>>(
+      `/api/v1/playbooks/${playbookId}/archive`,
+      {
+        method: 'PATCH',
+        body: { archived: false },
+      },
+    );
+    return response.data;
+  }
+
+  async deletePlaybook(playbookId: string): Promise<{ id: string; deleted: true }> {
+    const response = await this.request<ApiDataResponse<{ id: string; deleted: true }>>(
+      `/api/v1/playbooks/${playbookId}`,
+      {
+        method: 'DELETE',
+      },
+    );
+    return response.data;
+  }
+
   async listTaskArtifacts(taskId: string): Promise<TaskArtifact[]> {
     const response = await this.request<ApiDataResponse<TaskArtifact[]>>(
       `/api/v1/tasks/${taskId}/artifacts`,

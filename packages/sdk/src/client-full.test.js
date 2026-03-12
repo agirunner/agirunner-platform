@@ -151,6 +151,9 @@ describe('sdk full client coverage', () => {
             .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'playbook-4', version: 3 } }), {
             status: 200,
         }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'playbook-4', is_active: false } }), {
+            status: 200,
+        }))
             .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'wf-1', playbook_id: 'playbook-1' } }), {
             status: 200,
         }))
@@ -368,6 +371,7 @@ describe('sdk full client coverage', () => {
             outcome: 'Ship production code',
             definition: { lifecycle: 'continuous', stages: [] },
         });
+        const archivedPlaybook = await client.archivePlaybook('playbook-4');
         const workflow = await client.createWorkflow({
             playbook_id: 'playbook-1',
             name: 'Delivery run',
@@ -401,6 +405,7 @@ describe('sdk full client coverage', () => {
         expect(createdPlaybook.id).toBe('playbook-2');
         expect(updatedPlaybook.version).toBe(2);
         expect(replacedPlaybook.version).toBe(3);
+        expect(archivedPlaybook.is_active).toBe(false);
         expect(workflow.playbook_id).toBe('playbook-1');
         expect(board.columns[0].id).toBe('todo');
         expect(stages[0].name).toBe('build');

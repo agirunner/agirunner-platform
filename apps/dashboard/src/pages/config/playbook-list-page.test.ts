@@ -12,11 +12,14 @@ describe('playbook list page source', () => {
     expect(source).toContain('PlaybookAuthoringForm');
     expect(source).toContain('playbook-create-workspace');
     expect(source).toContain('Full-page authoring workspace');
+    expect(source).toContain('max-w-7xl');
     expect(source).toContain('sticky bottom-4');
+    expect(source).toContain('xl:sticky xl:top-6');
     expect(source).not.toContain('DialogContent');
     expect(source).not.toContain('Definition JSON');
     expect(source).toContain('buildPlaybookDefinition(');
     expect(source).toContain('Manage');
+    expect(source).toContain('Archived playbooks stay available for review and revision history');
     expect(source).toContain('Back to playbook library');
   });
 });

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Rocket, Search, Settings2 } from 'lucide-react';
+import { Archive, ArrowLeft, Plus, Rocket, RotateCcw, Search, Settings2, Trash2 } from 'lucide-react';
 
 import { dashboardApi, type DashboardPlaybookRecord } from '../../lib/api.js';
 import { Button } from '../../components/ui/button.js';
@@ -40,6 +40,7 @@ export function PlaybookListPage(): JSX.Element {
     createDefaultAuthoringDraft(DEFAULT_LIFECYCLE),
   );
   const [definitionError, setDefinitionError] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const playbooksQuery = useQuery({
     queryKey: ['playbooks'],
@@ -49,7 +50,7 @@ export function PlaybookListPage(): JSX.Element {
   const createMutation = useMutation({
     mutationFn: async () => {
       const definition = buildPlaybookDefinition(lifecycle, draft);
-      if (!definition.ok) {
+      if (definition.ok === false) {
         throw new Error(definition.error);
       }
       return dashboardApi.createPlaybook({
@@ -69,6 +70,25 @@ export function PlaybookListPage(): JSX.Element {
     },
     onError: (error) => {
       setDefinitionError(error instanceof Error ? error.message : 'Failed to create playbook');
+    },
+  });
+
+  const archiveMutation = useMutation({
+    mutationFn: ({ playbookId, archived }: { playbookId: string; archived: boolean }) =>
+      archived
+        ? dashboardApi.archivePlaybook(playbookId)
+        : dashboardApi.restorePlaybook(playbookId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['playbooks'] });
+      setConfirmDeleteId(null);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (playbookId: string) => dashboardApi.deletePlaybook(playbookId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['playbooks'] });
+      setConfirmDeleteId(null);
     },
   });
 
@@ -117,7 +137,10 @@ export function PlaybookListPage(): JSX.Element {
 
   if (createMode) {
     return (
-      <div data-testid="playbook-create-workspace" className="space-y-6 p-6">
+      <div
+        data-testid="playbook-create-workspace"
+        className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8"
+      >
         <div className="space-y-4 rounded-3xl border border-border/70 bg-card/80 p-5 shadow-sm">
           <Button variant="ghost" className="w-fit px-0 text-muted" onClick={closeCreateWorkspace}>
             <ArrowLeft className="h-4 w-4" />
@@ -295,12 +318,13 @@ export function PlaybookListPage(): JSX.Element {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Playbooks</h1>
           <p className="text-sm text-muted">
-            Define reusable orchestrated workflow operating models and launch runs from them.
+            Define reusable orchestrated workflow operating models, archive retired revisions, and
+            delete unused playbook records without leaving the supported management path.
           </p>
         </div>
         <Button onClick={openCreateWorkspace}>
@@ -326,7 +350,22 @@ export function PlaybookListPage(): JSX.Element {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {filtered.map((playbook) => (
-          <PlaybookCard key={playbook.id} playbook={playbook} />
+          <PlaybookCard
+            key={playbook.id}
+            playbook={playbook}
+            confirmDelete={confirmDeleteId === playbook.id}
+            isArchiving={
+              archiveMutation.isPending && archiveMutation.variables?.playbookId === playbook.id
+            }
+            isDeleting={deleteMutation.isPending && deleteMutation.variables === playbook.id}
+            onArchiveChange={(archived) =>
+              archiveMutation.mutate({ playbookId: playbook.id, archived })
+            }
+            onDelete={() => deleteMutation.mutate(playbook.id)}
+            onRequestDelete={() =>
+              setConfirmDeleteId((current) => (current === playbook.id ? null : playbook.id))
+            }
+          />
         ))}
         {!playbooksQuery.isLoading && filtered.length === 0 ? (
           <Card>
@@ -340,7 +379,16 @@ export function PlaybookListPage(): JSX.Element {
   );
 }
 
-function PlaybookCard({ playbook }: { playbook: DashboardPlaybookRecord }) {
+function PlaybookCard(props: {
+  playbook: DashboardPlaybookRecord;
+  confirmDelete: boolean;
+  isArchiving: boolean;
+  isDeleting: boolean;
+  onArchiveChange(archived: boolean): void;
+  onDelete(): void;
+  onRequestDelete(): void;
+}) {
+  const { playbook } = props;
   const boardColumns = Array.isArray(
     (playbook.definition as { board?: { columns?: unknown[] } }).board?.columns,
   )
@@ -358,7 +406,10 @@ function PlaybookCard({ playbook }: { playbook: DashboardPlaybookRecord }) {
             <CardTitle className="text-lg">{playbook.name}</CardTitle>
             <p className="text-sm text-muted">{playbook.slug}</p>
           </div>
-          <Badge variant="outline">v{playbook.version}</Badge>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Badge variant="outline">v{playbook.version}</Badge>
+            {!playbook.is_active ? <Badge variant="destructive">Archived</Badge> : null}
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge variant="secondary">{playbook.lifecycle}</Badge>
@@ -372,19 +423,72 @@ function PlaybookCard({ playbook }: { playbook: DashboardPlaybookRecord }) {
           <div className="font-medium">Outcome</div>
           <div className="text-muted">{playbook.outcome}</div>
         </div>
+        {!playbook.is_active ? (
+          <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950">
+            Archived playbooks stay available for review and revision history, but launch is
+            disabled until a new active revision is created.
+          </div>
+        ) : null}
+        {props.confirmDelete ? (
+          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+            <div className="font-medium">Delete this playbook revision?</div>
+            <p className="mt-1">
+              This permanently removes version {playbook.version}. Existing workflows that already
+              reference it will block deletion.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={props.onRequestDelete}>
+                Keep revision
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={props.onDelete}
+                disabled={props.isDeleting}
+              >
+                Delete revision
+              </Button>
+            </div>
+          </div>
+        ) : null}
         <div className="flex justify-end">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
               <Link to={`/config/playbooks/${playbook.id}`}>
                 <Settings2 className="h-4 w-4" />
                 Manage
               </Link>
             </Button>
-            <Button asChild>
-              <Link to={`/config/playbooks/${playbook.id}/launch`}>
-                <Rocket className="h-4 w-4" />
-                Launch
-              </Link>
+            {playbook.is_active ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => props.onArchiveChange(true)}
+                  disabled={props.isArchiving}
+                >
+                  <Archive className="h-4 w-4" />
+                  Archive
+                </Button>
+                <Button asChild>
+                  <Link to={`/config/playbooks/${playbook.id}/launch`}>
+                    <Rocket className="h-4 w-4" />
+                    Launch
+                  </Link>
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => props.onArchiveChange(false)}
+                disabled={props.isArchiving}
+              >
+                <RotateCcw className="h-4 w-4" />
+                Restore
+              </Button>
+            )}
+            <Button variant="outline" onClick={props.onRequestDelete} disabled={props.isDeleting}>
+              <Trash2 className="h-4 w-4" />
+              Delete
             </Button>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import type { DatabasePool } from '../db/database.js';
+import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
@@ -57,7 +57,15 @@ export class PlaybookService {
 
   async listPlaybooks(tenantId: string) {
     const repo = new TenantScopedRepository(this.pool, tenantId);
-    return repo.findAllPaginated('playbooks', '*', [], [], 'created_at DESC', 500, 0);
+    return repo.findAllPaginated(
+      'playbooks',
+      '*',
+      [],
+      [],
+      'is_active DESC, updated_at DESC, created_at DESC',
+      500,
+      0,
+    );
   }
 
   async getPlaybook(tenantId: string, playbookId: string) {
@@ -80,6 +88,65 @@ export class PlaybookService {
     return this.insertPlaybookVersion(tenantId, current.version as number, input);
   }
 
+  async setPlaybookArchived(tenantId: string, playbookId: string, archived: boolean) {
+    const current = await this.getPlaybook(tenantId, playbookId);
+    const slug = String(current.slug);
+    const client = await this.pool.connect();
+
+    try {
+      await client.query('BEGIN');
+      await this.deactivatePlaybookFamily(tenantId, slug, client);
+      if (archived) {
+        await client.query('COMMIT');
+        return { ...current, is_active: false };
+      }
+      const result = await client.query(
+        `UPDATE playbooks
+            SET is_active = true,
+                updated_at = now()
+          WHERE tenant_id = $1
+            AND id = $2
+        RETURNING *`,
+        [tenantId, playbookId],
+      );
+      await client.query('COMMIT');
+      if (!result.rowCount) {
+        throw new NotFoundError('Playbook not found');
+      }
+      return result.rows[0];
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async deletePlaybook(tenantId: string, playbookId: string) {
+    await this.getPlaybook(tenantId, playbookId);
+    const usage = await this.pool.query<{ total: string }>(
+      `SELECT COUNT(*)::int AS total
+         FROM workflows
+        WHERE tenant_id = $1
+          AND playbook_id = $2`,
+      [tenantId, playbookId],
+    );
+    if (Number(usage.rows[0]?.total ?? '0') > 0) {
+      throw new ConflictError('Cannot delete a playbook that is still referenced by workflows');
+    }
+    const result = await this.pool.query(
+      `DELETE FROM playbooks
+        WHERE tenant_id = $1
+          AND id = $2
+      RETURNING id`,
+      [tenantId, playbookId],
+    );
+    if (!result.rowCount) {
+      throw new NotFoundError('Playbook not found');
+    }
+    return { id: playbookId, deleted: true as const };
+  }
+
   private async insertPlaybookVersion(
     tenantId: string,
     currentVersion: number,
@@ -89,12 +156,15 @@ export class PlaybookService {
     const slug = normalizeSlug(input.slug ?? input.name);
     const lifecycle = input.lifecycle ?? definition.lifecycle;
     const normalizedDefinition = { ...definition, lifecycle };
+    const client = await this.pool.connect();
 
     try {
-      const result = await this.pool.query(
+      await client.query('BEGIN');
+      await this.deactivatePlaybookFamily(tenantId, slug, client);
+      const result = await client.query(
         `INSERT INTO playbooks (
-           tenant_id, name, slug, description, outcome, lifecycle, version, definition
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           tenant_id, name, slug, description, outcome, lifecycle, version, definition, is_active
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
          RETURNING *`,
         [
           tenantId,
@@ -107,13 +177,33 @@ export class PlaybookService {
           normalizedDefinition,
         ],
       );
+      await client.query('COMMIT');
       return result.rows[0];
     } catch (error) {
+      await client.query('ROLLBACK');
       if (isUniqueViolation(error, 'uq_playbooks_tenant_slug_version')) {
         throw new ConflictError('Playbook slug already exists');
       }
       throw error;
+    } finally {
+      client.release();
     }
+  }
+
+  private async deactivatePlaybookFamily(
+    tenantId: string,
+    slug: string,
+    client: DatabaseClient,
+  ) {
+    await client.query(
+      `UPDATE playbooks
+          SET is_active = false,
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND slug = $2
+          AND is_active = true`,
+      [tenantId, slug],
+    );
   }
 }
 

@@ -61,7 +61,7 @@ export function TeamRolesSection(
     >
       <div className="space-y-3">
         {props.draft.roles.map((role, index) => (
-          <div key={`role-${index}`} className="flex items-center gap-2">
+          <div key={`role-${index}`} className="flex flex-wrap items-center gap-2">
             {availableRoleNames.length > 0 ? (
               <Select
                 value={availableRoleNames.includes(role.value) ? role.value : '__custom__'}
@@ -74,7 +74,7 @@ export function TeamRolesSection(
                   }))
                 }
               >
-                <SelectTrigger className="min-w-[220px]">
+                <SelectTrigger className="w-full sm:min-w-[220px] sm:flex-1">
                   <SelectValue placeholder="Select a role definition" />
                 </SelectTrigger>
                 <SelectContent>
@@ -89,6 +89,7 @@ export function TeamRolesSection(
             ) : null}
             {availableRoleNames.length === 0 || !availableRoleNames.includes(role.value) ? (
               <Input
+                className="w-full sm:flex-1"
                 value={role.value}
                 onChange={(event) =>
                   props.onChange((current) => ({
@@ -104,7 +105,7 @@ export function TeamRolesSection(
             <Button
               type="button"
               variant="outline"
-              size="icon"
+              size="sm"
               onClick={() =>
                 props.onChange((current) => ({
                   ...current,
@@ -116,6 +117,7 @@ export function TeamRolesSection(
               }
             >
               <Minus className="h-4 w-4" />
+              Remove Role
             </Button>
           </div>
         ))}

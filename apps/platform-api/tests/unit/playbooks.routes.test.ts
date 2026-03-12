@@ -42,6 +42,8 @@ describe('playbook routes', () => {
       getPlaybook: vi.fn(),
       updatePlaybook: vi.fn().mockResolvedValue({ id: 'playbook-2', version: 2 }),
       replacePlaybook: vi.fn(),
+      setPlaybookArchived: vi.fn(),
+      deletePlaybook: vi.fn(),
     });
 
     await app.register(playbookRoutes);
@@ -71,6 +73,8 @@ describe('playbook routes', () => {
       getPlaybook: vi.fn(),
       updatePlaybook: vi.fn(),
       replacePlaybook: vi.fn(),
+      setPlaybookArchived: vi.fn(),
+      deletePlaybook: vi.fn(),
     });
 
     await app.register(playbookRoutes);
@@ -97,6 +101,8 @@ describe('playbook routes', () => {
       getPlaybook: vi.fn(),
       updatePlaybook: vi.fn(),
       replacePlaybook: vi.fn().mockResolvedValue({ id: 'playbook-2', version: 2 }),
+      setPlaybookArchived: vi.fn(),
+      deletePlaybook: vi.fn(),
     });
 
     await app.register(playbookRoutes);
@@ -123,5 +129,66 @@ describe('playbook routes', () => {
       payload,
     );
     expect(response.json().data).toEqual({ id: 'playbook-2', version: 2 });
+  });
+
+  it('archives or restores a playbook through the admin route', async () => {
+    const { playbookRoutes } = await import('../../src/api/routes/playbooks.routes.js');
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('playbookService', {
+      createPlaybook: vi.fn(),
+      listPlaybooks: vi.fn(),
+      getPlaybook: vi.fn(),
+      updatePlaybook: vi.fn(),
+      replacePlaybook: vi.fn(),
+      setPlaybookArchived: vi.fn().mockResolvedValue({ id: 'playbook-1', is_active: false }),
+      deletePlaybook: vi.fn(),
+    });
+
+    await app.register(playbookRoutes);
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/playbooks/playbook-1/archive',
+      headers: { authorization: 'Bearer test' },
+      payload: { archived: true },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(app.playbookService.setPlaybookArchived).toHaveBeenCalledWith(
+      'tenant-1',
+      'playbook-1',
+      true,
+    );
+    expect(response.json().data).toEqual({ id: 'playbook-1', is_active: false });
+  });
+
+  it('deletes a playbook through the admin route', async () => {
+    const { playbookRoutes } = await import('../../src/api/routes/playbooks.routes.js');
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('playbookService', {
+      createPlaybook: vi.fn(),
+      listPlaybooks: vi.fn(),
+      getPlaybook: vi.fn(),
+      updatePlaybook: vi.fn(),
+      replacePlaybook: vi.fn(),
+      setPlaybookArchived: vi.fn(),
+      deletePlaybook: vi.fn().mockResolvedValue({ id: 'playbook-1', deleted: true }),
+    });
+
+    await app.register(playbookRoutes);
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/playbooks/playbook-1',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(app.playbookService.deletePlaybook).toHaveBeenCalledWith('tenant-1', 'playbook-1');
+    expect(response.json().data).toEqual({ id: 'playbook-1', deleted: true });
   });
 });
