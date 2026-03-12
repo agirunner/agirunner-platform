@@ -1,0 +1,208 @@
+export interface TaskListRecord {
+  id: string;
+  name?: string;
+  title?: string;
+  status: string;
+  state?: string;
+  role?: string;
+  stage_name?: string | null;
+  work_item_id?: string | null;
+  activation_id?: string | null;
+  is_orchestrator_task?: boolean | null;
+  workflow_id?: string | null;
+  workflow_name?: string | null;
+  agent_id?: string | null;
+  agent_name?: string | null;
+  assigned_worker?: string | null;
+  created_at: string;
+  duration_seconds?: number | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+
+export interface TaskPostureSummary {
+  active: number;
+  ready: number;
+  review: number;
+  recovery: number;
+  orchestrator: number;
+}
+
+export function normalizeTaskStatus(status: string): string {
+  return status.toLowerCase();
+}
+
+export function resolveTaskStatus(task: TaskListRecord): string {
+  return normalizeTaskStatus(task.state ?? task.status ?? 'unknown');
+}
+
+export function statusBadgeVariant(
+  status: string,
+): 'success' | 'default' | 'destructive' | 'warning' | 'secondary' {
+  const variants: Record<
+    string,
+    'success' | 'default' | 'destructive' | 'warning' | 'secondary'
+  > = {
+    completed: 'success',
+    in_progress: 'default',
+    failed: 'destructive',
+    output_pending_review: 'warning',
+    awaiting_approval: 'warning',
+    escalated: 'destructive',
+    ready: 'secondary',
+    pending: 'secondary',
+  };
+  return variants[status] ?? 'secondary';
+}
+
+export function describeTaskKind(task: TaskListRecord): string {
+  if (task.is_orchestrator_task) {
+    return 'Orchestrator activation';
+  }
+  const status = resolveTaskStatus(task);
+  if (status === 'escalated') {
+    return 'Escalated specialist step';
+  }
+  if (status === 'output_pending_review') {
+    return 'Output review';
+  }
+  if (status === 'awaiting_approval') {
+    return 'Operator approval';
+  }
+  return 'Specialist step';
+}
+
+export function describeTaskScope(task: TaskListRecord): string {
+  const parts = [
+    task.stage_name ? `Stage ${task.stage_name}` : null,
+    task.work_item_id ? `Work item ${compactIdentifier(task.work_item_id)}` : null,
+    task.activation_id ? `Activation ${compactIdentifier(task.activation_id)}` : null,
+  ].filter((segment): segment is string => Boolean(segment));
+  return parts.length > 0 ? parts.join(' • ') : 'No workflow scope';
+}
+
+export function describeTaskNextAction(task: TaskListRecord): string {
+  const status = resolveTaskStatus(task);
+  if (status === 'awaiting_approval') {
+    return 'Review and approve the step output.';
+  }
+  if (status === 'output_pending_review') {
+    return 'Inspect the output packet and decide on changes.';
+  }
+  if (status === 'escalated') {
+    return 'Resolve the escalation or re-scope the work item.';
+  }
+  if (status === 'failed') {
+    return 'Inspect the failure and choose retry, rework, or escalation.';
+  }
+  if (status === 'ready') {
+    return 'Waiting for worker capacity to claim the step.';
+  }
+  if (status === 'pending') {
+    return 'Queued behind upstream work or orchestration.';
+  }
+  if (status === 'completed') {
+    return 'Completed; confirm downstream work is unblocked.';
+  }
+  if (task.is_orchestrator_task) {
+    return 'Track the orchestration turn and resulting work-item updates.';
+  }
+  return 'Open the step for full context and recent activity.';
+}
+
+export function formatTaskDuration(task: TaskListRecord, now = Date.now()): string {
+  if (task.duration_seconds !== undefined && task.duration_seconds !== null) {
+    return formatDurationSeconds(task.duration_seconds);
+  }
+  if (!task.started_at) {
+    return '-';
+  }
+  const start = new Date(task.started_at).getTime();
+  if (!Number.isFinite(start)) {
+    return '-';
+  }
+  const end = task.completed_at ? new Date(task.completed_at).getTime() : now;
+  return formatDurationSeconds((end - start) / 1000);
+}
+
+export function formatRelativeTime(value: string, now = Date.now()): string {
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) {
+    return 'Unknown time';
+  }
+  const deltaMinutes = Math.max(0, Math.floor((now - timestamp) / 60_000));
+  if (deltaMinutes < 1) {
+    return 'Just now';
+  }
+  if (deltaMinutes < 60) {
+    return `${deltaMinutes}m ago`;
+  }
+  const deltaHours = Math.floor(deltaMinutes / 60);
+  if (deltaHours < 24) {
+    return `${deltaHours}h ago`;
+  }
+  const deltaDays = Math.floor(deltaHours / 24);
+  return `${deltaDays}d ago`;
+}
+
+export function formatStatusLabel(status: string): string {
+  if (status === 'all') {
+    return 'All Statuses';
+  }
+  return status
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+export function summarizeTaskPosture(tasks: TaskListRecord[]): TaskPostureSummary {
+  return tasks.reduce<TaskPostureSummary>(
+    (summary, task) => {
+      const status = resolveTaskStatus(task);
+      if (task.is_orchestrator_task) {
+        summary.orchestrator += 1;
+      }
+      if (status === 'ready') {
+        summary.ready += 1;
+      }
+      if (status === 'in_progress') {
+        summary.active += 1;
+      }
+      if (status === 'awaiting_approval' || status === 'output_pending_review') {
+        summary.review += 1;
+      }
+      if (status === 'failed' || status === 'escalated') {
+        summary.recovery += 1;
+      }
+      return summary;
+    },
+    { active: 0, ready: 0, review: 0, recovery: 0, orchestrator: 0 },
+  );
+}
+
+export function buildTaskSearchText(task: TaskListRecord): string {
+  return [
+    task.title ?? task.name ?? '',
+    task.workflow_name ?? '',
+    task.workflow_id ?? '',
+    task.stage_name ?? '',
+    task.work_item_id ?? '',
+    task.activation_id ?? '',
+    task.role ?? '',
+    task.assigned_worker ?? '',
+    task.agent_name ?? task.agent_id ?? '',
+  ]
+    .join(' ')
+    .toLowerCase();
+}
+
+function compactIdentifier(value: string): string {
+  return value.length > 12 ? `${value.slice(0, 8)}…${value.slice(-4)}` : value;
+}
+
+function formatDurationSeconds(seconds: number): string {
+  if (seconds < 60) {
+    return `${Math.round(seconds)}s`;
+  }
+  return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+}

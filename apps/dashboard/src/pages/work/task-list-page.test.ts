@@ -11,18 +11,32 @@ describe('task list page source', () => {
     const source = readSource();
     expect(source).toContain('Execution Steps');
     expect(source).toContain('Operator view of specialist steps');
-    expect(source).toContain('describeTaskKind');
-    expect(source).toContain('Orchestrator activation');
+    expect(source).toContain('TaskPostureSection');
+    expect(source).toContain('Execution pressure');
+    expect(source).toContain('Review queue');
+    expect(source).toContain('Recovery queue');
+    expect(source).toContain('Orchestrator turns');
   });
 
   it('surfaces v2 workflow scope and operator review states', () => {
     const source = readSource();
-    expect(source).toContain('stage_name');
-    expect(source).toContain('work_item_id');
-    expect(source).toContain('activation_id');
     expect(source).toContain('output_pending_review');
     expect(source).toContain('escalated');
+    expect(source).toContain('describeTaskNextAction');
+    expect(source).toContain('describeTaskScope');
+    expect(source).toContain('buildTaskSearchText');
     expect(source).not.toContain("status === 'running' || status === 'claimed'");
-    expect(source).toContain("return 'Specialist step'");
+    expect(source).toContain('Visible execution steps');
+  });
+
+  it('adds a mobile card fallback and next-action-first table layout', () => {
+    const source = readSource();
+    expect(source).toContain('lg:hidden');
+    expect(source).toContain('TaskMobileCard');
+    expect(source).toContain('Board context');
+    expect(source).toContain('Next action');
+    expect(source).toContain('Open board');
+    expect(source).toContain('Open step');
+    expect(source).toContain('Every row or card leads with current posture, board context, and recovery path');
   });
 });
