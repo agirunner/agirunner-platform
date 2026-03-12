@@ -26,6 +26,14 @@ describe('live board page source', () => {
     expect(source).toContain('gateStageName: gate.stage_name');
   });
 
+  it('replaces the hard live-board cap with paged board navigation', () => {
+    const source = readSource();
+    expect(source).toContain('LIVE_BOARD_PAGE_SIZE');
+    expect(source).toContain('Board Pages');
+    expect(source).toContain('Showing {start}-{end} of {props.totalBoards} live boards.');
+    expect(source).not.toContain('.slice(0, 4)');
+  });
+
   it('uses board and step language and avoids raw task-status comparisons in the operator lane', () => {
     const source = readSource();
     expect(source).toContain('Operator Live Board');

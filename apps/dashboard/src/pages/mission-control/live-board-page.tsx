@@ -95,6 +95,8 @@ interface TaskRecord {
   created_at?: string;
 }
 
+const LIVE_BOARD_PAGE_SIZE = 8;
+
 interface WorkerRecord {
   id: string;
   name?: string;
@@ -290,9 +292,10 @@ export function LiveBoardPage(): JSX.Element {
     [searchQuery, workflows],
   );
   const activePlaybookWorkflows = useMemo(
-    () => activeWorkflows.filter((workflow) => workflow.playbook_id).slice(0, 4),
+    () => activeWorkflows.filter((workflow) => workflow.playbook_id),
     [activeWorkflows],
   );
+  const [boardPage, setBoardPage] = useState(0);
   const onlineWorkers = useMemo(() => workers.filter((w) => w.status === 'online' || w.status === 'active'), [workers]);
   const approvalTasks = useMemo(
     () => tasks.filter((task) => resolveTaskOperatorState(task) === 'awaiting_approval'),
@@ -325,42 +328,43 @@ export function LiveBoardPage(): JSX.Element {
         .includes(normalizedQuery),
     );
   }, [failedTasks, searchQuery]);
+  const totalBoardPages = Math.max(1, Math.ceil(activePlaybookWorkflows.length / LIVE_BOARD_PAGE_SIZE));
+  const safeBoardPage = Math.min(boardPage, totalBoardPages - 1);
+  const pagedPlaybookWorkflows = useMemo(
+    () =>
+      activePlaybookWorkflows.slice(
+        safeBoardPage * LIVE_BOARD_PAGE_SIZE,
+        (safeBoardPage + 1) * LIVE_BOARD_PAGE_SIZE,
+      ),
+    [activePlaybookWorkflows, safeBoardPage],
+  );
+  useEffect(() => {
+    setBoardPage(0);
+  }, [searchQuery]);
   const throughputData = useMemo(() => buildThroughputData(apiEvents), [apiEvents]);
   const boardQueries = useQueries({
-    queries: activePlaybookWorkflows.map((workflow) => ({
+    queries: pagedPlaybookWorkflows.map((workflow) => ({
       queryKey: ['workflow-board', workflow.id],
       queryFn: () => dashboardApi.getWorkflowBoard(workflow.id) as Promise<DashboardWorkflowBoardResponse>,
       refetchInterval: REFETCH_INTERVAL,
     })),
   });
-  const boardEntries = activePlaybookWorkflows.map((workflow, index) => ({
+  const boardEntries = pagedPlaybookWorkflows.map((workflow, index) => ({
     workflow,
     board: boardQueries[index]?.data,
     isLoading: Boolean(boardQueries[index]?.isLoading),
     hasError: Boolean(boardQueries[index]?.error),
   }));
-  const filteredBoardEntries = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
-    if (!normalizedQuery) {
-      return boardEntries;
-    }
-    return boardEntries.filter((entry) => {
-      const boardContext = entry.board
-        ? entry.board.work_items
-            .map((item) => `${item.id} ${item.title} ${item.stage_name} ${item.column_id}`)
-            .join(' ')
-        : '';
-      return `${entry.workflow.name} ${entry.workflow.id} ${boardContext}`
-        .toLowerCase()
-        .includes(normalizedQuery);
-    });
-  }, [boardEntries, searchQuery]);
   const openWorkItems = useMemo(
-    () => filteredBoardEntries.reduce((sum, entry) => sum + countOpenBoardItems(entry.board), 0),
-    [filteredBoardEntries],
+    () =>
+      activePlaybookWorkflows.reduce(
+        (sum, workflow) => sum + (workflow.work_item_summary?.open_work_item_count ?? 0),
+        0,
+      ),
+    [activePlaybookWorkflows],
   );
   const blockedItems = useMemo(
-    () => filteredBoardEntries.flatMap((entry) => {
+    () => boardEntries.flatMap((entry) => {
       if (!entry.board) {
         return [];
       }
@@ -378,7 +382,7 @@ export function LiveBoardPage(): JSX.Element {
           columnId: item.column_id,
         }));
     }),
-    [filteredBoardEntries],
+    [boardEntries],
   );
   const filteredBlockedItems = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -507,7 +511,7 @@ export function LiveBoardPage(): JSX.Element {
       </div>
 
       <KpiCards
-        activeBoards={filteredBoardEntries.length}
+        activeBoards={activePlaybookWorkflows.length}
         openWorkItems={openWorkItems}
         liveStages={liveStages}
         gateReviews={filteredStageGates.length}
@@ -524,9 +528,18 @@ export function LiveBoardPage(): JSX.Element {
         stageGates={filteredStageGates}
       />
 
-      <ActivePlaybookBoards entries={filteredBoardEntries} />
+      <BoardPaginationCard
+        page={safeBoardPage}
+        totalPages={totalBoardPages}
+        totalBoards={activePlaybookWorkflows.length}
+        pageSize={LIVE_BOARD_PAGE_SIZE}
+        onPrevious={() => setBoardPage((current) => Math.max(0, current - 1))}
+        onNext={() => setBoardPage((current) => current + 1)}
+      />
 
-      <BoardSnapshotTable entries={filteredBoardEntries} />
+      <ActivePlaybookBoards entries={boardEntries} />
+
+      <BoardSnapshotTable entries={boardEntries} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <FleetStatusPanel workers={workers} />
@@ -535,6 +548,52 @@ export function LiveBoardPage(): JSX.Element {
 
       <LiveEventStream events={recentEvents} />
     </div>
+  );
+}
+
+interface BoardPaginationCardProps {
+  page: number;
+  totalPages: number;
+  totalBoards: number;
+  pageSize: number;
+  onPrevious(): void;
+  onNext(): void;
+}
+
+function BoardPaginationCard(props: BoardPaginationCardProps): JSX.Element | null {
+  if (props.totalBoards <= props.pageSize) {
+    return null;
+  }
+  const start = props.page * props.pageSize + 1;
+  const end = Math.min((props.page + 1) * props.pageSize, props.totalBoards);
+  return (
+    <Card>
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <CardTitle>Board Pages</CardTitle>
+          <p className="text-sm text-muted">
+            Showing {start}-{end} of {props.totalBoards} live boards.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted">
+            Page {props.page + 1} of {props.totalPages}
+          </span>
+          <Button type="button" variant="outline" size="sm" disabled={props.page === 0} onClick={props.onPrevious}>
+            Previous
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={props.page >= props.totalPages - 1}
+            onClick={props.onNext}
+          >
+            Next
+          </Button>
+        </div>
+      </CardHeader>
+    </Card>
   );
 }
 

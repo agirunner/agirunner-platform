@@ -20,6 +20,7 @@ import {
   buildWorkflowDetailPermalink,
   isWorkflowDetailTargetHighlighted,
 } from './workflow-detail-permalinks.js';
+import { describeTimelineEvent } from './workflow-history-card.js';
 import {
   groupWorkflowWorkItems,
   type DashboardGroupedWorkItemRecord,
@@ -733,90 +734,112 @@ export function WorkflowActivationsCard(props: {
         {props.isLoading ? <p className="text-sm text-muted">Loading activations...</p> : null}
         {props.hasError ? <p className="text-sm text-red-600">Failed to load activations.</p> : null}
         <div className="grid gap-4">
-        {props.activations.map((activation) => (
-          <article
-            key={activation.id}
-            id={`activation-${activation.activation_id ?? activation.id}`}
-            className="grid gap-3 rounded-lg border border-border/70 bg-border/10 p-4"
-            data-highlighted={
-              props.selectedActivationId === (activation.activation_id ?? activation.id) ||
-              isWorkflowDetailTargetHighlighted(
-                location.search,
-                location.hash,
-                'activation',
-                activation.activation_id ?? activation.id,
-              )
-                ? 'true'
-                : 'false'
-            }
-          >
-            <div className="flex items-start justify-between gap-3">
-              <strong>{activation.event_type}</strong>
-              <Badge variant={badgeVariantForState(activation.state)}>{activation.state}</Badge>
-            </div>
-            <p className="text-sm text-muted">{activation.reason}</p>
-            <p className="text-sm text-muted">Queued: {new Date(activation.queued_at).toLocaleString()}</p>
-            {describeActivationRecovery(activation) ? (
-              <p className="text-sm text-muted">{describeActivationRecovery(activation)}</p>
-            ) : null}
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  props.onSelectActivation?.(activation.activation_id ?? activation.id)
-                }
-              >
-                Activation {activation.activation_id ?? activation.id}
-              </Button>
-              <Badge variant="secondary">
-                {activation.event_count ?? activation.events?.length ?? 1} events
-              </Badge>
-              {activation.recovery_status ? (
-                <Badge variant="outline">{activation.recovery_status}</Badge>
+        {props.activations.map((activation) => {
+          const descriptor = describeActivationEvent(
+            activation.workflow_id,
+            activation.activation_id ?? activation.id,
+            activation.event_type,
+            activation.payload,
+            activation.reason,
+            activation.queued_at,
+          );
+          return (
+            <article
+              key={activation.id}
+              id={`activation-${activation.activation_id ?? activation.id}`}
+              className="grid gap-3 rounded-lg border border-border/70 bg-border/10 p-4"
+              data-highlighted={
+                props.selectedActivationId === (activation.activation_id ?? activation.id) ||
+                isWorkflowDetailTargetHighlighted(
+                  location.search,
+                  location.hash,
+                  'activation',
+                  activation.activation_id ?? activation.id,
+                )
+                  ? 'true'
+                  : 'false'
+              }
+            >
+              <div className="flex items-start justify-between gap-3">
+                <strong>{descriptor.headline}</strong>
+                <Badge variant={badgeVariantForState(activation.state)}>{activation.state}</Badge>
+              </div>
+              {descriptor.summary ? <p className="text-sm text-muted">{descriptor.summary}</p> : null}
+              {descriptor.scope ? <p className="text-sm text-muted">{descriptor.scope}</p> : null}
+              <p className="text-sm text-muted">Queued: {new Date(activation.queued_at).toLocaleString()}</p>
+              {describeActivationRecovery(activation) ? (
+                <p className="text-sm text-muted">{describeActivationRecovery(activation)}</p>
               ) : null}
-              <Link
-                to={`/logs?workflow=${activation.workflow_id}&activation=${activation.activation_id ?? activation.id}&view=debug`}
-                className="text-sm text-muted underline-offset-4 hover:underline"
-              >
-                Open logs
-              </Link>
-              {activation.redispatched_task_id ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    props.onSelectActivation?.(activation.activation_id ?? activation.id)
+                  }
+                >
+                  Activation {activation.activation_id ?? activation.id}
+                </Button>
+                <Badge variant="secondary">
+                  {activation.event_count ?? activation.events?.length ?? 1} events
+                </Badge>
+                {activation.recovery_status ? (
+                  <Badge variant="outline">{activation.recovery_status}</Badge>
+                ) : null}
                 <Link
-                  to={`/work/tasks/${activation.redispatched_task_id}`}
+                  to={`/logs?workflow=${activation.workflow_id}&activation=${activation.activation_id ?? activation.id}&view=debug`}
                   className="text-sm text-muted underline-offset-4 hover:underline"
                 >
-                  Redispatched task
+                  Open logs
                 </Link>
+                {activation.redispatched_task_id ? (
+                  <Link
+                    to={`/work/tasks/${activation.redispatched_task_id}`}
+                    className="text-sm text-muted underline-offset-4 hover:underline"
+                  >
+                    Redispatched task
+                  </Link>
+                ) : null}
+                <Link
+                  to={buildWorkflowDetailPermalink(activation.workflow_id, {
+                    activationId: activation.activation_id ?? activation.id,
+                  })}
+                  className="text-sm text-muted underline-offset-4 hover:underline"
+                >
+                  Permalink
+                </Link>
+              </div>
+              <StructuredRecordView data={activation.payload} emptyMessage="No activation payload." />
+              {activation.events && activation.events.length > 0 ? (
+                <ul className="grid gap-3">
+                  {activation.events.map((event) => {
+                    const eventDescriptor = describeActivationEvent(
+                      activation.workflow_id,
+                      activation.activation_id ?? activation.id,
+                      event.event_type,
+                      event.payload,
+                      event.reason,
+                      event.queued_at,
+                    );
+                    return (
+                      <li key={event.id} className="grid gap-2 rounded-md border border-border/60 bg-surface/70 p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <strong>{eventDescriptor.headline}</strong>
+                          <Badge variant={badgeVariantForState(event.state)}>{event.state}</Badge>
+                        </div>
+                        {eventDescriptor.summary ? <p className="text-sm text-muted">{eventDescriptor.summary}</p> : null}
+                        {eventDescriptor.scope ? <p className="text-sm text-muted">{eventDescriptor.scope}</p> : null}
+                        <p className="text-sm text-muted">Queued: {new Date(event.queued_at).toLocaleString()}</p>
+                        <StructuredRecordView data={event.payload} emptyMessage="No activation payload." />
+                      </li>
+                    );
+                  })}
+                </ul>
               ) : null}
-              <Link
-                to={buildWorkflowDetailPermalink(activation.workflow_id, {
-                  activationId: activation.activation_id ?? activation.id,
-                })}
-                className="text-sm text-muted underline-offset-4 hover:underline"
-              >
-                Permalink
-              </Link>
-            </div>
-            <StructuredRecordView data={activation.payload} emptyMessage="No activation payload." />
-            {activation.events && activation.events.length > 0 ? (
-              <ul className="grid gap-3">
-                {activation.events.map((event) => (
-                  <li key={event.id} className="grid gap-2 rounded-md border border-border/60 bg-surface/70 p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <strong>{event.event_type}</strong>
-                      <Badge variant={badgeVariantForState(event.state)}>{event.state}</Badge>
-                    </div>
-                    <p className="text-sm text-muted">{event.reason}</p>
-                    <p className="text-sm text-muted">Queued: {new Date(event.queued_at).toLocaleString()}</p>
-                    <StructuredRecordView data={event.payload} emptyMessage="No activation payload." />
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </article>
-        ))}
+            </article>
+          );
+        })}
         {props.activations.length === 0 && !props.isLoading && !props.hasError ? (
           <p className="text-sm text-muted">No workflow activations recorded yet.</p>
         ) : null}
@@ -844,6 +867,59 @@ function describeActivationRecovery(activation: DashboardWorkflowActivationRecor
     details.push(`redispatched via task ${activation.redispatched_task_id}`);
   }
   return details.length > 0 ? details.join(' • ') : null;
+}
+
+function describeActivationEvent(
+  workflowId: string,
+  activationId: string,
+  eventType: string,
+  payload: unknown,
+  reason: string | null | undefined,
+  queuedAt: string,
+): {
+  headline: string;
+  summary: string | null;
+  scope: string | null;
+} {
+  const descriptor = describeTimelineEvent({
+    id: `${activationId}:${eventType}:${queuedAt}`,
+    type: eventType,
+    entity_type: 'workflow',
+    entity_id: workflowId,
+    actor_type: 'system',
+    actor_id: null,
+    data: asActivationPayload(payload),
+    created_at: queuedAt,
+  });
+  return {
+    headline: descriptor.headline,
+    summary: reason ?? descriptor.summary,
+    scope: describeActivationScope(descriptor.stageName, descriptor.workItemId, descriptor.taskId),
+  };
+}
+
+function describeActivationScope(
+  stageName: string | null,
+  workItemId: string | null,
+  taskId: string | null,
+): string | null {
+  const parts: string[] = [];
+  if (stageName) {
+    parts.push(`Stage ${stageName}`);
+  }
+  if (workItemId) {
+    parts.push(`Work item ${workItemId.slice(0, 8)}`);
+  }
+  if (taskId) {
+    parts.push(`Task ${taskId.slice(0, 8)}`);
+  }
+  return parts.length > 0 ? parts.join(' • ') : null;
+}
+
+function asActivationPayload(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
 }
 
 export function ProjectTimelineCard(props: {

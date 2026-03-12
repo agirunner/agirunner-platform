@@ -59,6 +59,8 @@ describe('workflow detail sections source', () => {
   it('shows stale recovery context on workflow activations', () => {
     const source = readSource();
     expect(source).toContain('Orchestrator Activations');
+    expect(source).toContain('describeActivationEvent');
+    expect(source).toContain('describeTimelineEvent');
     expect(source).toContain('describeActivationRecovery');
     expect(source).toContain('recovery_status');
     expect(source).toContain('stale_started_at');

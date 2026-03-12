@@ -44,6 +44,8 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('getWorkflowWorkItemMemoryHistory');
     expect(source).toContain('Current memory');
     expect(source).toContain('Memory history');
+    expect(source).toContain('formatMemoryHistoryEventType');
+    expect(source).toContain('Deleted value');
   });
 
   it('surfaces milestone operator context with parent-child navigation and grouped task messaging', () => {
@@ -87,5 +89,12 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('buildArtifactPermalink');
     expect(source).toContain('Preview artifact');
     expect(source).not.toContain('access_url ?? artifact.download_url');
+  });
+
+  it('uses human-readable descriptors for work-item event history instead of raw event codes', () => {
+    const source = readSource();
+    expect(source).toContain('describeTimelineEvent');
+    expect(source).toContain('formatTimelineEventType');
+    expect(source).not.toContain('<strong>{event.type}</strong>');
   });
 });

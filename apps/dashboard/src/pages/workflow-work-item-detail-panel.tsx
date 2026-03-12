@@ -41,6 +41,7 @@ import {
 } from '../components/ui/select.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs.js';
 import { cn } from '../lib/utils.js';
+import { describeTimelineEvent } from './workflow-history-card.js';
 import {
   buildWorkItemBreadcrumbs,
   flattenArtifactsByTask,
@@ -660,7 +661,7 @@ function WorkItemMemorySection(props: {
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <strong>{entry.key}</strong>
                   <Badge variant={entry.event_type === 'deleted' ? 'secondary' : 'outline'}>
-                    {entry.event_type}
+                    {formatMemoryHistoryEventType(entry.event_type)}
                   </Badge>
                 </div>
                 <div className={metaRowClass}>
@@ -1216,20 +1217,32 @@ function WorkItemEventHistorySection(props: {
         <Badge variant="outline">{props.events.length} entries</Badge>
       </div>
       <ul className="grid gap-3" data-testid="work-item-history-list">
-        {props.events.map((event) => (
-          <li
-            key={event.id}
-            className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4 shadow-sm"
-          >
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <strong>{event.type}</strong>
-              <span className="text-xs text-muted">
-                {new Date(event.created_at).toLocaleString()}
-              </span>
-            </div>
-            <StructuredRecordView data={event.data} emptyMessage="No event payload." />
-          </li>
-        ))}
+        {props.events.map((event) => {
+          const descriptor = describeTimelineEvent(event);
+          return (
+            <li
+              key={event.id}
+              className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4 shadow-sm"
+            >
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="grid gap-1">
+                  <strong>{descriptor.headline}</strong>
+                  {descriptor.summary ? <p className={mutedBodyClass}>{descriptor.summary}</p> : null}
+                </div>
+                <span className="text-xs text-muted">
+                  {new Date(event.created_at).toLocaleString()}
+                </span>
+              </div>
+              <div className={metaRowClass}>
+                <Badge variant="outline">{formatTimelineEventType(event.type)}</Badge>
+                {descriptor.stageName ? <Badge variant="outline">{descriptor.stageName}</Badge> : null}
+                {descriptor.workItemId ? <Badge variant="outline">work item {descriptor.workItemId.slice(0, 8)}</Badge> : null}
+                {descriptor.taskId ? <Badge variant="outline">task {descriptor.taskId.slice(0, 8)}</Badge> : null}
+              </div>
+              <StructuredRecordView data={event.data} emptyMessage="No event payload." />
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
@@ -1257,6 +1270,20 @@ function taskStateBadgeVariant(
 
 function formatTaskStateLabel(state: DashboardWorkItemTaskRecord['state']): string {
   return state.replaceAll('_', ' ');
+}
+
+function formatMemoryHistoryEventType(eventType: string): string {
+  if (eventType === 'deleted') {
+    return 'Deleted value';
+  }
+  if (eventType === 'created') {
+    return 'Created value';
+  }
+  return 'Updated value';
+}
+
+function formatTimelineEventType(eventType: string): string {
+  return eventType.replaceAll('.', ' ').replaceAll('_', ' ');
 }
 
 function formatTimestamp(value: string): string {
