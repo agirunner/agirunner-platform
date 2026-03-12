@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  STATUS_FILTERS,
+  TASK_LIST_PAGE_SIZE,
   buildTaskSearchText,
   describeTaskKind,
   describeTaskNextAction,
@@ -8,6 +10,7 @@ import {
   formatRelativeTime,
   formatTaskDuration,
   formatStatusLabel,
+  normalizeTaskListRecords,
   resolveTaskStatus,
   statusBadgeVariant,
   summarizeTaskPosture,
@@ -81,5 +84,15 @@ describe('task list page support', () => {
     });
     expect(buildTaskSearchText(tasks[4])).toContain('release train');
     expect(buildTaskSearchText(tasks[4])).toContain('verify');
+  });
+
+  it('exports the shared page constants and task normalization helpers', () => {
+    expect(STATUS_FILTERS[0]).toBe('all');
+    expect(TASK_LIST_PAGE_SIZE).toBe(20);
+    expect(
+      normalizeTaskListRecords({
+        data: [{ id: 'task-9', status: 'ready', created_at: '2026-03-12T12:00:00.000Z' }],
+      }),
+    ).toHaveLength(1);
   });
 });

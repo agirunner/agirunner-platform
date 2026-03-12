@@ -3,7 +3,14 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './task-list-page.tsx'), 'utf8');
+  return [
+    './task-list-page.tsx',
+    './task-list-page.sections.tsx',
+    './task-list-page.rows.tsx',
+    './task-list-page.support.ts',
+  ]
+    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
+    .join('\n');
 }
 
 describe('task list page source', () => {
@@ -11,6 +18,8 @@ describe('task list page source', () => {
     const source = readSource();
     expect(source).toContain('Execution Steps');
     expect(source).toContain('Operator view of specialist steps');
+    expect(source).toContain('TaskListFilters');
+    expect(source).toContain('TaskListContent');
     expect(source).toContain('TaskPostureSection');
     expect(source).toContain('Execution pressure');
     expect(source).toContain('Review queue');

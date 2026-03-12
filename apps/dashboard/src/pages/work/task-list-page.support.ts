@@ -28,6 +28,39 @@ export interface TaskPostureSummary {
   orchestrator: number;
 }
 
+export type StatusFilter =
+  | 'all'
+  | 'ready'
+  | 'pending'
+  | 'in_progress'
+  | 'completed'
+  | 'failed'
+  | 'awaiting_approval'
+  | 'output_pending_review'
+  | 'escalated';
+
+export const STATUS_FILTERS: StatusFilter[] = [
+  'all',
+  'ready',
+  'pending',
+  'in_progress',
+  'completed',
+  'failed',
+  'awaiting_approval',
+  'output_pending_review',
+  'escalated',
+];
+
+export const TASK_LIST_PAGE_SIZE = 20;
+
+export function normalizeTaskListRecords(response: unknown): TaskListRecord[] {
+  if (Array.isArray(response)) {
+    return response as TaskListRecord[];
+  }
+  const wrapped = response as { data?: unknown };
+  return Array.isArray(wrapped?.data) ? (wrapped.data as TaskListRecord[]) : [];
+}
+
 export function normalizeTaskStatus(status: string): string {
   return status.toLowerCase();
 }
