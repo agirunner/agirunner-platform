@@ -16,6 +16,11 @@ describe('workflow detail sections source', () => {
     expect(source).toContain('Human-readable specialist steps grouped by board stage');
     expect(source).toContain('describeTaskGraphPacket');
     expect(source).toContain('Execution flow, ownership, and upstream dependencies for this stage.');
+    expect(source).toContain('grid gap-3 lg:hidden');
+    expect(source).toContain('hidden overflow-x-auto lg:block');
+    expect(source).toContain('TaskGraphMetric');
+    expect(source).toContain('Upstream steps');
+    expect(source).toContain('Execution focus');
     expect(source).toContain('Upstream');
     expect(source).toContain('Updated');
     expect(source).toContain('Work Board');
@@ -49,6 +54,12 @@ describe('workflow detail sections source', () => {
     const source = readSource();
     expect(source).toContain('Stage Gates');
     expect(source).toContain('stage.summary');
+    expect(source).toContain('summarizeStageMetrics');
+    expect(source).toContain('StageSummaryMetric');
+    expect(source).toContain('Awaiting gates');
+    expect(source).toContain('Review goal');
+    expect(source).toContain('Operator posture');
+    expect(source).toContain('Stage packet ready for operator review.');
     expect(source).toContain('Started');
     expect(source).toContain('Human Gate');
     expect(source).toContain('listWorkflowGates');

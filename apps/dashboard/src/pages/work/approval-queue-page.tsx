@@ -517,7 +517,14 @@ function StageGateQueueCard(props: {
           Open the full gate packet for the decision trail, key artifacts, and orchestrator follow-up
           context before acting.
         </div>
-        <GateDetailCard gate={gate} source="approval-queue" />
+        <details className="rounded-xl border border-border/70 bg-background/80 p-4 shadow-sm">
+          <summary className="cursor-pointer text-sm font-medium text-foreground">
+            Open full review packet
+          </summary>
+          <div className="mt-4">
+            <GateDetailCard gate={gate} source="approval-queue" />
+          </div>
+        </details>
       </CardContent>
     </Card>
   );

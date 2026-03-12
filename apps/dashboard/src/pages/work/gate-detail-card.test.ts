@@ -13,6 +13,10 @@ describe('gate detail card source', () => {
     expect(source).toContain('OperatorBreadcrumbTrail');
     expect(source).toContain('Review packet');
     expect(source).toContain('Lifecycle trail');
+    expect(source).toContain('GateSignalCard');
+    expect(source).toContain('Decision');
+    expect(source).toContain('Follow-up');
+    expect(source).toContain('Artifacts');
     expect(source).toContain('Request source');
     expect(source).toContain('Gate summary');
     expect(source).toContain('Recommendation');

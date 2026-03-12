@@ -38,6 +38,7 @@ describe('approval queue page source', () => {
     expect(source).toContain('Gate packet');
     expect(source).toContain('Request source');
     expect(source).toContain('Orchestrator follow-up');
+    expect(source).toContain('Open full review packet');
     expect(source).toContain('Follow-up step:');
     expect(source).toContain('countPendingOrchestratorFollowUp');
   });

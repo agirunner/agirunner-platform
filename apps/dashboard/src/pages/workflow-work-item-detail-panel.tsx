@@ -42,6 +42,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs.js';
 import { cn } from '../lib/utils.js';
 import { describeTimelineEvent } from './workflow-history-card.js';
+import { formatRelativeTimestamp } from './workflow-detail-presentation.js';
 import {
   buildWorkItemBreadcrumbs,
   describeTaskOperatorPosture,
@@ -332,7 +333,7 @@ export function WorkflowWorkItemDetailPanel(
           className="grid gap-4"
           data-testid="work-item-detail-tabs"
         >
-          <TabsList className="flex h-auto w-full flex-wrap gap-2 rounded-xl border border-border/70 bg-border/10 p-1">
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-xl border border-border/70 bg-border/10 p-1 xl:grid-cols-4">
             <TabsTrigger value="steps">Steps</TabsTrigger>
             <TabsTrigger value="memory">Memory</TabsTrigger>
             <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
@@ -657,8 +658,14 @@ function WorkItemMemorySection(props: {
               </div>
               <div className={metaRowClass}>
                 <Badge variant="outline">{entry.actor_type}</Badge>
-                {entry.task_id ? <Badge variant="outline">task {entry.task_id}</Badge> : null}
-                <span className="text-xs text-muted">{formatTimestamp(entry.updated_at)}</span>
+                {entry.task_id ? <Badge variant="outline">step {entry.task_id}</Badge> : null}
+                <time
+                  className="text-xs text-muted"
+                  dateTime={entry.updated_at}
+                  title={formatTimestamp(entry.updated_at)}
+                >
+                  Updated {formatRelativeTimestamp(entry.updated_at)}
+                </time>
               </div>
               <StructuredValueReview
                 label="Memory packet"
@@ -698,8 +705,14 @@ function WorkItemMemorySection(props: {
                 <div className={metaRowClass}>
                   <Badge variant="outline">{entry.actor_type}</Badge>
                   {entry.stage_name ? <Badge variant="outline">{entry.stage_name}</Badge> : null}
-                  {entry.task_id ? <Badge variant="outline">task {entry.task_id}</Badge> : null}
-                  <span className="text-xs text-muted">{formatTimestamp(entry.updated_at)}</span>
+                  {entry.task_id ? <Badge variant="outline">step {entry.task_id}</Badge> : null}
+                  <time
+                    className="text-xs text-muted"
+                    dateTime={entry.updated_at}
+                    title={formatTimestamp(entry.updated_at)}
+                  >
+                    Updated {formatRelativeTimestamp(entry.updated_at)}
+                  </time>
                 </div>
                 <StructuredValueReview
                   label="Memory change packet"
@@ -1392,9 +1405,13 @@ function WorkItemArtifactsSection(props: {
             <Badge variant="outline">{artifact.size_bytes} bytes</Badge>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <span className="text-xs text-muted">
-              {new Date(artifact.created_at).toLocaleString()}
-            </span>
+            <time
+              className="text-xs text-muted"
+              dateTime={artifact.created_at}
+              title={formatTimestamp(artifact.created_at)}
+            >
+              Created {formatRelativeTimestamp(artifact.created_at)}
+            </time>
             <Link to={buildArtifactPermalink(artifact.task_id, artifact.id)}>Preview artifact</Link>
           </div>
         </article>
@@ -1442,14 +1459,19 @@ function WorkItemEventHistorySection(props: {
                   {descriptor.summary ? <p className={mutedBodyClass}>{descriptor.summary}</p> : null}
                 </div>
                 <span className="text-xs text-muted">
-                  {new Date(event.created_at).toLocaleString()}
+                  <time
+                    dateTime={event.created_at}
+                    title={formatTimestamp(event.created_at)}
+                  >
+                    {formatRelativeTimestamp(event.created_at)}
+                  </time>
                 </span>
               </div>
               <div className={metaRowClass}>
                 <Badge variant="outline">{formatTimelineEventType(event.type)}</Badge>
                 {descriptor.stageName ? <Badge variant="outline">{descriptor.stageName}</Badge> : null}
                 {descriptor.workItemId ? <Badge variant="outline">work item {descriptor.workItemId.slice(0, 8)}</Badge> : null}
-                {descriptor.taskId ? <Badge variant="outline">task {descriptor.taskId.slice(0, 8)}</Badge> : null}
+                {descriptor.taskId ? <Badge variant="outline">step {descriptor.taskId.slice(0, 8)}</Badge> : null}
               </div>
               <StructuredValueReview
                 label="Operator review packet"

@@ -226,7 +226,16 @@ export function GateDetailCard(props: {
                   </Badge>
                 ))}
                 <Badge variant="outline">{decisionSummary}</Badge>
-                <Badge variant="outline">{resumptionSummary}</Badge>
+                  <Badge variant="outline">{resumptionSummary}</Badge>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <GateSignalCard label="Stage" value={gate.stage_name} />
+                <GateSignalCard label="Decision" value={decisionSummary} />
+                <GateSignalCard label="Follow-up" value={resumptionSummary} />
+                <GateSignalCard
+                  label="Artifacts"
+                  value={`${gate.key_artifacts.length} linked`}
+                />
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Link
@@ -539,5 +548,16 @@ export function GateDetailCard(props: {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function GateSignalCard(props: { label: string; value: string }): JSX.Element {
+  return (
+    <div className="grid gap-1 rounded-xl border border-border/70 bg-background/80 p-3 shadow-sm">
+      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+        {props.label}
+      </div>
+      <div className="text-sm text-foreground">{props.value}</div>
+    </div>
   );
 }

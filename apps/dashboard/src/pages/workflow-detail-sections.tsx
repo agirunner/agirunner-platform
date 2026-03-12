@@ -194,36 +194,65 @@ export function TaskGraphCard(props: {
               <Badge variant="secondary">{group.tasks.length} steps</Badge>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Step</TableHead>
-                    <TableHead>Focus</TableHead>
-                    <TableHead>Upstream</TableHead>
-                    <TableHead>Updated</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {group.tasks.map((task) => {
-                    const packet = describeTaskGraphPacket(task, props.tasks);
-                    return (
-                      <TableRow key={task.id}>
-                        <TableCell className="font-medium">
-                          <div className="grid gap-1">
-                            <Link to={`/work/tasks/${task.id}`}>{task.title}</Link>
-                            <Badge variant={badgeVariantForState(task.state)} className="w-fit">
-                              {task.state}
-                            </Badge>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted">{packet.focus}</TableCell>
-                        <TableCell className="text-sm text-muted">{packet.upstream}</TableCell>
-                        <TableCell className="text-sm text-muted">{packet.timing}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+              <div className="grid gap-3 lg:hidden">
+                {group.tasks.map((task) => {
+                  const packet = describeTaskGraphPacket(task, props.tasks);
+                  return (
+                    <article
+                      key={task.id}
+                      className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-4 shadow-sm"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="grid gap-1">
+                          <Link to={`/work/tasks/${task.id}`} className="font-medium text-foreground">
+                            {task.title}
+                          </Link>
+                          <p className="text-sm text-muted">{packet.focus}</p>
+                        </div>
+                        <Badge variant={badgeVariantForState(task.state)} className="w-fit">
+                          {task.state}
+                        </Badge>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <TaskGraphMetric label="Upstream steps" value={packet.upstream} />
+                        <TaskGraphMetric label="Execution focus" value={packet.timing} />
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+              <div className="hidden overflow-x-auto lg:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Step</TableHead>
+                      <TableHead>Focus</TableHead>
+                      <TableHead>Upstream</TableHead>
+                      <TableHead>Updated</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {group.tasks.map((task) => {
+                      const packet = describeTaskGraphPacket(task, props.tasks);
+                      return (
+                        <TableRow key={task.id}>
+                          <TableCell className="font-medium">
+                            <div className="grid gap-1">
+                              <Link to={`/work/tasks/${task.id}`}>{task.title}</Link>
+                              <Badge variant={badgeVariantForState(task.state)} className="w-fit">
+                                {task.state}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted">{packet.focus}</TableCell>
+                          <TableCell className="text-sm text-muted">{packet.upstream}</TableCell>
+                          <TableCell className="text-sm text-muted">{packet.timing}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         ))}
@@ -665,6 +694,15 @@ function readCompletedChildren(item: {
   return item.children_completed ?? item.children?.filter((child) => child.completed_at).length ?? 0;
 }
 
+function summarizeStageMetrics(stages: DashboardWorkflowStageRecord[]) {
+  return {
+    total: stages.length,
+    active: stages.filter((stage) => stage.status !== 'completed').length,
+    awaitingGate: stages.filter((stage) => stage.gate_status === 'awaiting_approval').length,
+    humanGates: stages.filter((stage) => stage.human_gate).length,
+  };
+}
+
 export function WorkflowStagesCard(props: {
   stages: DashboardWorkflowStageRecord[];
   isLoading: boolean;
@@ -686,6 +724,7 @@ export function WorkflowStagesCard(props: {
       gatesByStageName.set(gate.stage_name, gate);
     }
   }
+  const stageMetrics = summarizeStageMetrics(props.stages);
 
   return (
     <Card>
@@ -701,6 +740,14 @@ export function WorkflowStagesCard(props: {
         {gatesQuery.isError ? (
           <p className="text-sm text-red-600">Failed to load board gate detail.</p>
         ) : null}
+        {props.stages.length > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <StageSummaryMetric label="Stages" value={String(stageMetrics.total)} />
+            <StageSummaryMetric label="Live" value={String(stageMetrics.active)} />
+            <StageSummaryMetric label="Awaiting gates" value={String(stageMetrics.awaitingGate)} />
+            <StageSummaryMetric label="Human gates" value={String(stageMetrics.humanGates)} />
+          </div>
+        ) : null}
         <div className="grid gap-4">
         {props.stages.map((stage) => (
           <article
@@ -715,14 +762,27 @@ export function WorkflowStagesCard(props: {
             }
           >
             <div className="flex items-start justify-between gap-3">
-              <strong>{stage.position + 1}. {stage.name}</strong>
+              <div className="grid gap-1">
+                <strong>{stage.position + 1}. {stage.name}</strong>
+                <span className="text-sm text-muted">
+                  {stage.summary?.trim() || 'Stage packet ready for operator review.'}
+                </span>
+              </div>
               <div className="flex flex-wrap gap-2">
                 <Badge variant={badgeVariantForState(stage.status)}>{stage.status}</Badge>
                 <Badge variant="outline">Gate: {stage.gate_status}</Badge>
               </div>
             </div>
-            <p className="text-sm text-muted">{stage.goal}</p>
-            {stage.guidance ? <p className="text-sm text-muted">{stage.guidance}</p> : null}
+            <div className="grid gap-3 md:grid-cols-2">
+              <StageDetailCard
+                label="Review goal"
+                value={stage.goal || 'No stage goal recorded.'}
+              />
+              <StageDetailCard
+                label="Operator posture"
+                value={stage.guidance || 'No additional operator guidance recorded.'}
+              />
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="secondary">Iterations: {stage.iteration_count}</Badge>
               {stage.human_gate ? <Badge variant="outline">Human Gate</Badge> : null}
@@ -743,11 +803,6 @@ export function WorkflowStagesCard(props: {
                 Permalink
               </Link>
             </div>
-            {stage.summary ? (
-              <div className="rounded-md border bg-border/10 p-3 text-xs text-muted">
-                {stage.summary}
-              </div>
-            ) : null}
             {gatesByStageName.get(stage.name) ? (
               <div className="pt-2">
                 <GateDetailCard gate={gatesByStageName.get(stage.name) as DashboardGateDetailRecord} source="workflow-detail" />
@@ -1026,6 +1081,39 @@ function ActivationMetric(props: { label: string; value: string }): JSX.Element 
         {props.label}
       </p>
       <strong className="text-xl text-foreground">{props.value}</strong>
+    </div>
+  );
+}
+
+function TaskGraphMetric(props: { label: string; value: string }): JSX.Element {
+  return (
+    <div className="grid gap-1 rounded-lg border border-border/70 bg-surface/70 p-3">
+      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+        {props.label}
+      </div>
+      <div className="text-sm text-foreground">{props.value}</div>
+    </div>
+  );
+}
+
+function StageSummaryMetric(props: { label: string; value: string }): JSX.Element {
+  return (
+    <div className="grid gap-1 rounded-xl border border-border/70 bg-background/90 p-4 shadow-sm">
+      <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted">
+        {props.label}
+      </div>
+      <strong className="text-xl text-foreground">{props.value}</strong>
+    </div>
+  );
+}
+
+function StageDetailCard(props: { label: string; value: string }): JSX.Element {
+  return (
+    <div className="grid gap-2 rounded-xl border border-border/70 bg-background/80 p-4 shadow-sm">
+      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+        {props.label}
+      </div>
+      <p className="text-sm leading-6 text-muted">{props.value}</p>
     </div>
   );
 }

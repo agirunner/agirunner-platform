@@ -31,6 +31,8 @@ describe('workflow work item detail panel source', () => {
 
   it('renders dedicated tabs for steps, memory, artifacts, and event history', () => {
     const source = readSource();
+    expect(source).toContain('grid h-auto w-full grid-cols-2');
+    expect(source).toContain('xl:grid-cols-4');
     expect(source).toContain('TabsTrigger value="steps"');
     expect(source).toContain('TabsTrigger value="memory"');
     expect(source).toContain('TabsTrigger value="artifacts"');
@@ -46,10 +48,13 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Memory history');
     expect(source).toContain('Memory packet');
     expect(source).toContain('Memory change packet');
+    expect(source).toContain('Updated {formatRelativeTimestamp(entry.updated_at)}');
     expect(source).toContain('Open full memory packet');
     expect(source).toContain('Open full change packet');
     expect(source).toContain('formatMemoryHistoryEventType');
     expect(source).toContain('Deleted value');
+    expect(source).toContain('Created {formatRelativeTimestamp(artifact.created_at)}');
+    expect(source).toContain('step {descriptor.taskId.slice(0, 8)}');
   });
 
   it('surfaces milestone operator context with parent-child navigation and grouped task messaging', () => {
