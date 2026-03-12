@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bot, Loader2, Plus, ShieldCheck } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
@@ -18,6 +18,8 @@ import {
   TableRow,
 } from '../../components/ui/table.js';
 import { readSession } from '../../lib/session.js';
+import { toast } from '../../lib/toast.js';
+import { DeleteRoleDialog } from './role-definitions-delete-dialog.js';
 import {
   buildRolePayload,
   countRoleStateSummary,
@@ -62,11 +64,41 @@ function saveRole(roleId: string | null, form: RoleFormState) {
 }
 
 export function RoleDefinitionsPage(): JSX.Element {
+  const queryClient = useQueryClient();
   const [editingRole, setEditingRole] = useState<RoleDefinition | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [deletingRole, setDeletingRole] = useState<RoleDefinition | null>(null);
   const rolesQuery = useQuery({ queryKey: ['roles'], queryFn: fetchRoles });
   const providersQuery = useQuery({ queryKey: ['llm-providers'], queryFn: fetchProviders });
   const modelsQuery = useQuery({ queryKey: ['llm-models'], queryFn: fetchModels });
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!deletingRole) {
+        throw new Error('Choose a role to delete.');
+      }
+      const response = await fetch(`${API_BASE_URL}/api/v1/config/roles/${deletingRole.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+    },
+    onSuccess: async () => {
+      const deletedRoleName = deletingRole?.name ?? 'Role';
+      await queryClient.invalidateQueries({ queryKey: ['roles'] });
+      if (editingRole?.id === deletingRole?.id) {
+        setEditingRole(null);
+      }
+      setDeletingRole(null);
+      toast.success(`Deleted role ${deletedRoleName}.`);
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'Failed to delete role.';
+      toast.error(message);
+    },
+  });
 
   if (rolesQuery.isLoading) {
     return <div className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-muted" /></div>;
@@ -95,7 +127,7 @@ export function RoleDefinitionsPage(): JSX.Element {
             <Bot className="h-5 w-5 text-accent" />
             <h1 className="text-2xl font-semibold">Role Definitions</h1>
           </div>
-          <p className="max-w-3xl text-sm text-muted">Configure prompts, model defaults, capabilities, tool grants, and activation state for specialist and orchestrator-facing roles.</p>
+          <p className="max-w-3xl text-sm text-muted">Configure prompts, model defaults, capabilities, tool grants, active state, and deletion posture for specialist and orchestrator-facing roles.</p>
         </div>
         <Button onClick={() => setIsCreating(true)}><Plus className="h-4 w-4" />Create Role</Button>
       </div>
@@ -129,10 +161,19 @@ export function RoleDefinitionsPage(): JSX.Element {
                   <TableHead>Capabilities</TableHead>
                   <TableHead>Tools</TableHead>
                   <TableHead>Model policy</TableHead>
-                  <TableHead className="w-[60px]">Actions</TableHead>
+                  <TableHead className="w-[180px] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>{roles.map((role) => <RoleRow key={role.id} role={role} onEdit={setEditingRole} />)}</TableBody>
+              <TableBody>
+                {roles.map((role) => (
+                  <RoleRow
+                    key={role.id}
+                    role={role}
+                    onEdit={setEditingRole}
+                    onDelete={setDeletingRole}
+                  />
+                ))}
+              </TableBody>
             </Table>
           </CardContent>
         </Card>
@@ -140,6 +181,16 @@ export function RoleDefinitionsPage(): JSX.Element {
 
       {isCreating ? <RoleDialog {...dialogProps} onClose={() => setIsCreating(false)} /> : null}
       {editingRole ? <RoleDialog {...dialogProps} role={editingRole} onClose={() => setEditingRole(null)} /> : null}
+      <DeleteRoleDialog
+        role={deletingRole}
+        isDeleting={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+        onOpenChange={(open) => {
+          if (!open && !deleteMutation.isPending) {
+            setDeletingRole(null);
+          }
+        }}
+      />
     </div>
   );
 }

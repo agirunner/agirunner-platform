@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Pencil } from 'lucide-react';
+import { ChevronDown, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -10,6 +10,10 @@ import {
   describeRoleModelPolicy,
   type RoleDefinition,
 } from './role-definitions-page.support.js';
+import {
+  canDeleteRole,
+  describeRoleLifecyclePolicy,
+} from './role-definitions-lifecycle.js';
 
 export function MetricCard(props: {
   label: string;
@@ -34,9 +38,14 @@ export function MetricCard(props: {
   );
 }
 
-export function RoleRow(props: { role: RoleDefinition; onEdit(role: RoleDefinition): void }) {
+export function RoleRow(props: {
+  role: RoleDefinition;
+  onEdit(role: RoleDefinition): void;
+  onDelete(role: RoleDefinition): void;
+}) {
   const [isExpanded, setIsExpanded] = useState(false);
   const modelPolicy = describeRoleModelPolicy(props.role);
+  const isDeletable = canDeleteRole(props.role);
 
   return (
     <>
@@ -81,18 +90,38 @@ export function RoleRow(props: { role: RoleDefinition; onEdit(role: RoleDefiniti
           <div className="font-mono">{modelPolicy.primary}</div>
           <div className="text-muted">{modelPolicy.fallback}</div>
         </TableCell>
-        <TableCell>
-          <Button
-            size="icon"
-            variant="ghost"
-            aria-label={`Edit ${props.role.name}`}
-            onClick={(event) => {
-              event.stopPropagation();
-              props.onEdit(props.role);
-            }}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
+        <TableCell className="text-right">
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-label={`Edit ${props.role.name}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                props.onEdit(props.role);
+              }}
+            >
+              <Pencil className="h-4 w-4" />
+              Edit
+            </Button>
+            {isDeletable ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-red-600 hover:text-red-700"
+                aria-label={`Delete ${props.role.name}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  props.onDelete(props.role);
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </Button>
+            ) : (
+              <Badge variant="secondary">Built-in</Badge>
+            )}
+          </div>
         </TableCell>
       </TableRow>
       {isExpanded ? (
@@ -143,6 +172,10 @@ export function RoleRow(props: { role: RoleDefinition; onEdit(role: RoleDefiniti
                 </div>
                 <div>
                   <span className="font-medium">Fallback model:</span> {modelPolicy.fallback}
+                </div>
+                <div>
+                  <span className="font-medium">Lifecycle:</span>{' '}
+                  {describeRoleLifecyclePolicy(props.role)}
                 </div>
               </div>
             </div>

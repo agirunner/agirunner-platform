@@ -10,6 +10,8 @@ function readCombinedSource() {
   return [
     readSource(),
     readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.tsx'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-delete-dialog.tsx'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-lifecycle.ts'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-list.tsx'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-page.support.ts'), 'utf8'),
   ].join('\n');
@@ -49,5 +51,14 @@ describe('role definitions page source', () => {
     expect(source).toContain('Create Role');
     expect(source).toContain("method: roleId ? 'PUT' : 'POST'");
     expect(source).not.toContain("method: 'PATCH'");
+  });
+
+  it('exposes a first-class delete role flow for custom roles with built-in protection', () => {
+    const source = readCombinedSource();
+    expect(source).toContain("method: 'DELETE'");
+    expect(source).toContain('DeleteRoleDialog');
+    expect(source).toContain('Delete Role');
+    expect(source).toContain('Built-in roles are protected and can only be deactivated.');
+    expect(source).toContain('onDelete={setDeletingRole}');
   });
 });
