@@ -68,6 +68,9 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Linked execution steps stay here');
     expect(source).toContain('Operator Flow Controls');
     expect(source).toContain('Reparent under milestone');
+    expect(source).toContain('Select owner role');
+    expect(source).toContain('Unassigned');
+    expect(source).toContain('Choose from roles already active on this board run');
     expect(source).toContain('Save Operator Changes');
     expect(source).toContain('Create Child Work Item');
     expect(source).toContain('Approve Step');
@@ -82,6 +85,16 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('dashboardApi.approveTask');
     expect(source).toContain('dashboardApi.requestTaskChanges');
     expect(source).toContain('dashboardApi.retryTask');
+  });
+
+  it('uses a responsive card-plus-table execution layout instead of a table-only task presentation', () => {
+    const source = readSource();
+    expect(source).toContain('TaskExecutionCard');
+    expect(source).toContain('TaskDependencySummary');
+    expect(source).toContain('grid gap-3 lg:hidden');
+    expect(source).toContain('hidden overflow-x-auto lg:block');
+    expect(source).toContain('No dependencies');
+    expect(source).toContain('Dependencies');
   });
 
   it('links artifacts through the dashboard preview permalink instead of direct storage urls', () => {

@@ -5,6 +5,7 @@ import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import {
   dashboardApi,
   type DashboardEffectiveModelResolution,
+  type DashboardRoleModelOverride,
   type DashboardWorkflowRelationRef,
   type DashboardWorkflowActivationRecord,
   type DashboardWorkflowModelOverridesResponse,
@@ -19,6 +20,7 @@ import {
 } from '../lib/api.js';
 import { subscribeToEvents } from '../lib/sse.js';
 import {
+  deriveWorkflowRoleOptions,
   groupTasksByStage,
   readWorkflowProjectId,
   readProjectMemoryEntries,
@@ -356,6 +358,21 @@ export function WorkflowDetailPage(): JSX.Element {
         : [],
     [groupedWorkItems, selectedWorkItemId, workItemTasks],
   );
+  const ownerRoleOptions = useMemo(
+    () =>
+      deriveWorkflowRoleOptions({
+        tasks: taskQuery.data?.data ?? [],
+        workItems: boardQuery.data?.work_items ?? [],
+        effectiveModels: resolvedModelsQuery.data?.effective_models,
+        workflowModelOverrides: workflowModelOverridesQuery.data?.model_overrides,
+      }),
+    [
+      boardQuery.data?.work_items,
+      resolvedModelsQuery.data?.effective_models,
+      taskQuery.data?.data,
+      workflowModelOverridesQuery.data?.model_overrides,
+    ],
+  );
   const stageDisplay = useMemo(
     () => deriveWorkflowStageDisplay(workflowQuery.data),
     [workflowQuery.data],
@@ -619,10 +636,7 @@ export function WorkflowDetailPage(): JSX.Element {
                         Shared context, run parameters, and orchestration metadata attached to this board run.
                       </p>
                     </div>
-                    <StructuredRecordView
-                      data={workflowQuery.data.context}
-                      emptyMessage="No workflow context is available yet."
-                    />
+                    <WorkflowContextPacket context={workflowQuery.data.context} />
                   </div>
                 </>
               ) : null}
@@ -780,6 +794,7 @@ export function WorkflowDetailPage(): JSX.Element {
               selectedWorkItem={selectedBoardWorkItem}
               columns={boardQuery.data?.columns ?? []}
               stages={stagesQuery.data ?? []}
+              ownerRoleOptions={ownerRoleOptions}
               tasks={selectedWorkItemTasks}
               onSelectWorkItem={(workItemId) => updateWorkflowSelection('work_item', workItemId)}
               onWorkItemChanged={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}
@@ -828,9 +843,9 @@ export function WorkflowDetailPage(): JSX.Element {
               </p>
             ) : null}
             {workflowModelOverridesQuery.data ? (
-              <StructuredRecordView
-                data={workflowModelOverridesQuery.data}
-                emptyMessage="No board-run model overrides configured."
+              <WorkflowModelOverridesPacket
+                overrides={workflowModelOverridesQuery.data.model_overrides}
+                effectiveModels={resolvedModelsQuery.data?.effective_models ?? {}}
               />
             ) : null}
           </CardContent>
@@ -881,10 +896,7 @@ export function WorkflowDetailPage(): JSX.Element {
               </p>
             ) : null}
             {configQuery.data ? (
-              <StructuredRecordView
-                data={configQuery.data}
-                emptyMessage="No resolved configuration available."
-              />
+              <WorkflowConfigReviewPacket config={configQuery.data} />
             ) : null}
           </CardContent>
         </Card>
@@ -898,10 +910,7 @@ export function WorkflowDetailPage(): JSX.Element {
           </CardHeader>
           <CardContent className="grid gap-4">
             {runSummary ? (
-              <StructuredRecordView
-                data={runSummary}
-                emptyMessage="Run summary becomes available after the workflow reaches terminal state."
-              />
+              <WorkflowRunSummaryPacket summary={runSummary} />
             ) : (
               <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
                 Run summary becomes available after the workflow reaches terminal state.
@@ -976,6 +985,185 @@ export function WorkflowDetailPage(): JSX.Element {
   );
 }
 
+function WorkflowContextPacket(props: {
+  context: Record<string, unknown> | null | undefined;
+}): JSX.Element {
+  const context = asPacketRecord(props.context);
+  const contextKeys = Object.keys(context).sort((left, right) => left.localeCompare(right));
+  const scalarEntries = contextKeys.filter((key) => isScalarPacketValue(context[key]));
+
+  if (contextKeys.length === 0) {
+    return (
+      <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
+        No workflow context is available yet.
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid gap-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <WorkflowSignalTile
+          label="Context fields"
+          value={String(contextKeys.length)}
+          detail="Top-level keys available to the orchestrator"
+        />
+        <WorkflowSignalTile
+          label="Inline values"
+          value={String(scalarEntries.length)}
+          detail="Immediately readable values without drilling deeper"
+        />
+        <WorkflowSignalTile
+          label="Nested packets"
+          value={String(Math.max(contextKeys.length - scalarEntries.length, 0))}
+          detail="Structured sections available on demand"
+        />
+      </div>
+      <div className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-4">
+        <div className="text-sm font-medium text-foreground">Context highlights</div>
+        <div className="flex flex-wrap gap-2">
+          {contextKeys.slice(0, 8).map((key) => (
+            <Badge key={key} variant="outline">
+              {key}
+            </Badge>
+          ))}
+        </div>
+      </div>
+      <PacketDisclosure
+        summary="Open full operator context"
+        data={context}
+        emptyMessage="No workflow context is available yet."
+      />
+    </div>
+  );
+}
+
+function WorkflowConfigReviewPacket(props: {
+  config: DashboardResolvedConfigResponse;
+}): JSX.Element {
+  const resolvedConfig = asPacketRecord(props.config.resolved_config);
+  const resolvedSections = Object.keys(resolvedConfig).sort((left, right) => left.localeCompare(right));
+  const configLayers = asPacketRecord(props.config.config_layers);
+  const layerNames = Object.keys(configLayers).sort((left, right) => left.localeCompare(right));
+
+  return (
+    <div className="grid gap-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <WorkflowSignalTile
+          label="Merged sections"
+          value={String(resolvedSections.length)}
+          detail="Top-level configuration sections in effect"
+        />
+        <WorkflowSignalTile
+          label="Layer sources"
+          value={String(layerNames.length)}
+          detail={layerNames.length > 0 ? layerNames.join(', ') : 'No layer breakdown exposed'}
+        />
+        <WorkflowSignalTile
+          label="Workflow packet"
+          value={props.config.workflow_id}
+          detail="Resolved for the current board run"
+        />
+      </div>
+      <div className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-4">
+        <div className="text-sm font-medium text-foreground">Resolved config sections</div>
+        <div className="flex flex-wrap gap-2">
+          {resolvedSections.slice(0, 10).map((section) => (
+            <Badge key={section} variant="outline">
+              {section}
+            </Badge>
+          ))}
+        </div>
+      </div>
+      <PacketDisclosure
+        summary="Open merged config"
+        data={resolvedConfig}
+        emptyMessage="No resolved configuration available."
+      />
+      {layerNames.length > 0 ? (
+        <PacketDisclosure
+          summary="Open layer breakdown"
+          data={configLayers}
+          emptyMessage="No layer breakdown available."
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function WorkflowRunSummaryPacket(props: {
+  summary: Record<string, unknown>;
+}): JSX.Element {
+  const summary = asPacketRecord(props.summary);
+  const stageMetrics = asPacketArray(summary.stage_metrics);
+  const stageActivity = asPacketArray(summary.stage_activity ?? summary.stage_progression);
+  const producedArtifacts = asPacketArray(summary.produced_artifacts);
+  const childChain = asPacketRecord(summary.chain);
+  const childCounts = asPacketRecord(childChain.child_status_counts);
+
+  return (
+    <div className="grid gap-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <WorkflowSignalTile
+          label="Stage metrics"
+          value={String(stageMetrics.length)}
+          detail="Captured stage outcome rows"
+        />
+        <WorkflowSignalTile
+          label="Stage activity"
+          value={String(stageActivity.length)}
+          detail="Timeline snapshots in the final run packet"
+        />
+        <WorkflowSignalTile
+          label="Artifacts"
+          value={String(producedArtifacts.length)}
+          detail="Artifacts recorded in the final board summary"
+        />
+        <WorkflowSignalTile
+          label="Child boards"
+          value={String(readNumericPacketValue(childCounts.total))}
+          detail="Linked child workflows counted in lineage"
+        />
+      </div>
+      <div className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-4">
+        <div className="text-sm font-medium text-foreground">Run outcome packet</div>
+        <div className="flex flex-wrap gap-2">
+          {Object.keys(summary)
+            .sort((left, right) => left.localeCompare(right))
+            .slice(0, 10)
+            .map((key) => (
+              <Badge key={key} variant="outline">
+                {key}
+              </Badge>
+            ))}
+        </div>
+      </div>
+      <PacketDisclosure
+        summary="Open run outcome packet"
+        data={summary}
+        emptyMessage="Run summary becomes available after the workflow reaches terminal state."
+      />
+    </div>
+  );
+}
+
+function PacketDisclosure(props: {
+  summary: string;
+  data: Record<string, unknown>;
+  emptyMessage: string;
+}): JSX.Element {
+  return (
+    <details className="rounded-xl border border-border/70 bg-background/80 p-4">
+      <summary className="cursor-pointer text-sm font-medium text-foreground">
+        {props.summary}
+      </summary>
+      <div className="mt-3">
+        <StructuredRecordView data={props.data} emptyMessage={props.emptyMessage} />
+      </div>
+    </details>
+  );
+}
+
 function ResolvedModelResolutionList(props: {
   effectiveModels: Record<string, DashboardEffectiveModelResolution>;
 }): JSX.Element {
@@ -1009,6 +1197,120 @@ function ResolvedModelResolutionList(props: {
   );
 }
 
+function WorkflowModelOverridesPacket(props: {
+  overrides: Record<string, DashboardRoleModelOverride>;
+  effectiveModels: Record<string, DashboardEffectiveModelResolution>;
+}): JSX.Element {
+  const entries = Object.entries(props.overrides).sort(([left], [right]) =>
+    left.localeCompare(right),
+  );
+
+  if (entries.length === 0) {
+    return (
+      <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
+        No board-run model overrides configured.
+      </p>
+    );
+  }
+
+  const providerCount = new Set(
+    entries
+      .map(([, override]) => override.provider)
+      .filter((provider) => provider.trim().length > 0),
+  ).size;
+  const reasoningProfiles = entries.filter(([, override]) =>
+    hasStructuredEntries(override.reasoning_config),
+  ).length;
+
+  return (
+    <div className="grid gap-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <WorkflowSignalTile
+          label="Configured override roles"
+          value={String(entries.length)}
+          detail="Workflow-scoped model selections"
+        />
+        <WorkflowSignalTile
+          label="Providers"
+          value={String(providerCount)}
+          detail="Distinct providers pinned on this board run"
+        />
+        <WorkflowSignalTile
+          label="Reasoning profiles"
+          value={String(reasoningProfiles)}
+          detail="Overrides with custom reasoning settings"
+        />
+      </div>
+      <div className="grid gap-3">
+        {entries.map(([role, override]) => {
+          const effectiveResolution = props.effectiveModels[role];
+          return (
+            <article
+              key={role}
+              className="grid gap-4 rounded-xl border border-border/70 bg-border/10 p-4"
+            >
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div className="grid gap-1">
+                  <strong className="text-foreground">{role}</strong>
+                  <p className="text-sm text-muted">
+                    {override.provider} / {override.model}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="secondary">Workflow override</Badge>
+                  {effectiveResolution?.fallback ? (
+                    <Badge variant="warning">Fallback active</Badge>
+                  ) : null}
+                  {hasStructuredEntries(override.reasoning_config) ? (
+                    <Badge variant="outline">Custom reasoning</Badge>
+                  ) : null}
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <OverridePacketStat
+                  label="Requested model"
+                  value={override.model}
+                  detail={override.provider}
+                />
+                <OverridePacketStat
+                  label="Reasoning profile"
+                  value={summarizeReasoningProfile(override.reasoning_config)}
+                  detail={
+                    hasStructuredEntries(override.reasoning_config)
+                      ? 'Workflow-specific reasoning settings'
+                      : 'Uses the model default reasoning behavior'
+                  }
+                />
+                <OverridePacketStat
+                  label="Effective resolution"
+                  value={readEffectiveModelValue(effectiveResolution)}
+                  detail={
+                    effectiveResolution?.fallback
+                      ? effectiveResolution.fallback_reason ?? 'Resolved through fallback handling'
+                      : effectiveResolution?.source ?? 'No resolved model available'
+                  }
+                />
+              </div>
+              {hasStructuredEntries(override.reasoning_config) ? (
+                <div className="grid gap-2 rounded-lg border border-border/70 bg-background/70 p-3">
+                  <div className="text-sm font-medium text-foreground">Reasoning settings</div>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.keys(override.reasoning_config ?? {}).map((key) => (
+                      <Badge key={key} variant="outline">
+                        {key}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </article>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function WorkflowSignalTile(props: {
   label: string;
   value: string;
@@ -1023,6 +1325,69 @@ function WorkflowSignalTile(props: {
       <p className="text-sm text-muted">{props.detail}</p>
     </div>
   );
+}
+
+function OverridePacketStat(props: {
+  label: string;
+  value: string;
+  detail: string;
+}): JSX.Element {
+  return (
+    <div className="grid gap-1 rounded-xl border border-border/70 bg-background/80 p-4">
+      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+        {props.label}
+      </div>
+      <div className="text-sm font-semibold text-foreground">{props.value}</div>
+      <div className="text-xs leading-5 text-muted">{props.detail}</div>
+    </div>
+  );
+}
+
+function asPacketRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function asPacketArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function isScalarPacketValue(value: unknown): boolean {
+  return (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    value === null
+  );
+}
+
+function readNumericPacketValue(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function summarizeReasoningProfile(
+  reasoningConfig: Record<string, unknown> | null | undefined,
+): string {
+  if (!hasStructuredEntries(reasoningConfig)) {
+    return 'Default';
+  }
+  return Object.keys(reasoningConfig).join(', ');
+}
+
+function readEffectiveModelValue(
+  resolution: DashboardEffectiveModelResolution | undefined,
+): string {
+  if (!resolution?.resolved) {
+    return 'Not resolved';
+  }
+  return `${resolution.resolved.provider.name} / ${resolution.resolved.model.modelId}`;
+}
+
+function hasStructuredEntries(
+  value: Record<string, unknown> | null | undefined,
+): value is Record<string, unknown> {
+  return Boolean(value && Object.keys(value).length > 0);
 }
 
 function mergeTimelineEntriesWithWorkflowRelations(

@@ -1,3 +1,8 @@
+import type {
+  DashboardEffectiveModelResolution,
+  DashboardWorkflowWorkItemRecord,
+} from '../lib/api.js';
+
 export interface DashboardWorkflowTaskRow {
   id: string;
   title: string;
@@ -66,6 +71,45 @@ export function readProjectMemoryEntries(project: unknown): DashboardProjectMemo
   return Object.entries(asRecord(asRecord(project).memory))
     .map(([key, value]) => ({ key, value }))
     .sort((left, right) => left.key.localeCompare(right.key));
+}
+
+export function deriveWorkflowRoleOptions(input: {
+  tasks: DashboardWorkflowTaskRow[];
+  workItems: DashboardWorkflowWorkItemRecord[];
+  effectiveModels?: Record<string, DashboardEffectiveModelResolution>;
+  workflowModelOverrides?: Record<string, unknown>;
+}): string[] {
+  const roles = new Set<string>();
+
+  for (const task of input.tasks) {
+    const role = readNonEmptyString(task.role);
+    if (role) {
+      roles.add(role.trim());
+    }
+  }
+
+  for (const workItem of input.workItems) {
+    const role = readNonEmptyString(workItem.owner_role);
+    if (role) {
+      roles.add(role.trim());
+    }
+  }
+
+  for (const role of Object.keys(input.effectiveModels ?? {})) {
+    const normalizedRole = readNonEmptyString(role);
+    if (normalizedRole) {
+      roles.add(normalizedRole.trim());
+    }
+  }
+
+  for (const role of Object.keys(input.workflowModelOverrides ?? {})) {
+    const normalizedRole = readNonEmptyString(role);
+    if (normalizedRole) {
+      roles.add(normalizedRole.trim());
+    }
+  }
+
+  return Array.from(roles).sort((left, right) => left.localeCompare(right));
 }
 
 export function shouldInvalidateWorkflowRealtimeEvent(

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  deriveWorkflowRoleOptions,
   groupTasksByStage,
   readProjectMemoryEntries,
   readWorkflowRunSummary,
@@ -49,5 +50,37 @@ describe('workflow detail workflow support', () => {
       { key: 'alpha', value: { value: 1 } },
       { key: 'zeta', value: { value: 2 } },
     ]);
+  });
+
+  it('derives bounded role choices from current workflow data instead of free-form text', () => {
+    expect(
+      deriveWorkflowRoleOptions({
+        tasks: [
+          { id: 'task-1', title: 'Plan', state: 'ready', depends_on: [], role: 'architect' },
+          { id: 'task-2', title: 'Build', state: 'ready', depends_on: [], role: 'developer' },
+        ],
+        workItems: [
+          {
+            id: 'wi-1',
+            workflow_id: 'wf-1',
+            title: 'Implement',
+            stage_name: 'implementation',
+            column_id: 'active',
+            priority: 'high',
+            owner_role: 'reviewer',
+          },
+        ],
+        effectiveModels: {
+          orchestrator: {
+            source: 'workflow',
+            resolved: null,
+            fallback: false,
+          },
+        },
+        workflowModelOverrides: {
+          qa: { provider: 'openai', model: 'gpt-5.4' },
+        },
+      }),
+    ).toEqual(['architect', 'developer', 'orchestrator', 'qa', 'reviewer']);
   });
 });

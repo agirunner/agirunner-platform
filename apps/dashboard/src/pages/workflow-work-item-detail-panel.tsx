@@ -63,6 +63,7 @@ interface WorkflowWorkItemDetailPanelProps {
   selectedWorkItem: DashboardGroupedWorkItemRecord | null;
   columns: DashboardWorkflowBoardColumn[];
   stages: DashboardWorkflowStageRecord[];
+  ownerRoleOptions: string[];
   tasks: DashboardWorkItemTaskRecord[];
   onSelectWorkItem(workItemId: string): void;
   onWorkItemChanged(): Promise<unknown> | unknown;
@@ -240,6 +241,34 @@ export function WorkflowWorkItemDetailPanel(
     (boardWorkItem?.owner_role ?? workItem?.owner_role ?? '') !== ownerRole ||
     ((canEditParent ? boardWorkItem?.parent_work_item_id ?? workItem?.parent_work_item_id ?? '' : '') !==
       (canEditParent ? parentWorkItemId : ''));
+  const operatorSectionProps = workItem
+    ? ({
+        isMilestone: isMilestoneWorkItem(boardWorkItem),
+        columns: props.columns,
+        stages: props.stages,
+        ownerRoleOptions: props.ownerRoleOptions,
+        parentMilestones,
+        stageName,
+        columnId,
+        ownerRole,
+        parentWorkItemId,
+        childTitle,
+        childGoal,
+        onStageNameChange: setStageName,
+        onColumnIdChange: setColumnId,
+        onOwnerRoleChange: setOwnerRole,
+        onParentWorkItemIdChange: setParentWorkItemId,
+        onChildTitleChange: setChildTitle,
+        onChildGoalChange: setChildGoal,
+        onSave: () => updateWorkItemMutation.mutate(),
+        onCreateChild: () => createChildMutation.mutate(),
+        isSaving: updateWorkItemMutation.isPending,
+        isCreatingChild: createChildMutation.isPending,
+        hasChanges: hasOperatorChanges,
+        message: operatorMessage,
+        error: operatorError,
+      } satisfies Parameters<typeof WorkItemOperatorSection>[0])
+    : null;
 
   return (
     <Card
@@ -292,33 +321,7 @@ export function WorkflowWorkItemDetailPanel(
           <MilestoneOperatorSummarySection summary={milestoneOperatorSummary} />
         ) : null}
 
-        {workItem ? (
-          <WorkItemOperatorSection
-            isMilestone={isMilestoneWorkItem(boardWorkItem)}
-            columns={props.columns}
-            stages={props.stages}
-            parentMilestones={parentMilestones}
-            stageName={stageName}
-            columnId={columnId}
-            ownerRole={ownerRole}
-            parentWorkItemId={parentWorkItemId}
-            childTitle={childTitle}
-            childGoal={childGoal}
-            onStageNameChange={setStageName}
-            onColumnIdChange={setColumnId}
-            onOwnerRoleChange={setOwnerRole}
-            onParentWorkItemIdChange={setParentWorkItemId}
-            onChildTitleChange={setChildTitle}
-            onChildGoalChange={setChildGoal}
-            onSave={() => updateWorkItemMutation.mutate()}
-            onCreateChild={() => createChildMutation.mutate()}
-            isSaving={updateWorkItemMutation.isPending}
-            isCreatingChild={createChildMutation.isPending}
-            hasChanges={hasOperatorChanges}
-            message={operatorMessage}
-            error={operatorError}
-          />
-        ) : null}
+        {operatorSectionProps ? <WorkItemOperatorSection {...operatorSectionProps} /> : null}
 
         <Tabs
           defaultValue="steps"
@@ -386,6 +389,7 @@ function WorkItemOperatorSection(props: {
   isMilestone: boolean;
   columns: DashboardWorkflowBoardColumn[];
   stages: DashboardWorkflowStageRecord[];
+  ownerRoleOptions: string[];
   parentMilestones: DashboardGroupedWorkItemRecord[];
   stageName: string;
   columnId: string;
@@ -508,11 +512,29 @@ function WorkItemOperatorSection(props: {
             <span className="text-sm font-medium text-foreground">
               {props.isMilestone ? 'Owner role' : 'Owner role override'}
             </span>
-            <Input
-              value={props.ownerRole}
-              onChange={(event) => props.onOwnerRoleChange(event.target.value)}
-              placeholder={props.isMilestone ? 'Leave empty for milestones' : 'e.g. developer'}
-            />
+            <Select
+              value={props.ownerRole || '__unassigned__'}
+              onValueChange={(value) =>
+                props.onOwnerRoleChange(value === '__unassigned__' ? '' : value)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select owner role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__unassigned__">Unassigned</SelectItem>
+                {props.ownerRoleOptions.map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs leading-5 text-muted">
+              {props.ownerRoleOptions.length > 0
+                ? 'Choose from roles already active on this board run instead of typing a free-form override.'
+                : 'No known board roles are available yet. Configure roles on the playbook or through active model assignments first.'}
+            </p>
           </label>
         </div>
       </OperatorSectionCard>
@@ -875,43 +897,113 @@ function WorkItemTasksSection(props: {
           Linked execution steps stay here so approvals, rework, and retries remain anchored to the selected work item.
         </p>
       )}
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Step</TableHead>
-            <TableHead>State</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Stage</TableHead>
-            <TableHead>Dependencies</TableHead>
-            <TableHead>Operator flow</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {props.tasks.map((task) => (
-            <TableRow key={task.id}>
-              <TableCell>
-                <Link to={`/work/tasks/${task.id}`}>{task.title}</Link>
-              </TableCell>
-              <TableCell>
-                <Badge variant={taskStateBadgeVariant(task.state)}>
-                  {formatTaskStateLabel(task.state)}
-                </Badge>
-              </TableCell>
-              <TableCell>{task.role ?? 'Unassigned'}</TableCell>
-              <TableCell>{task.stage_name ?? 'unassigned'}</TableCell>
-              <TableCell>{task.depends_on.length > 0 ? task.depends_on.join(', ') : '—'}</TableCell>
-              <TableCell className="min-w-[18rem]">
-                <WorkItemTaskActionCell
-                  workflowId={props.workflowId}
-                  task={task}
-                  onWorkItemChanged={props.onWorkItemChanged}
-                />
-              </TableCell>
+      <div className="grid gap-3 lg:hidden">
+        {props.tasks.map((task) => (
+          <TaskExecutionCard
+            key={task.id}
+            workflowId={props.workflowId}
+            task={task}
+            onWorkItemChanged={props.onWorkItemChanged}
+          />
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto lg:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Step</TableHead>
+              <TableHead>State</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Stage</TableHead>
+              <TableHead>Dependencies</TableHead>
+              <TableHead>Operator flow</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {props.tasks.map((task) => (
+              <TableRow key={task.id}>
+                <TableCell>
+                  <Link to={`/work/tasks/${task.id}`}>{task.title}</Link>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={taskStateBadgeVariant(task.state)}>
+                    {formatTaskStateLabel(task.state)}
+                  </Badge>
+                </TableCell>
+                <TableCell>{task.role ?? 'Unassigned'}</TableCell>
+                <TableCell>{task.stage_name ?? 'unassigned'}</TableCell>
+                <TableCell>{task.depends_on.length > 0 ? task.depends_on.join(', ') : '—'}</TableCell>
+                <TableCell className="min-w-[18rem]">
+                  <WorkItemTaskActionCell
+                    workflowId={props.workflowId}
+                    task={task}
+                    onWorkItemChanged={props.onWorkItemChanged}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
     </section>
+  );
+}
+
+function TaskExecutionCard(props: {
+  workflowId: string;
+  task: DashboardWorkItemTaskRecord;
+  onWorkItemChanged(): Promise<unknown> | unknown;
+}): JSX.Element {
+  return (
+    <article className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="grid gap-2">
+          <Link to={`/work/tasks/${props.task.id}`} className="text-base font-semibold text-foreground">
+            {props.task.title}
+          </Link>
+          <div className={metaRowClass}>
+            <Badge variant={taskStateBadgeVariant(props.task.state)}>
+              {formatTaskStateLabel(props.task.state)}
+            </Badge>
+            <Badge variant="outline">{props.task.role ?? 'Unassigned'}</Badge>
+            <Badge variant="outline">{props.task.stage_name ?? 'unassigned'}</Badge>
+          </div>
+        </div>
+        <TaskDependencySummary task={props.task} />
+      </div>
+      <WorkItemTaskActionCell
+        workflowId={props.workflowId}
+        task={props.task}
+        onWorkItemChanged={props.onWorkItemChanged}
+      />
+    </article>
+  );
+}
+
+function TaskDependencySummary(props: {
+  task: DashboardWorkItemTaskRecord;
+}): JSX.Element {
+  if (props.task.depends_on.length === 0) {
+    return (
+      <div className="rounded-lg border border-border/70 bg-background/80 px-3 py-2 text-xs text-muted">
+        No dependencies
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-2 rounded-lg border border-border/70 bg-background/80 p-3">
+      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+        Dependencies
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {props.task.depends_on.map((dependency) => (
+          <Badge key={dependency} variant="outline">
+            {dependency}
+          </Badge>
+        ))}
+      </div>
+    </div>
   );
 }
 

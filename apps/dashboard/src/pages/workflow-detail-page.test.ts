@@ -97,10 +97,16 @@ describe('workflow detail model override display', () => {
       'utf8',
     );
 
+    expect(source).toContain('deriveWorkflowRoleOptions');
+    expect(source).toContain('ownerRoleOptions={ownerRoleOptions}');
     expect(source).toContain('dashboardApi.getWorkflowModelOverrides(workflowId)');
     expect(source).toContain('dashboardApi.getResolvedWorkflowModels(workflowId)');
     expect(source).toContain('<CardTitle>Model Overrides</CardTitle>');
     expect(source).toContain('<CardTitle>Effective Models</CardTitle>');
+    expect(source).toContain('WorkflowModelOverridesPacket');
+    expect(source).toContain('Configured override roles');
+    expect(source).toContain('Reasoning profile');
+    expect(source).toContain('Effective resolution');
     expect(source).toContain('ResolvedModelResolutionList');
     expect(source).toContain('Board-run overrides take precedence over project-level model settings.');
   });
