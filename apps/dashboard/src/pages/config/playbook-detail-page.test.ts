@@ -18,7 +18,12 @@ describe('playbook detail page source', () => {
     expect(source).toContain('PlaybookRevisionHistoryCard');
     expect(source).toContain('buildPlaybookRestorePayload');
     expect(source).toContain('dashboardApi.archivePlaybook');
+    expect(source).toContain('dashboardApi.restorePlaybook');
+    expect(source).toContain('dashboardApi.deletePlaybook');
     expect(source).toContain('Archive Playbook');
+    expect(source).toContain('Delete Playbook Revision');
+    expect(source).toContain('Delete Revision');
+    expect(source).toContain('Restore');
     expect(source).toContain('max-h-[70vh] max-w-lg overflow-y-auto');
     expect(source).toContain('sticky bottom-4');
     expect(source).toContain('Save Playbook');

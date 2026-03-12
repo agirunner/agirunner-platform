@@ -20,6 +20,12 @@ describe('playbook list page source', () => {
     expect(source).toContain('buildPlaybookDefinition(');
     expect(source).toContain('Manage');
     expect(source).toContain('Archived playbooks stay available for review and revision history');
+    expect(source).toContain('dashboardApi.archivePlaybook');
+    expect(source).toContain('dashboardApi.restorePlaybook');
+    expect(source).toContain('dashboardApi.deletePlaybook');
+    expect(source).toContain('Delete this playbook revision?');
+    expect(source).toContain('Delete revision');
+    expect(source).toContain('Restore');
     expect(source).toContain('Back to playbook library');
   });
 });

@@ -21,6 +21,10 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('Playbook Snapshot');
     expect(source).toContain('LaunchReadinessPanel');
     expect(source).toContain('LaunchDefinitionSnapshot');
+    expect(source).toContain('launchablePlaybooks');
+    expect(source).toContain('Archived revision selected - restore first');
+    expect(source).toContain('Archived playbooks must be restored before launch.');
+    expect(source).toContain('This playbook revision is archived. Restore it from the playbook detail page');
     expect(source).toContain('Playbook Parameters');
     expect(source).toContain('Metadata Entries');
     expect(source).toContain('Workflow Budget Policy');

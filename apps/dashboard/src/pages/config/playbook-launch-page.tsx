@@ -82,10 +82,16 @@ export function PlaybookLaunchPage(): JSX.Element {
     queryFn: () => dashboardApi.listLlmModels(),
   });
 
-  const selectedPlaybook = useMemo(
-    () => (playbooksQuery.data?.data ?? []).find((playbook) => playbook.id === selectedPlaybookId) ?? null,
-    [playbooksQuery.data?.data, selectedPlaybookId],
+  const playbooks = playbooksQuery.data?.data ?? [];
+  const launchablePlaybooks = useMemo(
+    () => playbooks.filter((playbook) => playbook.is_active !== false),
+    [playbooks],
   );
+  const selectedPlaybook = useMemo(
+    () => playbooks.find((playbook) => playbook.id === selectedPlaybookId) ?? null,
+    [playbooks, selectedPlaybookId],
+  );
+  const isSelectedPlaybookArchived = selectedPlaybook?.is_active === false;
   const launchDefinition = useMemo(() => readLaunchDefinition(selectedPlaybook), [selectedPlaybook]);
   const hasAdditionalParameters = extraParameterDrafts.length > 0;
   const hasMetadataEntries = metadataDrafts.length > 0;
@@ -141,11 +147,10 @@ export function PlaybookLaunchPage(): JSX.Element {
       (Object.keys(workflowOverrides.value ?? {}).length > 0 || projectId.length > 0),
   });
   const validationError = readLaunchValidationError(
-    selectedPlaybookId,
+    selectedPlaybook,
     workflowName,
     workflowOverrides.error,
   ) ?? workflowBudget.error;
-  const playbooks = playbooksQuery.data?.data ?? [];
   const projects = projectsQuery.data?.data ?? [];
   const selectedProject = projects.find((project) => project.id === projectId) ?? null;
 
@@ -285,7 +290,7 @@ export function PlaybookLaunchPage(): JSX.Element {
               <label className="grid gap-2 text-sm">
                 <span className="font-medium">Playbook</span>
                 <Select
-                  value={selectedPlaybookId}
+                  value={isSelectedPlaybookArchived ? '__archived__' : selectedPlaybookId}
                   onValueChange={(value) => {
                     setSelectedPlaybookId(value);
                     setError(null);
@@ -295,7 +300,12 @@ export function PlaybookLaunchPage(): JSX.Element {
                     <SelectValue placeholder="Select a playbook" />
                   </SelectTrigger>
                   <SelectContent>
-                    {playbooks.map((playbook) => (
+                    {isSelectedPlaybookArchived ? (
+                      <SelectItem value="__archived__" disabled>
+                        Archived revision selected - restore first
+                      </SelectItem>
+                    ) : null}
+                    {launchablePlaybooks.map((playbook) => (
                       <SelectItem key={playbook.id} value={playbook.id}>
                         {playbook.name}
                       </SelectItem>
@@ -303,6 +313,12 @@ export function PlaybookLaunchPage(): JSX.Element {
                   </SelectContent>
                 </Select>
               </label>
+              {isSelectedPlaybookArchived ? (
+                <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950">
+                  This playbook revision is archived. Restore it from the playbook detail page
+                  before launching a new workflow.
+                </div>
+              ) : null}
 
               <label className="grid gap-2 text-sm">
                 <span className="font-medium">Workflow Name</span>
@@ -542,8 +558,11 @@ function LaunchReadinessPanel(props: {
   const checks = [
     {
       label: 'Playbook selected',
-      detail: props.selectedPlaybook?.name ?? 'Choose the playbook to launch.',
-      isReady: Boolean(props.selectedPlaybook),
+      detail:
+        props.selectedPlaybook?.is_active === false
+          ? `${props.selectedPlaybook.name} is archived and must be restored before launch.`
+          : props.selectedPlaybook?.name ?? 'Choose the playbook to launch.',
+      isReady: Boolean(props.selectedPlaybook) && props.selectedPlaybook?.is_active !== false,
     },
     {
       label: 'Workflow named',
@@ -1114,7 +1133,16 @@ function PlaybookSummaryCard(props: {
               <Badge variant="outline">{props.launchDefinition.boardColumns.length} columns</Badge>
               <Badge variant="outline">{props.launchDefinition.stageNames.length} stages</Badge>
               <Badge variant="outline">{props.launchDefinition.roles.length} roles</Badge>
+              {props.playbook.is_active === false ? (
+                <Badge variant="destructive">Archived</Badge>
+              ) : null}
             </div>
+            {props.playbook.is_active === false ? (
+              <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950">
+                Launch is disabled for archived revisions. Restore this playbook from its detail
+                page before starting a new workflow.
+              </div>
+            ) : null}
             {props.launchDefinition.stageNames.length > 0 ? (
               <SummaryList
                 title="Live Stages"
@@ -1254,12 +1282,15 @@ function readWorkflowOverrides(
 }
 
 function readLaunchValidationError(
-  selectedPlaybookId: string,
+  selectedPlaybook: DashboardPlaybookRecord | null,
   workflowName: string,
   workflowOverrideError?: string,
 ): string | null {
-  if (!selectedPlaybookId) {
+  if (!selectedPlaybook) {
     return 'Select a playbook before launching a run.';
+  }
+  if (selectedPlaybook.is_active === false) {
+    return 'Archived playbooks must be restored before launch.';
   }
   if (!workflowName.trim()) {
     return 'Workflow Name is required before launch.';
