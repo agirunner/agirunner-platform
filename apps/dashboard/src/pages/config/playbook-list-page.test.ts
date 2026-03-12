@@ -7,12 +7,16 @@ function readSource() {
 }
 
 describe('playbook list page source', () => {
-  it('uses the shared structured authoring form instead of raw definition JSON editing', () => {
+  it('uses a full-page authoring workspace instead of a long modal', () => {
     const source = readSource();
     expect(source).toContain('PlaybookAuthoringForm');
+    expect(source).toContain('playbook-create-workspace');
+    expect(source).toContain('Full-page authoring workspace');
+    expect(source).toContain('sticky bottom-4');
+    expect(source).not.toContain('DialogContent');
     expect(source).not.toContain('Definition JSON');
     expect(source).toContain('buildPlaybookDefinition(');
     expect(source).toContain('Manage');
-    expect(source).toContain('max-h-[90vh] max-w-5xl overflow-y-auto');
+    expect(source).toContain('Back to playbook library');
   });
 });

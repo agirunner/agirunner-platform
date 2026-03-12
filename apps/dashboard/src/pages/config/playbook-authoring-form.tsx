@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { Badge } from '../../components/ui/badge.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import { dashboardApi, type DashboardToolTagRecord } from '../../lib/api.js';
 import {
   summarizePlaybookAuthoringDraft,
@@ -50,7 +51,8 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
         <CardHeader className="space-y-2">
           <CardTitle>Authoring Overview</CardTitle>
           <p className="text-sm text-muted">
-            Review the current board shape, stage gates, launch inputs, and runtime posture before editing the detailed sections below.
+            Review the current board shape, stage gates, launch inputs, and runtime posture before
+            editing the detailed sections below.
           </p>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -91,24 +93,57 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
         </CardContent>
       </Card>
 
-      <TeamRolesSection
-        draft={props.draft}
-        onChange={updateDraft}
-        availableRoleNames={availableRoleNames}
-      />
-      <BoardColumnsSection draft={props.draft} onChange={updateDraft} />
-      <WorkflowStagesSection draft={props.draft} onChange={updateDraft} />
-      <OrchestratorSection
-        draft={props.draft}
-        onChange={updateDraft}
-        availableToolOptions={availableToolOptions}
-      />
-      <RuntimeAndParametersSection draft={props.draft} onChange={updateDraft} />
+      <Tabs defaultValue="flow-design" className="space-y-4" data-testid="playbook-authoring-tabs">
+        <TabsList className="h-auto w-full flex-wrap justify-start gap-2 rounded-xl bg-border/20 p-2">
+          <TabsTrigger
+            value="flow-design"
+            className="h-auto min-w-[12rem] flex-1 px-4 py-3 text-left"
+          >
+            <span className="font-medium">Flow Design</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="automation-policy"
+            className="h-auto min-w-[12rem] flex-1 px-4 py-3 text-left"
+          >
+            <span className="font-medium">Automation Policy</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="launch-and-runtime"
+            className="h-auto min-w-[12rem] flex-1 px-4 py-3 text-left"
+          >
+            <span className="font-medium">Launch and Runtime</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="flow-design" className="space-y-4">
+          <TeamRolesSection
+            draft={props.draft}
+            onChange={updateDraft}
+            availableRoleNames={availableRoleNames}
+          />
+          <BoardColumnsSection draft={props.draft} onChange={updateDraft} />
+          <WorkflowStagesSection draft={props.draft} onChange={updateDraft} />
+        </TabsContent>
+
+        <TabsContent value="automation-policy" className="space-y-4">
+          <OrchestratorSection
+            draft={props.draft}
+            onChange={updateDraft}
+            availableToolOptions={availableToolOptions}
+          />
+        </TabsContent>
+
+        <TabsContent value="launch-and-runtime" className="space-y-4">
+          <RuntimeAndParametersSection draft={props.draft} onChange={updateDraft} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
 
-function normalizeToolTags(toolTags: DashboardToolTagRecord[] | undefined): DashboardToolTagRecord[] {
+function normalizeToolTags(
+  toolTags: DashboardToolTagRecord[] | undefined,
+): DashboardToolTagRecord[] {
   return [...(toolTags ?? [])]
     .filter((tag) => tag.id.trim().length > 0)
     .sort((left, right) => left.name.localeCompare(right.name));
@@ -132,10 +167,7 @@ function buildOrchestratorToolOptions(
   }));
 }
 
-function OverviewCard(props: {
-  title: string;
-  lines: string[];
-}): JSX.Element {
+function OverviewCard(props: { title: string; lines: string[] }): JSX.Element {
   return (
     <div className="rounded-lg border border-border/70 bg-border/10 p-4">
       <div className="mb-3 flex items-center justify-between gap-2">

@@ -19,7 +19,7 @@ export function SectionCard(props: {
   children: ReactNode;
 }): JSX.Element {
   return (
-    <Card id={props.id} className="border-dashed scroll-mt-24">
+    <Card id={props.id} className="scroll-mt-24 border-border/70 bg-card/80 shadow-sm">
       <CardHeader className="space-y-1 pb-4">
         <CardTitle className="text-base">{props.title}</CardTitle>
         <p className="text-sm text-muted">{props.description}</p>
@@ -124,6 +124,8 @@ export function RuntimePoolFields(props: {
         </LabeledField>
         <LabeledField label="Max runtimes">
           <Input
+            type="number"
+            inputMode="numeric"
             value={props.pool.max_runtimes}
             onChange={(event) => props.onChange('max_runtimes', event.target.value)}
             disabled={disabled}
@@ -148,6 +150,8 @@ export function RuntimePoolFields(props: {
         </LabeledField>
         <LabeledField label="Priority">
           <Input
+            type="number"
+            inputMode="numeric"
             value={props.pool.priority}
             onChange={(event) => props.onChange('priority', event.target.value)}
             disabled={disabled}
@@ -156,6 +160,8 @@ export function RuntimePoolFields(props: {
         </LabeledField>
         <LabeledField label="Idle timeout (seconds)">
           <Input
+            type="number"
+            inputMode="numeric"
             value={props.pool.idle_timeout_seconds}
             onChange={(event) => props.onChange('idle_timeout_seconds', event.target.value)}
             disabled={disabled}
@@ -164,6 +170,8 @@ export function RuntimePoolFields(props: {
         </LabeledField>
         <LabeledField label="Grace period (seconds)">
           <Input
+            type="number"
+            inputMode="numeric"
             value={props.pool.grace_period_seconds}
             onChange={(event) => props.onChange('grace_period_seconds', event.target.value)}
             disabled={disabled}

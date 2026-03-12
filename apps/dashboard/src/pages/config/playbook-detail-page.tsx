@@ -43,8 +43,8 @@ export function PlaybookDetailPage(): JSX.Element {
   const [description, setDescription] = useState('');
   const [outcome, setOutcome] = useState('');
   const [lifecycle, setLifecycle] = useState<'standard' | 'continuous'>(DEFAULT_LIFECYCLE);
-  const [draft, setDraft] = useState<PlaybookAuthoringDraft>(
-    () => hydratePlaybookAuthoringDraft(DEFAULT_LIFECYCLE, {}),
+  const [draft, setDraft] = useState<PlaybookAuthoringDraft>(() =>
+    hydratePlaybookAuthoringDraft(DEFAULT_LIFECYCLE, {}),
   );
   const [definitionError, setDefinitionError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -110,7 +110,9 @@ export function PlaybookDetailPage(): JSX.Element {
     const fallbackRevisionId =
       revisions.find((revision) => revision.id !== playbookId)?.id ?? revisions[0]?.id ?? '';
     setComparedRevisionId((current) =>
-      current && revisions.some((revision) => revision.id === current) ? current : fallbackRevisionId,
+      current && revisions.some((revision) => revision.id === current)
+        ? current
+        : fallbackRevisionId,
     );
   }, [playbookId, revisions]);
 
@@ -215,7 +217,10 @@ export function PlaybookDetailPage(): JSX.Element {
           <Button asChild variant="outline">
             <Link to={`/config/playbooks/${playbook.id}/launch`}>Launch</Link>
           </Button>
-          <Button disabled={!canSave || updateMutation.isPending} onClick={() => updateMutation.mutate()}>
+          <Button
+            disabled={!canSave || updateMutation.isPending}
+            onClick={() => updateMutation.mutate()}
+          >
             <Save className="h-4 w-4" />
             Save Playbook
           </Button>
@@ -241,11 +246,18 @@ export function PlaybookDetailPage(): JSX.Element {
           </label>
           <label className="grid gap-2 text-sm md:col-span-2">
             <span className="font-medium">Description</span>
-            <Textarea value={description} onChange={(event) => setDescription(event.target.value)} className="min-h-[96px]" />
+            <Textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              className="min-h-[96px]"
+            />
           </label>
           <label className="grid gap-2 text-sm">
             <span className="font-medium">Lifecycle</span>
-            <Select value={lifecycle} onValueChange={(value) => setLifecycle(value as 'standard' | 'continuous')}>
+            <Select
+              value={lifecycle}
+              onValueChange={(value) => setLifecycle(value as 'standard' | 'continuous')}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -264,12 +276,25 @@ export function PlaybookDetailPage(): JSX.Element {
           <div className="grid gap-2 text-sm md:col-span-2">
             <span className="font-medium">Configuration model</span>
             <div className="rounded-md border border-border bg-muted/20 p-3 text-sm text-muted">
-              Configure playbook-specific orchestrator instructions, tool grants, cadence, and runtime pools below.
-              Reusable prompts, model preferences, and escalation policy for specialist or orchestrator roles live on the Role Definitions page.
+              Configure playbook-specific orchestrator instructions, tool grants, cadence, and
+              runtime pools below. Reusable prompts, model preferences, and escalation policy for
+              specialist or orchestrator roles live on the Role Definitions page.
             </div>
           </div>
         </CardContent>
       </Card>
+
+      <PlaybookAuthoringForm
+        draft={draft}
+        onChange={setDraft}
+        onClearError={() => {
+          setDefinitionError(null);
+          setMessage(null);
+        }}
+      />
+
+      {definitionError ? <p className="text-sm text-red-600">{definitionError}</p> : null}
+      {message ? <p className="text-sm text-green-600">{message}</p> : null}
 
       <PlaybookControlCenterCard
         playbook={playbook}
@@ -287,18 +312,6 @@ export function PlaybookDetailPage(): JSX.Element {
         onRestore={() => restoreMutation.mutate()}
         isRestoring={restoreMutation.isPending}
       />
-
-      <PlaybookAuthoringForm
-        draft={draft}
-        onChange={setDraft}
-        onClearError={() => {
-          setDefinitionError(null);
-          setMessage(null);
-        }}
-      />
-
-      {definitionError ? <p className="text-sm text-red-600">{definitionError}</p> : null}
-      {message ? <p className="text-sm text-green-600">{message}</p> : null}
     </div>
   );
 }

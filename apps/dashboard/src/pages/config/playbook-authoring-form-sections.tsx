@@ -23,6 +23,12 @@ import {
   SectionCard,
   ToggleField,
 } from './playbook-authoring-form-fields.js';
+import {
+  MultiChoiceButtonsControl,
+  SelectWithCustomControl,
+  TypedParameterValueControl,
+  type StructuredChoiceOption,
+} from './playbook-authoring-structured-controls.js';
 
 interface SectionProps {
   draft: PlaybookAuthoringDraft;
@@ -58,9 +64,7 @@ export function TeamRolesSection(
                   props.onChange((current) => ({
                     ...current,
                     roles: current.roles.map((entry, entryIndex) =>
-                      entryIndex === index
-                        ? { value: value === '__custom__' ? '' : value }
-                        : entry,
+                      entryIndex === index ? { value: value === '__custom__' ? '' : value } : entry,
                     ),
                   }))
                 }
@@ -146,28 +150,79 @@ export function BoardColumnsSection(props: SectionProps): JSX.Element {
           <div key={`column-${index}`} className="rounded-md border border-border p-4">
             <div className="grid gap-3 md:grid-cols-2">
               <LabeledField label="Column ID">
-                <Input value={column.id} onChange={(event) => updateColumn(props.onChange, index, 'id', event.target.value)} placeholder="planned" />
+                <Input
+                  value={column.id}
+                  onChange={(event) =>
+                    updateColumn(props.onChange, index, 'id', event.target.value)
+                  }
+                  placeholder="planned"
+                />
               </LabeledField>
               <LabeledField label="Label">
-                <Input value={column.label} onChange={(event) => updateColumn(props.onChange, index, 'label', event.target.value)} placeholder="Planned" />
+                <Input
+                  value={column.label}
+                  onChange={(event) =>
+                    updateColumn(props.onChange, index, 'label', event.target.value)
+                  }
+                  placeholder="Planned"
+                />
               </LabeledField>
             </div>
             <LabeledField label="Description" className="mt-3">
-              <Textarea value={column.description} onChange={(event) => updateColumn(props.onChange, index, 'description', event.target.value)} className="min-h-[72px]" />
+              <Textarea
+                value={column.description}
+                onChange={(event) =>
+                  updateColumn(props.onChange, index, 'description', event.target.value)
+                }
+                className="min-h-[72px]"
+              />
             </LabeledField>
             <div className="mt-3 flex flex-wrap gap-6">
-              <ToggleField label="Blocked column" checked={column.is_blocked} onCheckedChange={(checked) => updateColumn(props.onChange, index, 'is_blocked', checked)} />
-              <ToggleField label="Terminal column" checked={column.is_terminal} onCheckedChange={(checked) => updateColumn(props.onChange, index, 'is_terminal', checked)} />
+              <ToggleField
+                label="Blocked column"
+                checked={column.is_blocked}
+                onCheckedChange={(checked) =>
+                  updateColumn(props.onChange, index, 'is_blocked', checked)
+                }
+              />
+              <ToggleField
+                label="Terminal column"
+                checked={column.is_terminal}
+                onCheckedChange={(checked) =>
+                  updateColumn(props.onChange, index, 'is_terminal', checked)
+                }
+              />
             </div>
             <div className="mt-3 flex justify-end">
-              <Button type="button" variant="outline" onClick={() => props.onChange((current) => ({ ...current, columns: current.columns.length === 1 ? current.columns : current.columns.filter((_, entryIndex) => entryIndex !== index) }))}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  props.onChange((current) => ({
+                    ...current,
+                    columns:
+                      current.columns.length === 1
+                        ? current.columns
+                        : current.columns.filter((_, entryIndex) => entryIndex !== index),
+                  }))
+                }
+              >
                 <Minus className="h-4 w-4" />
                 Remove Column
               </Button>
             </div>
           </div>
         ))}
-        <Button type="button" variant="outline" onClick={() => props.onChange((current) => ({ ...current, columns: [...current.columns, createEmptyColumnDraft()] }))}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() =>
+            props.onChange((current) => ({
+              ...current,
+              columns: [...current.columns, createEmptyColumnDraft()],
+            }))
+          }
+        >
           <Plus className="h-4 w-4" />
           Add Column
         </Button>
@@ -177,6 +232,8 @@ export function BoardColumnsSection(props: SectionProps): JSX.Element {
 }
 
 export function WorkflowStagesSection(props: SectionProps): JSX.Element {
+  const availableRoleOptions = normalizedRoleOptions(props.draft.roles.map((role) => role.value));
+
   return (
     <SectionCard
       id="playbook-workflow-stages"
@@ -188,28 +245,77 @@ export function WorkflowStagesSection(props: SectionProps): JSX.Element {
           <div key={`stage-${index}`} className="rounded-md border border-border p-4">
             <div className="grid gap-3 md:grid-cols-2">
               <LabeledField label="Stage name">
-                <Input value={stage.name} onChange={(event) => updateStage(props.onChange, index, 'name', event.target.value)} placeholder="implementation" />
+                <Input
+                  value={stage.name}
+                  onChange={(event) =>
+                    updateStage(props.onChange, index, 'name', event.target.value)
+                  }
+                  placeholder="implementation"
+                />
               </LabeledField>
               <LabeledField label="Involves roles">
-                <Input value={stage.involves} onChange={(event) => updateStage(props.onChange, index, 'involves', event.target.value)} placeholder="developer, reviewer" />
+                <MultiChoiceButtonsControl
+                  options={availableRoleOptions}
+                  value={stage.involves}
+                  emptyMessage="Add team roles above to make them selectable here."
+                  customPlaceholder="Additional roles, comma separated"
+                  onChange={(value) => updateStage(props.onChange, index, 'involves', value)}
+                />
               </LabeledField>
             </div>
             <LabeledField label="Goal" className="mt-3">
-              <Input value={stage.goal} onChange={(event) => updateStage(props.onChange, index, 'goal', event.target.value)} placeholder="Working code with tests" />
+              <Input
+                value={stage.goal}
+                onChange={(event) => updateStage(props.onChange, index, 'goal', event.target.value)}
+                placeholder="Working code with tests"
+              />
             </LabeledField>
             <LabeledField label="Guidance" className="mt-3">
-              <Textarea value={stage.guidance} onChange={(event) => updateStage(props.onChange, index, 'guidance', event.target.value)} className="min-h-[88px]" />
+              <Textarea
+                value={stage.guidance}
+                onChange={(event) =>
+                  updateStage(props.onChange, index, 'guidance', event.target.value)
+                }
+                className="min-h-[88px]"
+              />
             </LabeledField>
             <div className="mt-3 flex items-center justify-between gap-4">
-              <ToggleField label="Requires human gate" checked={stage.human_gate} onCheckedChange={(checked) => updateStage(props.onChange, index, 'human_gate', checked)} />
-              <Button type="button" variant="outline" onClick={() => props.onChange((current) => ({ ...current, stages: current.stages.length === 1 ? current.stages : current.stages.filter((_, entryIndex) => entryIndex !== index) }))}>
+              <ToggleField
+                label="Requires human gate"
+                checked={stage.human_gate}
+                onCheckedChange={(checked) =>
+                  updateStage(props.onChange, index, 'human_gate', checked)
+                }
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  props.onChange((current) => ({
+                    ...current,
+                    stages:
+                      current.stages.length === 1
+                        ? current.stages
+                        : current.stages.filter((_, entryIndex) => entryIndex !== index),
+                  }))
+                }
+              >
                 <Minus className="h-4 w-4" />
                 Remove Stage
               </Button>
             </div>
           </div>
         ))}
-        <Button type="button" variant="outline" onClick={() => props.onChange((current) => ({ ...current, stages: [...current.stages, createEmptyStageDraft()] }))}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() =>
+            props.onChange((current) => ({
+              ...current,
+              stages: [...current.stages, createEmptyStageDraft()],
+            }))
+          }
+        >
           <Plus className="h-4 w-4" />
           Add Stage
         </Button>
@@ -235,7 +341,9 @@ export function OrchestratorSection(
         <LabeledField label="Orchestrator instructions">
           <Textarea
             value={props.draft.orchestrator.instructions}
-            onChange={(event) => updateOrchestrator(props.onChange, 'instructions', event.target.value)}
+            onChange={(event) =>
+              updateOrchestrator(props.onChange, 'instructions', event.target.value)
+            }
             className="min-h-[144px]"
             placeholder="Add workflow-specific guidance for how the orchestrator should verify work, escalate decisions, and communicate outcomes."
           />
@@ -248,7 +356,10 @@ export function OrchestratorSection(
             </p>
             <div className="flex flex-wrap gap-2">
               {requiredTools.map((tool) => (
-                <span key={tool.id} className="rounded-full border border-border/70 bg-muted/20 px-3 py-1 text-xs font-medium">
+                <span
+                  key={tool.id}
+                  className="rounded-full border border-border/70 bg-muted/20 px-3 py-1 text-xs font-medium"
+                >
                   {tool.name}
                 </span>
               ))}
@@ -259,11 +370,15 @@ export function OrchestratorSection(
           <div className="grid gap-2 text-sm">
             <span className="font-medium">Optional verification tools</span>
             <p className="text-xs text-muted">
-              Enable the specialist-grade tools the orchestrator may use when it needs to inspect files, run git checks, fetch the web, or escalate.
+              Enable the specialist-grade tools the orchestrator may use when it needs to inspect
+              files, run git checks, fetch the web, or escalate.
             </p>
             <div className="grid gap-2 md:grid-cols-2">
               {optionalTools.map((tool) => (
-                <label key={tool.id} className="flex items-start gap-3 rounded-md border border-border/70 bg-muted/10 px-3 py-3">
+                <label
+                  key={tool.id}
+                  className="flex items-start gap-3 rounded-md border border-border/70 bg-muted/10 px-3 py-3"
+                >
                   <input
                     type="checkbox"
                     checked={props.draft.orchestrator.tools.includes(tool.id)}
@@ -272,7 +387,9 @@ export function OrchestratorSection(
                   />
                   <div className="grid gap-1">
                     <div className="font-medium">{tool.name}</div>
-                    {tool.description ? <div className="text-xs text-muted">{tool.description}</div> : null}
+                    {tool.description ? (
+                      <div className="text-xs text-muted">{tool.description}</div>
+                    ) : null}
                   </div>
                 </label>
               ))}
@@ -280,13 +397,71 @@ export function OrchestratorSection(
           </div>
         ) : null}
         <div className="grid gap-3 md:grid-cols-2">
-          <LabeledField label="Check interval"><Input value={props.draft.orchestrator.check_interval} onChange={(event) => updateOrchestrator(props.onChange, 'check_interval', event.target.value)} placeholder="5m" /></LabeledField>
-          <LabeledField label="Stale threshold"><Input value={props.draft.orchestrator.stale_threshold} onChange={(event) => updateOrchestrator(props.onChange, 'stale_threshold', event.target.value)} placeholder="30m" /></LabeledField>
-          <LabeledField label="Max rework iterations"><Input value={props.draft.orchestrator.max_rework_iterations} onChange={(event) => updateOrchestrator(props.onChange, 'max_rework_iterations', event.target.value)} placeholder="3" /></LabeledField>
-          <LabeledField label="Max active tasks"><Input value={props.draft.orchestrator.max_active_tasks} onChange={(event) => updateOrchestrator(props.onChange, 'max_active_tasks', event.target.value)} placeholder="6" /></LabeledField>
-          <LabeledField label="Max active tasks per work item"><Input value={props.draft.orchestrator.max_active_tasks_per_work_item} onChange={(event) => updateOrchestrator(props.onChange, 'max_active_tasks_per_work_item', event.target.value)} placeholder="2" /></LabeledField>
+          <LabeledField label="Check interval">
+            <SelectWithCustomControl
+              value={props.draft.orchestrator.check_interval}
+              options={ORCHESTRATOR_CHECK_INTERVAL_OPTIONS}
+              placeholder="Select a cadence"
+              unsetLabel="Use default cadence"
+              customPlaceholder="Custom interval, e.g. 7m"
+              onChange={(value) => updateOrchestrator(props.onChange, 'check_interval', value)}
+            />
+          </LabeledField>
+          <LabeledField label="Stale threshold">
+            <SelectWithCustomControl
+              value={props.draft.orchestrator.stale_threshold}
+              options={ORCHESTRATOR_STALE_THRESHOLD_OPTIONS}
+              placeholder="Select a stale threshold"
+              unsetLabel="Use default threshold"
+              customPlaceholder="Custom threshold, e.g. 45m"
+              onChange={(value) => updateOrchestrator(props.onChange, 'stale_threshold', value)}
+            />
+          </LabeledField>
+          <LabeledField label="Max rework iterations">
+            <Input
+              type="number"
+              inputMode="numeric"
+              value={props.draft.orchestrator.max_rework_iterations}
+              onChange={(event) =>
+                updateOrchestrator(props.onChange, 'max_rework_iterations', event.target.value)
+              }
+              placeholder="3"
+            />
+          </LabeledField>
+          <LabeledField label="Max active tasks">
+            <Input
+              type="number"
+              inputMode="numeric"
+              value={props.draft.orchestrator.max_active_tasks}
+              onChange={(event) =>
+                updateOrchestrator(props.onChange, 'max_active_tasks', event.target.value)
+              }
+              placeholder="6"
+            />
+          </LabeledField>
+          <LabeledField label="Max active tasks per work item">
+            <Input
+              type="number"
+              inputMode="numeric"
+              value={props.draft.orchestrator.max_active_tasks_per_work_item}
+              onChange={(event) =>
+                updateOrchestrator(
+                  props.onChange,
+                  'max_active_tasks_per_work_item',
+                  event.target.value,
+                )
+              }
+              placeholder="2"
+            />
+          </LabeledField>
           <div className="flex items-end">
-            <ToggleField label="Allow parallel work items" checked={props.draft.orchestrator.allow_parallel_work_items} onCheckedChange={(checked) => updateOrchestrator(props.onChange, 'allow_parallel_work_items', checked)} />
+            <ToggleField
+              label="Allow parallel work items"
+              checked={props.draft.orchestrator.allow_parallel_work_items}
+              onCheckedChange={(checked) =>
+                updateOrchestrator(props.onChange, 'allow_parallel_work_items', checked)
+              }
+            />
           </div>
         </div>
       </div>
@@ -303,9 +478,45 @@ export function RuntimeAndParametersSection(props: SectionProps): JSX.Element {
         description="Default runtime pool settings plus optional overrides for orchestrator and specialist pools."
       >
         <div className="space-y-4">
-          <RuntimePoolFields title="Shared runtime defaults" pool={props.draft.runtime.shared} onChange={(field, value) => updateRuntimePool(props.onChange, 'shared', field, value)} />
-          <RuntimePoolFields title="Orchestrator pool override" pool={props.draft.runtime.orchestrator_pool} canDisable onEnabledChange={(enabled) => props.onChange((current) => ({ ...current, runtime: { ...current.runtime, orchestrator_pool: { ...current.runtime.orchestrator_pool, enabled } } }))} onChange={(field, value) => updateRuntimePool(props.onChange, 'orchestrator_pool', field, value)} />
-          <RuntimePoolFields title="Specialist pool override" pool={props.draft.runtime.specialist_pool} canDisable onEnabledChange={(enabled) => props.onChange((current) => ({ ...current, runtime: { ...current.runtime, specialist_pool: { ...current.runtime.specialist_pool, enabled } } }))} onChange={(field, value) => updateRuntimePool(props.onChange, 'specialist_pool', field, value)} />
+          <RuntimePoolFields
+            title="Shared runtime defaults"
+            pool={props.draft.runtime.shared}
+            onChange={(field, value) => updateRuntimePool(props.onChange, 'shared', field, value)}
+          />
+          <RuntimePoolFields
+            title="Orchestrator pool override"
+            pool={props.draft.runtime.orchestrator_pool}
+            canDisable
+            onEnabledChange={(enabled) =>
+              props.onChange((current) => ({
+                ...current,
+                runtime: {
+                  ...current.runtime,
+                  orchestrator_pool: { ...current.runtime.orchestrator_pool, enabled },
+                },
+              }))
+            }
+            onChange={(field, value) =>
+              updateRuntimePool(props.onChange, 'orchestrator_pool', field, value)
+            }
+          />
+          <RuntimePoolFields
+            title="Specialist pool override"
+            pool={props.draft.runtime.specialist_pool}
+            canDisable
+            onEnabledChange={(enabled) =>
+              props.onChange((current) => ({
+                ...current,
+                runtime: {
+                  ...current.runtime,
+                  specialist_pool: { ...current.runtime.specialist_pool, enabled },
+                },
+              }))
+            }
+            onChange={(field, value) =>
+              updateRuntimePool(props.onChange, 'specialist_pool', field, value)
+            }
+          />
         </div>
       </SectionCard>
       <SectionCard
@@ -317,31 +528,116 @@ export function RuntimeAndParametersSection(props: SectionProps): JSX.Element {
           {props.draft.parameters.map((parameter, index) => (
             <div key={`parameter-${index}`} className="rounded-md border border-border p-4">
               <div className="grid gap-3 md:grid-cols-2">
-                <LabeledField label="Name"><Input value={parameter.name} onChange={(event) => updateParameter(props.onChange, index, 'name', event.target.value)} placeholder="goal" /></LabeledField>
+                <LabeledField label="Name">
+                  <Input
+                    value={parameter.name}
+                    onChange={(event) =>
+                      updateParameter(props.onChange, index, 'name', event.target.value)
+                    }
+                    placeholder="goal"
+                  />
+                </LabeledField>
                 <LabeledField label="Type">
-                  <Select value={parameter.type} onValueChange={(value) => updateParameter(props.onChange, index, 'type', value)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="string">string</SelectItem><SelectItem value="number">number</SelectItem><SelectItem value="boolean">boolean</SelectItem><SelectItem value="object">object</SelectItem><SelectItem value="array">array</SelectItem></SelectContent>
+                  <Select
+                    value={parameter.type}
+                    onValueChange={(value) => updateParameter(props.onChange, index, 'type', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="string">String</SelectItem>
+                      <SelectItem value="number">Number</SelectItem>
+                      <SelectItem value="boolean">Boolean</SelectItem>
+                      <SelectItem value="object">JSON object</SelectItem>
+                      <SelectItem value="array">JSON array</SelectItem>
+                    </SelectContent>
                   </Select>
                 </LabeledField>
-                <LabeledField label="Category"><Input value={parameter.category} onChange={(event) => updateParameter(props.onChange, index, 'category', event.target.value)} placeholder="input" /></LabeledField>
-                <LabeledField label="Maps to"><Input value={parameter.maps_to} onChange={(event) => updateParameter(props.onChange, index, 'maps_to', event.target.value)} placeholder="project.repository_url" /></LabeledField>
+                <LabeledField label="Category">
+                  <SelectWithCustomControl
+                    value={parameter.category}
+                    options={PARAMETER_CATEGORY_OPTIONS}
+                    placeholder="Select a category"
+                    unsetLabel="No category"
+                    customPlaceholder="Custom category"
+                    onChange={(value) => updateParameter(props.onChange, index, 'category', value)}
+                  />
+                </LabeledField>
+                <LabeledField label="Maps to">
+                  <SelectWithCustomControl
+                    value={parameter.maps_to}
+                    options={PARAMETER_MAP_OPTIONS}
+                    placeholder="Select a project value"
+                    unsetLabel="No project mapping"
+                    customPlaceholder="Custom project path"
+                    onChange={(value) => updateParameter(props.onChange, index, 'maps_to', value)}
+                  />
+                </LabeledField>
               </div>
-              <LabeledField label="Description" className="mt-3"><Textarea value={parameter.description} onChange={(event) => updateParameter(props.onChange, index, 'description', event.target.value)} className="min-h-[72px]" /></LabeledField>
-              <LabeledField label="Default value" className="mt-3"><Input value={parameter.default_value} onChange={(event) => updateParameter(props.onChange, index, 'default_value', event.target.value)} placeholder="main" /></LabeledField>
+              <LabeledField label="Description" className="mt-3">
+                <Textarea
+                  value={parameter.description}
+                  onChange={(event) =>
+                    updateParameter(props.onChange, index, 'description', event.target.value)
+                  }
+                  className="min-h-[72px]"
+                />
+              </LabeledField>
+              <LabeledField label="Default value" className="mt-3">
+                <TypedParameterValueControl
+                  valueType={parameter.type}
+                  value={parameter.default_value}
+                  onChange={(value) =>
+                    updateParameter(props.onChange, index, 'default_value', value)
+                  }
+                />
+              </LabeledField>
               <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
                 <div className="flex flex-wrap gap-6">
-                  <ToggleField label="Required" checked={parameter.required} onCheckedChange={(checked) => updateParameter(props.onChange, index, 'required', checked)} />
-                  <ToggleField label="Secret" checked={parameter.secret} onCheckedChange={(checked) => updateParameter(props.onChange, index, 'secret', checked)} />
+                  <ToggleField
+                    label="Required"
+                    checked={parameter.required}
+                    onCheckedChange={(checked) =>
+                      updateParameter(props.onChange, index, 'required', checked)
+                    }
+                  />
+                  <ToggleField
+                    label="Secret"
+                    checked={parameter.secret}
+                    onCheckedChange={(checked) =>
+                      updateParameter(props.onChange, index, 'secret', checked)
+                    }
+                  />
                 </div>
-                <Button type="button" variant="outline" onClick={() => props.onChange((current) => ({ ...current, parameters: current.parameters.filter((_, entryIndex) => entryIndex !== index) }))}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    props.onChange((current) => ({
+                      ...current,
+                      parameters: current.parameters.filter(
+                        (_, entryIndex) => entryIndex !== index,
+                      ),
+                    }))
+                  }
+                >
                   <Minus className="h-4 w-4" />
                   Remove Parameter
                 </Button>
               </div>
             </div>
           ))}
-          <Button type="button" variant="outline" onClick={() => props.onChange((current) => ({ ...current, parameters: [...current.parameters, createEmptyParameterDraft()] }))}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              props.onChange((current) => ({
+                ...current,
+                parameters: [...current.parameters, createEmptyParameterDraft()],
+              }))
+            }
+          >
             <Plus className="h-4 w-4" />
             Add Parameter
           </Button>
@@ -390,10 +686,7 @@ function updateOrchestrator<K extends keyof PlaybookAuthoringDraft['orchestrator
   }));
 }
 
-function toggleOrchestratorTool(
-  onChange: SectionProps['onChange'],
-  toolId: string,
-): void {
+function toggleOrchestratorTool(onChange: SectionProps['onChange'], toolId: string): void {
   onChange((current) => ({
     ...current,
     orchestrator: {
@@ -433,3 +726,65 @@ function updateParameter<K extends keyof PlaybookAuthoringDraft['parameters'][nu
     ),
   }));
 }
+
+function normalizedRoleOptions(roleNames: string[]): StructuredChoiceOption[] {
+  return roleNames
+    .map((role) => role.trim())
+    .filter((role, index, values) => role.length > 0 && values.indexOf(role) === index)
+    .sort((left, right) => left.localeCompare(right))
+    .map((role) => ({ value: role, label: role }));
+}
+
+const ORCHESTRATOR_CHECK_INTERVAL_OPTIONS: StructuredChoiceOption[] = [
+  { value: '1m', label: 'Every 1 minute' },
+  { value: '5m', label: 'Every 5 minutes' },
+  { value: '10m', label: 'Every 10 minutes' },
+  { value: '15m', label: 'Every 15 minutes' },
+  { value: '30m', label: 'Every 30 minutes' },
+];
+
+const ORCHESTRATOR_STALE_THRESHOLD_OPTIONS: StructuredChoiceOption[] = [
+  { value: '15m', label: '15 minutes' },
+  { value: '30m', label: '30 minutes' },
+  { value: '45m', label: '45 minutes' },
+  { value: '1h', label: '1 hour' },
+  { value: '2h', label: '2 hours' },
+];
+
+const PARAMETER_CATEGORY_OPTIONS: StructuredChoiceOption[] = [
+  { value: 'input', label: 'Input', description: 'Operator-provided launch input.' },
+  {
+    value: 'repository',
+    label: 'Repository',
+    description: 'Project repository metadata such as URL or default branch.',
+  },
+  {
+    value: 'credential',
+    label: 'Credential',
+    description: 'Project-linked credentials that should be injected securely.',
+  },
+  { value: 'storage', label: 'Storage', description: 'Project storage or document locations.' },
+  {
+    value: 'integration',
+    label: 'Integration',
+    description: 'External system identifiers or integration-specific inputs.',
+  },
+];
+
+const PARAMETER_MAP_OPTIONS: StructuredChoiceOption[] = [
+  {
+    value: 'project.repository_url',
+    label: 'Project repository URL',
+    description: 'Auto-fill from the project repository configuration.',
+  },
+  {
+    value: 'project.settings.default_branch',
+    label: 'Project default branch',
+    description: 'Auto-fill from the project branch settings.',
+  },
+  {
+    value: 'project.credentials.git_token',
+    label: 'Project Git token',
+    description: 'Use the project Git credential reference at launch time.',
+  },
+];

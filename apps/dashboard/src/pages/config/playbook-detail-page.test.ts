@@ -18,5 +18,8 @@ describe('playbook detail page source', () => {
     expect(source).toContain('buildPlaybookRestorePayload');
     expect(source).toContain('Save Playbook');
     expect(source).not.toContain('Raw JSON');
+    expect(source.indexOf('<PlaybookAuthoringForm')).toBeLessThan(
+      source.indexOf('<PlaybookControlCenterCard'),
+    );
   });
 });

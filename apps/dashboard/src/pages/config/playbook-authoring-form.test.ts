@@ -13,10 +13,22 @@ describe('playbook authoring form source', () => {
     expect(source).toContain('dashboardApi.listRoleDefinitions');
     expect(source).toContain('dashboardApi.listToolTags');
     expect(source).toContain('Authoring Overview');
-    expect(source).toContain('Review the current board shape, stage gates, launch inputs, and runtime posture');
+    expect(source).toContain(
+      'Review the current board shape, stage gates, launch inputs, and runtime posture',
+    );
     expect(source).toContain('OverviewCard');
     expect(source).toContain('Parallel work items enabled');
     expect(source).toContain('Max active tasks');
+  });
+
+  it('uses tabs for progressive disclosure instead of one long linear stack', () => {
+    const source = readSource();
+    expect(source).toContain('data-testid="playbook-authoring-tabs"');
+    expect(source).toContain('TabsList');
+    expect(source).toContain('TabsTrigger');
+    expect(source).toContain('Flow Design');
+    expect(source).toContain('Automation Policy');
+    expect(source).toContain('Launch and Runtime');
   });
 
   it('keeps the detailed structured authoring sections intact', () => {
