@@ -1,4 +1,4 @@
-import { Minus, Plus } from 'lucide-react';
+import { ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
@@ -17,6 +17,11 @@ import {
   createEmptyStageDraft,
   type PlaybookAuthoringDraft,
 } from './playbook-authoring-support.js';
+import {
+  canMoveDraftItem,
+  moveDraftItem,
+  type DraftReorderDirection,
+} from './playbook-authoring-reorder.js';
 import {
   LabeledField,
   RuntimePoolFields,
@@ -139,6 +144,8 @@ export function TeamRolesSection(
 }
 
 export function BoardColumnsSection(props: SectionProps): JSX.Element {
+  const columnCount = props.draft.columns.length;
+
   return (
     <SectionCard
       id="playbook-board-columns"
@@ -148,6 +155,17 @@ export function BoardColumnsSection(props: SectionProps): JSX.Element {
       <div className="space-y-4">
         {props.draft.columns.map((column, index) => (
           <div key={`column-${index}`} className="rounded-md border border-border p-4">
+            <ReorderableCardHeader
+              positionLabel={`Column ${index + 1} of ${columnCount}`}
+              title={resolveBoardColumnTitle(column, index)}
+              itemLabel={`column ${index + 1}`}
+              index={index}
+              total={columnCount}
+              removeLabel="Remove Column"
+              disableRemove={columnCount === 1}
+              onMove={(direction) => moveColumn(props.onChange, index, direction)}
+              onRemove={() => removeColumn(props.onChange, index)}
+            />
             <div className="grid gap-3 md:grid-cols-2">
               <LabeledField label="Column ID">
                 <Input
@@ -193,24 +211,6 @@ export function BoardColumnsSection(props: SectionProps): JSX.Element {
                 }
               />
             </div>
-            <div className="mt-3 flex justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  props.onChange((current) => ({
-                    ...current,
-                    columns:
-                      current.columns.length === 1
-                        ? current.columns
-                        : current.columns.filter((_, entryIndex) => entryIndex !== index),
-                  }))
-                }
-              >
-                <Minus className="h-4 w-4" />
-                Remove Column
-              </Button>
-            </div>
           </div>
         ))}
         <Button
@@ -233,6 +233,7 @@ export function BoardColumnsSection(props: SectionProps): JSX.Element {
 
 export function WorkflowStagesSection(props: SectionProps): JSX.Element {
   const availableRoleOptions = normalizedRoleOptions(props.draft.roles.map((role) => role.value));
+  const stageCount = props.draft.stages.length;
 
   return (
     <SectionCard
@@ -243,6 +244,17 @@ export function WorkflowStagesSection(props: SectionProps): JSX.Element {
       <div className="space-y-4">
         {props.draft.stages.map((stage, index) => (
           <div key={`stage-${index}`} className="rounded-md border border-border p-4">
+            <ReorderableCardHeader
+              positionLabel={`Stage ${index + 1} of ${stageCount}`}
+              title={resolveStageTitle(stage, index)}
+              itemLabel={`stage ${index + 1}`}
+              index={index}
+              total={stageCount}
+              removeLabel="Remove Stage"
+              disableRemove={stageCount === 1}
+              onMove={(direction) => moveStagePosition(props.onChange, index, direction)}
+              onRemove={() => removeStage(props.onChange, index)}
+            />
             <div className="grid gap-3 md:grid-cols-2">
               <LabeledField label="Stage name">
                 <Input
@@ -279,7 +291,7 @@ export function WorkflowStagesSection(props: SectionProps): JSX.Element {
                 className="min-h-[88px]"
               />
             </LabeledField>
-            <div className="mt-3 flex items-center justify-between gap-4">
+            <div className="mt-3">
               <ToggleField
                 label="Requires human gate"
                 checked={stage.human_gate}
@@ -287,22 +299,6 @@ export function WorkflowStagesSection(props: SectionProps): JSX.Element {
                   updateStage(props.onChange, index, 'human_gate', checked)
                 }
               />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  props.onChange((current) => ({
-                    ...current,
-                    stages:
-                      current.stages.length === 1
-                        ? current.stages
-                        : current.stages.filter((_, entryIndex) => entryIndex !== index),
-                  }))
-                }
-              >
-                <Minus className="h-4 w-4" />
-                Remove Stage
-              </Button>
             </div>
           </div>
         ))}
@@ -321,6 +317,72 @@ export function WorkflowStagesSection(props: SectionProps): JSX.Element {
         </Button>
       </div>
     </SectionCard>
+  );
+}
+
+interface ReorderableCardHeaderProps {
+  positionLabel: string;
+  title: string;
+  itemLabel: string;
+  index: number;
+  total: number;
+  removeLabel: string;
+  disableRemove?: boolean;
+  onMove(direction: DraftReorderDirection): void;
+  onRemove(): void;
+}
+
+function ReorderableCardHeader(props: ReorderableCardHeaderProps): JSX.Element {
+  const canMoveEarlier = canMoveDraftItem(props.index, props.total, 'earlier');
+  const canMoveLater = canMoveDraftItem(props.index, props.total, 'later');
+
+  return (
+    <div className="mb-4 flex flex-col gap-3 rounded-md bg-muted/15 p-3 md:flex-row md:items-start md:justify-between">
+      <div className="min-w-0 space-y-1">
+        <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">
+          {props.positionLabel}
+        </p>
+        <h3 className="truncate text-sm font-semibold text-foreground">{props.title}</h3>
+      </div>
+      <div
+        role="group"
+        aria-label={`${props.positionLabel} ordering controls`}
+        className="flex flex-wrap gap-2"
+      >
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => props.onMove('earlier')}
+          disabled={!canMoveEarlier}
+          aria-label={`Move ${props.itemLabel} earlier`}
+        >
+          <ChevronUp className="h-4 w-4" />
+          Move Earlier
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => props.onMove('later')}
+          disabled={!canMoveLater}
+          aria-label={`Move ${props.itemLabel} later`}
+        >
+          <ChevronDown className="h-4 w-4" />
+          Move Later
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={props.onRemove}
+          disabled={props.disableRemove}
+        >
+          <Minus className="h-4 w-4" />
+          {props.removeLabel}
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -661,6 +723,27 @@ function updateColumn<K extends keyof PlaybookAuthoringDraft['columns'][number]>
   }));
 }
 
+function moveColumn(
+  onChange: SectionProps['onChange'],
+  index: number,
+  direction: DraftReorderDirection,
+): void {
+  onChange((current) => ({
+    ...current,
+    columns: moveDraftItem(current.columns, index, direction),
+  }));
+}
+
+function removeColumn(onChange: SectionProps['onChange'], index: number): void {
+  onChange((current) => ({
+    ...current,
+    columns:
+      current.columns.length === 1
+        ? current.columns
+        : current.columns.filter((_, entryIndex) => entryIndex !== index),
+  }));
+}
+
 function updateStage<K extends keyof PlaybookAuthoringDraft['stages'][number]>(
   onChange: SectionProps['onChange'],
   index: number,
@@ -672,6 +755,27 @@ function updateStage<K extends keyof PlaybookAuthoringDraft['stages'][number]>(
     stages: current.stages.map((entry, entryIndex) =>
       entryIndex === index ? { ...entry, [field]: value } : entry,
     ),
+  }));
+}
+
+function moveStagePosition(
+  onChange: SectionProps['onChange'],
+  index: number,
+  direction: DraftReorderDirection,
+): void {
+  onChange((current) => ({
+    ...current,
+    stages: moveDraftItem(current.stages, index, direction),
+  }));
+}
+
+function removeStage(onChange: SectionProps['onChange'], index: number): void {
+  onChange((current) => ({
+    ...current,
+    stages:
+      current.stages.length === 1
+        ? current.stages
+        : current.stages.filter((_, entryIndex) => entryIndex !== index),
   }));
 }
 
@@ -733,6 +837,20 @@ function normalizedRoleOptions(roleNames: string[]): StructuredChoiceOption[] {
     .filter((role, index, values) => role.length > 0 && values.indexOf(role) === index)
     .sort((left, right) => left.localeCompare(right))
     .map((role) => ({ value: role, label: role }));
+}
+
+function resolveBoardColumnTitle(
+  column: PlaybookAuthoringDraft['columns'][number],
+  index: number,
+): string {
+  return column.label.trim() || column.id.trim() || `Column ${index + 1}`;
+}
+
+function resolveStageTitle(
+  stage: PlaybookAuthoringDraft['stages'][number],
+  index: number,
+): string {
+  return stage.name.trim() || stage.goal.trim() || `Stage ${index + 1}`;
 }
 
 const ORCHESTRATOR_CHECK_INTERVAL_OPTIONS: StructuredChoiceOption[] = [
