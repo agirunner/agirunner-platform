@@ -69,6 +69,8 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('RoleAssignmentsSection');
     expect(source).toContain('fetchRoleDefinitions');
     expect(source).toContain('buildAssignmentRoleRows');
+    expect(source).toContain('Orchestrator and Role Overrides');
+    expect(source).toContain('1 orchestrator row');
     expect(source).not.toContain('const ROLE_NAMES');
   });
 
@@ -174,6 +176,18 @@ describe('reasoningBadgeVariant', () => {
 });
 
 describe('buildAssignmentRoleRows', () => {
+  it('always includes the orchestrator row first so orchestrator model selection is explicit', () => {
+    const rows = buildAssignmentRoleRows([], []);
+
+    expect(rows[0]).toEqual({
+      name: 'orchestrator',
+      description:
+        'Workflow orchestrator model used for activation planning, delegation, review, and recovery.',
+      isActive: true,
+      source: 'system',
+    });
+  });
+
   it('prefers active catalog roles and sorts them alphabetically', () => {
     const rows = buildAssignmentRoleRows(
       [
@@ -184,6 +198,13 @@ describe('buildAssignmentRoleRows', () => {
     );
 
     expect(rows).toEqual([
+      {
+        name: 'orchestrator',
+        description:
+          'Workflow orchestrator model used for activation planning, delegation, review, and recovery.',
+        isActive: true,
+        source: 'system',
+      },
       {
         name: 'architect',
         description: 'Shapes the system',
@@ -214,16 +235,17 @@ describe('buildAssignmentRoleRows', () => {
 
     expect(rows).toEqual([
       {
+        name: 'orchestrator',
+        description:
+          'Workflow orchestrator model used for activation planning, delegation, review, and recovery.',
+        isActive: true,
+        source: 'system',
+      },
+      {
         name: 'developer',
         description: 'Builds features',
         isActive: true,
         source: 'catalog',
-      },
-      {
-        name: 'orchestrator',
-        description: null,
-        isActive: false,
-        source: 'assignment',
       },
       {
         name: 'qa',

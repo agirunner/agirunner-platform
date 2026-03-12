@@ -121,7 +121,7 @@ interface AssignmentRoleRow {
   name: string;
   description: string | null;
   isActive: boolean;
-  source: 'catalog' | 'assignment';
+  source: 'catalog' | 'assignment' | 'system';
 }
 
 interface AddProviderForm {
@@ -216,6 +216,15 @@ export function buildAssignmentRoleRows(
     }));
 
   const includedNames = new Set(activeRoles.map((role) => role.name));
+  includedNames.add('orchestrator');
+
+  const orchestratorRow: AssignmentRoleRow = {
+    name: 'orchestrator',
+    description:
+      'Workflow orchestrator model used for activation planning, delegation, review, and recovery.',
+    isActive: true,
+    source: 'system',
+  };
   const staleRows: AssignmentRoleRow[] = [];
   for (const assignment of assignments) {
     const normalizedName = assignment.role_name.trim();
@@ -233,7 +242,7 @@ export function buildAssignmentRoleRows(
   }
 
   staleRows.sort((left, right) => left.name.localeCompare(right.name));
-  return [...activeRoles, ...staleRows];
+  return [orchestratorRow, ...activeRoles, ...staleRows];
 }
 
 /* ─── API Functions ─────────────────────────────────────────────────────── */
@@ -1191,24 +1200,20 @@ function RoleAssignmentsSection({
       {/* ── Role Overrides ────────────────────────────────────────────── */}
       <div>
         <div className="mb-3">
-          <h3 className="text-sm font-semibold">Role Overrides</h3>
+          <h3 className="text-sm font-semibold">Orchestrator and Role Overrides</h3>
           <p className="text-xs text-muted">
-            Live role definitions drive the override table. Roles set to &quot;None&quot; inherit
-            the system default, and older assignment rows stay visible until they are cleaned up.
+            The orchestrator is always configurable here even though it is not a normal role
+            definition. Roles set to &quot;None&quot; inherit the system default, and older
+            assignment rows stay visible until they are cleaned up.
           </p>
         </div>
         <div className="mb-4 flex flex-wrap items-center gap-2">
+          <Badge variant="secondary">1 orchestrator row</Badge>
           <Badge variant="outline">{activeRoleCount} active roles</Badge>
           {staleRoleCount > 0 && (
             <Badge variant="warning">{staleRoleCount} inactive or missing assignments</Badge>
           )}
         </div>
-        {roleRows.length === 0 ? (
-          <div className="rounded-lg border border-border/70 bg-border/10 p-4 text-sm text-muted">
-            No active roles are available yet. Create roles on the Role Definitions page before
-            configuring model overrides here.
-          </div>
-        ) : (
         <Table>
           <TableHeader>
             <TableRow>
@@ -1226,7 +1231,9 @@ function RoleAssignmentsSection({
                     <div className="space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium">{role.name}</span>
-                        {role.isActive ? (
+                        {role.source === 'system' ? (
+                          <Badge variant="secondary">System</Badge>
+                        ) : role.isActive ? (
                           <Badge variant="outline">Active</Badge>
                         ) : role.source === 'catalog' ? (
                           <Badge variant="warning">Inactive</Badge>
@@ -1239,6 +1246,8 @@ function RoleAssignmentsSection({
                           ? role.description
                           : role.source === 'assignment'
                             ? 'This assignment references a role that is no longer in the active catalog.'
+                            : role.source === 'system'
+                              ? 'Configure the dedicated orchestrator model and reasoning policy here.'
                             : 'This configured role is currently inactive.'}
                       </p>
                     </div>
@@ -1255,7 +1264,6 @@ function RoleAssignmentsSection({
             })}
           </TableBody>
         </Table>
-        )}
       </div>
 
       {/* ── Save ──────────────────────────────────────────────────────── */}
