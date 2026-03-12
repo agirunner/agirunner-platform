@@ -15,11 +15,14 @@ describe('memory browser page source', () => {
     expect(source).toContain("next.set('q'");
   });
 
-  it('surfaces work-item memory alongside project memory', () => {
+  it('surfaces work-item memory and history alongside project memory', () => {
     const source = readSource();
     expect(source).toContain('getWorkflowWorkItemMemory');
+    expect(source).toContain('getWorkflowWorkItemMemoryHistory');
     expect(source).toContain('Work-item memory');
+    expect(source).toContain('Work-item memory history');
     expect(source).toContain('normalizeWorkItemMemoryEntries');
+    expect(source).toContain('normalizeWorkItemMemoryHistoryEntries');
     expect(source).toContain('Read-only scoped memory entries');
   });
 

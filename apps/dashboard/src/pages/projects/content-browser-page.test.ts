@@ -42,6 +42,16 @@ describe('content browser page source', () => {
     expect(source).toContain('Upload Artifact');
   });
 
+  it('uses structured task and artifact selectors for artifact-backed documents', () => {
+    const source = readSource();
+    expect(source).toContain('document-artifact-options');
+    expect(source).toContain('Select a source task');
+    expect(source).toContain('Select an artifact');
+    expect(source).toContain('Auto-filled from the selected artifact');
+    expect(source).not.toContain('placeholder="Task UUID"');
+    expect(source).not.toContain('placeholder="Artifact UUID"');
+  });
+
   it('supports project-scoped content and artifact explorer routes', () => {
     const source = readSource();
     expect(source).toContain('scopedProjectId');
