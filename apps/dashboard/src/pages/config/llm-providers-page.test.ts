@@ -43,6 +43,16 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('max-h-[85vh] max-w-2xl overflow-y-auto');
   });
 
+  it('uses a confirmed destructive flow for provider deletion and labeled responsive actions', () => {
+    expect(source).toContain('DeleteProviderDialog');
+    expect(source).toContain('Delete provider?');
+    expect(source).toContain('Delete Provider');
+    expect(source).toContain('variant="destructive"');
+    expect(source).toContain('requestProviderDelete');
+    expect(source).toContain('sm:flex-row sm:flex-wrap sm:justify-end');
+    expect(source).not.toContain('onDelete={(id) => deleteMutation.mutate(id)}');
+  });
+
   it('treats provider api keys as write-only', () => {
     expect(source).toContain('Stored write-only. Existing keys are never shown again.');
     expect(source).toContain('credentials_configured');

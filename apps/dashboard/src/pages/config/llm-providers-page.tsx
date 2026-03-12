@@ -28,6 +28,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog.js';
@@ -128,6 +129,11 @@ interface AddProviderForm {
   name: string;
   baseUrl: string;
   apiKey: string;
+}
+
+interface ProviderDeleteTarget {
+  provider: LlmProvider;
+  modelCount: number;
 }
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
@@ -580,7 +586,7 @@ function OAuthProviderCard({
             <Badge variant="outline">Subscription</Badge>
           </div>
         </dl>
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
           <Button
             variant="outline"
             size="sm"
@@ -625,12 +631,13 @@ function OAuthProviderCard({
             </Button>
           )}
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
+            className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30"
             onClick={() => onDelete(provider.id)}
           >
             <Trash2 className="h-3.5 w-3.5" />
-            Remove
+            Delete Provider
           </Button>
         </div>
       </CardContent>
@@ -820,7 +827,7 @@ function ProviderCard({
             </span>
           </div>
         </dl>
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
           <Button
             variant="outline"
             size="sm"
@@ -835,16 +842,91 @@ function ProviderCard({
             Discover Models
           </Button>
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
+            className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30"
             onClick={() => onDelete(provider.id)}
           >
             <Trash2 className="h-3.5 w-3.5" />
-            Remove
+            Delete Provider
           </Button>
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function DeleteProviderDialog(props: {
+  target: ProviderDeleteTarget | null;
+  isDeleting: boolean;
+  onConfirm(): void;
+  onOpenChange(open: boolean): void;
+}): JSX.Element | null {
+  if (!props.target) {
+    return null;
+  }
+
+  const { provider, modelCount } = props.target;
+  const providerType = provider.metadata?.providerType ?? provider.auth_mode ?? 'provider';
+  return (
+    <Dialog open onOpenChange={props.onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Delete provider?</DialogTitle>
+          <DialogDescription>
+            Remove this provider and its discovered model catalog from the tenant configuration.
+            This action cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 rounded-xl border border-border/70 bg-muted/10 p-4">
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-foreground">{provider.name}</p>
+              <Badge variant="outline">{providerType}</Badge>
+              <Badge variant={provider.credentials_configured ? 'default' : 'secondary'}>
+                {provider.credentials_configured ? 'Credentials set' : 'No credentials'}
+              </Badge>
+            </div>
+            {provider.base_url ? (
+              <p className="font-mono text-xs text-muted">{provider.base_url}</p>
+            ) : null}
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="rounded-lg border border-border/60 bg-background/80 px-3 py-2">
+              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
+                Discovered models
+              </p>
+              <p className="text-base font-semibold text-foreground">{modelCount}</p>
+            </div>
+            <div className="rounded-lg border border-border/60 bg-background/80 px-3 py-2">
+              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
+                Removal effect
+              </p>
+              <p className="text-sm text-foreground">Provider disappears from assignments and discovery.</p>
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => props.onOpenChange(false)}
+            disabled={props.isDeleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={props.onConfirm}
+            disabled={props.isDeleting}
+          >
+            {props.isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            Delete Provider
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1348,6 +1430,7 @@ export function LlmProvidersPage(): JSX.Element {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [discoveringId, setDiscoveringId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ProviderDeleteTarget | null>(null);
 
   useEffect(() => {
     const oauthSuccess = searchParams.get('oauth_success');
@@ -1394,11 +1477,17 @@ export function LlmProvidersPage(): JSX.Element {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deleteProvider,
+    mutationFn: async () => {
+      if (!deleteTarget) {
+        throw new Error('Choose a provider to delete.');
+      }
+      return deleteProvider(deleteTarget.provider.id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['llm-providers'] });
       queryClient.invalidateQueries({ queryKey: ['llm-models'] });
-      toast.success('Provider deleted.');
+      toast.success(`Provider "${deleteTarget?.provider.name ?? 'provider'}" deleted.`);
+      setDeleteTarget(null);
     },
     onError: (error) => {
       toast.error(`Failed to delete provider: ${String(error)}`);
@@ -1469,6 +1558,18 @@ export function LlmProvidersPage(): JSX.Element {
   const roleDefinitions = Array.isArray(roleDefinitionsQuery.data) ? roleDefinitionsQuery.data : [];
   const enabledModels = models.filter((m) => m.is_enabled !== false);
 
+  function requestProviderDelete(providerId: string) {
+    const provider = providers.find((entry) => entry.id === providerId);
+    if (!provider) {
+      toast.error('Provider not found.');
+      return;
+    }
+    setDeleteTarget({
+      provider,
+      modelCount: models.filter((model) => model.provider_id === providerId).length,
+    });
+  }
+
   return (
     <div className="p-6 space-y-8">
       {/* ── Providers Section ──────────────────────────────────────────── */}
@@ -1501,7 +1602,7 @@ export function LlmProvidersPage(): JSX.Element {
                 key={provider.id}
                 provider={provider}
                 modelCount={models.filter((m) => m.provider_id === provider.id).length}
-                onDelete={(id) => deleteMutation.mutate(id)}
+                onDelete={requestProviderDelete}
                 onDiscover={handleDiscover}
                 isDiscovering={discoveringId === provider.id}
               />
@@ -1510,7 +1611,7 @@ export function LlmProvidersPage(): JSX.Element {
                 key={provider.id}
                 provider={provider}
                 modelCount={models.filter((m) => m.provider_id === provider.id).length}
-                onDelete={(id) => deleteMutation.mutate(id)}
+                onDelete={requestProviderDelete}
                 onDiscover={handleDiscover}
                 isDiscovering={discoveringId === provider.id}
               />
@@ -1534,6 +1635,17 @@ export function LlmProvidersPage(): JSX.Element {
         assignments={assignments}
         roleDefinitions={roleDefinitions}
         systemDefault={systemDefaultQuery.data ?? { modelId: null, reasoningConfig: null }}
+      />
+
+      <DeleteProviderDialog
+        target={deleteTarget}
+        isDeleting={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+        onOpenChange={(open) => {
+          if (!open && !deleteMutation.isPending) {
+            setDeleteTarget(null);
+          }
+        }}
       />
     </div>
   );
