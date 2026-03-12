@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildWorkItemBreadcrumbs,
+  describeTaskOperatorPosture,
   findWorkItemById,
   flattenArtifactsByTask,
   flattenGroupedWorkItems,
@@ -9,6 +10,9 @@ import {
   isMilestoneWorkItem,
   normalizeWorkItemTasks,
   selectTasksForWorkItem,
+  sortTasksForOperatorReview,
+  summarizeStructuredValue,
+  summarizeWorkItemExecution,
   summarizeMilestoneOperatorFlow,
   sortMemoryEntriesByKey,
   sortMemoryHistoryNewestFirst,
@@ -226,6 +230,105 @@ describe('workflow work item detail support', () => {
       inFlightSteps: 1,
       activeStageNames: ['implementation', 'verification'],
       activeColumnIds: ['active', 'review'],
+    });
+  });
+
+  it('summarizes execution posture and sorts tasks by operator urgency', () => {
+    const tasks = [
+      {
+        id: 'task-3',
+        title: 'Ship change',
+        state: 'completed',
+        role: 'developer',
+        stage_name: 'delivery',
+        completed_at: '2026-03-12T11:00:00.000Z',
+        depends_on: [],
+        work_item_id: 'wi-1',
+      },
+      {
+        id: 'task-1',
+        title: 'Review change',
+        state: 'awaiting_approval',
+        role: 'reviewer',
+        stage_name: 'verification',
+        completed_at: null,
+        depends_on: [],
+        work_item_id: 'wi-1',
+      },
+      {
+        id: 'task-2',
+        title: 'Fix change',
+        state: 'failed',
+        role: 'developer',
+        stage_name: 'implementation',
+        completed_at: null,
+        depends_on: [],
+        work_item_id: 'wi-1',
+      },
+      {
+        id: 'task-4',
+        title: 'Draft change',
+        state: 'in_progress',
+        role: 'developer',
+        stage_name: 'implementation',
+        completed_at: null,
+        depends_on: [],
+        work_item_id: 'wi-1',
+      },
+    ];
+
+    expect(summarizeWorkItemExecution(tasks)).toEqual({
+      totalSteps: 4,
+      awaitingOperator: 1,
+      retryableSteps: 1,
+      activeSteps: 1,
+      completedSteps: 1,
+      distinctRoles: ['developer', 'reviewer'],
+      distinctStages: ['delivery', 'implementation', 'verification'],
+    });
+    expect(sortTasksForOperatorReview(tasks).map((task) => task.id)).toEqual([
+      'task-1',
+      'task-2',
+      'task-4',
+      'task-3',
+    ]);
+  });
+
+  it('describes task operator posture and structured payload summaries for review packets', () => {
+    expect(
+      describeTaskOperatorPosture({
+        id: 'task-1',
+        title: 'Review change',
+        state: 'output_pending_review',
+        role: 'reviewer',
+        stage_name: 'verification',
+        completed_at: null,
+        depends_on: [],
+        work_item_id: 'wi-1',
+      }),
+    ).toEqual({
+      title: 'Output review needed',
+      detail: 'Review the specialist output before the board can advance.',
+      tone: 'warning',
+    });
+
+    expect(
+      summarizeStructuredValue({
+        summary: 'Implement auth flow',
+        stage_name: 'implementation',
+        owner_role: 'developer',
+        nested: { retry_count: 1 },
+      }),
+    ).toEqual({
+      hasValue: true,
+      shapeLabel: '4 fields',
+      detail: 'Includes nested, owner role, stage name, summary.',
+      keyHighlights: ['nested', 'owner role', 'stage name', 'summary'],
+      scalarFacts: [
+        { label: 'owner role', value: 'developer' },
+        { label: 'stage name', value: 'implementation' },
+        { label: 'summary', value: 'Implement auth flow' },
+      ],
     });
   });
 

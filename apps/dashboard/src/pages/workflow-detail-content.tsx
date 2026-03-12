@@ -17,7 +17,16 @@ import {
 } from '../components/ui/card.js';
 import { Input } from '../components/ui/input.js';
 import type { DashboardProjectMemoryEntry } from './workflow-detail-support.js';
-import { describeProjectMemoryEntry } from './workflow-detail-content-support.js';
+import {
+  describeDocumentReference,
+  describeProjectMemoryEntry,
+} from './workflow-detail-content-support.js';
+import {
+  describeReviewPacket,
+  formatAbsoluteTimestamp,
+  formatRelativeTimestamp,
+  toStructuredDetailViewData,
+} from './workflow-detail-presentation.js';
 import {
   buildStructuredObject,
   type StructuredEntryDraft,
@@ -235,27 +244,46 @@ function DocumentCard(props: {
   document: DashboardResolvedDocumentReference;
 }): JSX.Element {
   const { document } = props;
-  const hasLocation = document.repository && document.path;
+  const packet = describeDocumentReference(document);
+  const metadataPacket = describeReviewPacket(document.metadata, 'document metadata');
 
   return (
     <Card className="border-border/70 bg-border/10 shadow-none">
-      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-3">
-        <div className="grid gap-1">
-          <CardTitle className="text-base">
-            {document.title ?? document.logical_name}
-          </CardTitle>
-          <CardDescription>{document.description ?? document.source}</CardDescription>
+      <CardHeader className="gap-3 pb-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="grid gap-1">
+            <CardTitle className="text-base">{document.title ?? document.logical_name}</CardTitle>
+            <CardDescription>{packet.summary}</CardDescription>
+          </div>
+          <Badge variant="outline">{document.scope}</Badge>
         </div>
-        <Badge variant="outline">{document.scope}</Badge>
       </CardHeader>
       <CardContent className="grid gap-3">
+        <div className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-4">
+          <div className="grid gap-2">
+            <div className="text-sm font-semibold text-foreground">{packet.summary}</div>
+            <p className="text-sm leading-6 text-muted">{packet.detail}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {packet.badges.map((badge) => (
+              <Badge key={badge} variant="secondary">
+                {badge}
+              </Badge>
+            ))}
+            {document.created_at ? (
+              <Badge variant="outline" title={formatAbsoluteTimestamp(document.created_at)}>
+                Added {formatRelativeTimestamp(document.created_at)}
+              </Badge>
+            ) : null}
+          </div>
+        </div>
         <div className="flex flex-wrap gap-2">
           <Badge variant="secondary">Source: {document.source}</Badge>
           {document.task_id ? <Badge variant="secondary">Task: {document.task_id}</Badge> : null}
         </div>
-        {hasLocation ? (
+        {packet.locationLabel ? (
           <p className="rounded-lg border border-border/60 bg-background/70 px-3 py-2 text-sm text-muted">
-            {document.repository}:{document.path}
+            {packet.locationLabel}
           </p>
         ) : null}
         <div className="flex flex-wrap gap-2">
@@ -274,6 +302,30 @@ function DocumentCard(props: {
             </Button>
           ) : null}
         </div>
+        {packet.hasMetadata ? (
+          <details className="rounded-xl border border-border/70 bg-background/80 p-4">
+            <summary className="cursor-pointer text-sm font-medium text-foreground">
+              Open document metadata
+            </summary>
+            <div className="mt-3 grid gap-3">
+              <div className="grid gap-2">
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline">{metadataPacket.typeLabel}</Badge>
+                  {metadataPacket.badges.map((badge) => (
+                    <Badge key={badge} variant="outline">
+                      {badge}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-sm leading-6 text-muted">{metadataPacket.detail}</p>
+              </div>
+              <StructuredRecordView
+                data={toStructuredDetailViewData(document.metadata)}
+                emptyMessage="No document metadata."
+              />
+            </div>
+          </details>
+        ) : null}
       </CardContent>
     </Card>
   );

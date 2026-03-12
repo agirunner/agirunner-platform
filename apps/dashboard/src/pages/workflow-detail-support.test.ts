@@ -4,7 +4,10 @@ import {
   deriveWorkflowRoleOptions,
   groupTasksByStage,
   readProjectMemoryEntries,
+  readPacketNestedKeys,
+  readPacketScalarFacts,
   readWorkflowRunSummary,
+  summarizeConfigLayers,
 } from './workflow-detail-support.js';
 
 describe('workflow detail workflow support', () => {
@@ -82,5 +85,38 @@ describe('workflow detail workflow support', () => {
         },
       }),
     ).toEqual(['architect', 'developer', 'orchestrator', 'qa', 'reviewer']);
+  });
+
+  it('extracts scalar facts, nested packet keys, and config layer summaries for review packets', () => {
+    expect(
+      readPacketScalarFacts({
+        workflow_id: 'wf-1',
+        lifecycle: 'continuous',
+        config: { retries: 2 },
+        active: true,
+      }),
+    ).toEqual([
+      { label: 'active', value: 'true' },
+      { label: 'lifecycle', value: 'continuous' },
+      { label: 'workflow id', value: 'wf-1' },
+    ]);
+
+    expect(
+      readPacketNestedKeys({
+        workflow_id: 'wf-1',
+        config: { retries: 2 },
+        memory: { summary: 'note' },
+      }),
+    ).toEqual(['config', 'memory']);
+
+    expect(
+      summarizeConfigLayers({
+        playbook: { orchestrator: {}, defaults: {} },
+        workflow: { overrides: {} },
+      }),
+    ).toEqual([
+      { name: 'playbook', fieldCount: 2, keys: ['defaults', 'orchestrator'] },
+      { name: 'workflow', fieldCount: 1, keys: ['overrides'] },
+    ]);
   });
 });

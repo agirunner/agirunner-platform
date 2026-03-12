@@ -30,6 +30,17 @@ export interface DashboardProjectMemoryEntry {
   value: unknown;
 }
 
+export interface DashboardPacketFact {
+  label: string;
+  value: string;
+}
+
+export interface DashboardConfigLayerSummary {
+  name: string;
+  fieldCount: number;
+  keys: string[];
+}
+
 export function readWorkflowProjectId(workflow: unknown): string | undefined {
   const record = asRecord(workflow);
   return readNonEmptyString(record.project_id);
@@ -112,6 +123,45 @@ export function deriveWorkflowRoleOptions(input: {
   return Array.from(roles).sort((left, right) => left.localeCompare(right));
 }
 
+export function readPacketScalarFacts(
+  value: unknown,
+  limit = 6,
+): DashboardPacketFact[] {
+  const record = asRecord(value);
+  return Object.keys(record)
+    .sort((left, right) => left.localeCompare(right))
+    .filter((key) => isScalarPacketValue(record[key]))
+    .slice(0, limit)
+    .map((key) => ({
+      label: key.replaceAll('_', ' ').replaceAll('.', ' '),
+      value: formatPacketFactValue(record[key]),
+    }));
+}
+
+export function readPacketNestedKeys(value: unknown, limit = 8): string[] {
+  const record = asRecord(value);
+  return Object.keys(record)
+    .sort((left, right) => left.localeCompare(right))
+    .filter((key) => !isScalarPacketValue(record[key]))
+    .slice(0, limit)
+    .map((key) => key.replaceAll('_', ' ').replaceAll('.', ' '));
+}
+
+export function summarizeConfigLayers(value: unknown): DashboardConfigLayerSummary[] {
+  const layers = asRecord(value);
+  return Object.keys(layers)
+    .sort((left, right) => left.localeCompare(right))
+    .map((name) => {
+      const layerRecord = asRecord(layers[name]);
+      const keys = Object.keys(layerRecord).sort((left, right) => left.localeCompare(right));
+      return {
+        name,
+        fieldCount: keys.length,
+        keys,
+      };
+    });
+}
+
 export function shouldInvalidateWorkflowRealtimeEvent(
   eventType: string,
   workflowId: string,
@@ -178,6 +228,28 @@ function readWorkflowIdFromData(data: Record<string, unknown> | undefined): stri
     ?? readNonEmptyString(asRecord(data.task).workflowId)
     ?? readNonEmptyString(asRecord(data.workflow).id)
   );
+}
+
+function isScalarPacketValue(value: unknown): boolean {
+  return (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    value === null
+  );
+}
+
+function formatPacketFactValue(value: unknown): string {
+  if (typeof value === 'string') {
+    return value.length > 96 ? `${value.slice(0, 93)}...` : value;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (value === null) {
+    return 'null';
+  }
+  return 'structured';
 }
 
 function resolveWorkflowEventWorkflowId(payload: Record<string, unknown>): string | undefined {

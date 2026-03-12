@@ -1,9 +1,19 @@
+import type { DashboardResolvedDocumentReference } from '../lib/api.js';
+
 export interface ProjectMemoryEntryPacket {
   typeLabel: string;
   summary: string;
   detail: string;
   badges: string[];
   hasStructuredDetail: boolean;
+}
+
+export interface DocumentReferencePacket {
+  summary: string;
+  detail: string;
+  badges: string[];
+  locationLabel: string | null;
+  hasMetadata: boolean;
 }
 
 export function describeProjectMemoryEntry(value: unknown): ProjectMemoryEntryPacket {
@@ -69,6 +79,28 @@ export function describeProjectMemoryEntry(value: unknown): ProjectMemoryEntryPa
   };
 }
 
+export function describeDocumentReference(
+  document: DashboardResolvedDocumentReference,
+): DocumentReferencePacket {
+  const badges = [humanizeKey(document.source), humanizeKey(document.scope)];
+  if (document.task_id) {
+    badges.push(`Task ${document.task_id}`);
+  }
+  if (document.artifact?.content_type) {
+    badges.push(document.artifact.content_type);
+  }
+  return {
+    summary: describeDocumentSource(document),
+    detail:
+      document.description?.trim().length
+        ? document.description
+        : 'Reference packet available to the orchestrator and specialists during board execution.',
+    badges,
+    locationLabel: describeDocumentLocation(document),
+    hasMetadata: Object.keys(document.metadata ?? {}).length > 0,
+  };
+}
+
 function summarizeArrayEntry(value: unknown): string {
   if (typeof value === 'string') {
     return truncateText(value, 24);
@@ -96,6 +128,37 @@ function truncateText(value: string, limit: number): string {
     return trimmed;
   }
   return `${trimmed.slice(0, limit - 1)}…`;
+}
+
+function describeDocumentSource(document: DashboardResolvedDocumentReference): string {
+  if (document.title?.trim().length) {
+    return document.title;
+  }
+  if (document.source === 'artifact' && document.artifact?.logical_path) {
+    return document.artifact.logical_path;
+  }
+  if (document.path?.trim().length) {
+    return document.path;
+  }
+  if (document.url?.trim().length) {
+    return document.url;
+  }
+  return document.logical_name;
+}
+
+function describeDocumentLocation(
+  document: DashboardResolvedDocumentReference,
+): string | null {
+  if (document.repository && document.path) {
+    return `${document.repository}:${document.path}`;
+  }
+  if (document.artifact?.logical_path) {
+    return document.artifact.logical_path;
+  }
+  if (document.url) {
+    return document.url;
+  }
+  return null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

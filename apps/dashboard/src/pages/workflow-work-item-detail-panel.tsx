@@ -44,10 +44,14 @@ import { cn } from '../lib/utils.js';
 import { describeTimelineEvent } from './workflow-history-card.js';
 import {
   buildWorkItemBreadcrumbs,
+  describeTaskOperatorPosture,
   flattenArtifactsByTask,
   findWorkItemById,
   isMilestoneWorkItem,
+  sortTasksForOperatorReview,
   summarizeMilestoneOperatorFlow,
+  summarizeStructuredValue,
+  summarizeWorkItemExecution,
   sortMemoryEntriesByKey,
   sortMemoryHistoryNewestFirst,
   sortEventsNewestFirst,
@@ -656,7 +660,12 @@ function WorkItemMemorySection(props: {
                 {entry.task_id ? <Badge variant="outline">task {entry.task_id}</Badge> : null}
                 <span className="text-xs text-muted">{formatTimestamp(entry.updated_at)}</span>
               </div>
-              <StructuredRecordView data={entry.value} emptyMessage="No memory payload." />
+              <StructuredValueReview
+                label="Memory packet"
+                value={entry.value}
+                emptyMessage="No memory payload."
+                disclosureLabel="Open full memory packet"
+              />
             </article>
           ))
         )}
@@ -692,7 +701,12 @@ function WorkItemMemorySection(props: {
                   {entry.task_id ? <Badge variant="outline">task {entry.task_id}</Badge> : null}
                   <span className="text-xs text-muted">{formatTimestamp(entry.updated_at)}</span>
                 </div>
-                <StructuredRecordView data={entry.value} emptyMessage="No memory payload." />
+                <StructuredValueReview
+                  label="Memory change packet"
+                  value={entry.value}
+                  emptyMessage="No memory payload."
+                  disclosureLabel="Open full change packet"
+                />
               </article>
             ))
           : null}
@@ -727,9 +741,9 @@ function WorkItemHeader(props: {
           {workItem.goal ? <p className={mutedBodyClass}>{workItem.goal}</p> : null}
         </div>
         <div className={cn(metaRowClass, 'xl:max-w-[45%] xl:justify-end')}>
-          <Badge variant="outline">{workItem.stage_name}</Badge>
-          <Badge variant="outline">{workItem.priority}</Badge>
-          <Badge variant="outline">{workItem.column_id}</Badge>
+          <Badge variant="outline">{workItem.stage_name ?? 'Unassigned stage'}</Badge>
+          <Badge variant="outline">{workItem.priority ?? 'normal'}</Badge>
+          <Badge variant="outline">{workItem.column_id ?? 'Unassigned column'}</Badge>
           {milestone ? <Badge variant="outline">Milestone</Badge> : null}
           {milestone ? (
             <Badge variant="outline">
@@ -856,6 +870,21 @@ function WorkItemTasksSection(props: {
   childCount: number;
   onWorkItemChanged(): Promise<unknown> | unknown;
 }): JSX.Element {
+  const executionSummary = useMemo(
+    () => summarizeWorkItemExecution(props.tasks),
+    [props.tasks],
+  );
+  const orderedTasks = useMemo(
+    () => sortTasksForOperatorReview(props.tasks),
+    [props.tasks],
+  );
+  const attentionTasks = orderedTasks.filter((task) =>
+    task.state === 'awaiting_approval' ||
+    task.state === 'output_pending_review' ||
+    task.state === 'failed' ||
+    task.state === 'escalated',
+  );
+
   if (props.tasks.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted">
@@ -866,27 +895,117 @@ function WorkItemTasksSection(props: {
 
   return (
     <section className="grid gap-4 rounded-xl border border-border/70 bg-surface p-4 shadow-sm">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <DetailStatCard
-          label="Linked steps"
-          value={String(props.tasks.length)}
-          detail="Execution records anchored here"
-        />
-        <DetailStatCard
-          label="Approvals pending"
-          value={String(
-            props.tasks.filter(
-              (task) =>
-                task.state === 'awaiting_approval' || task.state === 'output_pending_review',
-            ).length,
-          )}
-          detail="Operator decisions still needed"
-        />
-        <DetailStatCard
-          label="Retries available"
-          value={String(props.tasks.filter((task) => task.state === 'failed').length)}
-          detail="Failed steps that can be re-run"
-        />
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <DetailStatCard
+            label="Linked steps"
+            value={String(executionSummary.totalSteps)}
+            detail="Execution records anchored here"
+          />
+          <DetailStatCard
+            label="Needs review"
+            value={String(executionSummary.awaitingOperator)}
+            detail="Operator decisions still needed"
+          />
+          <DetailStatCard
+            label="Retryable"
+            value={String(executionSummary.retryableSteps)}
+            detail="Failed or escalated steps"
+          />
+          <DetailStatCard
+            label="In flight"
+            value={String(executionSummary.activeSteps)}
+            detail="Ready, blocked, or running"
+          />
+        </div>
+        <div className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <strong className="text-sm">Execution review packet</strong>
+            <Badge variant="outline">{executionSummary.completedSteps} completed</Badge>
+          </div>
+          <p className={mutedBodyClass}>
+            Roles and stage coverage stay visible here so operators can spot ownership gaps
+            before opening individual step records.
+          </p>
+          <div className="grid gap-2">
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+              Roles in play
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {executionSummary.distinctRoles.length > 0 ? (
+                executionSummary.distinctRoles.map((role) => (
+                  <Badge key={role} variant="outline">
+                    {role}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-sm text-muted">No roles assigned yet.</span>
+              )}
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+              Stage coverage
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {executionSummary.distinctStages.length > 0 ? (
+                executionSummary.distinctStages.map((stageName) => (
+                  <Badge key={stageName} variant="outline">
+                    {stageName}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-sm text-muted">No stages assigned yet.</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      {attentionTasks.length > 0 ? (
+        <div className="grid gap-3 rounded-xl border border-amber-300/70 bg-amber-50/80 p-4 dark:border-amber-900/70 dark:bg-amber-950/20">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="grid gap-1">
+              <strong className="text-base">Requires operator attention</strong>
+              <p className={mutedBodyClass}>
+                The highest-urgency steps are pinned here first so approvals and retries do not
+                get buried below routine execution.
+              </p>
+            </div>
+            <Badge variant="warning">{attentionTasks.length} queued for review</Badge>
+          </div>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {attentionTasks.slice(0, 4).map((task) => {
+              const posture = describeTaskOperatorPosture(task);
+              return (
+                <article
+                  key={`attention:${task.id}`}
+                  className="grid gap-2 rounded-xl border border-border/70 bg-background/90 p-4 shadow-sm"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <Link to={`/work/tasks/${task.id}`} className="font-medium text-foreground">
+                      {task.title}
+                    </Link>
+                    <Badge variant={taskStateBadgeVariant(task.state)}>
+                      {formatTaskStateLabel(task.state)}
+                    </Badge>
+                  </div>
+                  <p className="text-sm leading-6 text-muted">{posture.detail}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {task.role ? <Badge variant="outline">{task.role}</Badge> : null}
+                    {task.stage_name ? <Badge variant="outline">{task.stage_name}</Badge> : null}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+      <div className="grid gap-2">
+        <strong className="text-base">Execution queue</strong>
+        <p className={mutedBodyClass}>
+          Steps are ordered by operator urgency so approvals, escalations, and retries appear
+          before background progress updates.
+        </p>
       </div>
       {props.isMilestone ? (
         <p className={mutedBodyClass}>
@@ -898,7 +1017,7 @@ function WorkItemTasksSection(props: {
         </p>
       )}
       <div className="grid gap-3 lg:hidden">
-        {props.tasks.map((task) => (
+        {orderedTasks.map((task) => (
           <TaskExecutionCard
             key={task.id}
             workflowId={props.workflowId}
@@ -920,7 +1039,7 @@ function WorkItemTasksSection(props: {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {props.tasks.map((task) => (
+            {orderedTasks.map((task) => (
               <TableRow key={task.id}>
                 <TableCell>
                   <Link to={`/work/tasks/${task.id}`}>{task.title}</Link>
@@ -1080,6 +1199,7 @@ function WorkItemTaskActionCell(props: {
 
   return (
     <div className="grid gap-3">
+      <TaskOperatorPosturePanel task={props.task} />
       <div className={metaRowClass}>
         <Link to={`/work/tasks/${props.task.id}`}>Open step record</Link>
         {workItemPermalink ? <Link to={workItemPermalink}>Focus work item</Link> : null}
@@ -1331,7 +1451,12 @@ function WorkItemEventHistorySection(props: {
                 {descriptor.workItemId ? <Badge variant="outline">work item {descriptor.workItemId.slice(0, 8)}</Badge> : null}
                 {descriptor.taskId ? <Badge variant="outline">task {descriptor.taskId.slice(0, 8)}</Badge> : null}
               </div>
-              <StructuredRecordView data={event.data} emptyMessage="No event payload." />
+              <StructuredValueReview
+                label="Operator review packet"
+                value={event.data}
+                emptyMessage="No event payload."
+                disclosureLabel="Open full event payload"
+              />
             </li>
           );
         })}
@@ -1395,6 +1520,81 @@ function DetailStatCard(props: {
       </div>
       <div className="text-sm font-semibold text-foreground">{props.value}</div>
       <div className="text-xs leading-5 text-muted">{props.detail}</div>
+    </div>
+  );
+}
+
+function TaskOperatorPosturePanel(props: {
+  task: DashboardWorkItemTaskRecord;
+}): JSX.Element {
+  const posture = describeTaskOperatorPosture(props.task);
+  return (
+    <div className="grid gap-1 rounded-lg border border-border/70 bg-background/80 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+          Operator next step
+        </div>
+        <Badge variant={posture.tone}>{posture.title}</Badge>
+      </div>
+      <p className="text-xs leading-5 text-muted">{posture.detail}</p>
+    </div>
+  );
+}
+
+function StructuredValueReview(props: {
+  label: string;
+  value: unknown;
+  emptyMessage: string;
+  disclosureLabel: string;
+}): JSX.Element {
+  const summary = summarizeStructuredValue(props.value);
+  if (!summary.hasValue) {
+    return <p className={mutedBodyClass}>{props.emptyMessage}</p>;
+  }
+
+  return (
+    <div className="grid gap-3 rounded-lg border border-border/70 bg-background/80 p-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="grid gap-1">
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+            {props.label}
+          </div>
+          <p className="text-sm leading-6 text-muted">{summary.detail}</p>
+        </div>
+        <Badge variant="outline">{summary.shapeLabel}</Badge>
+      </div>
+      {summary.scalarFacts.length > 0 ? (
+        <dl className="grid gap-2 sm:grid-cols-2">
+          {summary.scalarFacts.map((fact) => (
+            <div
+              key={`${props.label}:${fact.label}`}
+              className="grid gap-1 rounded-lg border border-border/70 bg-surface px-3 py-2"
+            >
+              <dt className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+                {fact.label}
+              </dt>
+              <dd className="text-sm text-foreground">{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      {summary.keyHighlights.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {summary.keyHighlights.map((key) => (
+            <Badge key={`${props.label}:${key}`} variant="outline">
+              {key}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
+      <details className="rounded-lg border border-border/70 bg-surface px-3 py-2">
+        <summary className="cursor-pointer text-sm font-medium text-foreground">
+          {props.disclosureLabel}
+        </summary>
+        <div className="mt-3">
+          <StructuredRecordView data={props.value} emptyMessage={props.emptyMessage} />
+        </div>
+      </details>
     </div>
   );
 }
