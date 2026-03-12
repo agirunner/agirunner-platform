@@ -32,6 +32,7 @@ import {
 } from './work-item-service.js';
 import {
   currentStageNameFromStages,
+  isActiveStageStatus,
   WorkflowStageService,
   type WorkflowStageResponse,
 } from './workflow-stage-service.js';
@@ -673,7 +674,7 @@ export class WorkflowService {
     };
     const workItems = (workflow.work_items as Record<string, unknown>[]) ?? [];
     const workflowStages = Array.isArray(workflow.workflow_stages)
-      ? (workflow.workflow_stages as Record<string, unknown>[])
+      ? (workflow.workflow_stages as WorkflowStageResponse[])
       : [];
     const terminalColumns = new Set(
       definition.board.columns
@@ -682,6 +683,7 @@ export class WorkflowService {
     );
     const boardWorkItems = annotateBoardWorkItems(workItems, terminalColumns);
     const stageSummary = buildBoardStageSummary(
+      String(workflow.lifecycle ?? 'standard'),
       definition.stages ?? [],
       workflowStages,
       boardWorkItems,
@@ -989,11 +991,9 @@ function isBoardItemOpen(item: Record<string, unknown>, terminalColumns: Set<str
 
 function orderStageNames(
   stageNames: string[],
-  workflowStages: Array<Record<string, unknown>>,
+  workflowStages: Array<Pick<WorkflowStageResponse, 'name'>>,
 ): string[] {
-  const orderedStageNames = workflowStages
-    .map((stage) => asOptionalString(stage.name))
-    .filter((stageName): stageName is string => Boolean(stageName));
+  const orderedStageNames = workflowStages.map((stage) => stage.name).filter(Boolean);
   const remaining = new Set(stageNames);
   const ordered: string[] = [];
 
@@ -1017,36 +1017,52 @@ function orderStageNames(
 }
 
 function buildBoardStageSummary(
+  lifecycle: string,
   stageDefinitions: Array<{ name: string; goal: string }>,
-  workflowStages: Array<Record<string, unknown>>,
+  workflowStages: WorkflowStageResponse[],
   workItems: Array<Record<string, unknown>>,
   terminalColumns: Set<string>,
 ) {
   const stageNames = new Set<string>();
-  for (const stage of stageDefinitions) {
-    stageNames.add(stage.name);
-  }
-  for (const stage of workflowStages) {
-    if (typeof stage.name === 'string' && stage.name.length > 0) {
+  if (lifecycle !== 'continuous') {
+    for (const stage of stageDefinitions) {
       stageNames.add(stage.name);
     }
   }
+  for (const stage of workflowStages) {
+    stageNames.add(stage.name);
+  }
+  for (const item of workItems) {
+    const stageName = asOptionalString(item.stage_name);
+    if (stageName) {
+      stageNames.add(stageName);
+    }
+  }
 
-  return Array.from(stageNames).map((stageName) => {
+  const workflowStageByName = new Map(workflowStages.map((stage) => [stage.name, stage]));
+  const orderedStageNames =
+    lifecycle === 'continuous'
+      ? orderStageNames(Array.from(stageNames), workflowStages)
+      : Array.from(stageNames);
+  return orderedStageNames.map((stageName) => {
     const definition = stageDefinitions.find((stage) => stage.name === stageName);
-    const workflowStage = workflowStages.find((stage) => stage.name === stageName);
+    const workflowStage = workflowStageByName.get(stageName);
     const stageItems = workItems.filter((item) => item.stage_name === stageName);
-    const completedCount = stageItems.filter((item) => isCompletedBoardChild(item, terminalColumns)).length;
-    const openCount = stageItems.length - completedCount;
-    const status = typeof workflowStage?.status === 'string' ? workflowStage.status : 'pending';
+    const fallbackCompletedCount = stageItems.filter((item) =>
+      isCompletedBoardChild(item, terminalColumns),
+    ).length;
+    const fallbackOpenCount = stageItems.length - fallbackCompletedCount;
+    const workItemCount = workflowStage?.total_work_item_count ?? stageItems.length;
+    const openCount = workflowStage?.open_work_item_count ?? fallbackOpenCount;
+    const completedCount = Math.max(workItemCount - openCount, 0);
+    const status = workflowStage?.status ?? 'pending';
     return {
       name: stageName,
-      goal: definition?.goal ?? String(workflowStage?.goal ?? ''),
+      goal: definition?.goal ?? workflowStage?.goal ?? '',
       status,
-      is_active: isActiveStageStatus(status),
-      gate_status:
-        typeof workflowStage?.gate_status === 'string' ? workflowStage.gate_status : 'not_requested',
-      work_item_count: stageItems.length,
+      is_active: workflowStage?.is_active ?? isActiveStageStatus(status),
+      gate_status: workflowStage?.gate_status ?? 'not_requested',
+      work_item_count: workItemCount,
       open_work_item_count: openCount,
       completed_count: completedCount,
     };
@@ -1073,10 +1089,6 @@ function readCount(value: unknown) {
     }
   }
   return 0;
-}
-
-function isActiveStageStatus(status: unknown) {
-  return status === 'active' || status === 'awaiting_gate' || status === 'blocked';
 }
 
 function isActiveContinuousGateState(gateStatus: unknown) {

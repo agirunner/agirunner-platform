@@ -251,6 +251,7 @@ export interface WorkflowStage {
   guidance?: string | null;
   human_gate: boolean;
   status: string;
+  is_active: boolean;
   gate_status: string;
   iteration_count: number;
   summary?: string | null;
@@ -259,6 +260,8 @@ export interface WorkflowStage {
   key_artifacts?: Array<Record<string, unknown>>;
   started_at?: string | null;
   completed_at?: string | null;
+  open_work_item_count: number;
+  total_work_item_count: number;
   updated_at?: string;
 }
 
@@ -349,10 +352,16 @@ export interface WorkflowBoardColumn {
 export interface WorkflowBoard {
   columns: WorkflowBoardColumn[];
   work_items: WorkflowWorkItem[];
+  active_stages: string[];
+  awaiting_gate_count: number;
   stage_summary: Array<{
     name: string;
     goal: string;
+    status: string;
+    is_active: boolean;
+    gate_status: string;
     work_item_count: number;
+    open_work_item_count: number;
     completed_count: number;
   }>;
 }

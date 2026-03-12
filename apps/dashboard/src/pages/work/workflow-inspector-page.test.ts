@@ -19,4 +19,12 @@ describe('workflow inspector page source', () => {
     expect(source).toContain('LogsSurface');
     expect(source).toContain('scopedWorkflowId={workflowId}');
   });
+
+  it('keeps continuous workflows on live stage sets instead of falling back to current_stage', () => {
+    const source = readSource();
+    expect(source).toContain('describeLiveStageLabel');
+    expect(source).toContain("if (workflow?.lifecycle === 'continuous')");
+    expect(source).toContain("return 'No live stages'");
+    expect(source).not.toContain('workflow?.current_stage ||');
+  });
 });

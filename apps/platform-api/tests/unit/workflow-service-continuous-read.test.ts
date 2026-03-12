@@ -77,7 +77,140 @@ describe('WorkflowService continuous workflow reads', () => {
             },
           ],
         })
-        .mockResolvedValueOnce({ rows: [] }),
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: {
+                  columns: [
+                    { id: 'queued', label: 'Queued' },
+                    { id: 'active', label: 'Active' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [
+                  { name: 'triage', goal: 'Sort work' },
+                  { name: 'implementation', goal: 'Do work' },
+                ],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: {
+                  columns: [
+                    { id: 'queued', label: 'Queued' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [
+                  { name: 'triage', goal: 'Sort work' },
+                  { name: 'review', goal: 'Review work' },
+                ],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: { columns: [{ id: 'planned', label: 'Planned' }] },
+                stages: [
+                  { name: 'triage', goal: 'Triage inbound work' },
+                  { name: 'implementation', goal: 'Implement approved work' },
+                ],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: {
+                  columns: [
+                    { id: 'queued', label: 'Queued' },
+                    { id: 'active', label: 'Active' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [
+                  { name: 'triage', goal: 'Sort work' },
+                  { name: 'implementation', goal: 'Do work' },
+                ],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: {
+                  columns: [
+                    { id: 'queued', label: 'Queued' },
+                    { id: 'active', label: 'Active' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [
+                  { name: 'triage', goal: 'Sort work' },
+                  { name: 'implementation', goal: 'Do work' },
+                ],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: {
+                  columns: [
+                    { id: 'queued', label: 'Queued' },
+                    { id: 'active', label: 'Active' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [
+                  { name: 'triage', goal: 'Sort work' },
+                  { name: 'implementation', goal: 'Do work' },
+                ],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: {
+                  columns: [
+                    { id: 'queued', label: 'Queued' },
+                    { id: 'active', label: 'Active' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [
+                  { name: 'triage', goal: 'Sort work' },
+                  { name: 'implementation', goal: 'Do work' },
+                ],
+              },
+            },
+          ],
+        }),
     };
 
     const service = new WorkflowService(pool as never, { emit: vi.fn() } as never, config as never);
@@ -170,7 +303,20 @@ describe('WorkflowService continuous workflow reads', () => {
             },
           ],
         })
-        .mockResolvedValueOnce({ rows: [] }),
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: { columns: [{ id: 'queued', label: 'Queued' }] },
+                stages: [{ name: 'implementation', goal: 'Implement work' }],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rows: [],
+        }),
     };
 
     const service = new WorkflowService(pool as never, { emit: vi.fn() } as never, config as never);
@@ -261,6 +407,25 @@ describe('WorkflowService continuous workflow reads', () => {
               },
             },
           ],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: {
+                  columns: [
+                    { id: 'queued', label: 'Queued' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [
+                  { name: 'triage', goal: 'Sort work' },
+                  { name: 'review', goal: 'Review work' },
+                ],
+              },
+            },
+          ],
         }),
     };
 
@@ -330,6 +495,159 @@ describe('WorkflowService continuous workflow reads', () => {
     ]);
   });
 
+  it('reuses normalized workflow stage counts and gate posture for continuous board summaries', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              id: 'wf-1',
+              tenant_id: 'tenant-1',
+              playbook_id: 'pb-1',
+              lifecycle: 'continuous',
+              current_stage: 'legacy-stage',
+              metadata: {},
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: {
+                  columns: [
+                    { id: 'queued', label: 'Queued' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [
+                  { name: 'triage', goal: 'Sort work' },
+                  { name: 'review', goal: 'Review work' },
+                ],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: {
+                  columns: [
+                    { id: 'queued', label: 'Queued' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [
+                  { name: 'triage', goal: 'Sort work' },
+                  { name: 'review', goal: 'Review work' },
+                ],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: {
+                  columns: [
+                    { id: 'queued', label: 'Queued' },
+                    { id: 'active', label: 'Active' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [
+                  { name: 'triage', goal: 'Sort work' },
+                  { name: 'implementation', goal: 'Do work' },
+                ],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: {
+                  columns: [
+                    { id: 'queued', label: 'Queued' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [
+                  { name: 'triage', goal: 'Sort work' },
+                  { name: 'review', goal: 'Review work' },
+                ],
+              },
+            },
+          ],
+        }),
+    };
+
+    const service = new WorkflowService(pool as never, { emit: vi.fn() } as never, config as never);
+    (service as unknown as { workItemService: { listWorkflowWorkItems: ReturnType<typeof vi.fn> } }).workItemService = {
+      listWorkflowWorkItems: vi.fn().mockResolvedValue([
+        { id: 'wi-1', stage_name: 'triage', column_id: 'queued', completed_at: null },
+      ]),
+    };
+    (service as unknown as { activationService: { listWorkflowActivations: ReturnType<typeof vi.fn> } }).activationService = {
+      listWorkflowActivations: vi.fn().mockResolvedValue([]),
+    };
+    (service as unknown as { stageService: { listStages: ReturnType<typeof vi.fn> } }).stageService = {
+      listStages: vi.fn().mockResolvedValue([
+        {
+          name: 'triage',
+          goal: 'Sort work',
+          status: 'active',
+          is_active: true,
+          gate_status: 'not_requested',
+          open_work_item_count: 4,
+          total_work_item_count: 5,
+        },
+        {
+          name: 'review',
+          goal: 'Review work',
+          status: 'awaiting_gate',
+          is_active: true,
+          gate_status: 'awaiting_approval',
+          open_work_item_count: 0,
+          total_work_item_count: 2,
+        },
+      ]),
+    };
+
+    const board = await service.getWorkflowBoard('tenant-1', 'wf-1');
+
+    expect(board.stage_summary).toEqual([
+      expect.objectContaining({
+        name: 'triage',
+        status: 'active',
+        is_active: true,
+        gate_status: 'not_requested',
+        work_item_count: 5,
+        open_work_item_count: 4,
+        completed_count: 1,
+      }),
+      expect.objectContaining({
+        name: 'review',
+        status: 'awaiting_gate',
+        is_active: true,
+        gate_status: 'awaiting_approval',
+        work_item_count: 2,
+        open_work_item_count: 0,
+        completed_count: 2,
+      }),
+    ]);
+  });
+
   it('builds large continuous workflow boards with bounded service fanout', async () => {
     const pool = {
       query: vi
@@ -348,6 +666,66 @@ describe('WorkflowService continuous workflow reads', () => {
           ],
         })
         .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: {
+                  columns: [
+                    { id: 'queued', label: 'Queued' },
+                    { id: 'active', label: 'Active' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [
+                  { name: 'triage', goal: 'Sort work' },
+                  { name: 'implementation', goal: 'Do work' },
+                ],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: {
+                  columns: [
+                    { id: 'queued', label: 'Queued' },
+                    { id: 'active', label: 'Active' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [
+                  { name: 'triage', goal: 'Sort work' },
+                  { name: 'implementation', goal: 'Do work' },
+                ],
+              },
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: {
+                  columns: [
+                    { id: 'queued', label: 'Queued' },
+                    { id: 'active', label: 'Active' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [
+                  { name: 'triage', goal: 'Sort work' },
+                  { name: 'implementation', goal: 'Do work' },
+                ],
+              },
+            },
+          ],
+        })
         .mockResolvedValueOnce({
           rowCount: 1,
           rows: [
@@ -401,7 +779,7 @@ describe('WorkflowService continuous workflow reads', () => {
 
     const board = await service.getWorkflowBoard('tenant-1', 'wf-1');
 
-    expect(pool.query).toHaveBeenCalledTimes(3);
+    expect(pool.query).toHaveBeenCalledTimes(4);
     expect(listWorkflowWorkItems).toHaveBeenCalledTimes(1);
     expect(listWorkflowActivations).toHaveBeenCalledTimes(1);
     expect(listStages).toHaveBeenCalledTimes(1);
@@ -468,6 +846,26 @@ describe('WorkflowService continuous workflow reads', () => {
               },
             },
           ],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: {
+                  columns: [
+                    { id: 'queued', label: 'Queued' },
+                    { id: 'active', label: 'Active' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [
+                  { name: 'triage', goal: 'Sort work' },
+                  { name: 'implementation', goal: 'Do work' },
+                ],
+              },
+            },
+          ],
         }),
     };
 
@@ -509,7 +907,7 @@ describe('WorkflowService continuous workflow reads', () => {
     const board = await service.getWorkflowBoard('tenant-1', 'wf-1');
     const parent = board.work_items.find((item) => item.id === 'wi-parent');
 
-    expect(pool.query).toHaveBeenCalledTimes(3);
+    expect(pool.query).toHaveBeenCalledTimes(4);
     expect(listWorkflowWorkItems).toHaveBeenCalledTimes(1);
     expect(listWorkflowActivations).toHaveBeenCalledTimes(1);
     expect(listStages).toHaveBeenCalledTimes(1);
@@ -560,6 +958,28 @@ describe('WorkflowService continuous workflow reads', () => {
           return { rows: [] };
         }
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                definition: {
+                  board: {
+                    columns: [
+                      { id: 'queued', label: 'Queued' },
+                      { id: 'active', label: 'Active' },
+                      { id: 'done', label: 'Done', is_terminal: true },
+                    ],
+                  },
+                  stages: [
+                    { name: 'implementation', goal: 'Do work' },
+                    { name: 'review', goal: 'Review work' },
+                  ],
+                },
+              },
+            ],
+          };
+        }
+        if (sql.includes('SELECT definition') && sql.includes('FROM playbooks')) {
           return {
             rowCount: 1,
             rows: [

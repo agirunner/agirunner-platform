@@ -1,6 +1,12 @@
 import type { DatabaseQueryable } from '../db/database.js';
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
-import { currentStageNameFromStages, type WorkflowStageResponse } from './workflow-stage-service.js';
+import {
+  currentStageNameFromStages,
+  isActiveStageStatus,
+  normalizeWorkflowStageView,
+  type WorkflowStageResponse,
+  type WorkflowStageViewInput,
+} from './workflow-stage-service.js';
 
 interface ActivationRow {
   id: string;
@@ -90,22 +96,42 @@ export async function buildOrchestratorTaskContext(
           ORDER BY created_at ASC`,
         [tenantId, workflowId],
       ),
-      db.query<Record<string, unknown>>(
-        `SELECT id,
-                name,
-                position,
-                goal,
-                human_gate,
-                status,
-                gate_status,
-                iteration_count,
-                summary,
-                started_at,
-                completed_at
-           FROM workflow_stages
-          WHERE tenant_id = $1
-            AND workflow_id = $2
-          ORDER BY position ASC`,
+      db.query<WorkflowStageViewInput>(
+        `SELECT ws.id,
+                w.lifecycle,
+                ws.name,
+                ws.position,
+                ws.goal,
+                ws.guidance,
+                ws.human_gate,
+                ws.status,
+                ws.gate_status,
+                ws.iteration_count,
+                ws.summary,
+                ws.started_at,
+                ws.completed_at,
+                COALESCE(work_item_summary.open_work_item_count, 0) AS open_work_item_count,
+                COALESCE(work_item_summary.total_work_item_count, 0) AS total_work_item_count,
+                work_item_summary.first_work_item_at,
+                work_item_summary.last_completed_work_item_at
+           FROM workflow_stages ws
+           JOIN workflows w
+             ON w.tenant_id = ws.tenant_id
+            AND w.id = ws.workflow_id
+           LEFT JOIN LATERAL (
+             SELECT COUNT(*) FILTER (WHERE wi.completed_at IS NULL)::int AS open_work_item_count,
+                    COUNT(*)::int AS total_work_item_count,
+                    MIN(wi.created_at) AS first_work_item_at,
+                    MAX(wi.completed_at) AS last_completed_work_item_at
+               FROM workflow_work_items wi
+              WHERE wi.tenant_id = ws.tenant_id
+                AND wi.workflow_id = ws.workflow_id
+                AND wi.stage_name = ws.name
+           ) AS work_item_summary
+             ON true
+          WHERE ws.tenant_id = $1
+            AND ws.workflow_id = $2
+          ORDER BY ws.position ASC`,
         [tenantId, workflowId],
       ),
       db.query<Record<string, unknown>>(
@@ -147,13 +173,14 @@ export async function buildOrchestratorTaskContext(
   if (!workflow) {
     return null;
   }
+  const stageRows = stagesRes.rows.map(normalizeWorkflowStageView);
   const activeStages = activeStageNames(workItemsRes.rows);
-  const currentStage = currentStageNameFromStages(stagesRes.rows as unknown as WorkflowStageResponse[]);
+  const currentStage = currentStageNameFromStages(stageRows);
   const workflowContext = {
     id: workflow.id,
     name: workflow.name,
     lifecycle: workflow.lifecycle,
-    active_stages: mergeActiveStageNames(activeStages, stagesRes.rows, workflow.playbook_definition),
+    active_stages: mergeActiveStageNames(activeStages, stageRows, workflow.playbook_definition),
     metadata: workflow.metadata ?? {},
     playbook: {
       name: workflow.playbook_name,
@@ -170,7 +197,7 @@ export async function buildOrchestratorTaskContext(
     workflow: workflowContext,
     board: {
       work_items: workItemsRes.rows.map(serializeDates),
-      stages: stagesRes.rows.map(serializeDates),
+      stages: stageRows,
       tasks: tasksRes.rows.map(serializeDates),
       queued_activations: queuedActivationsRes.rows.map(serializeDates),
     },
@@ -222,17 +249,13 @@ function activeStageNames(rows: Record<string, unknown>[]): string[] {
 
 function mergeActiveStageNames(
   workItemStages: string[],
-  stageRows: Record<string, unknown>[],
+  stageRows: Array<Pick<WorkflowStageResponse, 'name' | 'status'>>,
   definition: unknown,
 ): string[] {
   const gateStages = stageRows
-    .filter((row) => isActiveContinuousGateState(row.gate_status))
-    .map((row) => String(row.name));
+    .filter((row) => isActiveStageStatus(row.status))
+    .map((row) => row.name);
   return orderStageNamesByDefinition(Array.from(new Set([...workItemStages, ...gateStages])), definition);
-}
-
-function isActiveContinuousGateState(gateStatus: unknown) {
-  return gateStatus === 'awaiting_approval' || gateStatus === 'changes_requested' || gateStatus === 'rejected';
 }
 
 function orderStageNamesByDefinition(stageNames: string[], definition: unknown): string[] {

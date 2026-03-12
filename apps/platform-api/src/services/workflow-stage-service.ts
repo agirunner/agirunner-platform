@@ -2,7 +2,7 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 import type { PlaybookDefinition } from '../orchestration/playbook-model.js';
 
-interface WorkflowStageRow {
+export interface WorkflowStageViewInput {
   id: string;
   lifecycle: string;
   name: string;
@@ -40,6 +40,21 @@ export interface WorkflowStageResponse {
   total_work_item_count: number;
 }
 
+interface CreatedWorkflowStageRow {
+  id: string;
+  name: string;
+  position: number;
+  goal: string;
+  guidance: string | null;
+  human_gate: boolean;
+  status: string;
+  gate_status: string;
+  iteration_count: number;
+  summary: string | null;
+  started_at: Date | null;
+  completed_at: Date | null;
+}
+
 export class WorkflowStageService {
   constructor(private readonly pool: DatabasePool) {}
 
@@ -53,10 +68,10 @@ export class WorkflowStageService {
       return [];
     }
 
-    const rows: WorkflowStageRow[] = [];
+    const rows: WorkflowStageResponse[] = [];
     for (const [index, stage] of definition.stages.entries()) {
       const isActive = definition.lifecycle === 'standard' && index === 0;
-      const result = await client.query<WorkflowStageRow>(
+      const result = await client.query<CreatedWorkflowStageRow>(
         `INSERT INTO workflow_stages (
            tenant_id, workflow_id, name, position, goal, guidance, human_gate, status, started_at
          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CASE WHEN $8 = 'active' THEN now() ELSE NULL END)
@@ -72,14 +87,21 @@ export class WorkflowStageService {
           isActive ? 'active' : 'pending',
         ],
       );
-      rows.push(result.rows[0]);
+      rows.push({
+        ...result.rows[0],
+        is_active: isActiveStageStatus(result.rows[0].status),
+        started_at: result.rows[0].started_at?.toISOString() ?? null,
+        completed_at: result.rows[0].completed_at?.toISOString() ?? null,
+        open_work_item_count: 0,
+        total_work_item_count: 0,
+      });
     }
     return rows;
   }
 
   async listStages(tenantId: string, workflowId: string) {
     await this.assertWorkflow(tenantId, workflowId);
-    const result = await this.pool.query<WorkflowStageRow>(
+    const result = await this.pool.query<WorkflowStageViewInput>(
       `SELECT ws.id,
               w.lifecycle,
               ws.name,
@@ -117,7 +139,7 @@ export class WorkflowStageService {
         ORDER BY ws.position ASC`,
       [tenantId, workflowId],
     );
-    return result.rows.map(toStageResponse);
+    return result.rows.map(normalizeWorkflowStageView);
   }
 
   private async assertWorkflow(tenantId: string, workflowId: string) {
@@ -131,7 +153,9 @@ export class WorkflowStageService {
   }
 }
 
-function toStageResponse(row: WorkflowStageRow): WorkflowStageResponse {
+export function normalizeWorkflowStageView(
+  row: WorkflowStageViewInput,
+): WorkflowStageResponse {
   const derived = deriveStageView(row);
   return {
     id: row.id,
@@ -162,7 +186,7 @@ export function currentStageNameFromStages(
     ?.name ?? null;
 }
 
-function deriveStageView(row: WorkflowStageRow) {
+function deriveStageView(row: WorkflowStageViewInput) {
   if (row.lifecycle !== 'continuous') {
     return {
       status: row.status,
@@ -184,7 +208,7 @@ function deriveStageView(row: WorkflowStageRow) {
   };
 }
 
-function deriveContinuousStageStatus(row: WorkflowStageRow) {
+function deriveContinuousStageStatus(row: WorkflowStageViewInput) {
   if (row.gate_status === 'awaiting_approval') {
     return 'awaiting_gate';
   }
@@ -200,6 +224,6 @@ function deriveContinuousStageStatus(row: WorkflowStageRow) {
   return 'pending';
 }
 
-function isActiveStageStatus(status: string) {
+export function isActiveStageStatus(status: string) {
   return ['active', 'awaiting_gate', 'blocked'].includes(status);
 }

@@ -41,11 +41,7 @@ export function WorkflowInspectorPage(): JSX.Element {
   });
 
   const workflow = workflowQuery.data;
-  const liveStageLabel =
-    workflow?.work_item_summary?.active_stage_names?.join(', ') ||
-    workflow?.active_stages?.join(', ') ||
-    workflow?.current_stage ||
-    'No live stage';
+  const liveStageLabel = describeLiveStageLabel(workflow);
 
   return (
     <div className="space-y-6">
@@ -129,4 +125,26 @@ export function WorkflowInspectorPage(): JSX.Element {
       <LogsSurface scopedWorkflowId={workflowId} />
     </div>
   );
+}
+
+function describeLiveStageLabel(
+  workflow:
+    | {
+        lifecycle?: 'standard' | 'continuous' | null;
+        work_item_summary?: { active_stage_names?: string[] | null } | null;
+        active_stages?: string[] | null;
+        current_stage?: string | null;
+      }
+    | undefined,
+) {
+  const summaryStages = workflow?.work_item_summary?.active_stage_names?.filter(Boolean) ?? [];
+  const activeStages = workflow?.active_stages?.filter(Boolean) ?? [];
+  const liveStages = summaryStages.length > 0 ? summaryStages : activeStages;
+  if (liveStages.length > 0) {
+    return liveStages.join(', ');
+  }
+  if (workflow?.lifecycle === 'continuous') {
+    return 'No live stages';
+  }
+  return workflow?.current_stage ?? 'No live stage';
 }

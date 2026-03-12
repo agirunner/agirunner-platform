@@ -52,8 +52,44 @@ describe('buildOrchestratorTaskContext', () => {
         if (sql.includes('FROM workflow_stages')) {
           return {
             rows: [
-              { id: 'stage-1', name: 'triage', gate_status: 'not_requested' },
-              { id: 'stage-2', name: 'review', gate_status: 'awaiting_approval' },
+              {
+                id: 'stage-1',
+                lifecycle: 'continuous',
+                name: 'triage',
+                position: 0,
+                goal: 'Sort incoming work',
+                guidance: null,
+                human_gate: false,
+                status: 'pending',
+                gate_status: 'not_requested',
+                iteration_count: 0,
+                summary: null,
+                started_at: null,
+                completed_at: null,
+                open_work_item_count: 2,
+                total_work_item_count: 2,
+                first_work_item_at: new Date('2026-03-11T00:00:00Z'),
+                last_completed_work_item_at: null,
+              },
+              {
+                id: 'stage-2',
+                lifecycle: 'continuous',
+                name: 'review',
+                position: 2,
+                goal: 'Review work',
+                guidance: null,
+                human_gate: true,
+                status: 'pending',
+                gate_status: 'awaiting_approval',
+                iteration_count: 0,
+                summary: null,
+                started_at: null,
+                completed_at: null,
+                open_work_item_count: 0,
+                total_work_item_count: 0,
+                first_work_item_at: null,
+                last_completed_work_item_at: null,
+              },
             ],
           };
         }
@@ -85,6 +121,23 @@ describe('buildOrchestratorTaskContext', () => {
       }),
     );
     expect(context?.workflow).not.toHaveProperty('current_stage');
+    expect(context?.board.stages).toEqual([
+      expect.objectContaining({
+        name: 'triage',
+        status: 'active',
+        is_active: true,
+        open_work_item_count: 2,
+        total_work_item_count: 2,
+      }),
+      expect.objectContaining({
+        name: 'review',
+        status: 'awaiting_gate',
+        is_active: true,
+        gate_status: 'awaiting_approval',
+        open_work_item_count: 0,
+        total_work_item_count: 0,
+      }),
+    ]);
     expect(context?.activation).toEqual(
       expect.objectContaining({
         dispatch_attempt: 2,

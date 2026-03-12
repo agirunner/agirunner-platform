@@ -238,11 +238,14 @@ export interface DashboardWorkflowStageRecord {
   guidance?: string | null;
   human_gate: boolean;
   status: string;
+  is_active: boolean;
   gate_status: string;
   iteration_count: number;
   summary?: string | null;
   started_at?: string | null;
   completed_at?: string | null;
+  open_work_item_count: number;
+  total_work_item_count: number;
 }
 
 export interface DashboardWorkflowWorkItemRecord {
@@ -287,10 +290,16 @@ export interface DashboardWorkItemMemoryHistoryEntry extends DashboardWorkItemMe
 export interface DashboardWorkflowBoardResponse {
   columns: DashboardWorkflowBoardColumn[];
   work_items: DashboardWorkflowWorkItemRecord[];
+  active_stages: string[];
+  awaiting_gate_count: number;
   stage_summary: Array<{
     name: string;
     goal: string;
+    status: string;
+    is_active: boolean;
+    gate_status: string;
     work_item_count: number;
+    open_work_item_count: number;
     completed_count: number;
   }>;
 }
