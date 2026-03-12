@@ -29,6 +29,7 @@ import { Button } from '../../components/ui/button.js';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs.js';
 import { GateDetailCard } from '../work/gate-detail-card.js';
 import { buildApprovalQueueSummary } from './alerts-approvals-page.support.js';
+import { buildWorkflowDetailPermalink } from '../workflow-detail-permalinks.js';
 
 interface TaskRecord {
   id: string;
@@ -52,6 +53,11 @@ interface TaskRecord {
   created_at?: string;
   depends_on?: string[];
   workflow_id?: string | null;
+  workflow_name?: string | null;
+  work_item_id?: string | null;
+  work_item_title?: string | null;
+  stage_name?: string | null;
+  activation_id?: string | null;
 }
 
 const REFETCH_INTERVAL = 5000;
@@ -91,6 +97,20 @@ function formatOutput(output: unknown): string {
   return JSON.stringify(output, null, 2);
 }
 
+function usesWorkItemOperatorFlow(task: TaskRecord): boolean {
+  return Boolean(task.workflow_id && task.work_item_id);
+}
+
+function buildTaskWorkItemPermalink(task: TaskRecord): string | null {
+  if (!task.workflow_id || !task.work_item_id) {
+    return null;
+  }
+  return buildWorkflowDetailPermalink(task.workflow_id, {
+    workItemId: task.work_item_id,
+    activationId: task.activation_id ?? null,
+  });
+}
+
 function QueueSummaryCard({
   label,
   value,
@@ -108,6 +128,38 @@ function QueueSummaryCard({
         <p className="text-xs text-muted">{detail}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function WorkItemFlowActionBlock({
+  task,
+  message,
+}: {
+  task: TaskRecord;
+  message: string;
+}): JSX.Element | null {
+  const workItemPermalink = buildTaskWorkItemPermalink(task);
+  if (!workItemPermalink) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-3 rounded-md border border-border/70 bg-border/10 p-3">
+      <div className="space-y-1">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted">
+          Work-item operator flow
+        </p>
+        <p className="text-xs text-muted">{message}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" asChild>
+          <Link to={workItemPermalink}>Open Work Item Flow</Link>
+        </Button>
+        <Button size="sm" variant="outline" asChild>
+          <Link to={`/work/tasks/${task.id}`}>Open Step Record</Link>
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -658,6 +710,7 @@ function ApprovalCard({ task, onApprove, onRequestChanges, onSkip, onReject, isL
   const instructions = extractInstructions(task.input);
   const description = task.description;
   const hasOutput = task.output != null;
+  const workItemFlow = usesWorkItemOperatorFlow(task);
 
   return (
     <Card className="border-l-4 border-l-amber-400">
@@ -713,34 +766,41 @@ function ApprovalCard({ task, onApprove, onRequestChanges, onSkip, onReject, isL
 
         <TaskMetaRow task={task} />
 
-        <div className="flex flex-wrap gap-2 pt-1">
-          <Button size="sm" onClick={onApprove} disabled={isLoading}>
-            <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-            Approve Step
-          </Button>
-          <FeedbackAction
-            label="Request Rework"
-            icon={<MessageSquare className="mr-1 h-3.5 w-3.5" />}
-            placeholder="Describe what needs to change before this specialist step should continue..."
-            onSubmit={onRequestChanges}
-            disabled={isLoading}
+        {workItemFlow ? (
+          <WorkItemFlowActionBlock
+            task={task}
+            message="This workflow-owned specialist step must be approved, reworked, bypassed, or rejected from the grouped work-item flow so board context, linked steps, and gate state stay aligned."
           />
-          <FeedbackAction
-            label="Bypass Step"
-            icon={<SkipForward className="mr-1 h-3.5 w-3.5" />}
-            placeholder="Reason for bypassing this specialist step..."
-            onSubmit={onSkip}
-            disabled={isLoading}
-          />
-          <FeedbackAction
-            label="Reject Step"
-            icon={<XCircle className="mr-1 h-3.5 w-3.5" />}
-            variant="destructive"
-            placeholder="Reason for rejecting this specialist step..."
-            onSubmit={onReject}
-            disabled={isLoading}
-          />
-        </div>
+        ) : (
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button size="sm" onClick={onApprove} disabled={isLoading}>
+              <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+              Approve Step
+            </Button>
+            <FeedbackAction
+              label="Request Rework"
+              icon={<MessageSquare className="mr-1 h-3.5 w-3.5" />}
+              placeholder="Describe what needs to change before this specialist step should continue..."
+              onSubmit={onRequestChanges}
+              disabled={isLoading}
+            />
+            <FeedbackAction
+              label="Bypass Step"
+              icon={<SkipForward className="mr-1 h-3.5 w-3.5" />}
+              placeholder="Reason for bypassing this specialist step..."
+              onSubmit={onSkip}
+              disabled={isLoading}
+            />
+            <FeedbackAction
+              label="Reject Step"
+              icon={<XCircle className="mr-1 h-3.5 w-3.5" />}
+              variant="destructive"
+              placeholder="Reason for rejecting this specialist step..."
+              onSubmit={onReject}
+              disabled={isLoading}
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -766,6 +826,7 @@ function OutputReviewCard({ task, onApproveOutput, onRequestChanges, onSkip, onR
   const reviewFeedback = task.input?.review_feedback as string | undefined;
   const outputText = formatOutput(task.output);
   const outputTruncated = outputText.length > 800;
+  const workItemFlow = usesWorkItemOperatorFlow(task);
 
   return (
     <Card className="border-l-4 border-l-blue-500">
@@ -840,34 +901,41 @@ function OutputReviewCard({ task, onApproveOutput, onRequestChanges, onSkip, onR
         <TaskMetaRow task={task} />
 
         {/* Actions */}
-        <div className="flex flex-wrap gap-2 pt-1">
-          <Button size="sm" onClick={onApproveOutput} disabled={isLoading}>
-            <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-            Approve Output Gate
-          </Button>
-          <FeedbackAction
-            label="Request Rework"
-            icon={<MessageSquare className="mr-1 h-3.5 w-3.5" />}
-            placeholder="Describe what needs to change — this operator feedback will be passed to the specialist on the next iteration..."
-            onSubmit={onRequestChanges}
-            disabled={isLoading}
+        {workItemFlow ? (
+          <WorkItemFlowActionBlock
+            task={task}
+            message="This workflow-owned output gate must be handled from the grouped work-item flow so the quality decision, follow-on rework, and board-stage context stay attached to the work item."
           />
-          <FeedbackAction
-            label="Bypass Review"
-            icon={<SkipForward className="mr-1 h-3.5 w-3.5" />}
-            placeholder="Reason for bypassing this output gate..."
-            onSubmit={onSkip}
-            disabled={isLoading}
-          />
-          <FeedbackAction
-            label="Reject Output"
-            icon={<XCircle className="mr-1 h-3.5 w-3.5" />}
-            variant="destructive"
-            placeholder="Reason for rejection — the specialist step will be marked as failed..."
-            onSubmit={onReject}
-            disabled={isLoading}
-          />
-        </div>
+        ) : (
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button size="sm" onClick={onApproveOutput} disabled={isLoading}>
+              <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+              Approve Output Gate
+            </Button>
+            <FeedbackAction
+              label="Request Rework"
+              icon={<MessageSquare className="mr-1 h-3.5 w-3.5" />}
+              placeholder="Describe what needs to change — this operator feedback will be passed to the specialist on the next iteration..."
+              onSubmit={onRequestChanges}
+              disabled={isLoading}
+            />
+            <FeedbackAction
+              label="Bypass Review"
+              icon={<SkipForward className="mr-1 h-3.5 w-3.5" />}
+              placeholder="Reason for bypassing this output gate..."
+              onSubmit={onSkip}
+              disabled={isLoading}
+            />
+            <FeedbackAction
+              label="Reject Output"
+              icon={<XCircle className="mr-1 h-3.5 w-3.5" />}
+              variant="destructive"
+              placeholder="Reason for rejection — the specialist step will be marked as failed..."
+              onSubmit={onReject}
+              disabled={isLoading}
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -887,6 +955,7 @@ interface FailedCardProps {
 }
 
 function FailedCard({ task, onRetry, onRetryDifferentWorker, onSkip, onCancel, isLoading }: FailedCardProps): JSX.Element {
+  const workItemFlow = usesWorkItemOperatorFlow(task);
   return (
     <Card className="border-l-4 border-l-red-500">
       <CardHeader className="pb-3">
@@ -909,27 +978,39 @@ function FailedCard({ task, onRetry, onRetryDifferentWorker, onSkip, onCancel, i
           )}
           <span className="font-mono">Step {task.id.slice(0, 8)}</span>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={onRetry} disabled={isLoading}>
-            <RotateCcw className="mr-1 h-3.5 w-3.5" />
-            Re-run Step
-          </Button>
-          <Button size="sm" variant="outline" onClick={onRetryDifferentWorker} disabled={isLoading}>
-            <RefreshCw className="mr-1 h-3.5 w-3.5" />
-            Re-run on New Worker
-          </Button>
-          <FeedbackAction
-            label="Bypass Step"
-            icon={<SkipForward className="mr-1 h-3.5 w-3.5" />}
-            placeholder="Reason for bypassing this failed step..."
-            onSubmit={onSkip}
-            disabled={isLoading}
+        {workItemFlow ? (
+          <WorkItemFlowActionBlock
+            task={task}
+            message="This failed workflow-owned specialist step must be retried, bypassed, or cancelled from the grouped work-item flow so linked work, board posture, and downstream stage decisions remain coordinated."
           />
-          <Button size="sm" variant="destructive" onClick={onCancel} disabled={isLoading}>
-            <XCircle className="mr-1 h-3.5 w-3.5" />
-            Cancel Failed Step
-          </Button>
-        </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={onRetry} disabled={isLoading}>
+              <RotateCcw className="mr-1 h-3.5 w-3.5" />
+              Re-run Step
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onRetryDifferentWorker}
+              disabled={isLoading}
+            >
+              <RefreshCw className="mr-1 h-3.5 w-3.5" />
+              Re-run on New Worker
+            </Button>
+            <FeedbackAction
+              label="Bypass Step"
+              icon={<SkipForward className="mr-1 h-3.5 w-3.5" />}
+              placeholder="Reason for bypassing this failed step..."
+              onSubmit={onSkip}
+              disabled={isLoading}
+            />
+            <Button size="sm" variant="destructive" onClick={onCancel} disabled={isLoading}>
+              <XCircle className="mr-1 h-3.5 w-3.5" />
+              Cancel Failed Step
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -953,6 +1034,8 @@ function EscalationCard({ task, onResolve, onSkip, onCancel, isLoading }: Escala
   const escalationDepth = (task.metadata?.escalation_depth as number | undefined) ?? 1;
   const maxDepth = (task.metadata?.max_escalation_depth as number | undefined) ?? 5;
   const instructions = extractInstructions(task.input);
+  const workItemFlow = usesWorkItemOperatorFlow(task);
+  const workItemPermalink = buildTaskWorkItemPermalink(task);
 
   return (
     <Card className="border-l-4 border-l-purple-500">
@@ -1008,6 +1091,11 @@ function EscalationCard({ task, onResolve, onSkip, onCancel, isLoading }: Escala
           <span className="font-mono">Step {task.id.slice(0, 8)}</span>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs">
+          {workItemPermalink ? (
+            <Link to={workItemPermalink} className="underline-offset-4 hover:underline">
+              Open work item flow
+            </Link>
+          ) : null}
           {task.workflow_id ? (
             <Link to={`/work/workflows/${task.workflow_id}`} className="underline-offset-4 hover:underline">
               Open board
@@ -1018,26 +1106,33 @@ function EscalationCard({ task, onResolve, onSkip, onCancel, isLoading }: Escala
           </Link>
         </div>
 
-        <div className="flex flex-wrap gap-2 pt-1">
-          <FeedbackAction
-            label="Resume with Guidance"
-            icon={<CheckCircle2 className="mr-1 h-3.5 w-3.5" />}
-            placeholder="Provide operator guidance to help the specialist continue..."
-            onSubmit={onResolve}
-            disabled={isLoading}
+        {workItemFlow ? (
+          <WorkItemFlowActionBlock
+            task={task}
+            message="This escalated workflow-owned specialist step must be resumed, bypassed, or cancelled from the grouped work-item flow so operator guidance, linked work, and board-stage context stay attached to the work item."
           />
-          <FeedbackAction
-            label="Bypass Step"
-            icon={<SkipForward className="mr-1 h-3.5 w-3.5" />}
-            placeholder="Reason for bypassing this escalated step..."
-            onSubmit={onSkip}
-            disabled={isLoading}
-          />
-          <Button size="sm" variant="destructive" onClick={onCancel} disabled={isLoading}>
-            <XCircle className="mr-1 h-3.5 w-3.5" />
-            Cancel Work
-          </Button>
-        </div>
+        ) : (
+          <div className="flex flex-wrap gap-2 pt-1">
+            <FeedbackAction
+              label="Resume with Guidance"
+              icon={<CheckCircle2 className="mr-1 h-3.5 w-3.5" />}
+              placeholder="Provide operator guidance to help the specialist continue..."
+              onSubmit={onResolve}
+              disabled={isLoading}
+            />
+            <FeedbackAction
+              label="Bypass Step"
+              icon={<SkipForward className="mr-1 h-3.5 w-3.5" />}
+              placeholder="Reason for bypassing this escalated step..."
+              onSubmit={onSkip}
+              disabled={isLoading}
+            />
+            <Button size="sm" variant="destructive" onClick={onCancel} disabled={isLoading}>
+              <XCircle className="mr-1 h-3.5 w-3.5" />
+              Cancel Work
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -1048,9 +1143,12 @@ function EscalationCard({ task, onResolve, onSkip, onCancel, isLoading }: Escala
 // ---------------------------------------------------------------------------
 
 function TaskMetaRow({ task }: { task: TaskRecord }): JSX.Element {
+  const workItemFlow = usesWorkItemOperatorFlow(task);
   return (
     <div className="flex flex-wrap items-center gap-3 text-[10px] text-muted">
       {task.workflow_id && <span>Board: {task.workflow_id.slice(0, 8)}</span>}
+      {workItemFlow && task.work_item_id ? <span>Work item: {task.work_item_id.slice(0, 8)}</span> : null}
+      {task.stage_name ? <span>Stage: {task.stage_name}</span> : null}
       {(task.depends_on ?? []).length > 0 && (
         <span>Upstream steps: {task.depends_on!.length}</span>
       )}

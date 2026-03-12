@@ -31,6 +31,18 @@ describe('alerts approvals page source', () => {
     expect(source).toContain('Cancel Work');
   });
 
+  it('routes workflow-owned task interventions through the grouped work-item flow instead of task-first actions', () => {
+    const source = readSource();
+    expect(source).toContain('buildWorkflowDetailPermalink');
+    expect(source).toContain('usesWorkItemOperatorFlow');
+    expect(source).toContain('WorkItemFlowActionBlock');
+    expect(source).toContain('Open Work Item Flow');
+    expect(source).toContain('workflow-owned specialist step must be approved, reworked, bypassed, or rejected from the grouped work-item flow');
+    expect(source).toContain('workflow-owned output gate must be handled from the grouped work-item flow');
+    expect(source).toContain('failed workflow-owned specialist step must be retried, bypassed, or cancelled from the grouped work-item flow');
+    expect(source).toContain('escalated workflow-owned specialist step must be resumed, bypassed, or cancelled from the grouped work-item flow');
+  });
+
   it('uses board and specialist-step language instead of generic workflow status copy', () => {
     const source = readSource();
     expect(source).toContain('active boards');
