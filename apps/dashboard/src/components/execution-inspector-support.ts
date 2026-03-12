@@ -137,10 +137,10 @@ export function readInspectorView(searchParams: URLSearchParams): 'summary' | 'd
 export function summarizeLogContext(entry: LogEntry): string[] {
   const items: string[] = [];
   if (entry.workflow_name || entry.workflow_id) {
-    items.push(`workflow ${entry.workflow_name ?? shortId(entry.workflow_id)}`);
+    items.push(`board ${entry.workflow_name ?? shortId(entry.workflow_id)}`);
   }
   if (entry.task_title || entry.task_id) {
-    items.push(`task ${entry.task_title ?? shortId(entry.task_id)}`);
+    items.push(`step ${entry.task_title ?? shortId(entry.task_id)}`);
   }
   if (entry.stage_name) {
     items.push(`stage ${entry.stage_name}`);

@@ -26,6 +26,7 @@ describe('execution inspector page source', () => {
     expect(source).toContain('dashboardApi.getLog');
     expect(source).toContain('dashboardApi.getLogStats');
     expect(source).toContain('dashboardApi.getWorkflowBudget(scopedWorkflowId)');
+    expect(source).toContain('buildInspectorOverviewCards');
     expect(source).toContain('WorkflowBudgetCard');
     expect(source).toContain('context="inspector"');
     expect(source).not.toContain('LogViewer');
@@ -46,5 +47,7 @@ describe('execution inspector page source', () => {
     expect(source).toContain('Loading selected trace detail…');
     expect(source).toContain('isSelectedOutsideSegment');
     expect(source).toContain('loadedCount={entries.length}');
+    expect(source).toContain('Step record');
+    expect(source).toContain('md:grid-cols-3');
   });
 });

@@ -488,7 +488,7 @@ function OperatorBriefingCard({ task, status }: { task: Task; status: string }):
           <p className="mt-2 text-sm leading-6 text-muted">{nextStep.detail}</p>
           {workItemFlow ? (
             <p className="mt-3 text-sm text-muted">
-              This task is attached to a workflow work item. Run approval, rework, and retry decisions from the work-item flow so stage state, linked steps, and board context stay aligned.
+              This specialist step belongs to a workflow work item. Run approval, rework, and retry decisions from the work-item flow so stage state, linked steps, and board context stay aligned.
             </p>
           ) : null}
         </section>
@@ -606,7 +606,7 @@ function ContextSection({ task, status }: { task: Task; status: string }): JSX.E
               <SignalListItem label="Stage" value={task.stage_name ?? 'No stage'} />
               <SignalListItem label="Work item" value={summarizeId(task.work_item_id)} />
               <SignalListItem label="Activation" value={summarizeId(task.activation_id)} />
-              <SignalListItem label="Task type" value={task.type ?? describeTaskKind(task)} />
+              <SignalListItem label="Step kind" value={task.type ?? describeTaskKind(task)} />
             </dl>
           </div>
         </CardContent>

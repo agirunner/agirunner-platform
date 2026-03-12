@@ -15,7 +15,7 @@ export function ExecutionInspectorDebugView(
     return (
       <Card>
         <CardContent className="p-5 text-sm text-muted">
-          Select an execution entry from the detailed view to inspect raw payloads and identifiers.
+          Select an execution entry to inspect the recorded payload, failure detail, and diagnostic handles behind the operator summary.
         </CardContent>
       </Card>
     );
@@ -35,22 +35,20 @@ export function ExecutionInspectorDebugView(
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-3 md:grid-cols-2">
-              <InspectorMeta label="Created">
+              <InspectorMeta label="Recorded">
                 {new Date(props.entry.created_at).toLocaleString()}
               </InspectorMeta>
-              <InspectorMeta label="Source">
+              <InspectorMeta label="Origin">
                 {props.entry.source} / {props.entry.category}
               </InspectorMeta>
-              <InspectorMeta label="Trace ID">{props.entry.trace_id}</InspectorMeta>
-              <InspectorMeta label="Span ID">{props.entry.span_id}</InspectorMeta>
-              {props.entry.parent_span_id ? (
-                <InspectorMeta label="Parent Span ID">{props.entry.parent_span_id}</InspectorMeta>
-              ) : null}
               {props.entry.resource_type || props.entry.resource_id ? (
                 <InspectorMeta label="Resource">
                   {props.entry.resource_type ?? 'resource'} {shortId(props.entry.resource_id)}
                 </InspectorMeta>
               ) : null}
+              <InspectorMeta label="Activity span">
+                {shortId(props.entry.span_id)}
+              </InspectorMeta>
             </div>
 
             {context.length > 0 ? (
@@ -68,6 +66,21 @@ export function ExecutionInspectorDebugView(
               </div>
             ) : null}
 
+            <div className="space-y-2">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted">
+                Diagnostic handles
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <InspectorMeta label="Trace handle">{props.entry.trace_id}</InspectorMeta>
+                <InspectorMeta label="Span handle">{props.entry.span_id}</InspectorMeta>
+                {props.entry.parent_span_id ? (
+                  <InspectorMeta label="Parent span handle">
+                    {props.entry.parent_span_id}
+                  </InspectorMeta>
+                ) : null}
+              </div>
+            </div>
+
             {props.entry.error ? (
               <div className="space-y-2">
                 <div className="text-xs font-medium uppercase tracking-wide text-muted">
@@ -75,7 +88,7 @@ export function ExecutionInspectorDebugView(
                 </div>
                 <StructuredRecordView
                   data={props.entry.error}
-                  emptyMessage="No error payload."
+                  emptyMessage="No error detail recorded."
                 />
               </div>
             ) : null}
@@ -86,12 +99,12 @@ export function ExecutionInspectorDebugView(
       <section className="rounded-3xl border border-border/70 bg-card shadow-sm">
         <Card className="border-0 bg-transparent shadow-none">
           <CardHeader>
-            <CardTitle>Payload</CardTitle>
+            <CardTitle>Recorded detail</CardTitle>
           </CardHeader>
           <CardContent>
             <StructuredRecordView
               data={props.entry.payload ?? {}}
-              emptyMessage="No structured payload recorded for this execution entry."
+              emptyMessage="No structured detail was recorded for this execution entry."
             />
           </CardContent>
         </Card>

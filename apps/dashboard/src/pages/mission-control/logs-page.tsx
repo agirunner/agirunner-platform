@@ -25,6 +25,7 @@ import {
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
+import { buildInspectorOverviewCards } from './logs-page-support.js';
 
 const PAGE_SIZE = '50';
 const SUMMARY_DETAIL_MODE = 'summary';
@@ -197,6 +198,16 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
   const taskRecordLink = selectedEntry?.task_id
     ? `/work/tasks/${selectedEntry.task_id}`
     : null;
+  const overviewCards = useMemo(
+    () =>
+      buildInspectorOverviewCards(
+        filters,
+        scopedWorkflowId,
+        statsQuery.data,
+        operationsQuery.data?.data ?? [],
+      ),
+    [filters, scopedWorkflowId, statsQuery.data, operationsQuery.data],
+  );
 
   async function handleExport(): Promise<void> {
     const blob = await dashboardApi.exportLogs(baseFilters);
@@ -238,7 +249,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
           ) : null}
           {taskRecordLink ? (
             <Button variant="outline" asChild>
-              <Link to={taskRecordLink}>Task record</Link>
+              <Link to={taskRecordLink}>Step record</Link>
             </Button>
           ) : null}
           {selectedEntryPermalink ? (
@@ -258,6 +269,20 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
           context="inspector"
         />
       ) : null}
+
+      <section className="grid gap-4 md:grid-cols-3">
+        {overviewCards.map((card) => (
+          <Card key={card.title} className="border-border/70 bg-card/75 shadow-sm">
+            <CardContent className="space-y-2 p-5">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                {card.title}
+              </p>
+              <p className="text-xl font-semibold tracking-tight">{card.value}</p>
+              <p className="text-sm leading-6 text-muted">{card.detail}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </section>
 
       <section className="rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
         <ExecutionInspectorFilterBar

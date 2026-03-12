@@ -115,7 +115,7 @@ export function buildTaskNextStep(task: TaskWithStatus | null): TaskNextStep {
     return {
       title: 'Resolve the escalation path',
       detail:
-        'Use the escalation context, human response, and work-item thread to decide whether to resume, redirect, or rework the task.',
+        'Use the escalation context, human response, and work-item thread to decide whether to resume, redirect, or rework the specialist step.',
     };
   }
   if (state === 'failed') {
@@ -142,7 +142,7 @@ export function buildTaskNextStep(task: TaskWithStatus | null): TaskNextStep {
   return {
     title: 'Review task context before acting',
     detail:
-      'Use the workflow scope, current status, and task packet to decide the safest next operator action.',
+      'Use the workflow scope, current status, and step packet to decide the safest next operator action.',
   };
 }
 

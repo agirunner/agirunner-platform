@@ -35,12 +35,12 @@ export function ExecutionInspectorDetailView(
         {!props.isLoading && props.entries.length > 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/20 px-5 py-3 text-xs text-muted">
             <span>
-              Loaded {props.loadedCount} trace summaries
+              Loaded {props.loadedCount} activity summaries
               {props.hasMore ? ' in the current segment' : ''}
             </span>
             {props.isSelectedOutsideSegment ? (
               <div className="flex items-center gap-3">
-                <span>Selected trace is pinned outside the loaded segment.</span>
+                <span>Selected entry is pinned outside the current segment.</span>
                 {props.onClearSelection ? (
                   <Button variant="ghost" size="sm" onClick={props.onClearSelection}>
                     Return to segment
@@ -95,9 +95,9 @@ export function ExecutionInspectorDetailView(
                     ) : null}
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2 text-xs text-muted">
-                    <span>trace {shortId(entry.trace_id)}</span>
-                    <span>span {shortId(entry.span_id)}</span>
                     <span>{formatDuration(entry.duration_ms)}</span>
+                    <span>trace {shortId(entry.trace_id)}</span>
+                    <span>activity span {shortId(entry.span_id)}</span>
                   </div>
                 </div>
               </button>

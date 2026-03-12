@@ -106,5 +106,8 @@ describe('task detail lifecycle support', () => {
     expect(buildTaskNextStep({ state: 'in_progress' } as never).title).toBe(
       'Monitor execution and intervene only if needed',
     );
+    expect(buildTaskNextStep({ state: 'queued' } as never).detail).toBe(
+      'Use the workflow scope, current status, and step packet to decide the safest next operator action.',
+    );
   });
 });

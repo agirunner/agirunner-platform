@@ -28,29 +28,29 @@ export function ExecutionInspectorSummaryView(
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          title="Events"
+          title="Entries"
           value={formatNumber(totals?.count ?? 0)}
-          detail="matching execution records"
+          detail="matching activity records"
           icon={<Activity className="h-4 w-4" />}
         />
         <MetricCard
-          title="Errors"
+          title="Attention"
           value={formatNumber(totals?.error_count ?? 0)}
-          detail="failed or error-level records"
+          detail="error-level or failed records"
           icon={<AlertTriangle className="h-4 w-4" />}
         />
         <MetricCard
-          title="Total Duration"
+          title="Recorded runtime"
           value={formatDuration(totals?.total_duration_ms ?? 0)}
           detail="summed reported duration"
           icon={<Clock3 className="h-4 w-4" />}
         />
         <MetricCard
-          title="Estimated Cost"
+          title="Spend signal"
           value={formatCost(
             groups.reduce((sum, group) => sum + Number(group.agg.total_cost_usd ?? 0), 0),
           )}
-          detail="from log aggregate payloads"
+          detail="from current execution aggregates"
           icon={<DollarSign className="h-4 w-4" />}
         />
       </div>
@@ -58,7 +58,7 @@ export function ExecutionInspectorSummaryView(
       <div className="grid gap-4 xl:grid-cols-2">
         <TopListCard
           title="Top Categories"
-          description="Where execution time is being spent"
+          description="Where the current slice is spending the most attention"
           items={topGroups(groups, 8).map((group) => ({
             label: group.group,
             count: group.count,
@@ -69,7 +69,7 @@ export function ExecutionInspectorSummaryView(
         />
         <TopListCard
           title="Top Operations"
-          description="Most frequent execution operations"
+          description="Most active execution paths"
           items={topGroups(props.operations, 10).map((item) => ({
             label: item.operation,
             count: item.count,
@@ -78,7 +78,7 @@ export function ExecutionInspectorSummaryView(
         />
         <TopListCard
           title="Roles"
-          description="Roles producing the most activity"
+          description="Roles driving the current slice"
           items={topGroups(props.roles, 8).map((item) => ({
             label: item.role,
             count: item.count,
@@ -87,7 +87,7 @@ export function ExecutionInspectorSummaryView(
         />
         <TopListCard
           title="Actors"
-          description="Top emitting actors in the current slice"
+          description="Workers, operators, and runtimes active in this slice"
           items={topGroups(props.actors, 8).map((item) => ({
             label: item.actor_name || `${item.actor_type}:${item.actor_id}`,
             count: item.count,

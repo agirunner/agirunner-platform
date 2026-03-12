@@ -36,5 +36,7 @@ describe('task detail page source', () => {
     expect(source).toContain('Clarifications');
     expect(source).toContain('Escalation and execution');
     expect(source).toContain('StructuredRecordView');
+    expect(source).toContain('This specialist step belongs to a workflow work item.');
+    expect(source).toContain('Step kind');
   });
 });

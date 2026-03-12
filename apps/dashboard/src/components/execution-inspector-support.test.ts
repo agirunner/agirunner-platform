@@ -52,8 +52,8 @@ describe('execution inspector support', () => {
         created_at: '2026-03-11T00:00:00Z',
       },
     )).toEqual([
-      'workflow Delivery',
-      'task Implement billing',
+      'board Delivery',
+      'step Implement billing',
       'stage build',
       'work item work-ite',
       'activation activati',

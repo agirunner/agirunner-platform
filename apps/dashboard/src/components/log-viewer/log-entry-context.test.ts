@@ -84,7 +84,9 @@ describe('log entry context', () => {
 
     expect(detailSource).toContain("task_lifecycle: 'Execution Step Lifecycle'");
     expect(detailSource).toContain('<DetailRow label="Board">');
-    expect(detailSource).toContain('<DetailRow label="Step ID">');
+    expect(detailSource).toContain('<DetailRow label="Step">');
+    expect(detailSource).toContain('Diagnostic handles');
+    expect(detailSource).toContain('Recorded payload');
     expect(taskDetailSource).toContain('Execution Step Lifecycle');
     expect(taskDetailSource).toContain("label: 'Board'");
     expect(taskDetailSource).toContain("label: 'Step Title'");

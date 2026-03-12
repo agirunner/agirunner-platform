@@ -121,7 +121,10 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
 
   return (
     <div className="rounded-md border border-border p-4">
-      <h4 className="mb-3 text-sm font-semibold">Trace & Context</h4>
+      <h4 className="mb-1 text-sm font-semibold">Execution packet</h4>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Board, stage, and specialist-step context for this activity.
+      </p>
       <div className="grid max-w-lg grid-cols-[auto_1fr] gap-x-6 gap-y-0 text-sm">
         <DetailRow label="Timestamp">
           <span className="font-mono text-xs">{formatDetailTimestamp(entry.created_at)}</span>
@@ -158,12 +161,12 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
           </DetailRow>
         )}
         {entry.task_id && (
-          <DetailRow label="Step ID">
+          <DetailRow label="Step">
             <span className="font-mono text-xs">{entry.task_id}</span>
           </DetailRow>
         )}
         {entry.work_item_id && (
-          <DetailRow label="Work Item ID">
+          <DetailRow label="Work item">
             <span className="font-mono text-xs">{entry.work_item_id}</span>
           </DetailRow>
         )}
@@ -178,7 +181,7 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
           </DetailRow>
         )}
         {entry.activation_id && (
-          <DetailRow label="Activation ID">
+          <DetailRow label="Activation">
             <span className="font-mono text-xs">{entry.activation_id}</span>
           </DetailRow>
         )}
@@ -209,12 +212,30 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
             </span>
           </DetailRow>
         )}
-        <DetailRow label="Trace ID">
+      </div>
+    </div>
+  );
+}
+
+function DiagnosticHandlesSection({ entry }: { entry: LogEntry }): JSX.Element {
+  return (
+    <div className="rounded-md border border-border p-4">
+      <h4 className="mb-1 text-sm font-semibold">Diagnostic handles</h4>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Use these only when correlating entries across traces, exports, or support investigations.
+      </p>
+      <div className="grid max-w-lg grid-cols-[auto_1fr] gap-x-6 gap-y-0 text-sm">
+        <DetailRow label="Trace handle">
           <span className="font-mono text-xs">{entry.trace_id}</span>
         </DetailRow>
-        <DetailRow label="Span ID">
+        <DetailRow label="Span handle">
           <span className="font-mono text-xs">{entry.span_id}</span>
         </DetailRow>
+        {entry.parent_span_id ? (
+          <DetailRow label="Parent span handle">
+            <span className="font-mono text-xs">{entry.parent_span_id}</span>
+          </DetailRow>
+        ) : null}
       </div>
     </div>
   );
@@ -241,7 +262,7 @@ function PayloadSection({ payload }: { payload: Record<string, unknown> }): JSX.
         onClick={() => setIsExpanded((prev) => !prev)}
       >
         {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-        Raw Payload
+        Recorded payload
       </button>
       {isExpanded && (
         <pre className="mt-2 max-h-80 overflow-auto rounded bg-card p-3 text-xs">
@@ -273,6 +294,7 @@ export function LogEntryDetail({ entry, onFilterTrace }: LogEntryDetailProps): J
   return (
     <div className={cn('space-y-4 px-4 pb-4')}>
       <TraceContextSection entry={entry} />
+      <DiagnosticHandlesSection entry={entry} />
 
       <CategoryDetail entry={entry} />
 
@@ -283,7 +305,7 @@ export function LogEntryDetail({ entry, onFilterTrace }: LogEntryDetailProps): J
       <div className="flex gap-2">
         <Button variant="outline" size="sm" onClick={handleCopyJson}>
           <Copy className="mr-1 h-3 w-3" />
-          {isCopied ? 'Copied' : 'Copy as JSON'}
+          {isCopied ? 'Copied' : 'Copy entry JSON'}
         </Button>
         {onFilterTrace && (
           <Button variant="outline" size="sm" onClick={handleFilterTrace}>
@@ -293,7 +315,7 @@ export function LogEntryDetail({ entry, onFilterTrace }: LogEntryDetailProps): J
         )}
         {workflowPermalink ? (
           <Button variant="outline" size="sm" asChild>
-            <Link to={workflowPermalink}>Open workflow context</Link>
+            <Link to={workflowPermalink}>Open board context</Link>
           </Button>
         ) : null}
       </div>
