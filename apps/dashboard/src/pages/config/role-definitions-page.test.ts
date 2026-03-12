@@ -9,7 +9,8 @@ function readSource() {
 function readCombinedSource() {
   return [
     readSource(),
-    readFileSync(resolve(import.meta.dirname, './role-definitions-page.parts.tsx'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.tsx'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-list.tsx'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-page.support.ts'), 'utf8'),
   ].join('\n');
 }
@@ -24,15 +25,23 @@ describe('role definitions page source', () => {
 
   it('keeps the role editor dialog scrollable and wide enough for large forms', () => {
     const source = readSource();
-    expect(source).toContain("import { MetricCard, RoleDialog, RoleRow } from './role-definitions-page.parts.js'");
-    const partsSource = readFileSync(resolve(import.meta.dirname, './role-definitions-page.parts.tsx'), 'utf8');
-    expect(partsSource).toContain('max-h-[85vh] max-w-5xl overflow-y-auto');
+    expect(source).toContain("import { RoleDialog } from './role-definitions-dialog.js'");
+    const dialogSource = readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.tsx'), 'utf8');
+    expect(dialogSource).toContain('max-h-[85vh] max-w-5xl overflow-y-auto');
   });
 
   it('keeps unknown existing allowed tools editable alongside the standard catalog', () => {
     const source = readCombinedSource();
     expect(source).toContain('listAvailableTools');
     expect(source).toContain('Existing grants that are no longer in the standard catalog');
+  });
+
+  it('exposes structured model and active-state controls in the dialog', () => {
+    const source = readCombinedSource();
+    expect(source).toContain('Model preference');
+    expect(source).toContain('Fallback model');
+    expect(source).toContain('Active role');
+    expect(source).toContain('Add custom capability');
   });
 
   it('supports a first-class create role flow and uses the live create and replace routes', () => {
