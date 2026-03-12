@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { enforceHeartbeatTimeouts } from '../../src/services/worker-heartbeat-service.js';
 
 describe('worker heartbeat timeout enforcement', () => {
-  it('fails running/claimed tasks after offline grace window elapses', async () => {
+  it('fails in-progress/claimed tasks after offline grace window elapses', async () => {
     const now = new Date('2026-03-05T00:00:00.000Z');
     const lastHeartbeat = new Date(now.getTime() - 50_000).toISOString();
 

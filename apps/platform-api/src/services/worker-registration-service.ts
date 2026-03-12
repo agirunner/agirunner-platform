@@ -44,6 +44,15 @@ export async function registerWorker(
   const agentsToCreate = input.agents ?? [];
 
   for (const agent of agentsToCreate) {
+    const executionMode = agent.execution_mode ?? 'specialist';
+    const agentMetadata = {
+      ...(agent.metadata ?? {}),
+      execution_mode: executionMode,
+    };
+    const capabilities = normalizeWorkerAgentCapabilities(
+      agent.capabilities ?? [],
+      executionMode,
+    );
     const agentRes = await context.pool.query(
       `INSERT INTO agents (
         tenant_id, worker_id, name, capabilities, status, heartbeat_interval_seconds, last_heartbeat_at, metadata
@@ -53,9 +62,9 @@ export async function registerWorker(
         identity.tenantId,
         worker.id,
         agent.name,
-        agent.capabilities ?? [],
+        capabilities,
         input.heartbeat_interval_seconds ?? context.config.WORKER_DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
-        agent.metadata ?? {},
+        agentMetadata,
       ],
     );
 
@@ -94,6 +103,17 @@ export async function registerWorker(
     websocket_url: context.config.WORKER_WEBSOCKET_PATH,
     heartbeat_interval_seconds: worker.heartbeat_interval_seconds,
   };
+}
+
+function normalizeWorkerAgentCapabilities(
+  capabilities: string[],
+  executionMode: 'specialist' | 'orchestrator' | 'hybrid',
+): string[] {
+  const values = new Set(capabilities.map((capability) => capability.trim()).filter(Boolean));
+  if (executionMode === 'orchestrator' || executionMode === 'hybrid') {
+    values.add('orchestrator');
+  }
+  return [...values];
 }
 
 export async function listWorkers(context: WorkerServiceContext, tenantId: string) {

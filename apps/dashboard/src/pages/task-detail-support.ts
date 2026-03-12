@@ -19,6 +19,17 @@ export function parseJsonObject(value: string, errorMessage: string) {
   }
 }
 
+export function normalizeTaskState(value: string | null | undefined) {
+  const state = (value ?? '').toLowerCase();
+  if (state === 'running' || state === 'claimed') {
+    return 'in_progress';
+  }
+  if (state === 'awaiting_escalation') {
+    return 'escalated';
+  }
+  return state;
+}
+
 export function readClarificationHistory(task: Task | null) {
   const input = asRecord(task?.input);
   const history = Array.isArray(input.clarification_history) ? input.clarification_history : [];

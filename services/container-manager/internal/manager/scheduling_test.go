@@ -26,7 +26,7 @@ func TestPrioritySortingAppliedInReconcileDCM(t *testing.T) {
 	}
 	// High-priority template should be created first (indices 0-1).
 	for i := 0; i < 2; i++ {
-		tmplID := docker.createdSpecs[i].Labels[labelDCMTemplateID]
+		tmplID := docker.createdSpecs[i].Labels[labelDCMPlaybookID]
 		if tmplID != "tmpl-high" {
 			t.Errorf("expected createdSpecs[%d] for tmpl-high, got %s", i, tmplID)
 		}
@@ -60,8 +60,8 @@ func TestHighPriorityPreemptsIdleLowPriorityAtCapacity(t *testing.T) {
 		t.Errorf("expected at least 2 high-priority containers created, got %d", len(docker.createdSpecs))
 	}
 	for _, spec := range docker.createdSpecs {
-		if spec.Labels[labelDCMTemplateID] != "tmpl-high" {
-			t.Errorf("expected all created containers for tmpl-high, got %s", spec.Labels[labelDCMTemplateID])
+		if spec.Labels[labelDCMPlaybookID] != "tmpl-high" {
+			t.Errorf("expected all created containers for tmpl-high, got %s", spec.Labels[labelDCMPlaybookID])
 		}
 	}
 }
@@ -76,7 +76,7 @@ func TestPreemptionSkipsExecutingVictims(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		heartbeats = append(heartbeats, RuntimeHeartbeat{
 			RuntimeID:       docker.containers[i].Labels[labelDCMRuntimeID],
-			TemplateID:      "tmpl-low",
+			PlaybookID:      "tmpl-low",
 			State:           "executing",
 			LastHeartbeatAt: recentHB,
 		})
@@ -147,7 +147,8 @@ func TestStarvationTracking(t *testing.T) {
 	// First reconcile should start tracking starvation.
 	_ = mgr.reconcileDCM(context.Background())
 
-	firstPending, tracked := mgr.starvationTrack["tmpl-starved"]
+	starvedTarget := makeRuntimeTarget("tmpl-starved", "img:v1", 3, 5, 1)
+	firstPending, tracked := mgr.starvationTrack[starvedTarget.TargetKey()]
 	if !tracked {
 		t.Fatal("expected tmpl-starved to be tracked for starvation")
 	}
@@ -155,7 +156,7 @@ func TestStarvationTracking(t *testing.T) {
 		t.Errorf("expected firstPending=%v, got %v", frozenNow, firstPending)
 	}
 
-	if mgr.isStarved("tmpl-starved") {
+	if mgr.isStarved(starvedTarget) {
 		t.Error("should not be starved yet (just started)")
 	}
 }
@@ -173,7 +174,8 @@ func TestStarvationClearedOnNextCycleWhenRuntimeAssigned(t *testing.T) {
 	// First cycle: template has pending tasks but no running containers.
 	_ = mgr.reconcileDCM(context.Background())
 
-	if _, tracked := mgr.starvationTrack["tmpl-1"]; tracked {
+	target := makeRuntimeTarget("tmpl-1", "img:v1", 3, 5, 10)
+	if _, tracked := mgr.starvationTrack[target.TargetKey()]; tracked {
 		// Runtimes were created in this cycle; starvation was set before
 		// processing but the tracking check saw 0 running. Containers now
 		// exist in docker.createdSpecs. Next cycle will see them running.
@@ -190,7 +192,7 @@ func TestStarvationClearedOnNextCycleWhenRuntimeAssigned(t *testing.T) {
 
 	_ = mgr.reconcileDCM(context.Background())
 
-	if _, tracked := mgr.starvationTrack["tmpl-1"]; tracked {
+	if _, tracked := mgr.starvationTrack[makeRuntimeTarget("tmpl-1", "img:v1", 3, 0, 10).TargetKey()]; tracked {
 		t.Error("starvation should be cleared after runtimes are running")
 	}
 }
@@ -199,7 +201,7 @@ func TestStarvationBoostRaisesPriority(t *testing.T) {
 	mgr := newDCMTestManager(newMockDockerClient(), &mockPlatformClient{})
 
 	pastThreshold := time.Now().Add(-starvationThreshold - time.Second)
-	mgr.starvationTrack["tmpl-starved"] = pastThreshold
+	mgr.starvationTrack[makeRuntimeTarget("tmpl-starved", "img:v1", 3, 2, 1).TargetKey()] = pastThreshold
 
 	targets := []RuntimeTarget{
 		makeRuntimeTarget("tmpl-normal", "img:v1", 3, 2, 100),
@@ -209,11 +211,38 @@ func TestStarvationBoostRaisesPriority(t *testing.T) {
 	boosted := mgr.boostStarvedTargets(targets, targets)
 
 	// Starved template should now have priority > 100.
-	if boosted[0].TemplateID != "tmpl-starved" {
-		t.Errorf("expected starved template first after boost, got %s", boosted[0].TemplateID)
+	if boosted[0].PlaybookID != "tmpl-starved" {
+		t.Errorf("expected starved template first after boost, got %s", boosted[0].PlaybookID)
 	}
 	if boosted[0].Priority <= 100 {
 		t.Errorf("expected boosted priority > 100, got %d", boosted[0].Priority)
+	}
+}
+
+func TestCapabilityAwarePendingUnitsAddsBoundedSpecialistDemandBonus(t *testing.T) {
+	target := makeRuntimeTarget("tmpl-specialist", "img:v1", 4, 3, 10)
+	target.PoolKind = "specialist"
+	target.CapabilityDemandUnits = 8
+
+	got := capabilityAwarePendingUnits(target)
+
+	if got != 6 {
+		t.Fatalf("expected bounded demand units 6, got %d", got)
+	}
+}
+
+func TestAllocateProportionallyPrefersHigherCapabilityDemandWithinPriorityGroup(t *testing.T) {
+	shares := allocateProportionally(
+		[]int{1, 1},
+		[]int{
+			capabilityAwarePendingUnits(RuntimeTarget{PoolKind: "specialist", PendingTasks: 2, CapabilityDemandUnits: 4}),
+			capabilityAwarePendingUnits(RuntimeTarget{PoolKind: "specialist", PendingTasks: 2, CapabilityDemandUnits: 0}),
+		},
+		1,
+	)
+
+	if shares[0] != 1 || shares[1] != 0 {
+		t.Fatalf("expected higher-demand specialist target to receive the single slot, got %#v", shares)
 	}
 }
 
@@ -227,8 +256,8 @@ func TestStarvationBoostDoesNotAffectNonStarvedTargets(t *testing.T) {
 
 	boosted := mgr.boostStarvedTargets(targets, targets)
 
-	if boosted[0].TemplateID != "tmpl-b" {
-		t.Errorf("expected tmpl-b first (highest priority), got %s", boosted[0].TemplateID)
+	if boosted[0].PlaybookID != "tmpl-b" {
+		t.Errorf("expected tmpl-b first (highest priority), got %s", boosted[0].PlaybookID)
 	}
 	if boosted[0].Priority != 100 {
 		t.Errorf("expected priority unchanged at 100, got %d", boosted[0].Priority)
@@ -251,7 +280,7 @@ func TestStarvedTemplatePreemptsHigherOriginalPriority(t *testing.T) {
 
 	// Mark tmpl-starved as starved past threshold.
 	pastThreshold := time.Now().Add(-starvationThreshold - time.Second)
-	mgr.starvationTrack["tmpl-starved"] = pastThreshold
+	mgr.starvationTrack[makeRuntimeTarget("tmpl-starved", "img:v1", 3, 2, 1).TargetKey()] = pastThreshold
 
 	err := mgr.reconcileDCM(context.Background())
 
@@ -262,8 +291,8 @@ func TestStarvedTemplatePreemptsHigherOriginalPriority(t *testing.T) {
 		t.Error("expected at least 1 preemption for starved template")
 	}
 	for _, spec := range docker.createdSpecs {
-		if spec.Labels[labelDCMTemplateID] != "tmpl-starved" {
-			t.Errorf("expected preemption beneficiary tmpl-starved, got %s", spec.Labels[labelDCMTemplateID])
+		if spec.Labels[labelDCMPlaybookID] != "tmpl-starved" {
+			t.Errorf("expected preemption beneficiary tmpl-starved, got %s", spec.Labels[labelDCMPlaybookID])
 		}
 	}
 }
@@ -286,13 +315,14 @@ func TestPruneStaleStarvationEntries(t *testing.T) {
 }
 
 func TestIsContainerIdleByHeartbeat(t *testing.T) {
+	target := makeRuntimeTarget("tmpl-1", "img:v1", 1, 0, 10)
 	grouped := map[string][]ContainerInfo{
-		"tmpl-1": {makeDCMContainer("c-1", "tmpl-1", "img:v1", "rt-1")},
+		target.TargetKey(): {makeDCMContainer("c-1", "tmpl-1", "img:v1", "rt-1")},
 	}
 
 	t.Run("idleWhenNoHeartbeat", func(t *testing.T) {
 		heartbeats := map[string]RuntimeHeartbeat{}
-		if !isContainerIdleByHeartbeat("c-1", "tmpl-1", grouped, heartbeats) {
+		if !isContainerIdleByHeartbeat("c-1", target.TargetKey(), grouped, heartbeats) {
 			t.Error("expected idle when no heartbeat exists")
 		}
 	})
@@ -301,7 +331,7 @@ func TestIsContainerIdleByHeartbeat(t *testing.T) {
 		heartbeats := map[string]RuntimeHeartbeat{
 			"rt-1": {RuntimeID: "rt-1", State: "idle"},
 		}
-		if !isContainerIdleByHeartbeat("c-1", "tmpl-1", grouped, heartbeats) {
+		if !isContainerIdleByHeartbeat("c-1", target.TargetKey(), grouped, heartbeats) {
 			t.Error("expected idle when heartbeat state is idle")
 		}
 	})
@@ -310,14 +340,14 @@ func TestIsContainerIdleByHeartbeat(t *testing.T) {
 		heartbeats := map[string]RuntimeHeartbeat{
 			"rt-1": {RuntimeID: "rt-1", State: "executing"},
 		}
-		if isContainerIdleByHeartbeat("c-1", "tmpl-1", grouped, heartbeats) {
+		if isContainerIdleByHeartbeat("c-1", target.TargetKey(), grouped, heartbeats) {
 			t.Error("expected not idle when heartbeat state is executing")
 		}
 	})
 
 	t.Run("idleWhenContainerNotFound", func(t *testing.T) {
 		heartbeats := map[string]RuntimeHeartbeat{}
-		if !isContainerIdleByHeartbeat("c-unknown", "tmpl-1", grouped, heartbeats) {
+		if !isContainerIdleByHeartbeat("c-unknown", target.TargetKey(), grouped, heartbeats) {
 			t.Error("expected idle when container not found in grouped")
 		}
 	})
@@ -355,7 +385,7 @@ func recentIdleHeartbeats(templateID string, count int, timestamp string) []Runt
 	for i, c := range containers {
 		heartbeats[i] = RuntimeHeartbeat{
 			RuntimeID:       c.Labels[labelDCMRuntimeID],
-			TemplateID:      templateID,
+			PlaybookID:      templateID,
 			State:           "idle",
 			LastHeartbeatAt: timestamp,
 		}

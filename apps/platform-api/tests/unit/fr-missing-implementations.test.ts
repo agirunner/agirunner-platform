@@ -4,7 +4,6 @@
  * FRs covered:
  *   FR-150 — All entities scoped to tenant (DB query filtering)
  *   FR-152 — Tenant filter at data-access layer (TenantScopedRepository)
- *   FR-712 — No pattern nesting constraint (validateTemplateSchema)
  *   FR-754 — Zero-config first run (seedDefaultTenant creates default API key)
  *   FR-761 — All entities tenant-scoped (TenantScopedRepository comprehensive)
  *   FR-820 — External workers run anywhere (isOriginAllowed / WORKER_ALLOWED_ORIGINS)
@@ -21,7 +20,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { DatabaseQueryable } from '../../src/db/database.js';
 import { TenantScopedRepository } from '../../src/db/tenant-scoped-repository.js';
-import { assertNoPatternNesting, validateTemplateSchema } from '../../src/orchestration/workflow-engine.js';
 import { isOriginAllowed } from '../../src/bootstrap/websocket.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -117,7 +115,7 @@ describe('FR-152: tenant filter at data-access layer', () => {
     const db = { query: mockQuery } as unknown as DatabaseQueryable;
     const repo = new TenantScopedRepository(db, 'isolated-tenant');
 
-    await repo.findAll('templates', '*');
+    await repo.findAll('playbooks', '*');
 
     const [sql, values] = mockQuery.mock.calls[0] as [string, unknown[]];
     expect(sql).toMatch(/WHERE tenant_id = \$1/);
@@ -138,76 +136,6 @@ describe('FR-152: tenant filter at data-access layer', () => {
     const [, valuesB] = mockQueryB.mock.calls[0] as [string, unknown[]];
     expect(valuesA[0]).toBe('tenant-A');
     expect(valuesB[0]).toBe('tenant-B');
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FR-712: No pattern nesting constraint
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('FR-712: no pattern nesting constraint', () => {
-  it('assertNoPatternNesting passes for flat patterns with no nested refs', () => {
-    // FR-712
-    expect(() =>
-      assertNoPatternNesting({
-        review: { tasks: [{ id: 't1', type: 'review', title_template: 'Review' }] },
-      }),
-    ).not.toThrow();
-  });
-
-  it('assertNoPatternNesting rejects a pattern with pattern_ref field', () => {
-    // FR-712: direct pattern reference via pattern_ref
-    expect(() =>
-      assertNoPatternNesting({
-        nested: { pattern_ref: 'some-other-pattern' },
-      }),
-    ).toThrow(/pattern_ref.*FR-712|nested pattern reference/i);
-  });
-
-  it('assertNoPatternNesting rejects a pattern whose task has type=pattern', () => {
-    // FR-712: nested pattern type in task list
-    expect(() =>
-      assertNoPatternNesting({
-        outer: {
-          tasks: [{ id: 't1', type: 'pattern', title_template: 'nested' }],
-        },
-      }),
-    ).toThrow(/nested pattern task.*FR-712|Pattern nesting is not allowed/i);
-  });
-
-  it('assertNoPatternNesting rejects a task that uses pattern_ref inside a pattern', () => {
-    // FR-712: task inside a pattern references another pattern
-    expect(() =>
-      assertNoPatternNesting({
-        outer: {
-          tasks: [{ id: 't1', pattern_ref: 'inner', title_template: 'Inner' }],
-        },
-      }),
-    ).toThrow(/FR-712|Pattern nesting is not allowed/i);
-  });
-
-  it('validateTemplateSchema rejects a schema with a nested pattern', () => {
-    // FR-712: end-to-end rejection at template creation boundary
-    const schemaWithNestedPattern = {
-      tasks: [{ id: 't1', type: 'analysis', title_template: 'Analyse' }],
-      patterns: {
-        bad: { pattern_ref: 'other-pattern' },
-      },
-    };
-
-    expect(() => validateTemplateSchema(schemaWithNestedPattern)).toThrow(/FR-712|Pattern nesting is not allowed/i);
-  });
-
-  it('validateTemplateSchema accepts a schema with flat (non-nested) patterns', () => {
-    // FR-712: valid schema should not throw
-    const validSchema = {
-      tasks: [{ id: 't1', type: 'code', title_template: 'Build' }],
-      patterns: {
-        safe: { tasks: [{ id: 'p1', type: 'review', title_template: 'PR review' }] },
-      },
-    };
-
-    expect(() => validateTemplateSchema(validSchema)).not.toThrow();
   });
 });
 

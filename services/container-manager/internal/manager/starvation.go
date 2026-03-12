@@ -2,37 +2,38 @@ package manager
 
 import "time"
 
-// starvationThreshold is the maximum time a template with pending tasks may
+// starvationThreshold is the maximum time a playbook with pending tasks may
 // wait without receiving any runtime before it is flagged as starved.
 const starvationThreshold = 60 * time.Second
 
-// updateStarvationTracking records when templates first had pending tasks with
+// updateStarvationTracking records when playbooks first had pending tasks with
 // no running containers, and clears entries once a runtime is assigned.
 func (m *Manager) updateStarvationTracking(
 	targets []RuntimeTarget,
 	grouped map[string][]ContainerInfo,
 ) {
 	now := m.nowFunc()
-	activeTemplates := make(map[string]bool, len(targets))
+	activeTargets := make(map[string]bool, len(targets))
 
 	for _, target := range targets {
-		activeTemplates[target.TemplateID] = true
-		running := countActiveContainers(grouped[target.TemplateID])
+		targetKey := target.TargetKey()
+		activeTargets[targetKey] = true
+		running := countActiveContainers(grouped[targetKey])
 
 		if target.PendingTasks > 0 && running == 0 {
-			if _, tracked := m.starvationTrack[target.TemplateID]; !tracked {
-				m.starvationTrack[target.TemplateID] = now
+			if _, tracked := m.starvationTrack[targetKey]; !tracked {
+				m.starvationTrack[targetKey] = now
 			}
 			continue
 		}
 
-		delete(m.starvationTrack, target.TemplateID)
+		delete(m.starvationTrack, targetKey)
 	}
 
-	pruneStaleStarvationEntries(m.starvationTrack, activeTemplates)
+	pruneStaleStarvationEntries(m.starvationTrack, activeTargets)
 }
 
-// pruneStaleStarvationEntries removes entries for templates no longer in the
+// pruneStaleStarvationEntries removes entries for playbooks no longer in the
 // target list, preventing unbounded map growth.
 func pruneStaleStarvationEntries(
 	tracking map[string]time.Time,
@@ -45,10 +46,10 @@ func pruneStaleStarvationEntries(
 	}
 }
 
-// isStarved returns true when a template has been waiting for a runtime longer
+// isStarved returns true when a playbook has been waiting for a runtime longer
 // than the starvation threshold.
-func (m *Manager) isStarved(templateID string) bool {
-	firstPending, ok := m.starvationTrack[templateID]
+func (m *Manager) isStarved(target RuntimeTarget) bool {
+	firstPending, ok := m.starvationTrack[target.TargetKey()]
 	if !ok {
 		return false
 	}
@@ -56,9 +57,9 @@ func (m *Manager) isStarved(templateID string) bool {
 }
 
 // boostStarvedTargets adjusts the priority of starved targets so they are
-// scheduled ahead of non-starved templates during preemption planning. The
-// boost is computed relative to the highest priority across ALL templates
-// (not just the unsatisfied ones) so that the starved template can preempt
+// scheduled ahead of non-starved playbooks during preemption planning. The
+// boost is computed relative to the highest priority across ALL playbooks
+// (not just the unsatisfied ones) so that the starved playbook can preempt
 // any lower-priority idle runtime. The returned slice is a copy — the
 // original targets are not modified.
 func (m *Manager) boostStarvedTargets(unsatisfied []RuntimeTarget, allTargets []RuntimeTarget) []RuntimeTarget {
@@ -67,20 +68,22 @@ func (m *Manager) boostStarvedTargets(unsatisfied []RuntimeTarget, allTargets []
 
 	globalMax := maxPriorityIn(allTargets)
 	for i := range boosted {
-		if m.isStarved(boosted[i].TemplateID) {
+		if m.isStarved(boosted[i]) {
 			originalPriority := boosted[i].Priority
-			m.logger.Warn("template starved, boosting priority for preemption",
-				"template", boosted[i].TemplateID,
+			m.logger.Warn("playbook starved, boosting priority for preemption",
+				"playbook_id", boosted[i].PlaybookID,
+				"pool_kind", normalizePoolKind(boosted[i].PoolKind),
 				"original_priority", originalPriority,
 			)
 			starvationMeta := map[string]any{
 				"action":            "starvation_boost",
-				"template_id":       boosted[i].TemplateID,
-				"template_name":     boosted[i].TemplateName,
+				"playbook_id":       boosted[i].PlaybookID,
+				"playbook_name":     boosted[i].PlaybookName,
+				"pool_kind":         normalizePoolKind(boosted[i].PoolKind),
 				"original_priority": originalPriority,
 				"boosted_priority":  globalMax + 1,
 			}
-			if starvedSince, ok := m.starvationTrack[boosted[i].TemplateID]; ok {
+			if starvedSince, ok := m.starvationTrack[boosted[i].TargetKey()]; ok {
 				starvationMeta["starvation_duration_ms"] = m.nowFunc().Sub(starvedSince).Milliseconds()
 			}
 			m.emitLog("container", "reconcile.starvation_boost", "warn", "completed", starvationMeta)

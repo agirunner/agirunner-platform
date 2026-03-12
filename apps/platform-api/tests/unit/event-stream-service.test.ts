@@ -1,0 +1,109 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { EventStreamService } from '../../src/services/event-stream-service.js';
+
+function createMockPool() {
+  const mockClient = {
+    query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+    on: vi.fn(),
+    release: vi.fn(),
+  };
+  return {
+    pool: {
+      query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+      connect: vi.fn().mockResolvedValue(mockClient),
+    },
+    client: mockClient,
+  };
+}
+
+function sampleEvent(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 1,
+    tenant_id: 'tenant-1',
+    type: 'work_item.updated',
+    entity_type: 'work_item',
+    entity_id: 'wi-1',
+    actor_type: 'system',
+    actor_id: 'orchestrator',
+    data: {
+      workflow_id: 'wf-1',
+      work_item_id: 'wi-1',
+      stage_name: 'implementation',
+      activation_id: 'activation-1',
+      gate_id: 'gate-1',
+    },
+    created_at: '2026-03-11T12:00:00.000Z',
+    ...overrides,
+  };
+}
+
+describe('EventStreamService', () => {
+  let mockPool: ReturnType<typeof createMockPool>;
+  let service: EventStreamService;
+
+  beforeEach(() => {
+    mockPool = createMockPool();
+    service = new EventStreamService(mockPool.pool as never);
+  });
+
+  async function simulateNotification(event = sampleEvent()) {
+    mockPool.pool.query.mockResolvedValue({ rows: [event], rowCount: 1 });
+    await service.start();
+    const notificationHandler = mockPool.client.on.mock.calls.find(
+      (call: unknown[]) => call[0] === 'notification',
+    )?.[1] as ((msg: { payload?: string }) => void) | undefined;
+    notificationHandler?.({ payload: JSON.stringify({ id: event.id }) });
+    await vi.waitFor(() => {
+      expect(mockPool.pool.query).toHaveBeenCalledWith('SELECT * FROM events WHERE id = $1', [event.id]);
+    });
+  }
+
+  it('matches workflow event context filters carried in payload data', async () => {
+    const callback = vi.fn();
+    service.subscribe(
+      'tenant-1',
+      {
+        workflowId: 'wf-1',
+        workItemId: 'wi-1',
+        stageName: 'implementation',
+        activationId: 'activation-1',
+        gateId: 'gate-1',
+      },
+      callback,
+    );
+
+    await simulateNotification();
+
+    expect(callback).toHaveBeenCalledWith(expect.objectContaining({ entity_id: 'wi-1' }));
+  });
+
+  it('matches work item filters using the canonical work_item entity id fallback', async () => {
+    const callback = vi.fn();
+    service.subscribe('tenant-1', { workItemId: 'wi-1' }, callback);
+
+    await simulateNotification(
+      sampleEvent({
+        data: {
+          workflow_id: 'wf-1',
+          stage_name: 'implementation',
+        },
+      }),
+    );
+
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it('filters out mismatched stage or activation context', async () => {
+    const callback = vi.fn();
+    service.subscribe(
+      'tenant-1',
+      { stageName: 'review', activationId: 'activation-2' },
+      callback,
+    );
+
+    await simulateNotification();
+
+    expect(callback).not.toHaveBeenCalled();
+  });
+});

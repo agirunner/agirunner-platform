@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildResolvedConfigView,
+  overlayModelOverride,
+  readModelOverride,
   resolveInstructionConfig,
   resolveWorkflowConfig,
 } from '../../src/services/config-hierarchy-service.js';
@@ -80,6 +82,61 @@ describe('config hierarchy service', () => {
         timeout: { value: 50, source: 'run' },
         mode: { value: 'safe', source: 'template' },
       },
+    });
+  });
+
+  it('merges model overrides from project settings and workflow run overrides into config layers', () => {
+    const resolved = resolveWorkflowConfig(
+      { config: { runtime: { timeout: 30 } } },
+      {
+        model_override: {
+          model_id: '00000000-0000-0000-0000-000000000001',
+          reasoning_config: { effort: 'medium' },
+        },
+      },
+      {
+        model_override: {
+          model_id: '00000000-0000-0000-0000-000000000002',
+        },
+      },
+    );
+
+    expect(resolved.layers.project).toEqual({
+      model_override: {
+        model_id: '00000000-0000-0000-0000-000000000001',
+        reasoning_config: { effort: 'medium' },
+      },
+    });
+    expect(resolved.layers.run).toEqual({
+      model_override: {
+        model_id: '00000000-0000-0000-0000-000000000002',
+      },
+    });
+    expect(resolved.resolved).toEqual({
+      runtime: { timeout: 30 },
+      model_override: {
+        model_id: '00000000-0000-0000-0000-000000000002',
+        reasoning_config: { effort: 'medium' },
+      },
+    });
+  });
+
+  it('validates model override schema and overlays field-by-field', () => {
+    expect(() => readModelOverride({ bad: true }, 'model_override')).toThrow(/Invalid model_override/i);
+
+    expect(
+      overlayModelOverride(
+        {
+          model_id: '00000000-0000-0000-0000-000000000001',
+          reasoning_config: { effort: 'low' },
+        },
+        {
+          reasoning_config: { effort: 'high' },
+        },
+      ),
+    ).toEqual({
+      model_id: '00000000-0000-0000-0000-000000000001',
+      reasoning_config: { effort: 'high' },
     });
   });
 

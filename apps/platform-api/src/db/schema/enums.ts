@@ -44,6 +44,8 @@ export const apiKeyScopeEnum = pgEnum('api_key_scope', ['agent', 'worker', 'admi
 
 export const eventEntityTypeEnum = pgEnum('event_entity_type', [
   'task',
+  'work_item',
+  'gate',
   'workflow',
   'agent',
   'worker',

@@ -41,15 +41,20 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('ProviderCard');
   });
 
+  it('treats provider api keys as write-only', () => {
+    expect(source).toContain('Stored write-only. Existing keys are never shown again.');
+    expect(source).toContain('credentials_configured');
+  });
+
   it('renders the Model Catalog section with endpoint column', () => {
     expect(source).toContain('Model Catalog');
     expect(source).toContain('formatContextWindow');
     expect(source).toContain('endpoint_type');
   });
 
-  it('renders the Role Model Assignments section', () => {
-    expect(source).toContain('Role Model Assignments');
-    expect(source).toContain('RoleAssignmentRow');
+  it('renders the Model Assignments section', () => {
+    expect(source).toContain('Model Assignments');
+    expect(source).toContain('RoleAssignmentsSection');
     expect(source).toContain('ROLE_NAMES');
   });
 

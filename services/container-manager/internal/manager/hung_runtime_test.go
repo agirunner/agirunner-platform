@@ -15,7 +15,7 @@ func TestDetectHungRuntimesStaleHeartbeatStopsContainer(t *testing.T) {
 	platform := &mockPlatformClient{
 		runtimeTargets: []RuntimeTarget{},
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: staleTime, ActiveTaskID: "task-42"},
+			{RuntimeID: "rt-1", PlaybookID: "tmpl-1", State: "idle", LastHeartbeatAt: staleTime, ActiveTaskID: "task-42"},
 		},
 	}
 	mgr := newDCMTestManager(docker, platform)
@@ -45,7 +45,7 @@ func TestDetectHungRuntimesDockerUnhealthyStopsContainer(t *testing.T) {
 	platform := &mockPlatformClient{
 		runtimeTargets: []RuntimeTarget{},
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "running", LastHeartbeatAt: recentTime, ActiveTaskID: "task-99"},
+			{RuntimeID: "rt-1", PlaybookID: "tmpl-1", State: "running", LastHeartbeatAt: recentTime, ActiveTaskID: "task-99"},
 		},
 	}
 	mgr := newDCMTestManager(docker, platform)
@@ -69,7 +69,7 @@ func TestDetectHungRuntimesHealthyRuntimeNotStopped(t *testing.T) {
 	platform := &mockPlatformClient{
 		runtimeTargets: []RuntimeTarget{},
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: recentTime},
+			{RuntimeID: "rt-1", PlaybookID: "tmpl-1", State: "idle", LastHeartbeatAt: recentTime},
 		},
 	}
 	mgr := newDCMTestManager(docker, platform)
@@ -129,7 +129,7 @@ func TestDetectHungRuntimesStaleNoActiveTaskSkipsFailTask(t *testing.T) {
 	platform := &mockPlatformClient{
 		runtimeTargets: []RuntimeTarget{},
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: staleTime},
+			{RuntimeID: "rt-1", PlaybookID: "tmpl-1", State: "idle", LastHeartbeatAt: staleTime},
 		},
 	}
 	mgr := newDCMTestManager(docker, platform)
@@ -153,7 +153,7 @@ func TestDetectHungRuntimesLogsFleetEvent(t *testing.T) {
 	platform := &mockPlatformClient{
 		runtimeTargets: []RuntimeTarget{},
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: staleTime},
+			{RuntimeID: "rt-1", PlaybookID: "tmpl-1", State: "idle", LastHeartbeatAt: staleTime},
 		},
 	}
 	mgr := newDCMTestManager(docker, platform)
@@ -187,9 +187,9 @@ func TestDetectHungRuntimesMultipleContainersMixed(t *testing.T) {
 	platform := &mockPlatformClient{
 		runtimeTargets: []RuntimeTarget{},
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-healthy", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: recentTime},
-			{RuntimeID: "rt-stale", TemplateID: "tmpl-1", State: "running", LastHeartbeatAt: staleTime, ActiveTaskID: "task-A"},
-			{RuntimeID: "rt-unhealthy", TemplateID: "tmpl-2", State: "running", LastHeartbeatAt: recentTime, ActiveTaskID: "task-B"},
+			{RuntimeID: "rt-healthy", PlaybookID: "tmpl-1", State: "idle", LastHeartbeatAt: recentTime},
+			{RuntimeID: "rt-stale", PlaybookID: "tmpl-1", State: "running", LastHeartbeatAt: staleTime, ActiveTaskID: "task-A"},
+			{RuntimeID: "rt-unhealthy", PlaybookID: "tmpl-2", State: "running", LastHeartbeatAt: recentTime, ActiveTaskID: "task-B"},
 		},
 	}
 	mgr := newDCMTestManager(docker, platform)
@@ -291,7 +291,7 @@ func TestOrphanHeartbeatWithActiveTaskFailsTask(t *testing.T) {
 	platform := &mockPlatformClient{
 		runtimeTargets: []RuntimeTarget{},
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-orphan", TemplateID: "tmpl-1", State: "running", LastHeartbeatAt: staleTime, ActiveTaskID: "task-orphan"},
+			{RuntimeID: "rt-orphan", PlaybookID: "tmpl-1", State: "running", LastHeartbeatAt: staleTime, ActiveTaskID: "task-orphan"},
 		},
 	}
 	mgr := newDCMTestManager(docker, platform)
@@ -310,7 +310,7 @@ func TestOrphanHeartbeatNotStaleIsSkipped(t *testing.T) {
 	platform := &mockPlatformClient{
 		runtimeTargets: []RuntimeTarget{},
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-recent-orphan", TemplateID: "tmpl-1", State: "running", LastHeartbeatAt: recentTime, ActiveTaskID: "task-skip"},
+			{RuntimeID: "rt-recent-orphan", PlaybookID: "tmpl-1", State: "running", LastHeartbeatAt: recentTime, ActiveTaskID: "task-skip"},
 		},
 	}
 	mgr := newDCMTestManager(docker, platform)
@@ -332,9 +332,9 @@ func TestOrphanHeartbeatMixedWithContainerBacked(t *testing.T) {
 		runtimeTargets: []RuntimeTarget{},
 		heartbeats: []RuntimeHeartbeat{
 			// This heartbeat has a matching container — not an orphan.
-			{RuntimeID: "rt-has-container", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: staleTime, ActiveTaskID: "task-container"},
+			{RuntimeID: "rt-has-container", PlaybookID: "tmpl-1", State: "idle", LastHeartbeatAt: staleTime, ActiveTaskID: "task-container"},
 			// This heartbeat has no container — orphan and stale.
-			{RuntimeID: "rt-no-container", TemplateID: "tmpl-1", State: "running", LastHeartbeatAt: staleTime, ActiveTaskID: "task-orphan"},
+			{RuntimeID: "rt-no-container", PlaybookID: "tmpl-1", State: "running", LastHeartbeatAt: staleTime, ActiveTaskID: "task-orphan"},
 		},
 	}
 	mgr := newDCMTestManager(docker, platform)
@@ -363,7 +363,7 @@ func TestFailActiveTaskLogsErrorOnFailTaskFailure(t *testing.T) {
 	platform := &mockPlatformClient{
 		runtimeTargets: []RuntimeTarget{},
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "running", LastHeartbeatAt: staleTime, ActiveTaskID: "task-fail"},
+			{RuntimeID: "rt-1", PlaybookID: "tmpl-1", State: "running", LastHeartbeatAt: staleTime, ActiveTaskID: "task-fail"},
 		},
 		failTaskErr: errForTest("platform unavailable"),
 	}

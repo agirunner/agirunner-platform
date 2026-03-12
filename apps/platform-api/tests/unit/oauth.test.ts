@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { generateCodeVerifier, generateCodeChallenge, generateState } from '../../src/lib/pkce.js';
 import { decodeJwtPayload, extractChatGptAccountId, extractEmailFromJwt } from '../../src/lib/jwt-decode.js';
-import { storeOAuthToken, readOAuthToken } from '../../src/lib/oauth-crypto.js';
+import { storeOAuthToken, readOAuthToken, storeProviderSecret, readProviderSecret } from '../../src/lib/oauth-crypto.js';
 import { getOAuthProfile, listOAuthProfiles, OPENAI_CODEX_PROFILE } from '../../src/catalogs/oauth-profiles.js';
 
 /* ─── PKCE ──────────────────────────────────────────────────────────────── */
@@ -105,19 +105,33 @@ describe('JWT decode', () => {
 /* ─── OAuth Token Storage ──────────────────────────────────────────────── */
 
 describe('OAuth token storage', () => {
-  it('storeOAuthToken returns the token unchanged', () => {
+  it('storeOAuthToken encrypts the token at rest', () => {
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
     const token = 'eyJhbGciOiJSUzI1NiJ9.test-access-token.signature';
-    expect(storeOAuthToken(token)).toBe(token);
+    expect(storeOAuthToken(token)).not.toBe(token);
   });
 
-  it('readOAuthToken returns the token unchanged', () => {
+  it('readOAuthToken decrypts encrypted values', () => {
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
     const token = 'eyJhbGciOiJSUzI1NiJ9.test-access-token.signature';
-    expect(readOAuthToken(token)).toBe(token);
+    expect(readOAuthToken(storeOAuthToken(token))).toBe(token);
   });
 
   it('roundtrips losslessly', () => {
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
     const token = 'sk-test-token-with-special-chars-!@#$%';
     expect(readOAuthToken(storeOAuthToken(token))).toBe(token);
+  });
+
+  it('reads legacy plaintext provider secrets for compatibility', () => {
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
+    expect(readProviderSecret('legacy-secret')).toBe('legacy-secret');
+  });
+
+  it('roundtrips provider API secrets losslessly', () => {
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
+    const secret = 'sk-provider-live-secret';
+    expect(readProviderSecret(storeProviderSecret(secret))).toBe(secret);
   });
 });
 

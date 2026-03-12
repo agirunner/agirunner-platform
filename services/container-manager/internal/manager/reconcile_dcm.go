@@ -29,7 +29,7 @@ func (m *Manager) reconcileDCM(ctx context.Context) error {
 		m.clearHeartbeatFallbackTracking(containers)
 	}
 
-	grouped := groupContainersByTemplate(containers)
+	grouped := groupContainersByTarget(containers)
 	drainingCount := countDrainingContainers(containers)
 	totalRunning := len(containers)
 
@@ -54,8 +54,10 @@ func (m *Manager) reconcileDCM(ctx context.Context) error {
 
 	// Count total pending tasks across all targets for the cycle summary.
 	totalPending := 0
+	totalCapabilityDemand := 0
 	for _, t := range sorted {
 		totalPending += t.PendingTasks
+		totalCapabilityDemand += t.CapabilityDemandUnits
 	}
 
 	m.logger.Debug("dcm reconcile cycle",
@@ -63,6 +65,7 @@ func (m *Manager) reconcileDCM(ctx context.Context) error {
 		"containers", totalRunning,
 		"draining", drainingCount,
 		"pending_tasks", totalPending,
+		"capability_demand_units", totalCapabilityDemand,
 		"unsatisfied", len(unsatisfied),
 	)
 
@@ -135,7 +138,7 @@ func (m *Manager) processTargetGroup(
 		if target.PoolMode == "warm" {
 			m.prePullImage(ctx, target)
 		}
-		running := grouped[target.TemplateID]
+		running := grouped[target.TargetKey()]
 		activeCount := countActiveContainers(running)
 		actions := m.planTargetActions(target, running, *totalRunning, heartbeats)
 		plans = append(plans, planned{target: target, actions: actions, activeCount: activeCount})
@@ -148,7 +151,7 @@ func (m *Manager) processTargetGroup(
 	pendingCounts := make([]int, len(plans))
 	for i, p := range plans {
 		requested[i] = p.actions.toCreate
-		pendingCounts[i] = p.target.PendingTasks
+		pendingCounts[i] = capabilityAwarePendingUnits(p.target)
 	}
 	fairShares := allocateProportionally(requested, pendingCounts, capacity)
 
@@ -232,8 +235,8 @@ func allocateProportionally(requested, pendingCounts []int, capacity int) []int 
 	return shares
 }
 
-// executePreemptions stops idle containers from lower-priority templates and
-// creates replacements for higher-priority templates that need capacity.
+// executePreemptions stops idle containers from lower-priority playbooks and
+// creates replacements for higher-priority playbooks that need capacity.
 func (m *Manager) executePreemptions(
 	ctx context.Context,
 	unsatisfied []RuntimeTarget,
@@ -251,22 +254,22 @@ func (m *Manager) executePreemptions(
 	targetMap := buildTargetMap(allTargets)
 
 	for _, plan := range plans {
-		if !isContainerIdleByHeartbeat(plan.VictimContainerID, plan.VictimTemplateID, grouped, heartbeats) {
+		if !isContainerIdleByHeartbeat(plan.VictimContainerID, plan.VictimTargetKey, grouped, heartbeats) {
 			m.logger.Info("skipping preemption, victim is executing",
-				"victim", plan.VictimContainerID, "template", plan.VictimTemplateID)
+				"victim", plan.VictimContainerID, "playbook_id", plan.VictimPlaybookID)
 			m.emitLog("container", "reconcile.preempt_skipped", "debug", "completed", map[string]any{
-				"action":                    "preempt",
-				"victim_container_id":       plan.VictimContainerID,
-				"victim_template_id":        plan.VictimTemplateID,
-				"beneficiary_template_id":   plan.BeneficiaryTemplate.TemplateID,
-				"beneficiary_pool_mode":     plan.BeneficiaryTemplate.PoolMode,
-				"beneficiary_priority":      plan.BeneficiaryTemplate.Priority,
-				"reason":                    "victim_executing",
+				"action":                  "preempt",
+				"victim_container_id":     plan.VictimContainerID,
+				"victim_playbook_id":      plan.VictimPlaybookID,
+				"beneficiary_playbook_id": plan.BeneficiaryTemplate.PlaybookID,
+				"beneficiary_pool_mode":   plan.BeneficiaryTemplate.PoolMode,
+				"beneficiary_priority":    plan.BeneficiaryTemplate.Priority,
+				"reason":                  "victim_executing",
 			})
 			continue
 		}
 
-		victimTarget, ok := targetMap[plan.VictimTemplateID]
+		victimTarget, ok := targetMap[plan.VictimTargetKey]
 		defaultGrace := time.Duration(defaultGracePeriodSeconds) * time.Second
 		gracePeriod := defaultGrace
 		if ok {
@@ -275,31 +278,31 @@ func (m *Manager) executePreemptions(
 
 		m.logger.Info("preempting idle runtime",
 			"victim", plan.VictimContainerID,
-			"victim_template", plan.VictimTemplateID,
-			"beneficiary_template", plan.BeneficiaryTemplate.TemplateID,
+			"victim_playbook_id", plan.VictimPlaybookID,
+			"beneficiary_playbook_id", plan.BeneficiaryTemplate.PlaybookID,
 		)
 
 		m.stopAndRemove(ctx, plan.VictimContainerID, gracePeriod)
 		m.createRuntimeContainers(ctx, plan.BeneficiaryTemplate, 1)
 
 		m.logFleetEvent("runtime_preempted", "info", plan.VictimContainerID,
-			plan.BeneficiaryTemplate.TemplateID, plan.VictimContainerID)
+			plan.BeneficiaryTemplate.PlaybookID, plan.BeneficiaryTemplate.PoolKind, plan.VictimContainerID)
 		victimName := ""
-		if vt, ok := targetMap[plan.VictimTemplateID]; ok {
-			victimName = vt.TemplateName
+		if vt, ok := targetMap[plan.VictimTargetKey]; ok {
+			victimName = vt.PlaybookName
 		}
 		preemptMeta := map[string]any{
 			"action":                    "preempt",
-			"victim_template_id":        plan.VictimTemplateID,
-			"victim_template_name":      victimName,
+			"victim_playbook_id":        plan.VictimPlaybookID,
+			"victim_playbook_name":      victimName,
 			"victim_container_id":       plan.VictimContainerID,
-			"beneficiary_template_id":   plan.BeneficiaryTemplate.TemplateID,
-			"beneficiary_template_name": plan.BeneficiaryTemplate.TemplateName,
+			"beneficiary_playbook_id":   plan.BeneficiaryTemplate.PlaybookID,
+			"beneficiary_playbook_name": plan.BeneficiaryTemplate.PlaybookName,
 			"beneficiary_pool_mode":     plan.BeneficiaryTemplate.PoolMode,
 			"beneficiary_priority":      plan.BeneficiaryTemplate.Priority,
 			"reason":                    "starvation",
 		}
-		if starvedSince, ok := m.starvationTrack[plan.BeneficiaryTemplate.TemplateID]; ok {
+		if starvedSince, ok := m.starvationTrack[plan.BeneficiaryTemplate.TargetKey()]; ok {
 			preemptMeta["starvation_duration_ms"] = m.nowFunc().Sub(starvedSince).Milliseconds()
 		}
 		m.emitLogWithResource("container", "reconcile.preempt", "info", "completed", preemptMeta,
@@ -312,11 +315,11 @@ func (m *Manager) executePreemptions(
 // considered idle.
 func isContainerIdleByHeartbeat(
 	containerID string,
-	templateID string,
+	targetKey string,
 	grouped map[string][]ContainerInfo,
 	heartbeats map[string]RuntimeHeartbeat,
 ) bool {
-	runtimeID := findRuntimeIDForContainer(containerID, templateID, grouped)
+	runtimeID := findRuntimeIDForContainer(containerID, targetKey, grouped)
 	if runtimeID == "" {
 		return true
 	}
@@ -326,10 +329,10 @@ func isContainerIdleByHeartbeat(
 // findRuntimeIDForContainer looks up the runtime ID label for a container.
 func findRuntimeIDForContainer(
 	containerID string,
-	templateID string,
+	targetKey string,
 	grouped map[string][]ContainerInfo,
 ) string {
-	for _, c := range grouped[templateID] {
+	for _, c := range grouped[targetKey] {
 		if c.ID == containerID {
 			return c.Labels[labelDCMRuntimeID]
 		}
@@ -394,7 +397,7 @@ func (m *Manager) buildFallbackHeartbeatMap(containers []ContainerInfo) map[stri
 		if elapsed >= time.Duration(defaultGracePeriodSeconds)*time.Second {
 			result[runtimeID] = RuntimeHeartbeat{
 				RuntimeID:       runtimeID,
-				TemplateID:      c.Labels[labelDCMTemplateID],
+				PlaybookID:      c.Labels[labelDCMPlaybookID],
 				State:           "idle",
 				LastHeartbeatAt: trackedSince.Format(time.RFC3339),
 			}
@@ -461,12 +464,11 @@ func (m *Manager) listDCMRuntimeContainers(ctx context.Context) ([]ContainerInfo
 	return filterByLabels(all, labelDCMManaged, "true", labelDCMTier, tierRuntime), nil
 }
 
-// groupContainersByTemplate organizes containers by template ID.
-func groupContainersByTemplate(containers []ContainerInfo) map[string][]ContainerInfo {
+// groupContainersByTarget organizes containers by playbook/pool target key.
+func groupContainersByTarget(containers []ContainerInfo) map[string][]ContainerInfo {
 	grouped := make(map[string][]ContainerInfo)
 	for _, c := range containers {
-		tmplID := c.Labels[labelDCMTemplateID]
-		grouped[tmplID] = append(grouped[tmplID], c)
+		grouped[containerTargetKey(c)] = append(grouped[containerTargetKey(c)], c)
 	}
 	return grouped
 }
@@ -549,6 +551,20 @@ func computeScaleUp(target RuntimeTarget, runningCount, capacity int) int {
 		return computeWarmScaleUp(target, runningCount, capacity)
 	}
 	return computeColdScaleUp(target, runningCount, capacity)
+}
+
+func capabilityAwarePendingUnits(target RuntimeTarget) int {
+	if target.PendingTasks <= 0 {
+		return 0
+	}
+	if normalizePoolKind(target.PoolKind) != "specialist" || target.CapabilityDemandUnits <= 0 {
+		return target.PendingTasks
+	}
+	bonus := target.CapabilityDemandUnits
+	if bonus > target.PendingTasks {
+		bonus = target.PendingTasks
+	}
+	return target.PendingTasks + bonus
 }
 
 // computeColdScaleUp creates runtimes proportional to pending tasks.
@@ -669,8 +685,8 @@ func findImageDrift(target RuntimeTarget, running []ContainerInfo) []ContainerIn
 }
 
 // executeTargetActions carries out planned actions, returning net container delta.
-// activeCount is the number of non-draining containers for this template.
-// drainingCount is the total number of draining containers across all templates.
+// activeCount is the number of non-draining containers for this playbook.
+// drainingCount is the total number of draining containers across all playbooks.
 func (m *Manager) executeTargetActions(
 	ctx context.Context,
 	target RuntimeTarget,
@@ -684,18 +700,18 @@ func (m *Manager) executeTargetActions(
 	if len(actions.idleToDestroy) > 0 {
 		m.emitLog("container", "reconcile.scale_down", "debug", "started", map[string]any{
 			"action":              "scale_down",
-			"template_id":        target.TemplateID,
-			"template_name":      target.TemplateName,
-			"pool_mode":          target.PoolMode,
-			"priority":           target.Priority,
-			"pending_tasks":      target.PendingTasks,
-			"active_workflows":   target.ActiveWorkflows,
-			"count":              len(actions.idleToDestroy),
-			"actual_count":       activeCount,
-			"desired_count":      activeCount - len(actions.idleToDestroy),
-			"max_runtimes":       target.MaxRuntimes,
+			"playbook_id":         target.PlaybookID,
+			"playbook_name":       target.PlaybookName,
+			"pool_mode":           target.PoolMode,
+			"priority":            target.Priority,
+			"pending_tasks":       target.PendingTasks,
+			"active_workflows":    target.ActiveWorkflows,
+			"count":               len(actions.idleToDestroy),
+			"actual_count":        activeCount,
+			"desired_count":       activeCount - len(actions.idleToDestroy),
+			"max_runtimes":        target.MaxRuntimes,
 			"global_max_runtimes": m.config.GlobalMaxRuntimes,
-			"reason":             "idle_timeout",
+			"reason":              "idle_timeout",
 		})
 	}
 	delta -= m.destroyContainers(ctx, actions.idleToDestroy, target.GracePeriodSeconds)
@@ -705,7 +721,7 @@ func (m *Manager) executeTargetActions(
 
 	// Create replacements for idle-destroyed drifted containers, respecting
 	// max_runtimes. Draining containers count toward the global total but NOT
-	// toward the template's active count, so replacements can be created.
+	// toward the playbook's active count, so replacements can be created.
 	replacements := driftResult.destroyed
 	globalCapacity := m.config.GlobalMaxRuntimes - (activeCount + drainingCount + delta)
 	if replacements > globalCapacity {
@@ -716,18 +732,18 @@ func (m *Manager) executeTargetActions(
 	if toCreate > 0 {
 		m.emitLog("container", "reconcile.scale_up", "debug", "started", map[string]any{
 			"action":              "scale_up",
-			"template_id":        target.TemplateID,
-			"template_name":      target.TemplateName,
-			"pool_mode":          target.PoolMode,
-			"priority":           target.Priority,
-			"pending_tasks":      target.PendingTasks,
-			"active_workflows":   target.ActiveWorkflows,
-			"count":              toCreate,
-			"actual_count":       activeCount,
-			"desired_count":      activeCount + toCreate,
-			"max_runtimes":       target.MaxRuntimes,
+			"playbook_id":         target.PlaybookID,
+			"playbook_name":       target.PlaybookName,
+			"pool_mode":           target.PoolMode,
+			"priority":            target.Priority,
+			"pending_tasks":       target.PendingTasks,
+			"active_workflows":    target.ActiveWorkflows,
+			"count":               toCreate,
+			"actual_count":        activeCount,
+			"desired_count":       activeCount + toCreate,
+			"max_runtimes":        target.MaxRuntimes,
 			"global_max_runtimes": m.config.GlobalMaxRuntimes,
-			"reason":             "pending_tasks",
+			"reason":              "pending_tasks",
 		})
 	}
 	delta += m.createRuntimeContainers(ctx, target, toCreate)

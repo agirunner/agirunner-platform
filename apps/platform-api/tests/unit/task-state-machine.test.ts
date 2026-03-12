@@ -6,10 +6,10 @@ const states = [
   'pending',
   'ready',
   'claimed',
-  'running',
+  'in_progress',
   'awaiting_approval',
   'output_pending_review',
-  'awaiting_escalation',
+  'escalated',
   'completed',
   'failed',
   'cancelled',
@@ -23,13 +23,13 @@ const validTransitions: Array<[State, State]> = [
   ['pending', 'cancelled'],
   ['ready', 'claimed'],
   ['ready', 'cancelled'],
-  ['claimed', 'running'],
+  ['claimed', 'in_progress'],
   ['claimed', 'cancelled'],
-  ['running', 'completed'],
-  ['running', 'failed'],
-  ['running', 'output_pending_review'],
-  ['running', 'awaiting_escalation'],
-  ['running', 'cancelled'],
+  ['in_progress', 'completed'],
+  ['in_progress', 'failed'],
+  ['in_progress', 'output_pending_review'],
+  ['in_progress', 'escalated'],
+  ['in_progress', 'cancelled'],
   ['awaiting_approval', 'ready'],
   ['awaiting_approval', 'cancelled'],
   ['output_pending_review', 'completed'],
@@ -37,11 +37,11 @@ const validTransitions: Array<[State, State]> = [
   ['output_pending_review', 'ready'],
   ['output_pending_review', 'cancelled'],
   ['failed', 'ready'],
-  ['failed', 'awaiting_escalation'],
+  ['failed', 'escalated'],
   ['failed', 'cancelled'],
-  ['awaiting_escalation', 'ready'],
-  ['awaiting_escalation', 'cancelled'],
-  ['awaiting_escalation', 'failed'],
+  ['escalated', 'ready'],
+  ['escalated', 'cancelled'],
+  ['escalated', 'failed'],
 ];
 
 describe('task state machine', () => {
@@ -63,5 +63,10 @@ describe('task state machine', () => {
         expect(canTransitionState(from, to)).toBe(false);
       }
     }
+  });
+
+  it('accepts legacy aliases at the transition boundary', () => {
+    expect(canTransitionState('claimed', 'running')).toBe(true);
+    expect(canTransitionState('running', 'awaiting_escalation')).toBe(true);
   });
 });

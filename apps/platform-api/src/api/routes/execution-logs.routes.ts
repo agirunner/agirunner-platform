@@ -4,14 +4,35 @@ import { z } from 'zod';
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { withRole } from '../../auth/rbac.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
+import { PUBLIC_LOG_CSV_COLUMNS, toPublicLogRow } from '../../logging/public-log-row.js';
 import type { LogStreamFilters } from '../../logging/log-stream-service.js';
 import type { LogFilters, LogRow, LogStatsFilters } from '../../logging/log-service.js';
 
 const validSources = ['runtime', 'container_manager', 'platform', 'task_container'] as const;
-const validCategories = ['llm', 'tool', 'agent_loop', 'task_lifecycle', 'runtime_lifecycle', 'container', 'api', 'config', 'auth'] as const;
+const validCategories = [
+  'llm',
+  'tool',
+  'agent_loop',
+  'task_lifecycle',
+  'runtime_lifecycle',
+  'container',
+  'api',
+  'config',
+  'auth',
+] as const;
 const validLevels = ['debug', 'info', 'warn', 'error'] as const;
 const validStatuses = ['started', 'completed', 'failed', 'skipped'] as const;
-const validGroupBy = ['category', 'operation', 'level', 'task_id', 'source'] as const;
+const validGroupBy = [
+  'category',
+  'operation',
+  'level',
+  'task_id',
+  'work_item_id',
+  'stage_name',
+  'activation_id',
+  'is_orchestrator_task',
+  'source',
+] as const;
 
 const ingestEntrySchema = z.object({
   trace_id: z.string().uuid(),
@@ -37,8 +58,11 @@ const ingestEntrySchema = z.object({
   workflow_name: z.string().max(500).nullable().optional(),
   project_name: z.string().max(500).nullable().optional(),
   task_id: z.string().uuid().nullable().optional(),
+  work_item_id: z.string().uuid().nullable().optional(),
+  stage_name: z.string().max(200).nullable().optional(),
+  activation_id: z.string().uuid().nullable().optional(),
+  is_orchestrator_task: z.boolean().optional(),
   task_title: z.string().max(200).nullable().optional(),
-  workflow_phase: z.string().max(200).nullable().optional(),
   role: z.string().max(100).nullable().optional(),
   actor_type: z.string().max(50).optional(),
   actor_id: z.string().max(255).optional(),
@@ -55,8 +79,18 @@ const ingestSchema = z.object({
 
 function parseCsv(raw?: string): string[] | undefined {
   if (!raw) return undefined;
-  const values = raw.split(',').map((v) => v.trim()).filter(Boolean);
+  const values = raw
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean);
   return values.length > 0 ? values : undefined;
+}
+
+function parseBoolean(raw?: string): boolean | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  throw new SchemaValidationFailedError('Invalid boolean query value', { value: raw });
 }
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
@@ -94,8 +128,11 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
           workflowName: entry.workflow_name ?? null,
           projectName: entry.project_name ?? null,
           taskId: entry.task_id ?? null,
+          workItemId: entry.work_item_id ?? null,
+          stageName: entry.stage_name ?? null,
+          activationId: entry.activation_id ?? null,
+          isOrchestratorTask: entry.is_orchestrator_task ?? false,
           taskTitle: entry.task_title ?? null,
-          workflowPhase: entry.workflow_phase ?? null,
           role: entry.role ?? null,
           actorType: entry.actor_type ?? null,
           actorId: entry.actor_id ?? null,
@@ -122,6 +159,10 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
         projectId: query.project_id,
         workflowId: query.workflow_id,
         taskId: query.task_id,
+        workItemId: query.work_item_id,
+        stageName: query.stage_name,
+        activationId: query.activation_id,
+        isOrchestratorTask: parseBoolean(query.is_orchestrator_task),
         traceId: query.trace_id,
         source: parseCsv(query.source),
         category: parseCsv(query.category),
@@ -137,7 +178,11 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
         perPage: query.per_page ? Number(query.per_page) : undefined,
         order: query.order === 'asc' ? 'asc' : 'desc',
       };
-      return logService.query(request.auth!.tenantId, filters);
+      const page = await logService.query(request.auth!.tenantId, filters);
+      return {
+        ...page,
+        data: page.data.map(toPublicLogRow),
+      };
     },
   );
 
@@ -155,6 +200,10 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
         projectId: query.project_id,
         workflowId: query.workflow_id,
         taskId: query.task_id,
+        workItemId: query.work_item_id,
+        stageName: query.stage_name,
+        activationId: query.activation_id,
+        isOrchestratorTask: parseBoolean(query.is_orchestrator_task),
         traceId: query.trace_id,
         operation: parseCsv(query.operation),
       };
@@ -171,14 +220,10 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
       reply.raw.writeHead(200);
       reply.raw.write(': connected\n\n');
 
-      const unsubscribe = logStreamService.subscribe(
-        request.auth!.tenantId,
-        filters,
-        (entry) => {
-          reply.raw.write(`event: log\n`);
-          reply.raw.write(`data: ${JSON.stringify(entry)}\n\n`);
-        },
-      );
+      const unsubscribe = logStreamService.subscribe(request.auth!.tenantId, filters, (entry) => {
+        reply.raw.write(`event: log\n`);
+        reply.raw.write(`data: ${JSON.stringify(toPublicLogRow(entry))}\n\n`);
+      });
 
       const keepAlive = setInterval(() => {
         reply.raw.write(`event: heartbeat\n`);
@@ -204,6 +249,10 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
         projectId: query.project_id,
         workflowId: query.workflow_id,
         taskId: query.task_id,
+        workItemId: query.work_item_id,
+        stageName: query.stage_name,
+        activationId: query.activation_id,
+        isOrchestratorTask: parseBoolean(query.is_orchestrator_task),
         traceId: query.trace_id,
         source: parseCsv(query.source),
         category: parseCsv(query.category),
@@ -228,14 +277,14 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
       if (format === 'csv') {
         reply.raw.write(csvHeader() + '\n');
         for await (const row of logService.export(request.auth!.tenantId, filters)) {
-          reply.raw.write(csvRow(row) + '\n');
+          reply.raw.write(csvRow(toPublicLogRow(row)) + '\n');
         }
       } else {
         reply.raw.write('[\n');
         let first = true;
         for await (const row of logService.export(request.auth!.tenantId, filters)) {
           if (!first) reply.raw.write(',\n');
-          reply.raw.write(JSON.stringify(row));
+          reply.raw.write(JSON.stringify(toPublicLogRow(row)));
           first = false;
         }
         reply.raw.write('\n]\n');
@@ -255,7 +304,7 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
       const query = request.query as Record<string, string | undefined>;
       const groupBy = query.group_by ?? 'category';
 
-      if (!validGroupBy.includes(groupBy as typeof validGroupBy[number])) {
+      if (!validGroupBy.includes(groupBy as (typeof validGroupBy)[number])) {
         throw new SchemaValidationFailedError('Invalid group_by value', {
           allowed: validGroupBy,
         });
@@ -266,6 +315,10 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
         traceId: query.trace_id,
         workflowId: query.workflow_id,
         taskId: query.task_id,
+        workItemId: query.work_item_id,
+        stageName: query.stage_name,
+        activationId: query.activation_id,
+        isOrchestratorTask: parseBoolean(query.is_orchestrator_task),
         since: query.since,
         until: query.until,
         groupBy: groupBy as LogStatsFilters['groupBy'],
@@ -312,21 +365,13 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
   );
 };
 
-const CSV_COLUMNS = [
-  'id', 'created_at', 'source', 'category', 'level', 'operation', 'status',
-  'duration_ms', 'project_id', 'workflow_id', 'task_id',
-  'actor_type', 'actor_id', 'actor_name',
-  'resource_type', 'resource_id', 'resource_name',
-  'trace_id', 'span_id', 'error', 'payload',
-] as const;
-
 function csvHeader(): string {
-  return CSV_COLUMNS.join(',');
+  return PUBLIC_LOG_CSV_COLUMNS.join(',');
 }
 
-function csvRow(row: LogRow): string {
+function csvRow(row: ReturnType<typeof toPublicLogRow>): string {
   const record = row as unknown as Record<string, unknown>;
-  return CSV_COLUMNS.map((col) => {
+  return PUBLIC_LOG_CSV_COLUMNS.map((col) => {
     const val = record[col];
     if (val === null || val === undefined) return '';
     if (typeof val === 'object') return csvEscape(JSON.stringify(val));

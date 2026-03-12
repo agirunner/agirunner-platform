@@ -84,6 +84,7 @@ interface LlmProvider {
   auth_mode?: string;
   metadata?: { providerType?: ProviderType };
   model_count?: number;
+  credentials_configured?: boolean;
 }
 
 interface LlmModel {
@@ -112,7 +113,7 @@ interface AddProviderForm {
   providerType: ProviderType;
   name: string;
   baseUrl: string;
-  apiKeySecretRef: string;
+  apiKey: string;
 }
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
@@ -134,7 +135,7 @@ const INITIAL_FORM: AddProviderForm = {
   providerType: 'openai',
   name: 'OpenAI',
   baseUrl: 'https://api.openai.com/v1',
-  apiKeySecretRef: '',
+  apiKey: '',
 };
 
 /* ─── Helpers ───────────────────────────────────────────────────────────── */
@@ -238,7 +239,7 @@ async function createProvider(payload: AddProviderForm): Promise<LlmProvider> {
       body: JSON.stringify({
         name: payload.name,
         baseUrl: payload.baseUrl,
-        apiKeySecretRef: payload.apiKeySecretRef,
+        apiKeySecretRef: payload.apiKey,
         metadata: { providerType: payload.providerType },
       }),
     },
@@ -671,13 +672,14 @@ function AddProviderDialog(): JSX.Element {
             </label>
             <Input
               type="password"
-              placeholder={form.providerType === 'openai-compatible' ? 'Optional' : 'sk-...'}
-              value={form.apiKeySecretRef}
+              placeholder={form.providerType === 'openai-compatible' ? 'Set API key (optional)' : 'Paste API key'}
+              value={form.apiKey}
               onChange={(e) =>
-                setForm((prev) => ({ ...prev, apiKeySecretRef: e.target.value }))
+                setForm((prev) => ({ ...prev, apiKey: e.target.value }))
               }
               required={form.providerType !== 'openai-compatible'}
             />
+            <p className="text-xs text-muted">Stored write-only. Existing keys are never shown again.</p>
           </div>
           {mutation.error && (
             <p className="text-sm text-red-600">
@@ -727,7 +729,12 @@ function ProviderCard({
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">{provider.name}</CardTitle>
-          <Badge variant="outline">{providerType}</Badge>
+          <div className="flex gap-1">
+            <Badge variant="outline">{providerType}</Badge>
+            <Badge variant={provider.credentials_configured ? 'default' : 'secondary'}>
+              {provider.credentials_configured ? 'Credentials Set' : 'No Credentials'}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent>

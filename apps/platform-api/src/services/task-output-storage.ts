@@ -1,9 +1,15 @@
 import path from 'node:path';
 
 import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { OutputStateDeclaration } from '../orchestration/workflow-engine.js';
 import { ValidationError } from '../errors/domain-errors.js';
 import type { ArtifactService } from './artifact-service.js';
+
+interface OutputStateDeclaration {
+  mode: 'inline' | 'artifact' | 'git';
+  path?: string;
+  media_type?: string;
+  summary?: string;
+}
 
 interface StoredArtifactReference {
   id: string;

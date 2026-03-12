@@ -19,12 +19,21 @@ type PlatformClient struct {
 
 // NewPlatformClient creates a client for the platform API.
 func NewPlatformClient(baseURL, apiKey string) *PlatformClient {
-	return &PlatformClient{
-		baseURL: baseURL,
-		apiKey:  apiKey,
-		httpClient: &http.Client{
+	return NewPlatformClientWithHTTPClient(baseURL, apiKey, &http.Client{
+		Timeout: 10 * time.Second,
+	})
+}
+
+func NewPlatformClientWithHTTPClient(baseURL, apiKey string, httpClient *http.Client) *PlatformClient {
+	if httpClient == nil {
+		httpClient = &http.Client{
 			Timeout: 10 * time.Second,
-		},
+		}
+	}
+	return &PlatformClient{
+		baseURL:    baseURL,
+		apiKey:     apiKey,
+		httpClient: httpClient,
 	}
 }
 
@@ -72,8 +81,8 @@ func (c *PlatformClient) FetchDesiredState() ([]DesiredState, error) {
 func (c *PlatformClient) ReportActualState(state ActualState) error {
 	payload := map[string]interface{}{
 		"desiredStateId":   state.DesiredStateID,
-		"containerId":     state.ContainerID,
-		"containerStatus": state.ContainerStatus,
+		"containerId":      state.ContainerID,
+		"containerStatus":  state.ContainerStatus,
 		"cpuUsagePercent":  state.CPUUsagePercent,
 		"memoryUsageBytes": state.MemoryUsageBytes,
 		"networkRxBytes":   state.NetworkRxBytes,

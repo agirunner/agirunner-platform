@@ -18,7 +18,7 @@ func (m *Manager) createRuntimeContainers(ctx context.Context, target RuntimeTar
 	}
 
 	pullStart := time.Now()
-	pullMeta := map[string]any{"action": "image_pull", "image": target.Image, "policy": target.PullPolicy, "template_id": target.TemplateID, "template_name": target.TemplateName}
+	pullMeta := map[string]any{"action": "image_pull", "image": target.Image, "policy": target.PullPolicy, "playbook_id": target.PlaybookID, "playbook_name": target.PlaybookName}
 	m.emitLog("container", "container.image_pull", "debug", "started", pullMeta)
 
 	if err := m.docker.PullImage(ctx, target.Image, target.PullPolicy); err != nil {
@@ -33,16 +33,16 @@ func (m *Manager) createRuntimeContainers(ctx context.Context, target RuntimeTar
 		spec := m.buildDCMRuntimeSpec(target)
 		containerID, err := m.docker.CreateContainer(ctx, spec)
 		if err != nil {
-			m.logger.Error("failed to create DCM runtime", "template", target.TemplateID, "error", err)
+			m.logger.Error("failed to create DCM runtime", "playbook_id", target.PlaybookID, "error", err)
 			m.emitLogError("container", "container.create", map[string]any{
 				"action":           "create",
-				"template_id":     target.TemplateID,
-				"template_name":   target.TemplateName,
-				"pool_mode":       target.PoolMode,
-				"priority":        target.Priority,
-				"pending_tasks":   target.PendingTasks,
+				"playbook_id":      target.PlaybookID,
+				"playbook_name":    target.PlaybookName,
+				"pool_mode":        target.PoolMode,
+				"priority":         target.Priority,
+				"pending_tasks":    target.PendingTasks,
 				"active_workflows": target.ActiveWorkflows,
-				"image":           target.Image,
+				"image":            target.Image,
 			}, err.Error())
 			continue
 		}
@@ -54,27 +54,27 @@ func (m *Manager) createRuntimeContainers(ctx context.Context, target RuntimeTar
 					"action":        "network_connect",
 					"container_id":  containerID,
 					"network":       m.config.RuntimeInternalNetwork,
-					"template_id":   target.TemplateID,
-					"template_name": target.TemplateName,
+					"playbook_id":   target.PlaybookID,
+					"playbook_name": target.PlaybookName,
 				}, err.Error())
 			}
 		}
 		runtimeID := spec.Labels[labelDCMRuntimeID]
-		m.logFleetEvent("runtime_created", "info", runtimeID, target.TemplateID, containerID)
-		m.logFleetEvent("container.created", "info", runtimeID, target.TemplateID, containerID)
-		m.metrics.RecordScalingEvent(target.TemplateID, "created")
+		m.logFleetEvent("runtime_created", "info", runtimeID, target.PlaybookID, target.PoolKind, containerID)
+		m.logFleetEvent("container.created", "info", runtimeID, target.PlaybookID, target.PoolKind, containerID)
+		m.metrics.RecordScalingEvent(target.PlaybookID, "created")
 		m.emitLogWithResource("container", "container.create", "debug", "completed", map[string]any{
 			"action":           "create",
-			"template_id":     target.TemplateID,
-			"template_name":   target.TemplateName,
-			"pool_mode":       target.PoolMode,
-			"priority":        target.Priority,
-			"pending_tasks":   target.PendingTasks,
+			"playbook_id":      target.PlaybookID,
+			"playbook_name":    target.PlaybookName,
+			"pool_mode":        target.PoolMode,
+			"priority":         target.Priority,
+			"pending_tasks":    target.PendingTasks,
 			"active_workflows": target.ActiveWorkflows,
-			"runtime_id":      runtimeID,
-			"image":           target.Image,
-			"container_id":    containerID,
-			"reason":          "scaling",
+			"runtime_id":       runtimeID,
+			"image":            target.Image,
+			"container_id":     containerID,
+			"reason":           "scaling",
 		}, logResourceInfo{ResourceType: "runtime", ResourceID: runtimeID, ResourceName: spec.Name})
 		created++
 	}
@@ -83,15 +83,15 @@ func (m *Manager) createRuntimeContainers(ctx context.Context, target RuntimeTar
 
 const pullFailCacheTTL = 5 * time.Minute
 
-// prePullImage pre-pulls the runtime image for warm templates so it is
+// prePullImage pre-pulls the runtime image for warm playbooks so it is
 // cached locally before any container is created.
 func (m *Manager) prePullImage(ctx context.Context, target RuntimeTarget) {
-	m.prePullImageWithCache(ctx, target.Image, target.PullPolicy, target.TemplateID, "runtime")
+	m.prePullImageWithCache(ctx, target.Image, target.PullPolicy, target.PlaybookID, "runtime")
 }
 
 // prePullImageWithCache attempts an image pull, skipping if the same image
 // failed recently (within pullFailCacheTTL).
-func (m *Manager) prePullImageWithCache(ctx context.Context, image, policy, templateID, imageType string) {
+func (m *Manager) prePullImageWithCache(ctx context.Context, image, policy, playbookID, imageType string) {
 	if failedAt, ok := m.pullFailCache[image]; ok {
 		if m.nowFunc().Sub(failedAt) < pullFailCacheTTL {
 			return
@@ -100,13 +100,13 @@ func (m *Manager) prePullImageWithCache(ctx context.Context, image, policy, temp
 	}
 	if err := m.docker.PullImage(ctx, image, policy); err != nil {
 		m.pullFailCache[image] = m.nowFunc()
-		m.logger.Warn("failed to pre-pull "+imageType+" image for warm template",
-			"image", image, "template", templateID, "error", err)
+		m.logger.Warn("failed to pre-pull "+imageType+" image for warm playbook",
+			"image", image, "playbook_id", playbookID, "error", err)
 		m.emitLog("container", "container.pre_pull", "warn", "failed", map[string]any{
 			"action":      "image_pull",
 			"image":       image,
 			"policy":      policy,
-			"template_id": templateID,
+			"playbook_id": playbookID,
 			"image_type":  imageType,
 			"error":       err.Error(),
 		})
@@ -116,7 +116,7 @@ func (m *Manager) prePullImageWithCache(ctx context.Context, image, policy, temp
 // buildDCMRuntimeSpec constructs a ContainerSpec for a DCM-managed runtime.
 func (m *Manager) buildDCMRuntimeSpec(target RuntimeTarget) ContainerSpec {
 	runtimeID := uuid.New().String()
-	name := fmt.Sprintf("runtime-%s-%s", target.TemplateID[:minLen(target.TemplateID, 8)], runtimeID[:8])
+	name := fmt.Sprintf("runtime-%s-%s", target.PlaybookID[:minLen(target.PlaybookID, 8)], runtimeID[:8])
 
 	return ContainerSpec{
 		Name:        name,
@@ -132,12 +132,13 @@ func (m *Manager) buildDCMRuntimeSpec(target RuntimeTarget) ContainerSpec {
 // buildDCMEnvironment creates environment variables for a DCM runtime container.
 func (m *Manager) buildDCMEnvironment(target RuntimeTarget, runtimeID string) map[string]string {
 	return map[string]string{
-		"AGIRUNNER_RUNTIME_PLATFORM_API_URL":          m.config.PlatformAPIURL,
-		"AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY":    m.config.PlatformAdminAPIKey,
-		"AGIRUNNER_RUNTIME_PLATFORM_TEMPLATE_FILTER":  target.TemplateID,
-		"AGIRUNNER_RUNTIME_PLATFORM_RUNTIME_ID":       runtimeID,
-		"AGIRUNNER_RUNTIME_IMAGE":                     target.Image,
-		"DOCKER_HOST":                                 m.config.DockerHost,
+		"AGIRUNNER_RUNTIME_PLATFORM_API_URL":              m.config.PlatformAPIURL,
+		"AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY":        m.config.PlatformAdminAPIKey,
+		"AGIRUNNER_RUNTIME_PLATFORM_AGENT_EXECUTION_MODE": targetExecutionMode(target),
+		"AGIRUNNER_RUNTIME_PLATFORM_PLAYBOOK_FILTER":      target.PlaybookID,
+		"AGIRUNNER_RUNTIME_PLATFORM_RUNTIME_ID":           runtimeID,
+		"AGIRUNNER_RUNTIME_IMAGE":                         target.Image,
+		"DOCKER_HOST":                                     m.config.DockerHost,
 	}
 }
 
@@ -146,8 +147,9 @@ func buildDCMLabels(target RuntimeTarget, runtimeID string) map[string]string {
 	return map[string]string{
 		labelDCMManaged:      "true",
 		labelDCMTier:         tierRuntime,
-		labelDCMTemplateID:   target.TemplateID,
-		labelDCMTemplateName: target.TemplateName,
+		labelDCMPlaybookID:   target.PlaybookID,
+		labelDCMPlaybookName: target.PlaybookName,
+		labelDCMPoolKind:     normalizePoolKind(target.PoolKind),
 		labelDCMRuntimeID:    runtimeID,
 		labelDCMImage:        target.Image,
 		labelDCMGracePeriod:  strconv.Itoa(target.GracePeriodSeconds),
@@ -165,16 +167,16 @@ func (m *Manager) destroyContainers(ctx context.Context, containers []ContainerI
 	}
 	destroyed := 0
 	for _, c := range containers {
-		templateID := c.Labels[labelDCMTemplateID]
-		templateName := c.Labels[labelDCMTemplateName]
+		playbookID := c.Labels[labelDCMPlaybookID]
+		playbookName := c.Labels[labelDCMPlaybookName]
 		runtimeID := c.Labels[labelDCMRuntimeID]
 		m.stopAndRemove(ctx, c.ID, timeout)
-		m.logFleetEvent("container.destroyed", "info", runtimeID, templateID, c.ID)
-		m.metrics.RecordScalingEvent(templateID, "destroyed")
+		m.logFleetEvent("container.destroyed", "info", runtimeID, playbookID, c.Labels[labelDCMPoolKind], c.ID)
+		m.metrics.RecordScalingEvent(playbookID, "destroyed")
 		destroyMeta := map[string]any{
 			"action":        "scale_down",
-			"template_id":   templateID,
-			"template_name": templateName,
+			"playbook_id":   playbookID,
+			"playbook_name": playbookName,
 			"pool_mode":     c.Labels[labelDCMPoolMode],
 			"priority":      c.Labels[labelDCMPriority],
 			"runtime_id":    runtimeID,
@@ -217,10 +219,10 @@ func (m *Manager) handleDriftContainers(
 			continue
 		}
 
-		m.logFleetEvent("image_drift_detected", "warn", runtimeID, target.TemplateID, c.ID)
+		m.logFleetEvent("image_drift_detected", "warn", runtimeID, target.PlaybookID, target.PoolKind, c.ID)
 
 		if isExecutingRuntime(runtimeID, heartbeats) {
-			m.drainExecutingRuntime(ctx, c, runtimeID, target.TemplateID)
+			m.drainExecutingRuntime(ctx, c, runtimeID, target.PlaybookID)
 			result.drained++
 			continue
 		}
@@ -235,7 +237,7 @@ func (m *Manager) handleDriftContainers(
 // platform drain API (authoritative signal to the runtime to stop accepting
 // new tasks) and sets the draining label on the container so the reconciler
 // skips it on subsequent cycles.
-func (m *Manager) drainExecutingRuntime(ctx context.Context, c ContainerInfo, runtimeID, templateID string) {
+func (m *Manager) drainExecutingRuntime(ctx context.Context, c ContainerInfo, runtimeID, playbookID string) {
 	if err := m.platform.DrainRuntime(runtimeID); err != nil {
 		m.logger.Error("failed to drain runtime via platform API",
 			"runtime", runtimeID, "container", c.ID, "error", err)
@@ -248,12 +250,12 @@ func (m *Manager) drainExecutingRuntime(ctx context.Context, c ContainerInfo, ru
 			"runtime", runtimeID, "container", c.ID, "error", err)
 	}
 
-	m.logFleetEvent("runtime_draining", "info", runtimeID, templateID, c.ID)
-	m.metrics.RecordScalingEvent(templateID, "preempted")
+	m.logFleetEvent("runtime_draining", "info", runtimeID, playbookID, c.Labels[labelDCMPoolKind], c.ID)
+	m.metrics.RecordScalingEvent(playbookID, "preempted")
 	m.emitLogWithResource("container", "reconcile.drain", "info", "completed", map[string]any{
 		"action":       "drain",
 		"runtime_id":   runtimeID,
-		"template_id":  templateID,
+		"playbook_id":  playbookID,
 		"container_id": c.ID,
 		"image":        c.Image,
 		"pool_mode":    c.Labels[labelDCMPoolMode],
@@ -286,16 +288,16 @@ func (m *Manager) cleanupOrphanTaskContainers(ctx context.Context) {
 	for _, orphan := range orphans {
 		m.logger.Info("removing orphan task container", "container", orphan.ID)
 		parentRuntime := orphan.Labels[labelDCMRuntimeID]
-		templateID := orphan.Labels[labelDCMTemplateID]
+		playbookID := orphan.Labels[labelDCMPlaybookID]
 		m.stopAndRemove(ctx, orphan.ID, m.config.StopTimeout)
-		m.logFleetEvent("orphan.cleaned", "warn", parentRuntime, templateID, orphan.ID)
+		m.logFleetEvent("orphan.cleaned", "warn", parentRuntime, playbookID, orphan.Labels[labelDCMPoolKind], orphan.ID)
 		m.metrics.RecordOrphanCleaned()
 		m.emitLogWithResource("container", "container.orphan_cleanup", "warn", "completed", map[string]any{
 			"action":        "orphan_clean",
 			"container_id":  orphan.ID,
 			"runtime_id":    parentRuntime,
-			"template_id":   templateID,
-			"template_name": orphan.Labels[labelDCMTemplateName],
+			"playbook_id":   playbookID,
+			"playbook_name": orphan.Labels[labelDCMPlaybookName],
 			"image":         orphan.Image,
 			"pool_mode":     orphan.Labels[labelDCMPoolMode],
 			"priority":      orphan.Labels[labelDCMPriority],
@@ -336,16 +338,17 @@ func findOrphanTasks(containers []ContainerInfo, runtimeIDs map[string]bool) []C
 }
 
 // logFleetEvent records a fleet event via the platform client and logs it.
-func (m *Manager) logFleetEvent(eventType, level, runtimeID, templateID, containerID string) {
+func (m *Manager) logFleetEvent(eventType, level, runtimeID, playbookID, poolKind, containerID string) {
 	event := FleetEvent{
 		EventType:   eventType,
 		Level:       level,
 		RuntimeID:   runtimeID,
-		TemplateID:  templateID,
+		PlaybookID:  playbookID,
+		PoolKind:    normalizePoolKind(poolKind),
 		ContainerID: containerID,
 	}
 	_ = m.platform.RecordFleetEvent(event)
-	m.logger.Info("fleet event", "event", eventType, "runtime", runtimeID, "template", templateID)
+	m.logger.Info("fleet event", "event", eventType, "runtime", runtimeID, "playbook_id", playbookID, "pool_kind", normalizePoolKind(poolKind))
 }
 
 // minLen returns the shorter of the string length and n.
@@ -354,4 +357,11 @@ func minLen(s string, n int) int {
 		return len(s)
 	}
 	return n
+}
+
+func targetExecutionMode(target RuntimeTarget) string {
+	if normalizePoolKind(target.PoolKind) == "orchestrator" {
+		return "orchestrator"
+	}
+	return "specialist"
 }

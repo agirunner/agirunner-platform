@@ -100,23 +100,23 @@ func (m *Manager) handleHungRuntime(
 	runtimeID, reason string,
 	hb *RuntimeHeartbeat,
 ) {
-	templateID := c.Labels[labelDCMTemplateID]
+	playbookID := c.Labels[labelDCMPlaybookID]
 	m.logger.Warn("hung runtime detected",
 		"runtime_id", runtimeID,
 		"container_id", c.ID,
 		"reason", reason,
-		"template_id", templateID,
+		"playbook_id", playbookID,
 	)
 
 	m.failActiveTask(runtimeID, hb, reason)
 	m.stopAndRemove(ctx, c.ID, hungStopGracePeriod)
-	m.logFleetEvent("runtime_hung", "error", runtimeID, templateID, c.ID)
+	m.logFleetEvent("runtime_hung", "error", runtimeID, playbookID, c.Labels[labelDCMPoolKind], c.ID)
 	m.emitLogWithResource("container", "container.hung_detected", "warn", "completed", map[string]any{
 		"action":         "orphan_clean",
 		"runtime_id":     runtimeID,
 		"container_id":   c.ID,
-		"template_id":    templateID,
-		"template_name":  c.Labels[labelDCMTemplateName],
+		"playbook_id":    playbookID,
+		"playbook_name":  c.Labels[labelDCMPlaybookName],
 		"image":          c.Image,
 		"pool_mode":      c.Labels[labelDCMPoolMode],
 		"priority":       c.Labels[labelDCMPriority],
@@ -174,7 +174,7 @@ func (m *Manager) handleOrphanHeartbeats(
 		m.emitLogWithResource("container", "container.orphan_heartbeat", "warn", "completed", map[string]any{
 			"action":         "orphan_clean",
 			"runtime_id":     hb.RuntimeID,
-			"template_id":    hb.TemplateID,
+			"playbook_id":    hb.PlaybookID,
 			"active_task_id": hb.ActiveTaskID,
 			"reason":         "container_gone",
 		}, logResourceInfo{ResourceType: "runtime", ResourceID: hb.RuntimeID, TaskID: hb.ActiveTaskID})

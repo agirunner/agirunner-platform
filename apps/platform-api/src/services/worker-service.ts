@@ -18,6 +18,7 @@ import { createWebhookSignature, generateWebhookSecret, verifyWebhookSignature }
 export interface WorkerAgentInput {
   name: string;
   capabilities?: string[];
+  execution_mode?: 'specialist' | 'orchestrator' | 'hybrid';
   metadata?: Record<string, unknown>;
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import { ModelCatalogService } from '../../src/services/model-catalog-service.js';
+import { storeProviderSecret } from '../../src/lib/oauth-crypto.js';
 
 function createMockPool() {
   return { query: vi.fn() };
@@ -16,6 +17,7 @@ const sampleProvider = {
   name: 'anthropic',
   base_url: 'https://api.anthropic.com',
   api_key_secret_ref: null,
+  auth_mode: 'api_key',
   is_enabled: true,
   rate_limit_rpm: null,
   metadata: {},
@@ -51,6 +53,7 @@ describe('ModelCatalogService — LLM config enhancements', () => {
   let service: ModelCatalogService;
 
   beforeEach(() => {
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
     pool = createMockPool();
     service = new ModelCatalogService(pool as never);
   });
@@ -85,6 +88,26 @@ describe('ModelCatalogService — LLM config enhancements', () => {
           metadata: {},
         }),
       ).rejects.toThrow(/already exists/);
+    });
+
+    it('encrypts api key material before persisting it', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({
+          rows: [{ ...sampleProvider, api_key_secret_ref: 'enc:v1:test:test:test' }],
+          rowCount: 1,
+        });
+
+      await service.createProvider(TENANT_ID, {
+        name: 'anthropic',
+        baseUrl: 'https://api.anthropic.com',
+        apiKeySecretRef: 'sk-secret',
+        isEnabled: true,
+        metadata: {},
+      });
+
+      const params = pool.query.mock.calls[1][1] as unknown[];
+      expect(params[3]).not.toBe('sk-secret');
     });
   });
 
@@ -304,6 +327,25 @@ describe('ModelCatalogService — LLM config enhancements', () => {
 
       const params = pool.query.mock.calls[0][1] as unknown[];
       expect(params[11]).toBe(true); // enableAll overrides default policy
+    });
+  });
+
+  describe('resolveRoleConfig', () => {
+    it('decrypts stored provider api keys for internal runtime use', async () => {
+      const encryptedProvider = {
+        ...sampleProvider,
+        api_key_secret_ref: storeProviderSecret('sk-runtime-secret'),
+      };
+      pool.query
+        .mockResolvedValueOnce({ rows: [{ primary_model_id: MODEL_ID }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [sampleModel], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [encryptedProvider], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+      const resolved = await service.resolveRoleConfig(TENANT_ID, 'developer');
+
+      expect(resolved?.provider.apiKeySecretRef).toBe('sk-runtime-secret');
     });
   });
 });

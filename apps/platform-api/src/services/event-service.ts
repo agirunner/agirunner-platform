@@ -1,6 +1,15 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 
-type EventEntityType = 'task' | 'workflow' | 'agent' | 'worker' | 'project' | 'template' | 'system';
+type EventEntityType =
+  | 'task'
+  | 'work_item'
+  | 'gate'
+  | 'workflow'
+  | 'agent'
+  | 'worker'
+  | 'project'
+  | 'template'
+  | 'system';
 
 interface EventInput {
   tenantId: string;

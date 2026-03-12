@@ -64,7 +64,7 @@ func TestIsManagedContainer(t *testing.T) {
 func TestExtractResourceInfoRuntime(t *testing.T) {
 	attrs := map[string]string{
 		labelDCMRuntimeID:   "rt-123",
-		labelDCMTemplateID:  "tmpl-456",
+		labelDCMPlaybookID:  "tmpl-456",
 		"agirunner.task_id": "task-789",
 		"name":              "test-container",
 	}
@@ -82,13 +82,13 @@ func TestExtractResourceInfoRuntime(t *testing.T) {
 	}
 }
 
-func TestExtractResourceInfoTemplateOnly(t *testing.T) {
+func TestExtractResourceInfoPlaybookOnly(t *testing.T) {
 	res := extractResourceInfo(map[string]string{
-		labelDCMTemplateID: "tmpl-456",
+		labelDCMPlaybookID: "tmpl-456",
 		"name":             "test-container",
 	})
-	if res.ResourceType != "template" {
-		t.Errorf("ResourceType = %q, want %q", res.ResourceType, "template")
+	if res.ResourceType != "playbook" {
+		t.Errorf("ResourceType = %q, want %q", res.ResourceType, "playbook")
 	}
 	if res.ResourceID != "tmpl-456" {
 		t.Errorf("ResourceID = %q, want %q", res.ResourceID, "tmpl-456")
@@ -215,7 +215,7 @@ func TestWatcherEmitsManagedContainerStarted(t *testing.T) {
 				"image":            "agirunner-runtime:local",
 				labelDCMManaged:    "true",
 				labelDCMRuntimeID:  "rt-001",
-				labelDCMTemplateID: "tmpl-001",
+				labelDCMPlaybookID: "tmpl-001",
 			},
 		},
 	})
@@ -502,8 +502,8 @@ func TestWatcherOOMEvent(t *testing.T) {
 		Actor: events.Actor{
 			ID: "oom-container",
 			Attributes: map[string]string{
-				"name":          "oom-worker",
-				labelManagedBy:  "true",
+				"name":            "oom-worker",
+				labelManagedBy:    "true",
 				labelDCMRuntimeID: "rt-oom",
 			},
 		},
@@ -532,9 +532,9 @@ func TestWatcherKillEventWithSignal(t *testing.T) {
 		Actor: events.Actor{
 			ID: "killed-container",
 			Attributes: map[string]string{
-				"name":          "killed-worker",
-				"signal":        "SIGKILL",
-				labelManagedBy:  "true",
+				"name":         "killed-worker",
+				"signal":       "SIGKILL",
+				labelManagedBy: "true",
 			},
 		},
 	})

@@ -1,132 +1,119 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
-import { NotFoundError } from '../errors/domain-errors.js';
-import { validateTemplateSchema } from '../orchestration/workflow-engine.js';
-import { resolveTemplateVariables } from '../orchestration/template-variables.js';
-import { deriveWorkflowView } from '../orchestration/workflow-runtime.js';
-import { resolveInstructionConfig, resolveWorkflowConfig } from './config-hierarchy-service.js';
-import {
-  buildStoredWorkflowWorkflow,
-  buildTemplateTaskIdMap,
-  insertTaskFromTemplate,
-  loadTemplateOrThrow,
-} from './workflow-instantiation.js';
-import type { CreateWorkflowInput, WorkflowServiceConfig } from './workflow-service.types.js';
+import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import { defaultStageName, parsePlaybookDefinition } from '../orchestration/playbook-model.js';
+import { resolveWorkflowConfig } from './config-hierarchy-service.js';
+import { WorkflowActivationService } from './workflow-activation-service.js';
+import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
+import type { CreateWorkflowInput } from './workflow-service.types.js';
 import { EventService } from './event-service.js';
+import type { ModelCatalogService } from './model-catalog-service.js';
+import { WorkflowStageService } from './workflow-stage-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
 
 interface WorkflowCreationDeps {
   pool: DatabasePool;
   eventService: EventService;
   stateService: WorkflowStateService;
-  config: WorkflowServiceConfig;
+  activationService: WorkflowActivationService;
+  activationDispatchService: WorkflowActivationDispatchService;
+  stageService: WorkflowStageService;
+  modelCatalogService: Pick<ModelCatalogService, 'validateModelOverride'>;
 }
+
+type CreatedWorkflow = Record<string, unknown> & {
+  id: string;
+  playbook_id: string | null;
+  current_stage?: string | null;
+  workflow_stages: unknown[];
+  work_items: unknown[];
+  activations: Array<Record<string, unknown>>;
+};
+
+type PersistedWorkflowRow = Record<string, unknown> & {
+  id: string;
+  playbook_id: string | null;
+  current_stage: string | null;
+  lifecycle: string | null;
+};
 
 export class WorkflowCreationService {
   constructor(private readonly deps: WorkflowCreationDeps) {}
 
-  async createWorkflow(identity: ApiKeyIdentity, input: CreateWorkflowInput) {
+  async createWorkflow(identity: ApiKeyIdentity, input: CreateWorkflowInput): Promise<CreatedWorkflow> {
+    if (!input.playbook_id) {
+      throw new ValidationError('Workflow requires playbook_id');
+    }
+    return this.createPlaybookWorkflow(identity, input);
+  }
+
+  private async createPlaybookWorkflow(
+    identity: ApiKeyIdentity,
+    input: CreateWorkflowInput,
+  ): Promise<CreatedWorkflow> {
     const client = await this.deps.pool.connect();
     try {
       await client.query('BEGIN');
 
-      const template = await loadTemplateOrThrow(identity.tenantId, input.template_id, client);
-      const schema = validateTemplateSchema(template.schema as unknown);
-      let projectSpecVersion: number | null = null;
-      let projectSpec: Record<string, unknown> = {};
-
-      if (input.project_id) {
-        const project = await client.query<{ id: string; current_spec_version: number }>(
-          'SELECT id, current_spec_version FROM projects WHERE tenant_id = $1 AND id = $2',
-          [identity.tenantId, input.project_id],
-        );
-        if (!project.rowCount) throw new NotFoundError('Project not found');
-        projectSpecVersion = project.rows[0].current_spec_version;
-
-        if (projectSpecVersion > 0) {
-          const specResult = await client.query<{ spec: Record<string, unknown> }>(
-            `SELECT spec
-               FROM project_spec_versions
-              WHERE tenant_id = $1 AND project_id = $2 AND version = $3`,
-            [identity.tenantId, input.project_id, projectSpecVersion],
-          );
-          projectSpec = (specResult.rows[0]?.spec ?? {}) as Record<string, unknown>;
-        }
+      const playbookResult = await client.query(
+        `SELECT * FROM playbooks
+          WHERE tenant_id = $1
+            AND id = $2
+            AND is_active = true`,
+        [identity.tenantId, input.playbook_id],
+      );
+      if (!playbookResult.rowCount) {
+        throw new NotFoundError('Playbook not found');
       }
 
-      const parameters = resolveTemplateVariables(schema.variables, input.parameters);
-      const templateSchema = template.schema as Record<string, unknown>;
+      const playbook = playbookResult.rows[0] as Record<string, unknown>;
+      const definition = parsePlaybookDefinition(playbook.definition);
+      const projectSettings = await this.loadProjectSettings(identity.tenantId, input.project_id ?? null, client);
+      await this.deps.modelCatalogService.validateModelOverride(
+        identity.tenantId,
+        projectSettings.model_override,
+        'project model_override',
+      );
+      await this.deps.modelCatalogService.validateModelOverride(
+        identity.tenantId,
+        input.config_overrides ? input.config_overrides.model_override : undefined,
+        'workflow model_override',
+      );
       const resolvedConfig = resolveWorkflowConfig(
-        templateSchema,
-        projectSpec,
+        playbook.definition as Record<string, unknown>,
+        projectSettings,
         input.config_overrides ?? {},
       );
-      const instructionConfig = resolveInstructionConfig(
-        templateSchema,
-        input.instruction_config,
-      );
-      const taskIdMap = buildTemplateTaskIdMap(schema.tasks);
-      const storedWorkflow = buildStoredWorkflowWorkflow(schema, taskIdMap);
-      const workflowMetadata = {
-        ...(input.metadata ?? {}),
-        workflow: storedWorkflow,
-      };
-      const workflowRes = await client.query(
+      const initialStageName = initialWorkflowStageName(definition);
+      const workflowResult = await client.query(
         `INSERT INTO workflows (
-            tenant_id, project_id, template_id, template_version, project_spec_version,
-            name, parameters, metadata, resolved_config, config_layers, instruction_config, state
-         )
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'pending')
+           tenant_id, project_id, playbook_id, playbook_version, name, state, lifecycle,
+           current_stage, parameters, metadata, resolved_config, config_layers,
+           instruction_config, orchestration_state
+         ) VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $10, $11, $12, '{}'::jsonb)
          RETURNING *`,
         [
           identity.tenantId,
           input.project_id ?? null,
-          template.id,
-          template.version,
-          projectSpecVersion,
+          playbook.id,
+          playbook.version,
           input.name,
-          parameters,
-          workflowMetadata,
+          definition.lifecycle,
+          initialStageName,
+          input.parameters ?? {},
+          input.metadata ?? {},
           resolvedConfig.resolved,
           resolvedConfig.layers,
-          instructionConfig,
+          input.instruction_config ?? null,
         ],
       );
-
-      const workflow = workflowRes.rows[0];
-      const createdTasks: Record<string, unknown>[] = [];
-      const dependencyMap = new Map(
-        schema.tasks.map((task) => [task.id, [...(task.depends_on ?? [])]]),
+      const workflow = workflowResult.rows[0] as PersistedWorkflowRow;
+      const createdStages = await this.deps.stageService.createStages(
+        identity.tenantId,
+        workflow.id as string,
+        definition,
+        client,
       );
-
-      for (const task of schema.tasks) {
-        const createdTask = await insertTaskFromTemplate({
-          tenantId: identity.tenantId,
-          workflowId: workflow.id as string,
-          projectId: input.project_id,
-          task,
-          parameters,
-          taskIdMap,
-          client,
-          config: this.deps.config,
-          workflowLifecycle: schema.lifecycle,
-          storedWorkflow,
-          dependencyMap,
-        });
-        createdTasks.push(createdTask);
-        await this.deps.eventService.emit(
-          {
-            tenantId: identity.tenantId,
-            type: 'task.created',
-            entityType: 'task',
-            entityId: createdTask.id as string,
-            actorType: identity.scope,
-            actorId: identity.keyPrefix,
-            data: { workflow_id: workflow.id, role: createdTask.role, state: createdTask.state },
-          },
-          client,
-        );
-      }
 
       await this.deps.eventService.emit(
         {
@@ -137,43 +124,54 @@ export class WorkflowCreationService {
           actorType: identity.scope,
           actorId: identity.keyPrefix,
           data: {
-            template_id: template.id,
-            template_version: template.version,
-            project_spec_version: projectSpecVersion,
-            task_count: createdTasks.length,
+            playbook_id: playbook.id,
+            playbook_version: playbook.version,
+            lifecycle: definition.lifecycle,
           },
         },
         client,
       );
 
-      const workflowView = deriveWorkflowView(storedWorkflow, createdTasks);
-      const initialPhase = workflowView.current_phase ?? storedWorkflow.phases[0]?.name ?? null;
-      if (initialPhase) {
+      if (shouldEmitInitialStageStart(workflow)) {
         await this.deps.eventService.emit(
           {
             tenantId: identity.tenantId,
-            type: 'phase.started',
+            type: 'stage.started',
             entityType: 'workflow',
             entityId: workflow.id as string,
             actorType: identity.scope,
             actorId: identity.keyPrefix,
-            data: {
-              workflow_id: workflow.id,
-              phase_name: initialPhase,
-              timestamp: new Date().toISOString(),
-            },
+            data: { stage_name: workflow.current_stage },
           },
           client,
         );
       }
 
-      const state = await this.deps.stateService.recomputeWorkflowState(identity.tenantId, workflow.id as string, client, {
-        actorType: identity.scope,
-        actorId: identity.keyPrefix,
-      });
+      const activation = await this.deps.activationService.enqueueForWorkflow(
+        {
+          tenantId: identity.tenantId,
+          workflowId: workflow.id as string,
+          reason: 'workflow.created',
+          eventType: 'workflow.created',
+          payload: workflow.current_stage ? { stage_name: workflow.current_stage } : {},
+          actorType: identity.scope,
+          actorId: identity.keyPrefix,
+        },
+        client,
+      );
+      await this.deps.activationDispatchService.dispatchActivation(
+        identity.tenantId,
+        String(activation.id),
+        client,
+      );
 
       await client.query('COMMIT');
-      return { ...workflow, state, tasks: createdTasks, ...workflowView };
+      return sanitizeCreatedWorkflow({
+        ...workflow,
+        workflow_stages: createdStages,
+        work_items: [],
+        activations: [activation],
+      });
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -181,4 +179,43 @@ export class WorkflowCreationService {
       client.release();
     }
   }
+
+  private async loadProjectSettings(
+    tenantId: string,
+    projectId: string | null,
+    client: { query: DatabasePool['query'] },
+  ): Promise<Record<string, unknown>> {
+    if (!projectId) {
+      return {};
+    }
+
+    const result = await client.query<{ settings: Record<string, unknown> | null }>(
+      'SELECT settings FROM projects WHERE tenant_id = $1 AND id = $2',
+      [tenantId, projectId],
+    );
+    if (!result.rowCount) {
+      throw new NotFoundError('Project not found');
+    }
+    return (result.rows[0].settings ?? {}) as Record<string, unknown>;
+  }
+}
+
+function initialWorkflowStageName(definition: ReturnType<typeof parsePlaybookDefinition>): string | null {
+  if (definition.lifecycle === 'continuous') {
+    return null;
+  }
+  return defaultStageName(definition);
+}
+
+function shouldEmitInitialStageStart(workflow: PersistedWorkflowRow): boolean {
+  return workflow.lifecycle === 'standard' && typeof workflow.current_stage === 'string';
+}
+
+function sanitizeCreatedWorkflow(workflow: CreatedWorkflow): CreatedWorkflow {
+  if (workflow.lifecycle !== 'continuous') {
+    return workflow;
+  }
+
+  const { current_stage: _currentStage, ...rest } = workflow;
+  return rest as CreatedWorkflow;
 }

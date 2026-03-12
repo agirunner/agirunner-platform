@@ -65,7 +65,7 @@ describe('TaskLifecycleService concurrent state guard (maintenance-sad cancellat
     };
 
     await expect(service.startTask(identity, 'task-1', { agent_id: 'agent-1' })).rejects.toThrow(
-      /INVALID_STATE_TRANSITION|Task state changed concurrently|Cannot transition from 'cancelled' to 'running'/,
+      /INVALID_STATE_TRANSITION|Task state changed concurrently|Cannot transition from 'cancelled' to 'in_progress'/,
     );
 
     const updateCall = client.query.mock.calls.find(
@@ -85,7 +85,7 @@ describe('TaskLifecycleService concurrent state guard (maintenance-sad cancellat
 });
 
 describe('TaskLifecycleService worker identity + payload semantics', () => {
-  it('allows worker identity to complete assigned running task', async () => {
+  it('allows worker identity to complete assigned in-progress task', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
@@ -118,7 +118,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-worker',
-        state: 'running',
+        state: 'in_progress',
         workflow_id: null,
         assigned_agent_id: 'agent-1',
         assigned_worker_id: 'worker-1',
@@ -181,7 +181,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-review',
-        state: 'running',
+        state: 'in_progress',
         workflow_id: null,
         assigned_agent_id: 'agent-1',
         assigned_worker_id: null,
@@ -215,7 +215,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(result.state).toBe('output_pending_review');
   });
 
-  it('queues cancel signal for running worker task before cancellation transition', async () => {
+  it('queues cancel signal for in-progress worker task before cancellation transition', async () => {
     const queueWorkerCancelSignal = vi.fn(async () => 'signal-1');
 
     const client = {
@@ -247,7 +247,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-cancel',
-        state: 'running',
+        state: 'in_progress',
         assigned_worker_id: 'worker-1',
       }),
       toTaskResponse: (task) => task,
@@ -445,7 +445,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
   });
 
-  it('queues cancel signal before reassigning a running task', async () => {
+  it('queues cancel signal before reassigning an in-progress task', async () => {
     const queueWorkerCancelSignal = vi.fn(async () => 'signal-2');
     const client = {
       query: vi.fn(async (sql: string) => {
@@ -475,7 +475,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-reassign',
-        state: 'running',
+        state: 'in_progress',
         workflow_id: null,
         assigned_worker_id: 'worker-2',
         metadata: {},
@@ -555,7 +555,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-retry-policy',
-        state: 'running',
+        state: 'in_progress',
         workflow_id: null,
         assigned_agent_id: 'agent-1',
         assigned_worker_id: null,
@@ -594,6 +594,233 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'task.retry_scheduled' }),
       expect.anything(),
+    );
+  });
+
+  it('releases queued specialist tasks when auto-retry backoff moves an active task to pending', async () => {
+    const eventService = { emit: vi.fn() };
+    const parallelismService = {
+      releaseQueuedReadyTasks: vi.fn(async () => 1),
+    };
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-retry-release',
+                state: 'pending',
+                workflow_id: 'wf-1',
+                is_orchestrator_task: false,
+                retry_count: 1,
+                metadata: {
+                  retry_backoff_seconds: 5,
+                },
+              },
+            ],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const workflowStateService = { recomputeWorkflowState: vi.fn() };
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      workflowStateService: workflowStateService as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-retry-release',
+        state: 'in_progress',
+        workflow_id: 'wf-1',
+        is_orchestrator_task: false,
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        retry_count: 0,
+        metadata: {
+          lifecycle_policy: {
+            retry_policy: {
+              max_attempts: 2,
+              backoff_strategy: 'fixed',
+              initial_backoff_seconds: 5,
+              retryable_categories: ['timeout'],
+            },
+          },
+        },
+      }),
+      toTaskResponse: (task) => task,
+      parallelismService: parallelismService as never,
+    });
+
+    const result = await service.failTask(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'ak',
+      },
+      'task-retry-release',
+      {
+        error: { category: 'timeout', message: 'too slow' },
+      },
+    );
+
+    expect(result.state).toBe('pending');
+    expect(parallelismService.releaseQueuedReadyTasks).toHaveBeenCalledWith(
+      eventService,
+      'tenant-1',
+      'wf-1',
+      client,
+    );
+  });
+
+  it('respects parallelism caps when a manual retry would reopen a failed task', async () => {
+    const eventService = { emit: vi.fn() };
+    const parallelismService = {
+      shouldQueueForCapacity: vi.fn(async () => true),
+      releaseQueuedReadyTasks: vi.fn(async () => 0),
+    };
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-manual-retry',
+                state: 'pending',
+                workflow_id: 'wf-1',
+                work_item_id: 'wi-1',
+                is_orchestrator_task: false,
+                retry_count: 2,
+                metadata: {},
+              },
+            ],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-manual-retry',
+        state: 'failed',
+        workflow_id: 'wf-1',
+        work_item_id: 'wi-1',
+        is_orchestrator_task: false,
+        assigned_agent_id: null,
+        assigned_worker_id: null,
+        retry_count: 1,
+        metadata: {},
+      }),
+      toTaskResponse: (task) => task,
+      parallelismService: parallelismService as never,
+    });
+
+    const result = await service.retryTask(
+      {
+        id: 'admin-key',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'tenant',
+        ownerId: 'tenant-1',
+        keyPrefix: 'admin',
+      },
+      'task-manual-retry',
+    );
+
+    expect(result.state).toBe('pending');
+    expect(parallelismService.shouldQueueForCapacity).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        taskId: 'task-manual-retry',
+        workflowId: 'wf-1',
+        workItemId: 'wi-1',
+        currentState: 'failed',
+      }),
+      client,
+    );
+    expect(parallelismService.releaseQueuedReadyTasks).not.toHaveBeenCalled();
+  });
+
+  it('releases queued specialist tasks when an approval-gated task is cancelled', async () => {
+    const eventService = { emit: vi.fn() };
+    const parallelismService = {
+      releaseQueuedReadyTasks: vi.fn(async () => 1),
+    };
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-awaiting-approval',
+                state: 'cancelled',
+                workflow_id: 'wf-1',
+                is_orchestrator_task: false,
+                assigned_agent_id: null,
+                assigned_worker_id: null,
+                metadata: {},
+              },
+            ],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-awaiting-approval',
+        state: 'awaiting_approval',
+        workflow_id: 'wf-1',
+        is_orchestrator_task: false,
+        assigned_agent_id: null,
+        assigned_worker_id: null,
+        metadata: {},
+      }),
+      toTaskResponse: (task) => task,
+      parallelismService: parallelismService as never,
+    });
+
+    const result = await service.cancelTask(
+      {
+        id: 'admin-key',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'tenant',
+        ownerId: 'tenant-1',
+        keyPrefix: 'admin',
+      },
+      'task-awaiting-approval',
+    );
+
+    expect(result.state).toBe('cancelled');
+    expect(parallelismService.releaseQueuedReadyTasks).toHaveBeenCalledWith(
+      eventService,
+      'tenant-1',
+      'wf-1',
+      client,
     );
   });
 
@@ -647,7 +874,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-escalate',
-        state: 'running',
+        state: 'in_progress',
         workflow_id: 'pipe-1',
         project_id: null,
         title: 'Compile',

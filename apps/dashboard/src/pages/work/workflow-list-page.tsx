@@ -3,8 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Plus, Search, List, LayoutGrid } from 'lucide-react';
 import { dashboardApi } from '../../lib/api.js';
-import type { DashboardTemplate, DashboardProjectRecord } from '../../lib/api.js';
-import { cn } from '../../lib/utils.js';
 import { Skeleton } from '../../components/ui/skeleton.js';
 import { SavedViews, type SavedViewFilters } from '../../components/saved-views.js';
 import { Badge } from '../../components/ui/badge.js';
@@ -26,90 +24,35 @@ import {
   SelectItem,
   SelectValue,
 } from '../../components/ui/select.js';
-
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
-
-interface Workflow {
-  id: string;
-  name: string;
-  project_name?: string;
-  project_id?: string;
-  template_name?: string;
-  status: string;
-  state?: string;
-  current_phase?: string;
-  task_counts?: Record<string, number>;
-  cost?: number;
-  created_at: string;
-}
-
-type StatusFilter = 'all' | 'running' | 'completed' | 'failed' | 'paused' | 'pending';
-type ViewMode = 'list' | 'board';
-
-const STATUS_FILTERS: StatusFilter[] = ['all', 'running', 'completed', 'failed', 'paused', 'pending'];
-
-const BOARD_COLUMNS = ['pending', 'running', 'paused', 'completed', 'failed'] as const;
-type BoardColumn = (typeof BOARD_COLUMNS)[number];
-
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
-function normalizeWorkflows(response: unknown): Workflow[] {
-  if (Array.isArray(response)) return response as Workflow[];
-  const wrapped = response as { data?: unknown };
-  return Array.isArray(wrapped?.data) ? (wrapped.data as Workflow[]) : [];
-}
-
-function normalizeTemplates(response: { data: DashboardTemplate[] }): DashboardTemplate[] {
-  return response?.data ?? [];
-}
-
-function normalizeProjects(
-  response: { data: DashboardProjectRecord[] } | DashboardProjectRecord[],
-): DashboardProjectRecord[] {
-  if (Array.isArray(response)) return response;
-  return response?.data ?? [];
-}
-
-function resolveStatus(workflow: Workflow): string {
-  return (workflow.status ?? workflow.state ?? 'unknown').toLowerCase();
-}
-
-function statusBadgeVariant(status: string) {
-  const map: Record<string, 'success' | 'default' | 'destructive' | 'warning' | 'secondary'> = {
-    completed: 'success',
-    running: 'default',
-    failed: 'destructive',
-    paused: 'warning',
-    pending: 'secondary',
-  };
-  return map[status] ?? 'secondary';
-}
-
-function formatTaskProgress(counts?: Record<string, number>): string {
-  if (!counts) return '-';
-  const completed = counts.completed ?? 0;
-  const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
-  return `${completed}/${total}`;
-}
-
-function formatCost(cost?: number): string {
-  if (cost === undefined || cost === null) return '-';
-  return `$${cost.toFixed(2)}`;
-}
+import {
+  BOARD_COLUMNS,
+  STATUS_FILTERS,
+  TYPE_FILTER_LABELS,
+  TYPE_FILTERS,
+  describeGateSummary,
+  describeOperatorSignal,
+  describeWorkItemSummary,
+  describeWorkflowStage,
+  describeWorkflowType,
+  formatCost,
+  normalizeWorkflows,
+  resolveStatus,
+  resolveTypeFilter,
+  statusBadgeVariant,
+  type BoardColumn,
+  type StatusFilter,
+  type TypeFilter,
+  type ViewMode,
+  type WorkflowListRecord,
+} from './workflow-list-support.js';
 
 /* ------------------------------------------------------------------ */
 /*  List View                                                          */
 /* ------------------------------------------------------------------ */
 
-function WorkflowTable({ workflows }: { workflows: Workflow[] }): JSX.Element {
+function WorkflowTable({ workflows }: { workflows: WorkflowListRecord[] }): JSX.Element {
   if (workflows.length === 0) {
-    return (
-      <p className="py-8 text-center text-muted">No workflows match the current filters.</p>
-    );
+    return <p className="py-8 text-center text-muted">No runs match the current filters.</p>;
   }
 
   return (
@@ -118,9 +61,11 @@ function WorkflowTable({ workflows }: { workflows: Workflow[] }): JSX.Element {
         <TableRow>
           <TableHead>Name</TableHead>
           <TableHead>Project</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Phase</TableHead>
-          <TableHead>Tasks</TableHead>
+          <TableHead>Type</TableHead>
+          <TableHead>Board Posture</TableHead>
+          <TableHead>Active Stages</TableHead>
+          <TableHead>Work Items</TableHead>
+          <TableHead>Gates</TableHead>
           <TableHead>Cost</TableHead>
           <TableHead>Created</TableHead>
         </TableRow>
@@ -131,21 +76,23 @@ function WorkflowTable({ workflows }: { workflows: Workflow[] }): JSX.Element {
           return (
             <TableRow key={wf.id}>
               <TableCell className="font-medium">
-                <Link
-                  to={`/work/workflows/${wf.id}`}
-                  className="text-accent hover:underline"
-                >
+                <Link to={`/work/workflows/${wf.id}`} className="text-accent hover:underline">
                   {wf.name}
                 </Link>
               </TableCell>
               <TableCell>{wf.project_name ?? '-'}</TableCell>
+              <TableCell>{describeWorkflowType(wf)}</TableCell>
               <TableCell>
-                <Badge variant={statusBadgeVariant(status)} className="capitalize">
-                  {status}
-                </Badge>
+                <div className="space-y-1">
+                  <Badge variant={statusBadgeVariant(status)} className="capitalize">
+                    {status}
+                  </Badge>
+                  <p className="text-xs text-muted">{describeOperatorSignal(wf)}</p>
+                </div>
               </TableCell>
-              <TableCell className="capitalize">{wf.current_phase ?? '-'}</TableCell>
-              <TableCell>{formatTaskProgress(wf.task_counts)}</TableCell>
+              <TableCell className="capitalize">{describeWorkflowStage(wf)}</TableCell>
+              <TableCell>{describeWorkItemSummary(wf)}</TableCell>
+              <TableCell>{describeGateSummary(wf)}</TableCell>
               <TableCell>{formatCost(wf.cost)}</TableCell>
               <TableCell className="text-muted">
                 {new Date(wf.created_at).toLocaleDateString()}
@@ -167,7 +114,7 @@ function BoardColumnView({
   workflows,
 }: {
   column: BoardColumn;
-  workflows: Workflow[];
+  workflows: WorkflowListRecord[];
 }): JSX.Element {
   return (
     <div className="flex-1 min-w-[200px]">
@@ -187,30 +134,35 @@ function BoardColumnView({
                   {wf.project_name ?? 'No project'}
                 </p>
                 <div className="mt-2 flex items-center justify-between text-xs text-muted">
-                  <span>{wf.template_name ?? '-'}</span>
-                  <span>{formatTaskProgress(wf.task_counts)} tasks</span>
+                  <span>{describeWorkflowType(wf)}</span>
+                  <span>{describeOperatorSignal(wf)}</span>
                 </div>
+                <p className="mt-2 text-xs text-muted truncate">{describeWorkflowStage(wf)}</p>
+                <p className="mt-1 text-xs text-muted truncate">{describeWorkItemSummary(wf)}</p>
+                {wf.work_item_summary?.awaiting_gate_count ? (
+                  <Badge className="mt-2" variant="warning">
+                    {wf.work_item_summary.awaiting_gate_count} gate reviews
+                  </Badge>
+                ) : null}
               </CardContent>
             </Card>
           </Link>
         ))}
-        {workflows.length === 0 && (
-          <p className="py-4 text-center text-xs text-muted">None</p>
-        )}
+        {workflows.length === 0 && <p className="py-4 text-center text-xs text-muted">No runs</p>}
       </div>
     </div>
   );
 }
 
-function WorkflowBoard({ workflows }: { workflows: Workflow[] }): JSX.Element {
+function WorkflowBoard({ workflows }: { workflows: WorkflowListRecord[] }): JSX.Element {
   const grouped = useMemo(() => {
-    const map = new Map<BoardColumn, Workflow[]>();
+    const map = new Map<BoardColumn, WorkflowListRecord[]>();
     for (const col of BOARD_COLUMNS) {
       map.set(col, []);
     }
     for (const wf of workflows) {
       const status = resolveStatus(wf) as BoardColumn;
-      const bucket = BOARD_COLUMNS.includes(status) ? status : 'pending';
+      const bucket = BOARD_COLUMNS.includes(status) ? status : 'planned';
       map.get(bucket)!.push(wf);
     }
     return map;
@@ -225,14 +177,13 @@ function WorkflowBoard({ workflows }: { workflows: Workflow[] }): JSX.Element {
   );
 }
 
-
-
 /* ------------------------------------------------------------------ */
 /*  Main page                                                          */
 /* ------------------------------------------------------------------ */
 
 export function WorkflowListPage(): JSX.Element {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
@@ -263,7 +214,7 @@ export function WorkflowListPage(): JSX.Element {
 
   if (error) {
     return (
-      <div className="p-6 text-red-600">Failed to load workflows. Please try again later.</div>
+      <div className="p-6 text-red-600">Failed to load delivery boards. Please try again later.</div>
     );
   }
 
@@ -272,19 +223,28 @@ export function WorkflowListPage(): JSX.Element {
 
   const filteredWorkflows = allWorkflows.filter((wf) => {
     const status = resolveStatus(wf);
+    const stageSummary = describeWorkflowStage(wf);
     if (statusFilter !== 'all' && status !== statusFilter) return false;
-    if (normalizedSearch && !wf.name.toLowerCase().includes(normalizedSearch)) return false;
+    if (typeFilter !== 'all' && resolveTypeFilter(wf) !== typeFilter) return false;
+    if (
+      normalizedSearch &&
+      !`${wf.name} ${wf.project_name ?? ''} ${stageSummary} ${wf.work_item_summary?.active_stage_names?.join(' ') ?? ''}`
+        .toLowerCase()
+        .includes(normalizedSearch)
+    ) {
+      return false;
+    }
     return true;
   });
 
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Workflows</h1>
+        <h1 className="text-2xl font-semibold">Delivery Boards</h1>
         <Button asChild>
-          <Link to="/config/templates/launch">
+          <Link to="/config/playbooks/launch">
             <Plus className="h-4 w-4" />
-            Launch Workflow
+            Launch Playbook
           </Link>
         </Button>
       </div>
@@ -300,7 +260,20 @@ export function WorkflowListPage(): JSX.Element {
           <SelectContent>
             {STATUS_FILTERS.map((s) => (
               <SelectItem key={s} value={s}>
-                {s === 'all' ? 'All Statuses' : s.charAt(0).toUpperCase() + s.slice(1)}
+                {s === 'all' ? 'All Postures' : s.charAt(0).toUpperCase() + s.slice(1)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        
+        <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as TypeFilter)}>
+          <SelectTrigger className="w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {TYPE_FILTERS.map((type) => (
+              <SelectItem key={type} value={type}>
+                {TYPE_FILTER_LABELS[type]}
               </SelectItem>
             ))}
           </SelectContent>
@@ -309,7 +282,7 @@ export function WorkflowListPage(): JSX.Element {
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted" />
           <Input
-            placeholder="Search workflows..."
+            placeholder="Search runs, stages, or projects..."
             className="pl-9"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -318,9 +291,10 @@ export function WorkflowListPage(): JSX.Element {
 
         <SavedViews
           storageKey="workflow-list"
-          currentFilters={{ status: statusFilter, search: searchQuery }}
+          currentFilters={{ status: statusFilter, workflowType: typeFilter, search: searchQuery }}
           onApply={(filters: SavedViewFilters) => {
             setStatusFilter((filters.status as StatusFilter) ?? 'all');
+            setTypeFilter((filters.workflowType as TypeFilter) ?? 'all');
             setSearchQuery(filters.search ?? '');
           }}
         />
@@ -350,7 +324,6 @@ export function WorkflowListPage(): JSX.Element {
       ) : (
         <WorkflowBoard workflows={filteredWorkflows} />
       )}
-
     </div>
   );
 }

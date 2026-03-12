@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import { assertValidTransition } from '../../src/orchestration/task-state-machine.js';
 import { assertValidWorkerTransition } from '../../src/orchestration/worker-state-machine.js';
-import { deriveWorkflowState, validateTemplateSchema } from '../../src/orchestration/workflow-engine.js';
 import { selectLeastLoadedWorker } from '../../src/services/worker-dispatch-service.js';
 
 // Schema imports for structural behavioral checks
@@ -28,12 +27,6 @@ describe('requirements structural backfill', () => {
     // orchestrator_grants schema exists with agentId and workflowId columns
     expect(orchestratorGrants.agentId).toBeDefined();
     expect(orchestratorGrants.workflowId).toBeDefined();
-
-    // workflow-creation-service uses validateTemplateSchema which accepts 'orchestration' task type
-    const schema = validateTemplateSchema({
-      tasks: [{ id: 'orchestrate', title_template: 'Orchestrate', type: 'orchestration' }],
-    });
-    expect(schema.tasks[0].type).toBe('orchestration');
   });
 
   it('covers FR-280/FR-281/FR-282/FR-284/FR-285 worker model and status transition rules', () => {
@@ -62,11 +55,9 @@ describe('requirements structural backfill', () => {
     // Verify route handler modules export callable Fastify plugins — not just string presence
     const { workerRoutes } = await import('../../src/api/routes/workers.routes.js');
     const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
-    const { templateRoutes } = await import('../../src/api/routes/templates.routes.js');
 
     expect(typeof workerRoutes).toBe('function');
     expect(typeof workflowRoutes).toBe('function');
-    expect(typeof templateRoutes).toBe('function');
   });
 
   it('covers FR-740/FR-741/FR-742/FR-744/FR-752/FR-754/FR-756 built-in worker dispatch and registration', () => {
@@ -123,20 +114,7 @@ describe('requirements structural backfill', () => {
     expect(events.data).toBeDefined();
   });
 
-  it('covers FR-405/FR-406/FR-705/FR-712/FR-713/FR-714/FR-715 template-workflow behavior remains schema-safe and derivable', () => {
-    const schema = validateTemplateSchema({
-      metadata: { workflow: { phases: [{ id: 'default', gate: 'all_complete' }] } },
-      tasks: [
-        { id: 'a', title_template: 'A', type: 'code' },
-        { id: 'b', title_template: 'B', type: 'test', depends_on: ['a'] },
-      ],
-    });
-
-    expect(schema.tasks).toHaveLength(2);
-    expect(deriveWorkflowState(['ready', 'pending'])).toBe('active');
-    expect(deriveWorkflowState(['running', 'pending'])).toBe('active');
-
-    // WorkflowCancellationService is a real class (not just a string in source)
+  it('covers FR-715 workflow cancellation primitives remain live', () => {
     expect(typeof WorkflowCancellationService).toBe('function');
   });
 });

@@ -28,18 +28,21 @@ import { GovernanceService } from '../services/governance-service.js';
 import { OAuthService } from '../services/oauth-service.js';
 import { OrchestratorGrantService } from '../services/orchestrator-grant-service.js';
 import { ToolTagService } from '../services/tool-tag-service.js';
-import { WebhookTaskTriggerService } from '../services/webhook-task-trigger-service.js';
+import { WebhookWorkItemTriggerService } from '../services/webhook-work-item-trigger-service.js';
 import { ModelCatalogService } from '../services/model-catalog-service.js';
 import { ProjectService } from '../services/project-service.js';
+import { PlaybookService } from '../services/playbook-service.js';
 import { RoleDefinitionService } from '../services/role-definition-service.js';
 import { RuntimeDefaultsService } from '../services/runtime-defaults-service.js';
+import { ScheduledWorkItemTriggerService } from '../services/scheduled-work-item-trigger-service.js';
 import { TaskService } from '../services/task-service.js';
-import { TemplateService } from '../services/template-service.js';
 import { UserService } from '../services/user-service.js';
 import { WorkerConnectionHub } from '../services/worker-connection-hub.js';
 import { WorkerService } from '../services/worker-service.js';
 import { WebhookService } from '../services/webhook-service.js';
 import { WorkflowService } from '../services/workflow-service.js';
+import { WorkflowActivationService } from '../services/workflow-activation-service.js';
+import { WorkflowActivationDispatchService } from '../services/workflow-activation-dispatch-service.js';
 import { seedConfigTables } from './seed.js';
 import { registerPlugins } from './plugins.js';
 import { registerRoutes } from './routes.js';
@@ -122,8 +125,14 @@ export async function buildApp() {
     integrationActionService,
   );
   const projectService = new ProjectService(pool, eventService, config);
-  const templateService = new TemplateService(pool, eventService);
+  const playbookService = new PlaybookService(pool);
   const workflowService = new WorkflowService(pool, eventService, config, workerConnectionHub, logService);
+  const workflowActivationService = new WorkflowActivationService(pool, eventService);
+  const workflowActivationDispatchService = new WorkflowActivationDispatchService({
+    pool,
+    eventService,
+    config,
+  });
   const userService = new UserService(pool);
   const apiKeyService = new ApiKeyService(pool);
   const roleDefinitionService = new RoleDefinitionService(pool);
@@ -135,11 +144,16 @@ export async function buildApp() {
   const toolTagService = new ToolTagService(pool);
   const agentService = new AgentService(pool, eventService, config);
   const acpSessionService = new AcpSessionService(pool, eventService);
-  const webhookTaskTriggerService = new WebhookTaskTriggerService(
+  const webhookWorkItemTriggerService = new WebhookWorkItemTriggerService(
     pool,
     eventService,
-    taskService,
+    workflowService,
     config.WEBHOOK_ENCRYPTION_KEY,
+  );
+  const scheduledWorkItemTriggerService = new ScheduledWorkItemTriggerService(
+    pool,
+    eventService,
+    workflowService,
   );
 
   app.decorate('config', config);
@@ -156,8 +170,9 @@ export async function buildApp() {
   app.decorate('webhookService', createLoggedService(webhookService, 'WebhookService', logService));
   app.decorate('governanceService', createLoggedService(governanceService, 'GovernanceService', logService));
   app.decorate('projectService', createLoggedService(projectService, 'ProjectService', logService));
-  app.decorate('templateService', createLoggedService(templateService, 'TemplateService', logService));
+  app.decorate('playbookService', createLoggedService(playbookService, 'PlaybookService', logService));
   app.decorate('workflowService', createLoggedService(workflowService, 'WorkflowService', logService));
+  app.decorate('workflowActivationService', createLoggedService(workflowActivationService, 'WorkflowActivationService', logService));
   app.decorate('taskService', createLoggedService(taskService, 'TaskService', logService));
   app.decorate('userService', createLoggedService(userService, 'UserService', logService));
   app.decorate('apiKeyService', createLoggedService(apiKeyService, 'ApiKeyService', logService));
@@ -169,7 +184,8 @@ export async function buildApp() {
   app.decorate('orchestratorGrantService', createLoggedService(orchestratorGrantService, 'OrchestratorGrantService', logService));
   app.decorate('acpSessionService', createLoggedService(acpSessionService, 'AcpSessionService', logService));
   app.decorate('toolTagService', createLoggedService(toolTagService, 'ToolTagService', logService));
-  app.decorate('webhookTaskTriggerService', createLoggedService(webhookTaskTriggerService, 'WebhookTaskTriggerService', logService));
+  app.decorate('webhookWorkItemTriggerService', createLoggedService(webhookWorkItemTriggerService, 'WebhookWorkItemTriggerService', logService));
+  app.decorate('scheduledWorkItemTriggerService', createLoggedService(scheduledWorkItemTriggerService, 'ScheduledWorkItemTriggerService', logService));
   app.decorate('agentService', createLoggedService(agentService, 'AgentService', logService));
 
   if (migratedWebhookSecrets > 0) {
@@ -195,6 +211,8 @@ export async function buildApp() {
     app.agentService,
     app.taskService,
     app.workerService,
+    workflowActivationDispatchService,
+    app.scheduledWorkItemTriggerService,
     app.fleetService,
     app.governanceService,
   );

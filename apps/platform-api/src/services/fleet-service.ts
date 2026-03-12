@@ -2,9 +2,16 @@ import { z } from 'zod';
 
 import type { DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
-import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import {
+  parsePlaybookDefinition,
+  readPlaybookRuntimePools,
+  type PlaybookRuntimePoolConfig,
+  type PlaybookRuntimePoolKind,
+} from '../orchestration/playbook-model.js';
 
 const VALID_POOL_MODES = new Set(['warm', 'cold']);
+const VALID_POOL_KINDS = new Set(['orchestrator', 'specialist']);
 
 interface FleetLogger {
   warn(obj: Record<string, unknown>, msg: string): void;
@@ -31,6 +38,7 @@ const VALID_FLEET_EVENT_LEVELS = new Set(['debug', 'info', 'warn', 'error']);
 const createDesiredStateSchema = z.object({
   workerName: z.string().min(1).max(200),
   role: z.string().min(1).max(100),
+  poolKind: z.enum(['orchestrator', 'specialist']).default('specialist'),
   runtimeImage: z.string().min(1),
   cpuLimit: z.string().default('2'),
   memoryLimit: z.string().default('2g'),
@@ -54,6 +62,7 @@ interface DesiredStateRow {
   tenant_id: string;
   worker_name: string;
   role: string;
+  pool_kind: string;
   runtime_image: string;
   cpu_limit: string;
   memory_limit: string;
@@ -97,6 +106,7 @@ interface ContainerView {
   status: string;
   image: string;
   worker_role: string;
+  pool_kind: string;
   cpu_usage_percent: number | null;
   memory_usage_bytes: number | null;
   started_at: Date | null;
@@ -155,15 +165,16 @@ export class FleetService {
 
     const result = await this.pool.query<DesiredStateRow>(
       `INSERT INTO worker_desired_state (
-        tenant_id, worker_name, role, runtime_image, cpu_limit, memory_limit,
+        tenant_id, worker_name, role, pool_kind, runtime_image, cpu_limit, memory_limit,
         network_policy, environment, llm_provider, llm_model, llm_api_key_secret_ref,
         replicas, enabled
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *`,
       [
         tenantId,
         validated.workerName,
         validated.role,
+        validated.poolKind,
         validated.runtimeImage,
         validated.cpuLimit,
         validated.memoryLimit,
@@ -187,6 +198,7 @@ export class FleetService {
 
     const fields: Array<[string, unknown]> = [
       ['role', validated.role],
+      ['pool_kind', validated.poolKind],
       ['runtime_image', validated.runtimeImage],
       ['cpu_limit', validated.cpuLimit],
       ['memory_limit', validated.memoryLimit],
@@ -260,6 +272,7 @@ export class FleetService {
          COALESCE(was.container_status, 'unknown') AS status,
          wds.runtime_image AS image,
          wds.role AS worker_role,
+         wds.pool_kind,
          was.cpu_usage_percent,
          was.memory_usage_bytes,
          was.started_at,
@@ -357,14 +370,14 @@ export class FleetService {
   private static readonly VALID_PULL_POLICIES = new Set(['always', 'if-not-present', 'never']);
 
   validateRuntimeConfig(
-    templateId: string,
-    runtime: Record<string, unknown>,
-  ): Record<string, unknown> {
+    playbookId: string,
+    runtime: PlaybookRuntimePoolConfig,
+  ): PlaybookRuntimePoolConfig {
     const validatedRuntime = { ...runtime };
 
     if (validatedRuntime.pool_mode !== undefined && !VALID_POOL_MODES.has(validatedRuntime.pool_mode as string)) {
       this.logger.warn(
-        { templateId, value: validatedRuntime.pool_mode },
+        { playbookId, value: validatedRuntime.pool_mode },
         'invalid_runtime_pool_mode_using_default',
       );
       validatedRuntime.pool_mode = 'warm';
@@ -374,7 +387,7 @@ export class FleetService {
       const val = validatedRuntime.max_runtimes as number;
       if (!Number.isInteger(val) || val < 1) {
         this.logger.warn(
-          { templateId, value: val },
+          { playbookId, value: val },
           'invalid_max_runtimes_using_default',
         );
         validatedRuntime.max_runtimes = 1;
@@ -383,7 +396,7 @@ export class FleetService {
 
     if (validatedRuntime.pull_policy !== undefined && !FleetService.VALID_PULL_POLICIES.has(validatedRuntime.pull_policy as string)) {
       this.logger.warn(
-        { templateId, value: validatedRuntime.pull_policy },
+        { playbookId, value: validatedRuntime.pull_policy },
         'invalid_runtime_pull_policy_using_default',
       );
       validatedRuntime.pull_policy = 'if-not-present';
@@ -392,36 +405,37 @@ export class FleetService {
     return validatedRuntime;
   }
 
-  async getQueueDepth(tenantId: string, templateId?: string): Promise<QueueDepthResult> {
+  async getQueueDepth(tenantId: string, playbookId?: string): Promise<QueueDepthResult> {
     const baseQuery = `
-      SELECT t.workflow_id, w.template_id
+      SELECT t.workflow_id, w.playbook_id
       FROM tasks t
       JOIN workflows w ON w.id = t.workflow_id AND w.tenant_id = t.tenant_id
       WHERE t.tenant_id = $1
         AND t.state = 'ready'
-        AND w.state NOT IN ('cancelled', 'failed', 'completed')`;
+        AND w.state NOT IN ('cancelled', 'failed', 'completed')
+        AND w.playbook_id IS NOT NULL`;
 
     const params: unknown[] = [tenantId];
-    const templateFilter = templateId
-      ? ` AND w.template_id = $${params.push(templateId)}`
+    const playbookFilter = playbookId
+      ? ` AND w.playbook_id = $${params.push(playbookId)}`
       : '';
 
-    const result = await this.pool.query<{ template_id: string }>(
-      `SELECT template_id, COUNT(*)::int AS count
-       FROM (${baseQuery}${templateFilter}) sub
-       GROUP BY template_id`,
+    const result = await this.pool.query<{ playbook_id: string }>(
+      `SELECT playbook_id, COUNT(*)::int AS count
+       FROM (${baseQuery}${playbookFilter}) sub
+       GROUP BY playbook_id`,
       params,
     );
 
-    const byTemplate: Record<string, number> = {};
+    const byPlaybook: Record<string, number> = {};
     let totalPending = 0;
     for (const row of result.rows) {
       const count = (row as unknown as Record<string, number>).count;
-      byTemplate[row.template_id] = count;
+      byPlaybook[row.playbook_id] = count;
       totalPending += count;
     }
 
-    return { total_pending: totalPending, by_template: byTemplate };
+    return { total_pending: totalPending, by_playbook: byPlaybook };
   }
 
   private async loadRuntimeDefaults(tenantId: string): Promise<Map<string, string>> {
@@ -441,45 +455,94 @@ export class FleetService {
 
     const result = await this.pool.query<RuntimeTargetRow>(
       `SELECT
-         t.id AS template_id,
-         t.name AS template_name,
-         t.schema AS schema,
+         p.id AS playbook_id,
+         p.name AS playbook_name,
+         p.definition AS definition,
          (SELECT COUNT(*)::int FROM workflows w
-          WHERE w.tenant_id = t.tenant_id AND w.template_id = t.id
+          WHERE w.tenant_id = p.tenant_id AND w.playbook_id = p.id
             AND w.state NOT IN ('cancelled', 'failed', 'completed')) AS active_workflows,
          (SELECT COUNT(*)::int FROM tasks tk
           JOIN workflows w2 ON w2.id = tk.workflow_id AND w2.tenant_id = tk.tenant_id
-          WHERE tk.tenant_id = t.tenant_id AND w2.template_id = t.id
+          WHERE tk.tenant_id = p.tenant_id AND w2.playbook_id = p.id
             AND tk.state = 'ready'
+            AND tk.is_orchestrator_task = true
+            AND w2.state NOT IN ('cancelled', 'failed', 'completed')) AS pending_orchestrator_tasks,
+         (SELECT COUNT(*)::int FROM tasks tk
+          JOIN workflows w2 ON w2.id = tk.workflow_id AND w2.tenant_id = tk.tenant_id
+          WHERE tk.tenant_id = p.tenant_id AND w2.playbook_id = p.id
+            AND tk.state = 'ready'
+            AND COALESCE(tk.is_orchestrator_task, false) = false
+            AND cardinality(tk.capabilities_required) > 0
+            AND w2.state NOT IN ('cancelled', 'failed', 'completed')) AS specialist_tasks_with_capabilities,
+         (SELECT COUNT(*)::int FROM (
+            SELECT DISTINCT tk.capabilities_required
+            FROM tasks tk
+            JOIN workflows w2 ON w2.id = tk.workflow_id AND w2.tenant_id = tk.tenant_id
+            WHERE tk.tenant_id = p.tenant_id AND w2.playbook_id = p.id
+              AND tk.state = 'ready'
+              AND COALESCE(tk.is_orchestrator_task, false) = false
+              AND cardinality(tk.capabilities_required) > 0
+              AND w2.state NOT IN ('cancelled', 'failed', 'completed')
+          ) capability_sets) AS specialist_distinct_capability_sets,
+         (SELECT COALESCE(MAX(cardinality(tk.capabilities_required)), 0)::int FROM tasks tk
+          JOIN workflows w2 ON w2.id = tk.workflow_id AND w2.tenant_id = tk.tenant_id
+          WHERE tk.tenant_id = p.tenant_id AND w2.playbook_id = p.id
+            AND tk.state = 'ready'
+            AND COALESCE(tk.is_orchestrator_task, false) = false
+            AND cardinality(tk.capabilities_required) > 0
+            AND w2.state NOT IN ('cancelled', 'failed', 'completed')) AS specialist_max_required_capabilities,
+         (SELECT COUNT(*)::int FROM tasks tk
+          JOIN workflows w2 ON w2.id = tk.workflow_id AND w2.tenant_id = tk.tenant_id
+          WHERE tk.tenant_id = p.tenant_id AND w2.playbook_id = p.id
+            AND tk.state = 'ready'
+            AND COALESCE(tk.is_orchestrator_task, false) = false
             AND w2.state NOT IN ('cancelled', 'failed', 'completed')) AS pending_tasks
-       FROM templates t
-       WHERE t.tenant_id = $1
-         AND t.deleted_at IS NULL
-         AND t.is_published = true
-         AND t.schema::jsonb ? 'runtime'`,
+       FROM playbooks p
+       WHERE p.tenant_id = $1
+         AND p.is_active = true
+         AND p.definition::jsonb ? 'runtime'`,
       [tenantId],
     );
 
-    return result.rows.map((row) => {
-      const schema = row.schema as Record<string, unknown>;
-      const rawRuntime = (schema.runtime ?? {}) as Record<string, unknown>;
-      const runtime = this.validateRuntimeConfig(row.template_id, rawRuntime);
+    return result.rows.flatMap((row) => {
+      const definition = parsePlaybookDefinition(row.definition);
+      const poolTargets = readPlaybookRuntimePools(definition);
 
-      return {
-        template_id: row.template_id,
-        template_name: row.template_name,
-        pool_mode: (runtime.pool_mode as string) ?? 'warm',
-        max_runtimes: (runtime.max_runtimes as number) ?? 1,
-        priority: (runtime.priority as number) ?? 0,
-        idle_timeout_seconds: (runtime.idle_timeout_seconds as number) ?? 300,
-        grace_period_seconds: (runtime.grace_period_seconds as number) ?? Number(defaults.get('default_grace_period') || '180'),
-        image: (runtime.image as string) ?? defaults.get('default_runtime_image') ?? 'agirunner-runtime:local',
-        pull_policy: (runtime.pull_policy as string) ?? defaults.get('default_pull_policy') ?? 'if-not-present',
-        cpu: (runtime.cpu as string) ?? defaults.get('default_cpu') ?? '1',
-        memory: (runtime.memory as string) ?? defaults.get('default_memory') ?? '256m',
-        pending_tasks: row.pending_tasks,
-        active_workflows: row.active_workflows,
-      };
+      return poolTargets.map((poolTarget) => {
+        const runtime = this.validateRuntimeConfig(row.playbook_id, poolTarget.config);
+        const tasksWithCapabilities =
+          poolTarget.pool_kind === 'specialist' ? row.specialist_tasks_with_capabilities : 0;
+        const distinctCapabilitySets =
+          poolTarget.pool_kind === 'specialist' ? row.specialist_distinct_capability_sets : 0;
+        const maxRequiredCapabilities =
+          poolTarget.pool_kind === 'specialist' ? row.specialist_max_required_capabilities : 0;
+
+        return {
+          playbook_id: row.playbook_id,
+          playbook_name: row.playbook_name,
+          pool_kind: poolTarget.pool_kind,
+          pool_mode: runtime.pool_mode ?? 'warm',
+          max_runtimes: runtime.max_runtimes ?? 1,
+          priority: runtime.priority ?? 0,
+          idle_timeout_seconds: runtime.idle_timeout_seconds ?? 300,
+          grace_period_seconds:
+            runtime.grace_period_seconds ?? Number(defaults.get('default_grace_period') || '180'),
+          image: runtime.image ?? defaults.get('default_runtime_image') ?? 'agirunner-runtime:local',
+          pull_policy: runtime.pull_policy ?? defaults.get('default_pull_policy') ?? 'if-not-present',
+          cpu: runtime.cpu ?? defaults.get('default_cpu') ?? '1',
+          memory: runtime.memory ?? defaults.get('default_memory') ?? '256m',
+          pending_tasks:
+            poolTarget.pool_kind === 'orchestrator'
+              ? row.pending_orchestrator_tasks
+              : row.pending_tasks,
+          tasks_with_capabilities: tasksWithCapabilities,
+          distinct_capability_sets: distinctCapabilitySets,
+          max_required_capabilities: maxRequiredCapabilities,
+          capability_demand_units:
+            tasksWithCapabilities + distinctCapabilitySets + maxRequiredCapabilities,
+          active_workflows: row.active_workflows,
+        };
+      });
     });
   }
 
@@ -491,21 +554,28 @@ export class FleetService {
     if (!validStates.includes(payload.state)) {
       throw new ValidationError(`Invalid heartbeat state: ${payload.state}`);
     }
+    if (!isPoolKind(payload.pool_kind)) {
+      throw new ValidationError(`Invalid heartbeat pool kind: ${payload.pool_kind}`);
+    }
 
     const result = await this.pool.query<{ drain_requested: boolean }>(
       `INSERT INTO runtime_heartbeats (
-         runtime_id, tenant_id, template_id, state, task_id,
+         runtime_id, tenant_id, playbook_id, pool_kind, state, task_id,
          uptime_seconds, last_claim_at, image, last_heartbeat_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
        ON CONFLICT (runtime_id) DO UPDATE SET
-         state = $4, task_id = $5, uptime_seconds = $6,
-         last_claim_at = COALESCE($7, runtime_heartbeats.last_claim_at),
+         pool_kind = $4,
+         state = $5,
+         task_id = $6,
+         uptime_seconds = $7,
+         last_claim_at = COALESCE($8, runtime_heartbeats.last_claim_at),
          last_heartbeat_at = NOW()
        RETURNING drain_requested`,
       [
         payload.runtime_id,
         tenantId,
-        payload.template_id,
+        payload.playbook_id,
+        payload.pool_kind,
         payload.state,
         payload.task_id ?? null,
         payload.uptime_seconds ?? 0,
@@ -520,7 +590,7 @@ export class FleetService {
 
   async listHeartbeats(tenantId: string): Promise<HeartbeatListRow[]> {
     const result = await this.pool.query<HeartbeatListRow>(
-      `SELECT runtime_id, template_id, state,
+      `SELECT runtime_id, playbook_id, pool_kind, state,
               to_char(last_heartbeat_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS last_heartbeat_at,
               task_id AS active_task_id
        FROM runtime_heartbeats
@@ -541,9 +611,9 @@ export class FleetService {
       : 10;
 
     const heartbeats = await this.pool.query<HeartbeatRow>(
-      `SELECT rh.*, t.name AS template_name
+      `SELECT rh.*, p.name AS playbook_name
        FROM runtime_heartbeats rh
-       JOIN templates t ON t.id = rh.template_id
+       JOIN playbooks p ON p.id = rh.playbook_id
        WHERE rh.tenant_id = $1`,
       [tenantId],
     );
@@ -552,7 +622,8 @@ export class FleetService {
     let totalIdle = 0;
     let totalExecuting = 0;
     let totalDraining = 0;
-    const templateMap = new Map<string, TemplateFleetSummary>();
+    const playbookMap = new Map<string, PlaybookFleetSummary>();
+    const playbookPoolMap = new Map<string, PlaybookPoolFleetSummary>();
 
     for (const hb of heartbeats.rows) {
       totalRunning++;
@@ -560,11 +631,11 @@ export class FleetService {
       else if (hb.state === 'executing') totalExecuting++;
       else if (hb.state === 'draining') totalDraining++;
 
-      let summary = templateMap.get(hb.template_id);
+      let summary = playbookMap.get(hb.playbook_id);
       if (!summary) {
         summary = {
-          template_id: hb.template_id,
-          template_name: hb.template_name,
+          playbook_id: hb.playbook_id,
+          playbook_name: hb.playbook_name,
           max_runtimes: 0,
           running: 0,
           idle: 0,
@@ -572,24 +643,51 @@ export class FleetService {
           pending_tasks: 0,
           active_workflows: 0,
         };
-        templateMap.set(hb.template_id, summary);
+        playbookMap.set(hb.playbook_id, summary);
       }
       summary.running++;
       if (hb.state === 'idle') summary.idle++;
       else if (hb.state === 'executing') summary.executing++;
+
+      const poolKind = isPoolKind(hb.pool_kind) ? hb.pool_kind : 'specialist';
+      const poolKey = `${hb.playbook_id}:${poolKind}`;
+      let poolSummary = playbookPoolMap.get(poolKey);
+      if (!poolSummary) {
+        poolSummary = {
+          playbook_id: hb.playbook_id,
+          playbook_name: hb.playbook_name,
+          pool_kind: poolKind,
+          max_runtimes: 0,
+          running: 0,
+          idle: 0,
+          executing: 0,
+          draining: 0,
+          pending_tasks: 0,
+          tasks_with_capabilities: 0,
+          distinct_capability_sets: 0,
+          max_required_capabilities: 0,
+          capability_demand_units: 0,
+          active_workflows: 0,
+        };
+        playbookPoolMap.set(poolKey, poolSummary);
+      }
+      poolSummary.running++;
+      if (hb.state === 'idle') poolSummary.idle++;
+      else if (hb.state === 'executing') poolSummary.executing++;
+      else if (hb.state === 'draining') poolSummary.draining++;
     }
 
     const targets = await this.getRuntimeTargets(tenantId);
     for (const target of targets) {
-      const summary = templateMap.get(target.template_id);
+      const summary = playbookMap.get(target.playbook_id);
       if (summary) {
-        summary.max_runtimes = target.max_runtimes;
-        summary.pending_tasks = target.pending_tasks;
-        summary.active_workflows = target.active_workflows;
+        summary.max_runtimes += target.max_runtimes;
+        summary.pending_tasks += target.pending_tasks;
+        summary.active_workflows = Math.max(summary.active_workflows, target.active_workflows);
       } else {
-        templateMap.set(target.template_id, {
-          template_id: target.template_id,
-          template_name: target.template_name,
+        playbookMap.set(target.playbook_id, {
+          playbook_id: target.playbook_id,
+          playbook_name: target.playbook_name,
           max_runtimes: target.max_runtimes,
           running: 0,
           idle: 0,
@@ -598,7 +696,38 @@ export class FleetService {
           active_workflows: target.active_workflows,
         });
       }
+
+      const poolKey = `${target.playbook_id}:${target.pool_kind}`;
+      const poolSummary = playbookPoolMap.get(poolKey);
+      if (poolSummary) {
+        poolSummary.max_runtimes = target.max_runtimes;
+        poolSummary.pending_tasks = target.pending_tasks;
+        poolSummary.tasks_with_capabilities = target.tasks_with_capabilities;
+        poolSummary.distinct_capability_sets = target.distinct_capability_sets;
+        poolSummary.max_required_capabilities = target.max_required_capabilities;
+        poolSummary.capability_demand_units = target.capability_demand_units;
+        poolSummary.active_workflows = target.active_workflows;
+      } else {
+        playbookPoolMap.set(poolKey, {
+          playbook_id: target.playbook_id,
+          playbook_name: target.playbook_name,
+          pool_kind: target.pool_kind,
+          max_runtimes: target.max_runtimes,
+          running: 0,
+          idle: 0,
+          executing: 0,
+          draining: 0,
+          pending_tasks: target.pending_tasks,
+          tasks_with_capabilities: target.tasks_with_capabilities,
+          distinct_capability_sets: target.distinct_capability_sets,
+          max_required_capabilities: target.max_required_capabilities,
+          capability_demand_units: target.capability_demand_units,
+          active_workflows: target.active_workflows,
+        });
+      }
     }
+
+    const workerPools = await this.getWorkerPoolStatus(tenantId);
 
     const recentEventsResult = await this.pool.query<FleetEventRow>(
       `SELECT * FROM fleet_events
@@ -614,7 +743,9 @@ export class FleetService {
       total_idle: totalIdle,
       total_executing: totalExecuting,
       total_draining: totalDraining,
-      by_template: [...templateMap.values()],
+      worker_pools: workerPools,
+      by_playbook: [...playbookMap.values()],
+      by_playbook_pool: [...playbookPoolMap.values()],
       recent_events: recentEventsResult.rows,
     };
   }
@@ -627,9 +758,9 @@ export class FleetService {
     const params: unknown[] = [tenantId];
     let paramIndex = 2;
 
-    if (filters.template_id) {
-      conditions.push(`fe.template_id = $${paramIndex++}`);
-      params.push(filters.template_id);
+    if (filters.playbook_id) {
+      conditions.push(`fe.playbook_id = $${paramIndex++}`);
+      params.push(filters.playbook_id);
     }
     if (filters.runtime_id) {
       conditions.push(`fe.runtime_id = $${paramIndex++}`);
@@ -687,7 +818,7 @@ export class FleetService {
     }
     await this.pool.query(
       `INSERT INTO fleet_events (
-         tenant_id, event_type, level, runtime_id, template_id,
+         tenant_id, event_type, level, runtime_id, playbook_id,
          task_id, workflow_id, container_id, payload
        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
@@ -695,7 +826,7 @@ export class FleetService {
         event.event_type,
         event.level ?? 'info',
         event.runtime_id ?? null,
-        event.template_id ?? null,
+        event.playbook_id ?? null,
         event.task_id ?? null,
         event.workflow_id ?? null,
         event.container_id ?? null,
@@ -703,18 +834,47 @@ export class FleetService {
       ],
     );
   }
+
+  private async getWorkerPoolStatus(tenantId: string): Promise<WorkerPoolSummary[]> {
+    const result = await this.pool.query<WorkerPoolSummaryRow>(
+      `SELECT wds.pool_kind,
+              COUNT(*)::int AS desired_workers,
+              COALESCE(SUM(wds.replicas), 0)::int AS desired_replicas,
+              COUNT(*) FILTER (WHERE wds.enabled)::int AS enabled_workers,
+              COUNT(*) FILTER (WHERE wds.draining)::int AS draining_workers,
+              COUNT(was.id)::int AS running_containers
+         FROM worker_desired_state wds
+         LEFT JOIN worker_actual_state was
+           ON was.desired_state_id = wds.id
+          AND COALESCE(was.container_status, 'unknown') NOT IN ('exited', 'dead')
+        WHERE wds.tenant_id = $1
+        GROUP BY wds.pool_kind
+        ORDER BY wds.pool_kind ASC`,
+      [tenantId],
+    );
+
+    return result.rows.map((row) => ({
+      pool_kind: isPoolKind(row.pool_kind) ? row.pool_kind : 'specialist',
+      desired_workers: row.desired_workers,
+      desired_replicas: row.desired_replicas,
+      enabled_workers: row.enabled_workers,
+      draining_workers: row.draining_workers,
+      running_containers: row.running_containers,
+    }));
+  }
 }
 
 // --- DCM Types ---
 
 export interface QueueDepthResult {
   total_pending: number;
-  by_template: Record<string, number>;
+  by_playbook: Record<string, number>;
 }
 
 export interface RuntimeTarget {
-  template_id: string;
-  template_name: string;
+  playbook_id: string;
+  playbook_name: string;
+  pool_kind: PlaybookRuntimePoolKind;
   pool_mode: string;
   max_runtimes: number;
   priority: number;
@@ -725,21 +885,30 @@ export interface RuntimeTarget {
   cpu: string;
   memory: string;
   pending_tasks: number;
+  tasks_with_capabilities: number;
+  distinct_capability_sets: number;
+  max_required_capabilities: number;
+  capability_demand_units: number;
   active_workflows: number;
 }
 
 interface RuntimeTargetRow {
   [key: string]: unknown;
-  template_id: string;
-  template_name: string;
-  schema: unknown;
+  playbook_id: string;
+  playbook_name: string;
+  definition: unknown;
   active_workflows: number;
   pending_tasks: number;
+  pending_orchestrator_tasks: number;
+  specialist_tasks_with_capabilities: number;
+  specialist_distinct_capability_sets: number;
+  specialist_max_required_capabilities: number;
 }
 
 export interface HeartbeatPayload {
   runtime_id: string;
-  template_id: string;
+  playbook_id: string;
+  pool_kind: PlaybookRuntimePoolKind;
   state: string;
   task_id?: string | null;
   uptime_seconds?: number;
@@ -751,15 +920,16 @@ interface HeartbeatRow {
   [key: string]: unknown;
   runtime_id: string;
   tenant_id: string;
-  template_id: string;
-  template_name: string;
+  playbook_id: string;
+  playbook_name: string;
+  pool_kind: string;
   state: string;
   task_id: string | null;
 }
 
-interface TemplateFleetSummary {
-  template_id: string;
-  template_name: string;
+interface PlaybookFleetSummary {
+  playbook_id: string;
+  playbook_name: string;
   max_runtimes: number;
   running: number;
   idle: number;
@@ -768,18 +938,38 @@ interface TemplateFleetSummary {
   active_workflows: number;
 }
 
+export interface PlaybookPoolFleetSummary extends PlaybookFleetSummary {
+  pool_kind: PlaybookRuntimePoolKind;
+  draining: number;
+  tasks_with_capabilities: number;
+  distinct_capability_sets: number;
+  max_required_capabilities: number;
+  capability_demand_units: number;
+}
+
+export interface WorkerPoolSummary {
+  pool_kind: PlaybookRuntimePoolKind;
+  desired_workers: number;
+  desired_replicas: number;
+  enabled_workers: number;
+  draining_workers: number;
+  running_containers: number;
+}
+
 export interface FleetStatus {
   global_max_runtimes: number;
   total_running: number;
   total_idle: number;
   total_executing: number;
   total_draining: number;
-  by_template: TemplateFleetSummary[];
+  worker_pools: WorkerPoolSummary[];
+  by_playbook: PlaybookFleetSummary[];
+  by_playbook_pool: PlaybookPoolFleetSummary[];
   recent_events: FleetEventRow[];
 }
 
 export interface FleetEventFilters {
-  template_id?: string;
+  playbook_id?: string;
   runtime_id?: string;
   since?: string;
   until?: string;
@@ -794,7 +984,7 @@ export interface FleetEventRow {
   event_type: string;
   level: string;
   runtime_id: string | null;
-  template_id: string | null;
+  playbook_id: string | null;
   task_id: string | null;
   workflow_id: string | null;
   container_id: string | null;
@@ -804,7 +994,8 @@ export interface FleetEventRow {
 
 export interface HeartbeatListRow {
   runtime_id: string;
-  template_id: string;
+  playbook_id: string;
+  pool_kind: PlaybookRuntimePoolKind;
   state: string;
   last_heartbeat_at: string;
   active_task_id: string | null;
@@ -814,9 +1005,22 @@ export interface RecordFleetEventInput {
   event_type: string;
   level?: string;
   runtime_id?: string;
-  template_id?: string;
+  playbook_id?: string;
   task_id?: string;
   workflow_id?: string;
   container_id?: string;
   payload?: Record<string, unknown>;
+}
+
+interface WorkerPoolSummaryRow {
+  pool_kind: string;
+  desired_workers: number;
+  desired_replicas: number;
+  enabled_workers: number;
+  draining_workers: number;
+  running_containers: number;
+}
+
+function isPoolKind(value: string): value is PlaybookRuntimePoolKind {
+  return VALID_POOL_KINDS.has(value);
 }

@@ -1,7 +1,8 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabasePool } from '../db/database.js';
+import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
+import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
 import { readTemplateLifecyclePolicy } from './task-lifecycle-policy.js';
 import type { CreateTaskInput, TaskServiceConfig } from './task-service.types.js';
 
@@ -18,6 +19,7 @@ interface TaskWriteDependencies {
   subtaskPermission: string;
   loadTaskOrThrow: (tenantId: string, taskId: string) => Promise<Record<string, unknown>>;
   toTaskResponse: (task: Record<string, unknown>) => Record<string, unknown>;
+  parallelismService: PlaybookTaskParallelismService;
 }
 
 interface ParentTaskRow {
@@ -31,20 +33,44 @@ interface ParentTaskRow {
 
 const DEFAULT_MAX_SUBTASK_DEPTH = 3;
 const DEFAULT_MAX_SUBTASKS_PER_PARENT = 20;
+const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
 
 export class TaskWriteService {
   constructor(private readonly deps: TaskWriteDependencies) {}
 
-  async createTask(identity: ApiKeyIdentity, input: CreateTaskInput) {
+  async createTask(
+    identity: ApiKeyIdentity,
+    input: CreateTaskInput,
+    db: DatabaseClient | DatabasePool = this.deps.pool,
+  ) {
     if (!input.title?.trim()) throw new ValidationError('title is required');
-
-    const normalizedInput = input.parent_id
+    assertNoPlaintextSecrets('task create payload', {
+      input: input.input,
+      context: input.context,
+      role_config: input.role_config,
+      environment: input.environment,
+      resource_bindings: input.resource_bindings,
+      metadata: input.metadata,
+    });
+    let normalizedInput = input.parent_id
       ? await this.applyParentTaskPolicies(identity, input)
       : input;
+    normalizedInput = await this.applyLinkedWorkItemDefaults(identity.tenantId, normalizedInput, db);
+    if (normalizedInput.request_id?.trim()) {
+      const existing = await this.findExistingByRequestId(
+        identity.tenantId,
+        normalizedInput.request_id,
+        normalizedInput.workflow_id ?? null,
+        db,
+      );
+      if (existing) {
+        return this.deps.toTaskResponse(existing);
+      }
+    }
 
     const dependencies = normalizedInput.depends_on ?? [];
     if (dependencies.length > 0) {
-      const check = await this.deps.pool.query(
+      const check = await db.query(
         'SELECT id FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[])',
         [identity.tenantId, dependencies],
       );
@@ -52,8 +78,9 @@ export class TaskWriteService {
         throw new NotFoundError('One or more dependency tasks were not found');
     }
 
-    const initialState =
-      dependencies.length > 0 ? 'pending' : input.requires_approval ? 'awaiting_approval' : 'ready';
+    await this.assertLinkedWorkItem(identity.tenantId, normalizedInput, db);
+
+    const initialState = await this.resolveInitialState(identity.tenantId, normalizedInput, dependencies.length);
     const metadata = {
       ...(normalizedInput.metadata ?? {}),
       ...(normalizedInput.retry_policy
@@ -64,19 +91,22 @@ export class TaskWriteService {
       ...(normalizedInput.review_prompt ? { review_prompt: normalizedInput.review_prompt } : {}),
     };
 
-    const insertResult = await this.deps.pool.query(
+    const insertResult = await db.query(
       `INSERT INTO tasks (
-        tenant_id, workflow_id, project_id, title, role, priority, state, depends_on,
+        tenant_id, workflow_id, work_item_id, project_id, title, role, stage_name, priority, state, depends_on,
         requires_approval, requires_output_review, input, context, capabilities_required, role_config, environment,
-        resource_bindings, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, metadata
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8::uuid[],$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+        resource_bindings, activation_id, request_id, is_orchestrator_task, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, metadata
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::uuid[],$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
+      ON CONFLICT DO NOTHING
       RETURNING *`,
       [
         identity.tenantId,
         normalizedInput.workflow_id ?? null,
+        normalizedInput.work_item_id ?? null,
         normalizedInput.project_id ?? null,
         normalizedInput.title,
         normalizedInput.role ?? null,
+        normalizedInput.stage_name ?? null,
         normalizedInput.priority ?? 'normal',
         initialState,
         dependencies,
@@ -88,6 +118,9 @@ export class TaskWriteService {
         normalizedInput.role_config ?? null,
         normalizedInput.environment ?? null,
         JSON.stringify(normalizedInput.resource_bindings ?? []),
+        normalizedInput.activation_id ?? null,
+        normalizedInput.request_id?.trim() ?? null,
+        normalizedInput.is_orchestrator_task ?? false,
         normalizedInput.timeout_minutes ?? this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES,
         normalizedInput.token_budget ?? null,
         normalizedInput.cost_cap_usd ?? null,
@@ -96,6 +129,20 @@ export class TaskWriteService {
         metadata,
       ],
     );
+    if (!insertResult.rowCount) {
+      const existing = normalizedInput.request_id?.trim()
+        ? await this.findExistingByRequestId(
+            identity.tenantId,
+            normalizedInput.request_id,
+            normalizedInput.workflow_id ?? null,
+            db,
+          )
+        : null;
+      if (existing) {
+        return this.deps.toTaskResponse(existing);
+      }
+      throw new ConflictError('Task request conflicted but the existing task could not be loaded');
+    }
 
     const task = insertResult.rows[0] as Record<string, unknown>;
     await this.deps.eventService.emit({
@@ -106,9 +153,83 @@ export class TaskWriteService {
       actorType: identity.scope,
       actorId: identity.keyPrefix,
       data: { state: initialState },
-    });
+    }, 'release' in db ? db : undefined);
 
     return this.deps.toTaskResponse(task);
+  }
+
+  private async findExistingByRequestId(
+    tenantId: string,
+    requestId: string,
+    workflowId: string | null,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    const normalizedRequestId = requestId.trim();
+    const result = workflowId
+      ? await db.query(
+          `SELECT *
+             FROM tasks
+            WHERE tenant_id = $1
+              AND workflow_id = $2
+              AND request_id = $3
+            LIMIT 1`,
+          [tenantId, workflowId, normalizedRequestId],
+        )
+      : await db.query(
+          `SELECT *
+             FROM tasks
+            WHERE tenant_id = $1
+              AND workflow_id IS NULL
+              AND request_id = $2
+            LIMIT 1`,
+          [tenantId, normalizedRequestId],
+        );
+    return (result.rows[0] as Record<string, unknown> | undefined) ?? null;
+  }
+
+  private async assertLinkedWorkItem(
+    tenantId: string,
+    input: CreateTaskInput,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    if (!input.work_item_id) {
+      return;
+    }
+    const result = await db.query<{ workflow_id: string; stage_name: string }>(
+      'SELECT workflow_id, stage_name FROM workflow_work_items WHERE tenant_id = $1 AND id = $2',
+      [tenantId, input.work_item_id],
+    );
+    if (!result.rowCount) {
+      throw new NotFoundError('Workflow work item not found');
+    }
+    if (input.workflow_id && result.rows[0].workflow_id !== input.workflow_id) {
+      throw new ValidationError('work_item_id must belong to workflow_id');
+    }
+    if (input.stage_name && result.rows[0].stage_name !== input.stage_name) {
+      throw new ValidationError('stage_name must match the linked work item stage');
+    }
+  }
+
+  private async applyLinkedWorkItemDefaults(
+    tenantId: string,
+    input: CreateTaskInput,
+    db: DatabaseClient | DatabasePool,
+  ): Promise<CreateTaskInput> {
+    if (!input.work_item_id) {
+      return input;
+    }
+    const result = await db.query<{ workflow_id: string; stage_name: string }>(
+      'SELECT workflow_id, stage_name FROM workflow_work_items WHERE tenant_id = $1 AND id = $2',
+      [tenantId, input.work_item_id],
+    );
+    if (!result.rowCount) {
+      throw new NotFoundError('Workflow work item not found');
+    }
+    return {
+      ...input,
+      workflow_id: input.workflow_id ?? result.rows[0].workflow_id,
+      stage_name: input.stage_name ?? result.rows[0].stage_name,
+    };
   }
 
   private async applyParentTaskPolicies(identity: ApiKeyIdentity, input: CreateTaskInput) {
@@ -211,9 +332,36 @@ export class TaskWriteService {
     throw new ForbiddenError('Only the assigned parent owner or an active orchestrator grant can create sub-tasks');
   }
 
+  private async resolveInitialState(
+    tenantId: string,
+    input: CreateTaskInput,
+    dependencyCount: number,
+  ) {
+    if (dependencyCount > 0) {
+      return 'pending';
+    }
+
+    const shouldQueue = await this.deps.parallelismService.shouldQueueForCapacity(tenantId, {
+      workflowId: input.workflow_id ?? null,
+      workItemId: input.work_item_id ?? null,
+      isOrchestratorTask: input.is_orchestrator_task ?? false,
+      currentState: null,
+    });
+    if (shouldQueue) {
+      return 'pending';
+    }
+    if (input.requires_approval) {
+      return 'awaiting_approval';
+    }
+    return 'ready';
+  }
+
   async updateTask(tenantId: string, taskId: string, payload: Record<string, unknown>) {
     if ('state' in payload)
       throw new ConflictError('Task state cannot be changed via PATCH /tasks/:id');
+    assertNoPlaintextSecrets('task update payload', {
+      metadata: payload.metadata,
+    });
     const task = await this.deps.loadTaskOrThrow(tenantId, taskId);
 
     const nextMetadata = {
@@ -246,4 +394,52 @@ export class TaskWriteService {
     if (!result.rowCount) throw new NotFoundError('Task not found');
     return this.deps.toTaskResponse(result.rows[0] as Record<string, unknown>);
   }
+}
+
+function assertNoPlaintextSecrets(scope: string, sections: Record<string, unknown>) {
+  const violations: string[] = [];
+  for (const [section, value] of Object.entries(sections)) {
+    collectPlaintextSecretPaths(value, section, false, violations);
+  }
+  if (violations.length === 0) {
+    return;
+  }
+  throw new ValidationError(
+    `${scope} contains secret-bearing fields that must use secret references or claim-time credential delivery`,
+    { secret_paths: violations },
+  );
+}
+
+function collectPlaintextSecretPaths(
+  value: unknown,
+  path: string,
+  inheritedSecret: boolean,
+  violations: string[],
+) {
+  if (typeof value === 'string') {
+    if (inheritedSecret && value.trim().length > 0 && !isAllowedSecretReference(value)) {
+      violations.push(path);
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => collectPlaintextSecretPaths(item, `${path}[${index}]`, inheritedSecret, violations));
+    return;
+  }
+  if (!value || typeof value !== 'object') {
+    return;
+  }
+  for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
+    const childPath = path.length > 0 ? `${path}.${key}` : key;
+    collectPlaintextSecretPaths(nestedValue, childPath, inheritedSecret || isSecretLikeKey(key), violations);
+  }
+}
+
+function isAllowedSecretReference(value: string): boolean {
+  const normalized = value.trim();
+  return normalized.startsWith('secret:') || normalized.startsWith('redacted://');
+}
+
+function isSecretLikeKey(key: string): boolean {
+  return secretLikeKeyPattern.test(key);
 }

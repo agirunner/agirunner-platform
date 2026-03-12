@@ -1,10 +1,11 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
+import {
+  BUILT_IN_PLAYBOOKS,
+  PROJECT_PLANNING_PLAYBOOK_SLUG,
+} from '../catalogs/built-in-playbooks.js';
 import type { DatabasePool } from '../db/database.js';
 import { NotFoundError } from '../errors/domain-errors.js';
-import { validateTemplateSchema } from '../orchestration/workflow-engine.js';
 import { WorkflowService } from './workflow-service.js';
-
-const PROJECT_PLANNING_TEMPLATE_SLUG = 'project-planning';
 
 export class ProjectPlanningService {
   constructor(
@@ -26,7 +27,7 @@ export class ProjectPlanningService {
     }
 
     const project = projectResult.rows[0] as Record<string, unknown>;
-    const templateId = await this.ensurePlanningTemplate(identity.tenantId);
+    const playbookId = await this.ensurePlanningPlaybook(identity.tenantId);
 
     await this.pool.query(
       `UPDATE projects
@@ -45,7 +46,7 @@ export class ProjectPlanningService {
     );
 
     return this.workflowService.createWorkflow(identity, {
-      template_id: templateId,
+      playbook_id: playbookId,
       project_id: projectId,
       name: payload.name ?? `Planning: ${String(project.name)}`,
       parameters: {
@@ -59,68 +60,43 @@ export class ProjectPlanningService {
     });
   }
 
-  private async ensurePlanningTemplate(tenantId: string): Promise<string> {
+  private async ensurePlanningPlaybook(tenantId: string): Promise<string> {
     const existing = await this.pool.query(
       `SELECT id
-         FROM templates
+         FROM playbooks
         WHERE tenant_id = $1
           AND slug = $2
-          AND is_built_in = true
-          AND deleted_at IS NULL
+          AND is_active = true
         ORDER BY version DESC, created_at DESC
         LIMIT 1`,
-      [tenantId, PROJECT_PLANNING_TEMPLATE_SLUG],
+      [tenantId, PROJECT_PLANNING_PLAYBOOK_SLUG],
     );
     if (existing.rowCount) {
       return String(existing.rows[0].id);
     }
 
-    const schema = validateTemplateSchema({
-      variables: [
-        { name: 'project_name', type: 'string', required: true },
-        { name: 'project_brief', type: 'string', required: true },
-        { name: 'project_id', type: 'string', required: true },
-      ],
-      tasks: [
-        {
-          id: 'plan_project',
-          title_template: 'Plan {{project_name}}',
-          type: 'orchestration',
-          role: 'orchestrator',
-          input_template: {
-            project_id: '{{project_id}}',
-            project_name: '{{project_name}}',
-            project_brief: '{{project_brief}}',
-          },
-          metadata: {
-            planning_task: true,
-          },
-        },
-      ],
-      workflow: {
-        phases: [
-          {
-            name: 'planning',
-            gate: 'manual',
-            tasks: ['plan_project'],
-          },
-        ],
-      },
-    });
+    const builtIn = BUILT_IN_PLAYBOOKS.find(
+      (playbook) => playbook.slug === PROJECT_PLANNING_PLAYBOOK_SLUG,
+    );
+    if (!builtIn) {
+      throw new NotFoundError('Built-in planning playbook is not configured');
+    }
 
     const created = await this.pool.query(
-      `INSERT INTO templates (
-         tenant_id, name, slug, description, version, is_built_in, is_published, schema
+      `INSERT INTO playbooks (
+         tenant_id, name, slug, description, outcome, lifecycle, version, definition, is_active
        ) VALUES (
-         $1, $2, $3, $4, 1, true, true, $5
+         $1, $2, $3, $4, $5, $6, 1, $7, true
        )
        RETURNING id`,
       [
         tenantId,
-        'Project Planning',
-        PROJECT_PLANNING_TEMPLATE_SLUG,
-        'Built-in planning workflow template',
-        schema,
+        builtIn.name,
+        builtIn.slug,
+        builtIn.description,
+        builtIn.outcome,
+        builtIn.lifecycle,
+        builtIn.definition,
       ],
     );
 

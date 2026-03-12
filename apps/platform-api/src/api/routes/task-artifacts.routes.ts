@@ -1,7 +1,8 @@
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
 import { authenticateApiKey, withAllowedScopes } from '../../auth/fastify-auth-hook.js';
+import { applyArtifactPreviewHeaders } from '../../bootstrap/plugins.js';
 import { buildArtifactStorageConfig } from '../../content/storage-config.js';
 import { createArtifactStorage } from '../../content/storage-factory.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
@@ -26,6 +27,7 @@ export const taskArtifactRoutes: FastifyPluginAsync = async (app) => {
     app.pgPool,
     createArtifactStorage(buildArtifactStorageConfig(app.config)),
     app.config.ARTIFACT_ACCESS_URL_TTL_SECONDS,
+    app.config.ARTIFACT_PREVIEW_MAX_BYTES,
   );
 
   app.get(
@@ -72,6 +74,38 @@ export const taskArtifactRoutes: FastifyPluginAsync = async (app) => {
       reply.header('Content-Type', result.contentType);
       reply.header('Content-Disposition', `attachment; filename="${params.artifactId}"`);
       return reply.send(result.data);
+    },
+  );
+
+  async function sendPreviewResponse(
+    request: FastifyRequest,
+    reply: FastifyReply,
+    params: { id: string; artifactId: string },
+  ): Promise<FastifyReply> {
+    const result = await artifactService.previewTaskArtifact(
+      request.auth!.tenantId,
+      params.id,
+      params.artifactId,
+    );
+    applyArtifactPreviewHeaders(reply, result.fileName, result.contentType);
+    return reply.send(result.data);
+  }
+
+  app.get(
+    '/api/v1/tasks/:id/artifacts/:artifactId/preview',
+    { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'agent'])] },
+    async (request, reply) => {
+      const params = request.params as { id: string; artifactId: string };
+      return sendPreviewResponse(request, reply, params);
+    },
+  );
+
+  app.get(
+    '/api/v1/tasks/:id/artifacts/:artifactId/permalink',
+    { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'agent'])] },
+    async (request, reply) => {
+      const params = request.params as { id: string; artifactId: string };
+      return sendPreviewResponse(request, reply, params);
     },
   );
 

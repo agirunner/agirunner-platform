@@ -17,12 +17,19 @@ export class WorkflowChainingService {
   async chainWorkflowExplicit(
     identity: ApiKeyIdentity,
     sourceWorkflowId: string,
-    payload: { template_id: string; name?: string; parameters?: Record<string, unknown> },
+    payload: {
+      playbook_id?: string;
+      name?: string;
+      parameters?: Record<string, unknown>;
+    },
   ) {
     const sourceWorkflow = await this.fetchSourceWorkflow(identity.tenantId, sourceWorkflowId);
+    if (!payload.playbook_id) {
+      throw new ConflictError('Explicit workflow chaining requires a playbook_id');
+    }
 
     const nextWorkflow = await this.workflowService.createWorkflow(identity, {
-      template_id: payload.template_id,
+      playbook_id: payload.playbook_id,
       project_id: sourceWorkflow.project_id ? String(sourceWorkflow.project_id) : undefined,
       name: payload.name ?? `${String(sourceWorkflow.name)} follow-up`,
       parameters: payload.parameters,
@@ -32,7 +39,12 @@ export class WorkflowChainingService {
       },
     });
 
-    await this.linkChildWorkflow(identity.tenantId, sourceWorkflowId, sourceWorkflow, nextWorkflow.id);
+    await this.linkChildWorkflow(
+      identity.tenantId,
+      sourceWorkflowId,
+      sourceWorkflow,
+      nextWorkflow.id,
+    );
 
     return nextWorkflow;
   }
@@ -59,15 +71,15 @@ export class WorkflowChainingService {
     );
     const output = asRecord(taskResult.rows[0]?.output);
     const suggestedPlan = asRecord(output.suggested_plan);
-    const templateRef = suggestedPlan.template;
+    const playbookRef = suggestedPlan.playbook;
     const parameters = asRecord(suggestedPlan.parameters);
-    if (typeof templateRef !== 'string' || templateRef.trim().length === 0) {
-      throw new ConflictError('Workflow output does not include a suggested plan template');
+    if (typeof playbookRef !== 'string' || playbookRef.trim().length === 0) {
+      throw new ConflictError('Workflow output does not include a suggested plan playbook');
     }
 
-    const templateId = await this.resolveTemplateId(identity.tenantId, templateRef);
+    const playbookId = await this.resolvePlaybookId(identity.tenantId, playbookRef);
     const nextWorkflow = await this.workflowService.createWorkflow(identity, {
-      template_id: templateId,
+      playbook_id: playbookId,
       project_id: String(sourceWorkflow.project_id),
       name: payload.name ?? `${String(sourceWorkflow.name)} follow-up`,
       parameters,
@@ -77,7 +89,12 @@ export class WorkflowChainingService {
       },
     });
 
-    await this.linkChildWorkflow(identity.tenantId, sourceWorkflowId, sourceWorkflow, nextWorkflow.id);
+    await this.linkChildWorkflow(
+      identity.tenantId,
+      sourceWorkflowId,
+      sourceWorkflow,
+      nextWorkflow.id,
+    );
 
     return nextWorkflow;
   }
@@ -119,22 +136,19 @@ export class WorkflowChainingService {
       ],
     );
     if (isTerminalWorkflowState(sourceWorkflow.state)) {
-      await this.projectTimelineService.recordWorkflowTerminalState(
-        tenantId,
-        sourceWorkflowId,
-      );
+      await this.projectTimelineService.recordWorkflowTerminalState(tenantId, sourceWorkflowId);
     }
   }
 
-  private async resolveTemplateId(tenantId: string, templateRef: string) {
+  private async resolvePlaybookId(tenantId: string, playbookRef: string) {
     const byId = await this.pool.query(
       `SELECT id
-         FROM templates
+         FROM playbooks
         WHERE tenant_id = $1
           AND id::text = $2
-          AND deleted_at IS NULL
+          AND is_active = true
         LIMIT 1`,
-      [tenantId, templateRef],
+      [tenantId, playbookRef],
     );
     if (byId.rowCount) {
       return String(byId.rows[0].id);
@@ -142,16 +156,16 @@ export class WorkflowChainingService {
 
     const bySlug = await this.pool.query(
       `SELECT id
-         FROM templates
+         FROM playbooks
         WHERE tenant_id = $1
           AND slug = $2
-          AND deleted_at IS NULL
+          AND is_active = true
         ORDER BY version DESC, created_at DESC
         LIMIT 1`,
-      [tenantId, templateRef],
+      [tenantId, playbookRef],
     );
     if (!bySlug.rowCount) {
-      throw new NotFoundError('Suggested plan template not found');
+      throw new NotFoundError('Suggested plan playbook not found');
     }
     return String(bySlug.rows[0].id);
   }

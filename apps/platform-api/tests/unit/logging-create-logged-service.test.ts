@@ -105,7 +105,9 @@ describe('createLoggedService', () => {
 
     const wrapped = createLoggedService(service, 'ProjectService', logService as never);
 
-    await expect(wrapped.createProject({ name: 'Test' })).rejects.toThrow('Database connection lost');
+    await expect(wrapped.createProject({ name: 'Test' })).rejects.toThrow(
+      'Database connection lost',
+    );
 
     await new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -142,5 +144,34 @@ describe('createLoggedService', () => {
 
     expect(result).toBe('result');
     expect(logInsert).not.toHaveBeenCalled();
+  });
+
+  it('usesCanonicalStageContextOnly', async () => {
+    const service = {
+      createTask: vi.fn().mockResolvedValue({
+        id: 'task-1',
+        title: 'Implement feature',
+        workflowId: 'workflow-1',
+        workItemId: 'work-item-1',
+        stageName: 'implementation',
+        workflowPhase: 'legacy-phase',
+      }),
+    };
+    const logInsert = vi.fn().mockResolvedValue(undefined);
+    const logService = { insert: logInsert };
+
+    const wrapped = createLoggedService(service, 'TaskService', logService as never);
+    await wrapped.createTask({ workflowId: 'workflow-1', workflowPhase: 'legacy-phase' });
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(logInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workflowId: 'workflow-1',
+        workItemId: 'work-item-1',
+        stageName: 'implementation',
+      }),
+    );
+    expect(logInsert.mock.calls[0][0].stageName).toBe('implementation');
   });
 });

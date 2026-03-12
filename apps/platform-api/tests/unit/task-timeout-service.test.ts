@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { TaskTimeoutService } from '../../src/services/task-timeout-service.js';
 
 describe('TaskTimeoutService timeout signal lifecycle', () => {
-  it('queues cancel signal and marks timeout grace metadata for running worker task', async () => {
+  it('queues cancel signal and marks timeout grace metadata for in-progress worker task', async () => {
     const pool = {
       query: vi
         .fn()
@@ -13,7 +13,7 @@ describe('TaskTimeoutService timeout signal lifecycle', () => {
             {
               id: 'task-1',
               tenant_id: 'tenant-1',
-              state: 'running',
+              state: 'in_progress',
               assigned_worker_id: 'worker-1',
               metadata: {},
             },
@@ -58,7 +58,7 @@ describe('TaskTimeoutService timeout signal lifecycle', () => {
           {
             id: 'task-2',
             tenant_id: 'tenant-2',
-            state: 'running',
+            state: 'in_progress',
             assigned_worker_id: 'worker-2',
             metadata: {
               timeout_force_fail_at: '2026-03-05T00:00:00.000Z',
@@ -87,7 +87,7 @@ describe('TaskTimeoutService timeout signal lifecycle', () => {
       'task-2',
       'failed',
       expect.objectContaining({
-        expectedStates: ['claimed', 'running'],
+        expectedStates: ['claimed', 'in_progress'],
         reason: 'timeout_force_failed',
         clearLifecycleControlMetadata: true,
       }),

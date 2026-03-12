@@ -191,7 +191,7 @@ export function AiConfigAssistantPage(): JSX.Element {
           AI Config Assistant
         </h1>
         <p className="text-sm text-muted">
-          Ask questions about your platform configuration and get suggestions.
+          Ask questions about platform configuration and get suggestions grounded in the current runtime and playbook model.
         </p>
       </div>
 
@@ -204,7 +204,7 @@ export function AiConfigAssistantPage(): JSX.Element {
             <Sparkles className="mb-3 h-10 w-10" />
             <p className="font-medium">How can I help with your configuration?</p>
             <p className="mt-1 text-sm">
-              Ask about LLM providers, runtime settings, templates, and more.
+              Ask about LLM providers, runtime settings, playbooks, work items, and operator controls.
             </p>
           </div>
         )}

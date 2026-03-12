@@ -95,7 +95,7 @@ function KpiCard({
 
 function CostByWorkflowChart({ data }: { data: Array<{ name: string; cost: number }> }): JSX.Element {
   if (data.length === 0) {
-    return <p className="py-4 text-center text-sm text-muted-foreground">No workflow cost data.</p>;
+    return <p className="py-4 text-center text-sm text-muted-foreground">No board cost data.</p>;
   }
 
   return (
@@ -182,7 +182,7 @@ export function CostDashboardPage(): JSX.Element {
     return (
       <div className="p-6">
         <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          Failed to load cost data: {String(error)}
+          Failed to load operator cost signals: {String(error)}
         </div>
       </div>
     );
@@ -196,8 +196,10 @@ export function CostDashboardPage(): JSX.Element {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Cost Dashboard</h1>
-          <p className="text-sm text-muted">Track spending across workflows and models.</p>
+          <h1 className="text-2xl font-semibold">Operator Cost Dashboard</h1>
+          <p className="text-sm text-muted">
+            Track spend across active boards, work-item execution, and model usage.
+          </p>
         </div>
         {isBudgetWarning && (
           <Badge variant="destructive" className="flex items-center gap-1">
@@ -224,7 +226,7 @@ export function CostDashboardPage(): JSX.Element {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <DollarSign className="h-4 w-4" />
-              Cost by Workflow
+              Cost by Board
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -236,7 +238,7 @@ export function CostDashboardPage(): JSX.Element {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <PieChart className="h-4 w-4" />
-              Cost by Model
+              Cost by Model Family
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -249,7 +251,7 @@ export function CostDashboardPage(): JSX.Element {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <TrendingUp className="h-4 w-4" />
-            Daily Cost Trend (Last 30 Days)
+            Daily Board Spend Trend (Last 30 Days)
           </CardTitle>
         </CardHeader>
         <CardContent>

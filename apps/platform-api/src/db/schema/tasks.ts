@@ -8,6 +8,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
@@ -18,6 +19,8 @@ import { workflows } from './workflows.js';
 import { projects } from './projects.js';
 import { tenants } from './tenants.js';
 import { workers } from './workers.js';
+import { workflowActivations } from './workflow-activations.js';
+import { workflowWorkItems } from './workflow-work-items.js';
 
 export const tasks = pgTable(
   'tasks',
@@ -27,9 +30,11 @@ export const tasks = pgTable(
       .notNull()
       .references(() => tenants.id),
     workflowId: uuid('workflow_id').references(() => workflows.id),
+    workItemId: uuid('work_item_id').references(() => workflowWorkItems.id),
     projectId: uuid('project_id').references(() => projects.id),
     title: text('title').notNull(),
     role: text('role'),
+    stageName: text('stage_name'),
     priority: taskPriorityEnum('priority').notNull().default('normal'),
     state: taskStateEnum('state').notNull().default('pending'),
     stateChangedAt: timestamp('state_changed_at', { withTimezone: true }).notNull().defaultNow(),
@@ -48,6 +53,9 @@ export const tasks = pgTable(
     roleConfig: jsonb('role_config'),
     environment: jsonb('environment'),
     resourceBindings: jsonb('resource_bindings').notNull().default([]),
+    activationId: uuid('activation_id').references(() => workflowActivations.id),
+    requestId: text('request_id'),
+    isOrchestratorTask: boolean('is_orchestrator_task').notNull().default(false),
     timeoutMinutes: integer('timeout_minutes').notNull().default(30),
     tokenBudget: integer('token_budget'),
     costCapUsd: numeric('cost_cap_usd', { precision: 10, scale: 4 }),
@@ -67,7 +75,10 @@ export const tasks = pgTable(
   (table) => [
     index('idx_tasks_tenant').on(table.tenantId),
     index('idx_tasks_workflow').on(table.workflowId),
+    index('idx_tasks_work_item').on(table.tenantId, table.workItemId),
     index('idx_tasks_project').on(table.projectId),
+    index('idx_tasks_activation').on(table.tenantId, table.activationId),
+    index('idx_tasks_stage').on(table.tenantId, table.workflowId, table.stageName),
     index('idx_tasks_claimable')
       .on(table.tenantId, table.priority, table.createdAt)
       .where(sql`${table.state} = 'ready'`),
@@ -79,5 +90,11 @@ export const tasks = pgTable(
     index('idx_tasks_running_timeout')
       .on(table.startedAt)
       .where(sql`${table.state} = 'running'`),
+    uniqueIndex('idx_tasks_request_id_workflow')
+      .on(table.tenantId, table.workflowId, table.requestId)
+      .where(sql`${table.requestId} IS NOT NULL AND ${table.workflowId} IS NOT NULL`),
+    uniqueIndex('idx_tasks_request_id_no_workflow')
+      .on(table.tenantId, table.requestId)
+      .where(sql`${table.requestId} IS NOT NULL AND ${table.workflowId} IS NULL`),
   ],
 );

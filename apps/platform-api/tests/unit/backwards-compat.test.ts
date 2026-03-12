@@ -58,11 +58,6 @@ describe('backwards compatibility', () => {
       const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
       expect(typeof taskRoutes).toBe('function');
     });
-
-    it('template routes module exports correctly', async () => {
-      const { templateRoutes } = await import('../../src/api/routes/templates.routes.js');
-      expect(typeof templateRoutes).toBe('function');
-    });
   });
 
   describe('env var aliases', () => {

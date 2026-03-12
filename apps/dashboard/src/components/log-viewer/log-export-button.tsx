@@ -9,6 +9,7 @@ import {
 } from '../ui/dropdown-menu.js';
 import { dashboardApi } from '../../lib/api.js';
 import { useLogFilters } from './hooks/use-log-filters.js';
+import { applyLogScope, type LogScope } from './log-scope.js';
 
 type ExportFormat = 'json' | 'csv';
 
@@ -28,7 +29,7 @@ function triggerBlobDownload(blob: Blob, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
-export function LogExportButton(): JSX.Element {
+export function LogExportButton({ scope }: { scope?: LogScope }): JSX.Element {
   const { toQueryParams } = useLogFilters();
   const [isExporting, setIsExporting] = useState(false);
 
@@ -36,14 +37,14 @@ export function LogExportButton(): JSX.Element {
     async (format: ExportFormat) => {
       setIsExporting(true);
       try {
-        const params = { ...toQueryParams(), format };
+        const params = { ...applyLogScope(toQueryParams(), scope), format };
         const blob = await dashboardApi.exportLogs(params);
         triggerBlobDownload(blob, buildFileName(format));
       } finally {
         setIsExporting(false);
       }
     },
-    [toQueryParams],
+    [scope, toQueryParams],
   );
 
   return (
@@ -55,12 +56,8 @@ export function LogExportButton(): JSX.Element {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={() => handleExport('json')}>
-          Export as JSON
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => handleExport('csv')}>
-          Export as CSV
-        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => handleExport('json')}>Export as JSON</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => handleExport('csv')}>Export as CSV</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

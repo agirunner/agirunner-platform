@@ -5,12 +5,13 @@ import (
 )
 
 func TestPriorityPreemptionSelectsLowestPriority(t *testing.T) {
+	lowTarget := makeRuntimeTarget("tmpl-low", "img:v1", 5, 0, 1)
 	grouped := map[string][]ContainerInfo{
-		"tmpl-low": {makeDCMContainer("c-1", "tmpl-low", "img:v1", "rt-1")},
+		lowTarget.TargetKey(): {makeDCMContainer("c-1", "tmpl-low", "img:v1", "rt-1")},
 	}
 	targets := []RuntimeTarget{
 		makeRuntimeTarget("tmpl-high", "img:v1", 5, 2, 100),
-		makeRuntimeTarget("tmpl-low", "img:v1", 5, 0, 1),
+		lowTarget,
 	}
 
 	plans := planPreemptions(targets, grouped, targets)
@@ -21,18 +22,19 @@ func TestPriorityPreemptionSelectsLowestPriority(t *testing.T) {
 	if plans[0].VictimContainerID != "c-1" {
 		t.Errorf("expected victim c-1, got %s", plans[0].VictimContainerID)
 	}
-	if plans[0].BeneficiaryTemplate.TemplateID != "tmpl-high" {
-		t.Errorf("expected beneficiary tmpl-high, got %s", plans[0].BeneficiaryTemplate.TemplateID)
+	if plans[0].BeneficiaryTemplate.PlaybookID != "tmpl-high" {
+		t.Errorf("expected beneficiary tmpl-high, got %s", plans[0].BeneficiaryTemplate.PlaybookID)
 	}
 }
 
 func TestPriorityNoPreemptionWhenSamePriority(t *testing.T) {
+	targetA := makeRuntimeTarget("tmpl-a", "img:v1", 5, 0, 10)
 	grouped := map[string][]ContainerInfo{
-		"tmpl-a": {makeDCMContainer("c-1", "tmpl-a", "img:v1", "rt-1")},
+		targetA.TargetKey(): {makeDCMContainer("c-1", "tmpl-a", "img:v1", "rt-1")},
 	}
 	targets := []RuntimeTarget{
 		makeRuntimeTarget("tmpl-b", "img:v1", 5, 2, 10),
-		makeRuntimeTarget("tmpl-a", "img:v1", 5, 0, 10),
+		targetA,
 	}
 
 	plans := planPreemptions(targets, grouped, targets)
@@ -51,26 +53,27 @@ func TestSortTargetsByPriorityDescending(t *testing.T) {
 
 	sorted := sortTargetsByPriority(targets)
 
-	if sorted[0].TemplateID != "tmpl-high" {
-		t.Errorf("expected tmpl-high first, got %s", sorted[0].TemplateID)
+	if sorted[0].PlaybookID != "tmpl-high" {
+		t.Errorf("expected tmpl-high first, got %s", sorted[0].PlaybookID)
 	}
-	if sorted[1].TemplateID != "tmpl-mid" {
-		t.Errorf("expected tmpl-mid second, got %s", sorted[1].TemplateID)
+	if sorted[1].PlaybookID != "tmpl-mid" {
+		t.Errorf("expected tmpl-mid second, got %s", sorted[1].PlaybookID)
 	}
-	if sorted[2].TemplateID != "tmpl-low" {
-		t.Errorf("expected tmpl-low third, got %s", sorted[2].TemplateID)
+	if sorted[2].PlaybookID != "tmpl-low" {
+		t.Errorf("expected tmpl-low third, got %s", sorted[2].PlaybookID)
 	}
 }
 
 func TestPriorityPreemptionSkipsDrainingContainers(t *testing.T) {
 	draining := makeDCMContainer("c-1", "tmpl-low", "img:v1", "rt-1")
 	draining.Labels[labelDCMDraining] = "true"
+	lowTarget := makeRuntimeTarget("tmpl-low", "img:v1", 5, 0, 1)
 	grouped := map[string][]ContainerInfo{
-		"tmpl-low": {draining},
+		lowTarget.TargetKey(): {draining},
 	}
 	targets := []RuntimeTarget{
 		makeRuntimeTarget("tmpl-high", "img:v1", 5, 2, 100),
-		makeRuntimeTarget("tmpl-low", "img:v1", 5, 0, 1),
+		lowTarget,
 	}
 
 	plans := planPreemptions(targets, grouped, targets)

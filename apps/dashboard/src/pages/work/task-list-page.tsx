@@ -30,6 +30,11 @@ interface Task {
   title?: string;
   status: string;
   state?: string;
+  role?: string;
+  stage_name?: string | null;
+  work_item_id?: string | null;
+  activation_id?: string | null;
+  is_orchestrator_task?: boolean;
   workflow_id?: string;
   workflow_name?: string;
   agent_id?: string;
@@ -43,19 +48,25 @@ interface Task {
 
 type StatusFilter =
   | 'all'
+  | 'ready'
   | 'pending'
-  | 'running'
+  | 'in_progress'
   | 'completed'
   | 'failed'
-  | 'awaiting_approval';
+  | 'awaiting_approval'
+  | 'output_pending_review'
+  | 'escalated';
 
 const STATUS_FILTERS: StatusFilter[] = [
   'all',
+  'ready',
   'pending',
-  'running',
+  'in_progress',
   'completed',
   'failed',
   'awaiting_approval',
+  'output_pending_review',
+  'escalated',
 ];
 
 const PAGE_SIZE = 20;
@@ -69,19 +80,46 @@ function normalizeTasks(response: unknown): Task[] {
 }
 
 function resolveStatus(task: Task): string {
-  return (task.status ?? task.state ?? 'unknown').toLowerCase();
+  return normalizeTaskStatus((task.status ?? task.state ?? 'unknown').toLowerCase());
 }
 
 function statusBadgeVariant(status: string) {
   const map: Record<string, 'success' | 'default' | 'destructive' | 'warning' | 'secondary'> = {
     completed: 'success',
-    running: 'default',
+    in_progress: 'default',
     failed: 'destructive',
-    paused: 'warning',
-    pending: 'secondary',
+    output_pending_review: 'warning',
     awaiting_approval: 'warning',
+    escalated: 'destructive',
+    ready: 'secondary',
+    pending: 'secondary',
   };
   return map[status] ?? 'secondary';
+}
+
+function describeTaskKind(task: Task): string {
+  if (task.is_orchestrator_task) {
+    return 'Orchestrator activation';
+  }
+  if (resolveStatus(task) === 'escalated') {
+    return 'Escalated specialist task';
+  }
+  if (resolveStatus(task) === 'output_pending_review') {
+    return 'Output review';
+  }
+  if (resolveStatus(task) === 'awaiting_approval') {
+    return 'Operator approval';
+  }
+  return 'Specialist task';
+}
+
+function describeTaskScope(task: Task): string {
+  const segments = [
+    task.stage_name ? `Stage ${task.stage_name}` : null,
+    task.work_item_id ? `Work item ${task.work_item_id}` : null,
+    task.activation_id ? `Activation ${task.activation_id}` : null,
+  ].filter((segment): segment is string => Boolean(segment));
+  return segments.length > 0 ? segments.join(' • ') : 'No workflow scope';
 }
 
 function formatDuration(task: Task): string {
@@ -104,6 +142,12 @@ function formatStatusLabel(status: string): string {
     .split('_')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
+}
+
+function normalizeTaskStatus(status: string): string {
+  if (status === 'running' || status === 'claimed') return 'in_progress';
+  if (status === 'awaiting_escalation') return 'escalated';
+  return status;
 }
 
 export function TaskListPage(): JSX.Element {
@@ -146,9 +190,16 @@ export function TaskListPage(): JSX.Element {
     const status = resolveStatus(task);
     if (statusFilter !== 'all' && status !== statusFilter) return false;
     if (normalizedSearch) {
-      const label = (task.title ?? task.name ?? '').toLowerCase();
-      const wfName = (task.workflow_name ?? '').toLowerCase();
-      if (!label.includes(normalizedSearch) && !wfName.includes(normalizedSearch)) {
+      const haystack = [
+        task.title ?? task.name ?? '',
+        task.workflow_name ?? '',
+        task.stage_name ?? '',
+        task.work_item_id ?? '',
+        task.activation_id ?? '',
+      ]
+        .join(' ')
+        .toLowerCase();
+      if (!haystack.includes(normalizedSearch)) {
         return false;
       }
     }
@@ -161,7 +212,12 @@ export function TaskListPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <h1 className="text-2xl font-semibold">Tasks</h1>
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold">Specialist Tasks</h1>
+        <p className="text-sm text-muted">
+          Operator view of specialist execution, reviews, escalations, and orchestrator turns.
+        </p>
+      </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <Select
@@ -186,7 +242,7 @@ export function TaskListPage(): JSX.Element {
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted" />
           <Input
-            placeholder="Search tasks..."
+            placeholder="Search tasks, workflows, stages, or work items..."
             className="pl-9"
             value={searchQuery}
             onChange={(e) => {
@@ -214,9 +270,11 @@ export function TaskListPage(): JSX.Element {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead>Kind</TableHead>
               <TableHead>Workflow</TableHead>
+              <TableHead>Stage / Scope</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Agent</TableHead>
+              <TableHead>Assigned</TableHead>
               <TableHead>Created</TableHead>
               <TableHead>Duration</TableHead>
             </TableRow>
@@ -234,6 +292,7 @@ export function TaskListPage(): JSX.Element {
                       {task.title ?? task.name ?? task.id}
                     </Link>
                   </TableCell>
+                  <TableCell>{describeTaskKind(task)}</TableCell>
                   <TableCell>
                     {task.workflow_id ? (
                       <Link
@@ -246,6 +305,7 @@ export function TaskListPage(): JSX.Element {
                       '-'
                     )}
                   </TableCell>
+                  <TableCell className="text-muted">{describeTaskScope(task)}</TableCell>
                   <TableCell>
                     <Badge variant={statusBadgeVariant(status)} className="capitalize">
                       {status.replace(/_/g, ' ')}

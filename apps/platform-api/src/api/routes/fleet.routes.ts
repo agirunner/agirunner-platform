@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import type {
@@ -10,6 +11,16 @@ import type {
 
 export const fleetRoutes: FastifyPluginAsync = async (app) => {
   const service = app.fleetService;
+  const heartbeatSchema = z.object({
+    runtime_id: z.string().uuid(),
+    playbook_id: z.string().uuid(),
+    pool_kind: z.enum(['orchestrator', 'specialist']),
+    state: z.enum(['idle', 'executing', 'draining']),
+    task_id: z.string().uuid().nullable().optional(),
+    uptime_seconds: z.number().int().nonnegative().optional(),
+    last_claim_at: z.string().datetime({ offset: true }).nullable().optional(),
+    image: z.string().min(1).optional(),
+  });
 
   // --- Desired State (Fleet Workers) ---
 
@@ -172,8 +183,8 @@ export const fleetRoutes: FastifyPluginAsync = async (app) => {
     '/api/v1/tasks/queue-depth',
     { preHandler: [authenticateApiKey, withScope('worker')] },
     async (request) => {
-      const query = request.query as { template_id?: string };
-      return { data: await service.getQueueDepth(request.auth!.tenantId, query.template_id) };
+      const query = request.query as { playbook_id?: string };
+      return { data: await service.getQueueDepth(request.auth!.tenantId, query.playbook_id) };
     },
   );
 
@@ -189,7 +200,7 @@ export const fleetRoutes: FastifyPluginAsync = async (app) => {
     '/api/v1/fleet/heartbeat',
     { preHandler: [authenticateApiKey, withScope('worker')] },
     async (request) => {
-      const body = request.body as HeartbeatPayload;
+      const body = heartbeatSchema.parse(request.body) as HeartbeatPayload;
       const result = await service.recordHeartbeat(request.auth!.tenantId, body);
       return result;
     },
@@ -219,7 +230,7 @@ export const fleetRoutes: FastifyPluginAsync = async (app) => {
         event_type: string;
         level?: string;
         runtime_id?: string;
-        template_id?: string;
+        playbook_id?: string;
         task_id?: string;
         workflow_id?: string;
         container_id?: string;

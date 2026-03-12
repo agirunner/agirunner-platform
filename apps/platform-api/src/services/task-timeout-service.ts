@@ -1,6 +1,9 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
-import type { TaskState } from '../orchestration/task-state-machine.js';
+import { toStoredTaskState, type TaskState } from '../orchestration/task-state-machine.js';
+
+const ACTIVE_EXECUTION_STATES: TaskState[] = ['claimed', 'in_progress'];
+const STORED_ACTIVE_EXECUTION_STATES = ACTIVE_EXECUTION_STATES.map(toStoredTaskState);
 
 interface ApplyTransition {
   (
@@ -64,10 +67,10 @@ export class TaskTimeoutService {
     const timedOutTasks = await this.pool.query(
       `SELECT id, tenant_id, state, assigned_worker_id, metadata
        FROM tasks
-       WHERE state IN ('claimed', 'running')
+       WHERE state::text = ANY($2::text[])
          AND COALESCE(started_at, claimed_at) IS NOT NULL
          AND COALESCE(started_at, claimed_at) + (timeout_minutes * INTERVAL '1 minute') < $1`,
-      [now],
+      [now, STORED_ACTIVE_EXECUTION_STATES],
     );
 
     for (const staleTask of timedOutTasks.rows) {
@@ -84,7 +87,7 @@ export class TaskTimeoutService {
 
         const scopedIdentity = { ...systemIdentity, tenantId };
         await this.applyTransition(scopedIdentity, taskId, 'failed', {
-          expectedStates: ['claimed', 'running'],
+          expectedStates: ACTIVE_EXECUTION_STATES,
           error: {
             category: 'timeout',
             message: 'Task timeout exceeded after cancel grace period',
@@ -101,7 +104,7 @@ export class TaskTimeoutService {
       if (!workerId) {
         const scopedIdentity = { ...systemIdentity, tenantId };
         await this.applyTransition(scopedIdentity, taskId, 'failed', {
-          expectedStates: ['claimed', 'running'],
+          expectedStates: ACTIVE_EXECUTION_STATES,
           error: {
             category: 'timeout',
             message: 'Task timeout exceeded',
@@ -131,7 +134,7 @@ export class TaskTimeoutService {
          SET metadata = metadata || $3::jsonb
          WHERE tenant_id = $1
            AND id = $2
-           AND state IN ('claimed', 'running')
+           AND state::text = ANY($4::text[])
          RETURNING id`,
         [
           tenantId,
@@ -141,6 +144,7 @@ export class TaskTimeoutService {
             timeout_force_fail_at: forceFailAt.toISOString(),
             ...(signalId ? { timeout_signal_id: signalId } : {}),
           },
+          STORED_ACTIVE_EXECUTION_STATES,
         ],
       );
 
@@ -166,8 +170,9 @@ export class TaskTimeoutService {
     const pendingCancellationTasks = await this.pool.query(
       `SELECT id, tenant_id, metadata
          FROM tasks
-        WHERE state IN ('claimed', 'running')
+        WHERE state::text = ANY($1::text[])
           AND metadata ? 'workflow_cancel_force_at'`,
+      [STORED_ACTIVE_EXECUTION_STATES],
     );
 
     for (const row of pendingCancellationTasks.rows) {
@@ -179,7 +184,7 @@ export class TaskTimeoutService {
 
       const scopedIdentity = { ...systemIdentity, tenantId: row.tenant_id as string };
       await this.applyTransition(scopedIdentity, row.id as string, 'cancelled', {
-        expectedStates: ['claimed', 'running'],
+        expectedStates: ACTIVE_EXECUTION_STATES,
         clearAssignment: true,
         clearLifecycleControlMetadata: true,
         reason: 'workflow_cancelled_after_grace',

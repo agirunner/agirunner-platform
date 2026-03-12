@@ -1,6 +1,6 @@
 import type { DatabasePool } from '../db/database.js';
 import { getOAuthProfile, type OAuthProviderProfile } from '../catalogs/oauth-profiles.js';
-import { storeOAuthToken, readOAuthToken } from '../lib/oauth-crypto.js';
+import { storeOAuthToken, storeProviderSecret, readOAuthToken } from '../lib/oauth-crypto.js';
 import { generateCodeVerifier, generateCodeChallenge, generateState } from '../lib/pkce.js';
 import { extractChatGptAccountId, extractEmailFromJwt } from '../lib/jwt-decode.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
@@ -32,10 +32,10 @@ interface OAuthCredentials {
 }
 
 export interface ResolvedOAuthToken {
-  accessToken: string;
+  accessTokenSecret: string;
   baseUrl: string;
   endpointType: string;
-  extraHeaders: Record<string, string>;
+  extraHeadersSecret: string | null;
 }
 
 export interface OAuthStatus {
@@ -219,11 +219,9 @@ export class OAuthService {
         throw new ValidationError('Provider missing OAuth configuration');
       }
 
-      const accessToken = readOAuthToken(creds.access_token);
-
       if (config.token_lifetime === 'permanent' || !this.isTokenExpired(creds.expires_at)) {
         await client.query('COMMIT');
-        return this.buildResolvedToken(accessToken, config, creds.account_id);
+        return this.buildResolvedToken(creds.access_token, config, creds.account_id);
       }
 
       if (!creds.refresh_token) {
@@ -239,7 +237,7 @@ export class OAuthService {
       await client.query('COMMIT');
 
       return this.buildResolvedToken(
-        readOAuthToken(refreshed.access_token),
+        refreshed.access_token,
         config,
         refreshed.account_id,
       );
@@ -375,7 +373,7 @@ export class OAuthService {
   }
 
   private buildResolvedToken(
-    accessToken: string,
+    accessTokenSecret: string,
     config: OAuthConfig,
     accountId: string | null,
   ): ResolvedOAuthToken {
@@ -387,10 +385,13 @@ export class OAuthService {
     }
 
     return {
-      accessToken,
+      accessTokenSecret,
       baseUrl: config.base_url,
       endpointType: config.endpoint_type,
-      extraHeaders,
+      extraHeadersSecret:
+        Object.keys(extraHeaders).length > 0
+          ? storeProviderSecret(JSON.stringify(extraHeaders))
+          : null,
     };
   }
 

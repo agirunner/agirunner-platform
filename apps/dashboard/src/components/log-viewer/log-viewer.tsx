@@ -8,24 +8,18 @@ import { LogIterationGroupedTable } from './log-iteration-grouped-table.js';
 import { LogTaskGroupedTable } from './log-task-grouped-table.js';
 import { useLogQuery } from './hooks/use-log-query.js';
 import { useLogFilters } from './hooks/use-log-filters.js';
+import { applyLogScope, type LogScope } from './log-scope.js';
 
 const QUERY_REFETCH_INTERVAL_MS = 5_000;
 const FLAT_PAGE_SIZE = 100;
 const GROUPED_PAGE_SIZE = 500;
 
 export interface LogViewerProps {
-  scope?: {
-    workflowId?: string;
-    taskId?: string;
-    projectId?: string;
-  };
+  scope?: LogScope;
   compact?: boolean;
 }
 
-export function LogViewer({
-  scope,
-  compact = false,
-}: LogViewerProps): JSX.Element {
+export function LogViewer({ scope, compact = false }: LogViewerProps): JSX.Element {
   const [cursor, setCursor] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<LogViewMode>('flat');
 
@@ -34,21 +28,15 @@ export function LogViewer({
   const isGrouped = viewMode !== 'flat';
   const pageSize = isGrouped ? GROUPED_PAGE_SIZE : FLAT_PAGE_SIZE;
 
-  const queryParams = useMemo(() => {
-    const params = toQueryParams();
-    if (scope?.projectId) params.project_id = scope.projectId;
-    if (scope?.workflowId) params.workflow_id = scope.workflowId;
-    if (scope?.taskId) params.task_id = scope.taskId;
-    return params;
-  }, [toQueryParams, scope]);
+  const queryParams = useMemo(() => applyLogScope(toQueryParams(), scope), [toQueryParams, scope]);
 
   const { data: logData, isLoading: isLoadingLogs } = useLogQuery(
+    queryParams,
     cursor,
     true,
     QUERY_REFETCH_INTERVAL_MS,
     pageSize,
   );
-
 
   const handleLoadMore = useCallback((nextCursor: string) => {
     setCursor(nextCursor);
@@ -62,20 +50,23 @@ export function LogViewer({
     [setFilter],
   );
 
-  const handleViewModeChange = useCallback((mode: LogViewMode) => {
-    setViewMode(mode);
-    setCursor(null);
+  const handleViewModeChange = useCallback(
+    (mode: LogViewMode) => {
+      setViewMode(mode);
+      setCursor(null);
 
-    // Auto-apply category filters relevant to the grouping mode
-    if (mode === 'by-iteration') {
-      setFilter('categories', ['agent_loop']);
-    } else if (mode === 'by-task') {
-      setFilter('categories', ['agent_loop', 'llm', 'tool', 'task_lifecycle', 'container']);
-    } else {
-      // Flat view: clear category filter to show everything
-      setFilter('categories', []);
-    }
-  }, [setFilter]);
+      // Auto-apply category filters relevant to the grouping mode
+      if (mode === 'by-iteration') {
+        setFilter('categories', ['agent_loop']);
+      } else if (mode === 'by-task') {
+        setFilter('categories', ['agent_loop', 'llm', 'tool', 'task_lifecycle', 'container']);
+      } else {
+        // Flat view: clear category filter to show everything
+        setFilter('categories', []);
+      }
+    },
+    [setFilter],
+  );
 
   const displayEntries = logData?.data ?? [];
 
@@ -86,13 +77,13 @@ export function LogViewer({
         compact={compact}
         viewMode={viewMode}
         onViewModeChange={(mode) => handleViewModeChange(mode as LogViewMode)}
+        scope={scope}
       />
 
       {/* Toolbar: view toggle */}
       <div className="flex items-center justify-end gap-2">
         <LogViewToggle mode={viewMode} onChange={handleViewModeChange} />
       </div>
-
 
       {viewMode === 'flat' && (
         <LogTable
@@ -103,7 +94,7 @@ export function LogViewer({
           prevCursor={logData?.pagination?.prev_cursor}
           onLoadMore={handleLoadMore}
           onFilterTrace={handleFilterTrace}
-          exportSlot={<LogExportButton />}
+          exportSlot={<LogExportButton scope={scope} />}
         />
       )}
 

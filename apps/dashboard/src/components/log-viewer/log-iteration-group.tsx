@@ -1,10 +1,10 @@
 import { Fragment, useState } from 'react';
-import { ChevronDown, ChevronRight, Filter } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { LogEntry } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
 import { LogEntryRow } from './log-entry-row.js';
 import { LogEntryDetail } from './log-entry-detail.js';
-import { Button } from '../ui/button.js';
+import { getCanonicalStageNames } from './log-entry-context.js';
 
 const COL_COUNT = 11;
 
@@ -16,24 +16,13 @@ export interface LogIterationGroupProps {
   onFilterTrace: (traceId: string) => void;
 }
 
-const PHASE_STYLES: Record<string, string> = {
-  think: 'bg-violet-100 text-violet-700',
-  plan: 'bg-blue-100 text-blue-700',
-  act: 'bg-emerald-100 text-emerald-700',
-  observe: 'bg-amber-100 text-amber-700',
-  verify: 'bg-teal-100 text-teal-700',
+const STAGE_STYLES: Record<string, string> = {
+  triage: 'bg-slate-100 text-slate-700',
+  planning: 'bg-blue-100 text-blue-700',
+  implementation: 'bg-emerald-100 text-emerald-700',
+  review: 'bg-amber-100 text-amber-700',
+  verification: 'bg-teal-100 text-teal-700',
 };
-
-function extractPhases(entries: LogEntry[]): string[] {
-  const phases = new Set<string>();
-  for (const entry of entries) {
-    const phase = entry.payload?.phase;
-    if (typeof phase === 'string' && phase !== '') {
-      phases.add(phase.toLowerCase());
-    }
-  }
-  return Array.from(phases);
-}
 
 function computeTotalDuration(entries: LogEntry[]): number {
   let total = 0;
@@ -63,7 +52,7 @@ function IterationHeader({
   onToggle: () => void;
 }): JSX.Element {
   const Chevron = isExpanded ? ChevronDown : ChevronRight;
-  const phases = extractPhases(entries);
+  const stages = getCanonicalStageNames(entries);
   const totalDuration = computeTotalDuration(entries);
 
   return (
@@ -77,15 +66,15 @@ function IterationHeader({
           <span className="text-sm font-semibold">Iteration {iteration}</span>
 
           <div className="flex items-center gap-1">
-            {phases.map((phase) => (
+            {stages.map((stage) => (
               <span
-                key={phase}
+                key={stage}
                 className={cn(
                   'rounded px-1.5 py-px text-[10px] font-medium capitalize',
-                  PHASE_STYLES[phase] ?? 'bg-gray-100 text-gray-600',
+                  STAGE_STYLES[stage.toLowerCase()] ?? 'bg-gray-100 text-gray-600',
                 )}
               >
-                {phase}
+                {stage}
               </span>
             ))}
           </div>
@@ -131,19 +120,12 @@ export function LogIterationGroup({
               <LogEntryRow
                 entry={entry}
                 isExpanded={isEntryExpanded}
-                onToggle={() =>
-                  setExpandedEntryId((prev) =>
-                    prev === entry.id ? null : entry.id,
-                  )
-                }
+                onToggle={() => setExpandedEntryId((prev) => (prev === entry.id ? null : entry.id))}
               />
               {isEntryExpanded && (
                 <tr className={cn('border-b border-border/40', bgTint)}>
                   <td colSpan={COL_COUNT} className="p-0">
-                    <LogEntryDetail
-                      entry={entry}
-                      onFilterTrace={onFilterTrace}
-                    />
+                    <LogEntryDetail entry={entry} onFilterTrace={onFilterTrace} />
                   </td>
                 </tr>
               )}

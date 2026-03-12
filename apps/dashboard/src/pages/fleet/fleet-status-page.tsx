@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Activity,
@@ -23,87 +23,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select.js';
-
-const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
+import {
+  dashboardApi,
+  type FleetEventRecord,
+  type FleetPlaybookPoolSummary,
+  type FleetStatusResponse,
+  type FleetWorkerPoolSummary,
+} from '../../lib/api.js';
 
 const REFETCH_INTERVAL_MS = 5000;
 const EVENTS_PER_PAGE = 10;
-
-interface TemplateFleetStatus {
-  template_id: string;
-  template_name: string;
-  pool_mode: 'warm' | 'cold';
-  max_runtimes: number;
-  runtime_count: number;
-  running: number;
-  idle: number;
-  executing: number;
-  draining: number;
-  pending_tasks: number;
-  active_workflows: number;
-}
-
-interface FleetStatusResponse {
-  total_runtimes: number;
-  global_max: number;
-  running: number;
-  idle: number;
-  executing: number;
-  draining: number;
-  templates: TemplateFleetStatus[];
-}
-
-interface FleetEvent {
-  id: string;
-  timestamp: string;
-  type: string;
-  level: 'info' | 'warning' | 'error';
-  runtime_id: string;
-  template_id?: string;
-  details: string;
-}
-
-interface FleetEventsResponse {
-  data: FleetEvent[];
-  total: number;
-}
-
-async function fetchFleetStatus(): Promise<FleetStatusResponse> {
-  const session = readSession();
-  const resp = await fetch(`${API_BASE_URL}/api/v1/fleet/status`, {
-    headers: { Authorization: `Bearer ${session?.accessToken}` },
-  });
-  if (!resp.ok) {
-    throw new Error(`HTTP ${resp.status}`);
-  }
-  const json = await resp.json();
-  return (json.data ?? json) as FleetStatusResponse;
-}
-
-async function fetchFleetEvents(
-  page: number,
-  templateFilter?: string,
-): Promise<FleetEventsResponse> {
-  const session = readSession();
-  const params = new URLSearchParams({
-    page: String(page),
-    per_page: String(EVENTS_PER_PAGE),
-  });
-  if (templateFilter) {
-    params.set('template_id', templateFilter);
-  }
-  const resp = await fetch(`${API_BASE_URL}/api/v1/fleet/events?${params}`, {
-    headers: { Authorization: `Bearer ${session?.accessToken}` },
-  });
-  if (!resp.ok) {
-    throw new Error(`HTTP ${resp.status}`);
-  }
-  const json = await resp.json();
-  return {
-    data: json.data ?? [],
-    total: json.total ?? json.data?.length ?? 0,
-  };
-}
 
 function truncateId(id: string): string {
   return id.length > 12 ? `${id.slice(0, 12)}...` : id;
@@ -115,6 +44,22 @@ function formatTimestamp(ts: string): string {
   } catch {
     return ts;
   }
+}
+
+function formatEventDetails(event: FleetEventRecord): string {
+  const payload = event.payload ?? {};
+  const reason = typeof payload.reason === 'string' ? payload.reason : null;
+  const image = typeof payload.image === 'string' ? payload.image : null;
+  const status = typeof payload.status === 'string' ? payload.status : null;
+  const parts = [reason, image, status].filter((value): value is string => Boolean(value));
+  if (parts.length > 0) {
+    return parts.join(' · ');
+  }
+  return 'No additional details';
+}
+
+function poolLabel(poolKind: 'orchestrator' | 'specialist'): string {
+  return poolKind === 'orchestrator' ? 'Orchestrator Pool' : 'Specialist Pool';
 }
 
 function StatCard({
@@ -141,10 +86,53 @@ function StatCard({
   );
 }
 
+function WorkerPoolsOverview({ pools }: { pools: FleetWorkerPoolSummary[] }): JSX.Element {
+  const orderedPools: Array<'orchestrator' | 'specialist'> = ['orchestrator', 'specialist'];
+
+  return (
+    <div>
+      <h2 className="mb-3 text-lg font-medium">Worker Pools</h2>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {orderedPools.map((poolKind) => {
+          const pool = pools.find((entry) => entry.pool_kind === poolKind);
+          return (
+            <Card key={poolKind}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">{poolLabel(poolKind)}</CardTitle>
+                  <Badge variant={poolKind === 'orchestrator' ? 'secondary' : 'outline'}>
+                    {poolKind}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
+                <PoolMetric label="Desired workers" value={pool?.desired_workers ?? 0} />
+                <PoolMetric label="Desired replicas" value={pool?.desired_replicas ?? 0} />
+                <PoolMetric label="Enabled" value={pool?.enabled_workers ?? 0} />
+                <PoolMetric label="Running" value={pool?.running_containers ?? 0} />
+                <PoolMetric label="Draining" value={pool?.draining_workers ?? 0} />
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function PoolMetric({ label, value }: { label: string; value: number }): JSX.Element {
+  return (
+    <div className="rounded-md border border-border p-3">
+      <p className="text-xl font-semibold">{value}</p>
+      <p className="text-xs text-muted">{label}</p>
+    </div>
+  );
+}
+
 function GlobalOverview({ status }: { status: FleetStatusResponse }): JSX.Element {
   const usagePercent =
-    status.global_max > 0
-      ? Math.round((status.total_runtimes / status.global_max) * 100)
+    status.global_max_runtimes > 0
+      ? Math.round((status.total_running / status.global_max_runtimes) * 100)
       : 0;
 
   return (
@@ -160,7 +148,7 @@ function GlobalOverview({ status }: { status: FleetStatusResponse }): JSX.Elemen
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted">Total Runtimes</span>
             <span className="font-medium">
-              {status.total_runtimes} / {status.global_max}
+              {status.total_running} / {status.global_max_runtimes}
             </span>
           </div>
           <div className="h-2 w-full rounded-full bg-muted/20">
@@ -174,56 +162,69 @@ function GlobalOverview({ status }: { status: FleetStatusResponse }): JSX.Elemen
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="Running" value={status.running} icon={Play} variant="text-green-600" />
-          <StatCard label="Idle" value={status.idle} icon={Pause} variant="text-yellow-600" />
-          <StatCard label="Executing" value={status.executing} icon={Activity} variant="text-blue-600" />
-          <StatCard label="Draining" value={status.draining} icon={Clock} variant="text-orange-600" />
+          <StatCard label="Running" value={status.total_running} icon={Play} variant="text-green-600" />
+          <StatCard label="Idle" value={status.total_idle} icon={Pause} variant="text-yellow-600" />
+          <StatCard label="Executing" value={status.total_executing} icon={Activity} variant="text-blue-600" />
+          <StatCard label="Draining" value={status.total_draining} icon={Clock} variant="text-orange-600" />
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function TemplateCard({ tpl }: { tpl: TemplateFleetStatus }): JSX.Element {
+function PlaybookPoolCard({
+  pool,
+}: {
+  pool: FleetPlaybookPoolSummary;
+}): JSX.Element {
   return (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base">{tpl.template_name}</CardTitle>
-          <Badge variant={tpl.pool_mode === 'warm' ? 'success' : 'secondary'}>
-            {tpl.pool_mode}
-          </Badge>
+          <CardTitle className="text-base">{pool.playbook_name}</CardTitle>
+          <div className="flex items-center gap-2">
+            <Badge variant={pool.pool_kind === 'orchestrator' ? 'secondary' : 'outline'}>
+              {pool.pool_kind}
+            </Badge>
+            <Badge variant={pool.pool_mode === 'warm' ? 'success' : 'secondary'}>
+              {pool.pool_mode}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted">Runtimes</span>
           <span className="font-medium">
-            {tpl.runtime_count} / {tpl.max_runtimes}
+            {pool.running} / {pool.max_runtimes}
           </span>
         </div>
-        <div className="grid grid-cols-3 gap-2 text-center text-xs">
+        <div className="grid grid-cols-4 gap-2 text-center text-xs">
           <div className="rounded-md border border-border p-2">
-            <p className="font-semibold text-green-600">{tpl.running}</p>
+            <p className="font-semibold text-green-600">{pool.running}</p>
             <p className="text-muted">Running</p>
           </div>
           <div className="rounded-md border border-border p-2">
-            <p className="font-semibold text-yellow-600">{tpl.idle}</p>
+            <p className="font-semibold text-yellow-600">{pool.idle}</p>
             <p className="text-muted">Idle</p>
           </div>
           <div className="rounded-md border border-border p-2">
-            <p className="font-semibold text-blue-600">{tpl.executing}</p>
+            <p className="font-semibold text-blue-600">{pool.executing}</p>
             <p className="text-muted">Executing</p>
+          </div>
+          <div className="rounded-md border border-border p-2">
+            <p className="font-semibold text-orange-600">{pool.draining}</p>
+            <p className="text-muted">Draining</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="flex items-center gap-1">
             <span className="text-muted">Pending:</span>
-            <span className="font-medium">{tpl.pending_tasks}</span>
+            <span className="font-medium">{pool.pending_tasks}</span>
           </div>
           <div className="flex items-center gap-1">
             <span className="text-muted">Workflows:</span>
-            <span className="font-medium">{tpl.active_workflows}</span>
+            <span className="font-medium">{pool.active_workflows}</span>
           </div>
         </div>
       </CardContent>
@@ -232,22 +233,28 @@ function TemplateCard({ tpl }: { tpl: TemplateFleetStatus }): JSX.Element {
 }
 
 const LEVEL_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'secondary'> = {
+  debug: 'secondary',
   info: 'secondary',
-  warning: 'warning',
+  warn: 'warning',
   error: 'destructive',
 };
 
 function EventsTable({
-  templates,
+  playbooks,
 }: {
-  templates: TemplateFleetStatus[];
+  playbooks: Array<{ playbook_id: string; playbook_name: string }>;
 }): JSX.Element {
   const [page, setPage] = useState(1);
-  const [templateFilter, setTemplateFilter] = useState<string>('');
+  const [playbookFilter, setPlaybookFilter] = useState<string>('');
 
   const { data, isLoading } = useQuery({
-    queryKey: ['fleet-events', page, templateFilter],
-    queryFn: () => fetchFleetEvents(page, templateFilter || undefined),
+    queryKey: ['fleet-events', page, playbookFilter],
+    queryFn: () =>
+      dashboardApi.fetchFleetEvents({
+        limit: String(EVENTS_PER_PAGE),
+        offset: String((page - 1) * EVENTS_PER_PAGE),
+        ...(playbookFilter ? { playbook_id: playbookFilter } : {}),
+      }),
     refetchInterval: REFETCH_INTERVAL_MS,
   });
 
@@ -261,20 +268,20 @@ function EventsTable({
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">Recent Events</CardTitle>
           <Select
-            value={templateFilter}
+            value={playbookFilter}
             onValueChange={(val) => {
-              setTemplateFilter(val === 'all' ? '' : val);
+              setPlaybookFilter(val === 'all' ? '' : val);
               setPage(1);
             }}
           >
             <SelectTrigger className="w-48">
-              <SelectValue placeholder="All templates" />
+              <SelectValue placeholder="All playbooks" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All templates</SelectItem>
-              {templates.map((tpl) => (
-                <SelectItem key={tpl.template_id} value={tpl.template_id}>
-                  {tpl.template_name}
+              <SelectItem value="all">All playbooks</SelectItem>
+              {playbooks.map((playbook) => (
+                <SelectItem key={playbook.playbook_id} value={playbook.playbook_id}>
+                  {playbook.playbook_name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -307,18 +314,18 @@ function EventsTable({
                   {events.map((event) => (
                     <tr key={event.id} className="border-b border-border/50">
                       <td className="py-2 pr-4 text-xs text-muted whitespace-nowrap">
-                        {formatTimestamp(event.timestamp)}
+                        {formatTimestamp(event.created_at)}
                       </td>
-                      <td className="py-2 pr-4 font-medium">{event.type}</td>
+                      <td className="py-2 pr-4 font-medium">{event.event_type}</td>
                       <td className="py-2 pr-4">
                         <Badge variant={LEVEL_VARIANT[event.level] ?? 'secondary'}>
                           {event.level}
                         </Badge>
                       </td>
-                      <td className="py-2 pr-4 font-mono text-xs" title={event.runtime_id}>
-                        {truncateId(event.runtime_id)}
+                      <td className="py-2 pr-4 font-mono text-xs" title={event.runtime_id ?? ''}>
+                        {event.runtime_id ? truncateId(event.runtime_id) : '-'}
                       </td>
-                      <td className="py-2 text-muted">{event.details}</td>
+                      <td className="py-2 text-muted">{formatEventDetails(event)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -357,9 +364,22 @@ function EventsTable({
 export function FleetStatusPage(): JSX.Element {
   const { data: status, isLoading, isError } = useQuery({
     queryKey: ['fleet-status'],
-    queryFn: fetchFleetStatus,
+    queryFn: () => dashboardApi.fetchFleetStatus(),
     refetchInterval: REFETCH_INTERVAL_MS,
   });
+
+  const playbookFilters = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          (status?.by_playbook_pool ?? []).map((pool) => [
+            pool.playbook_id,
+            { playbook_id: pool.playbook_id, playbook_name: pool.playbook_name },
+          ]),
+        ).values(),
+      ),
+    [status?.by_playbook_pool],
+  );
 
   if (isLoading) {
     return (
@@ -395,19 +415,23 @@ export function FleetStatusPage(): JSX.Element {
       </div>
 
       <GlobalOverview status={status} />
+      <WorkerPoolsOverview pools={status.worker_pools ?? []} />
 
-      {status.templates.length > 0 && (
+      {(status.by_playbook_pool ?? []).length > 0 && (
         <div>
-          <h2 className="mb-3 text-lg font-medium">Per-Template Status</h2>
+          <h2 className="mb-3 text-lg font-medium">Per-Playbook Pool Status</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {status.templates.map((tpl) => (
-              <TemplateCard key={tpl.template_id} tpl={tpl} />
+            {status.by_playbook_pool.map((playbookPool) => (
+              <PlaybookPoolCard
+                key={`${playbookPool.playbook_id}:${playbookPool.pool_kind}`}
+                pool={playbookPool}
+              />
             ))}
           </div>
         </div>
       )}
 
-      <EventsTable templates={status.templates} />
+      <EventsTable playbooks={playbookFilters} />
     </div>
   );
 }

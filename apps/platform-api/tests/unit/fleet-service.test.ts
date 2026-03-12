@@ -14,6 +14,7 @@ const sampleDesiredState = {
   tenant_id: TENANT_ID,
   worker_name: 'test-worker',
   role: 'developer',
+  pool_kind: 'specialist',
   runtime_image: 'agirunner-runtime:latest',
   cpu_limit: '2',
   memory_limit: '2g',
@@ -102,6 +103,7 @@ describe('FleetService', () => {
       const result = await service.createWorker(TENANT_ID, {
         workerName: 'test-worker',
         role: 'developer',
+        poolKind: 'orchestrator',
         runtimeImage: 'agirunner-runtime:latest',
         cpuLimit: '2',
         memoryLimit: '2g',
@@ -112,6 +114,8 @@ describe('FleetService', () => {
       });
 
       expect(result.worker_name).toBe('test-worker');
+      const params = pool.query.mock.calls[0][1] as unknown[];
+      expect(params).toContain('orchestrator');
       const sql = pool.query.mock.calls[0][0] as string;
       expect(sql).toContain('INSERT INTO worker_desired_state');
     });
@@ -119,12 +123,16 @@ describe('FleetService', () => {
 
   describe('updateWorker', () => {
     it('updates specified fields and increments version', async () => {
-      const updated = { ...sampleDesiredState, replicas: 3, version: 2 };
+      const updated = { ...sampleDesiredState, replicas: 3, pool_kind: 'orchestrator', version: 2 };
       pool.query.mockResolvedValueOnce({ rows: [updated], rowCount: 1 });
 
-      const result = await service.updateWorker(TENANT_ID, WORKER_ID, { replicas: 3 });
+      const result = await service.updateWorker(TENANT_ID, WORKER_ID, {
+        replicas: 3,
+        poolKind: 'orchestrator',
+      });
 
       expect(result.replicas).toBe(3);
+      expect(result.pool_kind).toBe('orchestrator');
       const sql = pool.query.mock.calls[0][0] as string;
       expect(sql).toContain('version = version + 1');
     });

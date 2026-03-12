@@ -15,6 +15,10 @@ async function streamEvents(app: FastifyInstance, request: FastifyRequest, reply
     entity_id?: string;
     project_id?: string;
     workflow_id?: string;
+    work_item_id?: string;
+    stage_name?: string;
+    activation_id?: string;
+    gate_id?: string;
   };
 
   reply.raw.setHeader('Content-Type', 'text/event-stream');
@@ -32,6 +36,10 @@ async function streamEvents(app: FastifyInstance, request: FastifyRequest, reply
       entityId: query.entity_id,
       projectId: query.project_id,
       workflowId: query.workflow_id,
+      workItemId: query.work_item_id,
+      stageName: query.stage_name,
+      activationId: query.activation_id,
+      gateId: query.gate_id,
     },
     (event) => {
       reply.raw.write(`id: ${event.id}\n`);
@@ -61,6 +69,10 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       entity_id?: string;
       project_id?: string;
       workflow_id?: string;
+      work_item_id?: string;
+      stage_name?: string;
+      activation_id?: string;
+      gate_id?: string;
       page?: string;
       per_page?: string;
     };
@@ -79,6 +91,13 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       [query.entity_id, 'entity_id'],
       [query.project_id, "COALESCE(data->>'project_id', '')"],
       [query.workflow_id, "COALESCE(data->>'workflow_id', '')"],
+      [
+        query.work_item_id,
+        "COALESCE(data->>'work_item_id', CASE WHEN entity_type = 'work_item' THEN entity_id::text ELSE '' END)",
+      ],
+      [query.stage_name, "COALESCE(data->>'stage_name', '')"],
+      [query.activation_id, "COALESCE(data->>'activation_id', '')"],
+      [query.gate_id, "COALESCE(data->>'gate_id', '')"],
     ];
 
     exactFilters.forEach(([value, column]) => {

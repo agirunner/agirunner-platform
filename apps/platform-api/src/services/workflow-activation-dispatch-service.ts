@@ -1,0 +1,1015 @@
+import type { DatabaseClient, DatabasePool } from '../db/database.js';
+
+import type { AppEnv } from '../config/schema.js';
+import { EventService } from './event-service.js';
+
+const ACTIVE_ORCHESTRATOR_TASK_STATES = [
+  'pending',
+  'ready',
+  'claimed',
+  'running',
+  'awaiting_approval',
+  'output_pending_review',
+] as const;
+
+interface QueuedActivationRow {
+  id: string;
+  tenant_id: string;
+  workflow_id: string;
+  activation_id: string | null;
+  request_id: string | null;
+  reason: string;
+  event_type: string;
+  payload: Record<string, unknown>;
+  state: string;
+  queued_at: Date;
+  started_at: Date | null;
+  consumed_at: Date | null;
+  completed_at: Date | null;
+  summary: string | null;
+  error: Record<string, unknown> | null;
+}
+
+interface WorkflowDispatchRow {
+  id: string;
+  name: string;
+  project_id: string | null;
+  lifecycle: string | null;
+  current_stage: string | null;
+  active_stages: string[];
+  playbook_id: string;
+  playbook_name: string;
+  playbook_outcome: string | null;
+}
+
+interface DispatchCandidateRow {
+  id: string;
+  tenant_id: string;
+  workflow_id: string;
+}
+
+interface RecoveryCandidateRow {
+  id: string;
+  tenant_id: string;
+}
+
+interface StaleActivationStateRow extends QueuedActivationRow {
+  active_task_id: string | null;
+}
+
+interface DispatchOptions {
+  ignoreDelay?: boolean;
+}
+
+export interface ActivationRecoveryResult {
+  requeued: number;
+  redispatched: number;
+  reported: number;
+  details: ActivationRecoveryDetail[];
+}
+
+export interface ActivationRecoveryDetail {
+  activation_id: string;
+  workflow_id: string;
+  status: 'stale_detected' | 'requeued' | 'redispatched';
+  reason: 'orchestrator_task_still_active' | 'missing_orchestrator_task';
+  stale_started_at: string | null;
+  detected_at: string;
+  task_id?: string | null;
+  redispatched_task_id?: string | null;
+}
+
+interface DispatchDependencies {
+  pool: DatabasePool;
+  eventService: EventService;
+  config: Pick<AppEnv, 'TASK_DEFAULT_TIMEOUT_MINUTES'> &
+    Partial<Pick<AppEnv, 'WORKFLOW_ACTIVATION_DELAY_MS' | 'WORKFLOW_ACTIVATION_STALE_AFTER_MS'>>;
+}
+
+export class WorkflowActivationDispatchService {
+  constructor(private readonly deps: DispatchDependencies) {}
+
+  async dispatchQueuedActivations(limit = 20): Promise<number> {
+    const result = await this.deps.pool.query<DispatchCandidateRow>(
+      `SELECT DISTINCT ON (wa.workflow_id)
+              wa.id,
+              wa.tenant_id,
+              wa.workflow_id
+         FROM workflow_activations wa
+         JOIN workflows w
+           ON w.tenant_id = wa.tenant_id
+          AND w.id = wa.workflow_id
+        WHERE wa.state = 'queued'
+          AND wa.consumed_at IS NULL
+          AND wa.activation_id IS NULL
+          AND w.state IN ('pending', 'active')
+          AND (
+            wa.event_type = 'work_item.created'
+            OR wa.queued_at <= now() - ($2 * interval '1 millisecond')
+          )
+          AND NOT EXISTS (
+            SELECT 1
+              FROM tasks t
+             WHERE t.tenant_id = wa.tenant_id
+               AND t.workflow_id = wa.workflow_id
+               AND t.is_orchestrator_task = true
+               AND t.state = ANY($1::task_state[])
+          )
+        ORDER BY wa.workflow_id, wa.queued_at ASC
+        LIMIT $3`,
+      [ACTIVE_ORCHESTRATOR_TASK_STATES, this.getActivationDelayMs(), limit],
+    );
+
+    let dispatched = 0;
+    for (const row of result.rows) {
+      const taskId = await this.dispatchActivation(row.tenant_id, row.id);
+      if (taskId) {
+        dispatched += 1;
+      }
+    }
+
+    return dispatched;
+  }
+
+  async recoverStaleActivations(limit = 20): Promise<ActivationRecoveryResult> {
+    const result = await this.deps.pool.query<RecoveryCandidateRow>(
+      `SELECT wa.id, wa.tenant_id
+         FROM workflow_activations wa
+         JOIN workflows w
+           ON w.tenant_id = wa.tenant_id
+          AND w.id = wa.workflow_id
+        WHERE wa.state = 'processing'
+          AND wa.id = wa.activation_id
+          AND wa.consumed_at IS NULL
+          AND wa.started_at <= now() - ($1 * interval '1 millisecond')
+          AND w.state IN ('pending', 'active')
+        ORDER BY wa.started_at ASC
+        LIMIT $2`,
+      [this.getStaleActivationThresholdMs(), limit],
+    );
+
+    const totals: ActivationRecoveryResult = {
+      requeued: 0,
+      redispatched: 0,
+      reported: 0,
+      details: [],
+    };
+    for (const row of result.rows) {
+      const recovery = await this.recoverStaleActivation(row.tenant_id, row.id);
+      totals.requeued += recovery.requeued;
+      totals.redispatched += recovery.redispatched;
+      totals.reported += recovery.reported;
+      totals.details.push(...recovery.details);
+    }
+
+    return totals;
+  }
+
+  async finalizeActivationForTask(
+    tenantId: string,
+    task: Record<string, unknown>,
+    status: 'completed' | 'failed',
+    client: DatabaseClient,
+  ): Promise<void> {
+    if (!task.is_orchestrator_task || !task.activation_id || !task.workflow_id) {
+      return;
+    }
+
+    const isFinalizable = await this.lockFinalizableActivation(
+      tenantId,
+      String(task.workflow_id),
+      String(task.activation_id),
+      client,
+    );
+    if (!isFinalizable) {
+      return;
+    }
+
+    const hasReplacementTask = await this.hasActiveReplacementTask(
+      tenantId,
+      String(task.workflow_id),
+      String(task.activation_id),
+      task.id == null ? null : String(task.id),
+      client,
+    );
+    if (hasReplacementTask) {
+      return;
+    }
+
+    const summary = buildActivationSummary(task, status);
+    const error = status === 'failed' ? task.error ?? { message: 'Orchestrator activation failed' } : null;
+    const activationResult = await client.query<QueuedActivationRow>(
+      status === 'completed'
+        ? `UPDATE workflow_activations
+              SET state = 'completed',
+                  consumed_at = now(),
+                  completed_at = now(),
+                  summary = $4,
+                  error = NULL
+            WHERE tenant_id = $1
+              AND workflow_id = $2
+              AND (id = $3 OR activation_id = $3)
+              AND consumed_at IS NULL
+          RETURNING id, tenant_id, workflow_id, activation_id, request_id, reason, event_type, payload,
+                    state, queued_at, started_at, consumed_at, completed_at, summary, error`
+        : `UPDATE workflow_activations
+              SET state = 'queued',
+                  activation_id = NULL,
+                  started_at = NULL,
+                  completed_at = NULL,
+                  summary = $4,
+                  error = $5
+            WHERE tenant_id = $1
+              AND workflow_id = $2
+              AND (id = $3 OR activation_id = $3)
+              AND consumed_at IS NULL
+          RETURNING id, tenant_id, workflow_id, activation_id, request_id, reason, event_type, payload,
+                    state, queued_at, started_at, consumed_at, completed_at, summary, error`,
+      status === 'completed'
+        ? [tenantId, task.workflow_id, task.activation_id, summary]
+        : [tenantId, task.workflow_id, task.activation_id, summary, error],
+    );
+    if (!activationResult.rowCount) {
+      return;
+    }
+
+    const activation = findActivationAnchor(String(task.activation_id), activationResult.rows);
+    await this.deps.eventService.emit(
+      {
+        tenantId,
+        type: status === 'completed' ? 'workflow.activation_completed' : 'workflow.activation_failed',
+        entityType: 'workflow',
+        entityId: activation.workflow_id,
+        actorType: 'system',
+        actorId: 'workflow_activation_dispatcher',
+        data: {
+          activation_id: activation.id,
+          event_type: activation.event_type,
+          reason: activation.reason,
+          task_id: task.id ?? null,
+          event_count: activationResult.rows.length,
+        },
+      },
+      client,
+    );
+
+    await this.dispatchNextQueuedActivation(tenantId, String(task.workflow_id), client);
+  }
+
+  async dispatchActivation(
+    tenantId: string,
+    activationId: string,
+    existingClient?: DatabaseClient,
+    options: DispatchOptions = {},
+  ): Promise<string | null> {
+    const client = existingClient ?? (await this.deps.pool.connect());
+    const ownsClient = existingClient === undefined;
+
+    try {
+      if (ownsClient) {
+        await client.query('BEGIN');
+      }
+
+      const activation = await this.lockQueuedActivation(tenantId, activationId, client);
+      if (!activation) {
+        if (ownsClient) {
+          await client.query('COMMIT');
+        }
+        return null;
+      }
+
+      const hasActiveTask = await this.hasActiveOrchestratorTask(
+        activation.tenant_id,
+        activation.workflow_id,
+        client,
+      );
+      if (hasActiveTask) {
+        if (ownsClient) {
+          await client.query('COMMIT');
+        }
+        return null;
+      }
+
+      if (!options.ignoreDelay && !isReadyForDispatch(activation, this.getActivationDelayMs())) {
+        if (ownsClient) {
+          await client.query('COMMIT');
+        }
+        return null;
+      }
+
+      const workflow = await this.loadWorkflowForDispatch(
+        activation.tenant_id,
+        activation.workflow_id,
+        client,
+      );
+      if (!workflow) {
+        if (ownsClient) {
+          await client.query('COMMIT');
+        }
+        return null;
+      }
+      const activationBatch = await this.claimActivationBatch(activation, client);
+      if (activationBatch.length === 0) {
+        if (ownsClient) {
+          await client.query('COMMIT');
+        }
+        return null;
+      }
+      const activationAnchor = findActivationAnchor(activation.id, activationBatch);
+      const taskResult = await client.query<{ id: string }>(
+        `INSERT INTO tasks (
+           tenant_id,
+           workflow_id,
+           project_id,
+           title,
+           role,
+           stage_name,
+           priority,
+           state,
+           depends_on,
+           requires_approval,
+           requires_output_review,
+           input,
+           context,
+           capabilities_required,
+           role_config,
+           environment,
+           resource_bindings,
+           activation_id,
+           request_id,
+           is_orchestrator_task,
+           timeout_minutes,
+           token_budget,
+           cost_cap_usd,
+           auto_retry,
+           max_retries,
+           metadata
+         ) VALUES (
+           $1, $2, $3, $4, $5, $6, 'high', 'ready', '{}'::uuid[], false, false,
+           $7, '{}'::jsonb, $8::text[], $9::jsonb, $10::jsonb, '[]'::jsonb, $11, $12, true, $13, NULL, NULL, false, 0, $14::jsonb
+         )
+         RETURNING id`,
+        [
+          activationAnchor.tenant_id,
+          activationAnchor.workflow_id,
+          workflow.project_id,
+          buildActivationTaskTitle(workflow, activationAnchor),
+          'orchestrator',
+          activationTaskStageName(workflow, activationBatch),
+          buildActivationTaskInput(workflow, activationAnchor, activationBatch),
+          ['orchestrator'],
+          buildActivationRoleConfig(),
+          { execution_mode: 'orchestrator' },
+          activationAnchor.id,
+          `activation:${activationAnchor.id}`,
+          this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES,
+          {
+            activation_event_type: activationAnchor.event_type,
+            activation_reason: 'queued_events',
+            activation_request_id: activationAnchor.request_id,
+            activation_event_count: activationBatch.length,
+          },
+        ],
+      );
+      const taskId = taskResult.rows[0]?.id ?? null;
+      if (!taskId) {
+        throw new Error('Failed to create orchestrator task');
+      }
+
+      await this.deps.eventService.emit(
+        {
+          tenantId: activationAnchor.tenant_id,
+          type: 'task.created',
+          entityType: 'task',
+          entityId: taskId,
+          actorType: 'system',
+          actorId: 'workflow_activation_dispatcher',
+          data: {
+            workflow_id: activationAnchor.workflow_id,
+            role: 'orchestrator',
+            state: 'ready',
+            activation_id: activationAnchor.id,
+            is_orchestrator_task: true,
+          },
+        },
+        client,
+      );
+      await this.deps.eventService.emit(
+        {
+          tenantId: activationAnchor.tenant_id,
+          type: 'workflow.activation_started',
+          entityType: 'workflow',
+          entityId: activationAnchor.workflow_id,
+          actorType: 'system',
+          actorId: 'workflow_activation_dispatcher',
+          data: {
+            activation_id: activationAnchor.id,
+            event_type: activationAnchor.event_type,
+            reason: 'queued_events',
+            task_id: taskId,
+            event_count: activationBatch.length,
+          },
+        },
+        client,
+      );
+
+      if (ownsClient) {
+        await client.query('COMMIT');
+      }
+      return taskId;
+    } catch (error) {
+      if (ownsClient) {
+        await client.query('ROLLBACK');
+      }
+      throw error;
+    } finally {
+      if (ownsClient) {
+        client.release();
+      }
+    }
+  }
+
+  private async dispatchNextQueuedActivation(
+    tenantId: string,
+    workflowId: string,
+    client: DatabaseClient,
+  ): Promise<void> {
+    const nextActivationResult = await client.query<{ id: string }>(
+      `SELECT id
+         FROM workflow_activations
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND consumed_at IS NULL
+          AND activation_id IS NULL
+          AND state = 'queued'
+        ORDER BY queued_at ASC
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED`,
+      [tenantId, workflowId],
+    );
+    if (!nextActivationResult.rowCount) {
+      return;
+    }
+
+    await this.dispatchActivation(tenantId, nextActivationResult.rows[0].id, client, {
+      ignoreDelay: true,
+    });
+  }
+
+  private async lockFinalizableActivation(
+    tenantId: string,
+    workflowId: string,
+    activationId: string,
+    client: DatabaseClient,
+  ): Promise<boolean> {
+    const result = await client.query<{ id: string }>(
+      `SELECT id
+         FROM workflow_activations
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id = $3
+          AND activation_id = $3
+          AND state = 'processing'
+          AND consumed_at IS NULL
+        FOR UPDATE`,
+      [tenantId, workflowId, activationId],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  private async lockQueuedActivation(
+    tenantId: string,
+    activationId: string,
+    client: DatabaseClient,
+  ): Promise<QueuedActivationRow | null> {
+    const result = await client.query<QueuedActivationRow>(
+      `SELECT id, tenant_id, workflow_id, activation_id, request_id, reason, event_type, payload,
+              state, queued_at, started_at, consumed_at, completed_at, summary, error
+         FROM workflow_activations
+        WHERE tenant_id = $1
+          AND id = $2
+          AND consumed_at IS NULL
+          AND activation_id IS NULL
+          AND state = 'queued'
+        FOR UPDATE SKIP LOCKED`,
+      [tenantId, activationId],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  private async hasActiveOrchestratorTask(
+    tenantId: string,
+    workflowId: string,
+    client: DatabaseClient,
+  ): Promise<boolean> {
+    const result = await client.query(
+      `SELECT 1
+         FROM tasks
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND is_orchestrator_task = true
+          AND state = ANY($3::task_state[])
+        LIMIT 1`,
+      [tenantId, workflowId, ACTIVE_ORCHESTRATOR_TASK_STATES],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  private async hasActiveReplacementTask(
+    tenantId: string,
+    workflowId: string,
+    activationId: string,
+    taskId: string | null,
+    client: DatabaseClient,
+  ): Promise<boolean> {
+    const result = await client.query(
+      `SELECT 1
+         FROM tasks
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND activation_id = $3
+          AND is_orchestrator_task = true
+          AND state = ANY($4::task_state[])
+          AND ($5::uuid IS NULL OR id <> $5::uuid)
+        LIMIT 1`,
+      [tenantId, workflowId, activationId, ACTIVE_ORCHESTRATOR_TASK_STATES, taskId],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  private async loadWorkflowForDispatch(
+    tenantId: string,
+    workflowId: string,
+    client: DatabaseClient,
+  ): Promise<WorkflowDispatchRow | null> {
+    const result = await client.query<WorkflowDispatchRow>(
+      `SELECT w.id,
+              w.name,
+              w.project_id,
+              w.lifecycle,
+              w.current_stage,
+              COALESCE(active_work_items.active_stages, '{}'::text[]) AS active_stages,
+              w.playbook_id,
+              p.name AS playbook_name,
+              p.outcome AS playbook_outcome
+         FROM workflows w
+         JOIN playbooks p
+           ON p.tenant_id = w.tenant_id
+          AND p.id = w.playbook_id
+         LEFT JOIN LATERAL (
+           SELECT ARRAY_AGG(DISTINCT wi.stage_name ORDER BY wi.stage_name) AS active_stages
+             FROM workflow_work_items wi
+            WHERE wi.tenant_id = w.tenant_id
+              AND wi.workflow_id = w.id
+              AND wi.completed_at IS NULL
+         ) AS active_work_items ON true
+        WHERE w.tenant_id = $1
+          AND w.id = $2
+          AND w.state IN ('pending', 'active')`,
+      [tenantId, workflowId],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  private async claimActivationBatch(
+    activation: QueuedActivationRow,
+    client: DatabaseClient,
+  ): Promise<QueuedActivationRow[]> {
+    const result = await client.query<QueuedActivationRow>(
+      `UPDATE workflow_activations
+          SET activation_id = $3,
+              started_at = COALESCE(started_at, now()),
+              state = CASE WHEN id = $3 THEN 'processing' ELSE state END
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND consumed_at IS NULL
+          AND activation_id IS NULL
+      RETURNING id, tenant_id, workflow_id, activation_id, request_id, reason, event_type, payload,
+                state, queued_at, started_at, consumed_at, completed_at, summary, error`,
+      [activation.tenant_id, activation.workflow_id, activation.id],
+    );
+    return result.rows.sort((left, right) => left.queued_at.getTime() - right.queued_at.getTime());
+  }
+
+  private async recoverStaleActivation(
+    tenantId: string,
+    activationId: string,
+  ): Promise<ActivationRecoveryResult> {
+    const client = await this.deps.pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const staleState = await this.loadStaleActivationState(tenantId, activationId, client);
+      if (!staleState) {
+        await client.query('COMMIT');
+        return { requeued: 0, redispatched: 0, reported: 0, details: [] };
+      }
+
+      if (staleState.active_task_id) {
+        await this.markRecoveryDetected(staleState, client);
+        await this.deps.eventService.emit(
+          {
+            tenantId,
+            type: 'workflow.activation_stale_detected',
+            entityType: 'workflow',
+            entityId: staleState.workflow_id,
+            actorType: 'system',
+            actorId: 'workflow_activation_dispatcher',
+            data: {
+              activation_id: staleState.id,
+              task_id: staleState.active_task_id,
+              event_type: staleState.event_type,
+              reason: staleState.reason,
+              started_at: staleState.started_at?.toISOString() ?? null,
+            },
+          },
+          client,
+        );
+        await client.query('COMMIT');
+        return {
+          requeued: 0,
+          redispatched: 0,
+          reported: 1,
+          details: [
+            {
+              activation_id: staleState.id,
+              workflow_id: staleState.workflow_id,
+              status: 'stale_detected',
+              reason: 'orchestrator_task_still_active',
+              stale_started_at: staleState.started_at?.toISOString() ?? null,
+              detected_at: new Date().toISOString(),
+              task_id: staleState.active_task_id,
+            },
+          ],
+        };
+      }
+
+      const recovered = await client.query<QueuedActivationRow>(
+        `UPDATE workflow_activations
+            SET state = 'queued',
+                activation_id = NULL,
+                started_at = NULL,
+                summary = COALESCE(summary, 'Recovered stale workflow activation'),
+                error = jsonb_strip_nulls(
+                  COALESCE(error, '{}'::jsonb)
+                  || jsonb_build_object(
+                    'message', 'Recovered stale workflow activation',
+                    'recovery', jsonb_build_object(
+                      'status', 'requeued',
+                      'reason', 'missing_orchestrator_task',
+                      'detected_at', now(),
+                      'recovered_at', now(),
+                      'stale_started_at', $4::timestamptz,
+                      'stale_after_ms', $5::integer
+                    )
+                  )
+                )
+          WHERE tenant_id = $1
+            AND workflow_id = $2
+            AND (id = $3 OR activation_id = $3)
+            AND consumed_at IS NULL
+        RETURNING id, tenant_id, workflow_id, activation_id, request_id, reason, event_type, payload,
+                  state, queued_at, started_at, consumed_at, completed_at, summary, error`,
+        [
+          tenantId,
+          staleState.workflow_id,
+          staleState.id,
+          staleState.started_at?.toISOString() ?? null,
+          this.getStaleActivationThresholdMs(),
+        ],
+      );
+      if (!recovered.rowCount) {
+        await client.query('COMMIT');
+        return { requeued: 0, redispatched: 0, reported: 0, details: [] };
+      }
+
+      await this.deps.eventService.emit(
+        {
+          tenantId,
+          type: 'workflow.activation_requeued',
+          entityType: 'workflow',
+          entityId: staleState.workflow_id,
+          actorType: 'system',
+          actorId: 'workflow_activation_dispatcher',
+          data: {
+            activation_id: staleState.id,
+            event_type: staleState.event_type,
+            reason: staleState.reason,
+            event_count: recovered.rows.length,
+          },
+        },
+        client,
+      );
+
+      await client.query('COMMIT');
+
+      const taskId = await this.dispatchActivation(tenantId, staleState.id, undefined, {
+        ignoreDelay: true,
+      });
+      if (taskId) {
+        await this.markRecoveryRedispatched(
+          tenantId,
+          staleState.workflow_id,
+          staleState.id,
+          taskId,
+        );
+      }
+      return {
+        requeued: 1,
+        redispatched: taskId ? 1 : 0,
+        reported: 1,
+        details: [
+          {
+            activation_id: staleState.id,
+            workflow_id: staleState.workflow_id,
+            status: taskId ? 'redispatched' : 'requeued',
+            reason: 'missing_orchestrator_task',
+            stale_started_at: staleState.started_at?.toISOString() ?? null,
+            detected_at: new Date().toISOString(),
+            redispatched_task_id: taskId,
+          },
+        ],
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  private async loadStaleActivationState(
+    tenantId: string,
+    activationId: string,
+    client: DatabaseClient,
+  ): Promise<StaleActivationStateRow | null> {
+    const result = await client.query<StaleActivationStateRow>(
+      `SELECT wa.id,
+              wa.tenant_id,
+              wa.workflow_id,
+              wa.activation_id,
+              wa.request_id,
+              wa.reason,
+              wa.event_type,
+              wa.payload,
+              wa.state,
+              wa.queued_at,
+              wa.started_at,
+              wa.consumed_at,
+              wa.completed_at,
+              wa.summary,
+              wa.error,
+              (
+                SELECT t.id
+                  FROM tasks t
+                 WHERE t.tenant_id = wa.tenant_id
+                   AND t.workflow_id = wa.workflow_id
+                   AND t.activation_id = wa.id
+                   AND t.is_orchestrator_task = true
+                   AND t.state = ANY($3::task_state[])
+                 LIMIT 1
+              ) AS active_task_id
+         FROM workflow_activations wa
+        WHERE wa.tenant_id = $1
+          AND wa.id = $2
+          AND wa.state = 'processing'
+          AND wa.id = wa.activation_id
+          AND wa.consumed_at IS NULL
+        FOR UPDATE SKIP LOCKED`,
+      [tenantId, activationId, ACTIVE_ORCHESTRATOR_TASK_STATES],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  private async markRecoveryDetected(
+    staleState: StaleActivationStateRow,
+    client: DatabaseClient,
+  ): Promise<void> {
+    await client.query(
+      `UPDATE workflow_activations
+          SET summary = COALESCE(summary, 'Stale orchestrator detected during activation recovery'),
+              error = jsonb_strip_nulls(
+                COALESCE(error, '{}'::jsonb)
+                || jsonb_build_object(
+                  'recovery', jsonb_build_object(
+                    'status', 'stale_detected',
+                    'reason', 'orchestrator_task_still_active',
+                    'detected_at', now(),
+                    'stale_started_at', $4::timestamptz,
+                    'stale_after_ms', $5::integer,
+                    'task_id', $6::uuid
+                  )
+                )
+              )
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND (id = $3 OR activation_id = $3)
+          AND consumed_at IS NULL`,
+      [
+        staleState.tenant_id,
+        staleState.workflow_id,
+        staleState.id,
+        staleState.started_at?.toISOString() ?? null,
+        this.getStaleActivationThresholdMs(),
+        staleState.active_task_id,
+      ],
+    );
+  }
+
+  private async markRecoveryRedispatched(
+    tenantId: string,
+    workflowId: string,
+    activationId: string,
+    taskId: string,
+  ): Promise<void> {
+    await this.deps.pool.query(
+      `UPDATE workflow_activations
+          SET error = jsonb_strip_nulls(
+                COALESCE(error, '{}'::jsonb)
+                || jsonb_build_object(
+                  'recovery', COALESCE(error->'recovery', '{}'::jsonb)
+                    || jsonb_build_object(
+                      'status', 'redispatched',
+                      'redispatched_at', now(),
+                      'redispatched_task_id', $4::uuid
+                    )
+                )
+              )
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND (id = $3 OR activation_id = $3)
+          AND consumed_at IS NULL`,
+      [tenantId, workflowId, activationId, taskId],
+    );
+  }
+
+  private getActivationDelayMs(): number {
+    return this.deps.config.WORKFLOW_ACTIVATION_DELAY_MS ?? 10_000;
+  }
+
+  private getStaleActivationThresholdMs(): number {
+    return this.deps.config.WORKFLOW_ACTIVATION_STALE_AFTER_MS ?? 300_000;
+  }
+}
+
+function buildActivationTaskTitle(
+  workflow: WorkflowDispatchRow,
+  activation: QueuedActivationRow,
+): string {
+  return `Orchestrate ${workflow.name}: ${activation.reason}`;
+}
+
+function buildActivationTaskInput(
+  workflow: WorkflowDispatchRow,
+  activation: QueuedActivationRow,
+  activationBatch: QueuedActivationRow[],
+): Record<string, unknown> {
+  return {
+    activation_id: activation.id,
+    activation_reason: 'queued_events',
+    lifecycle: workflow.lifecycle,
+    current_stage: workflow.lifecycle === 'continuous' ? null : workflow.current_stage,
+    active_stages: workflow.active_stages,
+    events: activationBatch.map((event) => ({
+      queue_id: event.id,
+      type: event.event_type,
+      reason: event.reason,
+      payload: event.payload,
+      work_item_id: asNullableString(event.payload.work_item_id),
+      stage_name: asNullableString(event.payload.stage_name),
+      timestamp: event.queued_at.toISOString(),
+    })),
+    description: [
+      `You are the workflow orchestrator for "${workflow.name}" (${workflow.playbook_name}).`,
+      'Reason for this activation: queued_events.',
+      `Queued events in this batch: ${activationBatch.length}.`,
+      `Primary trigger event: ${activation.event_type}.`,
+      workflow.active_stages.length > 0
+        ? `Active stages in open work: ${workflow.active_stages.join(', ')}.`
+        : null,
+      workflow.playbook_outcome
+        ? `Target outcome: ${workflow.playbook_outcome}.`
+        : null,
+      'Review the attached workflow, playbook, work item, and activation context before deciding on the next step.',
+      'Use the available workflow management tools to create work items, create tasks, advance stages, request gates, review task outputs, and update project memory when needed.',
+      'Use the repository, git, shell, artifact, and escalation tools to validate the situation before acting.',
+      'Return a concise operator-facing summary of what changed, what is blocked, and the next action you recommend.',
+    ]
+      .filter((line): line is string => Boolean(line))
+      .join('\n'),
+    acceptance_criteria: [
+      'Describe the activation trigger and affected workflow state.',
+      'Reference any impacted work items or tasks by ID when relevant.',
+      'State the next recommended workflow action clearly.',
+    ],
+  };
+}
+
+function activationTaskStageName(
+  workflow: WorkflowDispatchRow,
+  activationBatch: QueuedActivationRow[],
+): string | null {
+  if (workflow.lifecycle !== 'continuous') {
+    return workflow.current_stage;
+  }
+  const eventStages = uniqueStageNames(activationBatch);
+  if (eventStages.length === 1) {
+    return eventStages[0];
+  }
+  if (workflow.active_stages.length === 1) {
+    return workflow.active_stages[0];
+  }
+  return null;
+}
+
+function uniqueStageNames(activationBatch: QueuedActivationRow[]): string[] {
+  return Array.from(
+    new Set(
+      activationBatch
+        .map((event) => asNullableString(event.payload.stage_name))
+        .filter((stageName): stageName is string => Boolean(stageName)),
+    ),
+  );
+}
+
+function buildActivationRoleConfig(): Record<string, unknown> {
+  return {
+    system_prompt: [
+      'You are the workflow orchestrator.',
+      'Assess workflow state, inspect repository artifacts when needed, and take the next management action directly through the workflow control tools.',
+      'Be brief, concrete, and operational.',
+    ].join(' '),
+    tools: [
+      'create_work_item',
+      'update_work_item',
+      'create_task',
+      'create_workflow',
+      'request_gate_approval',
+      'advance_stage',
+      'complete_workflow',
+      'memory_read',
+      'memory_write',
+      'memory_delete',
+      'artifact_list',
+      'artifact_read',
+      'approve_task',
+      'approve_task_output',
+      'request_task_changes',
+      'retry_task',
+      'file_read',
+      'file_list',
+      'file_edit',
+      'file_write',
+      'shell_exec',
+      'git_status',
+      'git_diff',
+      'git_log',
+      'git_commit',
+      'git_push',
+      'artifact_upload',
+      'web_fetch',
+      'web_search',
+      'escalate',
+    ],
+  };
+}
+
+function buildActivationSummary(
+  task: Record<string, unknown>,
+  status: 'completed' | 'failed',
+): string | null {
+  if (status === 'failed') {
+    const error = task.error as Record<string, unknown> | null;
+    const message = typeof error?.message === 'string' ? error.message.trim() : '';
+    return message || 'Orchestrator activation failed';
+  }
+
+  const output = task.output as Record<string, unknown> | null;
+  const summary = typeof output?.summary === 'string' ? output.summary.trim() : '';
+  if (summary) {
+    return summary;
+  }
+
+  const resultSummary = typeof task.title === 'string' ? String(task.title).trim() : '';
+  return resultSummary || null;
+}
+
+function findActivationAnchor(
+  activationId: string,
+  rows: QueuedActivationRow[],
+): QueuedActivationRow {
+  return rows.find((row) => row.id === activationId) ?? rows[0];
+}
+
+function asNullableString(value: unknown) {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function isReadyForDispatch(activation: QueuedActivationRow, activationDelayMs: number): boolean {
+  if (activation.event_type === 'work_item.created') {
+    return true;
+  }
+
+  return Date.now() - activation.queued_at.getTime() >= activationDelayMs;
+}

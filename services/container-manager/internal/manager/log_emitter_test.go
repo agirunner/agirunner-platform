@@ -248,7 +248,7 @@ func TestLogEmitter_EntryFieldsPopulated(t *testing.T) {
 	emitter.wg.Add(1)
 	go emitter.flushLoop()
 
-	meta := map[string]any{"template_id": "tmpl-1", "runtime_id": "rt-1"}
+	meta := map[string]any{"playbook_id": "tmpl-1", "runtime_id": "rt-1"}
 	emitter.emitOperation("container", "container.create", "info", "completed", meta)
 	emitter.Close()
 
@@ -287,8 +287,8 @@ func TestLogEmitter_EntryFieldsPopulated(t *testing.T) {
 	if entry.CreatedAt.IsZero() {
 		t.Error("expected non-zero created_at")
 	}
-	if entry.Payload["template_id"] != "tmpl-1" {
-		t.Errorf("expected metadata template_id=tmpl-1, got %v", entry.Payload["template_id"])
+	if entry.Payload["playbook_id"] != "tmpl-1" {
+		t.Errorf("expected metadata playbook_id=tmpl-1, got %v", entry.Payload["playbook_id"])
 	}
 }
 
@@ -508,8 +508,8 @@ func TestReconcile_ContainerCreate_EmitsLog(t *testing.T) {
 	for _, e := range entries {
 		if e.Operation == "container.create" && e.Status == "completed" {
 			found = true
-			if e.Payload["template_id"] != "tmpl-1" {
-				t.Errorf("expected template_id tmpl-1, got %v", e.Payload["template_id"])
+			if e.Payload["playbook_id"] != "tmpl-1" {
+				t.Errorf("expected playbook_id tmpl-1, got %v", e.Payload["playbook_id"])
 			}
 			break
 		}
@@ -553,7 +553,7 @@ func TestReconcile_OrphanCleanup_EmitsLog(t *testing.T) {
 	docker := newMockDockerClient()
 	runtime := makeDCMContainer("c-runtime", "tmpl-1", "runtime:v1", "rt-1")
 	task := makeDCMTaskContainer("c-task", "rt-gone")
-	task.Labels[labelDCMTemplateID] = "tmpl-1"
+	task.Labels[labelDCMPlaybookID] = "tmpl-1"
 	docker.containers = []ContainerInfo{runtime, task}
 	platform := &mockPlatformClient{}
 	mgr := newDCMTestManager(docker, platform)
@@ -584,7 +584,7 @@ func TestReconcile_HungDetected_EmitsLog(t *testing.T) {
 	staleTime := time.Now().UTC().Add(-2 * time.Minute).Format(time.RFC3339)
 	platform := &mockPlatformClient{
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: staleTime},
+			{RuntimeID: "rt-1", PlaybookID: "tmpl-1", State: "idle", LastHeartbeatAt: staleTime},
 		},
 	}
 	mgr := newDCMTestManager(docker, platform)
@@ -664,8 +664,8 @@ func TestReconcile_DrainRuntime_EmitsLog(t *testing.T) {
 			if e.Payload["runtime_id"] != "rt-1" {
 				t.Errorf("expected runtime_id rt-1, got %v", e.Payload["runtime_id"])
 			}
-			if e.Payload["template_id"] != "tmpl-1" {
-				t.Errorf("expected template_id tmpl-1, got %v", e.Payload["template_id"])
+			if e.Payload["playbook_id"] != "tmpl-1" {
+				t.Errorf("expected playbook_id tmpl-1, got %v", e.Payload["playbook_id"])
 			}
 			break
 		}
@@ -822,7 +822,7 @@ func TestReconcile_OrphanHeartbeat_EmitsLog(t *testing.T) {
 	staleTime := time.Now().UTC().Add(-2 * time.Minute).Format(time.RFC3339)
 	platform := &mockPlatformClient{
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-gone", TemplateID: "tmpl-1", State: "executing",
+			{RuntimeID: "rt-gone", PlaybookID: "tmpl-1", State: "executing",
 				LastHeartbeatAt: staleTime, ActiveTaskID: "task-1"},
 		},
 	}

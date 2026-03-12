@@ -1,6 +1,7 @@
 import type { DatabaseQueryable } from '../db/database.js';
 import { listTaskDocuments } from './document-reference-service.js';
 import { normalizeInstructionDocument } from './instruction-policy.js';
+import { buildOrchestratorTaskContext } from './orchestrator-task-context.js';
 
 export async function buildTaskContext(
   db: DatabaseQueryable,
@@ -33,11 +34,12 @@ export async function buildTaskContext(
     task.workflow_id
       ? db.query(
           `SELECT p.id, p.name, p.context, p.git_branch, p.parameters, p.resolved_config, p.instruction_config,
+                  p.metadata,
+                  p.playbook_id, p.lifecycle, p.current_stage,
                   p.project_spec_version,
-                  t.id AS template_id, t.slug AS template_slug, t.name AS template_name,
-                  t.version AS template_version, t.schema AS template_schema
+                  pb.name AS playbook_name, pb.outcome AS playbook_outcome, pb.definition AS playbook_definition
            FROM workflows p
-           LEFT JOIN templates t ON t.tenant_id = p.tenant_id AND t.id = p.template_id
+           LEFT JOIN playbooks pb ON pb.tenant_id = p.tenant_id AND pb.id = p.playbook_id
            WHERE p.tenant_id = $1 AND p.id = $2`,
           [tenantId, task.workflow_id],
         )
@@ -59,15 +61,19 @@ export async function buildTaskContext(
   );
 
   const workflowRow = workflowRes.rows[0] as Record<string, unknown> | undefined;
-  const templateSchema =
-    (workflowRow?.template_schema as Record<string, unknown> | undefined) ?? {};
+  const workItem = await loadWorkItemContext(db, tenantId, task);
+  const activeStages = workflowRow ? await loadWorkflowActiveStages(db, tenantId, String(workflowRow.id)) : [];
+  const workflowRelations = workflowRow
+    ? await loadWorkflowRelations(db, tenantId, workflowRow)
+    : null;
+  const parentWorkflowContext = workflowRelations?.parent?.workflow_id
+    ? await loadParentWorkflowContext(db, tenantId, workflowRelations.parent.workflow_id)
+    : null;
   const projectInstructions = await loadProjectInstructions(db, tenantId, task, workflowRow);
   const platformInstructions = await loadPlatformInstructions(db, tenantId);
-  const templateInstructions = resolveTemplateInstructions(templateSchema, task);
   const instructionLayers = buildInstructionLayers({
     platformInstructions,
     projectInstructions,
-    templateInstructions,
     roleConfig: asRecord(task.role_config),
     taskInput: asRecord(task.input),
     taskId: String(task.id ?? ''),
@@ -77,28 +83,21 @@ export async function buildTaskContext(
     suppressLayers: readSuppressedLayers(workflowRow?.instruction_config),
   });
   const flatInstructions = readFlatInstructions(asRecord(task.role_config), agent?.metadata);
+  const orchestratorContext = await buildOrchestratorTaskContext(db, tenantId, task);
   const workflowContext = workflowRow
-    ? {
-        id: workflowRow.id,
-        name: workflowRow.name,
-        context: workflowRow.context,
-        git_branch: workflowRow.git_branch,
-        resolved_config: workflowRow.resolved_config ?? {},
-        variables: workflowRow.parameters ?? {},
-        template: {
-          id: workflowRow.template_id,
-          slug: workflowRow.template_slug,
-          name: workflowRow.template_name,
-          version: workflowRow.template_version,
-          metadata: templateSchema.metadata ?? {},
-        },
-      }
+    ? buildWorkflowContext({
+        workflowRow,
+        activeStages,
+        workflowRelations,
+        parentWorkflowContext,
+      })
     : null;
 
   return {
     agent,
     project: projectRes.rows[0] ?? null,
     workflow: workflowContext,
+    orchestrator: orchestratorContext,
     documents,
     instructions: flatInstructions,
     instruction_layers: instructionLayers,
@@ -106,6 +105,7 @@ export async function buildTaskContext(
       id: task.id,
       input: task.input,
       context: task.context,
+      work_item: workItem,
       failure_mode:
         task.context && typeof task.context === 'object' && !Array.isArray(task.context)
           ? ((task.context as Record<string, unknown>).failure_mode ?? null)
@@ -113,6 +113,153 @@ export async function buildTaskContext(
       role_config: task.role_config,
       upstream_outputs: upstreamOutputs,
     },
+  };
+}
+
+function buildWorkflowContext(params: {
+  workflowRow: Record<string, unknown>;
+  activeStages: string[];
+  workflowRelations: Record<string, unknown> | null;
+  parentWorkflowContext: Record<string, unknown> | null;
+}) {
+  const context: Record<string, unknown> = {
+    id: params.workflowRow.id,
+    name: params.workflowRow.name,
+    lifecycle: params.workflowRow.lifecycle ?? null,
+    active_stages: params.activeStages,
+    context: params.workflowRow.context,
+    git_branch: params.workflowRow.git_branch,
+    resolved_config: params.workflowRow.resolved_config ?? {},
+    variables: params.workflowRow.parameters ?? {},
+    playbook: params.workflowRow.playbook_id
+      ? {
+          id: params.workflowRow.playbook_id,
+          name: params.workflowRow.playbook_name ?? null,
+          outcome: params.workflowRow.playbook_outcome ?? null,
+          definition: params.workflowRow.playbook_definition ?? {},
+        }
+      : null,
+    relations: params.workflowRelations,
+    parent_workflow: params.parentWorkflowContext,
+  };
+  if (params.workflowRow.lifecycle !== 'continuous') {
+    context.current_stage = params.workflowRow.current_stage ?? null;
+  }
+  return context;
+}
+
+async function loadWorkflowActiveStages(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+): Promise<string[]> {
+  const result = await db.query<{ stage_name: string }>(
+    `SELECT DISTINCT stage_name
+       FROM workflow_work_items
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND completed_at IS NULL
+      ORDER BY stage_name ASC`,
+    [tenantId, workflowId],
+  );
+  return result.rows.map((row) => row.stage_name);
+}
+
+async function loadWorkItemContext(
+  db: DatabaseQueryable,
+  tenantId: string,
+  task: Record<string, unknown>,
+) {
+  const workItemId = asOptionalString(task.work_item_id);
+  if (!workItemId) {
+    return null;
+  }
+
+  const result = await db.query(
+    `SELECT id, stage_name, column_id, title, goal, acceptance_criteria, owner_role, priority, notes
+       FROM workflow_work_items
+      WHERE tenant_id = $1
+        AND id = $2`,
+    [tenantId, workItemId],
+  );
+  return (result.rows[0] as Record<string, unknown> | undefined) ?? null;
+}
+
+async function loadWorkflowRelations(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowRow: Record<string, unknown>,
+) {
+  const metadata = asRecord(workflowRow.metadata);
+  const parentId = asOptionalString(metadata.chain_source_workflow_id);
+  const childIds = readWorkflowIdArray(metadata.child_workflow_ids);
+  const relatedIds = [...new Set([...(parentId ? [parentId] : []), ...childIds])];
+  if (relatedIds.length === 0) {
+    return {
+      parent: null,
+      children: [],
+      latest_child_workflow_id: asOptionalString(metadata.latest_chained_workflow_id) ?? null,
+      child_status_counts: { total: 0, active: 0, completed: 0, failed: 0, cancelled: 0 },
+    };
+  }
+
+  const relatedRes = await db.query(
+    `SELECT w.id, w.name, w.state, w.playbook_id, w.created_at, w.started_at, w.completed_at,
+            pb.name AS playbook_name
+       FROM workflows w
+       LEFT JOIN playbooks pb
+         ON pb.tenant_id = w.tenant_id
+        AND pb.id = w.playbook_id
+      WHERE w.tenant_id = $1
+        AND w.id = ANY($2::uuid[])`,
+    [tenantId, relatedIds],
+  );
+  const relatedById = new Map(
+    relatedRes.rows.map((row) => [String((row as Record<string, unknown>).id), row as Record<string, unknown>]),
+  );
+  const children = childIds.map((childId) => toWorkflowRelationRef(childId, relatedById.get(childId)));
+  return {
+    parent: parentId ? toWorkflowRelationRef(parentId, relatedById.get(parentId)) : null,
+    children,
+    latest_child_workflow_id: asOptionalString(metadata.latest_chained_workflow_id) ?? null,
+    child_status_counts: {
+      total: children.length,
+      active: children.filter((child) => child.state === 'pending' || child.state === 'active' || child.state === 'paused').length,
+      completed: children.filter((child) => child.state === 'completed').length,
+      failed: children.filter((child) => child.state === 'failed').length,
+      cancelled: children.filter((child) => child.state === 'cancelled').length,
+    },
+  };
+}
+
+async function loadParentWorkflowContext(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+) {
+  const result = await db.query(
+    `SELECT id, name, state, context, parameters, resolved_config, metadata, started_at, completed_at
+       FROM workflows
+      WHERE tenant_id = $1
+        AND id = $2
+      LIMIT 1`,
+    [tenantId, workflowId],
+  );
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  if (!row) {
+    return null;
+  }
+  const metadata = asRecord(row.metadata);
+  return {
+    id: row.id,
+    name: row.name,
+    state: row.state,
+    context: row.context ?? {},
+    variables: row.parameters ?? {},
+    resolved_config: row.resolved_config ?? {},
+    started_at: row.started_at ?? null,
+    completed_at: row.completed_at ?? null,
+    run_summary: asRecord(metadata.run_summary ?? metadata.timeline_summary),
   };
 }
 
@@ -150,7 +297,6 @@ async function loadProjectInstructions(
 function buildInstructionLayers(params: {
   platformInstructions?: Record<string, unknown>;
   projectInstructions?: Record<string, unknown>;
-  templateInstructions?: string;
   roleConfig: Record<string, unknown>;
   taskInput: Record<string, unknown>;
   taskId: string;
@@ -197,18 +343,6 @@ function buildInstructionLayers(params: {
     };
   }
 
-  const templateDocument = normalizeInstructionDocument(
-    params.templateInstructions,
-    'template instructions',
-    20_000,
-  );
-  if (templateDocument && !suppressed.has('template')) {
-    layers.template = {
-      ...templateDocument,
-      source: { type: 'default_instruction_config' },
-    };
-  }
-
   const roleDocument = normalizeInstructionDocument(
     params.roleConfig.system_prompt ?? params.roleConfig.instructions,
     'role instructions',
@@ -241,12 +375,11 @@ function buildInstructionLayers(params: {
   return layers;
 }
 
-const LAYER_ORDER = ['platform', 'project', 'template', 'role'] as const;
+const LAYER_ORDER = ['platform', 'project', 'role'] as const;
 
 const LAYER_HEADERS: Record<string, string> = {
   platform: '=== Platform Instructions ===',
   project: '=== Project Instructions ===',
-  template: '=== Template Instructions ===',
   role: '=== Role Instructions ===',
 };
 
@@ -266,32 +399,6 @@ export function flattenInstructionLayers(
     sections.push(`${LAYER_HEADERS[name]}\n${layer.content}`);
   }
   return sections.join('\n\n');
-}
-
-/**
- * Resolve template-level instructions for a task.
- * If the task's template definition has its own instruction_config, use it;
- * otherwise fall back to the template's default_instruction_config.
- */
-function resolveTemplateInstructions(
-  templateSchema: Record<string, unknown>,
-  task: Record<string, unknown>,
-): string | undefined {
-  const defaultConfig = asRecord(templateSchema.default_instruction_config);
-  const tasks = templateSchema.tasks;
-  if (Array.isArray(tasks)) {
-    const taskRef = asOptionalString(asRecord(task.metadata).template_task_ref);
-    if (taskRef) {
-      const templateTask = tasks.find(
-        (t) => typeof t === 'object' && t !== null && (t as Record<string, unknown>).id === taskRef,
-      ) as Record<string, unknown> | undefined;
-      const taskConfig = asRecord(templateTask?.instruction_config);
-      if (typeof taskConfig.instructions === 'string' && taskConfig.instructions.trim().length > 0) {
-        return taskConfig.instructions;
-      }
-    }
-  }
-  return asOptionalString(defaultConfig.instructions);
 }
 
 function readSuppressedLayers(value: unknown): string[] {
@@ -334,6 +441,27 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function asOptionalString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function readWorkflowIdArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
+    : [];
+}
+
+function toWorkflowRelationRef(workflowId: string, row?: Record<string, unknown>) {
+  return {
+    workflow_id: workflowId,
+    name: asOptionalString(row?.name) ?? null,
+    state: asOptionalString(row?.state) ?? 'unknown',
+    playbook_id: asOptionalString(row?.playbook_id) ?? null,
+    playbook_name: asOptionalString(row?.playbook_name) ?? null,
+    created_at: row?.created_at ?? null,
+    started_at: row?.started_at ?? null,
+    completed_at: row?.completed_at ?? null,
+    is_terminal: ['completed', 'failed', 'cancelled'].includes(asOptionalString(row?.state) ?? ''),
+    link: `/workflows/${workflowId}`,
+  };
 }
 
 function asOptionalNumber(value: unknown): number | undefined {

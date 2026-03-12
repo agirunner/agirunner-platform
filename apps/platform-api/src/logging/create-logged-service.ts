@@ -6,11 +6,37 @@ import type { LogService } from './log-service.js';
 import { SERVICE_REGISTRY } from './service-registry.js';
 
 const MUTATION_PREFIXES = [
-  'create', 'update', 'patch', 'delete', 'softDelete', 'remove',
-  'cancel', 'pause', 'resume', 'claim', 'start', 'complete', 'fail',
-  'approve', 'reject', 'retry', 'rework', 'skip', 'reassign',
-  'escalate', 'drain', 'restart', 'revoke', 'register', 'signal',
-  'set', 'clear', 'chain', 'prune', 'pull', 'disconnect',
+  'create',
+  'update',
+  'patch',
+  'delete',
+  'softDelete',
+  'remove',
+  'cancel',
+  'pause',
+  'resume',
+  'claim',
+  'start',
+  'complete',
+  'fail',
+  'approve',
+  'reject',
+  'retry',
+  'rework',
+  'skip',
+  'reassign',
+  'escalate',
+  'drain',
+  'restart',
+  'revoke',
+  'register',
+  'signal',
+  'set',
+  'clear',
+  'chain',
+  'prune',
+  'pull',
+  'disconnect',
 ];
 
 const PAST_TENSE_OVERRIDES: Record<string, string> = {
@@ -62,21 +88,7 @@ export function createLoggedService<T extends object>(
           if (result === null || result === undefined) return result;
 
           const durationMs = Math.round(performance.now() - start);
-
-          const entityId = isRecord(result) ? (result.id as string) : undefined;
-          const entityName = isRecord(result) ? (result[config.nameField] as string) : undefined;
-          const projectId = isRecord(result) ? ((result.projectId ?? result.project_id) as string) : undefined;
-          const projectName = isRecord(result) ? ((result.projectName ?? result.project_name) as string) : undefined;
-          const workflowId = isRecord(result) ? ((result.workflowId ?? result.workflow_id) as string) : undefined;
-          const workflowName = isRecord(result) ? ((result.workflowName ?? result.workflow_name) as string) : undefined;
-          const taskId = isRecord(result)
-            ? ((result.taskId ?? result.task_id ?? (config.entityType === 'task' ? result.id : undefined)) as string)
-            : undefined;
-          const role = isRecord(result) ? ((result.role) as string) : undefined;
-          const taskTitle = isRecord(result) ? ((result.taskTitle ?? result.task_title ?? result.title) as string) : undefined;
-          const workflowPhase = isRecord(result)
-            ? ((result.workflowPhase ?? result.workflow_phase ?? (isRecord(result.metadata) ? result.metadata.workflow_phase : undefined)) as string)
-            : undefined;
+          const context = resolveLogContext(result, args, config.nameField, config.entityType);
 
           const operation = `${config.category}.${config.entityType}.${methodToAction(prop)}`;
 
@@ -88,8 +100,8 @@ export function createLoggedService<T extends object>(
             if (result.status) payload.entity_status = result.status;
             if (result[config.nameField]) payload.entity_name = result[config.nameField];
             if (result.role) payload.role = result.role;
-            if (result.claimedBy ?? result.claimed_by) payload.claimed_by = result.claimedBy ?? result.claimed_by;
-            if (result.templateId ?? result.template_id) payload.template_id = result.templateId ?? result.template_id;
+            if (result.claimedBy ?? result.claimed_by)
+              payload.claimed_by = result.claimedBy ?? result.claimed_by;
             if (result.error && isRecord(result.error)) {
               payload.error_category = result.error.category;
               payload.error_message = result.error.message;
@@ -97,63 +109,84 @@ export function createLoggedService<T extends object>(
             if (result.reason) payload.reason = result.reason;
           }
 
-          void logService.insert({
-            tenantId,
-            traceId: ctx?.requestId ?? randomUUID(),
-            spanId: randomUUID(),
-            source: 'platform',
-            category: config.category,
-            level: 'info',
-            operation,
-            status: 'completed',
-            durationMs,
-            payload,
-            projectId: projectId ?? undefined,
-            projectName: projectName ?? undefined,
-            workflowId: workflowId ?? undefined,
-            workflowName: workflowName ?? undefined,
-            taskId: taskId ?? undefined,
-            taskTitle: taskTitle ?? undefined,
-            workflowPhase: workflowPhase ?? undefined,
-            role: role ?? undefined,
-            actorType: actor.type,
-            actorId: actor.id,
-            actorName: actor.name,
-            resourceType: config.entityType,
-            resourceId: entityId ?? undefined,
-            resourceName: entityName ?? undefined,
-          }).catch(() => undefined);
+          void logService
+            .insert({
+              tenantId,
+              traceId: ctx?.requestId ?? randomUUID(),
+              spanId: randomUUID(),
+              source: 'platform',
+              category: config.category,
+              level: 'info',
+              operation,
+              status: 'completed',
+              durationMs,
+              payload,
+              projectId: context.projectId,
+              projectName: context.projectName,
+              workflowId: context.workflowId,
+              workflowName: context.workflowName,
+              taskId: context.taskId,
+              workItemId: context.workItemId,
+              stageName: context.stageName,
+              activationId: context.activationId,
+              isOrchestratorTask: context.isOrchestratorTask,
+              taskTitle: context.taskTitle,
+              role: context.role,
+              actorType: actor.type,
+              actorId: actor.id,
+              actorName: actor.name,
+              resourceType: config.entityType,
+              resourceId: context.entityId,
+              resourceName: context.entityName,
+            })
+            .catch(() => undefined);
 
           return result;
         } catch (err: unknown) {
           const durationMs = Math.round(performance.now() - start);
           const operation = `${config.category}.${config.entityType}.${methodToAction(prop)}`;
           const errorObj = err instanceof Error ? err : new Error(String(err));
+          const context = resolveLogContext(undefined, args, config.nameField, config.entityType);
 
-          void logService.insert({
-            tenantId,
-            traceId: ctx?.requestId ?? randomUUID(),
-            spanId: randomUUID(),
-            source: 'platform',
-            category: config.category,
-            level: 'error',
-            operation,
-            status: 'failed',
-            durationMs,
-            payload: {
-              method: prop,
-              action: methodToAction(prop),
-              error_message: errorObj.message,
-            },
-            error: {
-              code: (errorObj as Error & { code?: string }).code ?? 'unknown',
-              message: errorObj.message,
-            },
-            actorType: actor.type,
-            actorId: actor.id,
-            actorName: actor.name,
-            resourceType: config.entityType,
-          }).catch(() => undefined);
+          void logService
+            .insert({
+              tenantId,
+              traceId: ctx?.requestId ?? randomUUID(),
+              spanId: randomUUID(),
+              source: 'platform',
+              category: config.category,
+              level: 'error',
+              operation,
+              status: 'failed',
+              durationMs,
+              payload: {
+                method: prop,
+                action: methodToAction(prop),
+                error_message: errorObj.message,
+              },
+              error: {
+                code: (errorObj as Error & { code?: string }).code ?? 'unknown',
+                message: errorObj.message,
+              },
+              projectId: context.projectId,
+              projectName: context.projectName,
+              workflowId: context.workflowId,
+              workflowName: context.workflowName,
+              taskId: context.taskId,
+              workItemId: context.workItemId,
+              stageName: context.stageName,
+              activationId: context.activationId,
+              isOrchestratorTask: context.isOrchestratorTask,
+              taskTitle: context.taskTitle,
+              role: context.role,
+              actorType: actor.type,
+              actorId: actor.id,
+              actorName: actor.name,
+              resourceType: config.entityType,
+              resourceId: context.entityId,
+              resourceName: context.entityName,
+            })
+            .catch(() => undefined);
 
           throw err;
         }
@@ -164,4 +197,123 @@ export function createLoggedService<T extends object>(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+interface LoggedServiceContext {
+  entityId?: string;
+  entityName?: string;
+  projectId?: string;
+  projectName?: string;
+  workflowId?: string;
+  workflowName?: string;
+  taskId?: string;
+  workItemId?: string;
+  stageName?: string;
+  activationId?: string;
+  isOrchestratorTask?: boolean;
+  taskTitle?: string;
+  role?: string;
+}
+
+function resolveLogContext(
+  result: unknown,
+  args: unknown[],
+  nameField: string,
+  entityType: string,
+): LoggedServiceContext {
+  const records = collectContextRecords(result, args);
+  const resultRecord = isRecord(result) ? result : null;
+  const stageName = pickString(records, ['stageName', 'stage_name']);
+  const taskId =
+    pickString(records, ['taskId', 'task_id']) ??
+    (entityType === 'task' ? pickString(records, ['id']) : undefined);
+
+  return {
+    entityId: resultRecord ? readString(resultRecord, ['id']) : undefined,
+    entityName: resultRecord ? readString(resultRecord, [nameField]) : undefined,
+    projectId: pickString(records, ['projectId', 'project_id']),
+    projectName: pickString(records, ['projectName', 'project_name']),
+    workflowId: pickString(records, ['workflowId', 'workflow_id']),
+    workflowName: pickString(records, ['workflowName', 'workflow_name']),
+    taskId,
+    workItemId: pickString(records, ['workItemId', 'work_item_id']),
+    stageName,
+    activationId: pickString(records, ['activationId', 'activation_id']),
+    isOrchestratorTask: pickBoolean(records, ['isOrchestratorTask', 'is_orchestrator_task']),
+    taskTitle: pickString(records, ['taskTitle', 'task_title', 'title']),
+    role: pickString(records, ['role']),
+  };
+}
+
+function collectContextRecords(result: unknown, args: unknown[]): Record<string, unknown>[] {
+  const records: Record<string, unknown>[] = [];
+  if (isRecord(result)) {
+    records.push(result);
+  }
+  for (const arg of args) {
+    if (isRecord(arg)) {
+      records.push(arg);
+    }
+  }
+  return records;
+}
+
+function pickString(records: Record<string, unknown>[], keys: string[]): string | undefined {
+  for (const record of records) {
+    const direct = readString(record, keys);
+    if (direct) {
+      return direct;
+    }
+    const metadata = metadataRecord(record);
+    if (!metadata) {
+      continue;
+    }
+    const nested = readString(metadata, keys);
+    if (nested) {
+      return nested;
+    }
+  }
+  return undefined;
+}
+
+function pickBoolean(records: Record<string, unknown>[], keys: string[]): boolean | undefined {
+  for (const record of records) {
+    const direct = readBoolean(record, keys);
+    if (direct !== undefined) {
+      return direct;
+    }
+    const metadata = metadataRecord(record);
+    if (!metadata) {
+      continue;
+    }
+    const nested = readBoolean(metadata, keys);
+    if (nested !== undefined) {
+      return nested;
+    }
+  }
+  return undefined;
+}
+
+function readString(record: Record<string, unknown>, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim() !== '') {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function readBoolean(record: Record<string, unknown>, keys: string[]): boolean | undefined {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'boolean') {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function metadataRecord(record: Record<string, unknown>): Record<string, unknown> | null {
+  return isRecord(record.metadata) ? record.metadata : null;
 }

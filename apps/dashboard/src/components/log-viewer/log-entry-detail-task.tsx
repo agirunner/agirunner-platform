@@ -13,7 +13,7 @@ function shortId(v: unknown): string {
 
 const FIELDS: readonly FieldDef[] = [
   { label: 'Task Title', key: 'task_title' },
-  { label: 'Phase', key: 'phase' },
+  { label: 'Stage', key: 'stage_name' },
   { label: 'Action', key: 'action' },
   { label: 'Entity', key: 'entity_name' },
   { label: 'Role', key: 'role' },
@@ -25,15 +25,18 @@ const FIELDS: readonly FieldDef[] = [
   { label: 'Reuse', key: 'reuse_decision' },
   { label: 'Task Count', key: 'task_count' },
   { label: 'Failed Tasks', key: 'failed_task_count' },
-  { label: 'Template', key: 'template_name' },
-  { label: 'Template Slug', key: 'template_slug' },
   { label: 'Workflow', key: 'workflow_name' },
-  { label: 'Parameters', key: 'parameters', format: (v) => {
-    if (typeof v === 'object' && v !== null && Object.keys(v).length === 0) return '';
-    return JSON.stringify(v);
-  }},
+  { label: 'Work Item ID', key: 'work_item_id', format: shortId },
+  { label: 'Activation ID', key: 'activation_id', format: shortId },
+  {
+    label: 'Parameters',
+    key: 'parameters',
+    format: (v) => {
+      if (typeof v === 'object' && v !== null && Object.keys(v).length === 0) return '';
+      return JSON.stringify(v);
+    },
+  },
   { label: 'Method', key: 'method' },
-  { label: 'Template ID', key: 'template_id', format: shortId },
   { label: 'Workflow ID', key: 'workflow_id', format: shortId },
   { label: 'Runtime ID', key: 'runtime_id', format: shortId },
   { label: 'Container ID', key: 'container_id', format: shortId },

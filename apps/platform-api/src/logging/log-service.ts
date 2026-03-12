@@ -7,7 +7,16 @@ export interface ExecutionLogEntry {
   spanId: string;
   parentSpanId?: string | null;
   source: 'runtime' | 'container_manager' | 'platform' | 'task_container';
-  category: 'llm' | 'tool' | 'agent_loop' | 'task_lifecycle' | 'runtime_lifecycle' | 'container' | 'api' | 'config' | 'auth';
+  category:
+    | 'llm'
+    | 'tool'
+    | 'agent_loop'
+    | 'task_lifecycle'
+    | 'runtime_lifecycle'
+    | 'container'
+    | 'api'
+    | 'config'
+    | 'auth';
   level: 'debug' | 'info' | 'warn' | 'error';
   operation: string;
   status: 'started' | 'completed' | 'failed' | 'skipped';
@@ -19,8 +28,11 @@ export interface ExecutionLogEntry {
   workflowName?: string | null;
   projectName?: string | null;
   taskId?: string | null;
+  workItemId?: string | null;
+  stageName?: string | null;
+  activationId?: string | null;
+  isOrchestratorTask?: boolean | null;
   taskTitle?: string | null;
-  workflowPhase?: string | null;
   role?: string | null;
   actorType?: string | null;
   actorId?: string | null;
@@ -50,8 +62,11 @@ export interface LogRow {
   workflow_name: string | null;
   project_name: string | null;
   task_id: string | null;
+  work_item_id: string | null;
+  stage_name: string | null;
+  activation_id: string | null;
+  is_orchestrator_task: boolean;
   task_title: string | null;
-  workflow_phase: string | null;
   role: string | null;
   actor_type: string | null;
   actor_id: string | null;
@@ -66,6 +81,10 @@ export interface LogFilters {
   projectId?: string;
   workflowId?: string;
   taskId?: string;
+  workItemId?: string;
+  stageName?: string;
+  activationId?: string;
+  isOrchestratorTask?: boolean;
   traceId?: string;
   source?: string[];
   category?: string[];
@@ -87,9 +106,22 @@ export interface LogStatsFilters {
   traceId?: string;
   workflowId?: string;
   taskId?: string;
+  workItemId?: string;
+  stageName?: string;
+  activationId?: string;
+  isOrchestratorTask?: boolean;
   since?: string;
   until?: string;
-  groupBy: 'category' | 'operation' | 'level' | 'task_id' | 'source';
+  groupBy:
+    | 'category'
+    | 'operation'
+    | 'level'
+    | 'task_id'
+    | 'work_item_id'
+    | 'stage_name'
+    | 'activation_id'
+    | 'is_orchestrator_task'
+    | 'source';
 }
 
 export interface LogStatsGroup {
@@ -173,6 +205,7 @@ export class LogService {
 
     const workflowName = entry.workflowName ?? null;
     const projectName = entry.projectName ?? null;
+    const stageName = entry.stageName ?? null;
 
     await this.pool.query(
       `INSERT INTO execution_logs (
@@ -180,7 +213,7 @@ export class LogService {
         source, category, level, operation, status, duration_ms,
         payload, error,
         project_id, workflow_id, workflow_name, project_name, task_id,
-        task_title, workflow_phase,
+        work_item_id, activation_id, task_title, stage_name, is_orchestrator_task,
         role,
         actor_type, actor_id, actor_name,
         resource_type, resource_id, resource_name,
@@ -190,11 +223,11 @@ export class LogService {
         $5, $6, $7, $8, $9, $10,
         $11, $12,
         $13, $14, $15, $16, $17,
-        $18, $19,
-        $20,
-        $21, $22, $23,
+        $18, $19, $20, $21, $22,
+        $23,
         $24, $25, $26,
-        COALESCE($27::timestamptz, now())
+        $27, $28, $29,
+        COALESCE($30::timestamptz, now())
       )`,
       [
         entry.tenantId,
@@ -208,14 +241,17 @@ export class LogService {
         entry.status,
         entry.durationMs ?? null,
         JSON.stringify(redactPayload(entry.payload) ?? {}),
-        entry.error ? JSON.stringify(entry.error) : null,
+        entry.error ? JSON.stringify(redactError(entry.error)) : null,
         entry.projectId ?? null,
         entry.workflowId ?? null,
         workflowName,
         projectName,
         entry.taskId ?? null,
+        entry.workItemId ?? null,
+        entry.activationId ?? null,
         entry.taskTitle ?? null,
-        entry.workflowPhase ?? null,
+        stageName,
+        entry.isOrchestratorTask ?? false,
         entry.role ?? null,
         entry.actorType ?? null,
         entry.actorId ?? null,
@@ -271,7 +307,8 @@ export class LogService {
               source, category, level, operation, status, duration_ms,
               payload, error,
               project_id, workflow_id, workflow_name, project_name, task_id,
-              task_title, workflow_phase,
+              work_item_id, stage_name, activation_id, is_orchestrator_task,
+              task_title,
               role,
               actor_type, actor_id, actor_name,
               resource_type, resource_id, resource_name,
@@ -304,39 +341,16 @@ export class LogService {
   }
 
   async stats(tenantId: string, filters: LogStatsFilters): Promise<LogStats> {
-    const groupColumn = validateGroupColumn(filters.groupBy);
+    const groupExpression = groupExpressionFor(filters.groupBy);
     const conditions: string[] = ['tenant_id = $1'];
     const values: unknown[] = [tenantId];
 
-    if (filters.projectId) {
-      values.push(filters.projectId);
-      conditions.push(`project_id = $${values.length}`);
-    }
-    if (filters.traceId) {
-      values.push(filters.traceId);
-      conditions.push(`trace_id = $${values.length}`);
-    }
-    if (filters.workflowId) {
-      values.push(filters.workflowId);
-      conditions.push(`workflow_id = $${values.length}`);
-    }
-    if (filters.taskId) {
-      values.push(filters.taskId);
-      conditions.push(`task_id = $${values.length}`);
-    }
-    if (filters.since) {
-      values.push(filters.since);
-      conditions.push(`created_at >= $${values.length}`);
-    }
-    if (filters.until) {
-      values.push(filters.until);
-      conditions.push(`created_at <= $${values.length}`);
-    }
+    this.applyStatsFilters(conditions, values, filters);
 
     const whereClause = conditions.join(' AND ');
 
     const result = await this.pool.query<{
-      group_key: string;
+      group_key: string | null;
       count: string;
       error_count: string;
       total_duration_ms: string | null;
@@ -346,7 +360,7 @@ export class LogService {
       total_cost_usd: string | null;
     }>(
       `SELECT
-        ${groupColumn} AS group_key,
+        ${groupExpression} AS group_key,
         COUNT(*)::text AS count,
         COUNT(*) FILTER (WHERE status = 'failed')::text AS error_count,
         SUM(duration_ms)::text AS total_duration_ms,
@@ -356,13 +370,13 @@ export class LogService {
         SUM((payload->>'cost_usd')::numeric) FILTER (WHERE category = 'llm')::text AS total_cost_usd
        FROM execution_logs
        WHERE ${whereClause}
-       GROUP BY ${groupColumn}
+       GROUP BY ${groupExpression}
        ORDER BY count DESC`,
       values,
     );
 
     const groups: LogStatsGroup[] = result.rows.map((row) => ({
-      group: row.group_key,
+      group: row.group_key ?? 'unknown',
       count: Number(row.count),
       error_count: Number(row.error_count),
       total_duration_ms: Number(row.total_duration_ms ?? 0),
@@ -483,6 +497,22 @@ export class LogService {
       values.push(filters.taskId);
       conditions.push(`task_id = $${values.length}`);
     }
+    if (filters.workItemId) {
+      values.push(filters.workItemId);
+      conditions.push(`work_item_id = $${values.length}`);
+    }
+    if (filters.stageName) {
+      values.push(filters.stageName);
+      conditions.push(`stage_name = $${values.length}`);
+    }
+    if (filters.activationId) {
+      values.push(filters.activationId);
+      conditions.push(`activation_id = $${values.length}`);
+    }
+    if (filters.isOrchestratorTask !== undefined) {
+      values.push(filters.isOrchestratorTask);
+      conditions.push(`is_orchestrator_task = $${values.length}`);
+    }
     if (filters.traceId) {
       values.push(filters.traceId);
       conditions.push(`trace_id = $${values.length}`);
@@ -524,9 +554,58 @@ export class LogService {
       const term = filters.search.trim();
       values.push(`%${term}%`);
       const p = values.length;
-      const searchable = `CONCAT_WS(' ', operation, task_id, workflow_id, project_id,`
-        + ` trace_id, span_id, actor_name, actor_id, task_title, payload::text)`;
+      const searchable =
+        `CONCAT_WS(' ', operation, task_id, work_item_id, activation_id,` +
+        ` workflow_id, project_id, stage_name, trace_id, span_id,` +
+        ` actor_name, actor_id, task_title, payload::text)`;
       conditions.push(`${searchable} ILIKE $${p}`);
+    }
+    if (filters.since) {
+      values.push(filters.since);
+      conditions.push(`created_at >= $${values.length}`);
+    }
+    if (filters.until) {
+      values.push(filters.until);
+      conditions.push(`created_at <= $${values.length}`);
+    }
+  }
+
+  private applyStatsFilters(
+    conditions: string[],
+    values: unknown[],
+    filters: LogStatsFilters,
+  ): void {
+    if (filters.projectId) {
+      values.push(filters.projectId);
+      conditions.push(`project_id = $${values.length}`);
+    }
+    if (filters.traceId) {
+      values.push(filters.traceId);
+      conditions.push(`trace_id = $${values.length}`);
+    }
+    if (filters.workflowId) {
+      values.push(filters.workflowId);
+      conditions.push(`workflow_id = $${values.length}`);
+    }
+    if (filters.taskId) {
+      values.push(filters.taskId);
+      conditions.push(`task_id = $${values.length}`);
+    }
+    if (filters.workItemId) {
+      values.push(filters.workItemId);
+      conditions.push(`work_item_id = $${values.length}`);
+    }
+    if (filters.stageName) {
+      values.push(filters.stageName);
+      conditions.push(`stage_name = $${values.length}`);
+    }
+    if (filters.activationId) {
+      values.push(filters.activationId);
+      conditions.push(`activation_id = $${values.length}`);
+    }
+    if (filters.isOrchestratorTask !== undefined) {
+      values.push(filters.isOrchestratorTask);
+      conditions.push(`is_orchestrator_task = $${values.length}`);
     }
     if (filters.since) {
       values.push(filters.since);
@@ -548,34 +627,75 @@ function applyDefaultTimeBounds(filters: LogFilters): LogFilters {
   return { ...filters, since: new Date(Date.now() - DEFAULT_TIME_BOUND_MS).toISOString() };
 }
 
-const VALID_GROUP_COLUMNS = new Set(['category', 'operation', 'level', 'task_id', 'source']);
+const GROUP_BY_EXPRESSIONS: Record<LogStatsFilters['groupBy'], string> = {
+  category: `COALESCE(category::text, 'unknown')`,
+  operation: `COALESCE(operation, 'unknown')`,
+  level: `COALESCE(level::text, 'unknown')`,
+  task_id: `COALESCE(task_id::text, 'unassigned')`,
+  work_item_id: `COALESCE(work_item_id::text, 'unassigned')`,
+  stage_name: `COALESCE(stage_name, 'unassigned')`,
+  activation_id: `COALESCE(activation_id::text, 'unassigned')`,
+  is_orchestrator_task: `CASE WHEN is_orchestrator_task THEN 'orchestrator' ELSE 'task' END`,
+  source: `COALESCE(source::text, 'unknown')`,
+};
 
-function validateGroupColumn(column: string): string {
-  if (!VALID_GROUP_COLUMNS.has(column)) {
+function groupExpressionFor(column: LogStatsFilters['groupBy']): string {
+  if (!(column in GROUP_BY_EXPRESSIONS)) {
     throw new Error(`Invalid group_by column: ${column}`);
   }
-  return column;
+  return GROUP_BY_EXPRESSIONS[column];
 }
 
-const SECRET_PATTERN = /(?:api[_-]?key|password|secret|(?:^|[_-])token(?!s)|authorization|bearer|credential|private[_-]?key)/i;
+const SECRET_PATTERN =
+  /(?:api[_-]?key|password|secret|(?:^|[_-])token(?!s)|authorization|bearer|credential|private[_-]?key)/i;
+const SECRET_VALUE_PATTERN =
+  /(?:^enc:v\d+:|^secret:|^redacted:\/\/|^Bearer\s+\S+|^sk-[A-Za-z0-9_-]+|^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/i;
 
-const REDACT_EXEMPT_KEYS = new Set(['system_prompt', 'prompt_summary', 'response_summary', 'description']);
+const REDACT_EXEMPT_KEYS = new Set([
+  'system_prompt',
+  'prompt_summary',
+  'response_summary',
+  'description',
+]);
 
 function redactPayload(payload: Record<string, unknown> | undefined): Record<string, unknown> {
   if (!payload) return {};
   const redacted: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(payload)) {
-    if (SECRET_PATTERN.test(key)) {
-      redacted[key] = '[REDACTED]';
-    } else if (typeof value === 'string' && !REDACT_EXEMPT_KEYS.has(key) && SECRET_PATTERN.test(value)) {
-      redacted[key] = '[REDACTED]';
-    } else if (value && typeof value === 'object' && !Array.isArray(value)) {
-      redacted[key] = redactPayload(value as Record<string, unknown>);
-    } else {
-      redacted[key] = value;
-    }
+    redacted[key] = redactValue(key, value);
   }
   return redacted;
+}
+
+function redactError(error: { code?: string; message: string; stack?: string }) {
+  return {
+    ...(error.code ? { code: error.code } : {}),
+    message: redactString('message', error.message),
+    ...(error.stack ? { stack: redactString('stack', error.stack) } : {}),
+  };
+}
+
+function redactValue(key: string, value: unknown): unknown {
+  if (SECRET_PATTERN.test(key)) {
+    return '[REDACTED]';
+  }
+  if (typeof value === 'string') {
+    return redactString(key, value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => redactValue(key, item));
+  }
+  if (value && typeof value === 'object') {
+    return redactPayload(value as Record<string, unknown>);
+  }
+  return value;
+}
+
+function redactString(key: string, value: string): string {
+  if (REDACT_EXEMPT_KEYS.has(key)) {
+    return value;
+  }
+  return SECRET_PATTERN.test(value) || SECRET_VALUE_PATTERN.test(value) ? '[REDACTED]' : value;
 }
 
 function buildAgg(row: {

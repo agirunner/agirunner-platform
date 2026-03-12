@@ -2,12 +2,12 @@ import { randomUUID } from 'node:crypto';
 
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 
-import { NotFoundError } from '../errors/domain-errors.js';
+import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 import type { LogService } from '../logging/log-service.js';
-import { deriveWorkflowState } from '../orchestration/workflow-engine.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { EventService } from './event-service.js';
 import { ProjectTimelineService } from './project-timeline-service.js';
+import { enqueueWorkflowActivationRecord } from './workflow-activation-record.js';
 
 export class WorkflowStateService {
   constructor(
@@ -28,36 +28,27 @@ export class WorkflowStateService {
     },
   ) {
     const db = client ?? this.pool;
-    const [workflowRes, taskStatesRes] = await Promise.all([
-      db.query(
-        `SELECT w.id, w.state, w.started_at, w.completed_at, w.metadata, w.name, w.parameters,
-                t.name AS template_name, t.slug AS template_slug
-         FROM workflows w
-         LEFT JOIN templates t ON t.tenant_id = w.tenant_id AND t.id = w.template_id
-         WHERE w.tenant_id = $1 AND w.id = $2`,
-        [tenantId, workflowId],
-      ),
-      db.query('SELECT state, metadata FROM tasks WHERE tenant_id = $1 AND workflow_id = $2', [
-        tenantId,
-        workflowId,
-      ]),
-    ]);
+    const workflowRes = await db.query(
+      `SELECT w.id, w.state, w.started_at, w.completed_at, w.metadata, w.name, w.parameters,
+              w.playbook_id
+       FROM workflows w
+       WHERE w.tenant_id = $1 AND w.id = $2`,
+      [tenantId, workflowId],
+    );
 
     if (!workflowRes.rowCount) {
       throw new NotFoundError('Workflow not found');
     }
 
     const previousState = workflowRes.rows[0].state as string;
+    const playbookId = (workflowRes.rows[0] as Record<string, unknown>).playbook_id as string | null;
+    if (!playbookId) {
+      throw new ConflictError('Workflow state recomputation is only supported for playbook workflows');
+    }
     const workflowMetadata = asRecord(workflowRes.rows[0].metadata);
-    let derivedState = deriveWorkflowState(
-      taskStatesRes.rows.map((row) => normalizeWorkflowTaskState(row as Record<string, unknown>)),
-    );
+    let derivedState = await this.derivePlaybookWorkflowState(tenantId, workflowId, previousState, db);
     if (workflowMetadata.cancel_requested_at) {
-      const hasActiveCancellationTasks = taskStatesRes.rows.some((row) => {
-        const state = String(row.state);
-        return state === 'claimed' || state === 'running';
-      });
-      derivedState = hasActiveCancellationTasks ? 'paused' : 'cancelled';
+      derivedState = await this.deriveCancellationState(tenantId, workflowId, db);
     }
 
     const setStartedAt = derivedState === 'active';
@@ -77,16 +68,8 @@ export class WorkflowStateService {
       previousState !== derivedState &&
       ['completed', 'failed', 'cancelled'].includes(derivedState)
     ) {
-      await this.artifactRetentionService?.purgeWorkflowArtifactsOnTerminalState(
-        tenantId,
-        workflowId,
-        client,
-      );
-      await this.projectTimelineService?.recordWorkflowTerminalState(
-        tenantId,
-        workflowId,
-        client,
-      );
+      await this.artifactRetentionService?.purgeWorkflowArtifactsOnTerminalState(tenantId, workflowId, client);
+      await this.projectTimelineService?.recordWorkflowTerminalState(tenantId, workflowId, client);
     }
 
     if (previousState !== derivedState) {
@@ -104,9 +87,18 @@ export class WorkflowStateService {
       );
 
       const workflowRow = workflowRes.rows[0];
-      const taskCount = taskStatesRes.rowCount ?? 0;
-      const failedCount = taskStatesRes.rows.filter((r) => String(r.state) === 'failed').length;
       const isTerminal = ['completed', 'failed', 'cancelled'].includes(derivedState);
+      const terminalTaskCounts = isTerminal ? await this.loadTerminalTaskCounts(db, tenantId, workflowId) : null;
+
+      if (isTerminal) {
+        await this.enqueueParentWorkflowOutcome(db, tenantId, workflowId, workflowMetadata, {
+          workflowName: workflowRow.name as string,
+          playbookId,
+          state: derivedState,
+          taskCount: terminalTaskCounts?.taskCount ?? 0,
+          failedTaskCount: terminalTaskCounts?.failedTaskCount ?? 0,
+        });
+      }
 
       void this.logService?.insert({
         tenantId,
@@ -121,11 +113,11 @@ export class WorkflowStateService {
           from_state: previousState,
           to_state: derivedState,
           workflow_name: workflowRow.name as string,
-          template_name: (workflowRow.template_name as string) ?? undefined,
-          template_slug: (workflowRow.template_slug as string) ?? undefined,
+          playbook_id:
+            ((workflowRow as Record<string, unknown>).playbook_id as string | null) ?? undefined,
           parameters: asRecord(workflowRow.parameters),
-          task_count: taskCount,
-          failed_task_count: failedCount,
+          task_count: terminalTaskCounts?.taskCount,
+          failed_task_count: terminalTaskCounts?.failedTaskCount,
         },
         workflowId,
         workflowName: workflowRow.name as string,
@@ -139,24 +131,166 @@ export class WorkflowStateService {
 
     return derivedState;
   }
+
+  private async deriveCancellationState(
+    tenantId: string,
+    workflowId: string,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    return hasActiveWorkflowPosture(await this.loadWorkflowPosture(tenantId, workflowId, db))
+      ? 'paused'
+      : 'cancelled';
+  }
+
+  private async enqueueParentWorkflowOutcome(
+    db: DatabaseClient | DatabasePool,
+    tenantId: string,
+    workflowId: string,
+    workflowMetadata: Record<string, unknown>,
+    outcome: {
+      workflowName: string;
+      playbookId: string;
+      state: string;
+      taskCount: number;
+      failedTaskCount: number;
+    },
+  ) {
+    const parentWorkflowId = readOptionalString(workflowMetadata.parent_workflow_id);
+    if (!parentWorkflowId) return;
+
+    await enqueueWorkflowActivationRecord(db, this.eventService, {
+      tenantId,
+      workflowId: parentWorkflowId,
+      requestId: `child-workflow:${workflowId}:${outcome.state}`,
+      reason: `child_workflow.${outcome.state}`,
+      eventType: `child_workflow.${outcome.state}`,
+      payload: {
+        child_workflow_id: workflowId,
+        child_workflow_name: outcome.workflowName,
+        child_workflow_state: outcome.state,
+        child_playbook_id: outcome.playbookId,
+        parent_workflow_id: parentWorkflowId,
+        parent_orchestrator_task_id: readOptionalString(workflowMetadata.parent_orchestrator_task_id),
+        parent_orchestrator_activation_id: readOptionalString(
+          workflowMetadata.parent_orchestrator_activation_id,
+        ),
+        parent_work_item_id: readOptionalString(workflowMetadata.parent_work_item_id),
+        parent_stage_name: readOptionalString(workflowMetadata.parent_stage_name),
+        outcome: {
+          state: outcome.state,
+          task_count: outcome.taskCount,
+          failed_task_count: outcome.failedTaskCount,
+        },
+      },
+      actorType: 'system',
+      actorId: 'workflow_state_deriver',
+    });
+  }
+
+  private async derivePlaybookWorkflowState(
+    tenantId: string,
+    workflowId: string,
+    previousState: string,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    if (['completed', 'failed', 'cancelled', 'paused'].includes(previousState)) return previousState;
+
+    const posture = await this.loadWorkflowPosture(tenantId, workflowId, db);
+    const lifecycle = posture.lifecycle;
+    if (lifecycle === 'continuous') {
+      return deriveContinuousWorkflowState(posture);
+    }
+
+    const stageStatuses = posture.stages.map((row) => row.status);
+    if (stageStatuses.length > 0 && stageStatuses.every((status) => status === 'completed')) {
+      return 'completed';
+    }
+    return hasActiveWorkflowPosture(posture) ? 'active' : 'pending';
+  }
+
+  private async loadWorkflowPosture(
+    tenantId: string,
+    workflowId: string,
+    db: DatabaseClient | DatabasePool,
+  ): Promise<WorkflowPosture> {
+    const [workflowResult, stageResult, orchestratorResult, workItemResult] = await Promise.all([
+      db.query<{ lifecycle: string | null; current_stage: string | null }>(
+        'SELECT lifecycle, current_stage FROM workflows WHERE tenant_id = $1 AND id = $2',
+        [tenantId, workflowId],
+      ),
+      db.query<{ status: string; gate_status: string }>(
+        'SELECT status, gate_status FROM workflow_stages WHERE tenant_id = $1 AND workflow_id = $2',
+        [tenantId, workflowId],
+      ),
+      db.query(
+        `SELECT 1
+           FROM tasks
+          WHERE tenant_id = $1
+            AND workflow_id = $2
+            AND is_orchestrator_task = true
+            AND state IN ('ready', 'claimed', 'running', 'awaiting_approval', 'output_pending_review')
+          LIMIT 1`,
+        [tenantId, workflowId],
+      ),
+      db.query<{ open_work_item_count: number }>(
+        `SELECT COUNT(*) FILTER (WHERE completed_at IS NULL)::int AS open_work_item_count
+           FROM workflow_work_items WHERE tenant_id = $1 AND workflow_id = $2`,
+        [tenantId, workflowId],
+      ),
+    ]);
+
+    return {
+      lifecycle: workflowResult.rows[0]?.lifecycle ?? 'standard',
+      currentStage: workflowResult.rows[0]?.current_stage ?? null,
+      stages: stageResult.rows,
+      hasActiveOrchestratorTask: (orchestratorResult.rowCount ?? 0) > 0,
+      openWorkItemCount: workItemResult.rows[0]?.open_work_item_count ?? 0,
+    };
+  }
+
+  private async loadTerminalTaskCounts(db: DatabaseClient | DatabasePool, tenantId: string, workflowId: string) {
+    const result = await db.query<{ task_count: number; failed_task_count: number }>(
+      `SELECT COUNT(*)::int AS task_count,
+              COUNT(*) FILTER (WHERE state = 'failed')::int AS failed_task_count FROM tasks
+        WHERE tenant_id = $1 AND workflow_id = $2`,
+      [tenantId, workflowId],
+    );
+    return { taskCount: result.rows[0]?.task_count ?? 0, failedTaskCount: result.rows[0]?.failed_task_count ?? 0 };
+  }
 }
 
-function normalizeWorkflowTaskState(row: Record<string, unknown>): string {
-  if (
-    row.state === 'failed' &&
-    row.metadata &&
-    typeof row.metadata === 'object' &&
-    !Array.isArray(row.metadata) &&
-    (row.metadata as Record<string, unknown>).escalation_status === 'pending'
-  ) {
-    return 'output_pending_review';
-  }
-  return String(row.state);
+interface WorkflowPosture {
+  lifecycle: string;
+  currentStage: string | null;
+  stages: Array<{ status: string; gate_status: string }>;
+  hasActiveOrchestratorTask: boolean;
+  openWorkItemCount: number;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return {};
-  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   return value as Record<string, unknown>;
+}
+
+function readOptionalString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function deriveContinuousWorkflowState(_posture: WorkflowPosture) {
+  return 'active';
+}
+
+function hasActiveWorkflowPosture(posture: WorkflowPosture) {
+  if (posture.hasActiveOrchestratorTask || posture.openWorkItemCount > 0) return true;
+  if (posture.stages.some((stage) => isAttentionGateStatus(stage.gate_status))) return true;
+  if (posture.stages.some((stage) => isActiveStageStatus(stage.status))) return true;
+  return Boolean(posture.currentStage && posture.stages.some((stage) => stage.status !== 'completed'));
+}
+
+function isAttentionGateStatus(status: string) {
+  return status === 'awaiting_approval' || status === 'rejected' || status === 'changes_requested';
+}
+
+function isActiveStageStatus(status: string) {
+  return status === 'active' || status === 'awaiting_gate' || status === 'blocked';
 }

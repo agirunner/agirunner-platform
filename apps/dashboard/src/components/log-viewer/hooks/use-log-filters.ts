@@ -8,6 +8,9 @@ export interface LogFilters {
   project: string | null;
   workflow: string | null;
   task: string | null;
+  workItem: string | null;
+  stage: string | null;
+  activation: string | null;
   trace: string | null;
   sources: string[];
   categories: string[];
@@ -58,6 +61,9 @@ export function useLogFilters() {
       project: searchParams.get('project'),
       workflow: searchParams.get('workflow'),
       task: searchParams.get('task'),
+      workItem: searchParams.get('work_item'),
+      stage: searchParams.get('stage'),
+      activation: searchParams.get('activation'),
       trace: searchParams.get('trace'),
       sources: parseList(searchParams.get('source')),
       categories: parseList(searchParams.get('category')),
@@ -119,7 +125,15 @@ export function useLogFilters() {
   );
 
   const setEntityScope = useCallback(
-    (scope: { project: string | null; workflow: string | null; task: string | null }) => {
+    (
+      scope: {
+        project: string | null;
+        workflow: string | null;
+        task: string | null;
+        workItem?: string | null;
+        activation?: string | null;
+      },
+    ) => {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -142,6 +156,18 @@ export function useLogFilters() {
             next.delete('task');
           }
 
+          if (scope.workItem) {
+            next.set('work_item', scope.workItem);
+          } else {
+            next.delete('work_item');
+          }
+
+          if (scope.activation) {
+            next.set('activation', scope.activation);
+          } else {
+            next.delete('activation');
+          }
+
           return next;
         },
         { replace: true },
@@ -160,6 +186,9 @@ export function useLogFilters() {
     if (filters.project) params.project_id = filters.project;
     if (filters.workflow) params.workflow_id = filters.workflow;
     if (filters.task) params.task_id = filters.task;
+    if (filters.workItem) params.work_item_id = filters.workItem;
+    if (filters.stage) params.stage_name = filters.stage;
+    if (filters.activation) params.activation_id = filters.activation;
     if (filters.trace) params.trace_id = filters.trace;
     if (filters.sources.length > 0) params.source = filters.sources.join(',');
     if (filters.categories.length > 0) params.category = filters.categories.join(',');

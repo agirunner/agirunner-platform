@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Activity,
   AlertTriangle,
@@ -9,6 +10,7 @@ import {
   Cpu,
   Server,
   Workflow as WorkflowIcon,
+  Search,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -19,13 +21,20 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-import { dashboardApi, type DashboardEventRecord } from '../../lib/api.js';
+import {
+  dashboardApi,
+  type DashboardApprovalQueueResponse,
+  type DashboardEventRecord,
+  type DashboardWorkflowBoardResponse,
+} from '../../lib/api.js';
 import { subscribeToEvents } from '../../lib/sse.js';
 import { cn } from '../../lib/utils.js';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card.js';
 import { Skeleton } from '../../components/ui/skeleton.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
+import { Input } from '../../components/ui/input.js';
+import { SavedViews, type SavedViewFilters } from '../../components/saved-views.js';
 import {
   Table,
   TableHeader,
@@ -34,13 +43,33 @@ import {
   TableHead,
   TableCell,
 } from '../../components/ui/table.js';
+import { buildWorkflowDetailPermalink } from '../workflow-detail-permalinks.js';
+import {
+  countBlockedBoardItems,
+  countOpenBoardItems,
+  describeBoardHeadline,
+  describeWorkflowStage,
+  isLiveWorkflow,
+  resolveBoardPosture,
+} from './live-board-support.js';
 
 interface WorkflowRecord {
   id: string;
   name: string;
+  playbook_id?: string | null;
+  lifecycle?: 'standard' | 'continuous' | null;
+  current_stage?: string | null;
+  active_stages?: string[];
+  work_item_summary?: {
+    total_work_items: number;
+    open_work_item_count: number;
+    completed_work_item_count: number;
+    active_stage_count: number;
+    awaiting_gate_count: number;
+    active_stage_names: string[];
+  } | null;
   state?: string;
   status?: string;
-  phases?: Array<{ name: string; status?: string }>;
   task_counts?: Record<string, number>;
   metrics?: { total_cost_usd?: number };
   created_at?: string;
@@ -117,6 +146,7 @@ function statusBadgeVariant(status: string): 'default' | 'success' | 'warning' |
     case 'running':
     case 'online':
       return 'success';
+    case 'awaiting gate':
     case 'awaiting_approval':
     case 'pending':
       return 'warning';
@@ -134,7 +164,9 @@ function statusBadgeVariant(status: string): 'default' | 'success' | 'warning' |
 
 export function LiveBoardPage(): JSX.Element {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [sseEvents, setSseEvents] = useState<DashboardEventRecord[]>([]);
+  const searchQuery = searchParams.get('q') ?? '';
 
   const workflowsQuery = useQuery({
     queryKey: ['workflows'],
@@ -159,6 +191,11 @@ export function LiveBoardPage(): JSX.Element {
     queryFn: () => dashboardApi.listEvents(),
     refetchInterval: REFETCH_INTERVAL,
   });
+  const approvalsQuery = useQuery({
+    queryKey: ['approval-queue'],
+    queryFn: () => dashboardApi.getApprovalQueue() as Promise<DashboardApprovalQueueResponse>,
+    refetchInterval: REFETCH_INTERVAL,
+  });
 
   useEffect(() => {
     const unsubscribe = subscribeToEvents((eventType, payload) => {
@@ -177,6 +214,10 @@ export function LiveBoardPage(): JSX.Element {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['workers'] });
       queryClient.invalidateQueries({ queryKey: ['workflows'] });
+      queryClient.invalidateQueries({ queryKey: ['approval-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['workflow-board'] });
+      queryClient.invalidateQueries({ queryKey: ['workflow-stages'] });
+      queryClient.invalidateQueries({ queryKey: ['workflow-activations'] });
     });
 
     return unsubscribe;
@@ -193,13 +234,164 @@ export function LiveBoardPage(): JSX.Element {
     return raw?.data ?? [];
   }, [eventsQuery.data]);
 
-  const activeWorkflows = useMemo(() => workflows.filter((w) => w.state === 'running' || w.state === 'active'), [workflows]);
-  const runningTasks = useMemo(() => tasks.filter((t) => t.status === 'running'), [tasks]);
+  const activeWorkflows = useMemo(
+    () =>
+      workflows.filter((workflow) => {
+        if (!isLiveWorkflow(workflow)) {
+          return false;
+        }
+        const normalizedQuery = searchQuery.trim().toLowerCase();
+        if (!normalizedQuery) {
+          return true;
+        }
+        const stageNames = [
+          ...(workflow.active_stages ?? []),
+          ...(workflow.work_item_summary?.active_stage_names ?? []),
+          workflow.current_stage ?? '',
+        ]
+          .filter((value) => value.trim().length > 0)
+          .join(' ')
+          .toLowerCase();
+        return `${workflow.name} ${workflow.id} ${stageNames}`.toLowerCase().includes(normalizedQuery);
+      }),
+    [searchQuery, workflows],
+  );
+  const activePlaybookWorkflows = useMemo(
+    () => activeWorkflows.filter((workflow) => workflow.playbook_id).slice(0, 4),
+    [activeWorkflows],
+  );
   const onlineWorkers = useMemo(() => workers.filter((w) => w.status === 'online' || w.status === 'active'), [workers]);
   const approvalTasks = useMemo(() => tasks.filter((t) => t.status === 'awaiting_approval'), [tasks]);
   const failedTasks = useMemo(() => tasks.filter((t) => t.status === 'failed'), [tasks]);
-  const needsAction = approvalTasks.length + failedTasks.length;
+  const stageGates = approvalsQuery.data?.stage_gates ?? [];
+  const filteredApprovalTasks = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return approvalTasks;
+    }
+    return approvalTasks.filter((task) =>
+      `${task.title ?? task.name ?? ''} ${task.id} ${task.workflow_id ?? ''}`
+        .toLowerCase()
+        .includes(normalizedQuery),
+    );
+  }, [approvalTasks, searchQuery]);
+  const filteredFailedTasks = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return failedTasks;
+    }
+    return failedTasks.filter((task) =>
+      `${task.title ?? task.name ?? ''} ${task.id} ${task.workflow_id ?? ''} ${task.error_message ?? ''}`
+        .toLowerCase()
+        .includes(normalizedQuery),
+    );
+  }, [failedTasks, searchQuery]);
   const throughputData = useMemo(() => buildThroughputData(apiEvents), [apiEvents]);
+  const boardQueries = useQueries({
+    queries: activePlaybookWorkflows.map((workflow) => ({
+      queryKey: ['workflow-board', workflow.id],
+      queryFn: () => dashboardApi.getWorkflowBoard(workflow.id) as Promise<DashboardWorkflowBoardResponse>,
+      refetchInterval: REFETCH_INTERVAL,
+    })),
+  });
+  const boardEntries = activePlaybookWorkflows.map((workflow, index) => ({
+    workflow,
+    board: boardQueries[index]?.data,
+    isLoading: Boolean(boardQueries[index]?.isLoading),
+    hasError: Boolean(boardQueries[index]?.error),
+  }));
+  const filteredBoardEntries = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return boardEntries;
+    }
+    return boardEntries.filter((entry) => {
+      const boardContext = entry.board
+        ? entry.board.work_items
+            .map((item) => `${item.id} ${item.title} ${item.stage_name} ${item.column_id}`)
+            .join(' ')
+        : '';
+      return `${entry.workflow.name} ${entry.workflow.id} ${boardContext}`
+        .toLowerCase()
+        .includes(normalizedQuery);
+    });
+  }, [boardEntries, searchQuery]);
+  const openWorkItems = useMemo(
+    () => filteredBoardEntries.reduce((sum, entry) => sum + countOpenBoardItems(entry.board), 0),
+    [filteredBoardEntries],
+  );
+  const blockedItems = useMemo(
+    () => filteredBoardEntries.flatMap((entry) => {
+      if (!entry.board) {
+        return [];
+      }
+      return entry.board.work_items
+        .filter((item) => {
+          const column = entry.board?.columns.find((candidate) => candidate.id === item.column_id);
+          return Boolean(column?.is_blocked);
+        })
+        .map((item) => ({
+          workflowId: entry.workflow.id,
+          workflowName: entry.workflow.name,
+          workItemId: item.id,
+          title: item.title,
+          stageName: item.stage_name,
+          columnId: item.column_id,
+        }));
+    }),
+    [filteredBoardEntries],
+  );
+  const filteredBlockedItems = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return blockedItems;
+    }
+    return blockedItems.filter((item) =>
+      `${item.workflowName} ${item.workflowId} ${item.workItemId} ${item.stageName} ${item.title}`
+        .toLowerCase()
+        .includes(normalizedQuery),
+    );
+  }, [blockedItems, searchQuery]);
+  const liveStages = useMemo(
+    () =>
+      new Set(
+        activeWorkflows.flatMap((workflow) => {
+          const summaryStages = workflow.work_item_summary?.active_stage_names ?? [];
+          const activeStages = workflow.active_stages ?? [];
+          const liveStageNames = Array.from(new Set([...activeStages, ...summaryStages]));
+          if (workflow.lifecycle === 'continuous') {
+            return liveStageNames;
+          }
+          return workflow.current_stage
+            ? [workflow.current_stage]
+            : liveStageNames;
+        }),
+      ).size,
+    [activeWorkflows],
+  );
+  const filteredStageGates = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return stageGates;
+    }
+    return stageGates.filter((gate) =>
+      `${gate.workflow_name} ${gate.workflow_id} ${gate.stage_name} ${gate.stage_goal} ${gate.gate_id}`
+        .toLowerCase()
+        .includes(normalizedQuery),
+    );
+  }, [searchQuery, stageGates]);
+  const savedViewFilters = useMemo<SavedViewFilters>(() => {
+    const filters: SavedViewFilters = {};
+    if (searchQuery) {
+      filters.q = searchQuery;
+    }
+    return filters;
+  }, [searchQuery]);
+  const needsAction =
+    filteredApprovalTasks.length +
+    filteredFailedTasks.length +
+    filteredStageGates.length +
+    filteredBlockedItems.length;
 
   const recentEvents = useMemo(() => {
     const merged = [...sseEvents, ...apiEvents];
@@ -251,18 +443,49 @@ export function LiveBoardPage(): JSX.Element {
   return (
     <div className="space-y-6 p-6">
       <h1 className="text-2xl font-semibold">Live Board</h1>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+          <Input
+            value={searchQuery}
+            onChange={(event) =>
+              setSearchParams(
+                event.target.value.trim() ? { q: event.target.value.trim() } : {},
+                { replace: true },
+              )
+            }
+            placeholder="Search workflows, work items, stages, gates, or IDs"
+            className="pl-8"
+          />
+        </div>
+        <SavedViews
+          storageKey="live-board"
+          currentFilters={savedViewFilters}
+          onApply={(filters) =>
+            setSearchParams(filters.q ? { q: filters.q } : {}, { replace: true })
+          }
+        />
+      </div>
 
       <KpiCards
-        activeWorkflows={activeWorkflows.length}
-        runningTasks={runningTasks.length}
+        activeBoards={filteredBoardEntries.length}
+        openWorkItems={openWorkItems}
+        liveStages={liveStages}
+        gateReviews={filteredStageGates.length}
         workersOnline={onlineWorkers.length}
-        containersRunning={onlineWorkers.length}
         needsAction={needsAction}
       />
 
-      <NeedsAttentionSection approvalTasks={approvalTasks} failedTasks={failedTasks} />
+      <NeedsAttentionSection
+        approvalTasks={filteredApprovalTasks}
+        failedTasks={filteredFailedTasks}
+        blockedItems={filteredBlockedItems}
+        stageGates={filteredStageGates}
+      />
 
-      <WorkflowStatusTable workflows={activeWorkflows} tasks={tasks} />
+      <ActivePlaybookBoards entries={filteredBoardEntries} />
+
+      <BoardSnapshotTable entries={filteredBoardEntries} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <FleetStatusPanel workers={workers} />
@@ -275,19 +498,22 @@ export function LiveBoardPage(): JSX.Element {
 }
 
 interface KpiCardsProps {
-  activeWorkflows: number;
-  runningTasks: number;
+  activeBoards: number;
+  openWorkItems: number;
+  liveStages: number;
+  gateReviews: number;
   workersOnline: number;
-  containersRunning: number;
   needsAction: number;
 }
 
 function KpiCards(props: KpiCardsProps): JSX.Element {
   const cards = [
-    { label: 'Active Workflows', value: props.activeWorkflows, icon: WorkflowIcon, color: 'text-blue-600' },
-    { label: 'Running Tasks', value: props.runningTasks, icon: Activity, color: 'text-green-600' },
+    { label: 'Live Boards', value: props.activeBoards, icon: WorkflowIcon, color: 'text-blue-600' },
+    { label: 'Open Work Items', value: props.openWorkItems, icon: Activity, color: 'text-green-600' },
+    { label: 'Live Stages', value: props.liveStages, icon: Cpu, color: 'text-indigo-600' },
+    { label: 'Gate Reviews', value: props.gateReviews, icon: CheckCircle2, color: 'text-amber-600' },
     { label: 'Workers Online', value: props.workersOnline, icon: Server, color: 'text-indigo-600' },
-    { label: 'Containers Running', value: props.containersRunning, icon: Container, color: 'text-purple-600' },
+    { label: 'Containers Running', value: props.workersOnline, icon: Container, color: 'text-purple-600' },
     { label: 'Cost Today', value: '$--', icon: DollarSign, color: 'text-emerald-600' },
     { label: 'Needs Action', value: props.needsAction, icon: AlertTriangle, color: props.needsAction > 0 ? 'text-amber-600' : 'text-muted' },
   ];
@@ -312,12 +538,21 @@ function KpiCards(props: KpiCardsProps): JSX.Element {
 interface NeedsAttentionProps {
   approvalTasks: TaskRecord[];
   failedTasks: TaskRecord[];
+  blockedItems: Array<{
+    workflowId: string;
+    workflowName: string;
+    workItemId: string;
+    title: string;
+    stageName: string;
+    columnId: string;
+  }>;
+  stageGates: DashboardApprovalQueueResponse['stage_gates'];
 }
 
-function NeedsAttentionSection({ approvalTasks, failedTasks }: NeedsAttentionProps): JSX.Element {
+function NeedsAttentionSection({ approvalTasks, failedTasks, blockedItems, stageGates }: NeedsAttentionProps): JSX.Element {
   const items = [...approvalTasks, ...failedTasks];
 
-  if (items.length === 0) {
+  if (items.length === 0 && stageGates.length === 0 && blockedItems.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -327,7 +562,7 @@ function NeedsAttentionSection({ approvalTasks, failedTasks }: NeedsAttentionPro
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted">No tasks require your attention right now.</p>
+          <p className="text-sm text-muted">No gates, blocked work items, or specialist-task interventions require attention right now.</p>
         </CardContent>
       </Card>
     );
@@ -338,11 +573,54 @@ function NeedsAttentionSection({ approvalTasks, failedTasks }: NeedsAttentionPro
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <AlertTriangle className="h-5 w-5 text-amber-600" />
-          Needs Your Attention ({items.length})
+          Needs Your Attention ({items.length + stageGates.length + blockedItems.length})
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
+          {stageGates.map((gate) => (
+            <div key={`${gate.workflow_id}:${gate.stage_name}`} className="flex items-center justify-between rounded-md border p-3">
+              <div className="min-w-0 flex-1">
+                <Link
+                  to={buildWorkflowDetailPermalink(gate.workflow_id, {
+                    gateStageName: gate.stage_name,
+                  })}
+                  className="truncate text-sm font-medium text-accent hover:underline"
+                >
+                  {gate.workflow_name}
+                </Link>
+                <div className="mt-1 flex items-center gap-2">
+                  <Badge variant="warning">gate review</Badge>
+                  <span className="text-xs text-muted">{gate.stage_name}</span>
+                </div>
+                <p className="mt-1 text-xs text-muted">{gate.stage_goal}</p>
+              </div>
+              <div className="ml-4 shrink-0">
+                <Button size="sm" asChild>
+                  <Link to={`/work/approvals`}>Review</Link>
+                </Button>
+              </div>
+            </div>
+          ))}
+          {blockedItems.map((item) => (
+            <div key={`${item.workflowId}:${item.title}:${item.stageName}`} className="flex items-center justify-between rounded-md border p-3">
+              <div className="min-w-0 flex-1">
+                <Link
+                  to={buildWorkflowDetailPermalink(item.workflowId, {
+                    workItemId: item.workItemId,
+                  })}
+                  className="truncate text-sm font-medium text-accent hover:underline"
+                >
+                  {item.workflowName}
+                </Link>
+                <div className="mt-1 flex items-center gap-2">
+                  <Badge variant="destructive">blocked work item</Badge>
+                  <span className="text-xs text-muted">{item.stageName}</span>
+                </div>
+                <p className="mt-1 truncate text-xs text-muted">{item.title}</p>
+              </div>
+            </div>
+          ))}
           {items.map((task) => (
             <div key={task.id} className="flex items-center justify-between rounded-md border p-3">
               <div className="min-w-0 flex-1">
@@ -375,20 +653,22 @@ function NeedsAttentionSection({ approvalTasks, failedTasks }: NeedsAttentionPro
   );
 }
 
-interface WorkflowStatusTableProps {
-  workflows: WorkflowRecord[];
-  tasks: TaskRecord[];
-}
-
-function WorkflowStatusTable({ workflows, tasks }: WorkflowStatusTableProps): JSX.Element {
-  if (workflows.length === 0) {
+function BoardSnapshotTable(props: {
+  entries: Array<{
+    workflow: WorkflowRecord;
+    board?: DashboardWorkflowBoardResponse;
+    isLoading: boolean;
+    hasError: boolean;
+  }>;
+}): JSX.Element {
+  if (props.entries.length === 0) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Workflow Status</CardTitle>
+          <CardTitle>Board Snapshot</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted">No active workflows.</p>
+          <p className="text-sm text-muted">No live boards.</p>
         </CardContent>
       </Card>
     );
@@ -397,52 +677,134 @@ function WorkflowStatusTable({ workflows, tasks }: WorkflowStatusTableProps): JS
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Workflow Status</CardTitle>
+        <CardTitle>Board Snapshot</CardTitle>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Phase</TableHead>
-              <TableHead>Progress</TableHead>
-              <TableHead>Cost</TableHead>
-              <TableHead>State</TableHead>
+              <TableHead>Board</TableHead>
+              <TableHead>Posture</TableHead>
+              <TableHead>Active Stages</TableHead>
+              <TableHead>Open Work</TableHead>
+              <TableHead>Blocked</TableHead>
+              <TableHead>Gates</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {workflows.map((wf) => {
-              const wfTasks = tasks.filter((t) => t.workflow_id === wf.id);
-              const completed = wfTasks.filter((t) => t.status === 'completed').length;
-              const total = wfTasks.length || 1;
-              const percent = Math.round((completed / total) * 100);
-              const currentPhase = wf.phases?.find((p) => p.status === 'running')?.name ?? '--';
-              const cost = wf.metrics?.total_cost_usd;
-
+            {props.entries.map(({ workflow, board, isLoading, hasError }) => {
+              const posture = resolveBoardPosture(workflow, board);
               return (
-                <TableRow key={wf.id}>
-                  <TableCell className="font-medium">{wf.name}</TableCell>
-                  <TableCell>{currentPhase}</TableCell>
+                <TableRow key={workflow.id}>
+                  <TableCell className="font-medium">
+                    <Link className="text-accent hover:underline" to={`/work/workflows/${workflow.id}`}>
+                      {workflow.name}
+                    </Link>
+                  </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-24 rounded-full bg-border/40">
-                        <div
-                          className="h-2 rounded-full bg-accent transition-all"
-                          style={{ width: `${percent}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-muted">{completed}/{total}</span>
+                    <div className="space-y-1">
+                      <Badge variant={statusBadgeVariant(posture)}>{posture}</Badge>
+                      <p className="text-xs text-muted">{describeBoardHeadline(workflow, board)}</p>
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm">{cost != null ? `$${cost.toFixed(4)}` : '--'}</TableCell>
-                  <TableCell>
-                    <Badge variant={statusBadgeVariant(wf.state ?? '')}>{wf.state ?? 'unknown'}</Badge>
-                  </TableCell>
+                  <TableCell>{describeWorkflowStage(workflow)}</TableCell>
+                  <TableCell>{isLoading ? 'Loading…' : hasError ? 'Unavailable' : countOpenBoardItems(board)}</TableCell>
+                  <TableCell>{isLoading ? 'Loading…' : hasError ? 'Unavailable' : countBlockedBoardItems(board)}</TableCell>
+                  <TableCell>{workflow.work_item_summary?.awaiting_gate_count ?? 0}</TableCell>
                 </TableRow>
               );
             })}
           </TableBody>
         </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ActivePlaybookBoards(props: {
+  entries: Array<{
+    workflow: WorkflowRecord;
+    board?: DashboardWorkflowBoardResponse;
+    isLoading: boolean;
+    hasError: boolean;
+  }>;
+}): JSX.Element {
+  if (props.entries.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Live Boards</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted">No live playbook boards.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Live Boards</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4 xl:grid-cols-2">
+          {props.entries.map(({ workflow, board, isLoading, hasError }) => {
+            const activeItems = board
+              ? board.work_items.filter((item) => {
+                  const column = board.columns.find((entry) => entry.id === item.column_id);
+                  return !column?.is_terminal;
+                })
+              : [];
+            return (
+              <div key={workflow.id} className="rounded-md border p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <Link to={`/work/workflows/${workflow.id}`} className="font-medium text-accent hover:underline">
+                      {workflow.name}
+                    </Link>
+                    <p className="text-xs text-muted">
+                      {describeWorkflowStage(workflow)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted">
+                      {describeBoardHeadline(workflow, board)}
+                    </p>
+                  </div>
+                  <Badge variant={statusBadgeVariant(resolveBoardPosture(workflow, board))}>
+                    {resolveBoardPosture(workflow, board)}
+                  </Badge>
+                </div>
+                {isLoading ? <p className="mt-3 text-sm text-muted">Loading board...</p> : null}
+                {hasError ? <p className="mt-3 text-sm text-red-600">Failed to load board.</p> : null}
+                {!isLoading && !hasError ? (
+                  <div className="mt-3 space-y-2">
+                    {activeItems.slice(0, 6).map((item) => (
+                      <div key={item.id} className="rounded-md border border-border/60 bg-muted/10 p-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <Link
+                            to={buildWorkflowDetailPermalink(workflow.id, { workItemId: item.id })}
+                            className="truncate text-sm font-medium text-accent hover:underline"
+                          >
+                            {item.title}
+                          </Link>
+                          <Badge variant="outline">{item.column_id}</Badge>
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted">
+                          <span>{item.stage_name}</span>
+                          {item.task_count !== undefined ? <span>{item.task_count} specialist tasks</span> : null}
+                          <span>{item.priority}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {activeItems.length === 0 ? (
+                      <p className="text-sm text-muted">No active work items outside terminal columns.</p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
       </CardContent>
     </Card>
   );
@@ -495,7 +857,7 @@ function ThroughputChart({ data }: ThroughputChartProps): JSX.Element {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Task Throughput (24h)</CardTitle>
+        <CardTitle>Specialist Task Throughput (24h)</CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={220}>

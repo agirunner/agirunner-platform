@@ -18,6 +18,7 @@ const registerSchema = z.object({
       z.object({
         name: z.string().min(1).max(200),
         capabilities: z.array(z.string().min(1)).default([]),
+        execution_mode: z.enum(['specialist', 'orchestrator', 'hybrid']).optional(),
         metadata: z.record(z.unknown()).optional(),
       }),
     )
@@ -41,6 +42,7 @@ const nextTaskSchema = z.object({
   agent_id: z.string().uuid().optional(),
   capabilities: z.array(z.string().min(1)).optional(),
   workflow_id: z.string().uuid().optional(),
+  playbook_id: z.string().uuid().optional(),
   include_context: z.boolean().optional(),
 });
 
@@ -133,6 +135,7 @@ export const workerRoutes: FastifyPluginAsync = async (app) => {
           ? worker.capabilities.map((capability: unknown) => String(capability))
           : []),
       workflow_id: body.workflow_id,
+      playbook_id: body.playbook_id,
       include_context: body.include_context,
     });
 

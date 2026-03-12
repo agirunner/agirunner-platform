@@ -10,8 +10,21 @@ function createClient() {
     claimTask: vi.fn().mockResolvedValue({ id: 'task-claimed' }),
     completeTask: vi.fn().mockResolvedValue({ id: 'task-completed' }),
     listWorkflows: vi.fn().mockResolvedValue([{ id: 'pipe-1' }]),
+    getWorkflow: vi.fn().mockResolvedValue({ id: 'pipe-1' }),
     createWorkflow: vi.fn().mockResolvedValue({ id: 'pipe-created' }),
     cancelWorkflow: vi.fn().mockResolvedValue({ id: 'pipe-cancelled' }),
+    getWorkflowBoard: vi.fn().mockResolvedValue({ columns: [], work_items: [], stage_summary: [] }),
+    listWorkflowStages: vi.fn().mockResolvedValue([]),
+    listWorkflowWorkItems: vi.fn().mockResolvedValue([]),
+    getWorkflowWorkItem: vi.fn().mockResolvedValue({ id: 'wi-1' }),
+    listWorkflowActivations: vi.fn().mockResolvedValue([]),
+    createWorkflowWorkItem: vi.fn().mockResolvedValue({ id: 'wi-1' }),
+    updateWorkflowWorkItem: vi.fn().mockResolvedValue({ id: 'wi-1' }),
+    actOnStageGate: vi.fn().mockResolvedValue({ id: 'pipe-1' }),
+    listPlaybooks: vi.fn().mockResolvedValue([{ id: 'pb-1' }]),
+    getPlaybook: vi.fn().mockResolvedValue({ id: 'pb-1' }),
+    createPlaybook: vi.fn().mockResolvedValue({ id: 'pb-created' }),
+    getApprovalQueue: vi.fn().mockResolvedValue({ task_approvals: [], stage_gates: [] }),
   };
 }
 
@@ -21,7 +34,11 @@ describe('McpStdioServer', () => {
   });
 
   it('lists tools via tools/list', async () => {
-    const response = await new McpStdioServer(createClient() as never).handle({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
+    const response = await new McpStdioServer(createClient() as never).handle({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/list',
+    });
     expect(response.error).toBeUndefined();
     expect((response.result as { tools: unknown[] }).tools.length).toBeGreaterThan(0);
   });
@@ -30,11 +47,60 @@ describe('McpStdioServer', () => {
     { name: 'list_tasks', args: { state: 'ready' }, method: 'listTasks' },
     { name: 'get_task', args: { id: 'task-1' }, method: 'getTask' },
     { name: 'create_task', args: { title: 'Do work', type: 'code' }, method: 'createTask' },
-    { name: 'claim_task', args: { agent_id: 'agent-1', capabilities: ['ts'] }, method: 'claimTask' },
+    {
+      name: 'claim_task',
+      args: { agent_id: 'agent-1', capabilities: ['ts'] },
+      method: 'claimTask',
+    },
     { name: 'complete_task', args: { id: 'task-1', output: { ok: true } }, method: 'completeTask' },
     { name: 'list_workflows', args: { state: 'active' }, method: 'listWorkflows' },
-    { name: 'create_workflow', args: { template_id: 'tpl-1', name: 'Pipe' }, method: 'createWorkflow' },
+    { name: 'get_workflow', args: { id: 'pipe-1' }, method: 'getWorkflow' },
+    {
+      name: 'create_workflow',
+      args: { playbook_id: 'pb-1', name: 'Pipe' },
+      method: 'createWorkflow',
+    },
     { name: 'cancel_workflow', args: { id: 'pipe-1' }, method: 'cancelWorkflow' },
+    { name: 'get_workflow_board', args: { workflow_id: 'pipe-1' }, method: 'getWorkflowBoard' },
+    { name: 'list_workflow_stages', args: { workflow_id: 'pipe-1' }, method: 'listWorkflowStages' },
+    {
+      name: 'list_workflow_work_items',
+      args: { workflow_id: 'pipe-1' },
+      method: 'listWorkflowWorkItems',
+    },
+    {
+      name: 'get_workflow_work_item',
+      args: { workflow_id: 'pipe-1', work_item_id: 'wi-1' },
+      method: 'getWorkflowWorkItem',
+    },
+    {
+      name: 'list_workflow_activations',
+      args: { workflow_id: 'pipe-1' },
+      method: 'listWorkflowActivations',
+    },
+    {
+      name: 'create_workflow_work_item',
+      args: { workflow_id: 'pipe-1', title: 'Investigate' },
+      method: 'createWorkflowWorkItem',
+    },
+    {
+      name: 'update_workflow_work_item',
+      args: { workflow_id: 'pipe-1', work_item_id: 'wi-1', priority: 'high' },
+      method: 'updateWorkflowWorkItem',
+    },
+    {
+      name: 'act_on_stage_gate',
+      args: { workflow_id: 'pipe-1', stage_name: 'review', action: 'approve' },
+      method: 'actOnStageGate',
+    },
+    { name: 'list_playbooks', args: {}, method: 'listPlaybooks' },
+    { name: 'get_playbook', args: { id: 'pb-1' }, method: 'getPlaybook' },
+    {
+      name: 'create_playbook',
+      args: { name: 'Ship', outcome: 'Ship', definition: {} },
+      method: 'createPlaybook',
+    },
+    { name: 'get_approval_queue', args: {}, method: 'getApprovalQueue' },
   ])('executes %s handler and returns structured content', async ({ name, args, method }) => {
     const client = createClient();
     const server = new McpStdioServer(client as never);
@@ -59,19 +125,26 @@ describe('McpStdioServer', () => {
     { name: 'create_task', args: { type: 'code' }, missing: 'title' },
     { name: 'claim_task', args: {}, missing: 'agent_id' },
     { name: 'complete_task', args: { output: {} }, missing: 'id' },
-    { name: 'create_workflow', args: { template_id: 'tpl-1' }, missing: 'name' },
+    { name: 'create_workflow', args: { playbook_id: 'pb-1' }, missing: 'name' },
     { name: 'cancel_workflow', args: {}, missing: 'id' },
-  ])('returns invalid params for %s when required params are missing', async ({ name, args, missing }) => {
-    const response = await new McpStdioServer(createClient() as never).handle({
-      jsonrpc: '2.0',
-      id: 3,
-      method: 'tools/call',
-      params: { name, arguments: args },
-    });
+    { name: 'create_workflow_work_item', args: { workflow_id: 'pipe-1' }, missing: 'title' },
+    { name: 'update_workflow_work_item', args: { workflow_id: 'pipe-1' }, missing: 'work_item_id' },
+    { name: 'act_on_stage_gate', args: { workflow_id: 'pipe-1' }, missing: 'stage_name' },
+    { name: 'create_playbook', args: { name: 'Ship' }, missing: 'outcome' },
+  ])(
+    'returns invalid params for %s when required params are missing',
+    async ({ name, args, missing }) => {
+      const response = await new McpStdioServer(createClient() as never).handle({
+        jsonrpc: '2.0',
+        id: 3,
+        method: 'tools/call',
+        params: { name, arguments: args },
+      });
 
-    expect(response.error?.code).toBe(-32602);
-    expect(response.error?.message).toContain(missing);
-  });
+      expect(response.error?.code).toBe(-32602);
+      expect(response.error?.message).toContain(missing);
+    },
+  );
 
   it.each([
     { tool: 'get_task', args: { id: 'missing' }, error: 'HTTP 404: not found' },
@@ -101,7 +174,11 @@ describe('McpStdioServer', () => {
   });
 
   it('returns method not found for unknown methods', async () => {
-    const response = await new McpStdioServer(createClient() as never).handle({ jsonrpc: '2.0', id: 5, method: 'nope' });
+    const response = await new McpStdioServer(createClient() as never).handle({
+      jsonrpc: '2.0',
+      id: 5,
+      method: 'nope',
+    });
     expect(response.error?.code).toBe(-32601);
   });
 
@@ -145,13 +222,10 @@ describe('McpStdioServer', () => {
     vi.useFakeTimers();
 
     const malformedSpy = vi.fn();
-    const processor = createMessageProcessor(
-      async () => {
-        await new Promise((resolve) => setTimeout(resolve, 5));
-        throw new Error('boom');
-      },
-      malformedSpy,
-    );
+    const processor = createMessageProcessor(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      throw new Error('boom');
+    }, malformedSpy);
     const validBody = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
 
     processor(Buffer.from(`Content-Length: ${validBody.length}\r\n\r\n${validBody}`));

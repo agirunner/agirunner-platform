@@ -55,11 +55,11 @@ func (m *Manager) listAllDCMContainers(ctx context.Context) ([]ContainerInfo, er
 	return dcm, nil
 }
 
-// buildTargetMap creates a lookup from template ID to RuntimeTarget.
+// buildTargetMap creates a lookup from playbook/pool target key to RuntimeTarget.
 func buildTargetMap(targets []RuntimeTarget) map[string]RuntimeTarget {
 	m := make(map[string]RuntimeTarget, len(targets))
 	for _, t := range targets {
-		m[t.TemplateID] = t
+		m[t.TargetKey()] = t
 	}
 	return m
 }
@@ -75,25 +75,28 @@ func (m *Manager) adoptOrRemoveRuntimes(
 		if c.Labels[labelDCMTier] != tierRuntime {
 			continue
 		}
-		templateID := c.Labels[labelDCMTemplateID]
-		if _, hasTarget := targetMap[templateID]; hasTarget {
-			m.logger.Info("startup: adopting runtime", "container", c.ID, "template", templateID)
+		playbookID := c.Labels[labelDCMPlaybookID]
+		poolKind := normalizePoolKind(c.Labels[labelDCMPoolKind])
+		if _, hasTarget := targetMap[containerTargetKey(c)]; hasTarget {
+			m.logger.Info("startup: adopting runtime", "container", c.ID, "playbook_id", playbookID, "pool_kind", poolKind)
 			m.emitLog("container", "lifecycle.startup_adopt", "debug", "completed", map[string]any{
 				"action":       "adopt",
 				"container_id": c.ID,
-				"template_id":  templateID,
+				"playbook_id":  playbookID,
+				"pool_kind":    poolKind,
 				"runtime_id":   c.Labels[labelDCMRuntimeID],
 			})
 			adopted++
 			continue
 		}
 		gracePeriod := gracePeriodForContainer(c)
-		m.logger.Info("startup: removing stale runtime", "container", c.ID, "template", templateID)
+		m.logger.Info("startup: removing stale runtime", "container", c.ID, "playbook_id", playbookID, "pool_kind", poolKind)
 		m.stopAndRemove(ctx, c.ID, gracePeriod)
 		m.emitLog("container", "lifecycle.startup_remove", "debug", "completed", map[string]any{
 			"action":       "orphan_clean",
 			"container_id": c.ID,
-			"template_id":  templateID,
+			"playbook_id":  playbookID,
+			"pool_kind":    poolKind,
 			"reason":       "no_matching_target",
 		})
 		removed++
@@ -114,6 +117,10 @@ func gracePeriodForContainer(c ContainerInfo) time.Duration {
 		return time.Duration(defaultGracePeriodSeconds) * time.Second
 	}
 	return time.Duration(seconds) * time.Second
+}
+
+func containerTargetKey(c ContainerInfo) string {
+	return runtimeTargetKey(c.Labels[labelDCMPlaybookID], c.Labels[labelDCMPoolKind])
 }
 
 // removeOrphanTasksOnStartup destroys task containers with dead parent runtimes.

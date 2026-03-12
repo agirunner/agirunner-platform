@@ -6,7 +6,12 @@ export interface CreateTaskInput {
   description?: string;
   priority?: string;
   workflow_id?: string;
+  work_item_id?: string;
   project_id?: string;
+  stage_name?: string;
+  activation_id?: string;
+  request_id?: string;
+  is_orchestrator_task?: boolean;
   parent_id?: string;
   role?: string;
   input?: Record<string, unknown>;
@@ -34,14 +39,32 @@ export interface ListTaskQuery {
   assigned_agent_id?: string;
   parent_id?: string;
   workflow_id?: string;
+  work_item_id?: string;
+  stage_name?: string;
+  activation_id?: string;
+  is_orchestrator_task?: boolean;
   page: number;
   per_page: number;
 }
 
-export type TaskServiceConfig = Pick<
-  AppEnv,
-  'TASK_DEFAULT_TIMEOUT_MINUTES'
-> &
+export type PublicTaskState =
+  | 'pending'
+  | 'ready'
+  | 'claimed'
+  | 'in_progress'
+  | 'awaiting_approval'
+  | 'output_pending_review'
+  | 'escalated'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
+
+export type AcceptedTaskStateFilter = PublicTaskState | 'running' | 'awaiting_escalation';
+
+export type TaskServiceConfig = Pick<AppEnv, 'TASK_DEFAULT_TIMEOUT_MINUTES'> &
+  Partial<
+    Pick<AppEnv, 'WORKFLOW_ACTIVATION_DELAY_MS' | 'WORKFLOW_ACTIVATION_STALE_AFTER_MS'>
+  > &
   Partial<Pick<AppEnv, 'TASK_MAX_SUBTASK_DEPTH' | 'TASK_MAX_SUBTASKS_PER_PARENT'>> &
   Partial<Pick<AppEnv, 'ARTIFACT_ACCESS_URL_TTL_SECONDS'>> & {
     TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS?: number;

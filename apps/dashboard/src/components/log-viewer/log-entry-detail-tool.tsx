@@ -9,7 +9,9 @@ function field(payload: Record<string, unknown>, key: string): string {
 }
 
 const META_FIELDS: readonly { label: string; key: string }[] = [
-  { label: 'Phase', key: 'phase' },
+  { label: 'Stage', key: 'stage_name' },
+  { label: 'Work Item ID', key: 'work_item_id' },
+  { label: 'Activation ID', key: 'activation_id' },
   { label: 'Iteration', key: 'iteration' },
   { label: 'Step', key: 'step_index' },
   { label: 'Exit Code', key: 'exit_code' },
@@ -49,9 +51,10 @@ export function LogEntryDetailTool({ payload }: { payload: Record<string, unknow
   const [isCopied, setIsCopied] = useState(false);
   const invocation = buildFullInvocation(payload);
   const output = resolveOutput(payload);
-  const stderrPreview = typeof payload.stderr_preview === 'string' && payload.stderr_preview.length > 0
-    ? payload.stderr_preview
-    : null;
+  const stderrPreview =
+    typeof payload.stderr_preview === 'string' && payload.stderr_preview.length > 0
+      ? payload.stderr_preview
+      : null;
   const isTimedOut = payload.timed_out === true;
 
   function handleCopyOutput(): void {

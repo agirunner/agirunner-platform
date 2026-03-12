@@ -15,14 +15,14 @@
  * FR-156:  Dashboard tenant-scoped
  * FR-213:  Dashboard task injection
  * FR-299:  Worker status in dashboard
- * FR-420:  Template browser
+ * FR-420:  Playbook browser
  * FR-423:  Workflow status view with dependency graph
  * FR-424:  Workflow launch form
  * FR-425:  Worker management view
  * FR-426:  API key management
  * FR-427:  Dashboard navigation and layout
  * FR-429:  Workflow list view with filters
- * FR-717:  Dashboard renders phases as swimlanes
+ * FR-717:  Dashboard renders workflow stages and board state
  * FR-755:  Quickstart docs for 15-min first workflow
  * FR-RT-1620..1625: Guided runtime customization in existing dashboard
  */
@@ -73,8 +73,10 @@ describe('FR-030: modern SPA structure', () => {
     const source = readComponent('app/app.tsx');
     expect(source).toContain('/mission-control');
     expect(source).toContain('/work/workflows');
+    expect(source).toContain('/artifacts/tasks/:taskId/:artifactId');
     expect(source).toContain('/projects');
-    expect(source).toContain('/config/templates');
+    expect(source).toContain('/config/playbooks');
+    expect(source).not.toContain('/config/templates');
     expect(source).toContain('/fleet/workers');
     expect(source).toContain('/governance/api-keys');
     expect(source).toContain('/login');
@@ -113,9 +115,10 @@ describe('FR-032: workflow list view', () => {
     expect(source).toContain('export function WorkflowListPage');
   });
 
-  it('workflow-list-page renders workflow state column for board-like filtering', () => {
+  it('workflow-list-page keeps workflow state only as a fallback signal', () => {
     const source = readComponent('pages/workflow-list-page.tsx');
-    expect(source).toContain('.state');
+    expect(source).toContain('Delivery Posture Fallback');
+    expect(source).toContain('describeDeliveryPostureLabel');
   });
 
   it('workflow-list-page includes AI planning launch controls', () => {
@@ -123,6 +126,7 @@ describe('FR-032: workflow list view', () => {
     expect(source).toContain('Start With AI Planning');
     expect(source).toContain('createPlanningWorkflow');
     expect(source).toContain('listProjects');
+    expect(source).not.toContain('phase-gated');
   });
 });
 
@@ -150,6 +154,7 @@ describe('FR-033 / FR-034 / FR-035 / FR-035a / FR-036 / FR-213: task detail page
     const source = readComponent('pages/task-detail-page.tsx');
     expect(source).toContain('StructuredRecordView');
     expect(source).toContain('Execution Summary');
+    expect(source).toContain('Operator Actions');
   });
 
   it('task-detail-page surfaces clarification and rework details beyond raw JSON', () => {
@@ -158,20 +163,22 @@ describe('FR-033 / FR-034 / FR-035 / FR-035a / FR-036 / FR-213: task detail page
     expect(source).toContain('Escalation Response');
     expect(source).toContain('readClarificationHistory');
     expect(source).toContain('readReworkDetails');
+    expect(source).toContain('normalizeTaskState');
   });
 
   it('task-detail-page exposes produced artifact inspection links', () => {
-    const source = readComponent('pages/task-detail-page.tsx');
-    expect(source).toContain('Task Artifacts');
+    const source = readComponent('pages/work/task-detail-page.tsx');
+    expect(source).toContain('Artifacts');
     expect(source).toContain('listTaskArtifacts');
-    expect(source).toContain('Download artifact');
+    expect(source).toContain('Preview');
+    expect(source).toContain('buildArtifactPermalink');
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FR-036a: Workflow detail views
 // FR-423: Workflow status view with dependency graph
-// FR-717: Dashboard renders phases as swimlanes
+// FR-717: Dashboard renders playbook-oriented workflow detail
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-036a / FR-423 / FR-717: workflow detail and dependency graph', () => {
   it('workflow-detail-page exports WorkflowDetailPage component', () => {
@@ -190,13 +197,15 @@ describe('FR-036a / FR-423 / FR-717: workflow detail and dependency graph', () =
     expect(source).toContain('.state');
   });
 
-  it('workflow-detail-page exposes workflow swimlanes, phase gate actions, resolved config, and project timeline', () => {
+  it('workflow-detail-page exposes playbook board state, resolved config, and project timeline', () => {
     const source = `${readComponent('pages/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail-sections.tsx')}`;
-    expect(source).toContain('Workflow Swimlanes');
-    expect(source).toContain('actOnPhaseGate');
-    expect(source).toContain('cancelPhase');
+    expect(source).toContain('Create Work Item');
+    expect(source).toContain('Live stages');
+    expect(source).toContain('Activation Queue');
     expect(source).toContain('Resolved Config');
     expect(source).toContain('Project Timeline');
+    expect(source).not.toContain('Manual Rework');
+    expect(source).not.toContain('readWorkflowPhases');
   });
 
   it('workflow-detail-page exposes workflow documents and project memory controls', () => {
@@ -238,15 +247,15 @@ describe('FR-156: dashboard is tenant-scoped', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FR-420: Template browser
+// FR-420: Playbook browser
 // FR-424: Workflow launch form
 // FR-426: API key management
 // ─────────────────────────────────────────────────────────────────────────────
-describe('FR-420 / FR-424 / FR-426: template browser, workflow launch, API key management', () => {
-  it('api layer exposes template browsing and workflow launch methods', () => {
+describe('FR-420 / FR-424 / FR-426: playbook browser, workflow launch, API key management', () => {
+  it('api layer exposes playbook browsing and workflow launch methods', () => {
     const source = readComponent('lib/api.ts');
     expect(source).toContain('listWorkflows');
-    expect(source).toContain('listTemplates');
+    expect(source).toContain('listPlaybooks');
     expect(source).toContain('getWorkflow');
     expect(source).toContain('createWorkflow');
   });
@@ -282,11 +291,12 @@ describe('FR-420 / FR-424 / FR-426: template browser, workflow launch, API key m
     expect(session?.tenantId).toBe('tenant-1');
   });
 
-  it('template browser page renders template browsing and launch controls', () => {
-    const source = readComponent('pages/template-browser-page.tsx');
-    expect(source).toContain('Loading templates');
-    expect(source).toContain('Launch Workflow');
-    expect(source).toContain('dashboardApi.createWorkflow');
+  it('app and layout no longer expose template-era configuration routes', () => {
+    const appSource = readComponent('app/app.tsx');
+    const layoutSource = readComponent('components/layout.tsx');
+    expect(appSource).toContain('/config/playbooks');
+    expect(appSource).not.toContain('/config/templates');
+    expect(layoutSource).not.toContain('Templates (Legacy)');
   });
 });
 
@@ -367,11 +377,10 @@ describe('operator information architecture', () => {
 // FR-429: Workflow list view with filters
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-429: workflow list view with filters', () => {
-  it('workflow-list-page renders the workflow table with state-based filtering capability', () => {
+  it('workflow-list-page renders the workflow table with fallback state filtering capability', () => {
     const source = readComponent('pages/workflow-list-page.tsx');
     expect(source).toContain('WorkflowListPage');
-    // State column enables client-side filtering
-    expect(source).toContain('state');
+    expect(source).toContain('Delivery Posture Fallback');
   });
 
   it('listTasks API supports workflow_id filter for scoped task view', () => {

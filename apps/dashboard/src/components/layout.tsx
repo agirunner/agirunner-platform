@@ -84,7 +84,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Configuration',
     icon: Cog,
     items: [
-      { label: 'Templates', href: '/config/templates', icon: FileText },
+      { label: 'Playbooks', href: '/config/playbooks', icon: Workflow },
       { label: 'Role Definitions', href: '/config/roles', icon: Users },
       { label: 'Platform Instructions', href: '/config/instructions', icon: ScrollText },
       { label: 'LLM Providers', href: '/config/llm', icon: Cog },
@@ -93,7 +93,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Runtime Defaults', href: '/config/runtime-defaults', icon: Settings2 },
       { label: 'Tools', href: '/config/tools', icon: Wrench },
       { label: 'Webhooks', href: '/config/webhooks', icon: Webhook },
-      { label: 'Task Triggers', href: '/config/task-triggers', icon: Zap },
+      { label: 'Trigger Overview', href: '/config/triggers', icon: Zap },
       { label: 'AI Assistant', href: '/config/assistant', icon: Sparkles },
     ],
   },

@@ -11,6 +11,7 @@ export const workerDesiredState = pgTable(
       .references(() => tenants.id),
     workerName: text('worker_name').notNull(),
     role: text('role').notNull(),
+    poolKind: text('pool_kind').notNull().default('specialist'),
     runtimeImage: text('runtime_image').notNull(),
     cpuLimit: text('cpu_limit').notNull().default('2'),
     memoryLimit: text('memory_limit').notNull().default('2g'),
@@ -28,5 +29,8 @@ export const workerDesiredState = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     updatedBy: uuid('updated_by'),
   },
-  (table) => [index('idx_worker_desired_state_tenant').on(table.tenantId)],
+  (table) => [
+    index('idx_worker_desired_state_tenant').on(table.tenantId),
+    index('idx_worker_desired_state_tenant_pool').on(table.tenantId, table.poolKind),
+  ],
 );

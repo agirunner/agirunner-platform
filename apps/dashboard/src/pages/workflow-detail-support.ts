@@ -3,23 +3,18 @@ export interface DashboardWorkflowTaskRow {
   title: string;
   state: string;
   depends_on: string[];
+  work_item_id?: string | null;
+  role?: string | null;
+  stage_name?: string | null;
   created_at?: string;
+  completed_at?: string | null;
   metadata?: Record<string, unknown>;
-}
-
-export interface DashboardWorkflowPhaseRow {
-  name: string;
-  status: string;
-  gate: string;
-  gate_status: string;
-  completed_tasks: number;
-  total_tasks: number;
 }
 
 export interface MissionControlSummary {
   total: number;
   ready: number;
-  running: number;
+  in_progress: number;
   blocked: number;
   completed: number;
   failed: number;
@@ -30,22 +25,9 @@ export interface DashboardProjectMemoryEntry {
   value: unknown;
 }
 
-export interface DashboardPhaseActionDraft {
-  feedback: string;
-  overrideInput: string;
-  overrideError: string | null;
-}
-
-const DEFAULT_PHASE_FEEDBACK = 'Clarify the current phase requirements.';
-const DEFAULT_PHASE_OVERRIDE_INPUT = '{\n  "clarification_answers": {}\n}';
-
 export function readWorkflowProjectId(workflow: unknown): string | undefined {
   const record = asRecord(workflow);
   return readNonEmptyString(record.project_id);
-}
-
-export function readWorkflowCurrentPhase(workflow: unknown): string | undefined {
-  return readNonEmptyString(asRecord(workflow).current_phase);
 }
 
 export function readWorkflowRunSummary(workflow: unknown): Record<string, unknown> | undefined {
@@ -53,62 +35,31 @@ export function readWorkflowRunSummary(workflow: unknown): Record<string, unknow
   return asRecord(metadata.run_summary ?? metadata.timeline_summary);
 }
 
-export function readWorkflowPhases(workflow: unknown): DashboardWorkflowPhaseRow[] {
-  const phases = asArray(asRecord(workflow).phases);
-  return phases.map((phase) => {
-    const record = asRecord(phase);
-    const progress = asRecord(record.progress);
-    return {
-      name: readNonEmptyString(record.name) ?? 'unnamed',
-      status: readNonEmptyString(record.status) ?? 'pending',
-      gate: readNonEmptyString(record.gate) ?? 'none',
-      gate_status: readNonEmptyString(record.gate_status) ?? 'none',
-      completed_tasks: readNumber(progress.completed_tasks),
-      total_tasks: readNumber(progress.total_tasks),
-    };
-  });
-}
-
-export function groupTasksByPhase(
+export function groupTasksByStage(
   tasks: DashboardWorkflowTaskRow[],
-  phases: DashboardWorkflowPhaseRow[],
+  stageNames: string[],
 ) {
   const buckets = new Map<string, DashboardWorkflowTaskRow[]>();
-  for (const phase of phases) {
-    buckets.set(phase.name, []);
+  for (const stageName of stageNames) {
+    if (!buckets.has(stageName)) {
+      buckets.set(stageName, []);
+    }
   }
 
   for (const task of tasks) {
-    const phaseName = readNonEmptyString(asRecord(task.metadata).workflow_phase) ?? 'unassigned';
-    const existing = buckets.get(phaseName);
+    const stageName = readNonEmptyString(task.stage_name) ?? 'unassigned';
+    const existing = buckets.get(stageName);
     if (existing) {
       existing.push(task);
       continue;
     }
-    buckets.set(phaseName, [task]);
+    buckets.set(stageName, [task]);
   }
 
-  return Array.from(buckets.entries()).map(([phaseName, phaseTasks]) => ({
-    phaseName,
-    tasks: phaseTasks,
+  return Array.from(buckets.entries()).map(([stageName, stageTasks]) => ({
+    stageName,
+    tasks: stageTasks,
   }));
-}
-
-export function parseOverrideInput(value: string) {
-  const normalized = value.trim();
-  if (normalized.length === 0) {
-    return { value: undefined, error: undefined };
-  }
-
-  try {
-    const parsed = JSON.parse(normalized);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return { value: undefined, error: 'Override input must be a JSON object.' };
-    }
-    return { value: parsed as Record<string, unknown>, error: undefined };
-  } catch {
-    return { value: undefined, error: 'Override input must be valid JSON.' };
-  }
 }
 
 export function parseMemoryValue(value: string) {
@@ -130,31 +81,6 @@ export function readProjectMemoryEntries(project: unknown): DashboardProjectMemo
     .sort((left, right) => left.key.localeCompare(right.key));
 }
 
-export function readPhaseActionDraft(
-  drafts: Record<string, DashboardPhaseActionDraft>,
-  phaseName: string,
-): DashboardPhaseActionDraft {
-  return drafts[phaseName] ?? {
-    feedback: DEFAULT_PHASE_FEEDBACK,
-    overrideInput: DEFAULT_PHASE_OVERRIDE_INPUT,
-    overrideError: null,
-  };
-}
-
-export function updatePhaseActionDraft(
-  drafts: Record<string, DashboardPhaseActionDraft>,
-  phaseName: string,
-  updates: Partial<DashboardPhaseActionDraft>,
-): Record<string, DashboardPhaseActionDraft> {
-  return {
-    ...drafts,
-    [phaseName]: {
-      ...readPhaseActionDraft(drafts, phaseName),
-      ...updates,
-    },
-  };
-}
-
 export function shouldInvalidateWorkflowRealtimeEvent(
   eventType: string,
   workflowId: string,
@@ -166,6 +92,9 @@ export function shouldInvalidateWorkflowRealtimeEvent(
   if (eventType.startsWith('workflow.')) {
     return resolveWorkflowEventWorkflowId(payload) === workflowId;
   }
+  if (eventType.startsWith('work_item.')) {
+    return resolveWorkflowEventWorkflowId(payload) === workflowId;
+  }
   if (eventType.startsWith('task.')) {
     return resolveTaskEventWorkflowId(payload) === workflowId;
   }
@@ -175,20 +104,28 @@ export function shouldInvalidateWorkflowRealtimeEvent(
 export function summarizeTasks(tasks: Array<{ state: string }>): MissionControlSummary {
   return tasks.reduce<MissionControlSummary>(
     (acc, task) => {
+      const state = normalizeTaskState(task.state);
       acc.total += 1;
-      if (task.state === 'ready') acc.ready += 1;
-      else if (task.state === 'running') acc.running += 1;
-      else if (task.state === 'blocked' || task.state === 'awaiting_approval') acc.blocked += 1;
-      else if (task.state === 'completed') acc.completed += 1;
-      else if (task.state === 'failed' || task.state === 'cancelled') acc.failed += 1;
+      if (state === 'ready') acc.ready += 1;
+      else if (state === 'in_progress') acc.in_progress += 1;
+      else if (
+        state === 'blocked'
+        || state === 'awaiting_approval'
+        || state === 'output_pending_review'
+        || state === 'escalated'
+      ) acc.blocked += 1;
+      else if (state === 'completed') acc.completed += 1;
+      else if (state === 'failed' || state === 'cancelled') acc.failed += 1;
       return acc;
     },
-    { total: 0, ready: 0, running: 0, blocked: 0, completed: 0, failed: 0 },
+    { total: 0, ready: 0, in_progress: 0, blocked: 0, completed: 0, failed: 0 },
   );
 }
 
-function asArray(value: unknown) {
-  return Array.isArray(value) ? value : [];
+function normalizeTaskState(state: string): string {
+  if (state === 'running' || state === 'claimed') return 'in_progress';
+  if (state === 'awaiting_escalation') return 'escalated';
+  return state;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -199,10 +136,6 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function readNonEmptyString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
-}
-
-function readNumber(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
 function readWorkflowIdFromData(data: Record<string, unknown> | undefined): string | undefined {

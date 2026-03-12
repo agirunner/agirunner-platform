@@ -25,7 +25,9 @@ func sortTargetsByPriority(targets []RuntimeTarget) []RuntimeTarget {
 // preemptionCandidate identifies a lower-priority idle runtime that can be preempted.
 type preemptionCandidate struct {
 	Container  ContainerInfo
-	TemplateID string
+	PlaybookID string
+	PoolKind   string
+	TargetKey  string
 	Priority   int
 }
 
@@ -36,8 +38,8 @@ func findPreemptionCandidates(
 	minPriority int,
 ) []preemptionCandidate {
 	var candidates []preemptionCandidate
-	for tmplID, containers := range grouped {
-		target, ok := targetMap[tmplID]
+	for targetKey, containers := range grouped {
+		target, ok := targetMap[targetKey]
 		if !ok || target.Priority >= minPriority {
 			continue
 		}
@@ -47,7 +49,9 @@ func findPreemptionCandidates(
 			}
 			candidates = append(candidates, preemptionCandidate{
 				Container:  c,
-				TemplateID: tmplID,
+				PlaybookID: target.PlaybookID,
+				PoolKind:   target.PoolKind,
+				TargetKey:  targetKey,
 				Priority:   target.Priority,
 			})
 		}
@@ -73,7 +77,7 @@ func planPreemptions(
 ) []preemptionPlan {
 	fullMap := make(map[string]RuntimeTarget, len(allTargets))
 	for _, t := range allTargets {
-		fullMap[t.TemplateID] = t
+		fullMap[t.TargetKey()] = t
 	}
 
 	sorted := sortTargetsByPriority(beneficiaries)
@@ -83,7 +87,7 @@ func planPreemptions(
 		if target.PendingTasks <= 0 {
 			continue
 		}
-		running := len(grouped[target.TemplateID])
+		running := len(grouped[target.TargetKey()])
 		if running >= target.MaxRuntimes {
 			continue
 		}
@@ -108,9 +112,11 @@ func computeNeeded(target RuntimeTarget, running int) int {
 
 // preemptionPlan describes a single preemption: stop victim, create for beneficiary.
 type preemptionPlan struct {
-	VictimContainerID    string
-	VictimTemplateID     string
-	BeneficiaryTemplate  RuntimeTarget
+	VictimContainerID   string
+	VictimPlaybookID    string
+	VictimPoolKind      string
+	VictimTargetKey     string
+	BeneficiaryTemplate RuntimeTarget
 }
 
 // buildPreemptionPlan creates preemption plans for a target from available candidates.
@@ -123,7 +129,9 @@ func buildPreemptionPlan(
 	for i := 0; i < len(candidates) && len(plans) < needed; i++ {
 		plans = append(plans, preemptionPlan{
 			VictimContainerID:   candidates[i].Container.ID,
-			VictimTemplateID:    candidates[i].TemplateID,
+			VictimPlaybookID:    candidates[i].PlaybookID,
+			VictimPoolKind:      candidates[i].PoolKind,
+			VictimTargetKey:     candidates[i].TargetKey,
 			BeneficiaryTemplate: target,
 		})
 	}

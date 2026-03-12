@@ -4,32 +4,44 @@ export const taskStates = [
   'pending',
   'ready',
   'claimed',
-  'running',
+  'in_progress',
   'awaiting_approval',
   'output_pending_review',
-  'awaiting_escalation',
+  'escalated',
   'completed',
   'failed',
   'cancelled',
 ] as const;
 
-export type TaskState = (typeof taskStates)[number];
+export type CanonicalTaskState = (typeof taskStates)[number];
+export type LegacyTaskStateAlias = 'running' | 'awaiting_escalation';
+export type TaskState = CanonicalTaskState | LegacyTaskStateAlias;
 
-const transitionTable: Record<TaskState, ReadonlySet<TaskState>> = {
+const legacyTaskStateAliases: Record<LegacyTaskStateAlias, CanonicalTaskState> = {
+  running: 'in_progress',
+  awaiting_escalation: 'escalated',
+};
+
+const transitionTable: Record<CanonicalTaskState, ReadonlySet<CanonicalTaskState>> = {
   pending: new Set(['ready', 'awaiting_approval', 'cancelled']),
   ready: new Set(['claimed', 'cancelled']),
-  claimed: new Set(['running', 'cancelled']),
-  running: new Set(['completed', 'failed', 'output_pending_review', 'awaiting_escalation', 'cancelled']),
+  claimed: new Set(['in_progress', 'cancelled']),
+  in_progress: new Set(['completed', 'failed', 'output_pending_review', 'escalated', 'cancelled']),
   awaiting_approval: new Set(['ready', 'cancelled']),
   output_pending_review: new Set(['completed', 'failed', 'ready', 'cancelled']),
-  awaiting_escalation: new Set(['ready', 'cancelled', 'failed']),
-  completed: new Set([]),
-  failed: new Set(['ready', 'awaiting_escalation', 'cancelled']),
-  cancelled: new Set([]),
+  escalated: new Set(['ready', 'cancelled', 'failed']),
+  completed: new Set(),
+  failed: new Set(['ready', 'escalated', 'cancelled']),
+  cancelled: new Set(),
 };
 
 export function canTransitionState(current: TaskState, requested: TaskState): boolean {
-  return transitionTable[current].has(requested);
+  const normalizedCurrent = normalizeTaskState(current);
+  const normalizedRequested = normalizeTaskState(requested);
+  if (!normalizedCurrent || !normalizedRequested) {
+    return false;
+  }
+  return transitionTable[normalizedCurrent].has(normalizedRequested);
 }
 
 export function assertValidTransition(taskId: string, current: TaskState, requested: TaskState): void {
@@ -42,4 +54,18 @@ export function assertValidTransition(taskId: string, current: TaskState, reques
     requested_state: requested,
     task_id: taskId,
   });
+}
+
+export function normalizeTaskState(state: string | null | undefined): CanonicalTaskState | null {
+  if (!state) {
+    return null;
+  }
+  if (state in legacyTaskStateAliases) {
+    return legacyTaskStateAliases[state as LegacyTaskStateAlias];
+  }
+  return taskStates.includes(state as CanonicalTaskState) ? (state as CanonicalTaskState) : null;
+}
+
+export function toStoredTaskState(state: TaskState): string {
+  return state === 'in_progress' ? 'running' : state === 'escalated' ? 'awaiting_escalation' : state;
 }

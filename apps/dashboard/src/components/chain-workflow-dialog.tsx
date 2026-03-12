@@ -1,76 +1,84 @@
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Link2 } from 'lucide-react';
+import { Link2, Loader2 } from 'lucide-react';
+
 import { dashboardApi } from '../lib/api.js';
-import type { DashboardTemplate } from '../lib/api.js';
+import type { DashboardPlaybookRecord } from '../lib/api.js';
 import { Button } from './ui/button.js';
-import { Input } from './ui/input.js';
-import { Textarea } from './ui/textarea.js';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from './ui/dialog.js';
+import { Input } from './ui/input.js';
 import {
   Select,
-  SelectTrigger,
   SelectContent,
   SelectItem,
+  SelectTrigger,
   SelectValue,
 } from './ui/select.js';
+import { Textarea } from './ui/textarea.js';
 
 interface ChainWorkflowDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   sourceWorkflowId: string;
-  defaultTemplateId?: string;
+  defaultPlaybookId?: string;
   defaultWorkflowName: string;
 }
 
-export function ChainWorkflowDialog({
-  isOpen,
-  onOpenChange,
-  sourceWorkflowId,
-  defaultTemplateId,
-  defaultWorkflowName,
-}: ChainWorkflowDialogProps): JSX.Element {
+export function ChainWorkflowDialog(props: ChainWorkflowDialogProps): JSX.Element {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const [templateId, setTemplateId] = useState(defaultTemplateId ?? '');
-  const [name, setName] = useState(`${defaultWorkflowName} follow-up`);
+  const [targetId, setTargetId] = useState(props.defaultPlaybookId ?? '');
+  const [name, setName] = useState(`${props.defaultWorkflowName} follow-up`);
   const [parametersJson, setParametersJson] = useState('');
 
-  useEffect(() => {
-    if (isOpen) {
-      setTemplateId(defaultTemplateId ?? '');
-      setName(`${defaultWorkflowName} follow-up`);
-      setParametersJson('');
-    }
-  }, [isOpen, defaultTemplateId, defaultWorkflowName]);
-
-  const { data: templatesResponse } = useQuery({
-    queryKey: ['templates'],
-    queryFn: () => dashboardApi.listTemplates(),
-    enabled: isOpen,
+  const playbooksQuery = useQuery({
+    queryKey: ['playbooks'],
+    queryFn: () => dashboardApi.listPlaybooks(),
+    enabled: props.isOpen,
   });
-  const templates: DashboardTemplate[] = templatesResponse?.data ?? [];
+
+  const playbooks: DashboardPlaybookRecord[] = playbooksQuery.data?.data ?? [];
+
+  useEffect(() => {
+    if (!props.isOpen) {
+      return;
+    }
+    setTargetId(props.defaultPlaybookId ?? '');
+    setName(`${props.defaultWorkflowName} follow-up`);
+    setParametersJson('');
+  }, [
+    props.defaultPlaybookId,
+    props.defaultWorkflowName,
+    props.isOpen,
+  ]);
+
+  useEffect(() => {
+    if (targetId || playbooks.length === 0) {
+      return;
+    }
+    setTargetId(playbooks[0].id);
+  }, [playbooks, targetId]);
 
   const chainMutation = useMutation({
     mutationFn: () => {
       const parameters = parseParameters(parametersJson);
-      return dashboardApi.chainWorkflow(sourceWorkflowId, {
-        template_id: templateId || undefined,
+      return dashboardApi.chainWorkflow(props.sourceWorkflowId, {
+        playbook_id: targetId || undefined,
         name: name || undefined,
         parameters,
       });
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['workflow', sourceWorkflowId] });
-      onOpenChange(false);
+      queryClient.invalidateQueries({ queryKey: ['workflow', props.sourceWorkflowId] });
+      props.onOpenChange(false);
       const created = extractId(data);
       if (created) {
         navigate(`/work/workflows/${created}`);
@@ -78,10 +86,17 @@ export function ChainWorkflowDialog({
     },
   });
 
-  const isSubmitDisabled = chainMutation.isPending || !name.trim();
+  const isSubmitDisabled = chainMutation.isPending || !name.trim() || !targetId;
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onOpenChange(false); }}>
+    <Dialog
+      open={props.isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          props.onOpenChange(false);
+        }
+      }}
+    >
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -89,25 +104,28 @@ export function ChainWorkflowDialog({
             Chain Workflow
           </DialogTitle>
           <DialogDescription>
-            Create a follow-up workflow linked to the completed one.
+            Create a linked follow-up workflow from this run using a playbook.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Template</label>
-            <Select value={templateId} onValueChange={setTemplateId}>
+            <label className="text-sm font-medium">Playbook</label>
+            <Select value={targetId} onValueChange={setTargetId}>
               <SelectTrigger>
-                <SelectValue placeholder="Select template" />
+                <SelectValue placeholder="Select playbook" />
               </SelectTrigger>
               <SelectContent>
-                {templates.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name}
+                {playbooks.map((playbook) => (
+                  <SelectItem key={playbook.id} value={playbook.id}>
+                    {playbook.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {playbooks.length === 0 ? (
+              <p className="text-sm text-muted">No playbooks are available yet.</p>
+            ) : null}
           </div>
 
           <div className="space-y-2">
@@ -115,7 +133,7 @@ export function ChainWorkflowDialog({
             <Input
               placeholder="Enter workflow name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(event) => setName(event.target.value)}
             />
           </div>
 
@@ -124,21 +142,21 @@ export function ChainWorkflowDialog({
             <Textarea
               placeholder='{"key": "value"}'
               value={parametersJson}
-              onChange={(e) => setParametersJson(e.target.value)}
+              onChange={(event) => setParametersJson(event.target.value)}
               className="min-h-[80px] font-mono text-xs"
             />
           </div>
 
-          {chainMutation.isError && (
+          {chainMutation.isError ? (
             <p className="text-sm text-red-600">Failed to chain workflow. Please try again.</p>
-          )}
+          ) : null}
 
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={() => props.onOpenChange(false)}>
               Cancel
             </Button>
             <Button disabled={isSubmitDisabled} onClick={() => chainMutation.mutate()}>
-              {chainMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {chainMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Chain
             </Button>
           </div>

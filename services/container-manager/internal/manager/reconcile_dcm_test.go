@@ -24,8 +24,9 @@ func newDCMTestManager(docker *mockDockerClient, platform *mockPlatformClient) *
 
 func makeRuntimeTarget(templateID, image string, maxRuntimes, pending, priority int) RuntimeTarget {
 	return RuntimeTarget{
-		TemplateID:         templateID,
-		TemplateName:       "template-" + templateID,
+		PlaybookID:         templateID,
+		PlaybookName:       "template-" + templateID,
+		PoolKind:           "specialist",
 		PoolMode:           "cold",
 		MaxRuntimes:        maxRuntimes,
 		Priority:           priority,
@@ -49,7 +50,8 @@ func makeDCMContainer(id, templateID, image, runtimeID string) ContainerInfo {
 		Labels: map[string]string{
 			labelDCMManaged:    "true",
 			labelDCMTier:       tierRuntime,
-			labelDCMTemplateID: templateID,
+			labelDCMPlaybookID: templateID,
+			labelDCMPoolKind:   "specialist",
 			labelDCMRuntimeID:  runtimeID,
 			labelDCMImage:      image,
 			labelManagedBy:     "true",
@@ -64,10 +66,10 @@ func makeDCMTaskContainer(id, runtimeID string) ContainerInfo {
 		Image:  "task-image:v1",
 		Status: "Up 1 minute",
 		Labels: map[string]string{
-			labelDCMManaged:    "true",
-			labelDCMTier:       tierTask,
-			labelDCMRuntimeID:  runtimeID,
-			labelManagedBy:     "true",
+			labelDCMManaged:   "true",
+			labelDCMTier:      tierTask,
+			labelDCMRuntimeID: runtimeID,
+			labelManagedBy:    "true",
 		},
 	}
 }
@@ -99,6 +101,49 @@ func TestDCMScaleUpWhenPendingExceedsRunning(t *testing.T) {
 	}
 	if len(docker.createdSpecs) != 3 {
 		t.Errorf("expected 3 containers created, got %d", len(docker.createdSpecs))
+	}
+}
+
+func TestDCMReconcileTreatsOrchestratorAndSpecialistPoolsAsDistinctTargets(t *testing.T) {
+	docker := newMockDockerClient()
+	orchTarget := makeRuntimeTarget("tmpl-1", "runtime:v1", 1, 1, 20)
+	orchTarget.PoolKind = "orchestrator"
+	specTarget := makeRuntimeTarget("tmpl-1", "runtime:v1", 2, 2, 10)
+	specTarget.PoolKind = "specialist"
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{orchTarget, specTarget},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.createdSpecs) != 3 {
+		t.Fatalf("expected 3 containers across two pools, got %d", len(docker.createdSpecs))
+	}
+
+	var orchestratorCreated bool
+	var specialistCreated bool
+	for _, spec := range docker.createdSpecs {
+		switch spec.Labels[labelDCMPoolKind] {
+		case "orchestrator":
+			orchestratorCreated = true
+			if spec.Environment["AGIRUNNER_RUNTIME_PLATFORM_AGENT_EXECUTION_MODE"] != "orchestrator" {
+				t.Fatalf("expected orchestrator execution mode, got %q", spec.Environment["AGIRUNNER_RUNTIME_PLATFORM_AGENT_EXECUTION_MODE"])
+			}
+		case "specialist":
+			specialistCreated = true
+			if spec.Environment["AGIRUNNER_RUNTIME_PLATFORM_AGENT_EXECUTION_MODE"] != "specialist" {
+				t.Fatalf("expected specialist execution mode, got %q", spec.Environment["AGIRUNNER_RUNTIME_PLATFORM_AGENT_EXECUTION_MODE"])
+			}
+		default:
+			t.Fatalf("expected pool kind label on created container, got %q", spec.Labels[labelDCMPoolKind])
+		}
+	}
+	if !orchestratorCreated || !specialistCreated {
+		t.Fatalf("expected containers for both orchestrator and specialist pools")
 	}
 }
 
@@ -154,8 +199,8 @@ func TestDCMColdIdleTeardown(t *testing.T) {
 	platform := &mockPlatformClient{
 		runtimeTargets: []RuntimeTarget{target},
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: recentTimestamp},
-			{RuntimeID: "rt-2", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: recentTimestamp},
+			{RuntimeID: "rt-1", PlaybookID: "tmpl-1", State: "idle", LastHeartbeatAt: recentTimestamp},
+			{RuntimeID: "rt-2", PlaybookID: "tmpl-1", State: "idle", LastHeartbeatAt: recentTimestamp},
 		},
 	}
 	mgr := newDCMTestManager(docker, platform)
@@ -307,8 +352,8 @@ func TestDCMRuntimeContainerHasCorrectEnvVars(t *testing.T) {
 	if env["AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY"] != "test-admin-key" {
 		t.Errorf("wrong admin API key: %s", env["AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY"])
 	}
-	if env["AGIRUNNER_RUNTIME_PLATFORM_TEMPLATE_FILTER"] != "tmpl-1" {
-		t.Errorf("wrong template filter: %s", env["AGIRUNNER_RUNTIME_PLATFORM_TEMPLATE_FILTER"])
+	if env["AGIRUNNER_RUNTIME_PLATFORM_PLAYBOOK_FILTER"] != "tmpl-1" {
+		t.Errorf("wrong template filter: %s", env["AGIRUNNER_RUNTIME_PLATFORM_PLAYBOOK_FILTER"])
 	}
 	if env["AGIRUNNER_RUNTIME_PLATFORM_RUNTIME_ID"] == "" {
 		t.Error("expected runtime ID to be set")
@@ -342,8 +387,8 @@ func TestDCMRuntimeContainerHasCorrectLabels(t *testing.T) {
 	if labels[labelDCMTier] != tierRuntime {
 		t.Errorf("expected tier runtime, got %s", labels[labelDCMTier])
 	}
-	if labels[labelDCMTemplateID] != "tmpl-1" {
-		t.Errorf("expected template ID tmpl-1, got %s", labels[labelDCMTemplateID])
+	if labels[labelDCMPlaybookID] != "tmpl-1" {
+		t.Errorf("expected template ID tmpl-1, got %s", labels[labelDCMPlaybookID])
 	}
 	if labels[labelDCMImage] != "runtime:v1" {
 		t.Errorf("expected image label runtime:v1, got %s", labels[labelDCMImage])
@@ -432,7 +477,7 @@ func TestDriftExecutingRuntimeDrainedNotDestroyed(t *testing.T) {
 			makeRuntimeTarget("tmpl-1", "runtime:v2", 5, 0, 10),
 		},
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "executing", LastHeartbeatAt: recentHeartbeat},
+			{RuntimeID: "rt-1", PlaybookID: "tmpl-1", State: "executing", LastHeartbeatAt: recentHeartbeat},
 		},
 	}
 	mgr := newDCMTestManager(docker, platform)
@@ -466,7 +511,7 @@ func TestDriftAlreadyDrainingContainerSkipped(t *testing.T) {
 			makeRuntimeTarget("tmpl-1", "runtime:v2", 5, 0, 10),
 		},
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "executing"},
+			{RuntimeID: "rt-1", PlaybookID: "tmpl-1", State: "executing"},
 		},
 	}
 	mgr := newDCMTestManager(docker, platform)
@@ -496,8 +541,8 @@ func TestDriftMixedIdleAndExecuting(t *testing.T) {
 			makeRuntimeTarget("tmpl-1", "runtime:v2", 5, 0, 10),
 		},
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-exec", TemplateID: "tmpl-1", State: "executing", LastHeartbeatAt: recentHeartbeat},
-			{RuntimeID: "rt-idle", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: recentHeartbeat},
+			{RuntimeID: "rt-exec", PlaybookID: "tmpl-1", State: "executing", LastHeartbeatAt: recentHeartbeat},
+			{RuntimeID: "rt-idle", PlaybookID: "tmpl-1", State: "idle", LastHeartbeatAt: recentHeartbeat},
 		},
 	}
 	mgr := newDCMTestManager(docker, platform)
@@ -746,7 +791,7 @@ func TestColdIdleNotDestroyedBeforeTimeout(t *testing.T) {
 	platform := &mockPlatformClient{
 		runtimeTargets: []RuntimeTarget{target},
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: recentTimestamp},
+			{RuntimeID: "rt-1", PlaybookID: "tmpl-1", State: "idle", LastHeartbeatAt: recentTimestamp},
 		},
 	}
 	mgr := newDCMTestManager(docker, platform)
@@ -854,7 +899,7 @@ func TestFallbackHeartbeatClearedOnSuccessfulFetch(t *testing.T) {
 	platform := &mockPlatformClient{
 		runtimeTargets: []RuntimeTarget{target},
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "idle", LastHeartbeatAt: recentTimestamp},
+			{RuntimeID: "rt-1", PlaybookID: "tmpl-1", State: "idle", LastHeartbeatAt: recentTimestamp},
 		},
 	}
 	mgr := newDCMTestManager(docker, platform)

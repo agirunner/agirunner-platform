@@ -16,6 +16,7 @@ const sampleProvider = {
   name: 'anthropic',
   base_url: 'https://api.anthropic.com',
   api_key_secret_ref: null,
+  auth_mode: 'api_key',
   is_enabled: true,
   rate_limit_rpm: null,
   metadata: {},
@@ -43,6 +44,7 @@ describe('ModelCatalogService', () => {
   let service: ModelCatalogService;
 
   beforeEach(() => {
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
     pool = createMockPool();
     service = new ModelCatalogService(pool as never);
   });
@@ -51,13 +53,56 @@ describe('ModelCatalogService', () => {
     it('lists all providers for tenant', async () => {
       pool.query.mockResolvedValueOnce({ rows: [sampleProvider], rowCount: 1 });
       const result = await service.listProviders(TENANT_ID);
-      expect(result).toEqual([sampleProvider]);
+      expect(result).toEqual([{
+        id: sampleProvider.id,
+        tenant_id: sampleProvider.tenant_id,
+        name: sampleProvider.name,
+        base_url: sampleProvider.base_url,
+        auth_mode: sampleProvider.auth_mode,
+        is_enabled: sampleProvider.is_enabled,
+        rate_limit_rpm: sampleProvider.rate_limit_rpm,
+        metadata: sampleProvider.metadata,
+        credentials_configured: false,
+        created_at: sampleProvider.created_at,
+        updated_at: sampleProvider.updated_at,
+      }]);
     });
 
     it('gets a provider by id', async () => {
       pool.query.mockResolvedValueOnce({ rows: [sampleProvider], rowCount: 1 });
       const result = await service.getProvider(TENANT_ID, PROVIDER_ID);
-      expect(result).toEqual(sampleProvider);
+      expect(result).toEqual({
+        id: sampleProvider.id,
+        tenant_id: sampleProvider.tenant_id,
+        name: sampleProvider.name,
+        base_url: sampleProvider.base_url,
+        auth_mode: sampleProvider.auth_mode,
+        is_enabled: sampleProvider.is_enabled,
+        rate_limit_rpm: sampleProvider.rate_limit_rpm,
+        metadata: sampleProvider.metadata,
+        credentials_configured: false,
+        created_at: sampleProvider.created_at,
+        updated_at: sampleProvider.updated_at,
+      });
+    });
+
+    it('strips oauth config and credential blobs from public provider reads', async () => {
+      pool.query.mockResolvedValueOnce({
+        rows: [{
+          ...sampleProvider,
+          auth_mode: 'oauth',
+          oauth_config: { client_id: 'client-id', token_url: 'https://token.example.com' },
+          oauth_credentials: { access_token: 'enc:v1:token', refresh_token: 'enc:v1:refresh' },
+        }],
+        rowCount: 1,
+      });
+
+      const result = await service.getProvider(TENANT_ID, PROVIDER_ID);
+
+      expect(result.auth_mode).toBe('oauth');
+      expect(result.credentials_configured).toBe(true);
+      expect(result).not.toHaveProperty('oauth_config');
+      expect(result).not.toHaveProperty('oauth_credentials');
     });
 
     it('throws NotFoundError for missing provider', async () => {
@@ -75,7 +120,19 @@ describe('ModelCatalogService', () => {
         isEnabled: true,
         metadata: {},
       });
-      expect(result).toEqual(sampleProvider);
+      expect(result).toEqual({
+        id: sampleProvider.id,
+        tenant_id: sampleProvider.tenant_id,
+        name: sampleProvider.name,
+        base_url: sampleProvider.base_url,
+        auth_mode: sampleProvider.auth_mode,
+        is_enabled: sampleProvider.is_enabled,
+        rate_limit_rpm: sampleProvider.rate_limit_rpm,
+        metadata: sampleProvider.metadata,
+        credentials_configured: false,
+        created_at: sampleProvider.created_at,
+        updated_at: sampleProvider.updated_at,
+      });
     });
 
     it('rejects invalid provider input', async () => {
@@ -92,8 +149,62 @@ describe('ModelCatalogService', () => {
     it('updates a provider', async () => {
       const updated = { ...sampleProvider, name: 'updated-anthropic' };
       pool.query.mockResolvedValueOnce({ rows: [updated], rowCount: 1 });
-      const result = await service.updateProvider(TENANT_ID, PROVIDER_ID, { name: 'updated-anthropic' });
+      const result = await service.updateProvider(TENANT_ID, PROVIDER_ID, {
+        name: 'updated-anthropic',
+      });
       expect(result.name).toBe('updated-anthropic');
+      expect(result).not.toHaveProperty('api_key_secret_ref');
+    });
+
+    it('encrypts provider api keys at rest and returns only configuration state', async () => {
+      const storedProvider = { ...sampleProvider, api_key_secret_ref: 'enc:v1:test:test:test' };
+      pool.query
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [storedProvider], rowCount: 1 });
+
+      const result = await service.createProvider(TENANT_ID, {
+        name: 'anthropic',
+        baseUrl: 'https://api.anthropic.com',
+        apiKeySecretRef: 'sk-live-secret',
+        isEnabled: true,
+        metadata: {},
+      });
+
+      const params = pool.query.mock.calls[1][1] as unknown[];
+      expect(params[3]).not.toBe('sk-live-secret');
+      expect(result.credentials_configured).toBe(true);
+      expect(result).not.toHaveProperty('api_key_secret_ref');
+    });
+
+    it('preserves external secret references without encrypting them again', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({
+          rows: [{ ...sampleProvider, api_key_secret_ref: 'secret:OPENAI_API_KEY' }],
+          rowCount: 1,
+        });
+
+      await service.createProvider(TENANT_ID, {
+        name: 'anthropic',
+        baseUrl: 'https://api.anthropic.com',
+        apiKeySecretRef: 'secret:OPENAI_API_KEY',
+        isEnabled: true,
+        metadata: {},
+      });
+
+      const params = pool.query.mock.calls[1][1] as unknown[];
+      expect(params[3]).toBe('secret:OPENAI_API_KEY');
+    });
+
+    it('does not decrypt provider secrets in operations reads', async () => {
+      pool.query.mockResolvedValueOnce({
+        rows: [{ ...sampleProvider, api_key_secret_ref: 'enc:v1:test:test:test' }],
+        rowCount: 1,
+      });
+
+      const result = await service.getProviderForOperations(TENANT_ID, PROVIDER_ID);
+
+      expect(result.api_key_secret_ref).toBe('enc:v1:test:test:test');
     });
 
     it('deletes a provider and cascades to models and assignments', async () => {
@@ -189,6 +300,88 @@ describe('ModelCatalogService', () => {
       expect(result.role_name).toBe('developer');
       const sql = pool.query.mock.calls[0][0] as string;
       expect(sql).toContain('ON CONFLICT');
+    });
+  });
+
+  describe('effective model resolution', () => {
+    it('validates model override references against enabled models', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [{ id: MODEL_ID }], rowCount: 1 });
+
+      await expect(
+        service.validateModelOverride(TENANT_ID, { model_id: MODEL_ID }, 'workflow model_override'),
+      ).resolves.toBeUndefined();
+    });
+
+    it('resolves effective model with workflow override precedence over project and tenant defaults', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [{ config_value: MODEL_ID }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ config_value: JSON.stringify({ effort: 'low' }) }], rowCount: 1 })
+        .mockResolvedValueOnce({
+          rows: [{
+            project_id: 'project-1',
+            resolved_config: {
+              model_override: {
+                model_id: '00000000-0000-0000-0000-000000000030',
+              },
+            },
+            config_layers: {
+              run: {
+                model_override: {
+                  model_id: '00000000-0000-0000-0000-000000000030',
+                  reasoning_config: { effort: 'high' },
+                },
+              },
+            },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [{ settings: {} }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: '00000000-0000-0000-0000-000000000030',
+            tenant_id: TENANT_ID,
+            provider_id: PROVIDER_ID,
+            model_id: 'claude-opus-4-1',
+            context_window: 200000,
+            max_output_tokens: 8192,
+            supports_tool_use: true,
+            supports_vision: true,
+            input_cost_per_million_usd: '15.00',
+            output_cost_per_million_usd: '75.00',
+            is_enabled: true,
+            endpoint_type: 'chat',
+            reasoning_config: { type: 'effort', default: 'medium' },
+            created_at: new Date(),
+            provider_name: 'anthropic',
+            provider_base_url: 'https://api.anthropic.com',
+          }],
+          rowCount: 1,
+        });
+
+      const result = await service.resolveEffectiveModel(TENANT_ID, { workflowId: 'workflow-1' });
+
+      expect(result).toEqual({
+        modelId: '00000000-0000-0000-0000-000000000030',
+        reasoningConfig: { effort: 'high' },
+        modelSource: 'workflow',
+        reasoningSource: 'workflow',
+        model: {
+          id: '00000000-0000-0000-0000-000000000030',
+          modelId: 'claude-opus-4-1',
+          providerId: PROVIDER_ID,
+          providerName: 'anthropic',
+          providerBaseUrl: 'https://api.anthropic.com',
+          contextWindow: 200000,
+          maxOutputTokens: 8192,
+          supportsToolUse: true,
+          supportsVision: true,
+          endpointType: 'chat',
+          reasoningConfig: { type: 'effort', default: 'medium' },
+        },
+      });
     });
   });
 });

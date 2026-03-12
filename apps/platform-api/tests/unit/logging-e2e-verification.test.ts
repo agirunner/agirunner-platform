@@ -42,21 +42,28 @@ function createMockPool() {
           workflow_name: p[14],
           project_name: p[15],
           task_id: p[16],
-          task_title: p[17],
-          workflow_phase: p[18],
-          role: p[19],
-          actor_type: p[20],
-          actor_id: p[21],
-          actor_name: p[22],
-          resource_type: p[23],
-          resource_id: p[24],
-          resource_name: p[25],
-          created_at: p[26] ?? new Date().toISOString(),
+          work_item_id: p[17],
+          activation_id: p[18],
+          task_title: p[19],
+          stage_name: p[20],
+          is_orchestrator_task: p[21],
+          role: p[22],
+          actor_type: p[23],
+          actor_id: p[24],
+          actor_name: p[25],
+          resource_type: p[26],
+          resource_id: p[27],
+          resource_name: p[28],
+          created_at: p[29] ?? new Date().toISOString(),
         };
         rows.push(row);
         return { rowCount: 1, rows: [row] };
       }
-      if (typeof sql === 'string' && sql.includes('SELECT') && sql.includes('FROM execution_logs')) {
+      if (
+        typeof sql === 'string' &&
+        sql.includes('SELECT') &&
+        sql.includes('FROM execution_logs')
+      ) {
         return { rowCount: rows.length, rows: [...rows] };
       }
       return { rowCount: 0, rows: [] };
@@ -98,6 +105,10 @@ describe('Logging E2E Verification', () => {
         projectId: 'proj-1',
         workflowId: 'wf-1',
         taskId: 'task-1',
+        workItemId: 'work-item-1',
+        stageName: 'implementation',
+        activationId: 'activation-1',
+        isOrchestratorTask: true,
         actorType: 'worker',
         actorId: 'w-1',
         actorName: 'worker-01',
@@ -114,6 +125,10 @@ describe('Logging E2E Verification', () => {
       expect(row.operation).toBe('llm.chat_stream');
       expect(row.duration_ms).toBe(1500);
       expect(row.payload).toEqual({ model: 'claude-opus', input_tokens: 500, output_tokens: 200 });
+      expect(row.work_item_id).toBe('work-item-1');
+      expect(row.stage_name).toBe('implementation');
+      expect(row.activation_id).toBe('activation-1');
+      expect(row.is_orchestrator_task).toBe(true);
       expect(row.actor_type).toBe('worker');
       expect(row.resource_type).toBe('llm_provider');
     });
@@ -189,7 +204,9 @@ describe('Logging E2E Verification', () => {
 
     it('projectServiceCreateGeneratesConfigLog', async () => {
       const service = {
-        createProject: vi.fn().mockResolvedValue({ id: 'proj-1', name: 'My Project', status: 'active' }),
+        createProject: vi
+          .fn()
+          .mockResolvedValue({ id: 'proj-1', name: 'My Project', status: 'active' }),
       };
       const wrapped = createLoggedService(service, 'ProjectService', logService);
 
@@ -208,7 +225,9 @@ describe('Logging E2E Verification', () => {
 
     it('taskServiceCreateGeneratesLifecycleLog', async () => {
       const service = {
-        createTask: vi.fn().mockResolvedValue({ id: 'task-1', title: 'Fix bug', workflow_id: 'wf-1' }),
+        createTask: vi
+          .fn()
+          .mockResolvedValue({ id: 'task-1', title: 'Fix bug', workflow_id: 'wf-1' }),
       };
       const wrapped = createLoggedService(service, 'TaskService', logService);
 
@@ -241,7 +260,9 @@ describe('Logging E2E Verification', () => {
 
     it('fleetServiceDrainGeneratesContainerLog', async () => {
       const service = {
-        drainRuntime: vi.fn().mockResolvedValue({ id: 'rt-1', name: 'runtime-01', status: 'draining' }),
+        drainRuntime: vi
+          .fn()
+          .mockResolvedValue({ id: 'rt-1', name: 'runtime-01', status: 'draining' }),
       };
       const wrapped = createLoggedService(service, 'FleetService', logService);
 
@@ -265,7 +286,9 @@ describe('Logging E2E Verification', () => {
       const logRow = pool.rows[0];
       expect(logRow.level).toBe('error');
       expect(logRow.status).toBe('failed');
-      expect(logRow.error).toEqual(expect.objectContaining({ message: 'unique constraint violation' }));
+      expect(logRow.error).toEqual(
+        expect.objectContaining({ message: 'unique constraint violation' }),
+      );
       expect(logRow.duration_ms).toBeGreaterThanOrEqual(0);
     });
 
@@ -380,18 +403,18 @@ describe('Logging E2E Verification', () => {
       expect(logRow.resource_name).toBe('shell_exec');
     });
 
-    it('webhookTaskTriggerServiceCreateGeneratesConfigLog', async () => {
+    it('webhookWorkItemTriggerServiceCreateGeneratesConfigLog', async () => {
       const service = {
         createTrigger: vi.fn().mockResolvedValue({ id: 'trig-1', name: 'GitHub Push' }),
       };
-      const wrapped = createLoggedService(service, 'WebhookTaskTriggerService', logService);
+      const wrapped = createLoggedService(service, 'WebhookWorkItemTriggerService', logService);
 
       await wrapped.createTrigger({ name: 'GitHub Push' });
       await vi.waitFor(() => expect(pool.rows.length).toBeGreaterThan(0));
 
       const logRow = pool.rows[0];
       expect(logRow.category).toBe('config');
-      expect(logRow.operation).toBe('config.task_trigger.created');
+      expect(logRow.operation).toBe('config.work_item_trigger.created');
       expect(logRow.resource_name).toBe('GitHub Push');
     });
 
@@ -507,7 +530,12 @@ describe('Logging E2E Verification', () => {
       const pool = createMockPool();
       const service = new LogService(pool as never);
 
-      for (const source of ['runtime', 'container_manager', 'platform', 'task_container'] as const) {
+      for (const source of [
+        'runtime',
+        'container_manager',
+        'platform',
+        'task_container',
+      ] as const) {
         await service.insert({
           tenantId: 'tenant-1',
           traceId: 'trace-1',
@@ -534,7 +562,17 @@ describe('Logging E2E Verification', () => {
     it('acceptsAllValidCategories', async () => {
       const pool = createMockPool();
       const service = new LogService(pool as never);
-      const categories = ['llm', 'tool', 'agent_loop', 'task_lifecycle', 'runtime_lifecycle', 'container', 'api', 'config', 'auth'] as const;
+      const categories = [
+        'llm',
+        'tool',
+        'agent_loop',
+        'task_lifecycle',
+        'runtime_lifecycle',
+        'container',
+        'api',
+        'config',
+        'auth',
+      ] as const;
 
       for (const category of categories) {
         await service.insert({

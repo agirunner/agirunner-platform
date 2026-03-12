@@ -12,14 +12,11 @@ import { useLogRoles } from './hooks/use-log-roles.js';
 import { SavedViews, type SavedViewFilters } from '../saved-views.js';
 import { Button } from '../ui/button.js';
 import { Input } from '../ui/input.js';
+import { applyLogScope, type LogScope } from './log-scope.js';
 
 const DEBOUNCE_MS = 300;
 
-function useDebounced(
-  value: string,
-  delayMs: number,
-  onDebounced: (value: string) => void,
-): void {
+function useDebounced(value: string, delayMs: number, onDebounced: (value: string) => void): void {
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
@@ -60,9 +57,7 @@ function useArrayToggle(
   return useCallback(
     (id: string | null) => {
       if (!id) return;
-      const next = current.includes(id)
-        ? current.filter((v) => v !== id)
-        : [...current, id];
+      const next = current.includes(id) ? current.filter((v) => v !== id) : [...current, id];
       setFilter(filterKey, next);
     },
     [current, setFilter, filterKey],
@@ -74,6 +69,7 @@ interface LogFiltersComponentProps {
   compact?: boolean;
   viewMode?: string;
   onViewModeChange?: (mode: string) => void;
+  scope?: LogScope;
 }
 
 export function LogFilters({
@@ -81,10 +77,13 @@ export function LogFilters({
   compact = false,
   viewMode,
   onViewModeChange,
+  scope,
 }: LogFiltersComponentProps = {}): JSX.Element {
-  const { filters, setFilter, setEntityScope, resetFilters, replaceAllParams, toQueryParams } = useLogFilters();
-  const { data: operationsData } = useLogOperations();
-  const { data: rolesData } = useLogRoles();
+  const { filters, setFilter, setEntityScope, resetFilters, replaceAllParams, toQueryParams } =
+    useLogFilters();
+  const scopedFilters = useMemo(() => applyLogScope({}, scope), [scope]);
+  const { data: operationsData } = useLogOperations(undefined, scopedFilters);
+  const { data: rolesData } = useLogRoles(scopedFilters);
 
   const [searchDraft, setSearchDraft] = useState(filters.search);
 
@@ -130,11 +129,21 @@ export function LogFilters({
       for (const [key, value] of Object.entries(saved)) {
         if (!value || key === 'viewMode') continue;
         const urlKey =
-          key === 'project_id' ? 'project'
-          : key === 'workflow_id' ? 'workflow'
-          : key === 'task_id' ? 'task'
-          : key === 'trace_id' ? 'trace'
-          : key;
+          key === 'project_id'
+            ? 'project'
+            : key === 'workflow_id'
+              ? 'workflow'
+              : key === 'task_id'
+                ? 'task'
+                : key === 'work_item_id'
+                  ? 'work_item'
+                  : key === 'stage_name'
+                    ? 'stage'
+                    : key === 'activation_id'
+                      ? 'activation'
+                  : key === 'trace_id'
+                    ? 'trace'
+                    : key;
         urlParams[urlKey] = value;
       }
 
@@ -154,14 +163,8 @@ export function LogFilters({
           onChange={(cats) => setFilter('categories', cats)}
         />
         <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-          <TimeRangePicker
-            value={filters.time}
-            onChange={(range) => setFilter('time', range)}
-          />
-          <LevelSelector
-            value={filters.level}
-            onChange={(level) => setFilter('level', level)}
-          />
+          <TimeRangePicker value={filters.time} onChange={(range) => setFilter('time', range)} />
+          <LevelSelector value={filters.level} onChange={(level) => setFilter('level', level)} />
           <Button variant="ghost" size="sm" onClick={resetFilters}>
             <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
             Reset
@@ -215,6 +218,28 @@ export function LogFilters({
           multiSelect
           selectedIds={selectedOperationIds}
           onClearAll={clearOperations}
+        />
+      </div>
+
+      {/* Row 2b: Workflow execution context */}
+      <div className="grid gap-2 md:grid-cols-3">
+        <Input
+          value={filters.workItem ?? ''}
+          onChange={(event) => setFilter('workItem', event.target.value)}
+          placeholder="Work item ID"
+          className="h-8 text-xs"
+        />
+        <Input
+          value={filters.stage ?? ''}
+          onChange={(event) => setFilter('stage', event.target.value)}
+          placeholder="Stage name"
+          className="h-8 text-xs"
+        />
+        <Input
+          value={filters.activation ?? ''}
+          onChange={(event) => setFilter('activation', event.target.value)}
+          placeholder="Activation ID"
+          className="h-8 text-xs"
         />
       </div>
 

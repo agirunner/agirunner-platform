@@ -14,12 +14,13 @@ import {
   Zap,
 } from 'lucide-react';
 
-import { dashboardApi } from '../../lib/api.js';
+import { dashboardApi, type DashboardApprovalQueueResponse } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs.js';
+import { GateDetailCard } from '../work/gate-detail-card.js';
 
 interface TaskRecord {
   id: string;
@@ -29,7 +30,7 @@ interface TaskRecord {
   status?: string;
   type?: string;
   description?: string;
-  role?: string;
+  role?: string | null;
   input?: Record<string, unknown>;
   output?: unknown;
   error_message?: string;
@@ -147,15 +148,9 @@ function FeedbackAction({
 export function AlertsApprovalsPage(): JSX.Element {
   const queryClient = useQueryClient();
 
-  const approvalQuery = useQuery({
-    queryKey: ['tasks', 'awaiting_approval'],
-    queryFn: () => dashboardApi.listTasks({ state: 'awaiting_approval' }),
-    refetchInterval: REFETCH_INTERVAL,
-  });
-
-  const outputReviewQuery = useQuery({
-    queryKey: ['tasks', 'output_pending_review'],
-    queryFn: () => dashboardApi.listTasks({ state: 'output_pending_review' }),
+  const approvalsQuery = useQuery<DashboardApprovalQueueResponse>({
+    queryKey: ['approval-queue'],
+    queryFn: () => dashboardApi.getApprovalQueue(),
     refetchInterval: REFETCH_INTERVAL,
   });
 
@@ -166,87 +161,97 @@ export function AlertsApprovalsPage(): JSX.Element {
   });
 
   const escalationQuery = useQuery({
-    queryKey: ['tasks', 'awaiting_escalation'],
-    queryFn: () => dashboardApi.listTasks({ state: 'awaiting_escalation' }),
+    queryKey: ['tasks', 'escalated'],
+    queryFn: () => dashboardApi.listTasks({ state: 'escalated' }),
     refetchInterval: REFETCH_INTERVAL,
   });
 
-  const approvalTasks = useMemo(() => normalizeArray(approvalQuery.data), [approvalQuery.data]);
-  const reviewTasks = useMemo(() => normalizeArray(outputReviewQuery.data), [outputReviewQuery.data]);
+  const approvalTasks = useMemo(() => approvalsQuery.data?.task_approvals ?? [], [approvalsQuery.data]);
+  const stageGates = useMemo(() => approvalsQuery.data?.stage_gates ?? [], [approvalsQuery.data]);
+  const reviewTasks = useMemo(
+    () => approvalTasks.filter((task) => task.state === 'output_pending_review'),
+    [approvalTasks],
+  );
+  const manualApprovalTasks = useMemo(
+    () => approvalTasks.filter((task) => task.state !== 'output_pending_review'),
+    [approvalTasks],
+  );
   const failedTasks = useMemo(() => normalizeArray(failedQuery.data), [failedQuery.data]);
   const escalationTasks = useMemo(() => normalizeArray(escalationQuery.data), [escalationQuery.data]);
 
-  const allItems = [...approvalTasks, ...reviewTasks, ...failedTasks, ...escalationTasks];
-  const isLoading = approvalQuery.isLoading || outputReviewQuery.isLoading || failedQuery.isLoading || escalationQuery.isLoading;
-  const hasError = approvalQuery.error || outputReviewQuery.error || failedQuery.error || escalationQuery.error;
+  const allItems = [...stageGates, ...manualApprovalTasks, ...reviewTasks, ...failedTasks, ...escalationTasks];
+  const isLoading = approvalsQuery.isLoading || failedQuery.isLoading || escalationQuery.isLoading;
+  const hasError = approvalsQuery.error || failedQuery.error || escalationQuery.error;
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    queryClient.invalidateQueries({ queryKey: ['approval-queue'] });
+    queryClient.invalidateQueries({ queryKey: ['workflows'] });
   };
 
   const approveMutation = useMutation({
     mutationFn: (taskId: string) => dashboardApi.approveTask(taskId),
-    onSuccess: () => { invalidateAll(); toast.success('Task approved'); },
-    onError: () => { toast.error('Failed to approve task'); },
+    onSuccess: () => { invalidateAll(); toast.success('Specialist step approved'); },
+    onError: () => { toast.error('Failed to approve specialist step'); },
   });
 
   const approveOutputMutation = useMutation({
     mutationFn: (taskId: string) => dashboardApi.approveTaskOutput(taskId),
-    onSuccess: () => { invalidateAll(); toast.success('Output approved'); },
-    onError: () => { toast.error('Failed to approve output'); },
+    onSuccess: () => { invalidateAll(); toast.success('Output gate approved'); },
+    onError: () => { toast.error('Failed to approve output gate'); },
   });
 
   const rejectMutation = useMutation({
     mutationFn: ({ taskId, feedback }: { taskId: string; feedback: string }) =>
       dashboardApi.rejectTask(taskId, { feedback }),
-    onSuccess: () => { invalidateAll(); toast.success('Task rejected'); },
-    onError: () => { toast.error('Failed to reject task'); },
+    onSuccess: () => { invalidateAll(); toast.success('Specialist step rejected'); },
+    onError: () => { toast.error('Failed to reject specialist step'); },
   });
 
   const requestChangesMutation = useMutation({
     mutationFn: ({ taskId, feedback }: { taskId: string; feedback: string }) =>
       dashboardApi.requestTaskChanges(taskId, { feedback }),
-    onSuccess: () => { invalidateAll(); toast.success('Changes requested — task will re-run with feedback'); },
-    onError: () => { toast.error('Failed to request changes'); },
+    onSuccess: () => { invalidateAll(); toast.success('Rework requested — the specialist step will re-run with operator feedback'); },
+    onError: () => { toast.error('Failed to request rework'); },
   });
 
   const skipMutation = useMutation({
     mutationFn: ({ taskId, reason }: { taskId: string; reason: string }) =>
       dashboardApi.skipTask(taskId, { reason }),
-    onSuccess: () => { invalidateAll(); toast.success('Task skipped'); },
-    onError: () => { toast.error('Failed to skip task'); },
+    onSuccess: () => { invalidateAll(); toast.success('Specialist step bypassed'); },
+    onError: () => { toast.error('Failed to bypass specialist step'); },
   });
 
   const retryMutation = useMutation({
     mutationFn: (taskId: string) => dashboardApi.retryTask(taskId),
-    onSuccess: () => { invalidateAll(); toast.success('Task retry initiated'); },
-    onError: () => { toast.error('Failed to retry task'); },
+    onSuccess: () => { invalidateAll(); toast.success('Specialist step re-run initiated'); },
+    onError: () => { toast.error('Failed to re-run specialist step'); },
   });
 
   const retryOnDifferentWorkerMutation = useMutation({
     mutationFn: (taskId: string) => dashboardApi.retryTask(taskId, { force: true }),
-    onSuccess: () => { invalidateAll(); toast.success('Task retry on different worker initiated'); },
-    onError: () => { toast.error('Failed to retry on different worker'); },
+    onSuccess: () => { invalidateAll(); toast.success('Specialist step re-run on a new worker initiated'); },
+    onError: () => { toast.error('Failed to re-run step on a new worker'); },
   });
 
   const cancelMutation = useMutation({
     mutationFn: (taskId: string) => dashboardApi.cancelTask(taskId),
-    onSuccess: () => { invalidateAll(); toast.success('Task cancelled'); },
-    onError: () => { toast.error('Failed to cancel task'); },
+    onSuccess: () => { invalidateAll(); toast.success('Work cancelled'); },
+    onError: () => { toast.error('Failed to cancel work'); },
   });
 
   const resolveEscalationMutation = useMutation({
     mutationFn: ({ taskId, instructions }: { taskId: string; instructions: string }) =>
       dashboardApi.resolveEscalation(taskId, { instructions }),
-    onSuccess: () => { invalidateAll(); toast.success('Escalation resolved — task will resume'); },
-    onError: () => { toast.error('Failed to resolve escalation'); },
+    onSuccess: () => { invalidateAll(); toast.success('Operator guidance submitted — the specialist step will resume'); },
+    onError: () => { toast.error('Failed to submit operator guidance'); },
   });
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-12 text-muted">
         <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
-        Loading action queue...
+        Loading operator intervention lanes...
       </div>
     );
   }
@@ -255,7 +260,7 @@ export function AlertsApprovalsPage(): JSX.Element {
     return (
       <div className="p-6 text-red-600">
         <AlertTriangle className="mr-2 inline h-5 w-5" />
-        Failed to load tasks. Please retry.
+        Failed to load operator intervention lanes. Please retry.
       </div>
     );
   }
@@ -310,6 +315,15 @@ export function AlertsApprovalsPage(): JSX.Element {
   const anyEscalationLoading =
     resolveEscalationMutation.isPending || skipMutation.isPending || cancelMutation.isPending;
 
+  const renderGateCards = () =>
+    stageGates.map((gate) => (
+      <GateDetailCard
+        key={`${gate.workflow_id}:${gate.stage_name}:${(gate as unknown as { gate_id?: string; id?: string }).gate_id ?? (gate as unknown as { gate_id?: string; id?: string }).id ?? 'pending'}`}
+        gate={gate}
+        source="approval-queue"
+      />
+    ));
+
   const renderEscalationCards = (tasks: TaskRecord[]) =>
     tasks.map((task) => (
       <EscalationCard
@@ -324,51 +338,65 @@ export function AlertsApprovalsPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <h1 className="text-2xl font-semibold">Action Queue</h1>
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold">Alerts & Approvals</h1>
+        <p className="text-sm text-muted">
+          Review stage gates first, then operator step reviews, escalations, and execution failures across active boards.
+        </p>
+      </div>
 
       <Tabs defaultValue="all">
         <TabsList>
-          <TabsTrigger value="all">All ({allItems.length})</TabsTrigger>
-          <TabsTrigger value="approvals">Approvals ({approvalTasks.length})</TabsTrigger>
-          <TabsTrigger value="reviews">Output Review ({reviewTasks.length})</TabsTrigger>
-          <TabsTrigger value="escalations">Escalations ({escalationTasks.length})</TabsTrigger>
-          <TabsTrigger value="failures">Failures ({failedTasks.length})</TabsTrigger>
+          <TabsTrigger value="all">Operator Queue ({allItems.length})</TabsTrigger>
+          <TabsTrigger value="gates">Stage Gates ({stageGates.length})</TabsTrigger>
+          <TabsTrigger value="approvals">Step Approvals ({manualApprovalTasks.length})</TabsTrigger>
+          <TabsTrigger value="reviews">Output Gates ({reviewTasks.length})</TabsTrigger>
+          <TabsTrigger value="escalations">Operator Guidance ({escalationTasks.length})</TabsTrigger>
+          <TabsTrigger value="failures">Execution Failures ({failedTasks.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all">
           <div className="space-y-4">
             {allItems.length === 0 && <EmptyState />}
-            {renderApprovalCards(approvalTasks)}
+            {renderGateCards()}
+            {renderApprovalCards(manualApprovalTasks)}
             {renderReviewCards(reviewTasks)}
             {renderEscalationCards(escalationTasks)}
             {renderFailedCards(failedTasks)}
           </div>
         </TabsContent>
 
+        <TabsContent value="gates">
+          <div className="space-y-4">
+            {stageGates.length === 0 && <EmptyState message="No stage gates awaiting operator review." />}
+            {renderGateCards()}
+          </div>
+        </TabsContent>
+
         <TabsContent value="approvals">
           <div className="space-y-4">
-            {approvalTasks.length === 0 && <EmptyState message="No tasks awaiting approval." />}
-            {renderApprovalCards(approvalTasks)}
+            {manualApprovalTasks.length === 0 && <EmptyState message="No specialist steps awaiting operator approval." />}
+            {renderApprovalCards(manualApprovalTasks)}
           </div>
         </TabsContent>
 
         <TabsContent value="reviews">
           <div className="space-y-4">
-            {reviewTasks.length === 0 && <EmptyState message="No tasks awaiting output review." />}
+            {reviewTasks.length === 0 && <EmptyState message="No specialist outputs waiting at an operator quality gate." />}
             {renderReviewCards(reviewTasks)}
           </div>
         </TabsContent>
 
         <TabsContent value="escalations">
           <div className="space-y-4">
-            {escalationTasks.length === 0 && <EmptyState message="No tasks awaiting escalation resolution." />}
+            {escalationTasks.length === 0 && <EmptyState message="No specialist steps are waiting for operator guidance." />}
             {renderEscalationCards(escalationTasks)}
           </div>
         </TabsContent>
 
         <TabsContent value="failures">
           <div className="space-y-4">
-            {failedTasks.length === 0 && <EmptyState message="No failed tasks." />}
+            {failedTasks.length === 0 && <EmptyState message="No specialist steps have failed and need operator intervention." />}
             {renderFailedCards(failedTasks)}
           </div>
         </TabsContent>
@@ -378,7 +406,7 @@ export function AlertsApprovalsPage(): JSX.Element {
   );
 }
 
-function EmptyState({ message = 'No items require action.' }: { message?: string }): JSX.Element {
+function EmptyState({ message = 'No operator queue items require action.' }: { message?: string }): JSX.Element {
   return (
     <Card>
       <CardContent className="flex items-center gap-3 p-8 text-center">
@@ -390,7 +418,7 @@ function EmptyState({ message = 'No items require action.' }: { message?: string
 }
 
 // ---------------------------------------------------------------------------
-// Approval card (pre-execution gate)
+// Approval card (operator decision before continuing execution)
 // ---------------------------------------------------------------------------
 
 interface ApprovalCardProps {
@@ -420,7 +448,7 @@ function ApprovalCard({ task, onApprove, onRequestChanges, onSkip, onReject, isL
               <Clock className="h-3 w-3" />
               {formatWaitTime(task.created_at)}
             </span>
-            <Badge variant="warning">Awaiting Approval</Badge>
+            <Badge variant="warning">Awaiting Operator Decision</Badge>
           </div>
         </div>
       </CardHeader>
@@ -464,27 +492,27 @@ function ApprovalCard({ task, onApprove, onRequestChanges, onSkip, onReject, isL
         <div className="flex flex-wrap gap-2 pt-1">
           <Button size="sm" onClick={onApprove} disabled={isLoading}>
             <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-            Approve
+            Approve Step
           </Button>
           <FeedbackAction
-            label="Request Changes"
+            label="Request Rework"
             icon={<MessageSquare className="mr-1 h-3.5 w-3.5" />}
-            placeholder="Describe what changes are needed..."
+            placeholder="Describe what needs to change before this specialist step should continue..."
             onSubmit={onRequestChanges}
             disabled={isLoading}
           />
           <FeedbackAction
-            label="Skip"
+            label="Bypass Step"
             icon={<SkipForward className="mr-1 h-3.5 w-3.5" />}
-            placeholder="Reason for skipping this task..."
+            placeholder="Reason for bypassing this specialist step..."
             onSubmit={onSkip}
             disabled={isLoading}
           />
           <FeedbackAction
-            label="Reject"
+            label="Reject Step"
             icon={<XCircle className="mr-1 h-3.5 w-3.5" />}
             variant="destructive"
-            placeholder="Reason for rejection..."
+            placeholder="Reason for rejecting this specialist step..."
             onSubmit={onReject}
             disabled={isLoading}
           />
@@ -495,7 +523,7 @@ function ApprovalCard({ task, onApprove, onRequestChanges, onSkip, onReject, isL
 }
 
 // ---------------------------------------------------------------------------
-// Output review card (post-execution quality gate)
+// Output review card (operator quality gate after execution)
 // ---------------------------------------------------------------------------
 
 interface OutputReviewCardProps {
@@ -535,17 +563,17 @@ function OutputReviewCard({ task, onApproveOutput, onRequestChanges, onSkip, onR
             )}
             <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
               <Eye className="mr-1 h-3 w-3" />
-              Output Review
+              Output Gate
             </Badge>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {/* Review prompt from template */}
+        {/* Review instructions captured on the task payload */}
         {reviewPrompt && (
           <div className="rounded-md border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950/30">
             <p className="text-xs font-medium text-blue-800 dark:text-blue-300 mb-1 flex items-center gap-1">
-              <MessageSquare className="h-3 w-3" /> Review Instructions
+              <MessageSquare className="h-3 w-3" /> Operator Review Guidance
             </p>
             <p className="text-xs text-blue-700 dark:text-blue-400 whitespace-pre-wrap">{reviewPrompt}</p>
           </div>
@@ -555,7 +583,7 @@ function OutputReviewCard({ task, onApproveOutput, onRequestChanges, onSkip, onR
         {reviewFeedback && reworkCount > 0 && (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
             <p className="text-xs font-medium text-amber-800 dark:text-amber-300 mb-1 flex items-center gap-1">
-              <MessageSquare className="h-3 w-3" /> Previous Feedback
+              <MessageSquare className="h-3 w-3" /> Previous Operator Feedback
             </p>
             <p className="text-xs text-amber-700 dark:text-amber-400 whitespace-pre-wrap">{reviewFeedback}</p>
           </div>
@@ -565,7 +593,7 @@ function OutputReviewCard({ task, onApproveOutput, onRequestChanges, onSkip, onR
         <div className="rounded-md bg-border/20 p-3">
           <div className="flex items-center justify-between mb-1">
             <p className="text-xs font-medium text-muted flex items-center gap-1">
-              <FileText className="h-3 w-3" /> Agent Output
+              <FileText className="h-3 w-3" /> Specialist Output
             </p>
             {outputTruncated && (
               <Button
@@ -591,27 +619,27 @@ function OutputReviewCard({ task, onApproveOutput, onRequestChanges, onSkip, onR
         <div className="flex flex-wrap gap-2 pt-1">
           <Button size="sm" onClick={onApproveOutput} disabled={isLoading}>
             <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-            Approve Output
+            Approve Output Gate
           </Button>
           <FeedbackAction
-            label="Request Changes"
+            label="Request Rework"
             icon={<MessageSquare className="mr-1 h-3.5 w-3.5" />}
-            placeholder="Describe what needs to change — this feedback will be passed to the agent on the next iteration..."
+            placeholder="Describe what needs to change — this operator feedback will be passed to the specialist on the next iteration..."
             onSubmit={onRequestChanges}
             disabled={isLoading}
           />
           <FeedbackAction
-            label="Skip"
+            label="Bypass Review"
             icon={<SkipForward className="mr-1 h-3.5 w-3.5" />}
-            placeholder="Reason for skipping review..."
+            placeholder="Reason for bypassing this output gate..."
             onSubmit={onSkip}
             disabled={isLoading}
           />
           <FeedbackAction
-            label="Reject"
+            label="Reject Output"
             icon={<XCircle className="mr-1 h-3.5 w-3.5" />}
             variant="destructive"
-            placeholder="Reason for rejection — task will be marked as failed..."
+            placeholder="Reason for rejection — the specialist step will be marked as failed..."
             onSubmit={onReject}
             disabled={isLoading}
           />
@@ -640,7 +668,7 @@ function FailedCard({ task, onRetry, onRetryDifferentWorker, onSkip, onCancel, i
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">{task.title ?? task.name ?? task.id}</CardTitle>
-          <Badge variant="destructive">Failed</Badge>
+          <Badge variant="destructive">Execution Failed</Badge>
         </div>
       </CardHeader>
       <CardContent>
@@ -651,31 +679,31 @@ function FailedCard({ task, onRetry, onRetryDifferentWorker, onSkip, onCancel, i
           </div>
         )}
         <div className="mb-3 flex items-center gap-4 text-xs text-muted">
-          {task.retry_count != null && <span>Retry count: {task.retry_count}</span>}
+          {task.retry_count != null && <span>Re-run count: {task.retry_count}</span>}
           {(task.assigned_worker_id ?? task.assigned_worker) && (
-            <span>Worker: {(task.assigned_worker_id ?? task.assigned_worker)!.slice(0, 8)}</span>
+            <span>Assigned worker: {(task.assigned_worker_id ?? task.assigned_worker)!.slice(0, 8)}</span>
           )}
-          <span className="font-mono">{task.id.slice(0, 8)}</span>
+          <span className="font-mono">Step {task.id.slice(0, 8)}</span>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={onRetry} disabled={isLoading}>
             <RotateCcw className="mr-1 h-3.5 w-3.5" />
-            Retry
+            Re-run Step
           </Button>
           <Button size="sm" variant="outline" onClick={onRetryDifferentWorker} disabled={isLoading}>
             <RefreshCw className="mr-1 h-3.5 w-3.5" />
-            Retry on Different Worker
+            Re-run on New Worker
           </Button>
           <FeedbackAction
-            label="Skip"
+            label="Bypass Step"
             icon={<SkipForward className="mr-1 h-3.5 w-3.5" />}
-            placeholder="Reason for skipping..."
+            placeholder="Reason for bypassing this failed step..."
             onSubmit={onSkip}
             disabled={isLoading}
           />
           <Button size="sm" variant="destructive" onClick={onCancel} disabled={isLoading}>
             <XCircle className="mr-1 h-3.5 w-3.5" />
-            Cancel
+            Cancel Work
           </Button>
         </div>
       </CardContent>
@@ -684,7 +712,7 @@ function FailedCard({ task, onRetry, onRetryDifferentWorker, onSkip, onCancel, i
 }
 
 // ---------------------------------------------------------------------------
-// Escalation card (agent requested help)
+// Escalation card (specialist requested operator help)
 // ---------------------------------------------------------------------------
 
 interface EscalationCardProps {
@@ -717,7 +745,7 @@ function EscalationCard({ task, onResolve, onSkip, onCancel, isLoading }: Escala
             </span>
             <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
               <Zap className="mr-1 h-3 w-3" />
-              Escalation
+              Operator Guidance Needed
             </Badge>
           </div>
         </div>
@@ -726,7 +754,7 @@ function EscalationCard({ task, onResolve, onSkip, onCancel, isLoading }: Escala
         {escalationReason && (
           <div className="rounded-md border border-purple-200 bg-purple-50 p-3 dark:border-purple-900 dark:bg-purple-950/30">
             <p className="text-xs font-medium text-purple-800 dark:text-purple-300 mb-1 flex items-center gap-1">
-              <MessageSquare className="h-3 w-3" /> Agent&apos;s Question
+              <MessageSquare className="h-3 w-3" /> Specialist Question
             </p>
             <p className="text-xs text-purple-700 dark:text-purple-400 whitespace-pre-wrap">{escalationReason}</p>
           </div>
@@ -735,7 +763,7 @@ function EscalationCard({ task, onResolve, onSkip, onCancel, isLoading }: Escala
         {escalationContext && (
           <div className="rounded-md bg-border/20 p-3">
             <p className="text-xs font-medium text-muted mb-1 flex items-center gap-1">
-              <FileText className="h-3 w-3" /> Context
+              <FileText className="h-3 w-3" /> Execution Context
             </p>
             <p className="text-xs whitespace-pre-wrap">{truncateText(escalationContext, 500)}</p>
           </div>
@@ -744,36 +772,36 @@ function EscalationCard({ task, onResolve, onSkip, onCancel, isLoading }: Escala
         {instructions && (
           <div className="rounded-md bg-border/20 p-3">
             <p className="text-xs font-medium text-muted mb-1 flex items-center gap-1">
-              <FileText className="h-3 w-3" /> Original Instructions
+              <FileText className="h-3 w-3" /> Original Step Instructions
             </p>
             <p className="text-xs whitespace-pre-wrap">{truncateText(instructions, 500)}</p>
           </div>
         )}
 
         <div className="flex flex-wrap items-center gap-3 text-[10px] text-muted">
-          {task.workflow_id && <span>Workflow: {task.workflow_id.slice(0, 8)}</span>}
-          <span>Depth: {escalationDepth}/{maxDepth}</span>
-          <span className="font-mono">{task.id.slice(0, 8)}</span>
+          {task.workflow_id && <span>Board: {task.workflow_id.slice(0, 8)}</span>}
+          <span>Escalation depth: {escalationDepth}/{maxDepth}</span>
+          <span className="font-mono">Step {task.id.slice(0, 8)}</span>
         </div>
 
         <div className="flex flex-wrap gap-2 pt-1">
           <FeedbackAction
-            label="Provide Resolution"
+            label="Resume with Guidance"
             icon={<CheckCircle2 className="mr-1 h-3.5 w-3.5" />}
-            placeholder="Provide instructions to help the agent continue..."
+            placeholder="Provide operator guidance to help the specialist continue..."
             onSubmit={onResolve}
             disabled={isLoading}
           />
           <FeedbackAction
-            label="Skip"
+            label="Bypass Step"
             icon={<SkipForward className="mr-1 h-3.5 w-3.5" />}
-            placeholder="Reason for skipping this escalation..."
+            placeholder="Reason for bypassing this escalated step..."
             onSubmit={onSkip}
             disabled={isLoading}
           />
           <Button size="sm" variant="destructive" onClick={onCancel} disabled={isLoading}>
             <XCircle className="mr-1 h-3.5 w-3.5" />
-            Cancel
+            Cancel Work
           </Button>
         </div>
       </CardContent>
@@ -788,14 +816,14 @@ function EscalationCard({ task, onResolve, onSkip, onCancel, isLoading }: Escala
 function TaskMetaRow({ task }: { task: TaskRecord }): JSX.Element {
   return (
     <div className="flex flex-wrap items-center gap-3 text-[10px] text-muted">
-      {task.workflow_id && <span>Workflow: {task.workflow_id.slice(0, 8)}</span>}
+      {task.workflow_id && <span>Board: {task.workflow_id.slice(0, 8)}</span>}
       {(task.depends_on ?? []).length > 0 && (
-        <span>Dependencies: {task.depends_on!.length}</span>
+        <span>Upstream steps: {task.depends_on!.length}</span>
       )}
       {(task.assigned_worker_id ?? task.assigned_worker) && (
-        <span>Worker: {(task.assigned_worker_id ?? task.assigned_worker)!.slice(0, 8)}</span>
+        <span>Assigned worker: {(task.assigned_worker_id ?? task.assigned_worker)!.slice(0, 8)}</span>
       )}
-      <span className="font-mono">{task.id.slice(0, 8)}</span>
+      <span className="font-mono">Step {task.id.slice(0, 8)}</span>
     </div>
   );
 }

@@ -14,8 +14,8 @@ function shortId(v: unknown): string {
 const FIELDS: readonly FieldDef[] = [
   { label: 'Action', key: 'action' },
   { label: 'Image', key: 'image' },
-  { label: 'Template', key: 'template_name' },
-  { label: 'Template ID', key: 'template_id', format: shortId },
+  { label: 'Playbook', key: 'playbook_name' },
+  { label: 'Playbook ID', key: 'playbook_id', format: shortId },
   { label: 'Runtime ID', key: 'runtime_id', format: shortId },
   { label: 'Container ID', key: 'container_id', format: shortId },
   { label: 'CPU', key: 'cpu' },
@@ -27,7 +27,11 @@ const FIELDS: readonly FieldDef[] = [
   { label: 'Actual', key: 'actual' },
 ];
 
-export function LogEntryDetailContainer({ payload }: { payload: Record<string, unknown> }): JSX.Element {
+export function LogEntryDetailContainer({
+  payload,
+}: {
+  payload: Record<string, unknown>;
+}): JSX.Element {
   const visible = FIELDS.filter(({ key }) => payload[key] != null);
 
   return (

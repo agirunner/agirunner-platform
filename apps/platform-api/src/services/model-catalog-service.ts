@@ -3,6 +3,12 @@ import { z } from 'zod';
 import type { DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
+import { normalizeStoredProviderSecret } from '../lib/oauth-crypto.js';
+import {
+  overlayModelOverride,
+  readModelOverride,
+  type EffectiveModelOverride,
+} from './config-hierarchy-service.js';
 import { type DiscoveredModel, isDefaultEnabledModel } from './llm-discovery-service.js';
 
 const createProviderSchema = z.object({
@@ -45,6 +51,26 @@ export type UpdateProviderInput = z.infer<typeof updateProviderSchema>;
 export type CreateModelInput = z.infer<typeof createModelSchema>;
 export type UpdateModelInput = z.infer<typeof updateModelSchema>;
 
+export interface EffectiveModelResolution {
+  modelId: string | null;
+  reasoningConfig: Record<string, unknown> | null;
+  modelSource: 'tenant' | 'project' | 'workflow' | null;
+  reasoningSource: 'tenant' | 'project' | 'workflow' | null;
+  model: {
+    id: string;
+    modelId: string;
+    providerId: string;
+    providerName: string;
+    providerBaseUrl: string;
+    contextWindow: number | null;
+    maxOutputTokens: number | null;
+    supportsToolUse: boolean;
+    supportsVision: boolean;
+    endpointType: string | null;
+    reasoningConfig: Record<string, unknown> | null;
+  } | null;
+}
+
 interface ProviderRow {
   [key: string]: unknown;
   id: string;
@@ -55,6 +81,23 @@ interface ProviderRow {
   is_enabled: boolean;
   rate_limit_rpm: number | null;
   metadata: Record<string, unknown>;
+  auth_mode: string | null;
+  oauth_config?: Record<string, unknown> | null;
+  oauth_credentials?: Record<string, unknown> | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface ProviderRecord {
+  id: string;
+  tenant_id: string;
+  name: string;
+  base_url: string;
+  auth_mode: string;
+  is_enabled: boolean;
+  rate_limit_rpm: number | null;
+  metadata: Record<string, unknown>;
+  credentials_configured: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -90,22 +133,30 @@ interface AssignmentRow {
   updated_at: Date;
 }
 
+interface ProjectSettingsRow {
+  settings: Record<string, unknown> | null;
+}
+
+interface WorkflowModelScopeRow {
+  project_id: string | null;
+  resolved_config: Record<string, unknown> | null;
+  config_layers: Record<string, unknown> | null;
+}
+
 export class ModelCatalogService {
   constructor(private readonly pool: DatabasePool) {}
 
-  async listProviders(tenantId: string): Promise<ProviderRow[]> {
+  async listProviders(tenantId: string): Promise<ProviderRecord[]> {
     const repo = new TenantScopedRepository(this.pool, tenantId);
-    return repo.findAll<ProviderRow>('llm_providers', '*');
+    const providers = await repo.findAll<ProviderRow>('llm_providers', '*');
+    return providers.map((provider) => sanitizeProvider(provider));
   }
 
-  async getProvider(tenantId: string, id: string): Promise<ProviderRow> {
-    const repo = new TenantScopedRepository(this.pool, tenantId);
-    const row = await repo.findById<ProviderRow>('llm_providers', '*', id);
-    if (!row) throw new NotFoundError('LLM provider not found');
-    return row;
+  async getProvider(tenantId: string, id: string): Promise<ProviderRecord> {
+    return sanitizeProvider(await this.getStoredProvider(tenantId, id));
   }
 
-  async createProvider(tenantId: string, input: CreateProviderInput): Promise<ProviderRow> {
+  async createProvider(tenantId: string, input: CreateProviderInput): Promise<ProviderRecord> {
     const validated = createProviderSchema.parse(input);
 
     const existing = await this.pool.query<ProviderRow>(
@@ -125,16 +176,16 @@ export class ModelCatalogService {
         tenantId,
         validated.name,
         validated.baseUrl,
-        validated.apiKeySecretRef ?? null,
+        normalizeSecretValue(validated.apiKeySecretRef),
         validated.isEnabled,
         validated.rateLimitRpm ?? null,
         validated.metadata,
       ],
     );
-    return result.rows[0];
+    return sanitizeProvider(result.rows[0]);
   }
 
-  async updateProvider(tenantId: string, id: string, input: UpdateProviderInput): Promise<ProviderRow> {
+  async updateProvider(tenantId: string, id: string, input: UpdateProviderInput): Promise<ProviderRecord> {
     const validated = updateProviderSchema.parse(input);
     const setClauses: string[] = [];
     const values: unknown[] = [tenantId, id];
@@ -143,7 +194,7 @@ export class ModelCatalogService {
     const fields: Array<[string, unknown]> = [
       ['name', validated.name],
       ['base_url', validated.baseUrl],
-      ['api_key_secret_ref', validated.apiKeySecretRef],
+      ['api_key_secret_ref', validated.apiKeySecretRef === undefined ? undefined : normalizeSecretValue(validated.apiKeySecretRef)],
       ['is_enabled', validated.isEnabled],
       ['rate_limit_rpm', validated.rateLimitRpm],
       ['metadata', validated.metadata ? JSON.stringify(validated.metadata) : undefined],
@@ -166,7 +217,7 @@ export class ModelCatalogService {
       values,
     );
     if (!result.rowCount) throw new NotFoundError('LLM provider not found');
-    return result.rows[0];
+    return sanitizeProvider(result.rows[0]);
   }
 
   async deleteProvider(tenantId: string, id: string): Promise<void> {
@@ -219,7 +270,7 @@ export class ModelCatalogService {
   async createModel(tenantId: string, input: CreateModelInput): Promise<ModelRow> {
     const validated = createModelSchema.parse(input);
 
-    await this.getProvider(tenantId, validated.providerId);
+    await this.getStoredProvider(tenantId, validated.providerId);
 
     const result = await this.pool.query<ModelRow>(
       `INSERT INTO llm_models (
@@ -397,6 +448,89 @@ export class ModelCatalogService {
     return this.buildResolvedConfig(tenantId, roleName, modelId);
   }
 
+  async validateModelOverride(
+    tenantId: string,
+    override: unknown,
+    label = 'model_override',
+  ): Promise<void> {
+    const parsed = readModelOverride(override, label);
+    if (!parsed?.model_id) {
+      return;
+    }
+
+    await this.getModelWithProvider(tenantId, parsed.model_id);
+  }
+
+  async resolveEffectiveModel(
+    tenantId: string,
+    scope: { projectId?: string | null; workflowId?: string | null } = {},
+  ): Promise<EffectiveModelResolution> {
+    const tenantDefault = await this.getSystemDefault(tenantId);
+    let effective: EffectiveModelOverride = {
+      model_id: tenantDefault.modelId,
+      reasoning_config: tenantDefault.reasoningConfig,
+    };
+    let modelSource: EffectiveModelResolution['modelSource'] = tenantDefault.modelId ? 'tenant' : null;
+    let reasoningSource: EffectiveModelResolution['reasoningSource'] = tenantDefault.reasoningConfig ? 'tenant' : null;
+
+    let projectId = scope.projectId ?? null;
+    if (projectId) {
+      const projectOverride = await this.getProjectModelOverride(tenantId, projectId);
+      if (projectOverride) {
+        effective = overlayModelOverride(effective, projectOverride);
+        if (projectOverride.model_id !== undefined) {
+          modelSource = 'project';
+        }
+        if (projectOverride.reasoning_config !== undefined) {
+          reasoningSource = 'project';
+        }
+      }
+    }
+
+    if (scope.workflowId) {
+      const workflowScope = await this.loadWorkflowModelScope(tenantId, scope.workflowId);
+      if (!workflowScope) {
+        throw new NotFoundError('Workflow not found');
+      }
+      if (!projectId && workflowScope.project_id) {
+        projectId = workflowScope.project_id;
+        const projectOverride = await this.getProjectModelOverride(tenantId, projectId);
+        if (projectOverride) {
+          effective = overlayModelOverride(effective, projectOverride);
+          if (projectOverride.model_id !== undefined) {
+            modelSource = 'project';
+          }
+          if (projectOverride.reasoning_config !== undefined) {
+            reasoningSource = 'project';
+          }
+        }
+      }
+
+      const workflowOverride = readModelOverride(
+        asRecord(asRecord(workflowScope.config_layers).run).model_override
+          ?? asRecord(workflowScope.resolved_config).model_override,
+        'workflow model_override',
+      );
+      if (workflowOverride) {
+        effective = overlayModelOverride(effective, workflowOverride);
+        if (workflowOverride.model_id !== undefined) {
+          modelSource = 'workflow';
+        }
+        if (workflowOverride.reasoning_config !== undefined) {
+          reasoningSource = 'workflow';
+        }
+      }
+    }
+
+    return {
+      modelId: effective.model_id,
+      reasoningConfig: effective.reasoning_config,
+      modelSource,
+      reasoningSource,
+      model: effective.model_id ? await this.getModelWithProvider(tenantId, effective.model_id) : null,
+    };
+  }
+
   private async findModelIdForRole(
     tenantId: string,
     roleName: string,
@@ -475,7 +609,7 @@ export class ModelCatalogService {
     modelId: string,
   ): Promise<ResolvedRoleConfig> {
     const model = await this.getModel(tenantId, modelId);
-    const provider = await this.getProvider(tenantId, model.provider_id);
+    const provider = await this.getStoredProvider(tenantId, model.provider_id);
     const assignment = await this.findAssignment(tenantId, roleName);
 
     const systemDefaultReasoning = await this.findDefaultReasoningConfig(tenantId);
@@ -492,7 +626,7 @@ export class ModelCatalogService {
         name: provider.name,
         providerType,
         baseUrl: provider.base_url,
-        apiKeySecretRef: provider.api_key_secret_ref,
+        apiKeySecretRef: serializeProviderSecret(provider.api_key_secret_ref),
         authMode,
         providerId: authMode === 'oauth' ? provider.id : null,
       },
@@ -506,6 +640,31 @@ export class ModelCatalogService {
     };
   }
 
+  private async getProjectModelOverride(tenantId: string, projectId: string) {
+    const result = await this.pool.query<ProjectSettingsRow>(
+      'SELECT settings FROM projects WHERE tenant_id = $1 AND id = $2',
+      [tenantId, projectId],
+    );
+    if (!result.rowCount) {
+      return null;
+    }
+    return readModelOverride(asRecord(result.rows[0].settings).model_override, 'project model_override');
+  }
+
+  private async loadWorkflowModelScope(
+    tenantId: string,
+    workflowId: string,
+  ): Promise<WorkflowModelScopeRow | null> {
+    const result = await this.pool.query<WorkflowModelScopeRow>(
+      `SELECT project_id, resolved_config, config_layers
+         FROM workflows
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [tenantId, workflowId],
+    );
+    return result.rows[0] ?? null;
+  }
+
   private buildDefaultReasoningValue(
     model: ModelRow,
   ): Record<string, unknown> | null {
@@ -515,6 +674,64 @@ export class ModelCatalogService {
     const type = schema.type as string;
     const defaultValue = schema.default;
     return { [type]: defaultValue };
+  }
+
+  async getProviderForOperations(tenantId: string, id: string): Promise<ProviderRow> {
+    const provider = await this.getStoredProvider(tenantId, id);
+    return {
+      ...provider,
+      api_key_secret_ref: serializeProviderSecret(provider.api_key_secret_ref),
+    };
+  }
+
+  private async getStoredProvider(tenantId: string, id: string): Promise<ProviderRow> {
+    const repo = new TenantScopedRepository(this.pool, tenantId);
+    const row = await repo.findById<ProviderRow>('llm_providers', '*', id);
+    if (!row) throw new NotFoundError('LLM provider not found');
+    return row;
+  }
+
+  private async getModelWithProvider(
+    tenantId: string,
+    modelId: string,
+  ): Promise<EffectiveModelResolution['model']> {
+    const result = await this.pool.query<
+      ModelRow & {
+        provider_name: string;
+        provider_base_url: string;
+      }
+    >(
+      `SELECT m.*,
+              p.name AS provider_name,
+              p.base_url AS provider_base_url
+         FROM llm_models m
+         JOIN llm_providers p
+           ON p.id = m.provider_id
+        WHERE m.tenant_id = $1
+          AND m.id = $2
+          AND m.is_enabled = true
+          AND p.is_enabled = true
+        LIMIT 1`,
+      [tenantId, modelId],
+    );
+    if (!result.rowCount) {
+      throw new NotFoundError('LLM model not found');
+    }
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      modelId: row.model_id,
+      providerId: row.provider_id,
+      providerName: row.provider_name,
+      providerBaseUrl: row.provider_base_url,
+      contextWindow: row.context_window,
+      maxOutputTokens: row.max_output_tokens,
+      supportsToolUse: row.supports_tool_use,
+      supportsVision: row.supports_vision,
+      endpointType: row.endpoint_type,
+      reasoningConfig: row.reasoning_config,
+    };
   }
 }
 
@@ -534,4 +751,42 @@ export interface ResolvedRoleConfig {
     reasoningConfig: Record<string, unknown> | null;
   };
   reasoningConfig: Record<string, unknown> | null;
+}
+
+function normalizeSecretValue(value?: string | null) {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return null;
+  }
+  return normalizeStoredProviderSecret(trimmed);
+}
+
+function serializeProviderSecret(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+  return normalizeStoredProviderSecret(value);
+}
+
+function sanitizeProvider(provider: ProviderRow): ProviderRecord {
+  return {
+    id: provider.id,
+    tenant_id: provider.tenant_id,
+    name: provider.name,
+    base_url: provider.base_url,
+    auth_mode: provider.auth_mode ?? 'api_key',
+    is_enabled: provider.is_enabled,
+    rate_limit_rpm: provider.rate_limit_rpm,
+    metadata: provider.metadata ?? {},
+    credentials_configured: Boolean(provider.api_key_secret_ref || provider.oauth_credentials),
+    created_at: provider.created_at,
+    updated_at: provider.updated_at,
+  };
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
 }

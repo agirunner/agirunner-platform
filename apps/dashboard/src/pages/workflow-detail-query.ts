@@ -8,6 +8,12 @@ export async function invalidateWorkflowQueries(
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: ['workflow', workflowId] }),
     queryClient.invalidateQueries({ queryKey: ['tasks', workflowId] }),
+    queryClient.invalidateQueries({ queryKey: ['workflow-board', workflowId] }),
+    queryClient.invalidateQueries({ queryKey: ['workflow-stages', workflowId] }),
+    queryClient.invalidateQueries({ queryKey: ['workflow-activations', workflowId] }),
+    queryClient.invalidateQueries({ queryKey: ['workflow-gates', workflowId] }),
+    queryClient.invalidateQueries({ queryKey: ['workflow-model-overrides', workflowId] }),
+    queryClient.invalidateQueries({ queryKey: ['workflow-resolved-models', workflowId] }),
     queryClient.invalidateQueries({ queryKey: ['workflow-history', workflowId] }),
     queryClient.invalidateQueries({ queryKey: ['workflow-config', workflowId] }),
     queryClient.invalidateQueries({ queryKey: ['workflow-documents', workflowId] }),

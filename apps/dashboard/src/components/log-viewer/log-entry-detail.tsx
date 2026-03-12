@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Copy, Filter } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils.js';
 import type { LogEntry } from '../../lib/api.js';
+import { buildWorkflowDetailPermalink } from '../../pages/workflow-detail-permalinks.js';
 import { Button } from '../ui/button.js';
 import { LogEntryDetailLlm } from './log-entry-detail-llm.js';
 import { LogEntryDetailTool } from './log-entry-detail-tool.js';
@@ -83,8 +85,12 @@ const DETAIL_CATEGORY_LABELS: Record<string, string> = {
 function formatDetailTimestamp(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleString(undefined, {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
     hour12: false,
   });
 }
@@ -106,7 +112,12 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
 }
 
 function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
-  const role = entry.role ?? (typeof entry.payload?.role === 'string' && entry.payload.role !== '' ? entry.payload.role : null);
+  const role =
+    entry.role ??
+    (typeof entry.payload?.role === 'string' && entry.payload.role !== ''
+      ? entry.payload.role
+      : null);
+  const stageName = entry.stage_name && entry.stage_name !== '' ? entry.stage_name : null;
 
   return (
     <div className="rounded-md border border-border p-4">
@@ -126,20 +137,24 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
         <DetailRow label="Operation">
           <span className="font-medium">{entry.operation}</span>
         </DetailRow>
-        <DetailRow label="Status">
-          {entry.status}
-        </DetailRow>
+        <DetailRow label="Status">{entry.status}</DetailRow>
         <DetailRow label="Duration">
           <span className="font-mono text-xs">{formatDuration(entry.duration_ms)}</span>
         </DetailRow>
         {(entry.project_name || entry.project_id) && (
           <DetailRow label="Project">
-            {entry.project_name ?? <span className="font-mono text-xs text-muted-foreground/60">{entry.project_id}</span>}
+            {entry.project_name ?? (
+              <span className="font-mono text-xs text-muted-foreground/60">{entry.project_id}</span>
+            )}
           </DetailRow>
         )}
         {(entry.workflow_name || entry.workflow_id) && (
           <DetailRow label="Workflow">
-            {entry.workflow_name ?? <span className="font-mono text-xs text-muted-foreground/60">{entry.workflow_id}</span>}
+            {entry.workflow_name ?? (
+              <span className="font-mono text-xs text-muted-foreground/60">
+                {entry.workflow_id}
+              </span>
+            )}
           </DetailRow>
         )}
         {entry.task_id && (
@@ -147,14 +162,29 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
             <span className="font-mono text-xs">{entry.task_id}</span>
           </DetailRow>
         )}
+        {entry.work_item_id && (
+          <DetailRow label="Work Item ID">
+            <span className="font-mono text-xs">{entry.work_item_id}</span>
+          </DetailRow>
+        )}
         {entry.task_title && (
           <DetailRow label="Task Title">
             <span className="font-medium">{entry.task_title}</span>
           </DetailRow>
         )}
-        {entry.workflow_phase && (
-          <DetailRow label="Workflow Phase">
-            <span className="font-medium">{entry.workflow_phase}</span>
+        {stageName && (
+          <DetailRow label="Stage">
+            <span className="font-medium">{stageName}</span>
+          </DetailRow>
+        )}
+        {entry.activation_id && (
+          <DetailRow label="Activation ID">
+            <span className="font-mono text-xs">{entry.activation_id}</span>
+          </DetailRow>
+        )}
+        {entry.is_orchestrator_task && (
+          <DetailRow label="Task Kind">
+            <span className="font-medium">Orchestrator</span>
           </DetailRow>
         )}
         {role && (
@@ -169,7 +199,12 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
         </DetailRow>
         {entry.actor_id && (
           <DetailRow label="Actor ID">
-            <span className={cn('font-mono text-xs', UUID_RE.test(entry.actor_id) && 'text-muted-foreground/60')}>
+            <span
+              className={cn(
+                'font-mono text-xs',
+                UUID_RE.test(entry.actor_id) && 'text-muted-foreground/60',
+              )}
+            >
               {entry.actor_id}
             </span>
           </DetailRow>
@@ -189,9 +224,7 @@ function ErrorSection({ error }: { error: NonNullable<LogEntry['error']> }): JSX
   return (
     <div className="rounded-md border border-red-600/40 bg-red-950/20 p-4">
       <h4 className="mb-2 text-sm font-semibold text-red-400">Error</h4>
-      {error.code && (
-        <div className="mb-1 font-mono text-xs text-red-300">{error.code}</div>
-      )}
+      {error.code && <div className="mb-1 font-mono text-xs text-red-300">{error.code}</div>}
       <div className="text-sm text-red-200">{error.message}</div>
     </div>
   );
@@ -207,11 +240,7 @@ function PayloadSection({ payload }: { payload: Record<string, unknown> }): JSX.
         className="flex w-full items-center gap-1 text-sm font-semibold"
         onClick={() => setIsExpanded((prev) => !prev)}
       >
-        {isExpanded ? (
-          <ChevronDown className="h-4 w-4" />
-        ) : (
-          <ChevronRight className="h-4 w-4" />
-        )}
+        {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         Raw Payload
       </button>
       {isExpanded && (
@@ -237,6 +266,10 @@ export function LogEntryDetail({ entry, onFilterTrace }: LogEntryDetailProps): J
     onFilterTrace?.(entry.trace_id);
   }
 
+  const workflowPermalink = entry.workflow_id
+    ? buildWorkflowLink(entry)
+    : null;
+
   return (
     <div className={cn('space-y-4 px-4 pb-4')}>
       <TraceContextSection entry={entry} />
@@ -258,7 +291,21 @@ export function LogEntryDetail({ entry, onFilterTrace }: LogEntryDetailProps): J
             Filter to this trace
           </Button>
         )}
+        {workflowPermalink ? (
+          <Button variant="outline" size="sm" asChild>
+            <Link to={workflowPermalink}>Open workflow context</Link>
+          </Button>
+        ) : null}
       </div>
     </div>
   );
+}
+
+function buildWorkflowLink(entry: LogEntry): string {
+  return buildWorkflowDetailPermalink(entry.workflow_id as string, {
+    workItemId: entry.work_item_id ?? null,
+    activationId: entry.activation_id ?? null,
+    gateStageName:
+      entry.stage_name && !entry.work_item_id && !entry.activation_id ? entry.stage_name : null,
+  });
 }

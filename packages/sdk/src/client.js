@@ -100,16 +100,52 @@ export class PlatformApiClient {
         });
         return response.data;
     }
-    async actOnPhaseGate(workflowId, phaseName, payload) {
-        const response = await this.request(`/api/v1/workflows/${workflowId}/phases/${phaseName}/gate`, {
+    async getWorkflowBoard(workflowId) {
+        const response = await this.request(`/api/v1/workflows/${workflowId}/board`);
+        return response.data;
+    }
+    async listWorkflowStages(workflowId) {
+        const response = await this.request(`/api/v1/workflows/${workflowId}/stages`);
+        return response.data;
+    }
+    async listWorkflowWorkItems(workflowId, query = {}) {
+        const response = await this.request(this.withQuery(`/api/v1/workflows/${workflowId}/work-items`, query));
+        return response.data;
+    }
+    async getWorkflowWorkItem(workflowId, workItemId, query = {}) {
+        const response = await this.request(this.withQuery(`/api/v1/workflows/${workflowId}/work-items/${workItemId}`, query));
+        return response.data;
+    }
+    async listWorkflowWorkItemTasks(workflowId, workItemId) {
+        const response = await this.request(`/api/v1/workflows/${workflowId}/work-items/${workItemId}/tasks`);
+        return response.data;
+    }
+    async listWorkflowWorkItemEvents(workflowId, workItemId, limit = 100) {
+        const response = await this.request(`/api/v1/workflows/${workflowId}/work-items/${workItemId}/events?limit=${limit}`);
+        return response.data;
+    }
+    async createWorkflowWorkItem(workflowId, payload) {
+        const response = await this.request(`/api/v1/workflows/${workflowId}/work-items`, {
             method: 'POST',
             body: payload,
         });
         return response.data;
     }
-    async cancelPhase(workflowId, phaseName) {
-        const response = await this.request(`/api/v1/workflows/${workflowId}/phases/${phaseName}/cancel`, {
+    async updateWorkflowWorkItem(workflowId, workItemId, payload) {
+        const response = await this.request(`/api/v1/workflows/${workflowId}/work-items/${workItemId}`, {
+            method: 'PATCH',
+            body: payload,
+        });
+        return response.data;
+    }
+    async listWorkflowActivations(workflowId) {
+        const response = await this.request(`/api/v1/workflows/${workflowId}/activations`);
+        return response.data;
+    }
+    async actOnStageGate(workflowId, stageName, payload) {
+        const response = await this.request(`/api/v1/workflows/${workflowId}/stages/${stageName}/gate`, {
             method: 'POST',
+            body: payload,
         });
         return response.data;
     }
@@ -138,8 +174,45 @@ export class PlatformApiClient {
         });
         return response.data;
     }
+    async listPlaybooks() {
+        const response = await this.request('/api/v1/playbooks');
+        return response.data;
+    }
+    async getPlaybook(playbookId) {
+        const response = await this.request(`/api/v1/playbooks/${playbookId}`);
+        return response.data;
+    }
+    async createPlaybook(payload) {
+        const response = await this.request('/api/v1/playbooks', {
+            method: 'POST',
+            body: payload,
+        });
+        return response.data;
+    }
     async listTaskArtifacts(taskId) {
         const response = await this.request(`/api/v1/tasks/${taskId}/artifacts`);
+        return response.data;
+    }
+    async getTaskMemory(taskId, key) {
+        const path = key
+            ? this.withQuery(`/api/v1/tasks/${taskId}/memory`, { key })
+            : `/api/v1/tasks/${taskId}/memory`;
+        const response = await this.request(path);
+        return response.data;
+    }
+    async patchTaskMemory(taskId, payload) {
+        const response = await this.request(`/api/v1/tasks/${taskId}/memory`, {
+            method: 'PATCH',
+            body: payload,
+        });
+        return response.data;
+    }
+    async listTaskArtifactCatalog(taskId, query = {}) {
+        const response = await this.request(this.withQuery(`/api/v1/tasks/${taskId}/artifact-catalog`, query));
+        return response.data;
+    }
+    async getApprovalQueue() {
+        const response = await this.request('/api/v1/approvals');
         return response.data;
     }
     async listWorkers() {

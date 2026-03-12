@@ -68,6 +68,38 @@ describe('LogService', () => {
       expect(params[12]).toBeNull();
       expect(params[13]).toBeNull();
       expect(params[14]).toBeNull();
+      expect(params[17]).toBeNull();
+      expect(params[18]).toBeNull();
+      expect(params[20]).toBeNull();
+      expect(params[21]).toBe(false);
+    });
+
+    it('storesStageContextOnlyInCanonicalStageField', async () => {
+      const pool = createMockPool();
+      const service = new LogService(pool as never);
+
+      await service.insert({
+        tenantId: 'tenant-1',
+        traceId: 'trace-1',
+        spanId: 'span-1',
+        source: 'platform',
+        category: 'task_lifecycle',
+        level: 'info',
+        operation: 'task_lifecycle.task.created',
+        status: 'completed',
+        workflowId: 'wf-1',
+        taskId: 'task-1',
+        workItemId: 'work-item-1',
+        activationId: 'activation-1',
+        stageName: 'implementation',
+        isOrchestratorTask: true,
+      });
+
+      const [, params] = pool.query.mock.calls[0];
+      expect(params[17]).toBe('work-item-1');
+      expect(params[18]).toBe('activation-1');
+      expect(params[20]).toBe('implementation');
+      expect(params[21]).toBe(true);
     });
 
     it('serializesMetadataAsJson', async () => {
@@ -214,25 +246,27 @@ describe('LogService', () => {
       const pool = createMockPool();
       const service = new LogService(pool as never);
 
-      await service.insertBatch([{
-        tenantId: 'tenant-1',
-        traceId: 'trace-1',
-        spanId: 'span-1',
-        source: 'runtime' as const,
-        category: 'tool' as const,
-        level: 'info' as const,
-        operation: 'tool.shell_exec',
-        status: 'completed' as const,
-        payload: {
-          api_key: 'sk-secret-value',
-          password: 'my-password',
-          safe_field: 'visible',
-          tokens_in: 200,
-          tokens_out: 150,
-          total_tokens: 350,
-          nested: { secret_token: 'tok-123', name: 'safe' },
+      await service.insertBatch([
+        {
+          tenantId: 'tenant-1',
+          traceId: 'trace-1',
+          spanId: 'span-1',
+          source: 'runtime' as const,
+          category: 'tool' as const,
+          level: 'info' as const,
+          operation: 'tool.shell_exec',
+          status: 'completed' as const,
+          payload: {
+            api_key: 'sk-secret-value',
+            password: 'my-password',
+            safe_field: 'visible',
+            tokens_in: 200,
+            tokens_out: 150,
+            total_tokens: 350,
+            nested: { secret_token: 'tok-123', name: 'safe' },
+          },
         },
-      }]);
+      ]);
 
       const [, params] = pool.query.mock.calls[0];
       const payload = JSON.parse(params[10] as string);
@@ -250,25 +284,61 @@ describe('LogService', () => {
       const pool = createMockPool();
       const service = new LogService(pool as never);
 
-      await service.insertBatch([{
-        tenantId: 'tenant-1',
-        traceId: 'trace-1',
-        spanId: 'span-1',
-        source: 'runtime' as const,
-        category: 'tool' as const,
-        level: 'info' as const,
-        operation: 'tool.shell_exec',
-        status: 'completed' as const,
-        payload: {
-          input: 'export API_KEY=sk-abc123',
-          output: 'success',
+      await service.insertBatch([
+        {
+          tenantId: 'tenant-1',
+          traceId: 'trace-1',
+          spanId: 'span-1',
+          source: 'runtime' as const,
+          category: 'tool' as const,
+          level: 'info' as const,
+          operation: 'tool.shell_exec',
+          status: 'completed' as const,
+          payload: {
+            input: 'export API_KEY=sk-abc123',
+            output: 'success',
+          },
         },
-      }]);
+      ]);
 
       const [, params] = pool.query.mock.calls[0];
       const payload = JSON.parse(params[10] as string);
       expect(payload.input).toBe('[REDACTED]');
       expect(payload.output).toBe('success');
+    });
+
+    it('redactsEncryptedAndReferencedSecretsInNestedArraysAndErrors', async () => {
+      const pool = createMockPool();
+      const service = new LogService(pool as never);
+
+      await service.insert({
+        tenantId: 'tenant-1',
+        traceId: 'trace-1',
+        spanId: 'span-1',
+        source: 'platform' as const,
+        category: 'auth' as const,
+        level: 'error' as const,
+        operation: 'auth.oauth_connection.failed',
+        status: 'failed' as const,
+        payload: {
+          credentials: [
+            { access_token: 'enc:v1:token:payload:tag' },
+            { api_key_secret_ref: 'secret:OPENAI_API_KEY' },
+          ],
+        },
+        error: {
+          message: 'Bearer sk-secret-value leaked',
+          stack: 'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.payload.signature',
+        },
+      });
+
+      const [, params] = pool.query.mock.calls[0];
+      const payload = JSON.parse(params[10] as string);
+      const error = JSON.parse(params[11] as string);
+
+      expect(payload.credentials).toBe('[REDACTED]');
+      expect(error.message).toBe('[REDACTED]');
+      expect(error.stack).toBe('[REDACTED]');
     });
   });
 
@@ -281,7 +351,9 @@ describe('LogService', () => {
       await service.query('tenant-1', {});
       const [sql, params] = pool.query.mock.calls[0];
       expect(sql).toContain('created_at >= $');
-      const sinceParam = params.find((p: unknown) => typeof p === 'string' && (p as string).includes('T'));
+      const sinceParam = params.find(
+        (p: unknown) => typeof p === 'string' && (p as string).includes('T'),
+      );
       expect(sinceParam).toBeTruthy();
     });
 
@@ -394,6 +466,8 @@ describe('LogService', () => {
       const [sql, params] = pool.query.mock.calls[0];
       expect(sql).toContain('CONCAT_WS');
       expect(sql).toContain('ILIKE');
+      expect(sql).toContain('stage_name, trace_id');
+      expect(sql).not.toContain('stage_name, workflow_phase');
       expect(params).toContain('%shell_exec error%');
     });
 
@@ -538,9 +612,46 @@ describe('LogService', () => {
       const [sql, params] = pool.query.mock.calls[0];
       expect(sql).toContain('trace_id = $');
       expect(sql).toContain('task_id = $');
-      expect(sql).toContain('GROUP BY operation');
+      expect(sql).toContain("GROUP BY COALESCE(operation, 'unknown')");
       expect(params).toContain('trace-1');
       expect(params).toContain('task-1');
+    });
+
+    it('supportsWorkItemStageAndActivationGrouping', async () => {
+      const pool = createMockPool();
+      pool.query.mockResolvedValue({
+        rows: [
+          {
+            group_key: 'implementation',
+            count: '2',
+            error_count: '0',
+            total_duration_ms: '20',
+            avg_duration_ms: '10',
+            total_input_tokens: null,
+            total_output_tokens: null,
+            total_cost_usd: null,
+          },
+        ],
+        rowCount: 1,
+      });
+      const service = new LogService(pool as never);
+
+      const result = await service.stats('tenant-1', {
+        workItemId: 'work-item-1',
+        activationId: 'activation-1',
+        isOrchestratorTask: true,
+        groupBy: 'stage_name',
+      });
+
+      const [sql, params] = pool.query.mock.calls[0];
+      expect(sql).toContain("COALESCE(stage_name, 'unassigned')");
+      expect(sql).toContain('work_item_id = $');
+      expect(sql).toContain('activation_id = $');
+      expect(sql).toContain('is_orchestrator_task = $');
+      expect(params).toContain('work-item-1');
+      expect(params).toContain('activation-1');
+      expect(params).toContain(true);
+      expect(result.groups[0].group).toBe('implementation');
     });
 
     it('rejectsInvalidGroupByColumn', async () => {
@@ -626,7 +737,10 @@ describe('LogService', () => {
       }));
       const page2 = [{ id: '3', created_at: '2026-03-09T12:00:03.000Z' }];
       pool.query
-        .mockResolvedValueOnce({ rows: [...page1, { id: '99', created_at: '2026-03-09T12:00:04.000Z' }], rowCount: 4 })
+        .mockResolvedValueOnce({
+          rows: [...page1, { id: '99', created_at: '2026-03-09T12:00:04.000Z' }],
+          rowCount: 4,
+        })
         .mockResolvedValueOnce({ rows: page2, rowCount: 1 });
       const service = new LogService(pool as never);
 

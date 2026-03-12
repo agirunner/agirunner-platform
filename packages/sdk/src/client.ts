@@ -1,15 +1,30 @@
 import type {
   Agent,
+  ApprovalQueue,
   ApiDataResponse,
   ApiListResponse,
   AuthTokenResponse,
+  CreatePlaybookInput,
   CreateTaskInput,
+  CreateWorkflowInput,
+  CreateWorkflowWorkItemInput,
+  GetWorkflowWorkItemQuery,
+  ListWorkflowWorkItemsQuery,
+  UpdateWorkflowWorkItemInput,
+  Playbook,
+  PlatformEvent,
   Workflow,
+  WorkflowActivation,
+  WorkflowBoard,
+  WorkflowStage,
+  WorkflowWorkItem,
   Project,
   ProjectTimelineEntry,
   ResolvedDocumentReference,
   ResolvedWorkflowConfig,
   Task,
+  TaskArtifactCatalogEntry,
+  TaskMemory,
   TaskArtifact,
   Worker,
 } from './types.js';
@@ -59,10 +74,13 @@ export class PlatformApiClient {
   }
 
   async refreshSession(): Promise<{ token: string }> {
-    const response = await this.request<ApiDataResponse<{ token: string }>>('/api/v1/auth/refresh', {
-      method: 'POST',
-      includeAuth: false,
-    });
+    const response = await this.request<ApiDataResponse<{ token: string }>>(
+      '/api/v1/auth/refresh',
+      {
+        method: 'POST',
+        includeAuth: false,
+      },
+    );
     return response.data;
   }
 
@@ -76,7 +94,10 @@ export class PlatformApiClient {
   }
 
   async createTask(payload: CreateTaskInput): Promise<Task> {
-    const response = await this.request<ApiDataResponse<Task>>('/api/v1/tasks', { method: 'POST', body: payload });
+    const response = await this.request<ApiDataResponse<Task>>('/api/v1/tasks', {
+      method: 'POST',
+      body: payload,
+    });
     return response.data;
   }
 
@@ -121,7 +142,9 @@ export class PlatformApiClient {
   }
 
   async getWorkflow(workflowId: string): Promise<Workflow> {
-    const response = await this.request<ApiDataResponse<Workflow>>(`/api/v1/workflows/${workflowId}`);
+    const response = await this.request<ApiDataResponse<Workflow>>(
+      `/api/v1/workflows/${workflowId}`,
+    );
     return response.data;
   }
 
@@ -143,13 +166,7 @@ export class PlatformApiClient {
     return response.data;
   }
 
-  async createWorkflow(payload: {
-    template_id: string;
-    name: string;
-    project_id?: string;
-    parameters?: Record<string, unknown>;
-    metadata?: Record<string, unknown>;
-  }): Promise<Workflow> {
+  async createWorkflow(payload: CreateWorkflowInput): Promise<Workflow> {
     const response = await this.request<ApiDataResponse<Workflow>>('/api/v1/workflows', {
       method: 'POST',
       body: payload,
@@ -158,23 +175,74 @@ export class PlatformApiClient {
   }
 
   async cancelWorkflow(workflowId: string): Promise<Workflow> {
-    const response = await this.request<ApiDataResponse<Workflow>>(`/api/v1/workflows/${workflowId}/cancel`, {
-      method: 'POST',
-    });
+    const response = await this.request<ApiDataResponse<Workflow>>(
+      `/api/v1/workflows/${workflowId}/cancel`,
+      {
+        method: 'POST',
+      },
+    );
     return response.data;
   }
 
-  async actOnPhaseGate(
+  async getWorkflowBoard(workflowId: string): Promise<WorkflowBoard> {
+    const response = await this.request<ApiDataResponse<WorkflowBoard>>(
+      `/api/v1/workflows/${workflowId}/board`,
+    );
+    return response.data;
+  }
+
+  async listWorkflowStages(workflowId: string): Promise<WorkflowStage[]> {
+    const response = await this.request<ApiDataResponse<WorkflowStage[]>>(
+      `/api/v1/workflows/${workflowId}/stages`,
+    );
+    return response.data;
+  }
+
+  async listWorkflowWorkItems(
     workflowId: string,
-    phaseName: string,
-    payload: {
-      action: 'approve' | 'reject' | 'request_changes';
-      feedback?: string;
-      override_input?: Record<string, unknown>;
-    },
-  ): Promise<Workflow> {
-    const response = await this.request<ApiDataResponse<Workflow>>(
-      `/api/v1/workflows/${workflowId}/phases/${phaseName}/gate`,
+    query: ListWorkflowWorkItemsQuery = {},
+  ): Promise<WorkflowWorkItem[]> {
+    const response = await this.request<ApiDataResponse<WorkflowWorkItem[]>>(
+      this.withQuery(`/api/v1/workflows/${workflowId}/work-items`, query as Query),
+    );
+    return response.data;
+  }
+
+  async getWorkflowWorkItem(
+    workflowId: string,
+    workItemId: string,
+    query: GetWorkflowWorkItemQuery = {},
+  ): Promise<WorkflowWorkItem> {
+    const response = await this.request<ApiDataResponse<WorkflowWorkItem>>(
+      this.withQuery(`/api/v1/workflows/${workflowId}/work-items/${workItemId}`, query as Query),
+    );
+    return response.data;
+  }
+
+  async listWorkflowWorkItemTasks(workflowId: string, workItemId: string): Promise<Task[]> {
+    const response = await this.request<ApiDataResponse<Task[]>>(
+      `/api/v1/workflows/${workflowId}/work-items/${workItemId}/tasks`,
+    );
+    return response.data;
+  }
+
+  async listWorkflowWorkItemEvents(
+    workflowId: string,
+    workItemId: string,
+    limit = 100,
+  ): Promise<PlatformEvent[]> {
+    const response = await this.request<ApiDataResponse<PlatformEvent[]>>(
+      `/api/v1/workflows/${workflowId}/work-items/${workItemId}/events?limit=${limit}`,
+    );
+    return response.data;
+  }
+
+  async createWorkflowWorkItem(
+    workflowId: string,
+    payload: CreateWorkflowWorkItemInput,
+  ): Promise<WorkflowWorkItem> {
+    const response = await this.request<ApiDataResponse<WorkflowWorkItem>>(
+      `/api/v1/workflows/${workflowId}/work-items`,
       {
         method: 'POST',
         body: payload,
@@ -183,11 +251,41 @@ export class PlatformApiClient {
     return response.data;
   }
 
-  async cancelPhase(workflowId: string, phaseName: string): Promise<Workflow> {
+  async updateWorkflowWorkItem(
+    workflowId: string,
+    workItemId: string,
+    payload: UpdateWorkflowWorkItemInput,
+  ): Promise<WorkflowWorkItem> {
+    const response = await this.request<ApiDataResponse<WorkflowWorkItem>>(
+      `/api/v1/workflows/${workflowId}/work-items/${workItemId}`,
+      {
+        method: 'PATCH',
+        body: payload,
+      },
+    );
+    return response.data;
+  }
+
+  async listWorkflowActivations(workflowId: string): Promise<WorkflowActivation[]> {
+    const response = await this.request<ApiDataResponse<WorkflowActivation[]>>(
+      `/api/v1/workflows/${workflowId}/activations`,
+    );
+    return response.data;
+  }
+
+  async actOnStageGate(
+    workflowId: string,
+    stageName: string,
+    payload: {
+      action: 'approve' | 'reject' | 'request_changes';
+      feedback?: string;
+    },
+  ): Promise<Workflow> {
     const response = await this.request<ApiDataResponse<Workflow>>(
-      `/api/v1/workflows/${workflowId}/phases/${phaseName}/cancel`,
+      `/api/v1/workflows/${workflowId}/stages/${stageName}/gate`,
       {
         method: 'POST',
+        body: payload,
       },
     );
     return response.data;
@@ -206,10 +304,13 @@ export class PlatformApiClient {
     projectId: string,
     payload: { key: string; value: unknown },
   ): Promise<Project> {
-    const response = await this.request<ApiDataResponse<Project>>(`/api/v1/projects/${projectId}/memory`, {
-      method: 'PATCH',
-      body: payload,
-    });
+    const response = await this.request<ApiDataResponse<Project>>(
+      `/api/v1/projects/${projectId}/memory`,
+      {
+        method: 'PATCH',
+        body: payload,
+      },
+    );
     return response.data;
   }
 
@@ -234,10 +335,72 @@ export class PlatformApiClient {
     return response.data;
   }
 
+  async listPlaybooks(): Promise<Playbook[]> {
+    const response = await this.request<ApiDataResponse<Playbook[]>>('/api/v1/playbooks');
+    return response.data;
+  }
+
+  async getPlaybook(playbookId: string): Promise<Playbook> {
+    const response = await this.request<ApiDataResponse<Playbook>>(
+      `/api/v1/playbooks/${playbookId}`,
+    );
+    return response.data;
+  }
+
+  async createPlaybook(payload: CreatePlaybookInput): Promise<Playbook> {
+    const response = await this.request<ApiDataResponse<Playbook>>('/api/v1/playbooks', {
+      method: 'POST',
+      body: payload,
+    });
+    return response.data;
+  }
+
   async listTaskArtifacts(taskId: string): Promise<TaskArtifact[]> {
     const response = await this.request<ApiDataResponse<TaskArtifact[]>>(
       `/api/v1/tasks/${taskId}/artifacts`,
     );
+    return response.data;
+  }
+
+  async getTaskMemory(taskId: string, key?: string): Promise<TaskMemory> {
+    const path = key
+      ? this.withQuery(`/api/v1/tasks/${taskId}/memory`, { key })
+      : `/api/v1/tasks/${taskId}/memory`;
+    const response = await this.request<ApiDataResponse<TaskMemory>>(path);
+    return response.data;
+  }
+
+  async patchTaskMemory(
+    taskId: string,
+    payload: { key: string; value: unknown },
+  ): Promise<Project> {
+    const response = await this.request<ApiDataResponse<Project>>(
+      `/api/v1/tasks/${taskId}/memory`,
+      {
+        method: 'PATCH',
+        body: payload,
+      },
+    );
+    return response.data;
+  }
+
+  async listTaskArtifactCatalog(
+    taskId: string,
+    query: {
+      task_id?: string;
+      work_item_id?: string;
+      name_prefix?: string;
+      limit?: number;
+    } = {},
+  ): Promise<TaskArtifactCatalogEntry[]> {
+    const response = await this.request<ApiDataResponse<TaskArtifactCatalogEntry[]>>(
+      this.withQuery(`/api/v1/tasks/${taskId}/artifact-catalog`, query),
+    );
+    return response.data;
+  }
+
+  async getApprovalQueue(): Promise<ApprovalQueue> {
+    const response = await this.request<ApiDataResponse<ApprovalQueue>>('/api/v1/approvals');
     return response.data;
   }
 

@@ -10,10 +10,10 @@ import {
   User,
   Cpu,
   Workflow,
-  Download,
+  FileText,
 } from 'lucide-react';
 import { dashboardApi, type DashboardTaskArtifactRecord } from '../../lib/api.js';
-import { cn } from '../../lib/utils.js';
+import { buildArtifactPermalink } from '../../components/artifact-preview-support.js';
 import { LogViewer } from '../../components/log-viewer/log-viewer.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -32,6 +32,10 @@ interface Task {
   status: string;
   state?: string;
   role?: string;
+  stage_name?: string | null;
+  work_item_id?: string | null;
+  activation_id?: string | null;
+  is_orchestrator_task?: boolean;
   agent_id?: string;
   agent_name?: string;
   assigned_worker?: string;
@@ -56,19 +60,38 @@ function normalizeTask(response: unknown): Task {
 }
 
 function resolveStatus(task: Task): string {
-  return (task.status ?? task.state ?? 'unknown').toLowerCase();
+  return normalizeTaskStatus((task.status ?? task.state ?? 'unknown').toLowerCase());
 }
 
 function statusBadgeVariant(status: string) {
   const map: Record<string, 'success' | 'default' | 'destructive' | 'warning' | 'secondary'> = {
     completed: 'success',
-    running: 'default',
+    in_progress: 'default',
     failed: 'destructive',
-    paused: 'warning',
+    output_pending_review: 'warning',
     pending: 'secondary',
     awaiting_approval: 'warning',
+    escalated: 'destructive',
+    ready: 'secondary',
   };
   return map[status] ?? 'secondary';
+}
+
+function describeTaskKind(task: Task): string {
+  const status = resolveStatus(task);
+  if (task.is_orchestrator_task) {
+    return 'Orchestrator activation';
+  }
+  if (status === 'output_pending_review') {
+    return 'Output review';
+  }
+  if (status === 'awaiting_approval') {
+    return 'Operator approval';
+  }
+  if (status === 'escalated') {
+    return 'Escalated specialist task';
+  }
+  return 'Specialist task';
 }
 
 function formatTimestamp(value?: string): string {
@@ -122,11 +145,14 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
   const queryClient = useQueryClient();
   const status = resolveStatus(task);
   const isAwaitingApproval = status === 'awaiting_approval';
+  const isOutputReview = status === 'output_pending_review';
+  const isEscalated = status === 'escalated';
   const isFailed = status === 'failed';
-  const isRunning = status === 'running';
+  const isInProgress = status === 'in_progress';
 
   const approveMutation = useMutation({
-    mutationFn: () => dashboardApi.approveTask(task.id),
+    mutationFn: () =>
+      isOutputReview ? dashboardApi.approveTaskOutput(task.id) : dashboardApi.approveTask(task.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['task', task.id] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
@@ -186,6 +212,24 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
           </Button>
         </>
       )}
+      {isOutputReview && (
+        <Button
+          size="sm"
+          disabled={isActionPending}
+          onClick={() => approveMutation.mutate()}
+        >
+          <CheckCircle className="h-4 w-4" />
+          Approve Output
+        </Button>
+      )}
+      {isEscalated && (
+        <Button variant="outline" size="sm" asChild>
+          <a href="#escalation-response">
+            <Workflow className="h-4 w-4" />
+            Resolve Escalation
+          </a>
+        </Button>
+      )}
       {isFailed && (
         <Button
           variant="outline"
@@ -197,7 +241,7 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
           Retry
         </Button>
       )}
-      {isRunning && (
+      {isInProgress && (
         <Button
           variant="destructive"
           size="sm"
@@ -210,6 +254,12 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
       )}
     </div>
   );
+}
+
+function normalizeTaskStatus(status: string): string {
+  if (status === 'running' || status === 'claimed') return 'in_progress';
+  if (status === 'awaiting_escalation') return 'escalated';
+  return status;
 }
 
 function OutputSection({ output }: { output: unknown }): JSX.Element {
@@ -260,15 +310,12 @@ function ArtifactList({ taskId }: { taskId: string }): JSX.Element {
               {artifact.content_type} &middot; {formatFileSize(artifact.size_bytes)}
             </p>
           </div>
-          <a
-            href={artifact.download_url}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Button variant="ghost" size="sm">
-              <Download className="h-4 w-4" />
-            </Button>
-          </a>
+          <Button asChild variant="ghost" size="sm">
+            <Link to={buildArtifactPermalink(artifact.task_id, artifact.id)}>
+              <FileText className="h-4 w-4" />
+              Preview
+            </Link>
+          </Button>
         </div>
       ))}
     </div>
@@ -309,8 +356,22 @@ export function TaskDetailPage(): JSX.Element {
           <Badge variant={statusBadgeVariant(status)} className="capitalize">
             {status.replace(/_/g, ' ')}
           </Badge>
+          <Badge variant="outline">{describeTaskKind(task)}</Badge>
         </div>
         <TaskActionButtons task={task} />
+      </div>
+
+      <div className="flex flex-wrap gap-2 text-sm text-muted">
+        {task.workflow_id ? (
+          <Link to={`/work/workflows/${task.workflow_id}`} className="text-accent hover:underline">
+            Workflow {task.workflow_name ?? task.workflow_id}
+          </Link>
+        ) : (
+          <span>No workflow linked</span>
+        )}
+        {task.stage_name ? <span>Stage {task.stage_name}</span> : null}
+        {task.work_item_id ? <span>Work item {task.work_item_id}</span> : null}
+        {task.activation_id ? <span>Activation {task.activation_id}</span> : null}
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -329,6 +390,9 @@ export function TaskDetailPage(): JSX.Element {
           label="Workflow"
           value={task.workflow_name ?? task.workflow_id ?? '-'}
         />
+        <InfoCard icon={Workflow} label="Stage" value={task.stage_name ?? '-'} />
+        <InfoCard icon={Workflow} label="Work Item" value={task.work_item_id ?? '-'} />
+        <InfoCard icon={Workflow} label="Activation" value={task.activation_id ?? '-'} />
         <InfoCard icon={User} label="Role" value={task.role ?? '-'} />
         <InfoCard icon={Clock} label="Created" value={formatTimestamp(task.created_at)} />
         <InfoCard icon={Clock} label="Started" value={formatTimestamp(task.started_at)} />
@@ -345,6 +409,7 @@ export function TaskDetailPage(): JSX.Element {
       <Tabs defaultValue="output">
         <TabsList>
           <TabsTrigger value="output">Output</TabsTrigger>
+          <TabsTrigger value="context">Execution Context</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
         </TabsList>
@@ -352,10 +417,30 @@ export function TaskDetailPage(): JSX.Element {
         <TabsContent value="output">
           <Card>
             <CardHeader>
-              <CardTitle>Task Output</CardTitle>
+              <CardTitle>Execution Output</CardTitle>
             </CardHeader>
             <CardContent>
               <OutputSection output={task.output} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="context">
+          <Card>
+            <CardHeader>
+              <CardTitle>Execution Context</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <InfoCard icon={Workflow} label="Task Kind" value={describeTaskKind(task)} />
+                <InfoCard icon={Workflow} label="Status" value={status.replace(/_/g, ' ')} />
+              </div>
+              <div id="escalation-response" className="rounded-md border bg-border/10 p-4">
+                <h3 className="text-sm font-medium">Escalation & Review Context</h3>
+                <p className="mt-1 text-sm text-muted">
+                  Use this task’s workflow, stage, work item, activation, and review state to decide the next operator action.
+                </p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

@@ -11,6 +11,7 @@ import { dashboardApi } from '../lib/api.js';
 import { subscribeToEvents } from '../lib/sse.js';
 import {
   parseJsonObject,
+  normalizeTaskState,
   readClarificationAnswers,
   readClarificationHistory,
   readExecutionSummary,
@@ -69,10 +70,13 @@ export function TaskDetailPage(): JSX.Element {
   }, [taskId, queryClient]);
 
   const taskData = query.data ?? null;
-  const canApprove = taskData?.state === 'awaiting_approval';
-  const canRetry = taskData?.state === 'failed' || taskData?.state === 'cancelled';
-  const canCancel = ['pending', 'ready', 'claimed', 'running', 'awaiting_approval', 'output_pending_review'].includes(
-    taskData?.state ?? '',
+  const taskState = normalizeTaskState(
+    taskData?.state ?? ((taskData as Task & { status?: string } | null)?.status ?? null),
+  );
+  const canApprove = taskState === 'awaiting_approval';
+  const canRetry = taskState === 'failed' || taskState === 'cancelled';
+  const canCancel = ['pending', 'ready', 'in_progress', 'awaiting_approval', 'output_pending_review', 'escalated'].includes(
+    taskState,
   );
   const retryPayload = useMemo(
     () => parseJsonObject(retryOverrideInput, 'Invalid JSON in retry override_input.'),
@@ -110,7 +114,7 @@ export function TaskDetailPage(): JSX.Element {
           <div className="card">
             <div className="row" style={{ justifyContent: 'space-between' }}>
               <strong>{taskData.title}</strong>
-              <span className={`status-badge status-${taskData.state}`}>{taskData.state}</span>
+              <span className={`status-badge status-${taskState}`}>{taskState}</span>
             </div>
             <p className="muted">Task id: {taskData.id}</p>
           </div>
@@ -118,8 +122,8 @@ export function TaskDetailPage(): JSX.Element {
           <BuiltInCapabilityBadge task={taskData} />
 
           <div className="card">
-            <h3>Task Controls</h3>
-            <p className="muted">Control-plane interventions for approval, retry, rework, and escalation.</p>
+            <h3>Operator Actions</h3>
+            <p className="muted">Approval, retry, change request, reassignment, escalation, and output override controls for this task.</p>
             <div className="row">
               <button type="button" className="button" disabled={!canApprove} onClick={() => void runAction(() => dashboardApi.approveTask(taskData.id), 'Task approved.')}>Approve</button>
               <button type="button" className="button" disabled={!canCancel} onClick={() => void runAction(() => dashboardApi.cancelTask(taskData.id), 'Task cancel signal sent.')}>Cancel</button>

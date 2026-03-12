@@ -9,6 +9,10 @@ export interface LogStreamFilters {
   projectId?: string;
   workflowId?: string;
   taskId?: string;
+  workItemId?: string;
+  stageName?: string;
+  activationId?: string;
+  isOrchestratorTask?: boolean;
   traceId?: string;
   operation?: string[];
 }
@@ -24,6 +28,10 @@ interface LogNotification {
   project_id: string | null;
   workflow_id: string | null;
   task_id: string | null;
+  work_item_id: string | null;
+  stage_name: string | null;
+  activation_id: string | null;
+  is_orchestrator_task: boolean;
   created_at: string;
 }
 
@@ -67,7 +75,11 @@ export class LogStreamService {
     this.subscribers.clear();
   }
 
-  subscribe(tenantId: string, filters: LogStreamFilters, onLog: (entry: LogRow) => void): () => void {
+  subscribe(
+    tenantId: string,
+    filters: LogStreamFilters,
+    onLog: (entry: LogRow) => void,
+  ): () => void {
     const id = this.nextSubscriberId++;
     this.subscribers.set(id, { tenantId, filters, onLog });
     return () => {
@@ -96,7 +108,9 @@ export class LogStreamService {
       `SELECT id, tenant_id, trace_id, span_id, parent_span_id,
               source, category, level, operation, status, duration_ms,
               payload, error,
-              project_id, workflow_id, workflow_name, task_id,
+              project_id, workflow_id, workflow_name, project_name, task_id,
+              work_item_id, stage_name, activation_id, is_orchestrator_task,
+              task_title, role,
               actor_type, actor_id, actor_name,
               resource_type, resource_id, resource_name,
               created_at
@@ -152,6 +166,21 @@ export class LogStreamService {
       return false;
     }
     if (filters.taskId && notification.task_id !== filters.taskId) {
+      return false;
+    }
+    if (filters.workItemId && notification.work_item_id !== filters.workItemId) {
+      return false;
+    }
+    if (filters.stageName && notification.stage_name !== filters.stageName) {
+      return false;
+    }
+    if (filters.activationId && notification.activation_id !== filters.activationId) {
+      return false;
+    }
+    if (
+      filters.isOrchestratorTask !== undefined &&
+      notification.is_orchestrator_task !== filters.isOrchestratorTask
+    ) {
       return false;
     }
     if (filters.traceId && notification.trace_id !== filters.traceId) {

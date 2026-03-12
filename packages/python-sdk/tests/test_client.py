@@ -23,10 +23,6 @@ class PlatformApiClientTests(unittest.TestCase):
                 return {"data": [{"logical_name": "brief"}]}
             if path == "/api/v1/projects/project-1/planning-workflow":
                 return {"data": {"id": "pipe-1"}}
-            if path == "/api/v1/workflows/pipe-1/phases/review/gate":
-                return {"data": {"id": "pipe-1", "current_phase": "review"}}
-            if path == "/api/v1/workflows/pipe-1/phases/review/cancel":
-                return {"data": {"id": "pipe-1", "state": "cancelled"}}
             if path == "/api/v1/tasks/task-1/artifacts":
                 return {"data": [{"id": "artifact-1"}]}
             raise AssertionError(f"Unexpected path {path}")
@@ -49,13 +45,8 @@ class PlatformApiClientTests(unittest.TestCase):
             client.create_planning_workflow("project-1", "Plan next run")["id"],
             "pipe-1",
         )
-        self.assertEqual(
-            client.act_on_phase_gate("pipe-1", "review", {"action": "approve"})["current_phase"],
-            "review",
-        )
-        self.assertEqual(client.cancel_phase("pipe-1", "review")["state"], "cancelled")
         self.assertEqual(client.list_task_artifacts("task-1")[0]["id"], "artifact-1")
-        self.assertGreaterEqual(len(calls), 10)
+        self.assertGreaterEqual(len(calls), 8)
 
 
 if __name__ == "__main__":

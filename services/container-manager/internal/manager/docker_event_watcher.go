@@ -49,7 +49,7 @@ var healthStatusActions = map[events.Action]string{
 
 // DockerEventWatcher subscribes to the Docker events API and emits structured
 // log entries for interesting container lifecycle events. It enriches entries
-// with agirunner labels (template_id, runtime_id, task_id) when present.
+// with agirunner labels (playbook_id, runtime_id, task_id) when present.
 type DockerEventWatcher struct {
 	docker  DockerClient
 	emitter *LogEmitter
@@ -346,10 +346,10 @@ func extractResourceInfo(attrs map[string]string) logResourceInfo {
 		res.TaskID = taskID
 	}
 
-	if templateID, ok := attrs[labelDCMTemplateID]; ok && templateID != "" {
+	if playbookID, ok := attrs[labelDCMPlaybookID]; ok && playbookID != "" {
 		if res.ResourceType == "" {
-			res.ResourceType = "template"
-			res.ResourceID = templateID
+			res.ResourceType = "playbook"
+			res.ResourceID = playbookID
 		}
 	}
 

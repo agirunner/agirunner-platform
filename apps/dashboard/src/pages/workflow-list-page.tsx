@@ -16,6 +16,27 @@ interface WorkflowListResult {
   data: WorkflowItem[];
 }
 
+type DeliveryPosture = 'planned' | 'active' | 'needs_attention' | 'done';
+
+function resolveDeliveryPosture(state: string): DeliveryPosture {
+  const normalized = state.toLowerCase();
+  if (normalized === 'created') return 'planned';
+  if (normalized === 'running' || normalized === 'active') return 'active';
+  if (normalized === 'completed') return 'done';
+  if (normalized === 'failed' || normalized === 'cancelled' || normalized === 'paused') {
+    return 'needs_attention';
+  }
+  return 'planned';
+}
+
+function describeDeliveryPostureLabel(state: string): string {
+  const posture = resolveDeliveryPosture(state);
+  if (posture === 'planned') return 'Planned';
+  if (posture === 'active') return 'Active';
+  if (posture === 'done') return 'Done';
+  return 'Needs Attention';
+}
+
 export function WorkflowListPage(): JSX.Element {
   const queryClient = useQueryClient();
   const [stateFilter, setStateFilter] = useState('all');
@@ -50,7 +71,7 @@ export function WorkflowListPage(): JSX.Element {
     const normalizedText = textFilter.trim().toLowerCase();
 
     const filtered = allWorkflows.filter((workflow) => {
-      if (stateFilter !== 'all' && workflow.state !== stateFilter) {
+      if (stateFilter !== 'all' && resolveDeliveryPosture(workflow.state) !== stateFilter) {
         return false;
       }
 
@@ -77,7 +98,7 @@ export function WorkflowListPage(): JSX.Element {
 
   const groupedWorkflows = useMemo(() => {
     return filteredWorkflows.reduce<Record<string, WorkflowItem[]>>((acc, workflow) => {
-      const key = workflow.state;
+      const key = resolveDeliveryPosture(workflow.state);
       if (!acc[key]) {
         acc[key] = [];
       }
@@ -122,8 +143,8 @@ export function WorkflowListPage(): JSX.Element {
     <section className="card">
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <div>
-          <h2>Workflows</h2>
-          <p className="muted">Filterable real-time list and board view backed by SSE updates.</p>
+          <h2>Delivery Runs</h2>
+          <p className="muted">Filterable real-time list and fallback posture board backed by SSE updates.</p>
         </div>
         <div className="row">
           <button
@@ -152,15 +173,13 @@ export function WorkflowListPage(): JSX.Element {
           onChange={(event) => setTextFilter(event.target.value)}
           placeholder="Filter by name or id"
         />
-        <label htmlFor="workflow-state-filter">State</label>
+        <label htmlFor="workflow-state-filter">Delivery Posture Fallback</label>
         <select id="workflow-state-filter" value={stateFilter} onChange={(event) => setStateFilter(event.target.value)}>
           <option value="all">All</option>
-          <option value="created">Created</option>
-          <option value="running">Running</option>
-          <option value="paused">Paused</option>
-          <option value="completed">Completed</option>
-          <option value="failed">Failed</option>
-          <option value="cancelled">Cancelled</option>
+          <option value="planned">Planned</option>
+          <option value="active">Active</option>
+          <option value="needs_attention">Needs Attention</option>
+          <option value="done">Done</option>
         </select>
         <label htmlFor="workflow-sort">Sort</label>
         <select
@@ -177,7 +196,7 @@ export function WorkflowListPage(): JSX.Element {
       <div className="card">
         <h3>Start With AI Planning</h3>
         <p className="muted">
-          Launch a planning workflow from the dashboard using a project brief and get a phase-gated plan for review.
+          Launch a planning workflow from the dashboard using a project brief and get a playbook-aligned delivery plan ready for operator review.
         </p>
         <div className="grid">
           <label htmlFor="planning-project-select">Project</label>
@@ -193,7 +212,7 @@ export function WorkflowListPage(): JSX.Element {
               </option>
             ))}
           </select>
-          <label htmlFor="planning-name">Workflow name</label>
+          <label htmlFor="planning-name">Run name</label>
           <input
             id="planning-name"
             className="input"
@@ -210,7 +229,7 @@ export function WorkflowListPage(): JSX.Element {
           />
           <div className="row" style={{ justifyContent: 'flex-end' }}>
             <button type="button" className="button primary" onClick={() => void handleStartPlanningWorkflow()}>
-              Start Planning Workflow
+              Start Planning Run
             </button>
           </div>
           {planningStatus ? <p style={{ color: '#16a34a' }}>{planningStatus}</p> : null}
@@ -218,15 +237,15 @@ export function WorkflowListPage(): JSX.Element {
         </div>
       </div>
 
-      {query.isLoading ? <p>Loading workflows...</p> : null}
-      {query.error ? <p style={{ color: '#dc2626' }}>Failed to load workflows</p> : null}
+      {query.isLoading ? <p>Loading runs...</p> : null}
+      {query.error ? <p style={{ color: '#dc2626' }}>Failed to load runs</p> : null}
 
       {view === 'list' ? (
         <table className="table">
           <thead>
             <tr>
               <th>Name</th>
-              <th>Status</th>
+              <th>Delivery Posture</th>
               <th>Created</th>
             </tr>
           </thead>
@@ -237,7 +256,9 @@ export function WorkflowListPage(): JSX.Element {
                   <Link to={`/workflows/${workflow.id}`}>{workflow.name}</Link>
                 </td>
                 <td>
-                  <span className={`status-badge status-${workflow.state}`}>{workflow.state}</span>
+                  <span className={`status-badge status-${resolveDeliveryPosture(workflow.state)}`}>
+                    {describeDeliveryPostureLabel(workflow.state)}
+                  </span>
                 </td>
                 <td>{new Date(workflow.created_at).toLocaleString()}</td>
               </tr>
@@ -245,7 +266,7 @@ export function WorkflowListPage(): JSX.Element {
             {filteredWorkflows.length === 0 ? (
               <tr>
                 <td colSpan={3} className="muted">
-                  No workflows match current filters.
+                  No runs match current filters.
                 </td>
               </tr>
             ) : null}
@@ -256,7 +277,7 @@ export function WorkflowListPage(): JSX.Element {
           {Object.entries(groupedWorkflows).map(([state, items]) => (
             <article className="card board-column" key={state}>
               <h3>
-                {state} <span className="muted">({items.length})</span>
+                {describeDeliveryPostureLabel(state)} <span className="muted">({items.length})</span>
               </h3>
               <div className="grid">
                 {items.map((workflow) => (
@@ -268,7 +289,7 @@ export function WorkflowListPage(): JSX.Element {
               </div>
             </article>
           ))}
-          {Object.keys(groupedWorkflows).length === 0 ? <p className="muted">No workflows match current filters.</p> : null}
+          {Object.keys(groupedWorkflows).length === 0 ? <p className="muted">No runs match current filters.</p> : null}
         </div>
       )}
     </section>

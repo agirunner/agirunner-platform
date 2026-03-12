@@ -2,7 +2,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import { ArtifactService } from './artifact-service.js';
 import { buildArtifactStorageConfig } from '../content/storage-config.js';
 import { createArtifactStorage } from '../content/storage-factory.js';
-import type { DatabasePool } from '../db/database.js';
+import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { EventService } from './event-service.js';
 import { ModelCatalogService } from './model-catalog-service.js';
@@ -18,7 +18,11 @@ import type { WorkerConnectionHub } from './worker-connection-hub.js';
 import { TaskWriteService } from './task-write-service.js';
 import { OrchestratorGrantService } from './orchestrator-grant-service.js';
 import { RoleDefinitionService } from './role-definition-service.js';
+import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
+import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
 const DEFAULT_CANCEL_SIGNAL_GRACE_PERIOD_MS = 60_000;
+const DEFAULT_WORKFLOW_ACTIVATION_DELAY_MS = 10_000;
+const DEFAULT_WORKFLOW_ACTIVATION_STALE_AFTER_MS = 300_000;
 export class TaskService {
   private readonly queryService: TaskQueryService;
   private readonly writeService: TaskWriteService;
@@ -34,6 +38,10 @@ export class TaskService {
   ) {
     const cancelSignalGracePeriodMs =
       config.TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS ?? DEFAULT_CANCEL_SIGNAL_GRACE_PERIOD_MS;
+    const workflowActivationDelayMs =
+      config.WORKFLOW_ACTIVATION_DELAY_MS ?? DEFAULT_WORKFLOW_ACTIVATION_DELAY_MS;
+    const workflowActivationStaleAfterMs =
+      config.WORKFLOW_ACTIVATION_STALE_AFTER_MS ?? DEFAULT_WORKFLOW_ACTIVATION_STALE_AFTER_MS;
 
     const queueWorkerCancelSignal = async (
       identity: ApiKeyIdentity,
@@ -104,6 +112,7 @@ export class TaskService {
 
     this.queryService = new TaskQueryService(pool);
     const orchestratorGrantService = new OrchestratorGrantService(pool, eventService);
+    const parallelismService = new PlaybookTaskParallelismService(pool);
     this.writeService = new TaskWriteService({
       pool,
       eventService,
@@ -112,6 +121,7 @@ export class TaskService {
       subtaskPermission: orchestratorGrantService.subtaskPermission(),
       loadTaskOrThrow: this.queryService.loadTaskOrThrow.bind(this.queryService),
       toTaskResponse: this.queryService.toTaskResponse.bind(this.queryService),
+      parallelismService,
     });
 
     const artifactRetentionService = new ArtifactRetentionService(
@@ -131,6 +141,15 @@ export class TaskService {
       projectTimelineService,
       logService,
     );
+    const workflowActivationDispatchService = new WorkflowActivationDispatchService({
+      pool,
+      eventService,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: config.TASK_DEFAULT_TIMEOUT_MINUTES,
+        WORKFLOW_ACTIVATION_DELAY_MS: workflowActivationDelayMs,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: workflowActivationStaleAfterMs,
+      },
+    });
     const roleDefService = new RoleDefinitionService(pool);
     this.lifecycleService = new TaskLifecycleService({
       pool,
@@ -149,6 +168,11 @@ export class TaskService {
           max_escalation_depth: role.max_escalation_depth,
         };
       },
+      finalizeOrchestratorActivation:
+        workflowActivationDispatchService.finalizeActivationForTask.bind(
+          workflowActivationDispatchService,
+        ),
+      parallelismService,
     });
 
     const modelCatalog = new ModelCatalogService(pool);
@@ -158,6 +182,7 @@ export class TaskService {
       toTaskResponse: this.queryService.toTaskResponse.bind(this.queryService),
       getTaskContext: this.queryService.getTaskContext.bind(this.queryService),
       resolveRoleConfig: modelCatalog.resolveRoleConfig.bind(modelCatalog),
+      parallelismService,
     });
 
     this.timeoutService = new TaskTimeoutService(
@@ -168,8 +193,8 @@ export class TaskService {
     );
   }
 
-  createTask(identity: ApiKeyIdentity, input: CreateTaskInput) {
-    return this.writeService.createTask(identity, input);
+  createTask(identity: ApiKeyIdentity, input: CreateTaskInput, client?: DatabaseClient) {
+    return this.writeService.createTask(identity, input, client);
   }
 
   listTasks(tenantId: string, query: ListTaskQuery) {
@@ -194,6 +219,7 @@ export class TaskService {
       worker_id?: string;
       capabilities: string[];
       workflow_id?: string;
+      playbook_id?: string;
       include_context?: boolean;
     },
   ) {

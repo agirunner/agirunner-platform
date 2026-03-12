@@ -9,6 +9,7 @@ interface RegisterAgentInput {
   name: string;
   protocol?: 'rest' | 'acp';
   capabilities?: string[];
+  execution_mode?: 'specialist' | 'orchestrator' | 'hybrid';
   tools?: { required?: string[]; optional?: string[] };
   worker_id?: string;
   heartbeat_interval_seconds?: number;
@@ -37,9 +38,12 @@ export class AgentService {
   ) {}
 
   async registerAgent(identity: ApiKeyIdentity, input: RegisterAgentInput) {
+    const executionMode = input.execution_mode ?? 'specialist';
+    const capabilities = normalizeAgentCapabilities(input.capabilities ?? [], executionMode);
     const metadata = {
       ...(input.metadata ?? {}),
       protocol: input.protocol ?? 'rest',
+      execution_mode: executionMode,
       ...(input.acp ? { acp: input.acp } : {}),
       ...(input.profile ? { profile: input.profile } : {}),
       ...(input.tools ? { tools: input.tools } : {}),
@@ -54,7 +58,7 @@ export class AgentService {
         identity.tenantId,
         input.worker_id ?? null,
         input.name,
-        input.capabilities ?? [],
+        capabilities,
         input.heartbeat_interval_seconds ?? this.config.AGENT_DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
         metadata,
       ],
@@ -199,4 +203,15 @@ export class AgentService {
 
     return affected;
   }
+}
+
+function normalizeAgentCapabilities(
+  capabilities: string[],
+  executionMode: NonNullable<RegisterAgentInput['execution_mode']>,
+): string[] {
+  const values = new Set(capabilities.map((capability) => capability.trim()).filter(Boolean));
+  if (executionMode === 'orchestrator' || executionMode === 'hybrid') {
+    values.add('orchestrator');
+  }
+  return [...values];
 }

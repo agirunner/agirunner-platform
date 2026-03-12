@@ -1,8 +1,8 @@
 import { boolean, index, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { projects } from './projects.js';
+import { playbooks } from './playbooks.js';
 import { workflowStateEnum } from './enums.js';
-import { templates } from './templates.js';
 import { tenants } from './tenants.js';
 
 export const workflows = pgTable(
@@ -13,11 +13,13 @@ export const workflows = pgTable(
       .notNull()
       .references(() => tenants.id),
     projectId: uuid('project_id').references(() => projects.id),
-    templateId: uuid('template_id').references(() => templates.id),
-    templateVersion: integer('template_version'),
+    playbookId: uuid('playbook_id').references(() => playbooks.id),
+    playbookVersion: integer('playbook_version'),
     projectSpecVersion: integer('project_spec_version'),
     name: text('name').notNull(),
     state: workflowStateEnum('state').notNull().default('pending'),
+    lifecycle: text('lifecycle'),
+    currentStage: text('current_stage'),
     parameters: jsonb('parameters').notNull().default({}),
     context: jsonb('context').notNull().default({}),
     contextSizeBytes: integer('context_size_bytes').notNull().default(0),
@@ -25,6 +27,7 @@ export const workflows = pgTable(
     resolvedConfig: jsonb('resolved_config').notNull().default({}),
     configLayers: jsonb('config_layers').notNull().default({}),
     instructionConfig: jsonb('instruction_config'),
+    orchestrationState: jsonb('orchestration_state').notNull().default({}),
     gitBranch: text('git_branch'),
     legalHold: boolean('legal_hold').notNull().default(false),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
@@ -38,6 +41,6 @@ export const workflows = pgTable(
     index('idx_workflows_tenant').on(table.tenantId),
     index('idx_workflows_project').on(table.projectId),
     index('idx_workflows_state').on(table.tenantId, table.state),
-    index('idx_workflows_template').on(table.templateId),
+    index('idx_workflows_playbook').on(table.playbookId),
   ],
 );

@@ -12,7 +12,7 @@ export const fleetEvents = pgTable(
     eventType: text('event_type').notNull(),
     level: text('level').notNull().default('info'),
     runtimeId: uuid('runtime_id'),
-    templateId: uuid('template_id'),
+    playbookId: uuid('playbook_id'),
     taskId: uuid('task_id'),
     workflowId: uuid('workflow_id'),
     containerId: text('container_id'),
@@ -21,7 +21,7 @@ export const fleetEvents = pgTable(
   },
   (table) => [
     index('idx_fleet_events_tenant_created').on(table.tenantId, table.createdAt),
-    index('idx_fleet_events_template').on(table.templateId, table.createdAt),
+    index('idx_fleet_events_playbook').on(table.playbookId, table.createdAt),
     index('idx_fleet_events_runtime').on(table.runtimeId, table.createdAt),
     index('idx_fleet_events_type').on(table.eventType),
   ],

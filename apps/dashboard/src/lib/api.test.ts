@@ -148,27 +148,9 @@ describe('dashboard api auth/session behavior', () => {
     expect(readSession()).toBeNull();
   });
 
-  it('lists templates and creates workflows through the dashboard api surface', async () => {
+  it('creates playbook workflows through the dashboard api surface', async () => {
     writeSession({ accessToken: 'api-token', tenantId: 'tenant-1' });
 
-    const fetcher = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          data: [
-            {
-              id: 'tmpl-1',
-              name: 'SDLC',
-              slug: 'sdlc',
-              version: 1,
-              is_built_in: false,
-              is_published: true,
-              schema: {},
-            },
-          ],
-        }),
-        { status: 200 },
-      ),
-    ) as unknown as typeof fetch;
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
@@ -184,15 +166,281 @@ describe('dashboard api auth/session behavior', () => {
 
     const api = createDashboardApi({
       client: client as never,
+      baseUrl: 'http://localhost:8080',
+    });
+    const workflow = await api.createWorkflow({ playbook_id: 'playbook-1', name: 'Test Run' });
+
+    expect(client.createWorkflow).toHaveBeenCalledWith({
+      playbook_id: 'playbook-1',
+      name: 'Test Run',
+    });
+    expect(workflow).toEqual({ id: 'pipe-1' });
+  });
+
+  it('supports model override endpoints through typed dashboard methods', async () => {
+    writeSession({ accessToken: 'model-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn() as unknown as typeof fetch;
+    vi.mocked(fetcher)
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              id: 'project-1',
+              name: 'Atlas',
+              slug: 'atlas',
+              settings: {
+                model_overrides: {
+                  architect: { provider: 'openai', model: 'gpt-5' },
+                },
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              project_id: 'project-1',
+              model_overrides: {
+                architect: { provider: 'openai', model: 'gpt-5' },
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              project_id: 'project-1',
+              project_model_overrides: {
+                architect: { provider: 'openai', model: 'gpt-5' },
+              },
+              effective_models: {
+                architect: {
+                  source: 'project',
+                  fallback: false,
+                  resolved: {
+                    provider: { name: 'openai', providerType: 'openai' },
+                    model: { modelId: 'gpt-5' },
+                  },
+                },
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              roles: ['architect'],
+              project_model_overrides: {
+                architect: { provider: 'openai', model: 'gpt-5' },
+              },
+              workflow_model_overrides: {
+                architect: { provider: 'anthropic', model: 'claude-opus-4.1' },
+              },
+              effective_models: {
+                architect: {
+                  source: 'workflow',
+                  fallback: false,
+                  resolved: {
+                    provider: { name: 'anthropic', providerType: 'anthropic' },
+                    model: { modelId: 'claude-opus-4.1' },
+                  },
+                },
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              workflow_id: 'wf-1',
+              model_overrides: {
+                architect: { provider: 'anthropic', model: 'claude-opus-4.1' },
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              workflow_id: 'wf-1',
+              project_id: 'project-1',
+              project_model_overrides: {
+                architect: { provider: 'openai', model: 'gpt-5' },
+              },
+              workflow_model_overrides: {
+                architect: { provider: 'anthropic', model: 'claude-opus-4.1' },
+              },
+              effective_models: {
+                architect: {
+                  source: 'workflow',
+                  fallback: false,
+                  resolved: {
+                    provider: { name: 'anthropic', providerType: 'anthropic' },
+                    model: { modelId: 'claude-opus-4.1' },
+                  },
+                },
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      );
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listWorkflows: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      client: client as never,
       fetcher,
       baseUrl: 'http://localhost:8080',
     });
-    const templates = await api.listTemplates();
-    const workflow = await api.createWorkflow({ template_id: 'tmpl-1', name: 'Test Run' });
 
-    expect(templates.data).toHaveLength(1);
-    expect(client.createWorkflow).toHaveBeenCalledWith({ template_id: 'tmpl-1', name: 'Test Run' });
-    expect(workflow).toEqual({ id: 'pipe-1' });
+    const patchedProject = await api.patchProject('project-1', {
+      settings: {
+        model_overrides: {
+          architect: { provider: 'openai', model: 'gpt-5' },
+        },
+      },
+    });
+    const projectOverrides = await api.getProjectModelOverrides('project-1');
+    const resolvedProject = await api.getResolvedProjectModels('project-1', ['architect']);
+    const preview = await api.previewEffectiveModels({
+      project_model_overrides: {
+        architect: { provider: 'openai', model: 'gpt-5' },
+      },
+      workflow_model_overrides: {
+        architect: { provider: 'anthropic', model: 'claude-opus-4.1' },
+      },
+    });
+    const workflowOverrides = await api.getWorkflowModelOverrides('wf-1');
+    const resolvedWorkflow = await api.getResolvedWorkflowModels('wf-1', ['architect']);
+
+    expect(
+      ((patchedProject.settings ?? {}) as { model_overrides?: Record<string, { model?: string }> })
+        .model_overrides?.architect?.model,
+    ).toBe('gpt-5');
+    expect(projectOverrides.model_overrides.architect?.provider).toBe('openai');
+    expect(resolvedProject.effective_models.architect?.source).toBe('project');
+    expect(preview.effective_models.architect?.source).toBe('workflow');
+    expect(workflowOverrides.model_overrides.architect?.provider).toBe('anthropic');
+    expect(resolvedWorkflow.workflow_model_overrides.architect?.model).toBe('claude-opus-4.1');
+    expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
+      'http://localhost:8080/api/v1/projects/project-1',
+    );
+    expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
+      'http://localhost:8080/api/v1/projects/project-1/model-overrides',
+    );
+    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
+      'http://localhost:8080/api/v1/projects/project-1/model-overrides/resolved?roles=architect',
+    );
+    expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
+      'http://localhost:8080/api/v1/config/llm/resolve-preview',
+    );
+    expect(vi.mocked(fetcher).mock.calls[4][0]).toBe(
+      'http://localhost:8080/api/v1/workflows/wf-1/model-overrides',
+    );
+    expect(vi.mocked(fetcher).mock.calls[5][0]).toBe(
+      'http://localhost:8080/api/v1/workflows/wf-1/model-overrides/resolved?roles=architect',
+    );
+  });
+
+  it('loads and updates workflow work items through the dashboard api surface', async () => {
+    writeSession({ accessToken: 'api-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              id: 'wi-1',
+              workflow_id: 'wf-1',
+              stage_name: 'build',
+              title: 'Implement feature',
+              column_id: 'todo',
+              priority: 'normal',
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              id: 'wi-1',
+              workflow_id: 'wf-1',
+              stage_name: 'build',
+              title: 'Implement feature',
+              column_id: 'todo',
+              priority: 'high',
+              notes: 'Updated',
+            },
+          }),
+          { status: 200 },
+        ),
+      ) as unknown as typeof fetch;
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listWorkflows: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+    const workItem = await api.getWorkflowWorkItem('wf-1', 'wi-1');
+    const updatedWorkItem = await api.updateWorkflowWorkItem('wf-1', 'wi-1', {
+      priority: 'high',
+      notes: 'Updated',
+    });
+
+    expect(workItem.id).toBe('wi-1');
+    expect(updatedWorkItem.priority).toBe('high');
+    expect(fetcher).toHaveBeenNthCalledWith(
+      1,
+      'http://localhost:8080/api/v1/workflows/wf-1/work-items/wi-1',
+      expect.objectContaining({ method: 'GET' }),
+    );
+    expect(fetcher).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:8080/api/v1/workflows/wf-1/work-items/wi-1',
+      expect.objectContaining({ method: 'PATCH' }),
+    );
   });
 
   it('sends bearer token when loading metrics if an in-memory access token exists', async () => {
@@ -453,12 +701,7 @@ describe('dashboard api auth/session behavior', () => {
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: { id: 'pipe-1', current_phase: 'review' } }), {
-          status: 200,
-        }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: { id: 'pipe-1', phases: [] } }), {
+        new Response(JSON.stringify({ data: { id: 'pipe-1', current_stage: 'build' } }), {
           status: 200,
         }),
       )
@@ -492,23 +735,19 @@ describe('dashboard api auth/session behavior', () => {
       baseUrl: 'http://localhost:8080',
     });
 
-    await api.actOnPhaseGate('pipe-1', 'review', { action: 'approve' });
-    await api.cancelPhase('pipe-1', 'release');
+    await api.actOnStageGate('pipe-1', 'build', { action: 'approve' });
     const config = await api.getResolvedWorkflowConfig('pipe-1', true);
     const timeline = await api.getProjectTimeline('project-1');
 
     expect(config.resolved_config).toEqual({ retries: 2 });
     expect(timeline[0].kind).toBe('run_summary');
     expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
-      'http://localhost:8080/api/v1/workflows/pipe-1/phases/review/gate',
+      'http://localhost:8080/api/v1/workflows/pipe-1/stages/build/gate',
     );
     expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
-      'http://localhost:8080/api/v1/workflows/pipe-1/phases/release/cancel',
-    );
-    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
       'http://localhost:8080/api/v1/workflows/pipe-1/config/resolved?show_layers=true',
     );
-    expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
+    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
       'http://localhost:8080/api/v1/projects/project-1/timeline',
     );
   });
@@ -640,6 +879,73 @@ describe('dashboard api auth/session behavior', () => {
           }),
           { status: 200 },
         ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              entries: [
+                {
+                  key: 'summary',
+                  value: { ok: true },
+                  event_id: 12,
+                  updated_at: '2026-03-07T00:00:00.000Z',
+                  actor_type: 'agent',
+                  actor_id: 'agent-1',
+                  workflow_id: 'pipe-1',
+                  work_item_id: 'wi-1',
+                  task_id: 'task-1',
+                  stage_name: 'design',
+                },
+              ],
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              history: [
+                {
+                  key: 'summary',
+                  value: { ok: true },
+                  event_id: 13,
+                  event_type: 'updated',
+                  updated_at: '2026-03-08T00:00:00.000Z',
+                  actor_type: 'agent',
+                  actor_id: 'agent-1',
+                  workflow_id: 'pipe-1',
+                  work_item_id: 'wi-1',
+                  task_id: 'task-1',
+                  stage_name: 'design',
+                },
+              ],
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response('# Summary\n\nSafe content', {
+          status: 200,
+          headers: {
+            'content-type': 'text/markdown; charset=utf-8',
+            'content-disposition': 'attachment; filename="summary.md"',
+            'content-length': '23',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response('artifact-bytes', {
+          status: 200,
+          headers: {
+            'content-type': 'application/octet-stream',
+            'content-disposition': 'attachment; filename="bundle.zip"',
+            'content-length': '14',
+          },
+        }),
       ) as unknown as typeof fetch;
     const client = {
       refreshSession: vi.fn(),
@@ -667,25 +973,415 @@ describe('dashboard api auth/session behavior', () => {
     });
     const documents = await api.listWorkflowDocuments('pipe-1');
     const artifacts = await api.listTaskArtifacts('task-1');
+    const workItemMemory = await api.getWorkflowWorkItemMemory('pipe-1', 'wi-1');
+    const workItemMemoryHistory = await api.getWorkflowWorkItemMemoryHistory('pipe-1', 'wi-1');
+    const artifactContent = await api.readTaskArtifactContent('task-1', 'artifact-1');
+    const artifactDownload = await api.downloadTaskArtifact('task-1', 'artifact-1');
 
     expect(project.memory?.last_run_summary).toEqual({ kind: 'run_summary' });
     expect(updated.memory?.operator_note).toEqual({ summary: 'check rollout' });
     expect(documents[0].logical_name).toBe('project_brief');
     expect(artifacts[0].id).toBe('artifact-1');
-    expect(vi.mocked(fetcher).mock.calls[0][0]).toBe('http://localhost:8080/api/v1/projects/project-1');
-    expect(vi.mocked(fetcher).mock.calls[1][0]).toBe('http://localhost:8080/api/v1/projects/project-1/memory');
-    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe('http://localhost:8080/api/v1/workflows/pipe-1/documents');
-    expect(vi.mocked(fetcher).mock.calls[3][0]).toBe('http://localhost:8080/api/v1/tasks/task-1/artifacts');
+    expect(workItemMemory.entries[0]?.key).toBe('summary');
+    expect(workItemMemoryHistory.history[0]?.event_type).toBe('updated');
+    expect(artifactContent.file_name).toBe('summary.md');
+    expect(artifactContent.content_type).toBe('text/markdown; charset=utf-8');
+    expect(artifactDownload.file_name).toBe('bundle.zip');
+    expect(artifactDownload.content_type).toBe('application/octet-stream');
+    expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
+      'http://localhost:8080/api/v1/projects/project-1',
+    );
+    expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
+      'http://localhost:8080/api/v1/projects/project-1/memory',
+    );
+    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
+      'http://localhost:8080/api/v1/workflows/pipe-1/documents',
+    );
+    expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
+      'http://localhost:8080/api/v1/tasks/task-1/artifacts',
+    );
+    expect(vi.mocked(fetcher).mock.calls[4][0]).toBe(
+      'http://localhost:8080/api/v1/workflows/pipe-1/work-items/wi-1/memory',
+    );
+    expect(vi.mocked(fetcher).mock.calls[5][0]).toBe(
+      'http://localhost:8080/api/v1/workflows/pipe-1/work-items/wi-1/memory/history?limit=100',
+    );
+    expect(vi.mocked(fetcher).mock.calls[6][0]).toBe(
+      'http://localhost:8080/api/v1/tasks/task-1/artifacts/artifact-1',
+    );
+    expect(vi.mocked(fetcher).mock.calls[7][0]).toBe(
+      'http://localhost:8080/api/v1/tasks/task-1/artifacts/artifact-1',
+    );
+  });
+
+  it('manages scheduled and webhook trigger surfaces through typed dashboard methods', async () => {
+    writeSession({ accessToken: 'trigger-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn() as unknown as typeof fetch;
+    vi.mocked(fetcher)
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: 'sched-1',
+                name: 'Daily triage',
+                source: 'project.schedule',
+                project_id: 'project-1',
+                workflow_id: 'wf-1',
+                cadence_minutes: 60,
+                defaults: { title: 'Run triage' },
+                is_active: true,
+                next_fire_at: '2026-03-12T08:00:00.000Z',
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              id: 'sched-2',
+              name: 'Hourly sweep',
+              source: 'project.schedule',
+              project_id: 'project-1',
+              workflow_id: 'wf-1',
+              cadence_minutes: 30,
+              defaults: { title: 'Sweep' },
+              is_active: true,
+              next_fire_at: '2026-03-12T09:00:00.000Z',
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              id: 'sched-2',
+              name: 'Hourly sweep',
+              source: 'project.schedule',
+              project_id: 'project-1',
+              workflow_id: 'wf-1',
+              cadence_minutes: 30,
+              defaults: { title: 'Sweep' },
+              is_active: false,
+              next_fire_at: '2026-03-12T09:00:00.000Z',
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { deleted: true } }), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: 'hook-1',
+                name: 'GitHub PR',
+                source: 'github',
+                project_id: 'project-1',
+                workflow_id: 'wf-1',
+                signature_header: 'X-Signature',
+                signature_mode: 'hmac_sha256',
+                is_active: true,
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              id: 'hook-2',
+              name: 'GitLab MR',
+              source: 'gitlab',
+              project_id: 'project-1',
+              workflow_id: 'wf-1',
+              signature_header: 'X-Signature',
+              signature_mode: 'shared_secret',
+              is_active: true,
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              id: 'hook-2',
+              name: 'GitLab MR',
+              source: 'gitlab',
+              project_id: 'project-1',
+              workflow_id: 'wf-1',
+              signature_header: 'X-Signature',
+              signature_mode: 'shared_secret',
+              is_active: false,
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { deleted: true } }), { status: 200 }));
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listWorkflows: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    const scheduled = await api.listScheduledWorkItemTriggers();
+    const createdScheduled = await api.createScheduledWorkItemTrigger({
+      name: 'Hourly sweep',
+      source: 'project.schedule',
+      workflow_id: 'wf-1',
+      cadence_minutes: 30,
+      defaults: { title: 'Sweep' },
+    });
+    const updatedScheduled = await api.updateScheduledWorkItemTrigger('sched-2', {
+      is_active: false,
+    });
+    await api.deleteScheduledWorkItemTrigger('sched-2');
+
+    const webhooks = await api.listWebhookWorkItemTriggers();
+    const createdWebhook = await api.createWebhookWorkItemTrigger({
+      name: 'GitLab MR',
+      source: 'gitlab',
+      workflow_id: 'wf-1',
+      signature_header: 'X-Signature',
+      signature_mode: 'shared_secret',
+      secret: 'supersecret',
+    });
+    const updatedWebhook = await api.updateWebhookWorkItemTrigger('hook-2', {
+      is_active: false,
+    });
+    await api.deleteWebhookWorkItemTrigger('hook-2');
+
+    expect(scheduled.data[0]?.id).toBe('sched-1');
+    expect(createdScheduled.id).toBe('sched-2');
+    expect(updatedScheduled.is_active).toBe(false);
+    expect(webhooks.data[0]?.id).toBe('hook-1');
+    expect(createdWebhook.id).toBe('hook-2');
+    expect(updatedWebhook.is_active).toBe(false);
+    expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
+      'http://localhost:8080/api/v1/scheduled-work-item-triggers',
+    );
+    expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
+      'http://localhost:8080/api/v1/scheduled-work-item-triggers/sched-2',
+    );
+    expect(vi.mocked(fetcher).mock.calls[4][0]).toBe(
+      'http://localhost:8080/api/v1/work-item-triggers',
+    );
+    expect(vi.mocked(fetcher).mock.calls[7][0]).toBe(
+      'http://localhost:8080/api/v1/work-item-triggers/hook-2',
+    );
+  });
+
+  it('loads split fleet pool status and fleet worker desired state through typed dashboard methods', async () => {
+    writeSession({ accessToken: 'fleet-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn() as unknown as typeof fetch;
+    vi.mocked(fetcher)
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              global_max_runtimes: 20,
+              total_running: 9,
+              total_idle: 4,
+              total_executing: 7,
+              total_draining: 1,
+              worker_pools: [
+                {
+                  pool_kind: 'orchestrator',
+                  desired_workers: 2,
+                  desired_replicas: 2,
+                  enabled_workers: 2,
+                  draining_workers: 0,
+                  running_containers: 2,
+                },
+                {
+                  pool_kind: 'specialist',
+                  desired_workers: 4,
+                  desired_replicas: 8,
+                  enabled_workers: 4,
+                  draining_workers: 1,
+                  running_containers: 7,
+                },
+              ],
+              by_playbook: [],
+              by_playbook_pool: [
+                {
+                  playbook_id: 'pb-1',
+                  playbook_name: 'Ship V2',
+                  pool_kind: 'orchestrator',
+                  pool_mode: 'warm',
+                  max_runtimes: 2,
+                  running: 2,
+                  idle: 0,
+                  executing: 1,
+                  pending_tasks: 0,
+                  active_workflows: 3,
+                  draining: 0,
+                },
+              ],
+              recent_events: [],
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: 'worker-1',
+                worker_name: 'orchestrator-1',
+                role: 'orchestrator',
+                pool_kind: 'orchestrator',
+                runtime_image: 'ghcr.io/agirunner/orchestrator:latest',
+                cpu_limit: '2',
+                memory_limit: '2g',
+                network_policy: 'restricted',
+                environment: {},
+                llm_provider: 'openai',
+                llm_model: 'gpt-5',
+                replicas: 1,
+                enabled: true,
+                restart_requested: false,
+                draining: false,
+                version: 1,
+                created_at: '2026-03-11T00:00:00.000Z',
+                updated_at: '2026-03-11T00:00:00.000Z',
+                updated_by: null,
+                actual: [],
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              id: 'worker-2',
+              worker_name: 'specialist-1',
+              role: 'developer',
+              pool_kind: 'specialist',
+              runtime_image: 'ghcr.io/agirunner/specialist:latest',
+              cpu_limit: '2',
+              memory_limit: '2g',
+              network_policy: 'restricted',
+              environment: {},
+              llm_provider: null,
+              llm_model: null,
+              replicas: 2,
+              enabled: true,
+              restart_requested: false,
+              draining: false,
+              version: 1,
+              created_at: '2026-03-11T00:00:00.000Z',
+              updated_at: '2026-03-11T00:00:00.000Z',
+              updated_by: null,
+              actual: [],
+            },
+          }),
+          { status: 201 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: { ok: true } }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: { ok: true } }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: {} }), { status: 200 }),
+      );
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listWorkflows: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    const status = await api.fetchFleetStatus();
+    const workers = await api.fetchFleetWorkers();
+    const created = await api.createFleetWorker({
+      workerName: 'specialist-1',
+      role: 'developer',
+      runtimeImage: 'ghcr.io/agirunner/specialist:latest',
+      poolKind: 'specialist',
+    });
+    await api.restartFleetWorker('worker-2');
+    await api.drainFleetWorker('worker-2');
+    await api.deleteFleetWorker('worker-2');
+
+    expect(status.worker_pools[0]?.pool_kind).toBe('orchestrator');
+    expect(status.by_playbook_pool[0]?.pool_kind).toBe('orchestrator');
+    expect(workers[0]?.pool_kind).toBe('orchestrator');
+    expect(created.pool_kind).toBe('specialist');
+    expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
+      'http://localhost:8080/api/v1/fleet/status',
+    );
+    expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
+      'http://localhost:8080/api/v1/fleet/workers',
+    );
+    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
+      'http://localhost:8080/api/v1/fleet/workers',
+    );
+    expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
+      'http://localhost:8080/api/v1/fleet/workers/worker-2/restart',
+    );
+    expect(vi.mocked(fetcher).mock.calls[4][0]).toBe(
+      'http://localhost:8080/api/v1/fleet/workers/worker-2/drain',
+    );
+    expect(vi.mocked(fetcher).mock.calls[5][0]).toBe(
+      'http://localhost:8080/api/v1/fleet/workers/worker-2',
+    );
   });
 });
 
 describe('dashboard global search', () => {
-  it('buildSearchResults creates task, workflow, project, template, worker, and agent route targets', () => {
+  it('buildSearchResults creates task, workflow, project, playbook, worker, and agent route targets', () => {
     const results = buildSearchResults('build', {
       workflows: [{ id: 'workflow-1', name: 'Build Workflow', state: 'running' }],
       tasks: [{ id: 'task-1', title: 'Build artifact', state: 'ready' }],
       projects: [{ id: 'project-1', name: 'Build Project' }],
-      templates: [{ id: 'template-1', name: 'Build Template' }],
+      playbooks: [{ id: 'playbook-1', name: 'Build Playbook' }],
       workers: [{ id: 'worker-1', name: 'Builder worker', status: 'online' }],
       agents: [{ id: 'agent-1', name: 'Builder agent', status: 'idle' }],
     });
@@ -694,15 +1390,16 @@ describe('dashboard global search', () => {
       'workflow',
       'task',
       'project',
-      'template',
+      'playbook',
       'worker',
       'agent',
     ]);
-    expect(results[0].href).toBe('/workflows/workflow-1');
-    expect(results[1].href).toBe('/tasks/task-1');
-    expect(results[2].href).toBe('/projects');
-    expect(results[3].href).toBe('/templates');
-    expect(results[4].href).toBe('/workers');
+    expect(results[0].href).toBe('/work/workflows/workflow-1');
+    expect(results[1].href).toBe('/work/tasks/task-1');
+    expect(results[2].href).toBe('/projects/project-1');
+    expect(results[3].href).toBe('/config/playbooks/playbook-1/launch');
+    expect(results[4].href).toBe('/fleet/workers');
+    expect(results[5].href).toBe('/fleet/agents');
   });
 
   it('search() merges matches from all dashboard resources', async () => {
@@ -730,20 +1427,20 @@ describe('dashboard global search', () => {
       listProjects: vi
         .fn()
         .mockResolvedValue({ data: [{ id: 'project-1', name: 'Test project' }] }),
+      listPlaybooks: vi
+        .fn()
+        .mockResolvedValue({ data: [{ id: 'playbook-1', name: 'Test playbook' }] }),
     };
-    const fetcher = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({ data: [{ id: 'template-1', name: 'Test template', slug: 'test-template' }] }),
-        { status: 200 },
-      ),
-    ) as unknown as typeof fetch;
-
-    const api = createDashboardApi({ client: client as never, fetcher, baseUrl: 'http://localhost:8080' });
+    const api = createDashboardApi({
+      client: client as never,
+      baseUrl: 'http://localhost:8080',
+    });
     const results = await api.search('test');
 
     expect(results).toHaveLength(6);
     expect(client.listWorkflows).toHaveBeenCalledWith({ per_page: 50 });
     expect(client.listTasks).toHaveBeenCalledWith({ per_page: 50 });
     expect(client.listProjects).toHaveBeenCalledWith({ per_page: 50 });
+    expect(client.listPlaybooks).toHaveBeenCalled();
   });
 });

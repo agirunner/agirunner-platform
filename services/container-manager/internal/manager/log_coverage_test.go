@@ -26,8 +26,8 @@ func TestReconcile_ScaleUp_EmitsLog(t *testing.T) {
 	for _, e := range entries {
 		if e.Operation == "reconcile.scale_up" && e.Status == "started" {
 			found = true
-			if e.Payload["template_id"] != "tmpl-1" {
-				t.Errorf("expected template_id tmpl-1, got %v", e.Payload["template_id"])
+			if e.Payload["playbook_id"] != "tmpl-1" {
+				t.Errorf("expected playbook_id tmpl-1, got %v", e.Payload["playbook_id"])
 			}
 			if e.Payload["count"] != float64(2) {
 				t.Errorf("expected count 2, got %v", e.Payload["count"])
@@ -59,8 +59,8 @@ func TestReconcile_ScaleDown_EmitsLog(t *testing.T) {
 	for _, e := range entries {
 		if e.Operation == "reconcile.scale_down" && e.Status == "started" {
 			found = true
-			if e.Payload["template_id"] != "tmpl-1" {
-				t.Errorf("expected template_id tmpl-1, got %v", e.Payload["template_id"])
+			if e.Payload["playbook_id"] != "tmpl-1" {
+				t.Errorf("expected playbook_id tmpl-1, got %v", e.Payload["playbook_id"])
 			}
 			if e.Payload["reason"] != "idle_timeout" {
 				t.Errorf("expected reason idle_timeout, got %v", e.Payload["reason"])
@@ -82,15 +82,16 @@ func TestReconcile_Preempt_EmitsLog(t *testing.T) {
 
 	victim := makeDCMContainer("c-victim", "tmpl-low", "runtime:v1", "rt-low")
 	beneficiary := makeRuntimeTarget("tmpl-high", "runtime:v1", 5, 3, 100)
+	victimTarget := makeRuntimeTarget("tmpl-low", "runtime:v1", 5, 0, 1)
 
 	grouped := map[string][]ContainerInfo{
-		"tmpl-low": {victim},
+		victimTarget.TargetKey(): {victim},
 	}
 	heartbeats := map[string]RuntimeHeartbeat{
-		"rt-low": {RuntimeID: "rt-low", TemplateID: "tmpl-low", State: "idle"},
+		"rt-low": {RuntimeID: "rt-low", PlaybookID: "tmpl-low", State: "idle"},
 	}
 	allTargets := []RuntimeTarget{
-		makeRuntimeTarget("tmpl-low", "runtime:v1", 5, 0, 1),
+		victimTarget,
 		beneficiary,
 	}
 
@@ -103,11 +104,11 @@ func TestReconcile_Preempt_EmitsLog(t *testing.T) {
 	for _, e := range entries {
 		if e.Operation == "reconcile.preempt" && e.Status == "completed" {
 			found = true
-			if e.Payload["victim_template_id"] != "tmpl-low" {
-				t.Errorf("expected victim tmpl-low, got %v", e.Payload["victim_template_id"])
+			if e.Payload["victim_playbook_id"] != "tmpl-low" {
+				t.Errorf("expected victim tmpl-low, got %v", e.Payload["victim_playbook_id"])
 			}
-			if e.Payload["beneficiary_template_id"] != "tmpl-high" {
-				t.Errorf("expected beneficiary tmpl-high, got %v", e.Payload["beneficiary_template_id"])
+			if e.Payload["beneficiary_playbook_id"] != "tmpl-high" {
+				t.Errorf("expected beneficiary tmpl-high, got %v", e.Payload["beneficiary_playbook_id"])
 			}
 			break
 		}
@@ -126,16 +127,17 @@ func TestReconcile_PreemptSkipped_EmitsLog(t *testing.T) {
 
 	victim := makeDCMContainer("c-victim", "tmpl-low", "runtime:v1", "rt-low")
 	beneficiary := makeRuntimeTarget("tmpl-high", "runtime:v1", 5, 3, 100)
+	victimTarget := makeRuntimeTarget("tmpl-low", "runtime:v1", 5, 0, 1)
 
 	grouped := map[string][]ContainerInfo{
-		"tmpl-low": {victim},
+		victimTarget.TargetKey(): {victim},
 	}
 	// Victim is executing — preemption should be skipped.
 	heartbeats := map[string]RuntimeHeartbeat{
-		"rt-low": {RuntimeID: "rt-low", TemplateID: "tmpl-low", State: "executing"},
+		"rt-low": {RuntimeID: "rt-low", PlaybookID: "tmpl-low", State: "executing"},
 	}
 	allTargets := []RuntimeTarget{
-		makeRuntimeTarget("tmpl-low", "runtime:v1", 5, 0, 1),
+		victimTarget,
 		beneficiary,
 	}
 
@@ -532,7 +534,7 @@ func TestHungDetected_SetsResourceFieldsAndTaskID(t *testing.T) {
 	staleTime := time.Now().UTC().Add(-2 * time.Minute).Format(time.RFC3339)
 	platform := &mockPlatformClient{
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-1", TemplateID: "tmpl-1", State: "executing",
+			{RuntimeID: "rt-1", PlaybookID: "tmpl-1", State: "executing",
 				LastHeartbeatAt: staleTime, ActiveTaskID: "task-42"},
 		},
 	}
@@ -569,7 +571,7 @@ func TestOrphanHeartbeat_SetsResourceFieldsAndTaskID(t *testing.T) {
 	staleTime := time.Now().UTC().Add(-2 * time.Minute).Format(time.RFC3339)
 	platform := &mockPlatformClient{
 		heartbeats: []RuntimeHeartbeat{
-			{RuntimeID: "rt-gone", TemplateID: "tmpl-1", State: "executing",
+			{RuntimeID: "rt-gone", PlaybookID: "tmpl-1", State: "executing",
 				LastHeartbeatAt: staleTime, ActiveTaskID: "task-99"},
 		},
 	}
@@ -693,15 +695,16 @@ func TestPreempt_SetsResourceFields(t *testing.T) {
 
 	victim := makeDCMContainer("c-victim", "tmpl-low", "runtime:v1", "rt-low")
 	beneficiary := makeRuntimeTarget("tmpl-high", "runtime:v1", 5, 3, 100)
+	victimTarget := makeRuntimeTarget("tmpl-low", "runtime:v1", 5, 0, 1)
 
 	grouped := map[string][]ContainerInfo{
-		"tmpl-low": {victim},
+		victimTarget.TargetKey(): {victim},
 	}
 	heartbeats := map[string]RuntimeHeartbeat{
-		"rt-low": {RuntimeID: "rt-low", TemplateID: "tmpl-low", State: "idle"},
+		"rt-low": {RuntimeID: "rt-low", PlaybookID: "tmpl-low", State: "idle"},
 	}
 	allTargets := []RuntimeTarget{
-		makeRuntimeTarget("tmpl-low", "runtime:v1", 5, 0, 1),
+		victimTarget,
 		beneficiary,
 	}
 

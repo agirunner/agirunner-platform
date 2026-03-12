@@ -1,14 +1,32 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
 import { AgentBusyError, ForbiddenError, NotFoundError } from '../errors/domain-errors.js';
-import { assertValidTransition } from '../orchestration/task-state-machine.js';
+import {
+  isExternalSecretReference,
+  readOAuthToken,
+  readProviderSecret,
+} from '../lib/oauth-crypto.js';
+import { assertValidTransition, type TaskState } from '../orchestration/task-state-machine.js';
 import { EventService } from './event-service.js';
 import type { ResolvedRoleConfig } from './model-catalog-service.js';
 import { OAuthService, type ResolvedOAuthToken } from './oauth-service.js';
+import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
 import { flattenInstructionLayers } from './task-context-service.js';
 import { computeToolMatch, readAgentToolRequirements, resolveProjectToolTags } from './tool-tag-service.js';
 
 const priorityCase = "CASE priority WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END";
+
+type AgentExecutionMode = 'specialist' | 'orchestrator' | 'hybrid';
+const claimRoleConfigSecretKeys = new Set([
+  'llm_api_key',
+  'llm_api_key_secret_ref',
+  'llm_extra_headers',
+  'llm_extra_headers_secret_ref',
+  'api_key',
+  'access_token',
+  'token',
+  'authorization',
+]);
 
 interface TaskClaimDependencies {
   pool: DatabasePool;
@@ -16,6 +34,7 @@ interface TaskClaimDependencies {
   toTaskResponse: (task: Record<string, unknown>) => Record<string, unknown>;
   getTaskContext: (tenantId: string, taskId: string, agentId?: string) => Promise<unknown>;
   resolveRoleConfig?: (tenantId: string, roleName: string) => Promise<ResolvedRoleConfig | null>;
+  parallelismService?: PlaybookTaskParallelismService;
 }
 
 export class TaskClaimService {
@@ -23,7 +42,14 @@ export class TaskClaimService {
 
   async claimTask(
     identity: ApiKeyIdentity,
-    payload: { agent_id: string; worker_id?: string; capabilities: string[]; workflow_id?: string; template_id?: string; include_context?: boolean },
+    payload: {
+      agent_id: string;
+      worker_id?: string;
+      capabilities: string[];
+      workflow_id?: string;
+      playbook_id?: string;
+      include_context?: boolean;
+    },
   ): Promise<Record<string, unknown> | null> {
     const client = await this.deps.pool.connect();
     try {
@@ -47,6 +73,7 @@ export class TaskClaimService {
       if (!agentRes.rowCount) throw new NotFoundError('Agent not found');
 
       const agent = agentRes.rows[0];
+      const executionMode = readAgentExecutionMode(agent.metadata);
       if (identity.scope === 'worker') {
         if (!identity.ownerId) {
           throw new ForbiddenError('Worker identity is not bound to a worker owner.');
@@ -78,7 +105,8 @@ export class TaskClaimService {
            AND tasks.state = 'ready'
            AND tasks.capabilities_required <@ $2::text[]
            AND ($3::uuid IS NULL OR tasks.workflow_id = $3::uuid)
-           AND ($6::uuid IS NULL OR workflows.template_id = $6::uuid)
+           AND ($6::uuid IS NULL OR workflows.playbook_id = $6::uuid)
+           AND ${buildExecutionModeCondition(executionMode)}
            AND (workflows.id IS NULL OR workflows.state <> 'paused')
            AND (
              NOT (tasks.metadata ? 'preferred_agent_id')
@@ -97,7 +125,7 @@ export class TaskClaimService {
            tasks.created_at ASC
          LIMIT 25
          FOR UPDATE OF tasks SKIP LOCKED`,
-        [identity.tenantId, payload.capabilities, payload.workflow_id ?? null, payload.agent_id, payload.worker_id ?? null, payload.template_id ?? null],
+        [identity.tenantId, payload.capabilities, payload.workflow_id ?? null, payload.agent_id, payload.worker_id ?? null, payload.playbook_id ?? null],
       );
 
       if (!taskRes.rowCount) {
@@ -109,6 +137,24 @@ export class TaskClaimService {
       let task: Record<string, unknown> | null = null;
       let toolMatch = { matched: [] as string[], unavailable_optional: [] as string[] };
       for (const candidate of taskRes.rows as Record<string, unknown>[]) {
+        if (
+          this.deps.parallelismService &&
+          (await this.deps.parallelismService.shouldQueueForCapacity(
+            identity.tenantId,
+            {
+              taskId: String(candidate.id),
+              workflowId:
+                typeof candidate.workflow_id === 'string' ? candidate.workflow_id : null,
+              workItemId:
+                typeof candidate.work_item_id === 'string' ? candidate.work_item_id : null,
+              isOrchestratorTask: candidate.is_orchestrator_task === true,
+              currentState: candidate.state as TaskState,
+            },
+            client,
+          ))
+        ) {
+          continue;
+        }
         const projectTools = await resolveProjectToolTags(
           client,
           identity.tenantId,
@@ -222,26 +268,35 @@ export class TaskClaimService {
     tenantId: string,
     task: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
-    if (!this.deps.resolveRoleConfig) return task;
+    const sanitizedTask = stripClaimSecretEchoes(task);
+    if (!this.deps.resolveRoleConfig) return sanitizedTask;
 
-    const roleName = (task.role as string) || '';
-    if (!roleName) return task;
+    const roleName = (sanitizedTask.role as string) || '';
+    if (!roleName) return sanitizedTask;
 
     const resolved = await this.deps.resolveRoleConfig(tenantId, roleName);
-    if (!resolved) return task;
+    if (!resolved) return sanitizedTask;
 
-    const existingRoleConfig = (task.role_config ?? {}) as Record<string, unknown>;
+    const existingRoleConfig = (sanitizedTask.role_config ?? {}) as Record<string, unknown>;
+    const taskWithRoleDefinition = await this.enrichFromRoleDefinition(
+      tenantId,
+      roleName,
+      sanitizedTask,
+    );
 
-    let enriched: Record<string, unknown>;
+    let credentials: Record<string, unknown>;
     if (resolved.provider.authMode === 'oauth' && resolved.provider.providerId) {
-      enriched = await this.enrichWithOAuthCredentials(
-        resolved, existingRoleConfig, task,
+      credentials = await this.enrichWithOAuthCredentials(
+        resolved,
       );
     } else {
-      enriched = this.enrichWithApiKeyCredentials(resolved, existingRoleConfig, task);
+      credentials = this.resolveApiKeyCredentials(resolved);
     }
 
-    return this.enrichFromRoleDefinition(tenantId, roleName, enriched);
+    return attachClaimCredentials(taskWithRoleDefinition, {
+      ...pickResolvedLLMMetadata(existingRoleConfig),
+      ...credentials,
+    });
   }
 
   private async enrichFromRoleDefinition(
@@ -283,8 +338,6 @@ export class TaskClaimService {
 
   private async enrichWithOAuthCredentials(
     resolved: ResolvedRoleConfig,
-    existingRoleConfig: Record<string, unknown>,
-    task: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
     const oauthService = new OAuthService(this.deps.pool);
     const oauthToken = await oauthService.resolveValidToken(resolved.provider.providerId!);
@@ -292,44 +345,49 @@ export class TaskClaimService {
     const llmFields: Record<string, unknown> = {
       llm_provider: resolved.provider.providerType,
       llm_model: resolved.model.modelId,
-      llm_api_key: oauthToken.accessToken,
       llm_base_url: oauthToken.baseUrl,
       llm_endpoint_type: oauthToken.endpointType,
       llm_auth_mode: 'oauth',
     };
 
-    if (Object.keys(oauthToken.extraHeaders).length > 0) {
-      llmFields.llm_extra_headers = oauthToken.extraHeaders;
-    }
-
     return {
-      ...task,
-      role_config: { ...existingRoleConfig, ...llmFields },
+      ...llmFields,
+      ...toClaimStringCredential(
+        'llm_api_key',
+        'llm_api_key_secret_ref',
+        oauthToken.accessTokenSecret,
+        readOAuthToken,
+      ),
+      ...toClaimObjectCredential(
+        'llm_extra_headers',
+        'llm_extra_headers_secret_ref',
+        oauthToken.extraHeadersSecret,
+        parseExtraHeadersSecret,
+      ),
     };
   }
 
-  private enrichWithApiKeyCredentials(
+  private resolveApiKeyCredentials(
     resolved: ResolvedRoleConfig,
-    existingRoleConfig: Record<string, unknown>,
-    task: Record<string, unknown>,
   ): Record<string, unknown> {
     const llmFields: Record<string, unknown> = {
       llm_provider: resolved.provider.providerType,
       llm_model: resolved.model.modelId,
     };
-    if (resolved.provider.apiKeySecretRef) {
-      llmFields.llm_api_key = resolved.provider.apiKeySecretRef;
-    }
     if (resolved.provider.baseUrl) {
       llmFields.llm_base_url = resolved.provider.baseUrl;
     }
     if (resolved.model.endpointType) {
       llmFields.llm_endpoint_type = resolved.model.endpointType;
     }
-
     return {
-      ...task,
-      role_config: { ...existingRoleConfig, ...llmFields },
+      ...llmFields,
+      ...toClaimStringCredential(
+        'llm_api_key',
+        'llm_api_key_secret_ref',
+        resolved.provider.apiKeySecretRef,
+        readProviderSecret,
+      ),
     };
   }
 }
@@ -346,4 +404,119 @@ function mergeSystemPrompt(
     ...taskResponse,
     role_config: { ...existing, system_prompt: flattened },
   };
+}
+
+function readAgentExecutionMode(value: unknown): AgentExecutionMode {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return 'specialist';
+  }
+  const mode = (value as Record<string, unknown>).execution_mode;
+  if (mode === 'orchestrator' || mode === 'hybrid') {
+    return mode;
+  }
+  return 'specialist';
+}
+
+function buildExecutionModeCondition(mode: AgentExecutionMode): string {
+  if (mode === 'orchestrator') {
+    return 'tasks.is_orchestrator_task = true';
+  }
+  if (mode === 'hybrid') {
+    return 'true';
+  }
+  return 'tasks.is_orchestrator_task = false';
+}
+
+function stripClaimSecretEchoes(task: Record<string, unknown>): Record<string, unknown> {
+  const roleConfig = (task.role_config ?? {}) as Record<string, unknown>;
+  const credentials = (task.credentials ?? {}) as Record<string, unknown>;
+  if (Object.keys(roleConfig).length === 0 && Object.keys(credentials).length === 0) {
+    return task;
+  }
+
+  const sanitizedRoleConfig = Object.fromEntries(
+    Object.entries(roleConfig).filter(([key]) => !claimRoleConfigSecretKeys.has(key)),
+  );
+  const sanitizedCredentials = Object.fromEntries(
+    Object.entries(credentials).filter(([key]) => !claimRoleConfigSecretKeys.has(key)),
+  );
+  return {
+    ...task,
+    role_config: sanitizedRoleConfig,
+    credentials: sanitizedCredentials,
+  };
+}
+
+function attachClaimCredentials(
+  task: Record<string, unknown>,
+  credentials: Record<string, unknown>,
+): Record<string, unknown> {
+  const nextCredentials = {
+    ...((task.credentials ?? {}) as Record<string, unknown>),
+    ...credentials,
+  };
+  if (Object.keys(nextCredentials).length === 0) {
+    return task;
+  }
+  return {
+    ...task,
+    credentials: nextCredentials,
+  };
+}
+
+function pickResolvedLLMMetadata(roleConfig: Record<string, unknown>): Record<string, unknown> {
+  const provider = typeof roleConfig.llm_provider === 'string' ? roleConfig.llm_provider : undefined;
+  const model = typeof roleConfig.llm_model === 'string' ? roleConfig.llm_model : undefined;
+  const baseUrl = typeof roleConfig.llm_base_url === 'string' ? roleConfig.llm_base_url : undefined;
+  const endpointType = typeof roleConfig.llm_endpoint_type === 'string' ? roleConfig.llm_endpoint_type : undefined;
+  const authMode = typeof roleConfig.llm_auth_mode === 'string' ? roleConfig.llm_auth_mode : undefined;
+
+  return {
+    ...(provider ? { llm_provider: provider } : {}),
+    ...(model ? { llm_model: model } : {}),
+    ...(baseUrl ? { llm_base_url: baseUrl } : {}),
+    ...(endpointType ? { llm_endpoint_type: endpointType } : {}),
+    ...(authMode ? { llm_auth_mode: authMode } : {}),
+  };
+}
+
+function toClaimStringCredential(
+  valueKey: string,
+  secretRefKey: string,
+  stored: string | null | undefined,
+  decrypt: (value: string) => string,
+): Record<string, unknown> {
+  const normalized = typeof stored === 'string' ? stored.trim() : '';
+  if (!normalized) {
+    return {};
+  }
+  if (isExternalSecretReference(normalized)) {
+    return { [secretRefKey]: normalized };
+  }
+  return { [valueKey]: decrypt(normalized) };
+}
+
+function toClaimObjectCredential(
+  valueKey: string,
+  secretRefKey: string,
+  stored: string | null | undefined,
+  decode: (value: string) => Record<string, string>,
+): Record<string, unknown> {
+  const normalized = typeof stored === 'string' ? stored.trim() : '';
+  if (!normalized) {
+    return {};
+  }
+  if (isExternalSecretReference(normalized)) {
+    return { [secretRefKey]: normalized };
+  }
+  return { [valueKey]: decode(normalized) };
+}
+
+function parseExtraHeadersSecret(secret: string): Record<string, string> {
+  const parsed = JSON.parse(readProviderSecret(secret)) as Record<string, unknown>;
+  return Object.fromEntries(
+    Object.entries(parsed).flatMap(([key, value]) =>
+      typeof value === 'string' ? [[key, value] as const] : [],
+    ),
+  );
 }

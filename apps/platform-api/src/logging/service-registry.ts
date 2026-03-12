@@ -17,13 +17,6 @@ export const SERVICE_REGISTRY: Record<string, ServiceLogConfig> = {
       'getProjectResources', 'getProjectTools',
     ],
   },
-  TemplateService: {
-    entityType: 'template',
-    category: 'config',
-    nameField: 'name',
-    ignoreFields: ['updatedAt', 'createdAt', 'deletedAt'],
-    ignoreMethods: ['getTemplate', 'listTemplates'],
-  },
   WorkflowService: {
     entityType: 'workflow',
     category: 'task_lifecycle',
@@ -144,8 +137,8 @@ export const SERVICE_REGISTRY: Record<string, ServiceLogConfig> = {
     ignoreFields: [],
     ignoreMethods: ['listToolTags'],
   },
-  WebhookTaskTriggerService: {
-    entityType: 'task_trigger',
+  WebhookWorkItemTriggerService: {
+    entityType: 'work_item_trigger',
     category: 'config',
     nameField: 'name',
     ignoreFields: ['secret'],

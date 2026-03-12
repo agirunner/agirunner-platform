@@ -8,6 +8,7 @@ const registerSchema = z.object({
   name: z.string().min(1).max(200),
   protocol: z.enum(['rest', 'acp']).optional(),
   capabilities: z.array(z.string().min(1)).default([]),
+  execution_mode: z.enum(['specialist', 'orchestrator', 'hybrid']).optional(),
   tools: z
     .object({
       required: z.array(z.string().min(1)).optional(),

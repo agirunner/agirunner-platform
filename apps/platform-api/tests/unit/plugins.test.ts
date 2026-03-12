@@ -1,7 +1,11 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { isRealtimeTransportRoute, rateLimitKeyGenerator } from '../../src/bootstrap/plugins.js';
+import {
+  applyArtifactPreviewHeaders,
+  isRealtimeTransportRoute,
+  rateLimitKeyGenerator,
+} from '../../src/bootstrap/plugins.js';
 
 function createRequest(overrides: Partial<FastifyRequest>): FastifyRequest {
   return {
@@ -49,5 +53,24 @@ describe('rate limit helpers', () => {
     });
 
     expect(isRealtimeTransportRoute(app, request)).toBe(false);
+  });
+
+  it('applies strict inline preview headers for artifact previews', () => {
+    const reply = {
+      header: vi.fn(),
+    };
+
+    applyArtifactPreviewHeaders(reply as never, 'report.md', 'text/markdown');
+
+    expect(reply.header).toHaveBeenCalledWith(
+      'Content-Disposition',
+      'inline; filename="report.md"',
+    );
+    expect(reply.header).toHaveBeenCalledWith(
+      'Content-Security-Policy',
+      expect.stringContaining("default-src 'none'"),
+    );
+    expect(reply.header).toHaveBeenCalledWith('X-Content-Type-Options', 'nosniff');
+    expect(reply.header).toHaveBeenCalledWith('X-Frame-Options', 'DENY');
   });
 });

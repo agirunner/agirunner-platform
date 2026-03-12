@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { authenticateApiKey, withAllowedScopes, withScope } from '../../auth/fastify-auth-hook.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
+import { normalizeTaskState, toStoredTaskState } from '../../orchestration/task-state-machine.js';
 
 
 const taskCreateSchema = z.object({
@@ -12,7 +13,12 @@ const taskCreateSchema = z.object({
   description: z.string().max(5000).optional(),
   priority: z.enum(['critical', 'high', 'normal', 'low']).optional(),
   workflow_id: z.string().uuid().optional(),
+  work_item_id: z.string().uuid().optional(),
   project_id: z.string().uuid().optional(),
+  stage_name: z.string().max(120).optional(),
+  activation_id: z.string().uuid().optional(),
+  request_id: z.string().max(255).optional(),
+  is_orchestrator_task: z.boolean().optional(),
   parent_id: z.string().uuid().optional(),
   role: z.string().max(120).optional(),
   input: z.record(z.unknown()).optional(),
@@ -50,6 +56,7 @@ const claimSchema = z.object({
   worker_id: z.string().uuid().optional(),
   capabilities: z.array(z.string()).default([]),
   workflow_id: z.string().uuid().optional(),
+  playbook_id: z.string().uuid().optional(),
   include_context: z.boolean().optional(),
 });
 
@@ -134,6 +141,17 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   throw new SchemaValidationFailedError('Invalid request body', { issues: result.error.flatten() });
 }
 
+function parseTaskStateFilter(value: string | undefined) {
+  if (value === undefined) {
+    return undefined;
+  }
+  const normalized = normalizeTaskState(value);
+  if (!normalized) {
+    throw new ValidationError(`Invalid task state '${value}'`);
+  }
+  return toStoredTaskState(normalized);
+}
+
 export const taskRoutes: FastifyPluginAsync = async (app) => {
   const taskService = app.taskService;
 
@@ -165,11 +183,18 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       }
 
       const result = await taskService.listTasks(request.auth!.tenantId, {
-        state: query.state,
+        state: parseTaskStateFilter(query.state),
         project_id: query.project_id,
         assigned_agent_id: query.assigned_agent_id,
         parent_id: query.parent_id,
         workflow_id: query.workflow_id,
+        work_item_id: query.work_item_id,
+        stage_name: query.stage_name,
+        activation_id: query.activation_id,
+        is_orchestrator_task:
+          query.is_orchestrator_task === undefined
+            ? undefined
+            : query.is_orchestrator_task === 'true',
         page,
         per_page: perPage,
       });

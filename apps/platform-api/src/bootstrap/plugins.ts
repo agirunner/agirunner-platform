@@ -2,7 +2,7 @@ import fastifyCookie from '@fastify/cookie';
 import fastifyCors from '@fastify/cors';
 import fastifyJwt from '@fastify/jwt';
 import fastifyRateLimit from '@fastify/rate-limit';
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import { parseBearerToken } from '../auth/api-key.js';
 import { requestCounter, requestDuration } from '../observability/metrics.js';
@@ -13,7 +13,12 @@ export function resolveRateLimitRoute(request: FastifyRequest): string {
 
 export function isRealtimeTransportRoute(app: FastifyInstance, request: FastifyRequest): boolean {
   const route = resolveRateLimitRoute(request);
-  return route === app.config.EVENT_STREAM_PATH || route === '/api/v1/events/ws' || route === app.config.WORKER_WEBSOCKET_PATH || route === '/api/v1/logs/stream';
+  return (
+    route === app.config.EVENT_STREAM_PATH ||
+    route === '/api/v1/events/ws' ||
+    route === app.config.WORKER_WEBSOCKET_PATH ||
+    route === '/api/v1/logs/stream'
+  );
 }
 
 export function rateLimitKeyGenerator(request: FastifyRequest): string {
@@ -31,10 +36,39 @@ export function rateLimitKeyGenerator(request: FastifyRequest): string {
   }
 }
 
-function normalizeEnvelope(
-  request: FastifyRequest,
-  payload: unknown,
-): unknown {
+const ARTIFACT_PREVIEW_CONTENT_SECURITY_POLICY = [
+  "default-src 'none'",
+  "base-uri 'none'",
+  "connect-src 'none'",
+  "font-src 'none'",
+  "form-action 'none'",
+  "frame-ancestors 'none'",
+  "img-src 'self' data: blob:",
+  "media-src 'self' blob:",
+  "object-src 'none'",
+  "script-src 'none'",
+  "style-src 'unsafe-inline'",
+].join('; ');
+
+export function applyArtifactPreviewHeaders(
+  reply: FastifyReply,
+  fileName: string,
+  contentType: string,
+): void {
+  reply.header('Content-Type', contentType);
+  reply.header('Content-Disposition', `inline; filename="${escapeHeaderFileName(fileName)}"`);
+  reply.header('Content-Security-Policy', ARTIFACT_PREVIEW_CONTENT_SECURITY_POLICY);
+  reply.header('Cross-Origin-Resource-Policy', 'same-origin');
+  reply.header('Referrer-Policy', 'no-referrer');
+  reply.header('X-Content-Type-Options', 'nosniff');
+  reply.header('X-Frame-Options', 'DENY');
+}
+
+function escapeHeaderFileName(fileName: string): string {
+  return fileName.replace(/["\\\r\n]/g, '_');
+}
+
+function normalizeEnvelope(request: FastifyRequest, payload: unknown): unknown {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     return payload;
   }
@@ -45,7 +79,9 @@ function normalizeEnvelope(
   }
 
   const existingMeta =
-    responseObject.meta && typeof responseObject.meta === 'object' && !Array.isArray(responseObject.meta)
+    responseObject.meta &&
+    typeof responseObject.meta === 'object' &&
+    !Array.isArray(responseObject.meta)
       ? (responseObject.meta as Record<string, unknown>)
       : {};
 

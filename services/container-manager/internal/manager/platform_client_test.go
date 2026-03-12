@@ -2,40 +2,37 @@ package manager
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
-	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
 func TestRecordFleetEventPostsToAPI(t *testing.T) {
 	var receivedEvent FleetEvent
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/fleet/events" {
-			t.Errorf("expected path /api/v1/fleet/events, got %s", r.URL.Path)
+	client, capture := newTestPlatformClient(t, func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/api/v1/fleet/events" {
+			t.Errorf("expected path /api/v1/fleet/events, got %s", req.URL.Path)
 		}
-		if r.Method != http.MethodPost {
-			t.Errorf("expected POST, got %s", r.Method)
+		if req.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", req.Method)
 		}
-		if r.Header.Get("Content-Type") != "application/json" {
-			t.Errorf("expected Content-Type application/json, got %s", r.Header.Get("Content-Type"))
+		if req.Header.Get("Content-Type") != "application/json" {
+			t.Errorf("expected Content-Type application/json, got %s", req.Header.Get("Content-Type"))
 		}
-		if r.Header.Get("Authorization") != "Bearer test-key" {
-			t.Errorf("expected Authorization Bearer test-key, got %s", r.Header.Get("Authorization"))
-		}
-
-		if err := json.NewDecoder(r.Body).Decode(&receivedEvent); err != nil {
+		if err := json.NewDecoder(req.Body).Decode(&receivedEvent); err != nil {
 			t.Fatalf("decode request body: %v", err)
 		}
-		w.WriteHeader(http.StatusCreated)
-	}))
-	defer server.Close()
+		return jsonResponse(http.StatusCreated, `{"ok":true}`), nil
+	})
 
-	client := NewPlatformClient(server.URL, "test-key")
 	event := FleetEvent{
 		EventType:   "runtime.started",
 		Level:       "info",
 		RuntimeID:   "rt-123",
-		TemplateID:  "tmpl-456",
+		PlaybookID:  "tmpl-456",
+		PoolKind:    "orchestrator",
 		ContainerID: "container-789",
 		Payload:     map[string]interface{}{"image": "agirunner:v1"},
 	}
@@ -44,44 +41,34 @@ func TestRecordFleetEventPostsToAPI(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-
-	if receivedEvent.EventType != "runtime.started" {
-		t.Errorf("expected event_type runtime.started, got %s", receivedEvent.EventType)
+	if capture.authorization != "Bearer test-key" {
+		t.Fatalf("expected Authorization Bearer test-key, got %s", capture.authorization)
 	}
-	if receivedEvent.Level != "info" {
-		t.Errorf("expected level info, got %s", receivedEvent.Level)
-	}
-	if receivedEvent.RuntimeID != "rt-123" {
-		t.Errorf("expected runtime_id rt-123, got %s", receivedEvent.RuntimeID)
-	}
-	if receivedEvent.TemplateID != "tmpl-456" {
-		t.Errorf("expected template_id tmpl-456, got %s", receivedEvent.TemplateID)
-	}
-	if receivedEvent.ContainerID != "container-789" {
-		t.Errorf("expected container_id container-789, got %s", receivedEvent.ContainerID)
+	if receivedEvent.PoolKind != "orchestrator" {
+		t.Errorf("expected pool_kind orchestrator, got %s", receivedEvent.PoolKind)
 	}
 }
 
 func TestRecordFleetEventReturnsErrorOnHTTPFailure(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte("internal error"))
-	}))
-	defer server.Close()
+	client, _ := newTestPlatformClient(t, func(_ *http.Request) (*http.Response, error) {
+		return jsonResponse(http.StatusInternalServerError, `internal error`), nil
+	})
 
-	client := NewPlatformClient(server.URL, "test-key")
 	err := client.RecordFleetEvent(FleetEvent{
 		EventType: "runtime.started",
 		Level:     "info",
 	})
-
 	if err == nil {
 		t.Fatal("expected error on HTTP 500, got nil")
 	}
 }
 
 func TestRecordFleetEventReturnsErrorOnConnectionFailure(t *testing.T) {
-	client := NewPlatformClient("http://localhost:1", "test-key")
+	client := NewPlatformClientWithHTTPClient("http://platform.example", "test-key", &http.Client{
+		Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+			return nil, fmt.Errorf("dial failure")
+		}),
+	})
 	err := client.RecordFleetEvent(FleetEvent{
 		EventType: "runtime.started",
 		Level:     "info",
@@ -113,18 +100,15 @@ func TestRecordFleetEventSendsAllEventTypes(t *testing.T) {
 	for _, tt := range eventTypes {
 		t.Run(tt.eventType, func(t *testing.T) {
 			var received FleetEvent
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				_ = json.NewDecoder(r.Body).Decode(&received)
-				w.WriteHeader(http.StatusCreated)
-			}))
-			defer server.Close()
+			client, _ := newTestPlatformClient(t, func(req *http.Request) (*http.Response, error) {
+				_ = json.NewDecoder(req.Body).Decode(&received)
+				return jsonResponse(http.StatusCreated, `{"ok":true}`), nil
+			})
 
-			client := NewPlatformClient(server.URL, "key")
 			err := client.RecordFleetEvent(FleetEvent{
 				EventType: tt.eventType,
 				Level:     tt.level,
 			})
-
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -140,22 +124,20 @@ func TestRecordFleetEventSendsAllEventTypes(t *testing.T) {
 
 func TestRecordFleetEventSendsOptionalFields(t *testing.T) {
 	var received FleetEvent
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewDecoder(r.Body).Decode(&received)
-		w.WriteHeader(http.StatusCreated)
-	}))
-	defer server.Close()
+	client, _ := newTestPlatformClient(t, func(req *http.Request) (*http.Response, error) {
+		_ = json.NewDecoder(req.Body).Decode(&received)
+		return jsonResponse(http.StatusCreated, `{"ok":true}`), nil
+	})
 
-	client := NewPlatformClient(server.URL, "key")
 	err := client.RecordFleetEvent(FleetEvent{
 		EventType:  "runtime.task.claimed",
 		Level:      "info",
 		RuntimeID:  "rt-1",
-		TemplateID: "tmpl-1",
+		PlaybookID: "tmpl-1",
+		PoolKind:   "specialist",
 		TaskID:     "task-1",
 		WorkflowID: "wf-1",
 	})
-
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -164,5 +146,99 @@ func TestRecordFleetEventSendsOptionalFields(t *testing.T) {
 	}
 	if received.WorkflowID != "wf-1" {
 		t.Errorf("expected workflow_id wf-1, got %s", received.WorkflowID)
+	}
+	if received.PoolKind != "specialist" {
+		t.Errorf("expected pool_kind specialist, got %s", received.PoolKind)
+	}
+}
+
+func TestFetchHeartbeatsIncludesPoolKind(t *testing.T) {
+	client, capture := newTestPlatformClient(t, func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/api/v1/fleet/heartbeats" {
+			t.Errorf("expected path /api/v1/fleet/heartbeats, got %s", req.URL.Path)
+		}
+		if req.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", req.Method)
+		}
+		return jsonResponse(http.StatusOK, `{"data":[{"runtime_id":"rt-1","playbook_id":"pb-1","pool_kind":"orchestrator","state":"idle","last_heartbeat_at":"2026-03-12T00:00:00Z","active_task_id":"task-1"}]}`), nil
+	})
+
+	result, err := client.FetchHeartbeats()
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if capture.authorization != "Bearer test-key" {
+		t.Fatalf("expected Authorization Bearer test-key, got %s", capture.authorization)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected one heartbeat, got %d", len(result))
+	}
+	if result[0].PoolKind != "orchestrator" {
+		t.Fatalf("expected pool_kind orchestrator, got %s", result[0].PoolKind)
+	}
+	if result[0].ActiveTaskID != "task-1" {
+		t.Fatalf("expected active_task_id task-1, got %s", result[0].ActiveTaskID)
+	}
+}
+
+func TestFetchRuntimeTargetsIncludesCapabilityDemandSummary(t *testing.T) {
+	client, capture := newTestPlatformClient(t, func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/api/v1/fleet/runtime-targets" {
+			t.Errorf("expected path /api/v1/fleet/runtime-targets, got %s", req.URL.Path)
+		}
+		if req.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", req.Method)
+		}
+		return jsonResponse(http.StatusOK, `{"data":[{"playbook_id":"pb-1","playbook_name":"Build","pool_kind":"specialist","pool_mode":"cold","max_runtimes":3,"priority":10,"idle_timeout_seconds":300,"grace_period_seconds":180,"image":"runtime:v1","pull_policy":"if-not-present","cpu":"1","memory":"512m","pending_tasks":4,"tasks_with_capabilities":3,"distinct_capability_sets":2,"max_required_capabilities":2,"capability_demand_units":7,"active_workflows":1}]}`), nil
+	})
+
+	result, err := client.FetchRuntimeTargets()
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if capture.authorization != "Bearer test-key" {
+		t.Fatalf("expected Authorization Bearer test-key, got %s", capture.authorization)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected one runtime target, got %d", len(result))
+	}
+	if result[0].CapabilityDemandUnits != 7 {
+		t.Fatalf("expected capability_demand_units 7, got %d", result[0].CapabilityDemandUnits)
+	}
+	if result[0].TasksWithCapabilities != 3 {
+		t.Fatalf("expected tasks_with_capabilities 3, got %d", result[0].TasksWithCapabilities)
+	}
+}
+
+type capturedRequest struct {
+	authorization string
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func newTestPlatformClient(t *testing.T, responder func(*http.Request) (*http.Response, error)) (*PlatformClient, *capturedRequest) {
+	t.Helper()
+
+	capture := &capturedRequest{}
+	httpClient := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			capture.authorization = req.Header.Get("Authorization")
+			return responder(req)
+		}),
+	}
+	return NewPlatformClientWithHTTPClient("http://platform.example", "test-key", httpClient), capture
+}
+
+func jsonResponse(statusCode int, body string) *http.Response {
+	return &http.Response{
+		StatusCode: statusCode,
+		Header: http.Header{
+			"Content-Type": []string{"application/json"},
+		},
+		Body: io.NopCloser(strings.NewReader(body)),
 	}
 }

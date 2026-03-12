@@ -6,6 +6,10 @@ interface EventFilters {
   entityId?: string;
   projectId?: string;
   workflowId?: string;
+  workItemId?: string;
+  stageName?: string;
+  activationId?: string;
+  gateId?: string;
 }
 
 export interface StreamEvent {
@@ -124,6 +128,36 @@ export class EventStreamService {
     if (filters.workflowId) {
       const workflowId = (event.data?.workflow_id as string | undefined) ?? (event.entity_type === 'workflow' ? event.entity_id : undefined);
       if (workflowId !== filters.workflowId) {
+        return false;
+      }
+    }
+
+    if (filters.workItemId) {
+      const workItemId =
+        (event.data?.work_item_id as string | undefined) ??
+        (event.entity_type === 'work_item' ? event.entity_id : undefined);
+      if (workItemId !== filters.workItemId) {
+        return false;
+      }
+    }
+
+    if (filters.stageName) {
+      const stageName = event.data?.stage_name as string | undefined;
+      if (stageName !== filters.stageName) {
+        return false;
+      }
+    }
+
+    if (filters.activationId) {
+      const activationId = event.data?.activation_id as string | undefined;
+      if (activationId !== filters.activationId) {
+        return false;
+      }
+    }
+
+    if (filters.gateId) {
+      const gateId = event.data?.gate_id as string | undefined;
+      if (gateId !== filters.gateId) {
         return false;
       }
     }

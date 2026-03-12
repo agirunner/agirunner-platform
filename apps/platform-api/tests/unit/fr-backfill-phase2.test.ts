@@ -6,19 +6,14 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { buildTaskContext } from '../../src/services/task-context-service.js';
-import { buildTemplateTaskIdMap } from '../../src/services/workflow-instantiation.js';
 import { selectLeastLoadedWorker } from '../../src/services/worker-dispatch-service.js';
-import {
-  deriveWorkflowState,
-  validateTemplateSchema,
-} from '../../src/orchestration/workflow-engine.js';
 import { registerWorker } from '../../src/services/worker-registration-service.js';
 import { TaskWriteService } from '../../src/services/task-write-service.js';
 import { WorkflowStateService } from '../../src/services/workflow-state-service.js';
 import { WorkflowCancellationService } from '../../src/services/workflow-cancellation-service.js';
 import { authenticateApiKey, withScope } from '../../src/auth/fastify-auth-hook.js';
 import { loadEnv } from '../../src/config/env.js';
-import { templates } from '../../src/db/schema/templates.js';
+import { playbooks } from '../../src/db/schema/playbooks.js';
 import { workers } from '../../src/db/schema/workers.js';
 import { orchestratorGrants } from '../../src/db/schema/orchestrator-grants.js';
 
@@ -59,6 +54,125 @@ describe('FR-192: context versioning', () => {
     expect(context).toHaveProperty('task');
     expect(context.task as Record<string, unknown>).toHaveProperty('upstream_outputs');
   });
+
+  it('buildTaskContext includes playbook workflow and work item context', async () => {
+    const tenantId = '00000000-0000-0000-0000-000000000001';
+    const mockQuery = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('FROM workflows p')) {
+        return Promise.resolve({
+          rows: [{
+            id: 'wf-1',
+            name: 'Ship feature',
+            lifecycle: 'continuous',
+            current_stage: 'build',
+            playbook_id: 'pb-1',
+            playbook_name: 'SDLC',
+            playbook_outcome: 'Shipped code',
+            playbook_definition: { board: { columns: [{ id: 'todo', label: 'Todo' }] }, stages: [] },
+            metadata: {
+              chain_source_workflow_id: 'wf-parent',
+              child_workflow_ids: ['wf-child-1'],
+            },
+            context: {},
+            git_branch: 'main',
+            resolved_config: {},
+            parameters: {},
+          }],
+        });
+      }
+      if (sql.includes('SELECT DISTINCT stage_name')) {
+        return Promise.resolve({
+          rows: [{ stage_name: 'build' }],
+        });
+      }
+      if (sql.includes('LEFT JOIN playbooks pb') && sql.includes('ANY($2::uuid[])')) {
+        return Promise.resolve({
+          rows: [
+            {
+              id: 'wf-parent',
+              name: 'Program workflow',
+              state: 'completed',
+              playbook_id: 'pb-parent',
+              playbook_name: 'Program',
+              created_at: '2026-03-09T00:00:00.000Z',
+              started_at: '2026-03-09T00:10:00.000Z',
+              completed_at: '2026-03-09T01:00:00.000Z',
+            },
+            {
+              id: 'wf-child-1',
+              name: 'Nested child',
+              state: 'active',
+              playbook_id: 'pb-child',
+              playbook_name: 'SDLC',
+              created_at: '2026-03-10T00:00:00.000Z',
+              started_at: null,
+              completed_at: null,
+            },
+          ],
+        });
+      }
+      if (sql.includes('SELECT id, name, state, context, parameters, resolved_config, metadata')) {
+        return Promise.resolve({
+          rows: [{
+            id: 'wf-parent',
+            name: 'Program workflow',
+            state: 'completed',
+            context: { summary: 'Parent context' },
+            parameters: { milestone: 'alpha' },
+            resolved_config: { retries: 1 },
+            metadata: { run_summary: { status: 'done' } },
+            started_at: '2026-03-09T00:10:00.000Z',
+            completed_at: '2026-03-09T01:00:00.000Z',
+          }],
+        });
+      }
+      if (sql.includes('FROM workflows') && sql.includes('project_spec_version')) {
+        return Promise.resolve({
+          rowCount: 1,
+          rows: [{ project_id: null, project_spec_version: null }],
+        });
+      }
+      if (sql.includes('FROM workflow_work_items')) {
+        return Promise.resolve({
+          rows: [{
+            id: 'wi-1',
+            stage_name: 'build',
+            column_id: 'todo',
+            title: 'Implement feature',
+            goal: 'Deliver the feature',
+          }],
+        });
+      }
+      return Promise.resolve({ rows: [] });
+    });
+
+    const context = await buildTaskContext({ query: mockQuery } as never, tenantId, {
+      id: 'task-1',
+      workflow_id: 'wf-1',
+      work_item_id: 'wi-1',
+      depends_on: [],
+      tenant_id: tenantId,
+    });
+
+    expect((context.workflow as Record<string, unknown>).playbook).toBeTruthy();
+    expect((context.task as Record<string, unknown>).work_item).toBeTruthy();
+    expect(context.workflow).not.toHaveProperty('current_stage');
+    expect((context.workflow as Record<string, unknown>).active_stages).toEqual(['build']);
+    expect((context.workflow as Record<string, unknown>).relations).toEqual(
+      expect.objectContaining({
+        parent: expect.objectContaining({ workflow_id: 'wf-parent', state: 'completed' }),
+        children: [expect.objectContaining({ workflow_id: 'wf-child-1', state: 'active' })],
+      }),
+    );
+    expect((context.workflow as Record<string, unknown>).parent_workflow).toEqual(
+      expect.objectContaining({
+        id: 'wf-parent',
+        context: { summary: 'Parent context' },
+        variables: { milestone: 'alpha' },
+        run_summary: { status: 'done' },
+      }),
+    );
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -67,16 +181,6 @@ describe('FR-192: context versioning', () => {
 describe('FR-208: max sub-task depth and count limits', () => {
   it('TaskWriteService is a real exported class that supports parent_id relationships', () => {
     expect(typeof TaskWriteService).toBe('function');
-  });
-
-  it('validateTemplateSchema accepts tasks with depends_on referencing parent tasks', () => {
-    const schema = validateTemplateSchema({
-      tasks: [
-        { id: 'parent', title_template: 'Parent task', type: 'analysis' },
-        { id: 'child', title_template: 'Child task', type: 'code', depends_on: ['parent'] },
-      ],
-    });
-    expect(schema.tasks[1].depends_on).toContain('parent');
   });
 
   it('task-query-service filters by parent_id via listTasks query builder', async () => {
@@ -120,14 +224,6 @@ describe('FR-219: granular permission grants for non-orchestrators', () => {
 // FR-222: Orchestrator fallback on timeout
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-222: orchestrator fallback on timeout', () => {
-  it('workflow-state-service derives workflow state from task states', () => {
-    // deriveWorkflowState is the core logic used by recomputeWorkflowState
-    expect(deriveWorkflowState(['failed', 'completed'])).toBe('failed');
-    expect(deriveWorkflowState(['completed', 'completed'])).toBe('completed');
-    expect(deriveWorkflowState(['running', 'pending'])).toBe('active');
-    expect(deriveWorkflowState([])).toBe('pending');
-  });
-
   it('WorkflowStateService is a real class with a recomputeWorkflowState method', () => {
     expect(typeof WorkflowStateService).toBe('function');
     expect(typeof WorkflowStateService.prototype.recomputeWorkflowState).toBe('function');
@@ -180,222 +276,11 @@ describe('FR-285: localhost bypass in dev mode', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FR-404: Quality standards schema
+// FR-404 / FR-SM-004: playbook definition surface remains first-class
 // ─────────────────────────────────────────────────────────────────────────────
-describe('FR-404: quality standards schema in templates', () => {
-  it('templates schema has a jsonb schema column', () => {
-    expect(templates.schema).toBeDefined();
-  });
-
-  it('validateTemplateSchema accepts metadata block that can contain quality standards', () => {
-    const schema = validateTemplateSchema({
-      tasks: [{ id: 'lint', title_template: 'Lint check', type: 'test' }],
-      metadata: { quality: { lint: 'strict', coverage_threshold: 80 } },
-    });
-    expect(schema.metadata).toEqual({ quality: { lint: 'strict', coverage_threshold: 80 } });
-  });
-
-  it('validateTemplateSchema accepts workflow phases metadata alongside quality config', () => {
-    const schema = validateTemplateSchema({
-      tasks: [{ id: 'build', title_template: 'Build', type: 'code' }],
-      metadata: {
-        quality: { lint: 'strict' },
-        workflow: { phases: [{ id: 'build', gate: 'all_complete' }] },
-      },
-    });
-    expect((schema.metadata as Record<string, unknown>)?.quality).toBeDefined();
-    expect((schema.metadata as Record<string, unknown>)?.workflow).toBeDefined();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FR-405: Output schema validation
-// ─────────────────────────────────────────────────────────────────────────────
-describe('FR-405: output schema validation', () => {
-  it('TaskLifecycleService is exported and has completeTask method', async () => {
-    const { TaskLifecycleService } = await import('../../src/services/task-lifecycle-service.js');
-    expect(typeof TaskLifecycleService).toBe('function');
-    expect(typeof TaskLifecycleService.prototype.completeTask).toBe('function');
-  });
-
-  it('loadEnv provides sensible defaults for all output-relevant config fields', () => {
-    const env = loadEnv({
-      DATABASE_URL: 'postgres://x',
-      JWT_SECRET: 'a'.repeat(32),
-      WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32),
-    });
-    // The config exists and is parseable without error
-    expect(env.DATABASE_URL).toBe('postgres://x');
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FR-411: Inline role override at creation
-// ─────────────────────────────────────────────────────────────────────────────
-describe('FR-411: inline role override at workflow instantiation', () => {
-  it('buildTemplateTaskIdMap generates a UUID per task id', () => {
-    const tasks = [
-      { id: 'design', title_template: 'Design', type: 'analysis' as const },
-      { id: 'build', title_template: 'Build', type: 'code' as const },
-    ];
-    const idMap = buildTemplateTaskIdMap(tasks);
-    expect(idMap.size).toBe(2);
-    expect(idMap.get('design')).toMatch(/^[0-9a-f-]{36}$/);
-    expect(idMap.get('build')).toMatch(/^[0-9a-f-]{36}$/);
-    expect(idMap.get('design')).not.toBe(idMap.get('build'));
-  });
-
-  it('validateTemplateSchema preserves role_config per task', () => {
-    const schema = validateTemplateSchema({
-      tasks: [
-        {
-          id: 'researcher',
-          title_template: 'Research phase',
-          type: 'analysis',
-          role: 'researcher',
-          role_config: { model: 'gpt-4o', system_prompt: 'You are a researcher.' },
-        },
-      ],
-    });
-    expect(schema.tasks[0].role_config).toEqual({
-      model: 'gpt-4o',
-      system_prompt: 'You are a researcher.',
-    });
-  });
-
-  it('validateTemplateSchema rejects depends_on that reference non-existent task ids', () => {
-    expect(() =>
-      validateTemplateSchema({
-        tasks: [
-          { id: 'build', title_template: 'Build', type: 'code', depends_on: ['nonexistent-id'] },
-        ],
-      }),
-    ).toThrow();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FR-SM-004: Template state profile declaration
-// ─────────────────────────────────────────────────────────────────────────────
-describe('FR-SM-004: template state profile declaration', () => {
-  it('templates schema has schema column which is notNull', () => {
-    expect(templates.schema).toBeDefined();
-  });
-
-  it('validateTemplateSchema returns metadata that can carry state profile', () => {
-    const schema = validateTemplateSchema({
-      tasks: [{ id: 'task-1', title_template: 'Task', type: 'code' }],
-      metadata: { state_profile: 'sdlc' },
-    });
-    expect((schema.metadata as Record<string, unknown>)?.state_profile).toBe('sdlc');
-  });
-
-  it('validateTemplateSchema accepts per-field output_state declarations', () => {
-    const schema = validateTemplateSchema({
-      tasks: [
-        {
-          id: 'task-1',
-          title_template: 'Task',
-          type: 'code',
-          output_state: {
-            report: { mode: 'artifact', path: 'reports/report.json' },
-            branch: 'git',
-          },
-        },
-      ],
-    });
-
-    expect(schema.tasks[0].output_state).toEqual({
-      report: {
-        mode: 'artifact',
-        path: 'reports/report.json',
-        media_type: undefined,
-        summary: undefined,
-      },
-      branch: { mode: 'git', path: undefined, media_type: undefined, summary: undefined },
-    });
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FR-705: Cross-phase depends_on (dotted notation)
-// ─────────────────────────────────────────────────────────────────────────────
-describe('FR-705: cross-phase depends_on', () => {
-  it('buildTemplateTaskIdMap maps all task ids including cross-phase references', () => {
-    const tasks = [
-      { id: 'phase1.design', title_template: 'Design', type: 'analysis' as const },
-      {
-        id: 'phase2.build',
-        title_template: 'Build',
-        type: 'code' as const,
-        depends_on: ['phase1.design'],
-      },
-    ];
-    const idMap = buildTemplateTaskIdMap(tasks);
-    expect(idMap.has('phase1.design')).toBe(true);
-    expect(idMap.has('phase2.build')).toBe(true);
-  });
-
-  it('validateTemplateSchema resolves cross-task depends_on without dotted notation restriction', () => {
-    const schema = validateTemplateSchema({
-      tasks: [
-        { id: 'phase1-design', title_template: 'Design', type: 'analysis' },
-        {
-          id: 'phase2-build',
-          title_template: 'Build',
-          type: 'code',
-          depends_on: ['phase1-design'],
-        },
-        { id: 'phase2-test', title_template: 'Test', type: 'test', depends_on: ['phase2-build'] },
-      ],
-    });
-    expect(schema.tasks[1].depends_on).toEqual(['phase1-design']);
-    expect(schema.tasks[2].depends_on).toEqual(['phase2-build']);
-  });
-
-  it('validateTemplateSchema rejects circular dependencies', () => {
-    expect(() =>
-      validateTemplateSchema({
-        tasks: [
-          { id: 'a', title_template: 'A', type: 'code', depends_on: ['b'] },
-          { id: 'b', title_template: 'B', type: 'code', depends_on: ['a'] },
-        ],
-      }),
-    ).toThrow();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FR-708: Phase parallel flag
-// ─────────────────────────────────────────────────────────────────────────────
-describe('FR-708: phase parallel flag', () => {
-  it('validateTemplateSchema preserves metadata phases block with parallel flag', () => {
-    const schema = validateTemplateSchema({
-      tasks: [
-        { id: 'lint', title_template: 'Lint', type: 'test' },
-        { id: 'unit-test', title_template: 'Unit test', type: 'test' },
-      ],
-      metadata: {
-        workflow: {
-          phases: [
-            { id: 'verify', parallel: true, tasks: ['lint', 'unit-test'], gate: 'all_complete' },
-          ],
-        },
-      },
-    });
-    const workflow = (schema.metadata as Record<string, unknown>)?.workflow as Record<
-      string,
-      unknown
-    >;
-    const phases = workflow?.phases as Array<Record<string, unknown>>;
-    expect(phases[0].parallel).toBe(true);
-  });
-
-  it('tasks with no depends_on start in ready state which enables parallel execution', () => {
-    // Tasks with no deps are immediately ready — supporting parallel execution at the engine level
-    expect(deriveWorkflowState(['ready', 'ready'])).toBe('active');
-    // All running → active (parallel in progress)
-    expect(deriveWorkflowState(['running', 'running'])).toBe('active');
+describe('FR-404 / FR-SM-004: playbook definition surface', () => {
+  it('playbooks schema has a jsonb definition column', () => {
+    expect(playbooks.definition).toBeDefined();
   });
 });
 
@@ -525,95 +410,5 @@ describe('FR-821: execution environment metadata tracking', () => {
 
   it('workers schema has runtimeType column to distinguish environment kinds', () => {
     expect(workers.runtimeType).toBeDefined();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FR-822: Template environment section for managed workers
-// ─────────────────────────────────────────────────────────────────────────────
-describe('FR-822: template environment section for managed workers', () => {
-  it('validateTemplateSchema accepts environment block per task', () => {
-    const schema = validateTemplateSchema({
-      tasks: [
-        {
-          id: 'build',
-          title_template: 'Build',
-          type: 'code',
-          environment: { runtime: 'node', version: '22', memory_mb: 512 },
-        },
-      ],
-    });
-    expect(schema.tasks[0].environment).toEqual({ runtime: 'node', version: '22', memory_mb: 512 });
-  });
-
-  it('TemplateTaskDefinition type includes environment as optional — validateTemplateSchema strips invalid types', () => {
-    const schema = validateTemplateSchema({
-      tasks: [
-        {
-          id: 'build',
-          title_template: 'Build',
-          type: 'code',
-          environment: 'invalid-string' as unknown as Record<string, unknown>,
-        },
-      ],
-    });
-    // Non-object environment is silently ignored (isObject guard)
-    expect(schema.tasks[0].environment).toBeUndefined();
-  });
-
-  it('buildTemplateTaskIdMap preserves all task ids including environment-configured tasks', () => {
-    const taskList = [
-      {
-        id: 'build',
-        title_template: 'Build',
-        type: 'code' as const,
-        environment: { runtime: 'node' },
-      },
-    ];
-    const idMap = buildTemplateTaskIdMap(taskList);
-    expect(idMap.has('build')).toBe(true);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FR-824: Environment declaration validation at template creation
-// ─────────────────────────────────────────────────────────────────────────────
-describe('FR-824: environment declaration validation at template creation', () => {
-  it('validateTemplateSchema is the validation gate used before template creation', () => {
-    // validateTemplateSchema enforces schema on template creation
-    expect(typeof validateTemplateSchema).toBe('function');
-  });
-
-  it('validateTemplateSchema treats non-object environment as undefined (no crash)', () => {
-    const schema = validateTemplateSchema({
-      tasks: [
-        {
-          id: 'task-a',
-          title_template: 'Task A',
-          type: 'code',
-          environment: 'invalid-string' as unknown as Record<string, unknown>,
-        },
-      ],
-    });
-    // Non-object environment is silently ignored (isObject guard)
-    expect(schema.tasks[0].environment).toBeUndefined();
-  });
-
-  it('validateTemplateSchema accepts valid environment object declarations', () => {
-    const schema = validateTemplateSchema({
-      tasks: [
-        {
-          id: 'task-b',
-          title_template: 'Task B',
-          type: 'code',
-          environment: { image: 'node:22-alpine', cpu: 1, memory_mb: 256 },
-        },
-      ],
-    });
-    expect(schema.tasks[0].environment).toEqual({
-      image: 'node:22-alpine',
-      cpu: 1,
-      memory_mb: 256,
-    });
   });
 });

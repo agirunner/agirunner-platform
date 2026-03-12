@@ -14,10 +14,11 @@ import type { IntegrationActionService } from './services/integration-action-ser
 import type { IntegrationAdapterService } from './services/integration-adapter-service.js';
 import type { ModelCatalogService } from './services/model-catalog-service.js';
 import type { ProjectService } from './services/project-service.js';
+import type { PlaybookService } from './services/playbook-service.js';
 import type { RoleDefinitionService } from './services/role-definition-service.js';
 import type { RuntimeDefaultsService } from './services/runtime-defaults-service.js';
+import type { ScheduledWorkItemTriggerService } from './services/scheduled-work-item-trigger-service.js';
 import type { TaskService } from './services/task-service.js';
-import type { TemplateService } from './services/template-service.js';
 import type { UserService } from './services/user-service.js';
 import type { WebhookService } from './services/webhook-service.js';
 import type { WorkerConnectionHub } from './services/worker-connection-hub.js';
@@ -27,8 +28,9 @@ import type { AgentService } from './services/agent-service.js';
 import type { OAuthService } from './services/oauth-service.js';
 import type { OrchestratorGrantService } from './services/orchestrator-grant-service.js';
 import type { ToolTagService } from './services/tool-tag-service.js';
-import type { WebhookTaskTriggerService } from './services/webhook-task-trigger-service.js';
+import type { WebhookWorkItemTriggerService } from './services/webhook-work-item-trigger-service.js';
 import type { WorkflowService } from './services/workflow-service.js';
+import type { WorkflowActivationService } from './services/workflow-activation-service.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -46,8 +48,9 @@ declare module 'fastify' {
     webhookService: WebhookService;
     governanceService: GovernanceService;
     projectService: ProjectService;
-    templateService: TemplateService;
+    playbookService: PlaybookService;
     workflowService: WorkflowService;
+    workflowActivationService: WorkflowActivationService;
     taskService: TaskService;
     userService: UserService;
     apiKeyService: ApiKeyService;
@@ -59,7 +62,8 @@ declare module 'fastify' {
     orchestratorGrantService: OrchestratorGrantService;
     acpSessionService: AcpSessionService;
     toolTagService: ToolTagService;
-    webhookTaskTriggerService: WebhookTaskTriggerService;
+    webhookWorkItemTriggerService: WebhookWorkItemTriggerService;
+    scheduledWorkItemTriggerService: ScheduledWorkItemTriggerService;
     agentService: AgentService;
   }
 

@@ -51,9 +51,10 @@ const AlertsApprovalsPage = lazyWithRetry(() => import('../pages/mission-control
 const CostDashboardPage = lazyWithRetry(() => import('../pages/mission-control/cost-dashboard-page.js').then((m) => ({ default: m.CostDashboardPage })));
 
 const WorkflowListPage = lazyWithRetry(() => import('../pages/work/workflow-list-page.js').then((m) => ({ default: m.WorkflowListPage })));
-const WorkflowDetailPage = lazyWithRetry(() => import('../pages/work/workflow-detail-page.js').then((m) => ({ default: m.WorkflowDetailPage })));
+const WorkflowDetailPage = lazyWithRetry(() => import('../pages/workflow-detail-page.js').then((m) => ({ default: m.WorkflowDetailPage })));
 const TaskListPage = lazyWithRetry(() => import('../pages/work/task-list-page.js').then((m) => ({ default: m.TaskListPage })));
 const TaskDetailPage = lazyWithRetry(() => import('../pages/work/task-detail-page.js').then((m) => ({ default: m.TaskDetailPage })));
+const ArtifactPreviewPage = lazyWithRetry(() => import('../components/artifact-preview-page.js').then((m) => ({ default: m.ArtifactPreviewPage })));
 const ApprovalQueuePage = lazyWithRetry(() => import('../pages/work/approval-queue-page.js').then((m) => ({ default: m.ApprovalQueuePage })));
 
 const ProjectListPage = lazyWithRetry(() => import('../pages/projects/project-list-page.js').then((m) => ({ default: m.ProjectListPage })));
@@ -61,19 +62,18 @@ const ProjectDetailPage = lazyWithRetry(() => import('../pages/projects/project-
 const MemoryBrowserPage = lazyWithRetry(() => import('../pages/projects/memory-browser-page.js').then((m) => ({ default: m.MemoryBrowserPage })));
 const ContentBrowserPage = lazyWithRetry(() => import('../pages/projects/content-browser-page.js').then((m) => ({ default: m.ContentBrowserPage })));
 
-const TemplateListPage = lazyWithRetry(() => import('../pages/config/template-list-page.js').then((m) => ({ default: m.TemplateListPage })));
 const RoleDefinitionsPage = lazyWithRetry(() => import('../pages/config/role-definitions-page.js').then((m) => ({ default: m.RoleDefinitionsPage })));
 const LlmProvidersPage = lazyWithRetry(() => import('../pages/config/llm-providers-page.js').then((m) => ({ default: m.LlmProvidersPage })));
 const RuntimesPage = lazyWithRetry(() => import('../pages/config/runtimes-page.js').then((m) => ({ default: m.RuntimesPage })));
 const IntegrationsPage = lazyWithRetry(() => import('../pages/config/integrations-page.js').then((m) => ({ default: m.IntegrationsPage })));
 const PlatformInstructionsPage = lazyWithRetry(() => import('../pages/config/platform-instructions-page.js').then((m) => ({ default: m.PlatformInstructionsPage })));
 const AiConfigAssistantPage = lazyWithRetry(() => import('../pages/config/ai-config-assistant-page.js').then((m) => ({ default: m.AiConfigAssistantPage })));
-const TemplateEditorPage = lazyWithRetry(() => import('../pages/config/template-editor-page.js').then((m) => ({ default: m.TemplateEditorPage })));
-const TemplateLaunchPage = lazyWithRetry(() => import('../pages/config/template-launch-page.js').then((m) => ({ default: m.TemplateLaunchPage })));
+const PlaybookListPage = lazyWithRetry(() => import('../pages/config/playbook-list-page.js').then((m) => ({ default: m.PlaybookListPage })));
+const PlaybookLaunchPage = lazyWithRetry(() => import('../pages/config/playbook-launch-page.js').then((m) => ({ default: m.PlaybookLaunchPage })));
 const RuntimeDefaultsPage = lazyWithRetry(() => import('../pages/config/runtime-defaults-page.js').then((m) => ({ default: m.RuntimeDefaultsPage })));
 const ToolsPage = lazyWithRetry(() => import('../pages/config/tools-page.js').then((m) => ({ default: m.ToolsPage })));
 const WebhooksPage = lazyWithRetry(() => import('../pages/config/webhooks-page.js').then((m) => ({ default: m.WebhooksPage })));
-const TaskTriggersPage = lazyWithRetry(() => import('../pages/config/task-triggers-page.js').then((m) => ({ default: m.TaskTriggersPage })));
+const WorkItemTriggersPage = lazyWithRetry(() => import('../pages/config/work-item-triggers-page.js').then((m) => ({ default: m.WorkItemTriggersPage })));
 
 const WorkerListPage = lazyWithRetry(() => import('../pages/fleet/worker-list-page.js').then((m) => ({ default: m.WorkerListPage })));
 const AgentListPage = lazyWithRetry(() => import('../pages/fleet/agent-list-page.js').then((m) => ({ default: m.AgentListPage })));
@@ -190,6 +190,7 @@ export function App(): JSX.Element {
             <Route path="/work/workflows/:id" element={<WorkflowDetailPage />} />
             <Route path="/work/tasks" element={<TaskListPage />} />
             <Route path="/work/tasks/:id" element={<TaskDetailPage />} />
+            <Route path="/artifacts/tasks/:taskId/:artifactId" element={<ArtifactPreviewPage />} />
             <Route path="/work/approvals" element={<ApprovalQueuePage />} />
 
             {/* Projects */}
@@ -199,11 +200,9 @@ export function App(): JSX.Element {
             <Route path="/projects/content" element={<ContentBrowserPage />} />
 
             {/* Configuration */}
-            <Route path="/config/templates" element={<TemplateListPage />} />
-            <Route path="/config/templates/new/edit" element={<TemplateEditorPage />} />
-            <Route path="/config/templates/:id/edit" element={<TemplateEditorPage />} />
-            <Route path="/config/templates/:id/launch" element={<TemplateLaunchPage />} />
-            <Route path="/config/templates/launch" element={<TemplateLaunchPage />} />
+            <Route path="/config/playbooks" element={<PlaybookListPage />} />
+            <Route path="/config/playbooks/:id/launch" element={<PlaybookLaunchPage />} />
+            <Route path="/config/playbooks/launch" element={<PlaybookLaunchPage />} />
             <Route path="/config/roles" element={<RoleDefinitionsPage />} />
             <Route path="/config/llm" element={<LlmProvidersPage />} />
             <Route path="/config/runtimes" element={<RuntimesPage />} />
@@ -213,7 +212,8 @@ export function App(): JSX.Element {
             <Route path="/config/runtime-defaults" element={<RuntimeDefaultsPage />} />
             <Route path="/config/tools" element={<ToolsPage />} />
             <Route path="/config/webhooks" element={<WebhooksPage />} />
-            <Route path="/config/task-triggers" element={<TaskTriggersPage />} />
+            <Route path="/config/triggers" element={<WorkItemTriggersPage />} />
+            <Route path="/config/work-item-triggers" element={<Navigate to="/config/triggers" replace />} />
 
             {/* Fleet */}
             <Route path="/fleet/workers" element={<WorkerListPage />} />

@@ -111,10 +111,13 @@ function mapTaskStateToA2AStatus(value: unknown) {
     case 'ready':
       return 'submitted';
     case 'claimed':
+    case 'in_progress':
     case 'running':
     case 'output_pending_review':
       return 'working';
     case 'awaiting_approval':
+    case 'escalated':
+    case 'awaiting_escalation':
     case 'blocked':
       return 'input-required';
     case 'completed':

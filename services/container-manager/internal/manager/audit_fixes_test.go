@@ -182,7 +182,7 @@ func TestFairSchedulingInReconcileDCM(t *testing.T) {
 
 	countA, countB := 0, 0
 	for _, spec := range docker.createdSpecs {
-		switch spec.Labels[labelDCMTemplateID] {
+		switch spec.Labels[labelDCMPlaybookID] {
 		case "tmpl-a":
 			countA++
 		case "tmpl-b":
@@ -256,11 +256,11 @@ func TestSortTargetsByPriorityActiveWorkflowsBeforeWarmPoolOnly(t *testing.T) {
 
 	sorted := sortTargetsByPriority([]RuntimeTarget{warmOnlyTarget, activeTarget})
 
-	if sorted[0].TemplateID != "tmpl-active" {
-		t.Errorf("expected active workflows template first, got %s", sorted[0].TemplateID)
+	if sorted[0].PlaybookID != "tmpl-active" {
+		t.Errorf("expected active workflows template first, got %s", sorted[0].PlaybookID)
 	}
-	if sorted[1].TemplateID != "tmpl-warm" {
-		t.Errorf("expected warm-pool-only template second, got %s", sorted[1].TemplateID)
+	if sorted[1].PlaybookID != "tmpl-warm" {
+		t.Errorf("expected warm-pool-only template second, got %s", sorted[1].PlaybookID)
 	}
 }
 
@@ -273,8 +273,8 @@ func TestSortTargetsByPriorityPreservesHigherPriorityFirst(t *testing.T) {
 
 	sorted := sortTargetsByPriority([]RuntimeTarget{lowPri, highPri})
 
-	if sorted[0].TemplateID != "tmpl-high" {
-		t.Errorf("priority should take precedence over active workflows, got %s first", sorted[0].TemplateID)
+	if sorted[0].PlaybookID != "tmpl-high" {
+		t.Errorf("priority should take precedence over active workflows, got %s first", sorted[0].PlaybookID)
 	}
 }
 
@@ -287,8 +287,8 @@ func TestSortTargetsByPrioritySameActiveWorkflowsSortByPending(t *testing.T) {
 
 	sorted := sortTargetsByPriority([]RuntimeTarget{fewPending, manyPending})
 
-	if sorted[0].TemplateID != "tmpl-many" {
-		t.Errorf("expected more pending tasks first, got %s", sorted[0].TemplateID)
+	if sorted[0].PlaybookID != "tmpl-many" {
+		t.Errorf("expected more pending tasks first, got %s", sorted[0].PlaybookID)
 	}
 }
 

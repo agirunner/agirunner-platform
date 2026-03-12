@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -11,6 +12,14 @@ export interface TestDatabase {
   container: StartedPostgreSqlContainer;
   pool: pg.Pool;
   databaseUrl: string;
+}
+
+export function isContainerRuntimeAvailable(): boolean {
+  return [
+    '/var/run/docker.sock',
+    `${process.env.XDG_RUNTIME_DIR ?? ''}/docker.sock`,
+    '/run/containerd/containerd.sock',
+  ].some((candidate) => candidate.trim().length > 0 && fs.existsSync(candidate));
 }
 
 export async function startTestDatabase(): Promise<TestDatabase> {

@@ -19,22 +19,25 @@ interface NamedRecord {
 }
 
 export interface DashboardSearchResult {
-  type: 'workflow' | 'task' | 'worker' | 'agent' | 'project' | 'template';
+  type: 'workflow' | 'task' | 'worker' | 'agent' | 'project' | 'playbook';
   id: string;
   label: string;
   subtitle: string;
   href: string;
 }
 
-export interface DashboardTemplate {
+export interface DashboardPlaybookRecord {
   id: string;
   name: string;
   slug: string;
   description?: string | null;
+  outcome: string;
+  lifecycle: 'standard' | 'continuous';
   version: number;
-  is_built_in: boolean;
-  is_published: boolean;
-  schema: Record<string, unknown>;
+  is_active?: boolean;
+  definition: Record<string, unknown>;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface DashboardEventRecord {
@@ -61,16 +64,272 @@ export interface DashboardApiKeyRecord {
   created_at: string;
 }
 
-export interface DashboardWorkflowPhaseActionPayload {
+export interface DashboardWorkflowStageActionPayload {
   action: 'approve' | 'reject' | 'request_changes';
   feedback?: string;
-  override_input?: Record<string, unknown>;
 }
 
 export interface DashboardResolvedConfigResponse {
   workflow_id: string;
   resolved_config: Record<string, unknown>;
   config_layers?: Record<string, Record<string, unknown>>;
+}
+
+export interface DashboardRoleModelOverride {
+  provider: string;
+  model: string;
+  reasoning_config?: Record<string, unknown> | null;
+}
+
+export interface DashboardEffectiveModelResolution {
+  source: 'base' | 'project' | 'workflow';
+  resolved: {
+    provider: {
+      name: string;
+      providerType: string;
+      baseUrl?: string | null;
+      apiKeySecretRef?: string | null;
+      authMode?: string | null;
+      providerId?: string | null;
+    };
+    model: {
+      modelId: string;
+      contextWindow?: number | null;
+      endpointType?: string | null;
+      reasoningConfig?: Record<string, unknown> | null;
+    };
+    reasoningConfig?: Record<string, unknown> | null;
+  } | null;
+  fallback: boolean;
+  fallback_reason?: string;
+}
+
+export interface DashboardProjectModelOverridesResponse {
+  project_id: string;
+  model_overrides: Record<string, DashboardRoleModelOverride>;
+}
+
+export interface DashboardProjectResolvedModelsResponse {
+  project_id: string;
+  project_model_overrides: Record<string, DashboardRoleModelOverride>;
+  effective_models: Record<string, DashboardEffectiveModelResolution>;
+}
+
+export interface DashboardWorkflowModelOverridesResponse {
+  workflow_id: string;
+  model_overrides: Record<string, DashboardRoleModelOverride>;
+}
+
+export interface DashboardWorkflowResolvedModelsResponse {
+  workflow_id: string;
+  project_id?: string | null;
+  project_model_overrides: Record<string, DashboardRoleModelOverride>;
+  workflow_model_overrides: Record<string, DashboardRoleModelOverride>;
+  effective_models: Record<string, DashboardEffectiveModelResolution>;
+}
+
+export interface DashboardWorkflowActivationRecord {
+  id: string;
+  activation_id?: string;
+  workflow_id: string;
+  request_id?: string | null;
+  reason: string;
+  event_type: string;
+  payload: Record<string, unknown>;
+  state: string;
+  queued_at: string;
+  started_at?: string | null;
+  consumed_at?: string | null;
+  completed_at?: string | null;
+  summary?: string | null;
+  error?: Record<string, unknown> | null;
+  event_count?: number;
+  events?: Array<{
+    id: string;
+    activation_id?: string;
+    request_id?: string | null;
+    reason: string;
+    event_type: string;
+    payload: Record<string, unknown>;
+    state: string;
+    queued_at: string;
+    started_at?: string | null;
+    consumed_at?: string | null;
+    completed_at?: string | null;
+    summary?: string | null;
+    error?: Record<string, unknown> | null;
+  }>;
+}
+
+export interface DashboardWorkflowBoardColumn {
+  id: string;
+  label: string;
+  description?: string;
+  is_blocked?: boolean;
+  is_terminal?: boolean;
+}
+
+export interface DashboardWorkflowStageRecord {
+  id: string;
+  name: string;
+  position: number;
+  goal: string;
+  guidance?: string | null;
+  human_gate: boolean;
+  status: string;
+  gate_status: string;
+  iteration_count: number;
+  summary?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+
+export interface DashboardWorkflowWorkItemRecord {
+  id: string;
+  workflow_id: string;
+  parent_work_item_id?: string | null;
+  stage_name: string;
+  title: string;
+  goal?: string | null;
+  acceptance_criteria?: string | null;
+  column_id: string;
+  owner_role?: string | null;
+  priority: string;
+  notes?: string | null;
+  completed_at?: string | null;
+  task_count?: number;
+  children_count?: number;
+  children_completed?: number;
+  is_milestone?: boolean;
+  children?: DashboardWorkflowWorkItemRecord[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DashboardWorkItemMemoryEntry {
+  key: string;
+  value: unknown;
+  event_id: number;
+  updated_at: string;
+  actor_type: string;
+  actor_id: string | null;
+  workflow_id: string | null;
+  work_item_id: string | null;
+  task_id: string | null;
+  stage_name: string | null;
+}
+
+export interface DashboardWorkItemMemoryHistoryEntry extends DashboardWorkItemMemoryEntry {
+  event_type: 'updated' | 'deleted';
+}
+
+export interface DashboardWorkflowBoardResponse {
+  columns: DashboardWorkflowBoardColumn[];
+  work_items: DashboardWorkflowWorkItemRecord[];
+  stage_summary: Array<{
+    name: string;
+    goal: string;
+    work_item_count: number;
+    completed_count: number;
+  }>;
+}
+
+export interface DashboardWorkflowRecord {
+  id: string;
+  name: string;
+  state: string;
+  created_at: string;
+  project_id?: string | null;
+  project_name?: string | null;
+  playbook_id?: string | null;
+  playbook_name?: string | null;
+  lifecycle?: 'standard' | 'continuous' | null;
+  current_stage?: string | null;
+  active_stages?: string[];
+  work_item_summary?: {
+    total_work_items: number;
+    open_work_item_count: number;
+    completed_work_item_count: number;
+    active_stage_count: number;
+    awaiting_gate_count: number;
+    active_stage_names: string[];
+  } | null;
+  task_counts?: Record<string, number>;
+  metadata?: Record<string, unknown>;
+  context?: Record<string, unknown>;
+  workflow_stages?: DashboardWorkflowStageRecord[];
+  work_items?: DashboardWorkflowWorkItemRecord[];
+  activations?: DashboardWorkflowActivationRecord[];
+}
+
+export interface DashboardApprovalTaskRecord {
+  id: string;
+  title: string;
+  state: string;
+  workflow_id?: string | null;
+  workflow_name?: string | null;
+  work_item_id?: string | null;
+  work_item_title?: string | null;
+  stage_name?: string | null;
+  role?: string | null;
+  activation_id?: string | null;
+  rework_count?: number;
+  created_at: string;
+  output?: unknown;
+}
+
+export interface DashboardApprovalStageGateRecord {
+  id: string;
+  gate_id: string;
+  workflow_id: string;
+  workflow_name: string;
+  stage_id?: string | null;
+  stage_name: string;
+  stage_goal: string;
+  status?: string;
+  gate_status: string;
+  summary?: string | null;
+  recommendation?: string | null;
+  concerns: string[];
+  key_artifacts: Array<Record<string, unknown>>;
+  requested_by_type?: string | null;
+  requested_by_id?: string | null;
+  decided_by_type?: string | null;
+  decided_by_id?: string | null;
+  decision_feedback?: string | null;
+  human_decision?: {
+    action?: 'approve' | 'reject' | 'request_changes' | null;
+    decided_by_type?: string | null;
+    decided_by_id?: string | null;
+    feedback?: string | null;
+    decided_at?: string | null;
+  } | null;
+  requested_by_task?: {
+    id: string;
+    title?: string | null;
+    role?: string | null;
+    work_item_id?: string | null;
+    work_item_title?: string | null;
+  } | null;
+  orchestrator_resume?: {
+    activation_id: string;
+    state?: string | null;
+    event_type?: string | null;
+    reason?: string | null;
+    queued_at?: string | null;
+    started_at?: string | null;
+    completed_at?: string | null;
+    summary?: string | null;
+    error?: Record<string, unknown> | null;
+  } | null;
+  requested_at?: string;
+  decided_at?: string | null;
+  updated_at: string;
+}
+
+export interface DashboardApprovalQueueResponse {
+  task_approvals: DashboardApprovalTaskRecord[];
+  stage_gates: DashboardApprovalStageGateRecord[];
 }
 
 export interface DashboardProjectTimelineEntry {
@@ -83,8 +342,8 @@ export interface DashboardProjectTimelineEntry {
   completed_at?: string | null;
   duration_seconds?: number | null;
   task_counts?: Record<string, unknown>;
-  phase_progression?: Array<Record<string, unknown>>;
-  phase_metrics?: Array<Record<string, unknown>>;
+  stage_progression?: Array<Record<string, unknown>>;
+  stage_metrics?: Array<Record<string, unknown>>;
   produced_artifacts?: Array<Record<string, unknown>>;
   chain?: Record<string, unknown>;
   link?: string;
@@ -98,6 +357,7 @@ export interface DashboardProjectRecord {
   repository_url?: string | null;
   is_active?: boolean;
   memory?: Record<string, unknown>;
+  settings?: Record<string, unknown>;
   git_webhook_provider?: string | null;
   git_webhook_secret_configured?: boolean;
   created_at?: string;
@@ -128,6 +388,39 @@ export interface DashboardProjectToolCatalog {
   available?: unknown[];
   blocked?: unknown[];
   [key: string]: unknown;
+}
+
+export interface DashboardWebhookWorkItemTriggerRecord {
+  id: string;
+  name: string;
+  source: string;
+  project_id?: string | null;
+  workflow_id: string;
+  event_header?: string | null;
+  event_types?: string[];
+  signature_header: string;
+  signature_mode: 'hmac_sha256' | 'shared_secret';
+  field_mappings?: Record<string, unknown>;
+  defaults?: Record<string, unknown>;
+  is_active: boolean;
+  secret_configured?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DashboardScheduledWorkItemTriggerRecord {
+  id: string;
+  name: string;
+  source: string;
+  project_id?: string | null;
+  workflow_id: string;
+  cadence_minutes: number;
+  defaults?: Record<string, unknown>;
+  is_active: boolean;
+  last_fired_at?: string | null;
+  next_fire_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface DashboardIntegrationRecord {
@@ -189,6 +482,20 @@ export interface DashboardTaskArtifactRecord {
   access_url?: string | null;
   access_url_expires_at?: string | null;
   storage_backend?: string;
+}
+
+export interface DashboardTaskArtifactContent {
+  content_type: string;
+  content_text: string;
+  file_name?: string | null;
+  size_bytes: number;
+}
+
+export interface DashboardTaskArtifactDownload {
+  blob: Blob;
+  content_type: string;
+  file_name?: string | null;
+  size_bytes: number;
 }
 
 export interface DashboardCustomizationManagedFile {
@@ -371,40 +678,66 @@ export interface DashboardCustomizationExportResponse {
 }
 
 export interface FleetStatusResponse {
-  total_runtimes: number;
-  global_max: number;
-  running: number;
-  idle: number;
-  executing: number;
-  draining: number;
-  templates: Array<{
-    template_id: string;
-    template_name: string;
+  global_max_runtimes: number;
+  total_running: number;
+  total_idle: number;
+  total_executing: number;
+  total_draining: number;
+  worker_pools: FleetWorkerPoolSummary[];
+  by_playbook: Array<{
+    playbook_id: string;
+    playbook_name: string;
     pool_mode: 'warm' | 'cold';
     max_runtimes: number;
-    runtime_count: number;
     running: number;
     idle: number;
     executing: number;
-    draining: number;
     pending_tasks: number;
     active_workflows: number;
   }>;
+  by_playbook_pool: FleetPlaybookPoolSummary[];
+  recent_events: FleetEventRecord[];
+}
+
+export interface FleetWorkerPoolSummary {
+  pool_kind: 'orchestrator' | 'specialist';
+  desired_workers: number;
+  desired_replicas: number;
+  enabled_workers: number;
+  draining_workers: number;
+  running_containers: number;
+}
+
+export interface FleetPlaybookPoolSummary {
+  playbook_id: string;
+  playbook_name: string;
+  pool_kind: 'orchestrator' | 'specialist';
+  pool_mode: 'warm' | 'cold';
+  max_runtimes: number;
+  running: number;
+  idle: number;
+  executing: number;
+  pending_tasks: number;
+  active_workflows: number;
+  draining: number;
 }
 
 export interface FleetEventRecord {
   id: string;
-  timestamp: string;
-  type: string;
-  level: 'info' | 'warning' | 'error';
-  runtime_id: string;
-  template_id?: string;
-  details: string;
+  event_type: string;
+  level: 'debug' | 'info' | 'warn' | 'error';
+  runtime_id?: string | null;
+  playbook_id?: string | null;
+  task_id?: string | null;
+  workflow_id?: string | null;
+  container_id?: string | null;
+  payload?: Record<string, unknown>;
+  created_at: string;
 }
 
 export interface QueueDepthResponse {
   total: number;
-  by_template?: Record<string, number>;
+  by_playbook?: Record<string, number>;
 }
 
 export interface LogEntry {
@@ -425,8 +758,11 @@ export interface LogEntry {
   workflow_id?: string | null;
   workflow_name?: string | null;
   task_id?: string | null;
+  work_item_id?: string | null;
+  stage_name?: string | null;
+  activation_id?: string | null;
+  is_orchestrator_task?: boolean | null;
   task_title?: string | null;
-  workflow_phase?: string | null;
   role?: string | null;
   actor_type: string;
   actor_id: string;
@@ -489,10 +825,47 @@ export interface FleetContainerRecord {
   status: string;
   image: string;
   worker_role: string;
+  pool_kind?: 'orchestrator' | 'specialist' | null;
   cpu_usage_percent: number | null;
   memory_usage_bytes: number | null;
   started_at: string | null;
   last_updated: string;
+}
+
+export interface FleetWorkerActualRecord {
+  id: string;
+  desired_state_id: string;
+  container_id: string | null;
+  container_status: string | null;
+  cpu_usage_percent: number | null;
+  memory_usage_bytes: number | null;
+  network_rx_bytes: number | null;
+  network_tx_bytes: number | null;
+  started_at: string | null;
+  last_updated: string;
+}
+
+export interface FleetWorkerRecord {
+  id: string;
+  worker_name: string;
+  role: string;
+  pool_kind: 'orchestrator' | 'specialist';
+  runtime_image: string;
+  cpu_limit: string;
+  memory_limit: string;
+  network_policy: string;
+  environment: Record<string, unknown>;
+  llm_provider: string | null;
+  llm_model: string | null;
+  replicas: number;
+  enabled: boolean;
+  restart_requested: boolean;
+  draining: boolean;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  updated_by: string | null;
+  actual: FleetWorkerActualRecord[];
 }
 
 export interface FleetImageRecord {
@@ -506,15 +879,34 @@ export interface FleetImageRecord {
 export interface DashboardApi {
   login(apiKey: string): Promise<void>;
   logout(): Promise<void>;
-  listWorkflows(filters?: Record<string, string>): Promise<unknown>;
+  listWorkflows(
+    filters?: Record<string, string>,
+  ): Promise<{ data: DashboardWorkflowRecord[]; meta?: Record<string, unknown> }>;
   listProjects(): Promise<{ data: DashboardProjectRecord[]; meta?: Record<string, unknown> }>;
   createProject(payload: {
     name: string;
     slug: string;
     description?: string;
     repository_url?: string;
+    settings?: Record<string, unknown>;
   }): Promise<DashboardProjectRecord>;
+  patchProject(
+    projectId: string,
+    payload: {
+      name?: string;
+      slug?: string;
+      description?: string;
+      repository_url?: string;
+      settings?: Record<string, unknown>;
+      is_active?: boolean;
+    },
+  ): Promise<DashboardProjectRecord>;
   getProject(projectId: string): Promise<DashboardProjectRecord>;
+  getProjectModelOverrides(projectId: string): Promise<DashboardProjectModelOverridesResponse>;
+  getResolvedProjectModels(
+    projectId: string,
+    roles?: string[],
+  ): Promise<DashboardProjectResolvedModelsResponse>;
   getProjectSpec(projectId: string): Promise<DashboardProjectSpecRecord>;
   listProjectResources(projectId: string): Promise<{ data: DashboardProjectResourceRecord[] }>;
   listProjectTools(projectId: string): Promise<{ data: DashboardProjectToolCatalog }>;
@@ -526,25 +918,174 @@ export interface DashboardApi {
     projectId: string,
     payload: { provider: string; secret: string },
   ): Promise<Record<string, unknown>>;
-  getWorkflow(id: string): Promise<unknown>;
-  listWorkflowDocuments(workflowId: string): Promise<DashboardResolvedDocumentReference[]>;
-  listTemplates(): Promise<{ data: DashboardTemplate[]; meta?: Record<string, unknown> }>;
-  createWorkflow(payload: {
-    template_id: string;
+  listWebhookWorkItemTriggers(): Promise<{ data: DashboardWebhookWorkItemTriggerRecord[] }>;
+  createWebhookWorkItemTrigger(payload: {
     name: string;
+    source: string;
+    project_id?: string;
+    workflow_id: string;
+    event_header?: string;
+    event_types?: string[];
+    signature_header: string;
+    signature_mode: 'hmac_sha256' | 'shared_secret';
+    secret: string;
+    field_mappings?: Record<string, unknown>;
+    defaults?: Record<string, unknown>;
+    is_active?: boolean;
+  }): Promise<DashboardWebhookWorkItemTriggerRecord>;
+  updateWebhookWorkItemTrigger(
+    triggerId: string,
+    payload: Partial<{
+      name: string;
+      source: string;
+      project_id: string | null;
+      workflow_id: string;
+      event_header: string | null;
+      event_types: string[];
+      signature_header: string;
+      signature_mode: 'hmac_sha256' | 'shared_secret';
+      secret: string;
+      field_mappings: Record<string, unknown>;
+      defaults: Record<string, unknown>;
+      is_active: boolean;
+    }>,
+  ): Promise<DashboardWebhookWorkItemTriggerRecord>;
+  deleteWebhookWorkItemTrigger(triggerId: string): Promise<void>;
+  listScheduledWorkItemTriggers(): Promise<{ data: DashboardScheduledWorkItemTriggerRecord[] }>;
+  createScheduledWorkItemTrigger(payload: {
+    name: string;
+    source: string;
+    project_id?: string;
+    workflow_id: string;
+    cadence_minutes: number;
+    defaults?: Record<string, unknown>;
+    is_active?: boolean;
+    next_fire_at?: string;
+  }): Promise<DashboardScheduledWorkItemTriggerRecord>;
+  updateScheduledWorkItemTrigger(
+    triggerId: string,
+    payload: Partial<{
+      name: string;
+      source: string;
+      project_id: string | null;
+      workflow_id: string;
+      cadence_minutes: number;
+      defaults: Record<string, unknown>;
+      is_active: boolean;
+      next_fire_at: string;
+    }>,
+  ): Promise<DashboardScheduledWorkItemTriggerRecord>;
+  deleteScheduledWorkItemTrigger(triggerId: string): Promise<void>;
+  getWorkflow(id: string): Promise<DashboardWorkflowRecord>;
+  getWorkflowModelOverrides(workflowId: string): Promise<DashboardWorkflowModelOverridesResponse>;
+  getResolvedWorkflowModels(
+    workflowId: string,
+    roles?: string[],
+  ): Promise<DashboardWorkflowResolvedModelsResponse>;
+  getWorkflowBoard(workflowId: string): Promise<DashboardWorkflowBoardResponse>;
+  listWorkflowStages(workflowId: string): Promise<DashboardWorkflowStageRecord[]>;
+  listWorkflowWorkItems(workflowId: string): Promise<DashboardWorkflowWorkItemRecord[]>;
+  getWorkflowWorkItem(
+    workflowId: string,
+    workItemId: string,
+  ): Promise<DashboardWorkflowWorkItemRecord>;
+  listWorkflowWorkItemTasks(
+    workflowId: string,
+    workItemId: string,
+  ): Promise<Record<string, unknown>[]>;
+  listWorkflowWorkItemEvents(
+    workflowId: string,
+    workItemId: string,
+    limit?: number,
+  ): Promise<DashboardEventRecord[]>;
+  getWorkflowWorkItemMemory(
+    workflowId: string,
+    workItemId: string,
+  ): Promise<{ entries: DashboardWorkItemMemoryEntry[] }>;
+  getWorkflowWorkItemMemoryHistory(
+    workflowId: string,
+    workItemId: string,
+    limit?: number,
+  ): Promise<{ history: DashboardWorkItemMemoryHistoryEntry[] }>;
+  listWorkflowActivations(workflowId: string): Promise<DashboardWorkflowActivationRecord[]>;
+  listWorkflowDocuments(workflowId: string): Promise<DashboardResolvedDocumentReference[]>;
+  listPlaybooks(): Promise<{ data: DashboardPlaybookRecord[] }>;
+  getPlaybook(playbookId: string): Promise<DashboardPlaybookRecord>;
+  createPlaybook(payload: {
+    name: string;
+    slug?: string;
+    description?: string;
+    outcome: string;
+    lifecycle?: 'standard' | 'continuous';
+    definition: Record<string, unknown>;
+  }): Promise<DashboardPlaybookRecord>;
+  createWorkflow(payload: {
+    playbook_id: string;
+    name: string;
+    project_id?: string;
     parameters?: Record<string, unknown>;
     metadata?: Record<string, unknown>;
-  }): Promise<unknown>;
+    model_overrides?: Record<string, DashboardRoleModelOverride>;
+  }): Promise<DashboardWorkflowRecord>;
+  previewEffectiveModels(payload: {
+    roles?: string[];
+    project_model_overrides?: Record<string, DashboardRoleModelOverride>;
+    workflow_model_overrides?: Record<string, DashboardRoleModelOverride>;
+  }): Promise<{
+    roles: string[];
+    project_model_overrides: Record<string, DashboardRoleModelOverride>;
+    workflow_model_overrides: Record<string, DashboardRoleModelOverride>;
+    effective_models: Record<string, DashboardEffectiveModelResolution>;
+  }>;
+  createWorkflowWorkItem(
+    workflowId: string,
+    payload: {
+      request_id?: string;
+      parent_work_item_id?: string;
+      stage_name?: string;
+      title: string;
+      goal?: string;
+      acceptance_criteria?: string;
+      column_id?: string;
+      owner_role?: string;
+      priority?: 'critical' | 'high' | 'normal' | 'low';
+      notes?: string;
+      metadata?: Record<string, unknown>;
+    },
+  ): Promise<DashboardWorkflowWorkItemRecord>;
+  updateWorkflowWorkItem(
+    workflowId: string,
+    workItemId: string,
+    payload: {
+      parent_work_item_id?: string | null;
+      title?: string;
+      goal?: string;
+      acceptance_criteria?: string;
+      stage_name?: string;
+      column_id?: string;
+      owner_role?: string | null;
+      priority?: 'critical' | 'high' | 'normal' | 'low';
+      notes?: string | null;
+      metadata?: Record<string, unknown>;
+    },
+  ): Promise<DashboardWorkflowWorkItemRecord>;
   cancelWorkflow(workflowId: string): Promise<unknown>;
   chainWorkflow(
     workflowId: string,
-    payload: { template_id?: string; name?: string; parameters?: Record<string, unknown> },
+    payload: {
+      playbook_id?: string;
+      name?: string;
+      parameters?: Record<string, unknown>;
+    },
   ): Promise<unknown>;
   listTasks(filters?: Record<string, string>): Promise<unknown>;
   getTask(id: string): Promise<unknown>;
   listTaskArtifacts(taskId: string): Promise<DashboardTaskArtifactRecord[]>;
+  readTaskArtifactContent(taskId: string, artifactId: string): Promise<DashboardTaskArtifactContent>;
+  downloadTaskArtifact(taskId: string, artifactId: string): Promise<DashboardTaskArtifactDownload>;
   listWorkers(): Promise<unknown>;
   listAgents(): Promise<unknown>;
+  getApprovalQueue(): Promise<DashboardApprovalQueueResponse>;
   approveTask(taskId: string): Promise<unknown>;
   approveTaskOutput(taskId: string): Promise<unknown>;
   retryTask(
@@ -581,13 +1122,11 @@ export interface DashboardApi {
   ): Promise<unknown>;
   pauseWorkflow(workflowId: string): Promise<unknown>;
   resumeWorkflow(workflowId: string): Promise<unknown>;
-  manualReworkWorkflow(workflowId: string, payload: { feedback: string }): Promise<unknown>;
-  actOnPhaseGate(
+  actOnStageGate(
     workflowId: string,
-    phaseName: string,
-    payload: DashboardWorkflowPhaseActionPayload,
+    stageName: string,
+    payload: DashboardWorkflowStageActionPayload,
   ): Promise<unknown>;
-  cancelPhase(workflowId: string, phaseName: string): Promise<unknown>;
   getResolvedWorkflowConfig(
     workflowId: string,
     showLayers?: boolean,
@@ -597,7 +1136,9 @@ export interface DashboardApi {
     projectId: string,
     payload: { brief: string; name?: string },
   ): Promise<unknown>;
-  listRoleDefinitions(): Promise<Array<{ id: string; name: string; description: string | null; is_active: boolean }>>;
+  listRoleDefinitions(): Promise<
+    Array<{ id: string; name: string; description: string | null; is_active: boolean }>
+  >;
   listIntegrations(): Promise<DashboardIntegrationRecord[]>;
   createIntegration(payload: {
     kind: DashboardIntegrationRecord['kind'];
@@ -634,12 +1175,36 @@ export interface DashboardApi {
   revokeApiKey(id: string): Promise<unknown>;
   search(query: string): Promise<DashboardSearchResult[]>;
   fetchFleetStatus(): Promise<FleetStatusResponse>;
-  fetchFleetEvents(filters?: Record<string, string>): Promise<{ data: FleetEventRecord[]; total: number }>;
+  fetchFleetEvents(
+    filters?: Record<string, string>,
+  ): Promise<{ data: FleetEventRecord[]; total: number }>;
+  fetchFleetWorkers(): Promise<FleetWorkerRecord[]>;
+  createFleetWorker(payload: {
+    workerName: string;
+    role: string;
+    poolKind?: 'orchestrator' | 'specialist';
+    runtimeImage: string;
+    cpuLimit?: string;
+    memoryLimit?: string;
+    networkPolicy?: string;
+    environment?: Record<string, unknown>;
+    llmProvider?: string;
+    llmModel?: string;
+    llmApiKeySecretRef?: string;
+    replicas?: number;
+    enabled?: boolean;
+  }): Promise<FleetWorkerRecord>;
+  restartFleetWorker(workerId: string): Promise<unknown>;
+  drainFleetWorker(workerId: string): Promise<unknown>;
+  deleteFleetWorker(workerId: string): Promise<void>;
   fetchFleetContainers(): Promise<FleetContainerRecord[]>;
   fetchFleetImages(): Promise<FleetImageRecord[]>;
   pruneFleetContainers(): Promise<{ removed: number }>;
-  pullFleetImage(payload: { repository: string; tag: string }): Promise<{ repository: string; tag: string }>;
-  fetchQueueDepth(templateId?: string): Promise<QueueDepthResponse>;
+  pullFleetImage(payload: {
+    repository: string;
+    tag: string;
+  }): Promise<{ repository: string; tag: string }>;
+  fetchQueueDepth(playbookId?: string): Promise<QueueDepthResponse>;
   getMetrics(): Promise<string>;
   getCustomizationStatus(): Promise<DashboardCustomizationStatusResponse>;
   validateCustomization(payload: {
@@ -688,31 +1253,9 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
   // Deduplicate concurrent refresh calls — only one in-flight at a time.
   let refreshPromise: Promise<{ token: string }> | null = null;
 
-  function readCsrfCookie(): string | undefined {
-    if (typeof document === 'undefined') return undefined;
-    const match = document.cookie.match(/(?:^|;\s*)agirunner_csrf_token=([^;]*)/);
-    return match?.[1] ? decodeURIComponent(match[1]) : undefined;
-  }
-
   async function doRefresh(): Promise<{ token: string }> {
     if (refreshPromise) return refreshPromise;
-    refreshPromise = (async () => {
-      const csrfToken = readCsrfCookie();
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (csrfToken) {
-        headers['x-csrf-token'] = csrfToken;
-      }
-      const response = await requestFetch(`${baseUrl}/api/v1/auth/refresh`, {
-        method: 'POST',
-        headers,
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      const body = (await response.json()) as { data: { token: string } };
-      return body.data;
-    })().finally(() => {
+    refreshPromise = client.refreshSession().finally(() => {
       refreshPromise = null;
     });
     return refreshPromise;
@@ -794,6 +1337,51 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     return response.data;
   }
 
+  async function requestBinary(
+    path: string,
+    options: { method?: 'GET'; includeAuth?: boolean } = {},
+  ): Promise<Response> {
+    const activeSession = readSession();
+    const headers: Record<string, string> = {};
+
+    if ((options.includeAuth ?? true) && activeSession?.accessToken) {
+      headers.Authorization = `Bearer ${activeSession.accessToken}`;
+    }
+
+    const response = await requestFetch(resolvePlatformPath(path), {
+      method: options.method ?? 'GET',
+      headers,
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    return response;
+  }
+
+  function resolvePlatformPath(path: string): string {
+    const resolved = new URL(path, baseUrl);
+    const platformOrigin = new URL(baseUrl).origin;
+    if (resolved.origin !== platformOrigin) {
+      throw new Error('Artifact access must remain on the platform API origin');
+    }
+    return resolved.toString();
+  }
+
+  function readContentDispositionFileName(headerValue: string | null): string | null {
+    if (!headerValue) {
+      return null;
+    }
+    const utf8Match = headerValue.match(/filename\*=UTF-8''([^;]+)/i);
+    if (utf8Match) {
+      return decodeURIComponent(utf8Match[1]);
+    }
+    const basicMatch = headerValue.match(/filename=\"?([^\";]+)\"?/i);
+    return basicMatch?.[1] ?? null;
+  }
+
   return {
     async login(apiKey: string): Promise<void> {
       const auth = await client.exchangeApiKey(apiKey);
@@ -825,11 +1413,32 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           body: payload as Record<string, unknown>,
         }),
       ),
+    patchProject: (projectId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardProjectRecord>(`/api/v1/projects/${projectId}`, {
+          method: 'PATCH',
+          body: payload as Record<string, unknown>,
+        }),
+      ),
     getProject: (projectId) =>
       withRefresh(() =>
         requestData<DashboardProjectRecord>(`/api/v1/projects/${projectId}`, {
           method: 'GET',
         }),
+      ),
+    getProjectModelOverrides: (projectId) =>
+      withRefresh(() =>
+        requestData<DashboardProjectModelOverridesResponse>(
+          `/api/v1/projects/${projectId}/model-overrides`,
+          { method: 'GET' },
+        ),
+      ),
+    getResolvedProjectModels: (projectId, roles) =>
+      withRefresh(() =>
+        requestData<DashboardProjectResolvedModelsResponse>(
+          `/api/v1/projects/${projectId}/model-overrides/resolved${buildRolesQuery(roles)}`,
+          { method: 'GET' },
+        ),
       ),
     getProjectSpec: (projectId) =>
       withRefresh(() =>
@@ -839,9 +1448,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       ),
     listProjectResources: (projectId) =>
       withRefresh(() =>
-        requestJson<{ data: DashboardProjectResourceRecord[] }>(`/api/v1/projects/${projectId}/resources`, {
-          method: 'GET',
-        }),
+        requestJson<{ data: DashboardProjectResourceRecord[] }>(
+          `/api/v1/projects/${projectId}/resources`,
+          {
+            method: 'GET',
+          },
+        ),
       ),
     listProjectTools: (projectId) =>
       withRefresh(() =>
@@ -863,7 +1475,158 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           body: payload as Record<string, unknown>,
         }),
       ),
+    listWebhookWorkItemTriggers: () =>
+      withRefresh(() =>
+        requestJson<{ data: DashboardWebhookWorkItemTriggerRecord[] }>(
+          '/api/v1/work-item-triggers',
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    createWebhookWorkItemTrigger: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardWebhookWorkItemTriggerRecord>('/api/v1/work-item-triggers', {
+          method: 'POST',
+          body: payload as Record<string, unknown>,
+        }),
+      ),
+    updateWebhookWorkItemTrigger: (triggerId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardWebhookWorkItemTriggerRecord>(`/api/v1/work-item-triggers/${triggerId}`, {
+          method: 'PATCH',
+          body: payload as Record<string, unknown>,
+        }),
+      ),
+    deleteWebhookWorkItemTrigger: (triggerId) =>
+      withRefresh(() =>
+        requestJson<Record<string, never>>(`/api/v1/work-item-triggers/${triggerId}`, {
+          method: 'DELETE',
+        }).then(() => undefined),
+      ),
+    listScheduledWorkItemTriggers: () =>
+      withRefresh(() =>
+        requestJson<{ data: DashboardScheduledWorkItemTriggerRecord[] }>(
+          '/api/v1/scheduled-work-item-triggers',
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    createScheduledWorkItemTrigger: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardScheduledWorkItemTriggerRecord>(
+          '/api/v1/scheduled-work-item-triggers',
+          {
+            method: 'POST',
+            body: payload as Record<string, unknown>,
+          },
+        ),
+      ),
+    updateScheduledWorkItemTrigger: (triggerId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardScheduledWorkItemTriggerRecord>(
+          `/api/v1/scheduled-work-item-triggers/${triggerId}`,
+          {
+            method: 'PATCH',
+            body: payload as Record<string, unknown>,
+          },
+        ),
+      ),
+    deleteScheduledWorkItemTrigger: (triggerId) =>
+      withRefresh(() =>
+        requestJson<Record<string, never>>(`/api/v1/scheduled-work-item-triggers/${triggerId}`, {
+          method: 'DELETE',
+        }).then(() => undefined),
+      ),
     getWorkflow: (id) => withRefresh(() => client.getWorkflow(id)),
+    getWorkflowModelOverrides: (workflowId) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowModelOverridesResponse>(
+          `/api/v1/workflows/${workflowId}/model-overrides`,
+          { method: 'GET' },
+        ),
+      ),
+    getResolvedWorkflowModels: (workflowId, roles) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowResolvedModelsResponse>(
+          `/api/v1/workflows/${workflowId}/model-overrides/resolved${buildRolesQuery(roles)}`,
+          { method: 'GET' },
+        ),
+      ),
+    getWorkflowBoard: (workflowId) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowBoardResponse>(`/api/v1/workflows/${workflowId}/board`, {
+          method: 'GET',
+        }),
+      ),
+    listWorkflowStages: (workflowId) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowStageRecord[]>(`/api/v1/workflows/${workflowId}/stages`, {
+          method: 'GET',
+        }),
+      ),
+    listWorkflowWorkItems: (workflowId) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowWorkItemRecord[]>(
+          `/api/v1/workflows/${workflowId}/work-items`,
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    getWorkflowWorkItem: (workflowId, workItemId) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowWorkItemRecord>(
+          `/api/v1/workflows/${workflowId}/work-items/${workItemId}`,
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    listWorkflowWorkItemTasks: (workflowId, workItemId) =>
+      withRefresh(() =>
+        requestData<Record<string, unknown>[]>(
+          `/api/v1/workflows/${workflowId}/work-items/${workItemId}/tasks`,
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    listWorkflowWorkItemEvents: (workflowId, workItemId, limit = 100) =>
+      withRefresh(() =>
+        requestData<DashboardEventRecord[]>(
+          `/api/v1/workflows/${workflowId}/work-items/${workItemId}/events?limit=${limit}`,
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    getWorkflowWorkItemMemory: (workflowId, workItemId) =>
+      withRefresh(() =>
+        requestData<{ entries: DashboardWorkItemMemoryEntry[] }>(
+          `/api/v1/workflows/${workflowId}/work-items/${workItemId}/memory`,
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    getWorkflowWorkItemMemoryHistory: (workflowId, workItemId, limit = 100) =>
+      withRefresh(() =>
+        requestData<{ history: DashboardWorkItemMemoryHistoryEntry[] }>(
+          `/api/v1/workflows/${workflowId}/work-items/${workItemId}/memory/history?limit=${limit}`,
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    listWorkflowActivations: (workflowId) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowActivationRecord[]>(
+          `/api/v1/workflows/${workflowId}/activations`,
+          { method: 'GET' },
+        ),
+      ),
     listWorkflowDocuments: (workflowId) =>
       withRefresh(() =>
         requestData<DashboardResolvedDocumentReference[]>(
@@ -871,18 +1634,54 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           { method: 'GET' },
         ),
       ),
-    listTemplates: () =>
+    listPlaybooks: () =>
+      withRefresh(async () => ({
+        data: (await client.listPlaybooks()) as DashboardPlaybookRecord[],
+      })),
+    getPlaybook: (playbookId) =>
+      withRefresh(() => client.getPlaybook(playbookId) as Promise<DashboardPlaybookRecord>),
+    createPlaybook: (payload) =>
       withRefresh(
-        () =>
-          requestJson('/api/v1/templates?per_page=50', { method: 'GET' }) as Promise<{
-            data: DashboardTemplate[];
-          }>,
+        () => client.createPlaybook(payload as never) as Promise<DashboardPlaybookRecord>,
       ),
-    createWorkflow: (payload) => withRefresh(() => client.createWorkflow(payload)),
+    createWorkflow: (payload) =>
+      withRefresh(
+        () => client.createWorkflow(payload as never) as Promise<DashboardWorkflowRecord>,
+      ),
+    previewEffectiveModels: (payload) =>
+      withRefresh(() =>
+        requestData<{
+          roles: string[];
+          project_model_overrides: Record<string, DashboardRoleModelOverride>;
+          workflow_model_overrides: Record<string, DashboardRoleModelOverride>;
+          effective_models: Record<string, DashboardEffectiveModelResolution>;
+        }>('/api/v1/config/llm/resolve-preview', {
+          method: 'POST',
+          body: payload as Record<string, unknown>,
+        }),
+      ),
+    createWorkflowWorkItem: (workflowId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowWorkItemRecord>(`/api/v1/workflows/${workflowId}/work-items`, {
+          body: payload as Record<string, unknown>,
+        }),
+      ),
+    updateWorkflowWorkItem: (workflowId, workItemId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowWorkItemRecord>(
+          `/api/v1/workflows/${workflowId}/work-items/${workItemId}`,
+          {
+            method: 'PATCH',
+            body: payload as Record<string, unknown>,
+          },
+        ),
+      ),
     cancelWorkflow: (workflowId) => withRefresh(() => client.cancelWorkflow(workflowId)),
     chainWorkflow: (workflowId, payload) =>
       withRefresh(() =>
-        requestJson(`/api/v1/workflows/${workflowId}/chain`, { body: payload as unknown as Record<string, unknown> }),
+        requestJson(`/api/v1/workflows/${workflowId}/chain`, {
+          body: payload as unknown as Record<string, unknown>,
+        }),
       ),
     listTasks: (filters) => withRefresh(() => client.listTasks(filters)),
     getTask: (id) => withRefresh(() => client.getTask(id)),
@@ -892,10 +1691,41 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           method: 'GET',
         }),
       ),
+    readTaskArtifactContent: (taskId, artifactId) =>
+      withRefresh(async () => {
+        const response = await requestBinary(`/api/v1/tasks/${taskId}/artifacts/${artifactId}`, {
+          method: 'GET',
+        });
+        return {
+          content_type: response.headers.get('content-type') ?? 'application/octet-stream',
+          content_text: await response.text(),
+          file_name: readContentDispositionFileName(response.headers.get('content-disposition')),
+          size_bytes: Number(response.headers.get('content-length') ?? '0'),
+        };
+      }),
+    downloadTaskArtifact: (taskId, artifactId) =>
+      withRefresh(async () => {
+        const response = await requestBinary(`/api/v1/tasks/${taskId}/artifacts/${artifactId}`, {
+          method: 'GET',
+        });
+        return {
+          blob: await response.blob(),
+          content_type: response.headers.get('content-type') ?? 'application/octet-stream',
+          file_name: readContentDispositionFileName(response.headers.get('content-disposition')),
+          size_bytes: Number(response.headers.get('content-length') ?? '0'),
+        };
+      }),
     listWorkers: () => withRefresh(() => client.listWorkers()),
     listAgents: () => withRefresh(() => client.listAgents()),
+    getApprovalQueue: () =>
+      withRefresh(() =>
+        requestData<DashboardApprovalQueueResponse>('/api/v1/approvals', {
+          method: 'GET',
+        }),
+      ),
     approveTask: (taskId) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/approve`)),
-    approveTaskOutput: (taskId) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/approve-output`)),
+    approveTaskOutput: (taskId) =>
+      withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/approve-output`)),
     retryTask: (taskId, payload = {}) =>
       withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/retry`, { body: payload })),
     cancelTask: (taskId) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/cancel`)),
@@ -910,26 +1740,20 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     escalateTask: (taskId, payload) =>
       withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/escalate`, { body: payload })),
     resolveEscalation: (taskId, payload) =>
-      withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/resolve-escalation`, { body: payload })),
+      withRefresh(() =>
+        requestJson(`/api/v1/tasks/${taskId}/resolve-escalation`, { body: payload }),
+      ),
     overrideTaskOutput: (taskId, payload) =>
       withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/output-override`, { body: payload })),
     pauseWorkflow: (workflowId) =>
       withRefresh(() => requestJson(`/api/v1/workflows/${workflowId}/pause`)),
     resumeWorkflow: (workflowId) =>
       withRefresh(() => requestJson(`/api/v1/workflows/${workflowId}/resume`)),
-    manualReworkWorkflow: (workflowId, payload) =>
+    actOnStageGate: (workflowId, stageName, payload) =>
       withRefresh(() =>
-        requestJson(`/api/v1/workflows/${workflowId}/manual-rework`, { body: payload }),
-      ),
-    actOnPhaseGate: (workflowId, phaseName, payload) =>
-      withRefresh(() =>
-        requestJson(`/api/v1/workflows/${workflowId}/phases/${phaseName}/gate`, {
+        requestJson(`/api/v1/workflows/${workflowId}/stages/${stageName}/gate`, {
           body: payload as unknown as Record<string, unknown>,
         }),
-      ),
-    cancelPhase: (workflowId, phaseName) =>
-      withRefresh(() =>
-        requestJson(`/api/v1/workflows/${workflowId}/phases/${phaseName}/cancel`),
       ),
     getResolvedWorkflowConfig: (workflowId, showLayers = false) =>
       withRefresh(() =>
@@ -952,7 +1776,9 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       ),
     listRoleDefinitions: () =>
       withRefresh(() =>
-        requestData<Array<{ id: string; name: string; description: string | null; is_active: boolean }>>('/api/v1/config/roles', {
+        requestData<
+          Array<{ id: string; name: string; description: string | null; is_active: boolean }>
+        >('/api/v1/config/roles', {
           method: 'GET',
         }),
       ),
@@ -1035,14 +1861,15 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           return [];
         }
 
-        const [workflows, tasks, workers, agents, projects, templates] = await Promise.allSettled([
-          client.listWorkflows({ per_page: 50 }),
-          client.listTasks({ per_page: 50 }),
-          client.listWorkers(),
-          client.listAgents(),
-          client.listProjects({ per_page: 50 }),
-          requestJson<{ data: DashboardTemplate[] }>('/api/v1/templates?per_page=50', { method: 'GET' }),
-        ]);
+        const [workflows, tasks, workers, agents, projects, playbooks] =
+          await Promise.allSettled([
+            client.listWorkflows({ per_page: 50 }),
+            client.listTasks({ per_page: 50 }),
+            client.listWorkers(),
+            client.listAgents(),
+            client.listProjects({ per_page: 50 }),
+            client.listPlaybooks(),
+          ]);
 
         return buildSearchResults(normalizedQuery, {
           workflows: extractListResult(workflows),
@@ -1050,7 +1877,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           workers: extractDataResult(workers),
           agents: extractDataResult(agents),
           projects: extractListResult(projects),
-          templates: extractListResult(templates),
+          playbooks: extractDataResult(playbooks),
         });
       }),
     fetchFleetStatus: () =>
@@ -1060,11 +1887,45 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         }),
       ),
     fetchFleetEvents: (filters) =>
+      withRefresh(async () => {
+        const response = await requestJson<{
+          data?: { events?: FleetEventRecord[]; total?: number };
+        }>(`/api/v1/fleet/events${buildQueryString(filters)}`, { method: 'GET' });
+        return {
+          data: response.data?.events ?? [],
+          total: response.data?.total ?? 0,
+        };
+      }),
+    fetchFleetWorkers: () =>
       withRefresh(() =>
-        requestJson<{ data: FleetEventRecord[]; total: number }>(
-          `/api/v1/fleet/events${buildQueryString(filters)}`,
-          { method: 'GET' },
-        ),
+        requestData<FleetWorkerRecord[]>('/api/v1/fleet/workers', {
+          method: 'GET',
+        }),
+      ),
+    createFleetWorker: (payload) =>
+      withRefresh(() =>
+        requestData<FleetWorkerRecord>('/api/v1/fleet/workers', {
+          method: 'POST',
+          body: payload as Record<string, unknown>,
+        }),
+      ),
+    restartFleetWorker: (workerId) =>
+      withRefresh(() =>
+        requestData<unknown>(`/api/v1/fleet/workers/${workerId}/restart`, {
+          method: 'POST',
+        }),
+      ),
+    drainFleetWorker: (workerId) =>
+      withRefresh(() =>
+        requestData<unknown>(`/api/v1/fleet/workers/${workerId}/drain`, {
+          method: 'POST',
+        }),
+      ),
+    deleteFleetWorker: (workerId) =>
+      withRefresh(() =>
+        requestJson<Record<string, never>>(`/api/v1/fleet/workers/${workerId}`, {
+          method: 'DELETE',
+        }).then(() => undefined),
       ),
     fetchFleetContainers: () =>
       withRefresh(() =>
@@ -1090,10 +1951,10 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           body: payload as unknown as Record<string, unknown>,
         }),
       ),
-    fetchQueueDepth: (templateId) =>
+    fetchQueueDepth: (playbookId) =>
       withRefresh(() => {
-        const path = templateId
-          ? `/api/v1/tasks/queue-depth?template_id=${encodeURIComponent(templateId)}`
+        const path = playbookId
+          ? `/api/v1/tasks/queue-depth?playbook_id=${encodeURIComponent(playbookId)}`
           : '/api/v1/tasks/queue-depth';
         return requestData<QueueDepthResponse>(path, { method: 'GET' });
       }),
@@ -1171,20 +2032,44 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         ),
       ),
     queryLogs: (filters) =>
-      withRefresh(() => requestJson<LogQueryResponse>(`/api/v1/logs${buildQueryString(filters)}`, { method: 'GET' })),
+      withRefresh(() =>
+        requestJson<LogQueryResponse>(`/api/v1/logs${buildQueryString(filters)}`, {
+          method: 'GET',
+        }),
+      ),
     getLogStats: (filters) =>
-      withRefresh(() => requestJson<LogStatsResponse>(`/api/v1/logs/stats${buildQueryString(filters)}`, { method: 'GET' })),
+      withRefresh(() =>
+        requestJson<LogStatsResponse>(`/api/v1/logs/stats${buildQueryString(filters)}`, {
+          method: 'GET',
+        }),
+      ),
     getLogOperations: (filters) =>
-      withRefresh(() => requestJson<{ data: LogOperationRecord[] }>(`/api/v1/logs/operations${buildQueryString(filters)}`, { method: 'GET' })),
+      withRefresh(() =>
+        requestJson<{ data: LogOperationRecord[] }>(
+          `/api/v1/logs/operations${buildQueryString(filters)}`,
+          { method: 'GET' },
+        ),
+      ),
     getLogRoles: (filters) =>
-      withRefresh(() => requestJson<{ data: LogRoleRecord[] }>(`/api/v1/logs/roles${buildQueryString(filters)}`, { method: 'GET' })),
+      withRefresh(() =>
+        requestJson<{ data: LogRoleRecord[] }>(`/api/v1/logs/roles${buildQueryString(filters)}`, {
+          method: 'GET',
+        }),
+      ),
     getLogActors: (filters) =>
-      withRefresh(() => requestJson<{ data: LogActorRecord[] }>(`/api/v1/logs/actors${buildQueryString(filters)}`, { method: 'GET' })),
+      withRefresh(() =>
+        requestJson<{ data: LogActorRecord[] }>(`/api/v1/logs/actors${buildQueryString(filters)}`, {
+          method: 'GET',
+        }),
+      ),
     exportLogs: (filters) =>
       withRefresh(async () => {
-        const res = await requestFetch(`${baseUrl}/api/v1/logs/export${buildQueryString(filters)}`, {
-          headers: { Authorization: `Bearer ${readSession()?.accessToken ?? ''}` },
-        });
+        const res = await requestFetch(
+          `${baseUrl}/api/v1/logs/export${buildQueryString(filters)}`,
+          {
+            headers: { Authorization: `Bearer ${readSession()?.accessToken ?? ''}` },
+          },
+        );
         if (!res.ok) throw new Error(`Export failed: ${res.status}`);
         return res.blob();
       }),
@@ -1215,7 +2100,7 @@ export function buildSearchResults(
     workers: NamedRecord[];
     agents: NamedRecord[];
     projects: NamedRecord[];
-    templates: NamedRecord[];
+    playbooks: NamedRecord[];
   },
 ): DashboardSearchResult[] {
   const workflowMatches = filterRecords(collections.workflows, normalizedQuery).map((item) => ({
@@ -1223,7 +2108,7 @@ export function buildSearchResults(
     id: item.id,
     label: item.name ?? item.id,
     subtitle: item.state ?? 'workflow',
-    href: `/workflows/${item.id}`,
+    href: `/work/workflows/${item.id}`,
   }));
 
   const taskMatches = filterRecords(collections.tasks, normalizedQuery).map((item) => ({
@@ -1231,7 +2116,7 @@ export function buildSearchResults(
     id: item.id,
     label: item.title ?? item.name ?? item.id,
     subtitle: item.state ?? 'task',
-    href: `/tasks/${item.id}`,
+    href: `/work/tasks/${item.id}`,
   }));
 
   const workerMatches = filterRecords(collections.workers, normalizedQuery).map((item) => ({
@@ -1239,7 +2124,7 @@ export function buildSearchResults(
     id: item.id,
     label: item.name ?? item.id,
     subtitle: item.status ?? 'worker',
-    href: '/workers',
+    href: '/fleet/workers',
   }));
 
   const agentMatches = filterRecords(collections.agents, normalizedQuery).map((item) => ({
@@ -1247,7 +2132,7 @@ export function buildSearchResults(
     id: item.id,
     label: item.name ?? item.id,
     subtitle: item.status ?? 'agent',
-    href: '/workers',
+    href: '/fleet/agents',
   }));
 
   const projectMatches = filterRecords(collections.projects, normalizedQuery).map((item) => ({
@@ -1255,22 +2140,22 @@ export function buildSearchResults(
     id: item.id,
     label: item.name ?? item.id,
     subtitle: item.status ?? 'project',
-    href: '/projects',
+    href: `/projects/${item.id}`,
   }));
 
-  const templateMatches = filterRecords(collections.templates, normalizedQuery).map((item) => ({
-    type: 'template' as const,
+  const playbookMatches = filterRecords(collections.playbooks, normalizedQuery).map((item) => ({
+    type: 'playbook' as const,
     id: item.id,
     label: item.name ?? item.id,
-    subtitle: item.status ?? 'template',
-    href: '/templates',
+    subtitle: item.status ?? 'playbook',
+    href: `/config/playbooks/${item.id}/launch`,
   }));
 
   return [
     ...workflowMatches,
     ...taskMatches,
     ...projectMatches,
-    ...templateMatches,
+    ...playbookMatches,
     ...workerMatches,
     ...agentMatches,
   ].slice(0, 12);
@@ -1307,6 +2192,17 @@ function extractDataResult(result: PromiseSettledResult<unknown>): NamedRecord[]
   }
 
   return [];
+}
+
+function buildRolesQuery(roles?: string[]): string {
+  if (!roles || roles.length === 0) {
+    return '';
+  }
+  const filtered = roles.map((role) => role.trim()).filter(Boolean);
+  if (filtered.length === 0) {
+    return '';
+  }
+  return `?roles=${encodeURIComponent(filtered.join(','))}`;
 }
 
 export const dashboardApi = createDashboardApi();

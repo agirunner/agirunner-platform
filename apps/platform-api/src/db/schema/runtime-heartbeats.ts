@@ -1,7 +1,7 @@
 import { boolean, index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
+import { playbooks } from './playbooks.js';
 import { tenants } from './tenants.js';
-import { templates } from './templates.js';
 
 export const runtimeHeartbeats = pgTable(
   'runtime_heartbeats',
@@ -10,9 +10,10 @@ export const runtimeHeartbeats = pgTable(
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id),
-    templateId: uuid('template_id')
+    playbookId: uuid('playbook_id')
       .notNull()
-      .references(() => templates.id, { onDelete: 'cascade' }),
+      .references(() => playbooks.id, { onDelete: 'cascade' }),
+    poolKind: text('pool_kind').notNull().default('specialist'),
     state: text('state').notNull().default('idle'),
     taskId: uuid('task_id'),
     uptimeSeconds: integer('uptime_seconds').notNull().default(0),
@@ -24,7 +25,8 @@ export const runtimeHeartbeats = pgTable(
   },
   (table) => [
     index('idx_runtime_heartbeats_tenant').on(table.tenantId),
-    index('idx_runtime_heartbeats_template').on(table.templateId),
+    index('idx_runtime_heartbeats_playbook').on(table.playbookId),
+    index('idx_runtime_heartbeats_tenant_pool').on(table.tenantId, table.poolKind),
     index('idx_runtime_heartbeats_state').on(table.state),
   ],
 );

@@ -8,7 +8,6 @@ describe('flattenInstructionLayers', () => {
     const layers = {
       platform: { content: 'Be helpful', format: 'text' },
       project: { content: 'Project rules', format: 'text' },
-      template: { content: 'Template rules', format: 'text' },
       role: { content: 'Role rules', format: 'text' },
       task: { content: 'Task instructions', format: 'text' },
     };
@@ -17,7 +16,6 @@ describe('flattenInstructionLayers', () => {
 
     expect(result).toContain('=== Platform Instructions ===\nBe helpful');
     expect(result).toContain('=== Project Instructions ===\nProject rules');
-    expect(result).toContain('=== Template Instructions ===\nTemplate rules');
     expect(result).toContain('=== Role Instructions ===\nRole rules');
     expect(result).not.toContain('Task instructions');
   });
@@ -36,7 +34,6 @@ describe('flattenInstructionLayers', () => {
     const result = flattenInstructionLayers(layers);
     expect(result).toBe('=== Platform Instructions ===\nPlatform only');
     expect(result).not.toContain('Project');
-    expect(result).not.toContain('Template');
     expect(result).not.toContain('Role');
   });
 
@@ -57,17 +54,14 @@ describe('flattenInstructionLayers', () => {
     const layers = {
       role: { content: 'R', format: 'text' },
       platform: { content: 'P', format: 'text' },
-      template: { content: 'T', format: 'text' },
       project: { content: 'J', format: 'text' },
     };
     const result = flattenInstructionLayers(layers);
     const platformIdx = result.indexOf('Platform');
     const projectIdx = result.indexOf('Project');
-    const templateIdx = result.indexOf('Template');
     const roleIdx = result.indexOf('Role');
     expect(platformIdx).toBeLessThan(projectIdx);
-    expect(projectIdx).toBeLessThan(templateIdx);
-    expect(templateIdx).toBeLessThan(roleIdx);
+    expect(projectIdx).toBeLessThan(roleIdx);
   });
 });
 
@@ -154,7 +148,6 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
       instructionLayers: {
         platform: { content: 'Be safe', format: 'text' },
         project: { content: 'Use TypeScript', format: 'text' },
-        template: { content: 'Follow template', format: 'text' },
         role: { content: 'You are a coder', format: 'text' },
       },
     });
@@ -171,8 +164,6 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     expect(roleConfig.system_prompt).toContain('Be safe');
     expect(roleConfig.system_prompt).toContain('=== Project Instructions ===');
     expect(roleConfig.system_prompt).toContain('Use TypeScript');
-    expect(roleConfig.system_prompt).toContain('=== Template Instructions ===');
-    expect(roleConfig.system_prompt).toContain('Follow template');
     expect(roleConfig.system_prompt).toContain('=== Role Instructions ===');
     expect(roleConfig.system_prompt).toContain('You are a coder');
   });

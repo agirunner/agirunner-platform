@@ -1,7 +1,11 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import { ForbiddenError, NotFoundError } from '../errors/domain-errors.js';
+import { toStoredTaskState, type TaskState } from '../orchestration/task-state-machine.js';
 import { assertValidWorkerTransition, type WorkerState } from '../orchestration/worker-state-machine.js';
 import type { WorkerHeartbeatInput, WorkerServiceContext } from './worker-service.js';
+
+const ACTIVE_EXECUTION_STATES: TaskState[] = ['claimed', 'in_progress'];
+const STORED_ACTIVE_EXECUTION_STATES = ACTIVE_EXECUTION_STATES.map(toStoredTaskState);
 
 export function ensureWorkerAccess(identity: ApiKeyIdentity, workerId: string): void {
   if (identity.scope === 'admin') {
@@ -159,9 +163,11 @@ export async function enforceHeartbeatTimeouts(context: WorkerServiceContext, no
                assigned_agent_id = NULL,
                claimed_at = NULL,
                started_at = NULL
-           WHERE tenant_id = $1 AND assigned_worker_id = $2 AND state IN ('claimed','running')
+           WHERE tenant_id = $1
+             AND assigned_worker_id = $2
+             AND state::text = ANY($3::text[])
            RETURNING id`,
-          [worker.tenant_id, worker.id],
+          [worker.tenant_id, worker.id, STORED_ACTIVE_EXECUTION_STATES],
         );
 
         for (const failedTask of failedTasks.rows) {
@@ -173,7 +179,7 @@ export async function enforceHeartbeatTimeouts(context: WorkerServiceContext, no
             actorType: 'system',
             actorId: 'worker_heartbeat_monitor',
             data: {
-              from_state: 'running',
+              from_state: 'in_progress',
               to_state: 'failed',
               reason: 'worker_heartbeat_timeout',
               worker_id: worker.id,

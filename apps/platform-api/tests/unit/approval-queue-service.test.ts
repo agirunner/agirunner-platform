@@ -1,0 +1,148 @@
+import { describe, expect, it, vi } from 'vitest';
+
+import { ApprovalQueueService } from '../../src/services/approval-queue-service.js';
+
+describe('ApprovalQueueService', () => {
+  it('returns task and stage approvals together', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM tasks t')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-1',
+              title: 'Review output',
+              state: 'output_pending_review',
+              workflow_id: 'workflow-1',
+              workflow_name: 'Workflow One',
+              work_item_id: 'work-item-1',
+              work_item_title: 'Ship docs',
+              stage_name: 'review',
+              role: 'qa',
+              activation_id: 'activation-1',
+              rework_count: 1,
+              created_at: new Date('2026-03-11T00:00:00Z'),
+              output: { summary: 'Done' },
+            }],
+          };
+        }
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'gate-1',
+            workflow_id: 'workflow-1',
+            workflow_name: 'Workflow One',
+            stage_id: 'stage-1',
+            stage_name: 'requirements',
+            stage_goal: 'Define scope',
+            status: 'awaiting_approval',
+            request_summary: 'Ready for review',
+            recommendation: 'approve',
+            concerns: ['none'],
+            key_artifacts: [{ id: 'artifact-1' }],
+            requested_by_type: 'orchestrator',
+            requested_by_id: 'task-1',
+            requested_at: new Date('2026-03-11T01:00:00Z'),
+            updated_at: new Date('2026-03-11T01:00:00Z'),
+            decided_by_type: null,
+            decided_by_id: null,
+            decision_feedback: null,
+            decided_at: null,
+            requested_by_task_id: 'task-9',
+            requested_by_task_title: 'Orchestrator review packet',
+            requested_by_task_role: 'orchestrator',
+            requested_by_work_item_id: 'work-item-1',
+            requested_by_work_item_title: 'Ship docs',
+            resume_activation_id: 'activation-2',
+            resume_activation_state: 'queued',
+            resume_activation_event_type: 'stage.gate.approve',
+            resume_activation_reason: 'stage.gate.approve',
+            resume_activation_queued_at: new Date('2026-03-11T01:01:00Z'),
+            resume_activation_started_at: null,
+            resume_activation_completed_at: null,
+            resume_activation_summary: null,
+            resume_activation_error: null,
+          }],
+        };
+      }),
+    };
+
+    const service = new ApprovalQueueService(pool as never);
+    const queue = await service.listApprovals('tenant-1');
+
+    expect(queue.task_approvals).toHaveLength(1);
+    expect(queue.stage_gates).toHaveLength(1);
+    expect(queue.task_approvals[0]).toEqual(
+      expect.objectContaining({
+        work_item_id: 'work-item-1',
+        work_item_title: 'Ship docs',
+        stage_name: 'review',
+        role: 'qa',
+        activation_id: 'activation-1',
+        rework_count: 1,
+      }),
+    );
+    expect(queue.stage_gates[0]).toEqual(
+      expect.objectContaining({
+        id: 'gate-1',
+        gate_id: 'gate-1',
+        workflow_id: 'workflow-1',
+        stage_id: 'stage-1',
+        stage_name: 'requirements',
+        recommendation: 'approve',
+        requested_by_type: 'orchestrator',
+        requested_by_id: 'task-1',
+        requested_by_task: expect.objectContaining({
+          id: 'task-9',
+          title: 'Orchestrator review packet',
+          work_item_id: 'work-item-1',
+        }),
+        orchestrator_resume: expect.objectContaining({
+          activation_id: 'activation-2',
+          state: 'queued',
+        }),
+      }),
+    );
+  });
+
+  it('looks up a gate by id', async () => {
+    const pool = {
+      query: vi.fn(async () => ({
+        rowCount: 1,
+        rows: [{
+          id: 'gate-9',
+          workflow_id: 'workflow-9',
+          workflow_name: 'Workflow Nine',
+          stage_id: 'stage-9',
+          stage_name: 'qa',
+          stage_goal: 'Validate release',
+          status: 'awaiting_approval',
+          request_summary: 'Ready for final review',
+          recommendation: 'approve',
+          concerns: [],
+          key_artifacts: [],
+          requested_by_type: 'orchestrator',
+          requested_by_id: 'task-9',
+          requested_at: new Date('2026-03-11T02:00:00Z'),
+          updated_at: new Date('2026-03-11T02:00:00Z'),
+          decided_by_type: null,
+          decided_by_id: null,
+          decision_feedback: null,
+          decided_at: null,
+        }],
+      })),
+    };
+
+    const service = new ApprovalQueueService(pool as never);
+    const gate = await service.getGate('tenant-1', 'gate-9');
+
+    expect(gate).toEqual(
+      expect.objectContaining({
+        id: 'gate-9',
+        workflow_id: 'workflow-9',
+        stage_name: 'qa',
+        requested_by_id: 'task-9',
+      }),
+    );
+  });
+});

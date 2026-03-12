@@ -134,7 +134,7 @@ const FIELD_DEFS: FieldDef[] = [
   {
     key: 'global_max_runtimes',
     label: 'Global Max Runtimes',
-    description: 'Maximum total concurrent agent containers across all templates.',
+    description: 'Maximum total concurrent agent containers across all playbooks.',
     configType: 'number',
     placeholder: '10',
     section: 'fleet',
@@ -292,7 +292,7 @@ export function RuntimeDefaultsPage(): JSX.Element {
             <h1 className="text-2xl font-semibold">Runtime Defaults</h1>
           </div>
           <p className="text-sm text-muted mt-1">
-            Default container configuration for all templates. Templates can override individual values.
+            Default container configuration for all playbooks. Playbooks can override individual values.
           </p>
         </div>
         <Button
@@ -314,7 +314,7 @@ export function RuntimeDefaultsPage(): JSX.Element {
         <div>
           <h2 className="text-lg font-semibold">Agent Container Defaults</h2>
           <p className="text-xs text-muted mt-0.5">
-            Resource and image settings applied to every agent container unless overridden by a template.
+            Resource and image settings applied to every agent container unless overridden by a playbook.
           </p>
         </div>
         <div className="space-y-4 rounded-lg border border-border p-4">

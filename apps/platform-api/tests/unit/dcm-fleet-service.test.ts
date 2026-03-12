@@ -7,7 +7,7 @@ function createMockPool() {
 }
 
 const TENANT_ID = '00000000-0000-0000-0000-000000000001';
-const TEMPLATE_ID = '00000000-0000-0000-0000-000000000010';
+const PLAYBOOK_ID = '00000000-0000-0000-0000-000000000010';
 const RUNTIME_ID = '00000000-0000-0000-0000-000000000020';
 
 describe('FleetService DCM', () => {
@@ -20,11 +20,11 @@ describe('FleetService DCM', () => {
   });
 
   describe('getQueueDepth', () => {
-    it('returns total and per-template counts', async () => {
+    it('returns total and per-playbook counts', async () => {
       pool.query.mockResolvedValueOnce({
         rows: [
-          { template_id: TEMPLATE_ID, count: 3 },
-          { template_id: '00000000-0000-0000-0000-000000000011', count: 2 },
+          { playbook_id: PLAYBOOK_ID, count: 3 },
+          { playbook_id: '00000000-0000-0000-0000-000000000011', count: 2 },
         ],
         rowCount: 2,
       });
@@ -32,7 +32,7 @@ describe('FleetService DCM', () => {
       const result = await service.getQueueDepth(TENANT_ID);
 
       expect(result.total_pending).toBe(5);
-      expect(result.by_template[TEMPLATE_ID]).toBe(3);
+      expect(result.by_playbook[PLAYBOOK_ID]).toBe(3);
     });
 
     it('returns zero when no pending tasks', async () => {
@@ -41,81 +41,115 @@ describe('FleetService DCM', () => {
       const result = await service.getQueueDepth(TENANT_ID);
 
       expect(result.total_pending).toBe(0);
-      expect(result.by_template).toEqual({});
+      expect(result.by_playbook).toEqual({});
     });
 
-    it('filters by template_id when provided', async () => {
+    it('filters by playbook_id when provided', async () => {
       pool.query.mockResolvedValueOnce({
-        rows: [{ template_id: TEMPLATE_ID, count: 3 }],
+        rows: [{ playbook_id: PLAYBOOK_ID, count: 3 }],
         rowCount: 1,
       });
 
-      await service.getQueueDepth(TENANT_ID, TEMPLATE_ID);
+      await service.getQueueDepth(TENANT_ID, PLAYBOOK_ID);
 
       const query = pool.query.mock.calls[0][0] as string;
-      expect(query).toContain('template_id');
+      expect(query).toContain('playbook_id');
       const params = pool.query.mock.calls[0][1] as unknown[];
-      expect(params).toContain(TEMPLATE_ID);
+      expect(params).toContain(PLAYBOOK_ID);
     });
   });
 
   describe('getRuntimeTargets', () => {
-    it('returns targets derived from templates with runtime config', async () => {
+    it('returns targets derived from playbooks with runtime config', async () => {
       // First call: loadRuntimeDefaults
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-      // Second call: templates query
+      // Second call: playbooks query
       pool.query.mockResolvedValueOnce({
         rows: [{
-          template_id: TEMPLATE_ID,
-          template_name: 'SDLC Pipeline',
-          schema: {
+          playbook_id: PLAYBOOK_ID,
+          playbook_name: 'SDLC Pipeline',
+          definition: {
+            roles: ['developer'],
+            board: { columns: [{ id: 'planned', label: 'Planned' }] },
+            stages: [],
+            lifecycle: 'standard',
             runtime: {
-              pool_mode: 'warm',
-              max_runtimes: 2,
-              priority: 5,
-              idle_timeout_seconds: 300,
-              grace_period_seconds: 180,
-              image: 'agirunner-runtime:v1',
-              pull_policy: 'always',
-              cpu: '2.0',
-              memory: '1g',
+              specialist_pool: {
+                pool_mode: 'warm',
+                max_runtimes: 2,
+                priority: 5,
+                idle_timeout_seconds: 300,
+                grace_period_seconds: 180,
+                image: 'agirunner-runtime:v1',
+                pull_policy: 'always',
+                cpu: '2.0',
+                memory: '1g',
+              },
+              orchestrator_pool: {
+                pool_mode: 'warm',
+                max_runtimes: 1,
+                priority: 10,
+              },
             },
           },
           active_workflows: 1,
           pending_tasks: 3,
+          pending_orchestrator_tasks: 1,
+          specialist_tasks_with_capabilities: 2,
+          specialist_distinct_capability_sets: 2,
+          specialist_max_required_capabilities: 3,
         }],
         rowCount: 1,
       });
 
       const result = await service.getRuntimeTargets(TENANT_ID);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].template_id).toBe(TEMPLATE_ID);
+      expect(result).toHaveLength(2);
+      expect(result[0].playbook_id).toBe(PLAYBOOK_ID);
+      expect(result[0].pool_kind).toBe('orchestrator');
       expect(result[0].pool_mode).toBe('warm');
-      expect(result[0].max_runtimes).toBe(2);
-      expect(result[0].priority).toBe(5);
-      expect(result[0].image).toBe('agirunner-runtime:v1');
-      expect(result[0].pending_tasks).toBe(3);
-      expect(result[0].active_workflows).toBe(1);
+      expect(result[0].max_runtimes).toBe(1);
+      expect(result[0].priority).toBe(10);
+      expect(result[0].pending_tasks).toBe(1);
+      expect(result[0].capability_demand_units).toBe(0);
+      expect(result[1].pool_kind).toBe('specialist');
+      expect(result[1].image).toBe('agirunner-runtime:v1');
+      expect(result[1].pending_tasks).toBe(3);
+      expect(result[1].tasks_with_capabilities).toBe(2);
+      expect(result[1].distinct_capability_sets).toBe(2);
+      expect(result[1].max_required_capabilities).toBe(3);
+      expect(result[1].capability_demand_units).toBe(7);
+      expect(result[1].active_workflows).toBe(1);
     });
 
     it('applies hardcoded fallbacks when no runtime defaults configured', async () => {
       // First call: loadRuntimeDefaults (empty)
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-      // Second call: templates query
+      // Second call: playbooks query
       pool.query.mockResolvedValueOnce({
         rows: [{
-          template_id: TEMPLATE_ID,
-          template_name: 'Minimal',
-          schema: { runtime: {} },
+          playbook_id: PLAYBOOK_ID,
+          playbook_name: 'Minimal',
+          definition: {
+            roles: ['developer'],
+            board: { columns: [{ id: 'planned', label: 'Planned' }] },
+            stages: [],
+            lifecycle: 'standard',
+            runtime: {},
+          },
           active_workflows: 0,
           pending_tasks: 0,
+          pending_orchestrator_tasks: 0,
+          specialist_tasks_with_capabilities: 0,
+          specialist_distinct_capability_sets: 0,
+          specialist_max_required_capabilities: 0,
         }],
         rowCount: 1,
       });
 
       const result = await service.getRuntimeTargets(TENANT_ID);
 
+      expect(result[0].pool_kind).toBe('specialist');
       expect(result[0].pool_mode).toBe('warm');
       expect(result[0].max_runtimes).toBe(1);
       expect(result[0].priority).toBe(0);
@@ -139,14 +173,24 @@ describe('FleetService DCM', () => {
         ],
         rowCount: 5,
       });
-      // Second call: templates query
+      // Second call: playbooks query
       pool.query.mockResolvedValueOnce({
         rows: [{
-          template_id: TEMPLATE_ID,
-          template_name: 'Minimal',
-          schema: { runtime: {} },
+          playbook_id: PLAYBOOK_ID,
+          playbook_name: 'Minimal',
+          definition: {
+            roles: ['developer'],
+            board: { columns: [{ id: 'planned', label: 'Planned' }] },
+            stages: [],
+            lifecycle: 'standard',
+            runtime: {},
+          },
           active_workflows: 0,
           pending_tasks: 0,
+          pending_orchestrator_tasks: 0,
+          specialist_tasks_with_capabilities: 0,
+          specialist_distinct_capability_sets: 0,
+          specialist_max_required_capabilities: 0,
         }],
         rowCount: 1,
       });
@@ -160,10 +204,10 @@ describe('FleetService DCM', () => {
       expect(result[0].image).toBe('agirunner-runtime:v2');
     });
 
-    it('returns empty array when no templates have runtime config', async () => {
+    it('returns empty array when no playbooks have runtime config', async () => {
       // First call: loadRuntimeDefaults
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-      // Second call: templates query
+      // Second call: playbooks query
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const result = await service.getRuntimeTargets(TENANT_ID);
@@ -181,7 +225,8 @@ describe('FleetService DCM', () => {
 
       const result = await service.recordHeartbeat(TENANT_ID, {
         runtime_id: RUNTIME_ID,
-        template_id: TEMPLATE_ID,
+        playbook_id: PLAYBOOK_ID,
+        pool_kind: 'specialist',
         state: 'idle',
         uptime_seconds: 120,
         image: 'agirunner-runtime:local',
@@ -202,7 +247,8 @@ describe('FleetService DCM', () => {
 
       const result = await service.recordHeartbeat(TENANT_ID, {
         runtime_id: RUNTIME_ID,
-        template_id: TEMPLATE_ID,
+        playbook_id: PLAYBOOK_ID,
+        pool_kind: 'specialist',
         state: 'idle',
         uptime_seconds: 120,
         image: 'agirunner-runtime:local',
@@ -219,7 +265,8 @@ describe('FleetService DCM', () => {
 
       await service.recordHeartbeat(TENANT_ID, {
         runtime_id: RUNTIME_ID,
-        template_id: TEMPLATE_ID,
+        playbook_id: PLAYBOOK_ID,
+        pool_kind: 'orchestrator',
         state: 'executing',
         task_id: '00000000-0000-0000-0000-000000000030',
         uptime_seconds: 300,
@@ -227,6 +274,7 @@ describe('FleetService DCM', () => {
       });
 
       const params = pool.query.mock.calls[0][1] as unknown[];
+      expect(params).toContain('orchestrator');
       expect(params).toContain('executing');
       expect(params).toContain('00000000-0000-0000-0000-000000000030');
     });
@@ -239,7 +287,8 @@ describe('FleetService DCM', () => {
 
       await service.recordHeartbeat(TENANT_ID, {
         runtime_id: RUNTIME_ID,
-        template_id: TEMPLATE_ID,
+        playbook_id: PLAYBOOK_ID,
+        pool_kind: 'specialist',
         state: 'draining',
         image: 'agirunner-runtime:local',
       });
@@ -252,11 +301,24 @@ describe('FleetService DCM', () => {
       await expect(
         service.recordHeartbeat(TENANT_ID, {
           runtime_id: RUNTIME_ID,
-          template_id: TEMPLATE_ID,
+          playbook_id: PLAYBOOK_ID,
+          pool_kind: 'specialist',
           state: 'exploding',
           image: 'agirunner-runtime:local',
         }),
       ).rejects.toThrow(/Invalid heartbeat state/);
+    });
+
+    it('rejects invalid pool kind', async () => {
+      await expect(
+        service.recordHeartbeat(TENANT_ID, {
+          runtime_id: RUNTIME_ID,
+          playbook_id: PLAYBOOK_ID,
+          pool_kind: 'hybrid' as never,
+          state: 'idle',
+          image: 'agirunner-runtime:local',
+        }),
+      ).rejects.toThrow(/Invalid heartbeat pool kind/);
     });
   });
 
@@ -281,7 +343,7 @@ describe('FleetService DCM', () => {
   });
 
   describe('getFleetStatus', () => {
-    it('aggregates runtime states across templates', async () => {
+    it('aggregates runtime states across playbooks', async () => {
       // First call: global_max_runtimes config
       pool.query.mockResolvedValueOnce({
         rows: [{ config_value: '10' }],
@@ -290,25 +352,61 @@ describe('FleetService DCM', () => {
       // Second call: heartbeats
       pool.query.mockResolvedValueOnce({
         rows: [
-          { runtime_id: RUNTIME_ID, tenant_id: TENANT_ID, template_id: TEMPLATE_ID, template_name: 'SDLC', state: 'executing', task_id: null },
-          { runtime_id: '00000000-0000-0000-0000-000000000021', tenant_id: TENANT_ID, template_id: TEMPLATE_ID, template_name: 'SDLC', state: 'idle', task_id: null },
+          { runtime_id: '00000000-0000-0000-0000-000000000020', tenant_id: TENANT_ID, playbook_id: PLAYBOOK_ID, playbook_name: 'SDLC', pool_kind: 'specialist', state: 'executing', task_id: null },
+          { runtime_id: '00000000-0000-0000-0000-000000000021', tenant_id: TENANT_ID, playbook_id: PLAYBOOK_ID, playbook_name: 'SDLC', pool_kind: 'specialist', state: 'idle', task_id: null },
+          { runtime_id: '00000000-0000-0000-0000-000000000022', tenant_id: TENANT_ID, playbook_id: PLAYBOOK_ID, playbook_name: 'SDLC', pool_kind: 'orchestrator', state: 'executing', task_id: 'task-1' },
         ],
-        rowCount: 2,
+        rowCount: 3,
       });
       // Third call: loadRuntimeDefaults (inside getRuntimeTargets)
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-      // Fourth call: runtime targets templates query
+      // Fourth call: runtime targets playbooks query
       pool.query.mockResolvedValueOnce({
         rows: [{
-          template_id: TEMPLATE_ID,
-          template_name: 'SDLC',
-          schema: { runtime: { max_runtimes: 3 } },
+          playbook_id: PLAYBOOK_ID,
+          playbook_name: 'SDLC',
+          definition: {
+            roles: ['developer'],
+            board: { columns: [{ id: 'planned', label: 'Planned' }] },
+            stages: [],
+            lifecycle: 'standard',
+            runtime: {
+              orchestrator_pool: { max_runtimes: 1 },
+              specialist_pool: { max_runtimes: 3 },
+            },
+          },
           active_workflows: 1,
           pending_tasks: 2,
+          pending_orchestrator_tasks: 1,
+          specialist_tasks_with_capabilities: 2,
+          specialist_distinct_capability_sets: 1,
+          specialist_max_required_capabilities: 2,
         }],
         rowCount: 1,
       });
-      // Fifth call: recent_events
+      // Fifth call: worker pool status
+      pool.query.mockResolvedValueOnce({
+        rows: [
+          {
+            pool_kind: 'orchestrator',
+            desired_workers: 1,
+            desired_replicas: 1,
+            enabled_workers: 1,
+            draining_workers: 0,
+            running_containers: 1,
+          },
+          {
+            pool_kind: 'specialist',
+            desired_workers: 2,
+            desired_replicas: 3,
+            enabled_workers: 2,
+            draining_workers: 0,
+            running_containers: 2,
+          },
+        ],
+        rowCount: 2,
+      });
+      // Sixth call: recent_events
       pool.query.mockResolvedValueOnce({
         rows: [{ id: 'evt-1', event_type: 'runtime.started', level: 'info', created_at: new Date() }],
         rowCount: 1,
@@ -317,14 +415,29 @@ describe('FleetService DCM', () => {
       const result = await service.getFleetStatus(TENANT_ID);
 
       expect(result.global_max_runtimes).toBe(10);
-      expect(result.total_running).toBe(2);
+      expect(result.total_running).toBe(3);
       expect(result.total_idle).toBe(1);
-      expect(result.total_executing).toBe(1);
+      expect(result.total_executing).toBe(2);
       expect(result.total_draining).toBe(0);
-      expect(result.by_template).toHaveLength(1);
-      expect(result.by_template[0].running).toBe(2);
-      expect(result.by_template[0].max_runtimes).toBe(3);
-      expect(result.by_template[0].pending_tasks).toBe(2);
+      expect(result.by_playbook).toHaveLength(1);
+      expect(result.by_playbook[0].running).toBe(3);
+      expect(result.by_playbook[0].max_runtimes).toBe(4);
+      expect(result.by_playbook[0].pending_tasks).toBe(3);
+      expect(result.by_playbook_pool).toHaveLength(2);
+      expect(result.by_playbook_pool).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ pool_kind: 'orchestrator', pending_tasks: 1 }),
+          expect.objectContaining({
+            pool_kind: 'specialist',
+            pending_tasks: 2,
+            tasks_with_capabilities: 2,
+            distinct_capability_sets: 1,
+            max_required_capabilities: 2,
+            capability_demand_units: 5,
+          }),
+        ]),
+      );
+      expect(result.worker_pools).toHaveLength(2);
       expect(result.recent_events).toHaveLength(1);
       expect(result.recent_events[0].event_type).toBe('runtime.started');
     });
@@ -333,13 +446,15 @@ describe('FleetService DCM', () => {
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // global_max_runtimes
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // heartbeats
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // loadRuntimeDefaults
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // templates query
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // playbooks query
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // worker pool status
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // recent_events
 
       const result = await service.getFleetStatus(TENANT_ID);
 
       expect(result.global_max_runtimes).toBe(10);
       expect(result.total_running).toBe(0);
+      expect(result.worker_pools).toEqual([]);
       expect(result.recent_events).toEqual([]);
     });
   });
@@ -361,15 +476,15 @@ describe('FleetService DCM', () => {
       expect(result.events).toHaveLength(1);
     });
 
-    it('applies template_id filter', async () => {
+    it('applies playbook_id filter', async () => {
       pool.query
         .mockResolvedValueOnce({ rows: [{ count: 5 }], rowCount: 1 })
         .mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
-      await service.listFleetEvents(TENANT_ID, { template_id: TEMPLATE_ID });
+      await service.listFleetEvents(TENANT_ID, { playbook_id: PLAYBOOK_ID });
 
       const countQuery = pool.query.mock.calls[0][0] as string;
-      expect(countQuery).toContain('template_id');
+      expect(countQuery).toContain('playbook_id');
     });
 
     it('applies runtime_id filter', async () => {
@@ -407,7 +522,7 @@ describe('FleetService DCM', () => {
         event_type: 'runtime.started',
         level: 'info',
         runtime_id: RUNTIME_ID,
-        template_id: TEMPLATE_ID,
+        playbook_id: PLAYBOOK_ID,
         container_id: 'abc123',
         payload: { image: 'agirunner-runtime:local' },
       });
@@ -488,7 +603,7 @@ describe('FleetService DCM', () => {
   describe('validateRuntimeConfig', () => {
     it('passes through valid config unchanged', () => {
       const result = service.validateRuntimeConfig(
-        TEMPLATE_ID,
+        PLAYBOOK_ID,
         { pool_mode: 'warm', max_runtimes: 2, pull_policy: 'always' },
       );
 
@@ -499,8 +614,8 @@ describe('FleetService DCM', () => {
 
     it('defaults invalid pool_mode to warm', () => {
       const result = service.validateRuntimeConfig(
-        TEMPLATE_ID,
-        { pool_mode: 'hot' },
+        PLAYBOOK_ID,
+        { pool_mode: 'hot' } as never,
       );
 
       expect(result.pool_mode).toBe('warm');
@@ -508,7 +623,7 @@ describe('FleetService DCM', () => {
 
     it('defaults invalid max_runtimes to 1', () => {
       const result = service.validateRuntimeConfig(
-        TEMPLATE_ID,
+        PLAYBOOK_ID,
         { max_runtimes: -5 },
       );
 
@@ -517,7 +632,7 @@ describe('FleetService DCM', () => {
 
     it('defaults non-integer max_runtimes to 1', () => {
       const result = service.validateRuntimeConfig(
-        TEMPLATE_ID,
+        PLAYBOOK_ID,
         { max_runtimes: 2.5 },
       );
 
@@ -526,7 +641,7 @@ describe('FleetService DCM', () => {
 
     it('defaults zero max_runtimes to 1', () => {
       const result = service.validateRuntimeConfig(
-        TEMPLATE_ID,
+        PLAYBOOK_ID,
         { max_runtimes: 0 },
       );
 
@@ -535,8 +650,8 @@ describe('FleetService DCM', () => {
 
     it('defaults invalid pull_policy to if-not-present', () => {
       const result = service.validateRuntimeConfig(
-        TEMPLATE_ID,
-        { pull_policy: 'sometimes' },
+        PLAYBOOK_ID,
+        { pull_policy: 'sometimes' } as never,
       );
 
       expect(result.pull_policy).toBe('if-not-present');
@@ -547,8 +662,8 @@ describe('FleetService DCM', () => {
       const loggedService = new FleetService(pool as never, mockLogger);
 
       loggedService.validateRuntimeConfig(
-        TEMPLATE_ID,
-        { pool_mode: 'hot', max_runtimes: -1, pull_policy: 'sometimes' },
+        PLAYBOOK_ID,
+        { pool_mode: 'hot', max_runtimes: -1, pull_policy: 'sometimes' } as never,
       );
 
       expect(mockLogger.warn).toHaveBeenCalledTimes(3);
@@ -560,7 +675,8 @@ describe('FleetService DCM', () => {
       pool.query.mockResolvedValueOnce({ rows: [{ config_value: '5' }], rowCount: 1 }); // global_max
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // heartbeats
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // loadRuntimeDefaults
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // templates query
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // playbooks query
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // worker pool status
       const events = [
         { id: 'evt-1', event_type: 'runtime.started', level: 'info', created_at: new Date() },
         { id: 'evt-2', event_type: 'runtime.shutdown', level: 'info', created_at: new Date() },
@@ -578,12 +694,13 @@ describe('FleetService DCM', () => {
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // global_max
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // heartbeats
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // loadRuntimeDefaults
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // templates query
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // playbooks query
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // worker pool status
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // recent_events
 
       await service.getFleetStatus(TENANT_ID);
 
-      const recentEventsCall = pool.query.mock.calls[4];
+      const recentEventsCall = pool.query.mock.calls[5];
       const sql = recentEventsCall[0] as string;
       expect(sql).toContain('fleet_events');
       expect(sql).toContain('ORDER BY created_at DESC');

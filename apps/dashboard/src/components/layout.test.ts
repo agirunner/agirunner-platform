@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import { buildBreadcrumbs } from './layout.js';
 
@@ -25,5 +27,11 @@ describe('layout breadcrumbs', () => {
   it('capitalizes and de-hyphenates segment labels', () => {
     const crumbs = buildBreadcrumbs('/mission-control');
     expect(crumbs[0].label).toBe('Mission Control');
+  });
+
+  it('points configuration navigation at the trigger overview route', () => {
+    const source = readFileSync(resolve(import.meta.dirname, './layout.tsx'), 'utf8');
+    expect(source).toContain("label: 'Trigger Overview'");
+    expect(source).toContain("href: '/config/triggers'");
   });
 });

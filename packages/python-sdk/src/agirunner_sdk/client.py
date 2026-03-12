@@ -48,16 +48,6 @@ class PlatformApiClient:
     def cancel_workflow(self, workflow_id: str) -> dict[str, Any]:
         return self._request_data(f"/api/v1/workflows/{workflow_id}/cancel", method="POST")
 
-    def act_on_phase_gate(self, workflow_id: str, phase_name: str, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request_data(
-            f"/api/v1/workflows/{workflow_id}/phases/{phase_name}/gate",
-            method="POST",
-            body=payload,
-        )
-
-    def cancel_phase(self, workflow_id: str, phase_name: str) -> dict[str, Any]:
-        return self._request_data(f"/api/v1/workflows/{workflow_id}/phases/{phase_name}/cancel", method="POST")
-
     def get_resolved_workflow_config(self, workflow_id: str, show_layers: bool = False) -> dict[str, Any]:
         suffix = "?show_layers=true" if show_layers else ""
         return self._request_data(f"/api/v1/workflows/{workflow_id}/config/resolved{suffix}")

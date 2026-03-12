@@ -2,11 +2,17 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import { validateOutputSchema } from '../validation/output-validator.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ConflictError, ForbiddenError } from '../errors/domain-errors.js';
-import { assertValidTransition, type TaskState } from '../orchestration/task-state-machine.js';
+import {
+  assertValidTransition,
+  normalizeTaskState,
+  toStoredTaskState,
+  type TaskState,
+} from '../orchestration/task-state-machine.js';
 import type { ArtifactService } from './artifact-service.js';
 import { applyTaskCompletionSideEffects } from './task-completion-side-effects.js';
 import { registerTaskOutputDocuments } from './document-reference-service.js';
 import { EventService } from './event-service.js';
+import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
 import { applyOutputStateDeclarations } from './task-output-storage.js';
 import {
@@ -16,6 +22,7 @@ import {
   type LifecyclePolicy,
   type RetryPolicy,
 } from './task-lifecycle-policy.js';
+import { enqueueWorkflowActivationRecord, isPlaybookWorkflow } from './workflow-activation-record.js';
 
 interface TransitionOptions {
   expectedStates: TaskState[];
@@ -64,13 +71,33 @@ interface TaskLifecycleDependencies {
     tenantId: string,
     name: string,
   ) => Promise<{ escalation_target: string | null; max_escalation_depth: number } | null>;
+  finalizeOrchestratorActivation?: (
+    tenantId: string,
+    task: Record<string, unknown>,
+    status: 'completed' | 'failed',
+    client: DatabaseClient,
+  ) => Promise<void>;
+  parallelismService?: PlaybookTaskParallelismService;
 }
+
+const ACTIVE_PARALLELISM_SLOT_STATES: TaskState[] = [
+  'ready',
+  'claimed',
+  'in_progress',
+  'awaiting_approval',
+  'output_pending_review',
+];
 
 function asRecord(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {};
   }
   return value as Record<string, unknown>;
+}
+
+function normalizeTaskRecord(task: Record<string, unknown>): Record<string, unknown> {
+  const normalizedState = normalizeTaskState(task.state as string | null | undefined);
+  return normalizedState ? { ...task, state: normalizedState } : task;
 }
 
 export class TaskLifecycleService {
@@ -150,7 +177,7 @@ export class TaskLifecycleService {
     const client = await this.deps.pool.connect();
     try {
       await client.query('BEGIN');
-      const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId, client);
+      const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId, client));
 
       if (!options.expectedStates.includes(task.state as TaskState)) {
         assertValidTransition(task.id as string, task.state as TaskState, nextState);
@@ -169,10 +196,11 @@ export class TaskLifecycleService {
         throw new ConflictError('Task is assigned to a different worker');
       }
 
+      const resolvedNextState = await this.resolveNextState(identity.tenantId, task, nextState, client);
       const updateFragments: string[] = ['state = $3', 'state_changed_at = now()'];
-      const values: unknown[] = [identity.tenantId, taskId, nextState];
+      const values: unknown[] = [identity.tenantId, taskId, toStoredTaskState(resolvedNextState)];
 
-      if (nextState === 'running') {
+      if (resolvedNextState === 'in_progress') {
         if (options.startedAt) {
           values.push(options.startedAt);
           updateFragments.push(`started_at = $${values.length}`);
@@ -181,7 +209,7 @@ export class TaskLifecycleService {
         }
       }
 
-      if (nextState === 'completed') {
+      if (resolvedNextState === 'completed') {
         updateFragments.push('completed_at = now()', 'error = NULL');
       }
 
@@ -195,7 +223,7 @@ export class TaskLifecycleService {
         updateFragments.push(`input = $${values.length}`);
       }
 
-      if (nextState === 'failed') {
+      if (resolvedNextState === 'failed') {
         values.push(
           options.error ?? {
             category: 'unknown',
@@ -253,19 +281,19 @@ export class TaskLifecycleService {
         updateFragments.push('output = NULL', 'error = NULL', 'metrics = NULL', 'git_info = NULL');
 
       const expectedStateParam = `$${values.length + 1}`;
-      values.push(options.expectedStates);
+      values.push(options.expectedStates.map(toStoredTaskState));
 
       const updateSql = `UPDATE tasks SET ${updateFragments.join(', ')} WHERE tenant_id = $1 AND id = $2 AND state = ANY(${expectedStateParam}::task_state[]) RETURNING *`;
       const updatedResult = await client.query(updateSql, values);
       if (!updatedResult.rowCount) {
-        const latestTask = await this.deps.loadTaskOrThrow(identity.tenantId, taskId, client);
+        const latestTask = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId, client));
         if (!options.expectedStates.includes(latestTask.state as TaskState)) {
           assertValidTransition(task.id as string, latestTask.state as TaskState, nextState);
         }
         throw new ConflictError('Task state changed concurrently');
       }
 
-      const updatedTask = updatedResult.rows[0] as Record<string, unknown>;
+      const updatedTask = normalizeTaskRecord(updatedResult.rows[0] as Record<string, unknown>);
 
       if (options.clearAssignment && task.assigned_agent_id) {
         await client.query(
@@ -286,8 +314,8 @@ export class TaskLifecycleService {
           actorType: identity.scope,
           actorId: identity.keyPrefix,
           data: {
-            from_state: task.state,
-            to_state: nextState,
+            from_state: normalizeTaskState(task.state as string | undefined) ?? task.state,
+            to_state: resolvedNextState,
             reason: options.reason,
             feedback: options.metadataPatch?.review_feedback ?? undefined,
           },
@@ -295,8 +323,62 @@ export class TaskLifecycleService {
         client,
       );
 
-      if (nextState === 'completed') {
-        await applyTaskCompletionSideEffects(this.deps.eventService, identity, updatedTask, client);
+      if (resolvedNextState === 'completed' && !updatedTask.is_orchestrator_task) {
+        await applyTaskCompletionSideEffects(
+          this.deps.eventService,
+          this.deps.parallelismService,
+          identity,
+          updatedTask,
+          client,
+        );
+      }
+      if (
+        !updatedTask.is_orchestrator_task &&
+        task.workflow_id &&
+        (resolvedNextState === 'failed' || resolvedNextState === 'output_pending_review') &&
+        (await isPlaybookWorkflow(client, identity.tenantId, task.workflow_id as string))
+      ) {
+        await enqueueWorkflowActivationRecord(client, this.deps.eventService, {
+          tenantId: identity.tenantId,
+          workflowId: task.workflow_id as string,
+          requestId: `task-${resolvedNextState}:${taskId}:${String(updatedTask.updated_at ?? updatedTask.completed_at ?? '')}`,
+          reason: `task.${resolvedNextState}`,
+          eventType: `task.${resolvedNextState}`,
+          payload: {
+            task_id: taskId,
+            task_role: task.role ?? null,
+            task_title: task.title ?? null,
+            work_item_id: task.work_item_id ?? null,
+            stage_name: task.stage_name ?? null,
+          },
+          actorType: 'system',
+          actorId: 'task_lifecycle_service',
+        });
+      }
+      if (
+        this.deps.finalizeOrchestratorActivation &&
+        updatedTask.is_orchestrator_task &&
+        (resolvedNextState === 'completed' || resolvedNextState === 'failed' || resolvedNextState === 'cancelled')
+      ) {
+        await this.deps.finalizeOrchestratorActivation(
+          identity.tenantId,
+          updatedTask,
+          resolvedNextState === 'completed' ? 'completed' : 'failed',
+          client,
+        );
+      }
+      if (
+        this.deps.parallelismService &&
+        !updatedTask.is_orchestrator_task &&
+        typeof updatedTask.workflow_id === 'string' &&
+        releasesParallelismSlot(task.state as TaskState, resolvedNextState)
+      ) {
+        await this.deps.parallelismService.releaseQueuedReadyTasks(
+          this.deps.eventService,
+          identity.tenantId,
+          updatedTask.workflow_id,
+          client,
+        );
       }
       if (options.afterUpdate) {
         await options.afterUpdate(updatedTask, client);
@@ -324,6 +406,30 @@ export class TaskLifecycleService {
     }
   }
 
+  private async resolveNextState(
+    tenantId: string,
+    task: Record<string, unknown>,
+    requestedState: TaskState,
+    client: DatabaseClient,
+  ): Promise<TaskState> {
+    if (!this.deps.parallelismService || requestedState !== 'ready') {
+      return requestedState;
+    }
+
+    const shouldQueue = await this.deps.parallelismService.shouldQueueForCapacity(
+      tenantId,
+      {
+        taskId: String(task.id),
+        workflowId: (task.workflow_id as string | null | undefined) ?? null,
+        workItemId: (task.work_item_id as string | null | undefined) ?? null,
+        isOrchestratorTask: Boolean(task.is_orchestrator_task),
+        currentState: task.state as TaskState,
+      },
+      client,
+    );
+    return shouldQueue ? 'pending' : 'ready';
+  }
+
   async startTask(
     identity: ApiKeyIdentity,
     taskId: string,
@@ -332,7 +438,7 @@ export class TaskLifecycleService {
     const assignment = this.requireLifecycleIdentity(identity, payload);
     const startedAt = payload.started_at ? new Date(payload.started_at) : undefined;
 
-    return this.applyStateTransition(identity, taskId, 'running', {
+    return this.applyStateTransition(identity, taskId, 'in_progress', {
       expectedStates: ['claimed'],
       requireAssignment: assignment,
       reason: 'task_started',
@@ -353,7 +459,7 @@ export class TaskLifecycleService {
     },
   ) {
     const assignment = this.requireLifecycleIdentity(identity, payload);
-    const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
     const outputValidation = validateOutputSchema(payload.output, this.extractOutputSchema(task));
     const verificationPassed = this.readVerificationPassed(payload.verification, payload.metrics);
     const persisted = this.deps.artifactService
@@ -376,7 +482,7 @@ export class TaskLifecycleService {
     try {
       return shouldMoveToOutputReview
         ? await this.applyStateTransition(identity, taskId, 'output_pending_review', {
-            expectedStates: ['running'],
+            expectedStates: ['in_progress'],
             requireAssignment: assignment,
             output: persisted.output,
             metrics: payload.metrics,
@@ -392,7 +498,7 @@ export class TaskLifecycleService {
                 : 'verification_review_required',
           })
         : await this.applyStateTransition(identity, taskId, 'completed', {
-            expectedStates: ['running'],
+            expectedStates: ['in_progress'],
             requireAssignment: assignment,
             output: persisted.output,
             metrics: payload.metrics,
@@ -434,7 +540,7 @@ export class TaskLifecycleService {
     const assignment = identity.scope === 'agent'
       ? this.requireLifecycleIdentity(identity, payload)
       : undefined;
-    const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
     const lifecyclePolicy = readPersistedLifecyclePolicy(task.metadata);
     const failure = classifyFailure(payload.error);
     const retryPlan = buildRetryPlan(task, lifecyclePolicy, failure);
@@ -442,7 +548,7 @@ export class TaskLifecycleService {
     if (retryPlan.shouldRetry) {
       const nextState: TaskState = retryPlan.policy ? 'pending' : 'ready';
       return this.applyStateTransition(identity, taskId, nextState, {
-        expectedStates: ['running', 'claimed'],
+        expectedStates: ['in_progress', 'claimed'],
         requireAssignment: assignment,
         retryIncrement: true,
         clearAssignment: true,
@@ -482,7 +588,7 @@ export class TaskLifecycleService {
     }
 
     return this.applyStateTransition(identity, taskId, 'failed', {
-      expectedStates: ['running', 'claimed'],
+      expectedStates: ['in_progress', 'claimed'],
       requireAssignment: assignment,
       error: payload.error,
       metrics: payload.metrics,
@@ -527,7 +633,7 @@ export class TaskLifecycleService {
     taskId: string,
     payload: { override_input?: Record<string, unknown>; force?: boolean } = {},
   ) {
-    const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
     const expectedStates: TaskState[] = payload.force
       ? [
           'failed',
@@ -537,7 +643,7 @@ export class TaskLifecycleService {
           'pending',
           'awaiting_approval',
           'output_pending_review',
-          'awaiting_escalation',
+          'escalated',
         ]
       : ['failed'];
 
@@ -558,11 +664,11 @@ export class TaskLifecycleService {
   }
 
   async cancelTask(identity: ApiKeyIdentity, taskId: string) {
-    const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
     if (task.state === 'completed') throw new ConflictError('Completed task cannot be cancelled');
 
     if (
-      (task.state === 'claimed' || task.state === 'running') &&
+      (task.state === 'claimed' || task.state === 'in_progress') &&
       typeof task.assigned_worker_id === 'string' &&
       this.deps.queueWorkerCancelSignal
     ) {
@@ -580,10 +686,10 @@ export class TaskLifecycleService {
         'pending',
         'ready',
         'claimed',
-        'running',
+        'in_progress',
         'awaiting_approval',
         'output_pending_review',
-        'awaiting_escalation',
+        'escalated',
         'failed',
       ],
       clearAssignment: true,
@@ -595,7 +701,7 @@ export class TaskLifecycleService {
 
   async rejectTask(identity: ApiKeyIdentity, taskId: string, payload: { feedback: string }) {
     return this.applyStateTransition(identity, taskId, 'failed', {
-      expectedStates: ['awaiting_approval', 'output_pending_review', 'running', 'claimed'],
+      expectedStates: ['awaiting_approval', 'output_pending_review', 'in_progress', 'claimed'],
       clearAssignment: true,
       clearLifecycleControlMetadata: true,
       clearEscalationMetadata: true,
@@ -623,7 +729,7 @@ export class TaskLifecycleService {
       preferred_worker_id?: string;
     },
   ) {
-    const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
     const nextInput = payload.override_input ?? {
       ...asRecord(task.input),
       review_feedback: payload.feedback,
@@ -750,9 +856,9 @@ export class TaskLifecycleService {
     taskId: string,
     payload: { preferred_agent_id?: string; preferred_worker_id?: string; reason: string },
   ) {
-    const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
     if (
-      (task.state === 'claimed' || task.state === 'running') &&
+      (task.state === 'claimed' || task.state === 'in_progress') &&
       typeof task.assigned_worker_id === 'string' &&
       this.deps.queueWorkerCancelSignal
     ) {
@@ -770,7 +876,7 @@ export class TaskLifecycleService {
         'pending',
         'ready',
         'claimed',
-        'running',
+        'in_progress',
         'awaiting_approval',
         'output_pending_review',
         'failed',
@@ -796,7 +902,7 @@ export class TaskLifecycleService {
     taskId: string,
     payload: { reason: string; escalation_target?: string },
   ) {
-    const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
     const existingEscalations = Array.isArray(asRecord(task.metadata).escalations)
       ? (asRecord(task.metadata).escalations as unknown[])
       : [];
@@ -845,7 +951,7 @@ export class TaskLifecycleService {
     taskId: string,
     payload: { instructions: string; context?: Record<string, unknown> },
   ) {
-    const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
     const metadata = asRecord(task.metadata);
     const escalationTaskId =
       typeof metadata.escalation_task_id === 'string' ? metadata.escalation_task_id : null;
@@ -853,7 +959,9 @@ export class TaskLifecycleService {
       throw new ConflictError('Task does not have a pending escalation task');
     }
 
-    const escalationTask = await this.deps.loadTaskOrThrow(identity.tenantId, escalationTaskId);
+    const escalationTask = normalizeTaskRecord(
+      await this.deps.loadTaskOrThrow(identity.tenantId, escalationTaskId),
+    );
     const nextInput = {
       ...asRecord(escalationTask.input),
       human_escalation_response: {
@@ -898,7 +1006,9 @@ export class TaskLifecycleService {
         client,
       );
       await client.query('COMMIT');
-      return this.deps.toTaskResponse(await this.deps.loadTaskOrThrow(identity.tenantId, escalationTaskId));
+      return this.deps.toTaskResponse(
+        normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, escalationTaskId)),
+      );
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -916,7 +1026,7 @@ export class TaskLifecycleService {
       work_so_far?: string;
     },
   ) {
-    const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
     const roleName = typeof task.role === 'string' ? task.role : '';
 
     if (!this.deps.getRoleByName) {
@@ -934,7 +1044,7 @@ export class TaskLifecycleService {
 
     if (currentDepth >= maxDepth) {
       return this.applyStateTransition(identity, taskId, 'failed', {
-        expectedStates: ['running'],
+        expectedStates: ['in_progress'],
         clearAssignment: true,
         clearLifecycleControlMetadata: true,
         error: {
@@ -970,8 +1080,8 @@ export class TaskLifecycleService {
     const escalationTarget = roleDef.escalation_target;
 
     if (escalationTarget === 'human') {
-      return this.applyStateTransition(identity, taskId, 'awaiting_escalation', {
-        expectedStates: ['running'],
+      return this.applyStateTransition(identity, taskId, 'escalated', {
+        expectedStates: ['in_progress'],
         clearAssignment: true,
         clearLifecycleControlMetadata: true,
         metadataPatch: {
@@ -983,6 +1093,16 @@ export class TaskLifecycleService {
           escalation_awaiting_human: true,
         },
         afterUpdate: async (_updatedTask, client) => {
+          await this.enqueuePlaybookActivationIfNeeded(identity, task, 'task.agent_escalated', {
+            task_id: taskId,
+            task_role: task.role ?? null,
+            task_title: task.title ?? null,
+            work_item_id: task.work_item_id ?? null,
+            stage_name: task.stage_name ?? null,
+            escalation_target: 'human',
+            escalation_reason: payload.reason,
+            escalation_context: payload.context_summary ?? null,
+          }, client);
           await this.deps.eventService.emit(
             {
               tenantId: identity.tenantId,
@@ -1006,8 +1126,8 @@ export class TaskLifecycleService {
       });
     }
 
-    return this.applyStateTransition(identity, taskId, 'awaiting_escalation', {
-      expectedStates: ['running'],
+    return this.applyStateTransition(identity, taskId, 'escalated', {
+      expectedStates: ['in_progress'],
       clearAssignment: true,
       clearLifecycleControlMetadata: true,
       metadataPatch: {
@@ -1018,6 +1138,16 @@ export class TaskLifecycleService {
         escalation_depth: currentDepth + 1,
       },
       afterUpdate: async (updatedTask, client) => {
+        await this.enqueuePlaybookActivationIfNeeded(identity, task, 'task.agent_escalated', {
+          task_id: taskId,
+          task_role: task.role ?? null,
+          task_title: task.title ?? null,
+          work_item_id: task.work_item_id ?? null,
+          stage_name: task.stage_name ?? null,
+          escalation_target: escalationTarget,
+          escalation_reason: payload.reason,
+          escalation_context: payload.context_summary ?? null,
+        }, client);
         const escalationTask = await this.createEscalationTaskForRole(
           identity,
           updatedTask,
@@ -1085,8 +1215,8 @@ export class TaskLifecycleService {
       context?: Record<string, unknown>;
     },
   ) {
-    const task = await this.deps.loadTaskOrThrow(identity.tenantId, taskId);
-    if (task.state !== 'awaiting_escalation') {
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+    if (task.state !== 'escalated') {
       throw new ConflictError('Task is not awaiting escalation');
     }
 
@@ -1103,7 +1233,7 @@ export class TaskLifecycleService {
     };
 
     return this.applyStateTransition(identity, taskId, 'ready', {
-      expectedStates: ['awaiting_escalation'],
+      expectedStates: ['escalated'],
       clearAssignment: true,
       clearExecutionData: true,
       clearLifecycleControlMetadata: true,
@@ -1112,6 +1242,15 @@ export class TaskLifecycleService {
         escalation_awaiting_human: null,
       },
       afterUpdate: async (_updatedTask, client) => {
+        await this.enqueuePlaybookActivationIfNeeded(identity, task, 'task.escalation_resolved', {
+          task_id: taskId,
+          task_role: task.role ?? null,
+          task_title: task.title ?? null,
+          work_item_id: task.work_item_id ?? null,
+          stage_name: task.stage_name ?? null,
+          resolved_by: 'human',
+          resolution_preview: payload.instructions.slice(0, 200),
+        }, client);
         await this.deps.eventService.emit(
           {
             tenantId: identity.tenantId,
@@ -1132,6 +1271,33 @@ export class TaskLifecycleService {
     });
   }
 
+  private async enqueuePlaybookActivationIfNeeded(
+    identity: ApiKeyIdentity,
+    task: Record<string, unknown>,
+    eventType: string,
+    payload: Record<string, unknown>,
+    client: DatabaseClient,
+  ): Promise<void> {
+    if (
+      task.is_orchestrator_task ||
+      typeof task.workflow_id !== 'string' ||
+      !(await isPlaybookWorkflow(client, identity.tenantId, task.workflow_id))
+    ) {
+      return;
+    }
+
+    await enqueueWorkflowActivationRecord(client, this.deps.eventService, {
+      tenantId: identity.tenantId,
+      workflowId: task.workflow_id,
+      requestId: `${eventType}:${String(task.id)}:${new Date().toISOString()}`,
+      reason: eventType,
+      eventType,
+      payload,
+      actorType: 'system',
+      actorId: 'task_lifecycle_service',
+    });
+  }
+
   private async maybeResolveEscalationSource(
     identity: ApiKeyIdentity,
     completedTask: Record<string, unknown>,
@@ -1147,8 +1313,8 @@ export class TaskLifecycleService {
     );
     if (!sourceTaskRes.rowCount) return;
 
-    const sourceTask = sourceTaskRes.rows[0] as Record<string, unknown>;
-    if (sourceTask.state !== 'awaiting_escalation') return;
+    const sourceTask = normalizeTaskRecord(sourceTaskRes.rows[0] as Record<string, unknown>);
+    if (sourceTask.state !== 'escalated') return;
 
     const currentInput = asRecord(sourceTask.input);
     const nextInput = {
@@ -1178,7 +1344,7 @@ export class TaskLifecycleService {
         actorType: 'system',
         actorId: 'smart_escalation',
         data: {
-          from_state: 'awaiting_escalation',
+          from_state: 'escalated',
           to_state: 'ready',
           reason: 'escalation_resolved',
         },
@@ -1501,4 +1667,11 @@ function buildEscalationTaskInput(
       ? { system_prompt: escalation.instructions }
       : undefined,
   };
+}
+
+function releasesParallelismSlot(previousState: TaskState, nextState: TaskState) {
+  return (
+    ACTIVE_PARALLELISM_SLOT_STATES.includes(previousState) &&
+    !ACTIVE_PARALLELISM_SLOT_STATES.includes(nextState)
+  );
 }

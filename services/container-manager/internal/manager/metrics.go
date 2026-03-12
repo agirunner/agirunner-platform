@@ -4,10 +4,10 @@ import "github.com/prometheus/client_golang/prometheus"
 
 // FleetMetrics holds Prometheus metric collectors for fleet-level observability.
 type FleetMetrics struct {
-	RuntimesTotal      *prometheus.GaugeVec
-	ScalingEventsTotal *prometheus.CounterVec
+	RuntimesTotal       *prometheus.GaugeVec
+	ScalingEventsTotal  *prometheus.CounterVec
 	OrphansCleanedTotal prometheus.Counter
-	Registry           *prometheus.Registry
+	Registry            *prometheus.Registry
 }
 
 // NewFleetMetrics creates and registers all fleet Prometheus metrics.
@@ -16,13 +16,13 @@ func NewFleetMetrics() *FleetMetrics {
 
 	runtimesTotal := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "agirunner_fleet_runtimes_total",
-		Help: "Current number of fleet runtimes by template and state",
-	}, []string{"template_id", "state"})
+		Help: "Current number of fleet runtimes by playbook and state",
+	}, []string{"playbook_id", "state"})
 
 	scalingEventsTotal := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "agirunner_fleet_scaling_events_total",
-		Help: "Cumulative scaling events by template and action",
-	}, []string{"template_id", "action"})
+		Help: "Cumulative scaling events by playbook and action",
+	}, []string{"playbook_id", "action"})
 
 	orphansCleanedTotal := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "agirunner_fleet_orphans_cleaned_total",
@@ -40,8 +40,8 @@ func NewFleetMetrics() *FleetMetrics {
 }
 
 // RecordScalingEvent increments the scaling events counter.
-func (fm *FleetMetrics) RecordScalingEvent(templateID, action string) {
-	fm.ScalingEventsTotal.WithLabelValues(templateID, action).Inc()
+func (fm *FleetMetrics) RecordScalingEvent(playbookID, action string) {
+	fm.ScalingEventsTotal.WithLabelValues(playbookID, action).Inc()
 }
 
 // RecordOrphanCleaned increments the orphan cleanup counter.
@@ -49,9 +49,9 @@ func (fm *FleetMetrics) RecordOrphanCleaned() {
 	fm.OrphansCleanedTotal.Inc()
 }
 
-// SetRuntimeGauge sets the gauge for a given template and state.
-func (fm *FleetMetrics) SetRuntimeGauge(templateID, state string, count float64) {
-	fm.RuntimesTotal.WithLabelValues(templateID, state).Set(count)
+// SetRuntimeGauge sets the gauge for a given playbook and state.
+func (fm *FleetMetrics) SetRuntimeGauge(playbookID, state string, count float64) {
+	fm.RuntimesTotal.WithLabelValues(playbookID, state).Set(count)
 }
 
 // UpdateRuntimeGauges recalculates runtime gauges from current containers and heartbeats.
@@ -60,20 +60,20 @@ func (fm *FleetMetrics) UpdateRuntimeGauges(
 	heartbeats map[string]RuntimeHeartbeat,
 ) {
 	type stateKey struct {
-		templateID string
+		playbookID string
 		state      string
 	}
 	counts := make(map[stateKey]float64)
 
 	for _, c := range containers {
-		templateID := c.Labels[labelDCMTemplateID]
+		playbookID := c.Labels[labelDCMPlaybookID]
 		state := classifyContainerState(c, heartbeats)
-		counts[stateKey{templateID, state}]++
+		counts[stateKey{playbookID, state}]++
 	}
 
 	fm.RuntimesTotal.Reset()
 	for key, count := range counts {
-		fm.RuntimesTotal.WithLabelValues(key.templateID, key.state).Set(count)
+		fm.RuntimesTotal.WithLabelValues(key.playbookID, key.state).Set(count)
 	}
 }
 

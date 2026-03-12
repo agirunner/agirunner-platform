@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import type {
@@ -9,6 +10,20 @@ import type {
 } from '../../services/model-catalog-service.js';
 import { LlmDiscoveryService } from '../../services/llm-discovery-service.js';
 import { getOAuthProfile } from '../../catalogs/oauth-profiles.js';
+
+const roleModelOverrideSchema = z.object({
+  provider: z.string().min(1).max(120),
+  model: z.string().min(1).max(200),
+  reasoning_config: z.record(z.unknown()).nullable().optional(),
+});
+
+const modelOverridesSchema = z.record(z.string().min(1).max(120), roleModelOverrideSchema);
+
+const resolvePreviewSchema = z.object({
+  roles: z.array(z.string().min(1).max(120)).optional(),
+  project_model_overrides: modelOverridesSchema.optional(),
+  workflow_model_overrides: modelOverridesSchema.optional(),
+});
 
 export const llmConfigRoutes: FastifyPluginAsync = async (app) => {
   const service = app.modelCatalogService;
@@ -189,7 +204,7 @@ export const llmConfigRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request, reply) => {
       const params = request.params as { id: string };
-      const provider = await service.getProvider(request.auth!.tenantId, params.id);
+      const provider = await service.getProviderForOperations(request.auth!.tenantId, params.id);
 
       const authMode = (provider.auth_mode as string) ?? 'api_key';
       if (authMode === 'oauth') {
@@ -278,7 +293,193 @@ export const llmConfigRoutes: FastifyPluginAsync = async (app) => {
         return { error: 'No model configured for role' };
       }
 
-      return { data: config };
+      return { data: sanitizeResolvedConfig(config) };
+    },
+  );
+
+  app.post(
+    '/api/v1/config/llm/resolve-preview',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const body = resolvePreviewSchema.parse(request.body ?? {});
+      const projectOverrides = body.project_model_overrides ?? {};
+      const workflowOverrides = body.workflow_model_overrides ?? {};
+      const roles = readRequestedRoles(body.roles, projectOverrides, workflowOverrides);
+      return {
+        data: {
+          roles,
+          project_model_overrides: projectOverrides,
+          workflow_model_overrides: workflowOverrides,
+          effective_models: await resolveEffectiveModels(
+            service,
+            request.auth!.tenantId,
+            roles,
+            projectOverrides,
+            workflowOverrides,
+          ),
+        },
+      };
     },
   );
 };
+
+function readRequestedRoles(
+  roles: string[] | undefined,
+  projectOverrides: Record<string, unknown>,
+  workflowOverrides: Record<string, unknown>,
+) {
+  if (Array.isArray(roles) && roles.length > 0) {
+    return roles;
+  }
+  return Array.from(new Set([...Object.keys(projectOverrides), ...Object.keys(workflowOverrides)]));
+}
+
+async function resolveEffectiveModels(
+  modelCatalogService: {
+    resolveRoleConfig(tenantId: string, roleName: string): Promise<unknown>;
+    listProviders(tenantId: string): Promise<unknown[]>;
+    listModels(tenantId: string, providerId?: string): Promise<unknown[]>;
+    getProviderForOperations(tenantId: string, id: string): Promise<unknown>;
+  },
+  tenantId: string,
+  roles: string[],
+  projectOverrides: Record<string, unknown>,
+  workflowOverrides: Record<string, unknown>,
+) {
+  const providers = (await modelCatalogService.listProviders(tenantId)) as Array<Record<string, unknown>>;
+  const byId = new Map(providers.map((provider) => [String(provider.id), provider]));
+  const byName = new Map(
+    providers.flatMap((provider) => {
+      const record = provider as Record<string, unknown>;
+      const names = [record.name, asRecord(record.metadata).providerType].filter(
+        (value): value is string => typeof value === 'string' && value.length > 0,
+      );
+      return names.map((name) => [name, provider] as const);
+    }),
+  );
+
+  const results: Record<string, unknown> = {};
+  for (const role of roles) {
+    const baseResolved = (await modelCatalogService.resolveRoleConfig(tenantId, role)) as
+      | Record<string, unknown>
+      | null;
+    const workflowOverride = asRecord(workflowOverrides[role]);
+    const projectOverride = asRecord(projectOverrides[role]);
+    const activeOverride = Object.keys(workflowOverride).length > 0 ? workflowOverride : projectOverride;
+    const source =
+      Object.keys(workflowOverride).length > 0
+        ? 'workflow'
+        : Object.keys(projectOverride).length > 0
+          ? 'project'
+          : 'base';
+
+    if (Object.keys(activeOverride).length === 0) {
+      results[role] = {
+        source,
+        resolved: sanitizeResolvedConfig(baseResolved),
+        fallback: baseResolved === null,
+      };
+      continue;
+    }
+
+    const providerRef = String(activeOverride.provider);
+    const provider = byId.get(providerRef) ?? byName.get(providerRef);
+    if (!provider) {
+      results[role] = {
+        source,
+        resolved: sanitizeResolvedConfig(baseResolved),
+        fallback: true,
+        fallback_reason: `provider '${providerRef}' is not available`,
+      };
+      continue;
+    }
+
+    const models = (await modelCatalogService.listModels(
+      tenantId,
+      String(provider.id),
+    )) as Array<Record<string, unknown>>;
+    const model = models.find(
+      (entry) =>
+        String((entry as Record<string, unknown>).model_id) === String(activeOverride.model)
+        && (entry as Record<string, unknown>).is_enabled === true,
+    );
+    if (!model) {
+      results[role] = {
+        source,
+        resolved: sanitizeResolvedConfig(baseResolved),
+        fallback: true,
+        fallback_reason: `model '${String(activeOverride.model)}' is not enabled for provider '${providerRef}'`,
+      };
+      continue;
+    }
+
+    const providerDetails = (await modelCatalogService.getProviderForOperations(
+      tenantId,
+      String((provider as Record<string, unknown>).id),
+    )) as Record<string, unknown>;
+    results[role] = {
+      source,
+      resolved: sanitizeResolvedConfig({
+        provider: {
+          name: providerDetails.name,
+          providerType: asRecord(providerDetails.metadata).providerType ?? providerDetails.name,
+          baseUrl: providerDetails.base_url,
+          authMode: providerDetails.auth_mode ?? 'api_key',
+          providerId: providerDetails.auth_mode === 'oauth' ? providerDetails.id : null,
+        },
+        model: {
+          modelId: model.model_id,
+          contextWindow: model.context_window ?? null,
+          endpointType: model.endpoint_type ?? null,
+          reasoningConfig: model.reasoning_config ?? null,
+        },
+        reasoningConfig:
+          activeOverride.reasoning_config === undefined
+            ? (baseResolved as Record<string, unknown> | null)?.reasoningConfig ?? null
+            : activeOverride.reasoning_config,
+      }),
+      fallback: false,
+    };
+  }
+  return results;
+}
+
+function sanitizeResolvedConfig(value: unknown) {
+  const record = asNullableRecord(value);
+  if (!record) {
+    return value;
+  }
+
+  const provider = asNullableRecord(record.provider);
+  return {
+    ...record,
+    ...(provider ? { provider: sanitizeResolvedProvider(provider) } : {}),
+  };
+}
+
+function sanitizeResolvedProvider(provider: Record<string, unknown>) {
+  const {
+    apiKeySecretRef: _apiKeySecretRef,
+    api_key_secret_ref: _apiKeySecretRefSnake,
+    accessTokenSecret: _accessTokenSecret,
+    extraHeadersSecret: _extraHeadersSecret,
+    oauthConfig: _oauthConfig,
+    oauth_config: _oauthConfigSnake,
+    oauthCredentials: _oauthCredentials,
+    oauth_credentials: _oauthCredentialsSnake,
+    ...safeProvider
+  } = provider;
+  return safeProvider;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function asNullableRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}

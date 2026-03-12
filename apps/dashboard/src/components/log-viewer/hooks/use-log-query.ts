@@ -3,6 +3,7 @@ import { dashboardApi, type LogQueryResponse } from '../../../lib/api.js';
 import { useLogFilters } from './use-log-filters.js';
 
 export function useLogQuery(
+  baseParams: Record<string, string> = {},
   cursor?: string | null,
   enabled = true,
   refetchIntervalMs?: number,
@@ -10,7 +11,7 @@ export function useLogQuery(
 ) {
   const { toQueryParams } = useLogFilters();
 
-  const params = toQueryParams();
+  const params = { ...toQueryParams(), ...baseParams };
   if (cursor) params.cursor = cursor;
   params.per_page = String(perPage);
 

@@ -1,6 +1,7 @@
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import type { LogEntry } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
+import { getCanonicalStageName } from './log-entry-context.js';
 
 export interface LogEntryRowProps {
   entry: LogEntry;
@@ -116,22 +117,29 @@ function formatToolArgs(p: Record<string, unknown>): string {
       return `${path}${size}`;
     }
     case 'file_copy':
-      return [inp.src, inp.dst].filter(Boolean).map((v) => `"${truncate(String(v), 30)}"`).join(' → ');
+      return [inp.src, inp.dst]
+        .filter(Boolean)
+        .map((v) => `"${truncate(String(v), 30)}"`)
+        .join(' → ');
     default: {
       const keys = Object.keys(inp);
       if (keys.length === 0) return '';
       const first = inp[keys[0]];
-      return typeof first === 'string' ? `"${truncate(first, 40)}"` : JSON.stringify(first)?.slice(0, 40) ?? '';
+      return typeof first === 'string'
+        ? `"${truncate(first, 40)}"`
+        : (JSON.stringify(first)?.slice(0, 40) ?? '');
     }
   }
 }
 
 function buildPreview(entry: LogEntry): string {
   const p = entry.payload ?? {};
+  const stageName = getCanonicalStageName(entry);
   switch (entry.category) {
     case 'llm': {
       const parts = [
-        str(p.model), str(p.phase),
+        str(p.model),
+        str(stageName),
         p.input_tokens != null ? `${num(p.input_tokens)}→${num(p.output_tokens)}tok` : '',
         p.cost != null ? `$${num(p.cost)}` : '',
       ];
@@ -147,8 +155,11 @@ function buildPreview(entry: LogEntry): string {
     case 'agent_loop':
       return [
         p.iteration != null ? `iter ${num(p.iteration)}` : '',
+        str(stageName),
         str(p.decision || p.summary || p.approach),
-      ].filter(Boolean).join(' · ');
+      ]
+        .filter(Boolean)
+        .join(' · ');
     case 'task_lifecycle':
       return [
         p.from_state && p.to_state ? `${str(p.from_state)}→${str(p.to_state)}` : str(p.task_status),
@@ -158,27 +169,42 @@ function buildPreview(entry: LogEntry): string {
         str(p.model),
         str(p.image),
         p.reuse_decision ? `${str(p.reuse_decision)} start` : '',
-        str(p.template_name || p.workflow_name),
-      ].filter(Boolean).join(' · ');
+        str(p.workflow_name),
+      ]
+        .filter(Boolean)
+        .join(' · ');
     case 'runtime_lifecycle': {
       const rid = str(p.runtime_id);
       return [
-        str(p.action), rid ? rid.slice(0, 8) : '',
-        str(p.image), str(p.template_name), str(p.reason),
-      ].filter(Boolean).join(' · ');
+        str(p.action),
+        rid ? rid.slice(0, 8) : '',
+        str(p.image),
+        str(p.playbook_name),
+        str(p.reason),
+      ]
+        .filter(Boolean)
+        .join(' · ');
     }
     case 'container':
       return [
-        str(p.action), str(p.image), str(p.template_name), str(p.reason),
+        str(p.action),
+        str(p.image),
+        str(p.playbook_name),
+        str(p.reason),
         p.cpu ? `${str(p.cpu)} cpu` : '',
         p.memory ? str(p.memory) : '',
         p.desired != null ? `${num(p.desired)}/${num(p.actual)}` : '',
-      ].filter(Boolean).join(' · ');
+      ]
+        .filter(Boolean)
+        .join(' · ');
     case 'api':
       return [str(p.method), str(p.path), p.status_code != null ? String(p.status_code) : '']
-        .filter(Boolean).join(' ');
+        .filter(Boolean)
+        .join(' ');
     case 'config':
-      return [str(p.action), p.entity_name ? `"${str(p.entity_name)}"` : ''].filter(Boolean).join(' ');
+      return [str(p.action), p.entity_name ? `"${str(p.entity_name)}"` : '']
+        .filter(Boolean)
+        .join(' ');
     case 'auth':
       return [str(p.auth_type), p.email ? str(p.email) : ''].filter(Boolean).join(' · ');
     default:
@@ -264,14 +290,24 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
 
       {/* Status indicator */}
       <td className="px-0.5 py-1">
-        <span className={cn('text-[11px] leading-none', STATUS_COLOR[entry.status] ?? 'text-muted-foreground')}>
+        <span
+          className={cn(
+            'text-[11px] leading-none',
+            STATUS_COLOR[entry.status] ?? 'text-muted-foreground',
+          )}
+        >
           {STATUS_INDICATOR[entry.status] ?? '○'}
         </span>
       </td>
 
       {/* Level badge */}
       <td className="px-1.5 py-1">
-        <span className={cn('inline-block rounded px-1 py-px text-[11px] leading-tight uppercase font-mono', levelBadge)}>
+        <span
+          className={cn(
+            'inline-block rounded px-1 py-px text-[11px] leading-tight uppercase font-mono',
+            levelBadge,
+          )}
+        >
           {entry.level}
         </span>
       </td>
@@ -283,14 +319,19 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
 
       {/* Category */}
       <td className="px-1.5 py-1">
-        <span className={cn('inline-block rounded px-1 py-px text-[11px] leading-tight font-medium whitespace-nowrap', catStyle)}>
+        <span
+          className={cn(
+            'inline-block rounded px-1 py-px text-[11px] leading-tight font-medium whitespace-nowrap',
+            catStyle,
+          )}
+        >
           {CATEGORY_LABELS[entry.category] ?? entry.category}
         </span>
       </td>
 
       {/* Project */}
       <td className="hidden lg:table-cell px-1.5 py-1">
-        {(entry.project_name || entry.project_id) ? (
+        {entry.project_name || entry.project_id ? (
           <span className="inline-block rounded bg-cyan-50 px-1.5 py-px text-[11px] leading-tight text-cyan-700 font-medium whitespace-nowrap max-w-[120px] truncate">
             {entry.project_name ?? entry.project_id!.slice(0, 8)}
           </span>
@@ -301,7 +342,7 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
 
       {/* Workflow */}
       <td className="hidden lg:table-cell px-1.5 py-1">
-        {(entry.workflow_name || entry.workflow_id) ? (
+        {entry.workflow_name || entry.workflow_id ? (
           <span className="inline-block rounded bg-purple-50 px-1.5 py-px text-[11px] leading-tight text-purple-700 font-medium whitespace-nowrap max-w-[120px] truncate">
             {entry.workflow_name ?? entry.workflow_id!.slice(0, 8)}
           </span>
@@ -322,7 +363,9 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
       </td>
 
       {/* Operation */}
-      <td className={cn('px-1.5 py-1 font-medium max-w-[200px] truncate', isError && 'text-red-600')}>
+      <td
+        className={cn('px-1.5 py-1 font-medium max-w-[200px] truncate', isError && 'text-red-600')}
+      >
         {entry.operation}
       </td>
 

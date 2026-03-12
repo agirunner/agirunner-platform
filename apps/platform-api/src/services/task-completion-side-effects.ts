@@ -1,8 +1,9 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabaseClient } from '../db/database.js';
 import type { TaskState } from '../orchestration/task-state-machine.js';
-import { activateNextWorkflowPhase, readStoredWorkflow } from '../orchestration/workflow-runtime.js';
 import { EventService } from './event-service.js';
+import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
+import { enqueueWorkflowActivationRecord } from './workflow-activation-record.js';
 
 export function validateOutputSchema(output: unknown, schema: Record<string, unknown>): string[] {
   const errors: string[] = [];
@@ -53,6 +54,7 @@ export function validateOutputSchema(output: unknown, schema: Record<string, unk
 
 export async function applyTaskCompletionSideEffects(
   eventService: EventService,
+  parallelismService: PlaybookTaskParallelismService | undefined,
   identity: ApiKeyIdentity,
   task: Record<string, unknown>,
   client: DatabaseClient,
@@ -78,7 +80,7 @@ export async function applyTaskCompletionSideEffects(
 
   const completedTaskId = task.id as string;
   const dependents = await client.query(
-    `SELECT id, depends_on, requires_approval FROM tasks
+    `SELECT id, workflow_id, work_item_id, state, is_orchestrator_task, depends_on, requires_approval FROM tasks
      WHERE tenant_id = $1 AND state = 'pending' AND $2 = ANY(depends_on)`,
     [identity.tenantId, completedTaskId],
   );
@@ -92,7 +94,16 @@ export async function applyTaskCompletionSideEffects(
       continue;
     }
 
-    const nextState: TaskState = dependent.requires_approval ? 'awaiting_approval' : 'ready';
+    const nextState: TaskState = dependent.requires_approval
+      ? 'awaiting_approval'
+      : (await shouldQueueDependentTask(
+          parallelismService,
+          identity.tenantId,
+          dependent as Record<string, unknown>,
+          client,
+        ))
+          ? 'pending'
+          : 'ready';
     await client.query('UPDATE tasks SET state = $3, state_changed_at = now() WHERE tenant_id = $1 AND id = $2', [
       identity.tenantId,
       dependent.id,
@@ -117,139 +128,55 @@ export async function applyTaskCompletionSideEffects(
     return;
   }
 
-  await advanceWorkflowWorkflow(eventService, identity, String(task.workflow_id), client);
+  if (task.is_orchestrator_task) {
+    return;
+  }
 
-  const contextKey = (task.role as string | null) || 'default';
-  await client.query(
-    `UPDATE workflows
-     SET context = jsonb_set(context, $2::text[], $3::jsonb, true),
-         context_size_bytes = octet_length(jsonb_set(context, $2::text[], $3::jsonb, true)::text)
-     WHERE tenant_id = $1
-       AND id = $4
-       AND octet_length(jsonb_set(context, $2::text[], $3::jsonb, true)::text) <= context_max_bytes`,
-    [identity.tenantId, [contextKey], task.output ?? {}, task.workflow_id],
+  const workflowResult = await client.query(
+    'SELECT playbook_id FROM workflows WHERE tenant_id = $1 AND id = $2',
+    [identity.tenantId, task.workflow_id],
   );
+  if (workflowResult.rows[0]?.playbook_id) {
+    await enqueueWorkflowActivationRecord(client, eventService, {
+      tenantId: identity.tenantId,
+      workflowId: String(task.workflow_id),
+      requestId: `task-completed:${task.id}:${String(task.updated_at ?? task.completed_at ?? '')}`,
+      reason: 'task.completed',
+      eventType: 'task.completed',
+      payload: {
+        task_id: task.id,
+        task_role: task.role ?? null,
+        task_title: task.title ?? null,
+        work_item_id: task.work_item_id ?? null,
+        stage_name: task.stage_name ?? null,
+      },
+      actorType: 'system',
+      actorId: 'task_completion_side_effects',
+    });
+    return;
+  }
 }
 
-async function advanceWorkflowWorkflow(
-  eventService: EventService,
-  identity: ApiKeyIdentity,
-  workflowId: string,
+async function shouldQueueDependentTask(
+  parallelismService: PlaybookTaskParallelismService | undefined,
+  tenantId: string,
+  dependent: Record<string, unknown>,
   client: DatabaseClient,
 ) {
-  const workflowResult = await client.query(
-    'SELECT metadata FROM workflows WHERE tenant_id = $1 AND id = $2',
-    [identity.tenantId, workflowId],
-  );
-  const metadata = asRecord(workflowResult.rows[0]?.metadata);
-  const workflow = readStoredWorkflow(metadata.workflow);
-  if (!workflow) {
-    return;
+  if (!parallelismService) {
+    return false;
   }
-
-  const tasksResult = await client.query(
-    'SELECT id, state, depends_on, requires_approval, metadata FROM tasks WHERE tenant_id = $1 AND workflow_id = $2',
-    [identity.tenantId, workflowId],
+  return parallelismService.shouldQueueForCapacity(
+    tenantId,
+    {
+      taskId: String(dependent.id),
+      workflowId: (dependent.workflow_id as string | null | undefined) ?? null,
+      workItemId: (dependent.work_item_id as string | null | undefined) ?? null,
+      isOrchestratorTask: Boolean(dependent.is_orchestrator_task),
+      currentState: dependent.state as TaskState,
+    },
+    client,
   );
-  const tasks = tasksResult.rows.map((row) => row as Record<string, unknown>);
-
-  for (let phaseIndex = 0; phaseIndex < workflow.phases.length; phaseIndex += 1) {
-    const phase = workflow.phases[phaseIndex];
-    const phaseTasks = tasks.filter((candidate) => phase.task_ids.includes(String(candidate.id)));
-    const allCompleted = phaseTasks.length > 0 && phaseTasks.every((candidate) => candidate.state === 'completed');
-
-    if (!allCompleted) {
-      return;
-    }
-
-    await eventService.emit(
-      {
-        tenantId: identity.tenantId,
-        type: 'phase.completed',
-        entityType: 'workflow',
-        entityId: workflowId,
-        actorType: 'system',
-        actorId: 'workflow_resolver',
-        data: {
-          workflow_id: workflowId,
-          phase_name: phase.name,
-          timestamp: new Date().toISOString(),
-        },
-      },
-      client,
-    );
-
-    const nextPhase = workflow.phases[phaseIndex + 1];
-    if (!nextPhase) {
-      return;
-    }
-
-    if (phase.gate === 'manual') {
-      await eventService.emit(
-        {
-          tenantId: identity.tenantId,
-          type: 'phase.gate.awaiting_approval',
-          entityType: 'workflow',
-          entityId: workflowId,
-          actorType: 'system',
-          actorId: 'workflow_resolver',
-          data: {
-            workflow_id: workflowId,
-            phase_name: phase.name,
-            timestamp: new Date().toISOString(),
-          },
-        },
-        client,
-      );
-      return;
-    }
-
-    const activation = await activateNextWorkflowPhase({
-      tenantId: identity.tenantId,
-      workflowId,
-      workflow,
-      currentPhaseName: phase.name,
-      tasks,
-      client,
-    });
-
-    if (activation.activated && activation.phaseName) {
-      for (const nextTask of tasks.filter((candidate) => workflow.phases.find((item) => item.name === activation.phaseName)?.task_ids.includes(String(candidate.id)))) {
-        if (nextTask.state !== 'ready' && nextTask.state !== 'awaiting_approval') {
-          continue;
-        }
-        await eventService.emit(
-          {
-            tenantId: identity.tenantId,
-            type: 'task.state_changed',
-            entityType: 'task',
-            entityId: String(nextTask.id),
-            actorType: 'system',
-            actorId: 'workflow_resolver',
-            data: { from_state: 'pending', to_state: String(nextTask.state) },
-          },
-          client,
-        );
-      }
-      await eventService.emit(
-        {
-          tenantId: identity.tenantId,
-          type: 'phase.started',
-          entityType: 'workflow',
-          entityId: workflowId,
-          actorType: 'system',
-          actorId: 'workflow_resolver',
-          data: {
-            workflow_id: workflowId,
-            phase_name: activation.phaseName,
-            timestamp: new Date().toISOString(),
-          },
-        },
-        client,
-      );
-    }
-    return;
-  }
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

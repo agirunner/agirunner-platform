@@ -1,9 +1,11 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { AppEnv } from '../config/schema.js';
-import type { DatabasePool } from '../db/database.js';
+import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { TenantScopedRepository, type TenantRow } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import { readModelOverride, type ModelOverride } from './config-hierarchy-service.js';
 import { EventService } from './event-service.js';
+import type { ProjectMemoryMutationContext } from './project-memory-scope-service.js';
 import { encryptWebhookSecret, decryptWebhookSecret } from './webhook-secret-crypto.js';
 
 interface ProjectListQuery {
@@ -32,6 +34,8 @@ interface UpdateProjectInput {
 }
 
 type ProjectRow = TenantRow & Record<string, unknown>;
+const PROJECT_MEMORY_SECRET_REDACTION = 'redacted://project-memory-secret';
+const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
 
 function byteLengthJson(value: Record<string, unknown>): number {
   return Buffer.byteLength(JSON.stringify(value), 'utf8');
@@ -42,6 +46,44 @@ function normalizeRecord(value: unknown): Record<string, unknown> {
     return {};
   }
   return value as Record<string, unknown>;
+}
+
+function sanitizeMemoryEventValue(key: string, value: unknown): unknown {
+  return sanitizeSecretLikeValue(value, isSecretLikeKey(key));
+}
+
+function sanitizeSecretLikeValue(value: unknown, inheritedSecret: boolean): unknown {
+  if (typeof value === 'string') {
+    return inheritedSecret && !isSecretReference(value)
+      ? PROJECT_MEMORY_SECRET_REDACTION
+      : value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeSecretLikeValue(item, inheritedSecret));
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  const sanitized: Record<string, unknown> = {};
+  for (const [nestedKey, nestedValue] of Object.entries(value as Record<string, unknown>)) {
+    sanitized[nestedKey] = sanitizeSecretLikeValue(
+      nestedValue,
+      inheritedSecret || isSecretLikeKey(nestedKey),
+    );
+  }
+  return sanitized;
+}
+
+function isSecretReference(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return normalized.startsWith('secret:') || normalized.startsWith('redacted://');
+}
+
+function isSecretLikeKey(key: string): boolean {
+  return secretLikeKeyPattern.test(key);
 }
 
 function isUniqueViolation(error: unknown, constraint: string): boolean {
@@ -80,6 +122,8 @@ export class ProjectService {
   async createProject(identity: ApiKeyIdentity, input: CreateProjectInput) {
     const memory = normalizeRecord(input.memory);
     const memorySizeBytes = byteLengthJson(memory);
+    const settings = normalizeRecord(input.settings);
+    await this.validateProjectSettings(identity.tenantId, settings);
 
     try {
       const result = await this.pool.query<Record<string, unknown>>(
@@ -93,7 +137,7 @@ export class ProjectService {
           input.slug,
           input.description ?? null,
           input.repository_url ?? null,
-          normalizeRecord(input.settings),
+          settings,
           memory,
           memorySizeBytes,
         ],
@@ -176,6 +220,7 @@ export class ProjectService {
       input.settings !== undefined
         ? normalizeRecord(input.settings)
         : normalizeRecord(existing.settings);
+    await this.validateProjectSettings(identity.tenantId, settings);
 
     try {
       const result = await this.pool.query<Record<string, unknown>>(
@@ -232,7 +277,8 @@ export class ProjectService {
   async patchProjectMemory(
     identity: ApiKeyIdentity,
     projectId: string,
-    patch: { key: string; value?: unknown },
+    patch: { key: string; value?: unknown; context?: ProjectMemoryMutationContext },
+    client?: DatabaseClient,
   ) {
     const project = await this.getProject(identity.tenantId, projectId);
     const currentMemory = normalizeRecord(project.memory);
@@ -251,7 +297,8 @@ export class ProjectService {
       });
     }
 
-    const result = await this.pool.query<Record<string, unknown>>(
+    const db = client ?? this.pool;
+    const result = await db.query<Record<string, unknown>>(
       `UPDATE projects
        SET memory = $3,
            memory_size_bytes = $4,
@@ -263,18 +310,81 @@ export class ProjectService {
 
     const updatedProject = result.rows[0] as ProjectRow;
 
-    await this.eventService.emit({
-      tenantId: identity.tenantId,
-      type: 'project.memory_updated',
-      entityType: 'project',
-      entityId: projectId,
-      actorType: identity.scope,
-      actorId: identity.keyPrefix,
-      data: {
-        key: patch.key,
-        memory_size_bytes: memorySizeBytes,
+    await this.eventService.emit(
+      {
+        tenantId: identity.tenantId,
+        type: 'project.memory_updated',
+        entityType: 'project',
+        entityId: projectId,
+        actorType: identity.scope,
+        actorId: identity.keyPrefix,
+        data: {
+          key: patch.key,
+          value: sanitizeMemoryEventValue(patch.key, patch.value),
+          project_id: projectId,
+          workflow_id: patch.context?.workflow_id ?? null,
+          work_item_id: patch.context?.work_item_id ?? null,
+          task_id: patch.context?.task_id ?? null,
+          stage_name: patch.context?.stage_name ?? null,
+          memory_size_bytes: memorySizeBytes,
+        },
       },
-    });
+      client,
+    );
+
+    return redactWebhookSecret(updatedProject);
+  }
+
+  async removeProjectMemory(
+    identity: ApiKeyIdentity,
+    projectId: string,
+    key: string,
+    client?: DatabaseClient,
+    context?: ProjectMemoryMutationContext,
+  ) {
+    const project = await this.getProject(identity.tenantId, projectId);
+    const currentMemory = normalizeRecord(project.memory);
+    if (!(key in currentMemory)) {
+      return project;
+    }
+
+    const nextMemory = { ...currentMemory };
+    delete nextMemory[key];
+    const memorySizeBytes = byteLengthJson(nextMemory);
+
+    const db = client ?? this.pool;
+    const result = await db.query<Record<string, unknown>>(
+      `UPDATE projects
+       SET memory = $3,
+           memory_size_bytes = $4,
+           updated_at = now()
+       WHERE tenant_id = $1 AND id = $2
+       RETURNING *`,
+      [identity.tenantId, projectId, nextMemory, memorySizeBytes],
+    );
+
+    const updatedProject = result.rows[0] as ProjectRow;
+    await this.eventService.emit(
+      {
+        tenantId: identity.tenantId,
+        type: 'project.memory_deleted',
+        entityType: 'project',
+        entityId: projectId,
+        actorType: identity.scope,
+        actorId: identity.keyPrefix,
+        data: {
+          key,
+          deleted_value: sanitizeMemoryEventValue(key, currentMemory[key]),
+          project_id: projectId,
+          workflow_id: context?.workflow_id ?? null,
+          work_item_id: context?.work_item_id ?? null,
+          task_id: context?.task_id ?? null,
+          stage_name: context?.stage_name ?? null,
+          memory_size_bytes: memorySizeBytes,
+        },
+      },
+      client,
+    );
 
     return redactWebhookSecret(updatedProject);
   }
@@ -390,6 +500,37 @@ export class ProjectService {
     );
 
     return result.rowCount ? result.rows[0] : null;
+  }
+
+  async getProjectModelOverride(
+    tenantId: string,
+    projectId: string,
+  ): Promise<ModelOverride | null> {
+    const project = await this.getProject(tenantId, projectId);
+    return readModelOverride(normalizeRecord(project.settings).model_override, 'project model_override');
+  }
+
+  private async validateProjectSettings(tenantId: string, settings: Record<string, unknown>): Promise<void> {
+    const modelOverride = readModelOverride(settings.model_override, 'project model_override');
+    if (!modelOverride?.model_id) {
+      return;
+    }
+
+    const result = await this.pool.query(
+      `SELECT 1
+         FROM llm_models m
+         JOIN llm_providers p
+           ON p.id = m.provider_id
+        WHERE m.tenant_id = $1
+          AND m.id = $2
+          AND m.is_enabled = true
+          AND p.is_enabled = true
+        LIMIT 1`,
+      [tenantId, modelOverride.model_id],
+    );
+    if (!result.rowCount) {
+      throw new ValidationError('project.settings.model_override.model_id must reference an enabled model');
+    }
   }
 }
 

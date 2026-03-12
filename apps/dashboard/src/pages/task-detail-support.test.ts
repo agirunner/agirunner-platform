@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  normalizeTaskState,
   parseJsonObject,
   readClarificationAnswers,
   readClarificationHistory,
@@ -15,6 +16,13 @@ describe('task detail lifecycle support', () => {
       error: null,
     });
     expect(parseJsonObject('[]', 'bad').error).toBe('bad');
+  });
+
+  it('normalizes legacy task lifecycle labels to v2 operator language', () => {
+    expect(normalizeTaskState('running')).toBe('in_progress');
+    expect(normalizeTaskState('claimed')).toBe('in_progress');
+    expect(normalizeTaskState('awaiting_escalation')).toBe('escalated');
+    expect(normalizeTaskState('awaiting_approval')).toBe('awaiting_approval');
   });
 
   it('reads clarification history and answers from task input', () => {

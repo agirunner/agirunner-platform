@@ -34,6 +34,7 @@ describe('a2a service mapping', () => {
   it('maps platform task states and events to A2A-facing status values', () => {
     expect(buildA2ATaskResponse({ id: 'task-1', state: 'ready', metadata: {} }).status).toBe('submitted');
     expect(buildA2ATaskResponse({ id: 'task-1', state: 'awaiting_approval', metadata: {} }).status).toBe('input-required');
+    expect(buildA2ATaskResponse({ id: 'task-1', state: 'escalated', metadata: {} }).status).toBe('input-required');
     expect(buildA2ATaskResponse({ id: 'task-1', state: 'completed', metadata: {}, output: { ok: true } }).status).toBe('completed');
 
     expect(
@@ -42,8 +43,17 @@ describe('a2a service mapping', () => {
         type: 'task.state_changed',
         entity_id: 'task-1',
         created_at: '2026-03-07T00:00:00.000Z',
-        data: { to_state: 'running' },
+        data: { to_state: 'in_progress' },
       }).status,
     ).toBe('working');
+    expect(
+      buildA2AStreamEvent({
+        id: 2,
+        type: 'task.state_changed',
+        entity_id: 'task-1',
+        created_at: '2026-03-07T00:00:01.000Z',
+        data: { to_state: 'awaiting_escalation' },
+      }).status,
+    ).toBe('input-required');
   });
 });

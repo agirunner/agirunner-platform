@@ -1,17 +1,19 @@
 /**
  * Configuration seeding — idempotent first-run setup.
  *
- * Seeds role definitions, runtime defaults, built-in templates, and the admin user.
+ * Seeds role definitions, runtime defaults, built-in playbooks, and the admin user.
  * Skips seeding if roles already exist for the default tenant.
  */
 import type pg from 'pg';
 
 import {
+  BUILT_IN_PLAYBOOKS,
+} from '../catalogs/built-in-playbooks.js';
+import {
   loadBuiltInRolesConfig,
   type BuiltInRolesConfig,
   type RoleName,
 } from '../catalogs/built-in-roles.js';
-import { BUILT_IN_TEMPLATES } from '../catalogs/built-in-templates.js';
 import { RoleDefinitionService } from '../services/role-definition-service.js';
 import { RuntimeDefaultsService } from '../services/runtime-defaults-service.js';
 import { UserService } from '../services/user-service.js';
@@ -24,7 +26,7 @@ import { DEFAULT_TENANT_ID } from '../db/seed.js';
 export async function seedConfigTables(pool: pg.Pool): Promise<void> {
   await seedRolesAndDefaults(pool);
   await seedAdminUser(pool);
-  await seedBuiltInTemplates(pool);
+  await seedBuiltInPlaybooks(pool);
 }
 
 // ---------------------------------------------------------------------------
@@ -44,6 +46,7 @@ async function seedRolesAndDefaults(pool: pg.Pool): Promise<void> {
     console.info('[seed] Role definitions and runtime defaults seeded.');
   } else {
     await seedMissingRoles(roleService, rolesConfig, existingRoles);
+    await syncBuiltInRoleTools(roleService, rolesConfig, existingRoles);
   }
 }
 
@@ -69,6 +72,35 @@ async function seedMissingRoles(
       isActive: true,
     });
     console.info(`[seed] Added missing role: ${name}`);
+  }
+}
+
+async function syncBuiltInRoleTools(
+  service: RoleDefinitionService,
+  config: BuiltInRolesConfig,
+  existingRoles: Array<{ name: string }>,
+): Promise<void> {
+  for (const existing of existingRoles) {
+    const roleConfig = config.roles[existing.name as RoleName];
+    if (!roleConfig) {
+      continue;
+    }
+    const stored = await service.getRoleByName(DEFAULT_TENANT_ID, existing.name);
+    if (!stored?.is_built_in) {
+      continue;
+    }
+    const mergedAllowedTools = [...new Set([...(stored.allowed_tools ?? []), ...roleConfig.allowedTools])];
+    const mergedCapabilities = [...new Set([...(stored.capabilities ?? []), ...roleConfig.capabilities])];
+    const toolsChanged = mergedAllowedTools.length !== (stored.allowed_tools ?? []).length;
+    const capabilitiesChanged = mergedCapabilities.length !== (stored.capabilities ?? []).length;
+    if (!toolsChanged && !capabilitiesChanged) {
+      continue;
+    }
+    await service.updateRole(DEFAULT_TENANT_ID, stored.id, {
+      allowedTools: mergedAllowedTools,
+      capabilities: mergedCapabilities,
+    });
+    console.info(`[seed] Synced built-in role tools: ${existing.name}`);
   }
 }
 
@@ -162,27 +194,30 @@ async function seedAdminUser(pool: pg.Pool): Promise<void> {
   console.info(`[seed] Admin user created: ${email}`);
 }
 
-// ---------------------------------------------------------------------------
-// Built-in templates
-// ---------------------------------------------------------------------------
-
-async function seedBuiltInTemplates(pool: pg.Pool): Promise<void> {
-  for (const template of BUILT_IN_TEMPLATES) {
+async function seedBuiltInPlaybooks(pool: pg.Pool): Promise<void> {
+  for (const playbook of BUILT_IN_PLAYBOOKS) {
     const existing = await pool.query(
-      'SELECT id FROM templates WHERE tenant_id = $1 AND slug = $2 LIMIT 1',
-      [DEFAULT_TENANT_ID, template.slug],
+      'SELECT id FROM playbooks WHERE tenant_id = $1 AND slug = $2 AND version = 1 LIMIT 1',
+      [DEFAULT_TENANT_ID, playbook.slug],
     );
-
     if (existing.rowCount && existing.rowCount > 0) {
       continue;
     }
 
     await pool.query(
-      `INSERT INTO templates (tenant_id, name, slug, description, version, is_built_in, is_published, schema)
-       VALUES ($1, $2, $3, $4, 1, true, true, $5)`,
-      [DEFAULT_TENANT_ID, template.name, template.slug, template.description, JSON.stringify(template.schema)],
+      `INSERT INTO playbooks (tenant_id, name, slug, description, outcome, lifecycle, version, definition, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, 1, $7, true)`,
+      [
+        DEFAULT_TENANT_ID,
+        playbook.name,
+        playbook.slug,
+        playbook.description,
+        playbook.outcome,
+        playbook.lifecycle,
+        playbook.definition,
+      ],
     );
 
-    console.info(`[seed] Built-in template seeded: ${template.slug}`);
+    console.info(`[seed] Built-in playbook seeded: ${playbook.slug}`);
   }
 }

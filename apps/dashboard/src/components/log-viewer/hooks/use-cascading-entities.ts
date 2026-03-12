@@ -9,7 +9,6 @@ interface WorkflowRecord {
   status?: string;
   project_id?: string;
   project?: { id: string; name: string } | null;
-  template?: { name: string } | null;
 }
 
 interface TaskRecord {
@@ -103,7 +102,7 @@ export function useCascadingEntities(
       (workflowsQuery.data ?? []).map((w) => ({
         id: w.id,
         label: w.name ?? w.id,
-        subtitle: w.project?.name ?? w.template?.name ?? undefined,
+        subtitle: w.project?.name ?? undefined,
         status: normalizeStatus(w.status),
       })),
     [workflowsQuery.data],

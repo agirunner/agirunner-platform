@@ -26,6 +26,42 @@ interface ArtifactRow {
   created_at: Date;
 }
 
+interface ArtifactPreviewDescriptor {
+  isPreviewEligible: boolean;
+  previewMode: 'text' | 'image' | 'pdf' | 'unsupported';
+}
+
+const ARTIFACT_METADATA_SECRET_REDACTION = 'redacted://artifact-metadata-secret';
+const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
+
+export interface ArtifactResponse {
+  id: string;
+  workflow_id: string | null;
+  project_id: string | null;
+  task_id: string;
+  logical_path: string;
+  content_type: string;
+  size_bytes: number;
+  checksum_sha256: string;
+  metadata: Record<string, unknown>;
+  retention_policy: Record<string, unknown>;
+  expires_at: string | null;
+  created_at: string;
+  download_url: string;
+  preview_url: string | null;
+  permalink_url: string | null;
+  preview_eligible: boolean;
+  preview_mode: ArtifactPreviewDescriptor['previewMode'];
+  storage_backend: string;
+}
+
+export interface ArtifactPreviewResult {
+  artifact: ArtifactResponse;
+  contentType: string;
+  data: Buffer;
+  fileName: string;
+}
+
 interface TaskScopeRow {
   id: string;
   tenant_id: string;
@@ -48,6 +84,7 @@ export class ArtifactService {
     private readonly pool: DatabasePool,
     private readonly storage: ArtifactStorageAdapter,
     private readonly accessUrlTtlSeconds: number,
+    private readonly previewMaxBytes = 1024 * 1024,
   ) {
     this.retention = new ArtifactRetentionService(pool, storage);
   }
@@ -115,9 +152,27 @@ export class ArtifactService {
     const row = await this.loadArtifact(tenantId, taskId, artifactId);
     const payload = await this.storage.getObject(row.storage_key);
     return {
-      artifact: this.toArtifactResponse(row),
+      artifact: await this.toArtifactResponse(row),
       contentType: row.content_type || payload.contentType,
       data: payload.data,
+    };
+  }
+
+  async previewTaskArtifact(
+    tenantId: string,
+    taskId: string,
+    artifactId: string,
+  ): Promise<ArtifactPreviewResult> {
+    await this.retention.purgeExpiredArtifacts(tenantId);
+    const row = await this.loadArtifact(tenantId, taskId, artifactId);
+    assertArtifactPreviewEligible(row.content_type, Number(row.size_bytes), this.previewMaxBytes);
+    const payload = await this.storage.getObject(row.storage_key);
+
+    return {
+      artifact: await this.toArtifactResponse(row),
+      contentType: row.content_type || payload.contentType,
+      data: payload.data,
+      fileName: artifactFileName(row.logical_path, row.id),
     };
   }
 
@@ -169,8 +224,12 @@ export class ArtifactService {
     return artifact;
   }
 
-  private async toArtifactResponse(row: ArtifactRow) {
-    const access = await this.storage.createAccessUrl(row.storage_key, this.accessUrlTtlSeconds);
+  private async toArtifactResponse(row: ArtifactRow): Promise<ArtifactResponse> {
+    const preview = describeArtifactPreview(
+      row.content_type,
+      Number(row.size_bytes),
+      this.previewMaxBytes,
+    );
     return {
       id: row.id,
       workflow_id: row.workflow_id,
@@ -180,16 +239,72 @@ export class ArtifactService {
       content_type: row.content_type,
       size_bytes: Number(row.size_bytes),
       checksum_sha256: row.checksum_sha256,
-      metadata: row.metadata ?? {},
+      metadata: sanitizeArtifactMetadata(row.metadata ?? {}),
       retention_policy: row.retention_policy ?? {},
       expires_at: row.expires_at?.toISOString() ?? null,
       created_at: row.created_at.toISOString(),
       download_url: `/api/v1/tasks/${row.task_id}/artifacts/${row.id}`,
-      access_url: access.url,
-      access_url_expires_at: access.expiresAt?.toISOString() ?? null,
+      preview_url: preview.isPreviewEligible
+        ? `/api/v1/tasks/${row.task_id}/artifacts/${row.id}/preview`
+        : null,
+      permalink_url: preview.isPreviewEligible
+        ? `/api/v1/tasks/${row.task_id}/artifacts/${row.id}/permalink`
+        : null,
+      preview_eligible: preview.isPreviewEligible,
+      preview_mode: preview.previewMode,
       storage_backend: row.storage_backend,
     };
   }
+}
+
+export function describeArtifactPreview(
+  contentType: string,
+  sizeBytes: number,
+  maxBytes: number,
+): ArtifactPreviewDescriptor {
+  if (sizeBytes > maxBytes) {
+    return { isPreviewEligible: false, previewMode: 'unsupported' };
+  }
+
+  const normalized = normalizeContentType(contentType);
+  if (
+    normalized.startsWith('text/plain') ||
+    normalized.startsWith('text/markdown') ||
+    normalized.startsWith('text/csv') ||
+    normalized.startsWith('application/json') ||
+    normalized.startsWith('application/ld+json') ||
+    normalized.startsWith('application/x-yaml') ||
+    normalized.startsWith('application/yaml') ||
+    normalized.startsWith('text/yaml')
+  ) {
+    return { isPreviewEligible: true, previewMode: 'text' };
+  }
+  if (normalized.startsWith('image/')) {
+    return { isPreviewEligible: true, previewMode: 'image' };
+  }
+  if (normalized.startsWith('application/pdf')) {
+    return { isPreviewEligible: true, previewMode: 'pdf' };
+  }
+  return { isPreviewEligible: false, previewMode: 'unsupported' };
+}
+
+export function assertArtifactPreviewEligible(
+  contentType: string,
+  sizeBytes: number,
+  maxBytes: number,
+): void {
+  if (!describeArtifactPreview(contentType, sizeBytes, maxBytes).isPreviewEligible) {
+    throw new ValidationError('Artifact is not eligible for inline preview');
+  }
+}
+
+function normalizeContentType(contentType: string): string {
+  return contentType.trim().toLowerCase().split(';', 1)[0] ?? '';
+}
+
+function artifactFileName(logicalPath: string, artifactId: string): string {
+  const candidate = path.posix.basename(logicalPath);
+  return candidate && candidate !== '/' ? candidate : artifactId;
 }
 
 function sanitizeArtifactPath(value: string): string {
@@ -218,6 +333,45 @@ function decodeArtifactPayload(contentBase64: string): Buffer {
     }
     throw new ValidationError('Artifact payload must be valid base64');
   }
+}
+
+function sanitizeArtifactMetadata(metadata: Record<string, unknown>): Record<string, unknown> {
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(metadata)) {
+    sanitized[key] = sanitizeMetadataValue(value, isSecretLikeKey(key));
+  }
+  return sanitized;
+}
+
+function sanitizeMetadataValue(value: unknown, inheritedSecret: boolean): unknown {
+  if (typeof value === 'string') {
+    return inheritedSecret && !isSecretReference(value)
+      ? ARTIFACT_METADATA_SECRET_REDACTION
+      : value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeMetadataValue(item, inheritedSecret));
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
+    sanitized[key] = sanitizeMetadataValue(nestedValue, inheritedSecret || isSecretLikeKey(key));
+  }
+  return sanitized;
+}
+
+function isSecretLikeKey(key: string): boolean {
+  return secretLikeKeyPattern.test(key);
+}
+
+function isSecretReference(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return normalized.startsWith('secret:') || normalized.startsWith('redacted://');
 }
 
 function buildStorageKey(

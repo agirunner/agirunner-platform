@@ -1,0 +1,111 @@
+import type { LogEntry } from '../lib/api.js';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card.js';
+import { Badge } from './ui/badge.js';
+import { StructuredRecordView } from './structured-data.js';
+import { shortId, summarizeLogContext } from './execution-inspector-support.js';
+
+interface ExecutionInspectorDebugViewProps {
+  entry: LogEntry | null;
+}
+
+export function ExecutionInspectorDebugView(
+  props: ExecutionInspectorDebugViewProps,
+): JSX.Element {
+  if (!props.entry) {
+    return (
+      <Card>
+        <CardContent className="p-5 text-sm text-muted">
+          Select an execution entry from the detailed view to inspect raw payloads and identifiers.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const context = summarizeLogContext(props.entry);
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between gap-3">
+            <span>{props.entry.operation}</span>
+            <Badge variant="secondary">{props.entry.status}</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <InspectorMeta label="Created">
+              {new Date(props.entry.created_at).toLocaleString()}
+            </InspectorMeta>
+            <InspectorMeta label="Source">
+              {props.entry.source} / {props.entry.category}
+            </InspectorMeta>
+            <InspectorMeta label="Trace ID">{props.entry.trace_id}</InspectorMeta>
+            <InspectorMeta label="Span ID">{props.entry.span_id}</InspectorMeta>
+            {props.entry.parent_span_id ? (
+              <InspectorMeta label="Parent Span ID">{props.entry.parent_span_id}</InspectorMeta>
+            ) : null}
+            {props.entry.resource_type || props.entry.resource_id ? (
+              <InspectorMeta label="Resource">
+                {props.entry.resource_type ?? 'resource'} {shortId(props.entry.resource_id)}
+              </InspectorMeta>
+            ) : null}
+          </div>
+
+          {context.length > 0 ? (
+            <div className="space-y-2">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted">
+                Execution context
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {context.map((item) => (
+                  <Badge key={item} variant="outline">
+                    {item}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {props.entry.error ? (
+            <div className="space-y-2">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted">
+                Error
+              </div>
+              <StructuredRecordView
+                data={props.entry.error}
+                emptyMessage="No error payload."
+              />
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Payload</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <StructuredRecordView
+            data={props.entry.payload ?? {}}
+            emptyMessage="No structured payload recorded for this execution entry."
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function InspectorMeta(props: {
+  label: string;
+  children: React.ReactNode;
+}): JSX.Element {
+  return (
+    <div className="rounded-md border bg-border/10 p-3">
+      <div className="text-xs font-medium uppercase tracking-wide text-muted">
+        {props.label}
+      </div>
+      <div className="mt-1 break-all text-sm">{props.children}</div>
+    </div>
+  );
+}
