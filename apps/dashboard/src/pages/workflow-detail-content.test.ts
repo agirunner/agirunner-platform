@@ -21,10 +21,14 @@ describe('workflow detail content source', () => {
     expect(source).toContain('Input');
     expect(source).toContain('ChainStructuredEntryEditor');
     expect(source).toContain('DocumentCard');
+    expect(source).toContain('ProjectMemoryEntryCard');
+    expect(source).toContain('describeProjectMemoryEntry');
     expect(source).toContain('SurfaceMessage');
     expect(source).toContain('MemoryDraftPreview');
     expect(source).toContain('Structured preview');
     expect(source).toContain('Add memory field');
+    expect(source).toContain('Show structured detail');
+    expect(source).toContain('Hide structured detail');
     expect(source).not.toContain('Enter an object-shaped JSON payload.');
   });
 

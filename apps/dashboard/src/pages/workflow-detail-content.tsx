@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import type {
   DashboardProjectRecord,
@@ -17,6 +17,7 @@ import {
 } from '../components/ui/card.js';
 import { Input } from '../components/ui/input.js';
 import type { DashboardProjectMemoryEntry } from './workflow-detail-support.js';
+import { describeProjectMemoryEntry } from './workflow-detail-content-support.js';
 import {
   buildStructuredObject,
   type StructuredEntryDraft,
@@ -115,18 +116,7 @@ export function ProjectMemoryCard(props: {
         ) : null}
         <div className="grid gap-3">
           {props.entries.map((entry) => (
-            <Card key={entry.key} className="border-border/70 bg-border/10 shadow-none">
-              <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-3">
-                <div className="grid gap-1">
-                  <CardTitle className="text-base">{entry.key}</CardTitle>
-                  <CardDescription>Shared operator memory entry</CardDescription>
-                </div>
-                <Badge variant="outline">Memory</Badge>
-              </CardHeader>
-              <CardContent>
-                <StructuredRecordView data={entry.value} emptyMessage="No memory payload." />
-              </CardContent>
-            </Card>
+            <ProjectMemoryEntryCard key={entry.key} entry={entry} />
           ))}
           {props.entries.length === 0 && !props.isLoading && !props.hasError ? (
             <div className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted">
@@ -178,6 +168,64 @@ export function ProjectMemoryCard(props: {
             </Button>
           </div>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProjectMemoryEntryCard(props: {
+  entry: DashboardProjectMemoryEntry;
+}): JSX.Element {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const packet = describeProjectMemoryEntry(props.entry.value);
+
+  return (
+    <Card className="border-border/70 bg-border/10 shadow-none">
+      <CardHeader className="gap-3 pb-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="grid gap-1">
+            <CardTitle className="text-base">{props.entry.key}</CardTitle>
+            <CardDescription>Shared operator memory entry</CardDescription>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline">Memory</Badge>
+            <Badge variant="secondary">{packet.typeLabel}</Badge>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <div className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+          <div className="grid gap-2">
+            <div className="text-sm font-semibold text-foreground">{packet.summary}</div>
+            <p className="text-sm leading-6 text-muted">{packet.detail}</p>
+          </div>
+          {packet.badges.length > 0 ? (
+            <div className="flex flex-wrap gap-2 sm:justify-end">
+              {packet.badges.map((badge) => (
+                <Badge key={badge} variant="outline">
+                  {badge}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        {packet.hasStructuredDetail ? (
+          <div className="grid gap-3">
+            <div className="flex justify-start">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsExpanded((current) => !current)}
+              >
+                {isExpanded ? 'Hide structured detail' : 'Show structured detail'}
+              </Button>
+            </div>
+            {isExpanded ? (
+              <StructuredRecordView data={props.entry.value} emptyMessage="No memory payload." />
+            ) : null}
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
