@@ -17,11 +17,18 @@ import {
 
 import { dashboardApi, type DashboardApprovalQueueResponse } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card.js';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+} from '../../components/ui/card.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs.js';
 import { GateDetailCard } from '../work/gate-detail-card.js';
+import { buildApprovalQueueSummary } from './alerts-approvals-page.support.js';
 
 interface TaskRecord {
   id: string;
@@ -82,6 +89,54 @@ function formatOutput(output: unknown): string {
   if (output == null) return '';
   if (typeof output === 'string') return output;
   return JSON.stringify(output, null, 2);
+}
+
+function QueueSummaryCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: number;
+  detail: string;
+}) {
+  return (
+    <Card className="border-border/70 bg-card/80 shadow-sm">
+      <CardContent className="space-y-1 p-4">
+        <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted">{label}</p>
+        <p className="text-2xl font-semibold text-foreground">{value}</p>
+        <p className="text-xs text-muted">{detail}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function LaneSection({
+  title,
+  detail,
+  count,
+  children,
+}: {
+  title: string;
+  detail: string;
+  count: number;
+  children: React.ReactNode;
+}) {
+  if (count === 0) {
+    return null;
+  }
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="space-y-1">
+          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+          <p className="text-sm text-muted">{detail}</p>
+        </div>
+        <Badge variant="outline">{count}</Badge>
+      </div>
+      <div className="space-y-4">{children}</div>
+    </section>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -193,6 +248,17 @@ export function AlertsApprovalsPage(): JSX.Element {
   );
 
   const allItems = [...stageGates, ...manualApprovalTasks, ...reviewTasks, ...failedTasks, ...escalationTasks];
+  const queueSummary = useMemo(
+    () =>
+      buildApprovalQueueSummary({
+        stageGates,
+        approvals: manualApprovalTasks,
+        outputGates: reviewTasks,
+        escalations: escalationTasks,
+        failures: failedTasks,
+      }),
+    [escalationTasks, failedTasks, manualApprovalTasks, reviewTasks, stageGates],
+  );
   const approvalsError = approvalsQuery.error;
   const failedError = failedQuery.error;
   const escalationError = escalationQuery.error;
@@ -378,19 +444,64 @@ export function AlertsApprovalsPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold">Alerts & Approvals</h1>
-        <p className="text-sm text-muted">
-          Review stage gates first, then operator step reviews, escalations, and execution failures across active boards.
-        </p>
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold">Alerts & Approvals</h1>
+          <p className="max-w-3xl text-sm text-muted">
+            Review stage gates first, then operator step reviews, escalations, and execution failures across active boards.
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => void invalidateAll()}>
+          <RefreshCw className="h-4 w-4" />
+          Refresh Queue
+        </Button>
       </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <QueueSummaryCard
+          label="Total Queue"
+          value={queueSummary.total}
+          detail={queueSummary.oldestAgeLabel}
+        />
+        <QueueSummaryCard
+          label="Stage Gates"
+          value={queueSummary.stageGates}
+          detail="Highest-priority board checkpoints"
+        />
+        <QueueSummaryCard
+          label="Step Decisions"
+          value={queueSummary.approvals + queueSummary.outputGates}
+          detail="Specialist approvals plus output gates"
+        />
+        <QueueSummaryCard
+          label="Guidance"
+          value={queueSummary.escalations}
+          detail="Escalations waiting for operator instructions"
+        />
+        <QueueSummaryCard
+          label="Failures"
+          value={queueSummary.failures}
+          detail={queueSummary.primaryLane}
+        />
+      </div>
+
+      <Card className="border-border/70 bg-card/70 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-base">Operator priority order</CardTitle>
+          <CardDescription>
+            Resolve stage gates before specialist step decisions. After that, clear output gates,
+            operator guidance escalations, and execution failures in that order.
+          </CardDescription>
+        </CardHeader>
+      </Card>
 
       {showInitialLoading ? (
         <LaneLoadingState message="Loading operator intervention lanes..." />
       ) : null}
 
       <Tabs defaultValue="all">
-        <TabsList>
+        <div className="overflow-x-auto pb-1">
+        <TabsList className="w-max min-w-full justify-start">
           <TabsTrigger value="all">Operator Queue ({allItems.length})</TabsTrigger>
           <TabsTrigger value="gates">Stage Gates ({stageGates.length})</TabsTrigger>
           <TabsTrigger value="approvals">Step Approvals ({manualApprovalTasks.length})</TabsTrigger>
@@ -398,6 +509,7 @@ export function AlertsApprovalsPage(): JSX.Element {
           <TabsTrigger value="escalations">Operator Guidance ({escalationTasks.length})</TabsTrigger>
           <TabsTrigger value="failures">Execution Failures ({failedTasks.length})</TabsTrigger>
         </TabsList>
+        </div>
 
         <TabsContent value="all">
           <div className="space-y-4">
@@ -408,11 +520,41 @@ export function AlertsApprovalsPage(): JSX.Element {
             {escalationError ? <LaneErrorState message="Failed to load operator guidance escalations." /> : null}
             {failedError ? <LaneErrorState message="Failed to load execution failures." /> : null}
             {allItems.length === 0 && <EmptyState />}
-            {renderGateCards()}
-            {renderApprovalCards(manualApprovalTasks)}
-            {renderReviewCards(reviewTasks)}
-            {renderEscalationCards(escalationTasks)}
-            {renderFailedCards(failedTasks)}
+            <LaneSection
+              title="Stage gates"
+              detail="Board-stage checkpoints that block downstream execution until an operator decision is recorded."
+              count={stageGates.length}
+            >
+              {renderGateCards()}
+            </LaneSection>
+            <LaneSection
+              title="Step approvals"
+              detail="Specialist steps awaiting an operator go/no-go decision before execution can continue."
+              count={manualApprovalTasks.length}
+            >
+              {renderApprovalCards(manualApprovalTasks)}
+            </LaneSection>
+            <LaneSection
+              title="Output gates"
+              detail="Completed specialist outputs waiting at a quality gate before the board can advance."
+              count={reviewTasks.length}
+            >
+              {renderReviewCards(reviewTasks)}
+            </LaneSection>
+            <LaneSection
+              title="Operator guidance"
+              detail="Escalated specialist steps that need clarifying instructions or a directional call."
+              count={escalationTasks.length}
+            >
+              {renderEscalationCards(escalationTasks)}
+            </LaneSection>
+            <LaneSection
+              title="Execution failures"
+              detail="Failed specialist steps that need a retry, bypass, or cancel decision."
+              count={failedTasks.length}
+            >
+              {renderFailedCards(failedTasks)}
+            </LaneSection>
           </div>
         </TabsContent>
 

@@ -7,10 +7,16 @@ function readSource() {
 }
 
 describe('workflow inspector page source', () => {
-  it('scopes the shared inspector page to the workflow route parameter', () => {
+  it('adds a workflow-scoped inspector entry shell around the shared log surface', () => {
     const source = readSource();
     expect(source).toContain('useParams');
-    expect(source).toContain('scopedWorkflowId');
+    expect(source).toContain('dashboardApi.getWorkflow');
+    expect(source).toContain('Workflow Inspector');
+    expect(source).toContain('Workflow Board');
+    expect(source).toContain('Current operator scope');
+    expect(source).toContain('InspectorMetric');
+    expect(source).toContain('workflowId');
     expect(source).toContain('LogsSurface');
+    expect(source).toContain('scopedWorkflowId={workflowId}');
   });
 });

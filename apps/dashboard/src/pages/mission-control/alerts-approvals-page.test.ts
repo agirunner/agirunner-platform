@@ -17,6 +17,8 @@ describe('alerts approvals page source', () => {
     expect(source).toContain('Review stage gates first');
     expect(source).toContain('GateDetailCard');
     expect(source).toContain('Operator Queue');
+    expect(source).toContain('buildApprovalQueueSummary');
+    expect(source).toContain('Operator priority order');
   });
 
   it('keeps escalations and failures as separate operator intervention lanes', () => {
@@ -51,5 +53,15 @@ describe('alerts approvals page source', () => {
     expect(source).toContain('LaneErrorState');
     expect(source).toContain('LaneLoadingState');
     expect(source).not.toContain('Failed to load operator intervention lanes. Please retry.');
+  });
+
+  it('adds queue summaries, a manual refresh action, and grouped all-lane sections for faster scanning', () => {
+    const source = readSource();
+    expect(source).toContain('Refresh Queue');
+    expect(source).toContain('QueueSummaryCard');
+    expect(source).toContain('LaneSection');
+    expect(source).toContain('overflow-x-auto pb-1');
+    expect(source).toContain('Stage gates');
+    expect(source).toContain('Execution failures');
   });
 });
