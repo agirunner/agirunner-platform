@@ -52,6 +52,11 @@ describe('live board page source', () => {
   it('uses truthful KPI cards and triage-first operator copy instead of placeholder metrics', () => {
     const source = readSource();
     expect(source).toContain('Filter the live operator view');
+    expect(source).toContain('Visible Board Triage Posture');
+    expect(source).toContain('Orchestrator pool posture');
+    expect(source).toContain('Specialist pool posture');
+    expect(source).toContain('Escalation and stale attention');
+    expect(source).toContain('Spend and token posture');
     expect(source).toContain('Reported Spend');
     expect(source).toContain('Blocked Work');
     expect(source).toContain('Failed Steps');
@@ -74,9 +79,13 @@ describe('live board page source', () => {
     const source = readSource();
     expect(source).toContain('describeBoardProgress');
     expect(source).toContain('describeBoardSpend');
+    expect(source).toContain('describeBoardTokens');
+    expect(source).toContain('describeOrchestratorPool');
+    expect(source).toContain('describeSpecialistPool');
+    expect(source).toContain('describeRiskPosture');
     expect(source).toContain('formatRelativeTimestamp');
-    expect(source).toContain('Compare board posture, progress, spend, and risk');
-    expect(source).toContain('Each card highlights board posture first');
+    expect(source).toContain('Compare board posture, pool pressure, progress, spend and tokens, and risk');
+    expect(source).toContain('Each card highlights board posture first, then pool posture, progress, spend, and risk.');
   });
 
   it('renders human-readable live activity instead of raw event type rows', () => {

@@ -15,6 +15,9 @@ export interface LiveBoardWorkflowRecord {
   state?: string;
   metrics?: {
     total_cost_usd?: number;
+    total_tokens?: number;
+    prompt_tokens?: number;
+    completion_tokens?: number;
   };
   created_at?: string;
 }
@@ -22,6 +25,22 @@ export interface LiveBoardWorkflowRecord {
 export interface LiveBoardWorkerRecord {
   status: string;
   current_tasks?: number | null;
+}
+
+export interface LiveBoardTaskRecord {
+  workflow_id?: string | null;
+  status?: string | null;
+  state?: string | null;
+  retry_count?: number | null;
+  is_orchestrator_task?: boolean | null;
+}
+
+export interface LiveBoardActivationRecord {
+  state: string;
+  recovery_status?: string | null;
+  stale_started_at?: string | null;
+  redispatched_task_id?: string | null;
+  event_count?: number | null;
 }
 
 export interface LiveBoardFleetSummary {
@@ -156,6 +175,14 @@ export function describeBoardSpend(workflow: LiveBoardWorkflowRecord): string {
   return `$${totalCostUsd.toFixed(2)} reported`;
 }
 
+export function describeBoardTokens(workflow: LiveBoardWorkflowRecord): string {
+  const totalTokens = readWorkflowTokenCount(workflow);
+  if (totalTokens <= 0) {
+    return 'No token telemetry';
+  }
+  return `${formatCompactCount(totalTokens)} tokens`;
+}
+
 export function formatRelativeTimestamp(value: string | null | undefined, now = Date.now()): string {
   if (!value) {
     return 'Unknown time';
@@ -220,4 +247,165 @@ export function describeFleetHeadline(summary: LiveBoardFleetSummary): string {
     return `${summary.busy} worker${summary.busy === 1 ? '' : 's'} actively executing`;
   }
   return `${summary.available} worker${summary.available === 1 ? '' : 's'} ready for new steps`;
+}
+
+export function countEscalatedSteps(tasks: LiveBoardTaskRecord[]): number {
+  return tasks.filter((task) => !task.is_orchestrator_task && readTaskState(task) === 'escalated').length;
+}
+
+export function countReworkHeavySteps(tasks: LiveBoardTaskRecord[], threshold = 2): number {
+  return tasks.filter(
+    (task) =>
+      !task.is_orchestrator_task &&
+      Number(task.retry_count ?? 0) >= threshold,
+  ).length;
+}
+
+export function countActiveSpecialistSteps(tasks: LiveBoardTaskRecord[]): number {
+  return tasks.filter((task) => {
+    if (task.is_orchestrator_task) {
+      return false;
+    }
+    const state = readTaskState(task);
+    return state === 'ready' || state === 'in_progress' || state === 'blocked';
+  }).length;
+}
+
+export function countSpecialistReviewQueue(tasks: LiveBoardTaskRecord[]): number {
+  return tasks.filter((task) => {
+    if (task.is_orchestrator_task) {
+      return false;
+    }
+    const state = readTaskState(task);
+    return state === 'awaiting_approval' || state === 'output_pending_review';
+  }).length;
+}
+
+export function summarizeActivationHealth(activations: LiveBoardActivationRecord[]) {
+  return activations.reduce(
+    (summary, activation) => {
+      if (['processing', 'running', 'in_progress'].includes(activation.state)) {
+        summary.inFlight += 1;
+      }
+      if (activation.recovery_status || activation.stale_started_at || activation.redispatched_task_id) {
+        summary.needsAttention += 1;
+      }
+      if (activation.stale_started_at) {
+        summary.stale += 1;
+      }
+      if (activation.recovery_status) {
+        summary.recovered += 1;
+      }
+      summary.queuedEvents += Math.max(1, Number(activation.event_count ?? 1));
+      return summary;
+    },
+    { inFlight: 0, needsAttention: 0, stale: 0, recovered: 0, queuedEvents: 0 },
+  );
+}
+
+export function describeOrchestratorPool(summary: {
+  inFlight: number;
+  stale: number;
+  recovered: number;
+  queuedEvents: number;
+}): string {
+  if (summary.inFlight === 0 && summary.stale === 0 && summary.recovered === 0) {
+    return summary.queuedEvents > 0
+      ? `${summary.queuedEvents} queued event${summary.queuedEvents === 1 ? '' : 's'}`
+      : 'Idle';
+  }
+
+  const parts = [`${summary.inFlight} active`];
+  if (summary.stale > 0) {
+    parts.push(`${summary.stale} stale`);
+  }
+  if (summary.recovered > 0) {
+    parts.push(`${summary.recovered} recovered`);
+  }
+  return parts.join(' • ');
+}
+
+export function describeSpecialistPool(summary: {
+  active: number;
+  reviews: number;
+  escalations: number;
+  reworkHeavy: number;
+}): string {
+  if (
+    summary.active === 0 &&
+    summary.reviews === 0 &&
+    summary.escalations === 0 &&
+    summary.reworkHeavy === 0
+  ) {
+    return 'Quiet';
+  }
+
+  const parts = [`${summary.active} active`];
+  if (summary.reviews > 0) {
+    parts.push(`${summary.reviews} review`);
+  }
+  if (summary.escalations > 0) {
+    parts.push(`${summary.escalations} escalated`);
+  }
+  if (summary.reworkHeavy > 0) {
+    parts.push(`${summary.reworkHeavy} rework-heavy`);
+  }
+  return parts.join(' • ');
+}
+
+export function describeRiskPosture(summary: {
+  blocked: number;
+  gates: number;
+  failed: number;
+  escalated: number;
+  reworkHeavy: number;
+  staleActivations: number;
+}): string {
+  const parts: string[] = [];
+  if (summary.blocked > 0) {
+    parts.push(`${summary.blocked} blocked`);
+  }
+  if (summary.gates > 0) {
+    parts.push(`${summary.gates} gates`);
+  }
+  if (summary.failed > 0) {
+    parts.push(`${summary.failed} failed`);
+  }
+  if (summary.escalated > 0) {
+    parts.push(`${summary.escalated} escalated`);
+  }
+  if (summary.reworkHeavy > 0) {
+    parts.push(`${summary.reworkHeavy} rework-heavy`);
+  }
+  if (summary.staleActivations > 0) {
+    parts.push(`${summary.staleActivations} stale`);
+  }
+  return parts.length > 0 ? parts.join(' • ') : 'Stable';
+}
+
+export function summarizeVisibleTokenUsage(workflows: LiveBoardWorkflowRecord[]): string {
+  const total = workflows.reduce((sum, workflow) => sum + readWorkflowTokenCount(workflow), 0);
+  if (total <= 0) {
+    return 'No token telemetry';
+  }
+  return `${formatCompactCount(total)} tokens reported`;
+}
+
+function readWorkflowTokenCount(workflow: LiveBoardWorkflowRecord): number {
+  const total = Number(workflow.metrics?.total_tokens ?? 0);
+  if (total > 0) {
+    return total;
+  }
+  return Number(workflow.metrics?.prompt_tokens ?? 0) + Number(workflow.metrics?.completion_tokens ?? 0);
+}
+
+function readTaskState(task: LiveBoardTaskRecord): string {
+  return String(task.state ?? task.status ?? 'unknown').toLowerCase();
+}
+
+function formatCompactCount(value: number): string {
+  return new Intl.NumberFormat('en-US', {
+    notation: value >= 1000 ? 'compact' : 'standard',
+    maximumFractionDigits: value >= 1000 ? 1 : 0,
+  }).format(value);
 }

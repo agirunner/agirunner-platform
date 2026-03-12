@@ -25,6 +25,7 @@ import {
   dashboardApi,
   type DashboardApprovalQueueResponse,
   type DashboardEventRecord,
+  type DashboardWorkflowActivationRecord,
   type DashboardWorkflowBoardResponse,
 } from '../../lib/api.js';
 import { subscribeToEvents } from '../../lib/sse.js';
@@ -46,18 +47,28 @@ import {
 import { buildWorkflowDetailPermalink } from '../workflow-detail-permalinks.js';
 import { describeTimelineEvent } from '../workflow-history-card.js';
 import {
+  countActiveSpecialistSteps,
   countBlockedBoardItems,
+  countEscalatedSteps,
   countOpenBoardItems,
   describeBoardHeadline,
   describeBoardProgress,
   describeBoardSpend,
+  describeBoardTokens,
   describeFleetHeadline,
+  describeOrchestratorPool,
+  describeRiskPosture,
+  describeSpecialistPool,
   describeWorkflowStage,
   describeWorkerCapacity,
   formatRelativeTimestamp,
   isLiveWorkflow,
   resolveBoardPosture,
+  summarizeActivationHealth,
   summarizeWorkerFleet,
+  summarizeVisibleTokenUsage,
+  countReworkHeavySteps,
+  countSpecialistReviewQueue,
 } from './live-board-support.js';
 
 interface WorkflowRecord {
@@ -78,7 +89,12 @@ interface WorkflowRecord {
   state?: string;
   status?: string;
   task_counts?: Record<string, number>;
-  metrics?: { total_cost_usd?: number };
+  metrics?: {
+    total_cost_usd?: number;
+    total_tokens?: number;
+    prompt_tokens?: number;
+    completion_tokens?: number;
+  };
   created_at?: string;
   started_at?: string;
 }
@@ -97,6 +113,7 @@ interface TaskRecord {
   stage_name?: string | null;
   role?: string | null;
   retry_count?: number;
+  is_orchestrator_task?: boolean | null;
   error_message?: string;
   created_at?: string;
 }
@@ -194,6 +211,32 @@ function describeAttentionStep(task: TaskRecord): string {
   return 'Execution step';
 }
 
+function countFailedSpecialistSteps(tasks: TaskRecord[]): number {
+  return tasks.filter(
+    (task) => !task.is_orchestrator_task && resolveTaskOperatorState(task) === 'failed',
+  ).length;
+}
+
+function summarizeSpecialistPosture(tasks: TaskRecord[]) {
+  return {
+    active: countActiveSpecialistSteps(tasks),
+    reviews: countSpecialistReviewQueue(tasks),
+    escalations: countEscalatedSteps(tasks),
+    reworkHeavy: countReworkHeavySteps(tasks),
+    failed: countFailedSpecialistSteps(tasks),
+  };
+}
+
+interface LiveBoardEntry {
+  workflow: WorkflowRecord;
+  board?: DashboardWorkflowBoardResponse;
+  activations: DashboardWorkflowActivationRecord[];
+  tasks: TaskRecord[];
+  gateCount: number;
+  isLoading: boolean;
+  hasError: boolean;
+}
+
 export function LiveBoardPage(): JSX.Element {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -258,6 +301,69 @@ export function LiveBoardPage(): JSX.Element {
   const workflows = useMemo(() => normalizeArray<WorkflowRecord>(workflowsQuery.data), [workflowsQuery.data]);
   const tasks = useMemo(() => normalizeArray<TaskRecord>(tasksQuery.data), [tasksQuery.data]);
   const workers = useMemo(() => normalizeArray<WorkerRecord>(workersQuery.data), [workersQuery.data]);
+  const stageGates = approvalsQuery.data?.stage_gates ?? [];
+  const taskSearchIndex = useMemo(() => {
+    const index = new Map<string, string>();
+    for (const task of tasks) {
+      if (!task.workflow_id) {
+        continue;
+      }
+      const existing = index.get(task.workflow_id) ?? '';
+      const content = [
+        task.title ?? task.name ?? '',
+        task.id,
+        task.workflow_id,
+        task.work_item_id ?? '',
+        task.stage_name ?? '',
+        task.role ?? '',
+        task.error_message ?? '',
+      ]
+        .join(' ')
+        .toLowerCase();
+      index.set(task.workflow_id, `${existing} ${content}`.trim());
+    }
+    return index;
+  }, [tasks]);
+  const gateSearchIndex = useMemo(() => {
+    const index = new Map<string, string>();
+    for (const gate of stageGates) {
+      const existing = index.get(gate.workflow_id) ?? '';
+      const content = [
+        gate.workflow_name,
+        gate.workflow_id,
+        gate.stage_name,
+        gate.stage_goal,
+        gate.gate_id,
+        'request_summary' in gate && typeof gate.request_summary === 'string'
+          ? gate.request_summary
+          : '',
+        gate.recommendation ?? '',
+      ]
+        .join(' ')
+        .toLowerCase();
+      index.set(gate.workflow_id, `${existing} ${content}`.trim());
+    }
+    return index;
+  }, [stageGates]);
+  const tasksByWorkflowId = useMemo(() => {
+    const grouped = new Map<string, TaskRecord[]>();
+    for (const task of tasks) {
+      if (!task.workflow_id) {
+        continue;
+      }
+      const bucket = grouped.get(task.workflow_id) ?? [];
+      bucket.push(task);
+      grouped.set(task.workflow_id, bucket);
+    }
+    return grouped;
+  }, [tasks]);
+  const gateCountByWorkflowId = useMemo(() => {
+    const grouped = new Map<string, number>();
+    for (const gate of stageGates) {
+      grouped.set(gate.workflow_id, (grouped.get(gate.workflow_id) ?? 0) + 1);
+    }
+    return grouped;
+  }, [stageGates]);
   const apiEvents = useMemo(() => {
     const raw = eventsQuery.data as { data?: DashboardEventRecord[] } | DashboardEventRecord[] | undefined;
     if (Array.isArray(raw)) {
@@ -293,9 +399,13 @@ export function LiveBoardPage(): JSX.Element {
           .filter((value) => value.trim().length > 0)
           .join(' ')
           .toLowerCase();
-        return `${workflow.name} ${workflow.id} ${stageNames}`.toLowerCase().includes(normalizedQuery);
+        const taskTokens = taskSearchIndex.get(workflow.id) ?? '';
+        const gateTokens = gateSearchIndex.get(workflow.id) ?? '';
+        return `${workflow.name} ${workflow.id} ${stageNames} ${taskTokens} ${gateTokens}`
+          .toLowerCase()
+          .includes(normalizedQuery);
       }),
-    [searchQuery, workflows],
+    [gateSearchIndex, searchQuery, taskSearchIndex, workflows],
   );
   const activePlaybookWorkflows = useMemo(
     () => activeWorkflows.filter((workflow) => workflow.playbook_id),
@@ -311,7 +421,6 @@ export function LiveBoardPage(): JSX.Element {
     () => tasks.filter((task) => resolveTaskOperatorState(task) === 'failed'),
     [tasks],
   );
-  const stageGates = approvalsQuery.data?.stage_gates ?? [];
   const filteredApprovalTasks = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
     if (!normalizedQuery) {
@@ -355,11 +464,22 @@ export function LiveBoardPage(): JSX.Element {
       refetchInterval: REFETCH_INTERVAL,
     })),
   });
-  const boardEntries = pagedPlaybookWorkflows.map((workflow, index) => ({
+  const activationQueries = useQueries({
+    queries: pagedPlaybookWorkflows.map((workflow) => ({
+      queryKey: ['workflow-activations', workflow.id],
+      queryFn: () =>
+        dashboardApi.listWorkflowActivations(workflow.id) as Promise<DashboardWorkflowActivationRecord[]>,
+      refetchInterval: REFETCH_INTERVAL,
+    })),
+  });
+  const boardEntries = pagedPlaybookWorkflows.map<LiveBoardEntry>((workflow, index) => ({
     workflow,
     board: boardQueries[index]?.data,
-    isLoading: Boolean(boardQueries[index]?.isLoading),
-    hasError: Boolean(boardQueries[index]?.error),
+    activations: normalizeArray<DashboardWorkflowActivationRecord>(activationQueries[index]?.data),
+    tasks: tasksByWorkflowId.get(workflow.id) ?? [],
+    gateCount: gateCountByWorkflowId.get(workflow.id) ?? 0,
+    isLoading: Boolean(boardQueries[index]?.isLoading || activationQueries[index]?.isLoading),
+    hasError: Boolean(boardQueries[index]?.error || activationQueries[index]?.error),
   }));
   const openWorkItems = useMemo(
     () =>
@@ -376,6 +496,10 @@ export function LiveBoardPage(): JSX.Element {
         0,
       ),
     [activePlaybookWorkflows],
+  );
+  const visibleTokenPosture = useMemo(
+    () => summarizeVisibleTokenUsage(pagedPlaybookWorkflows),
+    [pagedPlaybookWorkflows],
   );
   const blockedItems = useMemo(
     () => boardEntries.flatMap((entry) => {
@@ -398,6 +522,41 @@ export function LiveBoardPage(): JSX.Element {
     }),
     [boardEntries],
   );
+  const visibleActivationSummary = useMemo(
+    () => summarizeActivationHealth(boardEntries.flatMap((entry) => entry.activations)),
+    [boardEntries],
+  );
+  const visibleWorkflowTasks = useMemo(
+    () => boardEntries.flatMap((entry) => entry.tasks),
+    [boardEntries],
+  );
+  const visibleSpecialistSummary = useMemo(
+    () => summarizeSpecialistPosture(visibleWorkflowTasks),
+    [visibleWorkflowTasks],
+  );
+  const visibleFailedSteps = visibleSpecialistSummary.failed;
+  const visibleBlockedWorkItems = useMemo(
+    () => boardEntries.reduce((sum, entry) => sum + countBlockedBoardItems(entry.board), 0),
+    [boardEntries],
+  );
+  const visibleGateReviews = useMemo(
+    () => boardEntries.reduce((sum, entry) => sum + entry.gateCount, 0),
+    [boardEntries],
+  );
+  const visibleSpend = useMemo(
+    () =>
+      pagedPlaybookWorkflows.reduce(
+        (sum, workflow) => sum + Number(workflow.metrics?.total_cost_usd ?? 0),
+        0,
+      ),
+    [pagedPlaybookWorkflows],
+  );
+  const visibleNeedsAttention =
+    visibleBlockedWorkItems +
+    visibleGateReviews +
+    visibleFailedSteps +
+    visibleSpecialistSummary.escalations +
+    visibleActivationSummary.needsAttention;
   const filteredBlockedItems = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
     if (!normalizedQuery) {
@@ -568,6 +727,18 @@ export function LiveBoardPage(): JSX.Element {
         failedSteps={filteredFailedTasks.length}
         needsAction={needsAction}
         reportedSpend={reportedSpend}
+      />
+
+      <TriagePostureSection
+        entries={boardEntries}
+        visibleSpend={visibleSpend}
+        visibleTokenPosture={visibleTokenPosture}
+        visibleActivationSummary={visibleActivationSummary}
+        visibleSpecialistSummary={visibleSpecialistSummary}
+        visibleBlockedWorkItems={visibleBlockedWorkItems}
+        visibleGateReviews={visibleGateReviews}
+        visibleFailedSteps={visibleFailedSteps}
+        visibleNeedsAttention={visibleNeedsAttention}
       />
 
       <NeedsAttentionSection
@@ -743,6 +914,127 @@ function KpiCards(props: KpiCardsProps): JSX.Element {
   );
 }
 
+interface TriagePostureSectionProps {
+  entries: LiveBoardEntry[];
+  visibleSpend: number;
+  visibleTokenPosture: string;
+  visibleActivationSummary: ReturnType<typeof summarizeActivationHealth>;
+  visibleSpecialistSummary: ReturnType<typeof summarizeSpecialistPosture>;
+  visibleBlockedWorkItems: number;
+  visibleGateReviews: number;
+  visibleFailedSteps: number;
+  visibleNeedsAttention: number;
+}
+
+function TriagePostureSection(props: TriagePostureSectionProps): JSX.Element {
+  const hasBoards = props.entries.length > 0;
+  const pageScopeLabel = hasBoards
+    ? `${props.entries.length} board${props.entries.length === 1 ? '' : 's'} on the visible page`
+    : 'No boards on the current page';
+  const riskPosture = describeRiskPosture({
+    blocked: props.visibleBlockedWorkItems,
+    gates: props.visibleGateReviews,
+    failed: props.visibleFailedSteps,
+    escalated: props.visibleSpecialistSummary.escalations,
+    reworkHeavy: props.visibleSpecialistSummary.reworkHeavy,
+    staleActivations: props.visibleActivationSummary.stale,
+  });
+  const hasLoadingBoards = props.entries.some((entry) => entry.isLoading);
+  const hasBoardErrors = props.entries.some((entry) => entry.hasError);
+
+  return (
+    <Card className="border-border/70 shadow-sm">
+      <CardHeader className="space-y-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <CardTitle>Visible Board Triage Posture</CardTitle>
+            <p className="text-sm text-muted">
+              Self-sufficient triage for the current board page: pool posture, stale recovery,
+              spend and tokens, and blocked or rework-heavy signals without extra drill-in.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">{pageScopeLabel}</Badge>
+            <Badge variant={props.visibleNeedsAttention > 0 ? 'warning' : 'success'}>
+              {props.visibleNeedsAttention > 0
+                ? `${props.visibleNeedsAttention} attention signals`
+                : 'Page is stable'}
+            </Badge>
+          </div>
+        </div>
+        {hasLoadingBoards ? (
+          <p className="text-xs text-muted">Refreshing visible board telemetry…</p>
+        ) : null}
+        {hasBoardErrors ? (
+          <p className="text-xs text-red-600">
+            Some activation or board telemetry is temporarily unavailable.
+          </p>
+        ) : null}
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <TriagePacket
+            title="Orchestrator pool posture"
+            headline={describeOrchestratorPool(props.visibleActivationSummary)}
+            detail={`${props.visibleActivationSummary.queuedEvents} queued event batches, ${props.visibleActivationSummary.stale} stale turns, and ${props.visibleActivationSummary.recovered} recovered turns across visible boards.`}
+            emphasis={
+              props.visibleActivationSummary.needsAttention > 0 ? 'destructive' : 'neutral'
+            }
+          />
+          <TriagePacket
+            title="Specialist pool posture"
+            headline={describeSpecialistPool(props.visibleSpecialistSummary)}
+            detail={`${props.visibleSpecialistSummary.active} active specialist steps and ${props.visibleSpecialistSummary.reviews} review packets currently visible.`}
+            emphasis={
+              props.visibleSpecialistSummary.escalations > 0 ||
+              props.visibleSpecialistSummary.reworkHeavy > 0
+                ? 'warning'
+                : 'neutral'
+            }
+          />
+          <TriagePacket
+            title="Escalation and stale attention"
+            headline={riskPosture}
+            detail={`${props.visibleGateReviews} gates, ${props.visibleBlockedWorkItems} blocked items, ${props.visibleFailedSteps} failed specialist steps, and ${props.visibleActivationSummary.stale} stale orchestrator turns in scope.`}
+            emphasis={props.visibleNeedsAttention > 0 ? 'destructive' : 'neutral'}
+          />
+          <TriagePacket
+            title="Spend and token posture"
+            headline={props.visibleSpend > 0 ? `$${props.visibleSpend.toFixed(2)} reported` : 'No spend reported'}
+            detail={props.visibleTokenPosture}
+            emphasis={props.visibleSpend > 0 || props.visibleTokenPosture !== 'No token telemetry' ? 'success' : 'neutral'}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TriagePacket(props: {
+  title: string;
+  headline: string;
+  detail: string;
+  emphasis: 'neutral' | 'success' | 'warning' | 'destructive';
+}): JSX.Element {
+  const accentClass =
+    props.emphasis === 'destructive'
+      ? 'border-rose-300/80 bg-rose-500/5'
+      : props.emphasis === 'warning'
+        ? 'border-amber-300/80 bg-amber-500/5'
+        : props.emphasis === 'success'
+          ? 'border-emerald-300/80 bg-emerald-500/5'
+          : 'border-border/70 bg-muted/10';
+  return (
+    <div className={cn('grid gap-2 rounded-xl border p-4 shadow-sm', accentClass)}>
+      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
+        {props.title}
+      </p>
+      <p className="text-sm font-semibold leading-6 text-foreground">{props.headline}</p>
+      <p className="text-xs leading-5 text-muted">{props.detail}</p>
+    </div>
+  );
+}
+
 interface NeedsAttentionProps {
   approvalTasks: TaskRecord[];
   failedTasks: TaskRecord[];
@@ -902,12 +1194,7 @@ function NeedsAttentionSection({ approvalTasks, failedTasks, blockedItems, stage
 }
 
 function BoardSnapshotTable(props: {
-  entries: Array<{
-    workflow: WorkflowRecord;
-    board?: DashboardWorkflowBoardResponse;
-    isLoading: boolean;
-    hasError: boolean;
-  }>;
+  entries: LiveBoardEntry[];
 }): JSX.Element {
   if (props.entries.length === 0) {
     return (
@@ -927,13 +1214,24 @@ function BoardSnapshotTable(props: {
       <CardHeader>
         <CardTitle>Board Snapshot</CardTitle>
         <p className="text-sm text-muted">
-          Compare board posture, progress, spend, and risk across the current live page.
+          Compare board posture, pool pressure, progress, spend and tokens, and risk across the current live page.
         </p>
       </CardHeader>
       <CardContent>
         <div className="grid gap-3 lg:hidden">
-          {props.entries.map(({ workflow, board, isLoading, hasError }) => {
+          {props.entries.map((entry) => {
+            const { workflow, board, activations, tasks, gateCount, isLoading, hasError } = entry;
             const posture = resolveBoardPosture(workflow, board);
+            const activationSummary = summarizeActivationHealth(activations);
+            const specialistSummary = summarizeSpecialistPosture(tasks);
+            const riskPosture = describeRiskPosture({
+              blocked: countBlockedBoardItems(board),
+              gates: gateCount,
+              failed: specialistSummary.failed,
+              escalated: specialistSummary.escalations,
+              reworkHeavy: specialistSummary.reworkHeavy,
+              staleActivations: activationSummary.stale,
+            });
             return (
               <div
                 key={workflow.id}
@@ -951,20 +1249,22 @@ function BoardSnapshotTable(props: {
                   </div>
                   <Badge variant={statusBadgeVariant(posture)}>{posture}</Badge>
                 </div>
-                <div className="grid gap-3 rounded-lg border border-border/60 bg-background/70 p-3 sm:grid-cols-2">
+                <div className="grid gap-3 rounded-lg border border-border/60 bg-background/70 p-3 sm:grid-cols-2 xl:grid-cols-3">
                   <SnapshotMetric label="Live stages" value={describeWorkflowStage(workflow)} />
+                  <SnapshotMetric label="Progress" value={describeBoardProgress(workflow)} />
                   <SnapshotMetric
-                    label="Progress"
-                    value={describeBoardProgress(workflow)}
+                    label="Orchestrator pool"
+                    value={isLoading ? 'Loading…' : hasError ? 'Unavailable' : describeOrchestratorPool(activationSummary)}
                   />
                   <SnapshotMetric
-                    label="Blocked"
-                    value={isLoading ? 'Loading…' : hasError ? 'Unavailable' : String(countBlockedBoardItems(board))}
+                    label="Specialist pool"
+                    value={describeSpecialistPool(specialistSummary)}
                   />
                   <SnapshotMetric
-                    label="Spend"
-                    value={describeBoardSpend(workflow)}
+                    label="Spend & tokens"
+                    value={`${describeBoardSpend(workflow)} • ${describeBoardTokens(workflow)}`}
                   />
+                  <SnapshotMetric label="Risk" value={isLoading ? 'Loading…' : hasError ? 'Unavailable' : riskPosture} />
                 </div>
               </div>
             );
@@ -976,15 +1276,27 @@ function BoardSnapshotTable(props: {
               <TableRow>
                 <TableHead>Board</TableHead>
                 <TableHead>Posture</TableHead>
+                <TableHead>Pools</TableHead>
                 <TableHead>Progress</TableHead>
-                <TableHead>Spend</TableHead>
-                <TableHead>Blocked</TableHead>
+                <TableHead>Spend &amp; Tokens</TableHead>
+                <TableHead>Risk</TableHead>
                 <TableHead>Updated</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {props.entries.map(({ workflow, board, isLoading, hasError }) => {
+              {props.entries.map((entry) => {
+                const { workflow, board, activations, tasks, gateCount, isLoading, hasError } = entry;
                 const posture = resolveBoardPosture(workflow, board);
+                const activationSummary = summarizeActivationHealth(activations);
+                const specialistSummary = summarizeSpecialistPosture(tasks);
+                const riskPosture = describeRiskPosture({
+                  blocked: countBlockedBoardItems(board),
+                  gates: gateCount,
+                  failed: specialistSummary.failed,
+                  escalated: specialistSummary.escalations,
+                  reworkHeavy: specialistSummary.reworkHeavy,
+                  staleActivations: activationSummary.stale,
+                });
                 return (
                   <TableRow key={workflow.id}>
                     <TableCell className="align-top font-medium">
@@ -1006,18 +1318,23 @@ function BoardSnapshotTable(props: {
                         </p>
                       </div>
                     </TableCell>
+                    <TableCell className="align-top">
+                      <div className="space-y-2 text-sm">
+                        <p>{isLoading ? 'Loading…' : hasError ? 'Unavailable' : describeOrchestratorPool(activationSummary)}</p>
+                        <p className="text-muted">{describeSpecialistPool(specialistSummary)}</p>
+                      </div>
+                    </TableCell>
                     <TableCell className="align-top text-sm">
                       {describeBoardProgress(workflow)}
                     </TableCell>
-                    <TableCell className="align-top text-sm">
-                      {describeBoardSpend(workflow)}
+                    <TableCell className="align-top">
+                      <div className="space-y-1 text-sm">
+                        <p>{describeBoardSpend(workflow)}</p>
+                        <p className="text-muted">{describeBoardTokens(workflow)}</p>
+                      </div>
                     </TableCell>
                     <TableCell className="align-top text-sm">
-                      {isLoading
-                        ? 'Loading…'
-                        : hasError
-                          ? 'Unavailable'
-                          : `${countBlockedBoardItems(board)} blocked / ${countOpenBoardItems(board)} open`}
+                      {isLoading ? 'Loading…' : hasError ? 'Unavailable' : riskPosture}
                     </TableCell>
                     <TableCell className="align-top text-sm">
                       {formatRelativeTimestamp(workflow.started_at ?? workflow.created_at)}
@@ -1034,12 +1351,7 @@ function BoardSnapshotTable(props: {
 }
 
 function ActivePlaybookBoards(props: {
-  entries: Array<{
-    workflow: WorkflowRecord;
-    board?: DashboardWorkflowBoardResponse;
-    isLoading: boolean;
-    hasError: boolean;
-  }>;
+  entries: LiveBoardEntry[];
 }): JSX.Element {
   if (props.entries.length === 0) {
     return (
@@ -1059,18 +1371,29 @@ function ActivePlaybookBoards(props: {
       <CardHeader>
         <CardTitle>Live Boards</CardTitle>
         <p className="text-sm text-muted">
-          Each card highlights board posture first, then the active work and risk footprint.
+          Each card highlights board posture first, then pool posture, progress, spend, and risk.
         </p>
       </CardHeader>
       <CardContent>
         <div className="grid gap-4 xl:grid-cols-2">
-          {props.entries.map(({ workflow, board, isLoading, hasError }) => {
+          {props.entries.map((entry) => {
+            const { workflow, board, activations, tasks, gateCount, isLoading, hasError } = entry;
             const activeItems = board
               ? board.work_items.filter((item) => {
-                  const column = board.columns.find((entry) => entry.id === item.column_id);
+                  const column = board.columns.find((candidate) => candidate.id === item.column_id);
                   return !column?.is_terminal;
                 })
               : [];
+            const activationSummary = summarizeActivationHealth(activations);
+            const specialistSummary = summarizeSpecialistPosture(tasks);
+            const riskPosture = describeRiskPosture({
+              blocked: countBlockedBoardItems(board),
+              gates: gateCount,
+              failed: specialistSummary.failed,
+              escalated: specialistSummary.escalations,
+              reworkHeavy: specialistSummary.reworkHeavy,
+              staleActivations: activationSummary.stale,
+            });
             return (
               <div key={workflow.id} className="grid gap-4 rounded-xl border border-border/70 bg-muted/10 p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
@@ -1084,10 +1407,25 @@ function ActivePlaybookBoards(props: {
                     {resolveBoardPosture(workflow, board)}
                   </Badge>
                 </div>
-                <div className="grid gap-3 rounded-lg border border-border/60 bg-background/80 p-3 sm:grid-cols-2">
+                <div className="grid gap-3 rounded-lg border border-border/60 bg-background/80 p-3 sm:grid-cols-2 xl:grid-cols-3">
                   <SnapshotMetric label="Live stages" value={describeWorkflowStage(workflow)} />
                   <SnapshotMetric label="Progress" value={describeBoardProgress(workflow)} />
-                  <SnapshotMetric label="Spend" value={describeBoardSpend(workflow)} />
+                  <SnapshotMetric
+                    label="Spend & tokens"
+                    value={`${describeBoardSpend(workflow)} • ${describeBoardTokens(workflow)}`}
+                  />
+                  <SnapshotMetric
+                    label="Orchestrator pool"
+                    value={isLoading ? 'Loading…' : hasError ? 'Unavailable' : describeOrchestratorPool(activationSummary)}
+                  />
+                  <SnapshotMetric
+                    label="Specialist pool"
+                    value={describeSpecialistPool(specialistSummary)}
+                  />
+                  <SnapshotMetric
+                    label="Risk posture"
+                    value={isLoading ? 'Loading…' : hasError ? 'Unavailable' : riskPosture}
+                  />
                   <SnapshotMetric
                     label="Age"
                     value={formatRelativeTimestamp(workflow.started_at ?? workflow.created_at)}
