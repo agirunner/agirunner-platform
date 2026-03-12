@@ -4,7 +4,10 @@ import {
   countBlockedBoardItems,
   countOpenBoardItems,
   describeBoardHeadline,
+  describeBoardProgress,
+  describeBoardSpend,
   describeWorkflowStage,
+  formatRelativeTimestamp,
   isLiveWorkflow,
   resolveBoardPosture,
 } from './live-board-support.js';
@@ -92,5 +95,31 @@ describe('live board support', () => {
     expect(resolveBoardPosture(workflow)).toBe('awaiting gate');
     expect(describeBoardHeadline(workflow)).toBe('1 gate review waiting');
     expect(isLiveWorkflow(workflow)).toBe(true);
+  });
+
+  it('describes board progress, spend, and relative time for operator summaries', () => {
+    expect(
+      describeBoardProgress({
+        work_item_summary: {
+          total_work_items: 6,
+          completed_work_item_count: 4,
+          open_work_item_count: 2,
+          awaiting_gate_count: 0,
+        },
+      }),
+    ).toBe('4 of 6 work items complete');
+    expect(
+      describeBoardSpend({
+        metrics: {
+          total_cost_usd: 12.345,
+        },
+      }),
+    ).toBe('$12.35 reported');
+    expect(
+      formatRelativeTimestamp(
+        '2026-03-12T11:45:00.000Z',
+        new Date('2026-03-12T12:00:00.000Z').getTime(),
+      ),
+    ).toBe('15m ago');
   });
 });

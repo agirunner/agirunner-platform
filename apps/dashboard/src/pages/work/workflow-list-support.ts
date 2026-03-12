@@ -111,6 +111,24 @@ export function formatCost(cost?: number): string {
   return `$${cost.toFixed(2)}`;
 }
 
+export function describeWorkflowCost(workflow: WorkflowListRecord): string {
+  if (workflow.cost === undefined || workflow.cost === null) {
+    return 'No spend reported';
+  }
+  return `${formatCost(workflow.cost)} reported`;
+}
+
+export function describeWorkflowProgress(workflow: WorkflowListRecord): string {
+  const summary = workflow.work_item_summary;
+  if (!summary) {
+    return 'No work items queued';
+  }
+  if (summary.total_work_items === 0) {
+    return 'No work items queued';
+  }
+  return `${summary.completed_work_item_count} of ${summary.total_work_items} work items complete`;
+}
+
 export function describeWorkflowType(workflow: WorkflowListRecord): string {
   return workflow.lifecycle === 'continuous' ? 'Continuous board run' : 'Milestone board run';
 }
@@ -185,4 +203,59 @@ export function describeGateSummary(workflow: WorkflowListRecord): string {
 
 export function resolveTypeFilter(workflow: WorkflowListRecord): Exclude<TypeFilter, 'all'> {
   return workflow.lifecycle === 'continuous' ? 'continuous' : 'standard';
+}
+
+export function formatRelativeRunAge(createdAt: string, now = Date.now()): string {
+  const created = new Date(createdAt).getTime();
+  if (!Number.isFinite(created)) {
+    return 'Unknown age';
+  }
+  const deltaMinutes = Math.max(0, Math.floor((now - created) / 60_000));
+  if (deltaMinutes < 1) {
+    return 'Started just now';
+  }
+  if (deltaMinutes < 60) {
+    return `Started ${deltaMinutes}m ago`;
+  }
+  const deltaHours = Math.floor(deltaMinutes / 60);
+  if (deltaHours < 24) {
+    return `Started ${deltaHours}h ago`;
+  }
+  const deltaDays = Math.floor(deltaHours / 24);
+  return `Started ${deltaDays}d ago`;
+}
+
+export function summarizeWorkflowCollection(workflows: WorkflowListRecord[]) {
+  return workflows.reduce(
+    (summary, workflow) => {
+      const status = resolveStatus(workflow);
+      if (status === 'active') {
+        summary.active += 1;
+      } else if (status === 'gated') {
+        summary.gated += 1;
+      } else if (status === 'blocked') {
+        summary.blocked += 1;
+      } else if (status === 'done') {
+        summary.done += 1;
+      }
+      summary.openWorkItems += workflow.work_item_summary?.open_work_item_count ?? 0;
+      summary.awaitingGates += workflow.work_item_summary?.awaiting_gate_count ?? 0;
+      if (typeof workflow.cost === 'number') {
+        summary.reportedSpend += workflow.cost;
+        summary.spentBoards += 1;
+      }
+      return summary;
+    },
+    {
+      total: workflows.length,
+      active: 0,
+      gated: 0,
+      blocked: 0,
+      done: 0,
+      openWorkItems: 0,
+      awaitingGates: 0,
+      reportedSpend: 0,
+      spentBoards: 0,
+    },
+  );
 }

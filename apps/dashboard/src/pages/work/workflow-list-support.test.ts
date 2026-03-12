@@ -2,14 +2,18 @@ import { describe, expect, it } from 'vitest';
 
 import {
   describeGateSummary,
+  describeWorkflowCost,
+  describeWorkflowProgress,
   describeOperatorSignal,
   describeWorkItemSummary,
   describeWorkflowStage,
   describeWorkflowType,
+  formatRelativeRunAge,
   formatTaskProgress,
   normalizeWorkflows,
   resolveStatus,
   resolveTypeFilter,
+  summarizeWorkflowCollection,
 } from './workflow-list-support.js';
 
 describe('workflow list support', () => {
@@ -43,6 +47,7 @@ describe('workflow list support', () => {
     expect(describeWorkflowType(workflow)).toBe('Continuous board run');
     expect(describeWorkflowStage(workflow)).toBe('implementation');
     expect(describeWorkItemSummary(workflow)).toBe('3 open / 5 total, 1 live stage');
+    expect(describeWorkflowProgress(workflow)).toBe('2 of 5 work items complete');
     expect(describeGateSummary(workflow)).toBe('1 gate waiting');
     expect(describeOperatorSignal(workflow)).toBe('1 gate waiting');
     expect(resolveStatus(workflow)).toBe('gated');
@@ -127,6 +132,7 @@ describe('workflow list support', () => {
     expect(describeWorkflowType(workflow)).toBe('Milestone board run');
     expect(describeWorkflowStage(workflow)).toBe('review');
     expect(describeWorkItemSummary(workflow)).toBe('No work items');
+    expect(describeWorkflowProgress(workflow)).toBe('No work items queued');
     expect(formatTaskProgress(workflow.task_counts)).toBe('2/3');
     expect(resolveStatus(workflow)).toBe('planned');
     expect(resolveTypeFilter(workflow)).toBe('standard');
@@ -191,5 +197,75 @@ describe('workflow list support', () => {
         created_at: '2026-03-11',
       }),
     ).toBe('Board run blocked by failure');
+  });
+
+  it('formats workflow spend and relative age for operator-facing cards', () => {
+    expect(
+      describeWorkflowCost({
+        id: 'workflow-8',
+        name: 'Spend',
+        status: 'running',
+        created_at: '2026-03-11',
+        cost: 12.345,
+      }),
+    ).toBe('$12.35 reported');
+    expect(
+      describeWorkflowCost({
+        id: 'workflow-9',
+        name: 'No Spend',
+        status: 'running',
+        created_at: '2026-03-11',
+      }),
+    ).toBe('No spend reported');
+    expect(formatRelativeRunAge('2026-03-12T11:30:00.000Z', new Date('2026-03-12T12:00:00.000Z').getTime())).toBe(
+      'Started 30m ago',
+    );
+  });
+
+  it('summarizes visible workflow posture, gates, work, and spend', () => {
+    expect(
+      summarizeWorkflowCollection([
+        {
+          id: 'workflow-1',
+          name: 'Active',
+          status: 'running',
+          created_at: '2026-03-11',
+          cost: 3.5,
+          work_item_summary: {
+            total_work_items: 5,
+            open_work_item_count: 3,
+            completed_work_item_count: 2,
+            active_stage_count: 1,
+            awaiting_gate_count: 0,
+            active_stage_names: ['implementation'],
+          },
+        },
+        {
+          id: 'workflow-2',
+          name: 'Gated',
+          status: 'running',
+          created_at: '2026-03-11',
+          cost: 1.25,
+          work_item_summary: {
+            total_work_items: 4,
+            open_work_item_count: 1,
+            completed_work_item_count: 3,
+            active_stage_count: 1,
+            awaiting_gate_count: 1,
+            active_stage_names: ['review'],
+          },
+        },
+      ]),
+    ).toEqual({
+      total: 2,
+      active: 1,
+      gated: 1,
+      blocked: 0,
+      done: 0,
+      openWorkItems: 4,
+      awaitingGates: 1,
+      reportedSpend: 4.75,
+      spentBoards: 2,
+    });
   });
 });

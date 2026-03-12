@@ -37,6 +37,8 @@ describe('live board page source', () => {
   it('uses board and step language and avoids raw task-status comparisons in the operator lane', () => {
     const source = readSource();
     expect(source).toContain('Operator Live Board');
+    expect(source).toContain('Mission control');
+    expect(source).toContain('Triage what needs attention first');
     expect(source).toContain('Search boards, work items, stages, gates, steps, or IDs');
     expect(source).toContain('describeAttentionStep');
     expect(source).toContain('resolveTaskOperatorState');
@@ -49,6 +51,8 @@ describe('live board page source', () => {
 
   it('uses truthful KPI cards and triage-first operator copy instead of placeholder metrics', () => {
     const source = readSource();
+    expect(source).toContain('Filter the live operator view');
+    expect(source).toContain('Reported Spend');
     expect(source).toContain('Blocked Work');
     expect(source).toContain('Failed Steps');
     expect(source).toContain('Combined gates, blocked work, and step interventions');
@@ -56,11 +60,21 @@ describe('live board page source', () => {
     expect(source).not.toContain('Cost Today');
   });
 
+  it('uses human-readable progress, spend, and relative timing in board summaries', () => {
+    const source = readSource();
+    expect(source).toContain('describeBoardProgress');
+    expect(source).toContain('describeBoardSpend');
+    expect(source).toContain('formatRelativeTimestamp');
+    expect(source).toContain('Compare board posture, progress, spend, and risk');
+    expect(source).toContain('Each card highlights board posture first');
+  });
+
   it('renders human-readable live activity instead of raw event type rows', () => {
     const source = readSource();
     expect(source).toContain('describeTimelineEvent');
     expect(source).toContain('describeEventScope');
     expect(source).toContain('Recent operator activity recorded.');
+    expect(source).toContain('Latest human-readable operator activity across the visible live scope.');
     expect(source).not.toContain('Badge variant="secondary">{evt.type}');
   });
 });

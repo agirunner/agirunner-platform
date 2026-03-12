@@ -1,16 +1,22 @@
 import type { DashboardWorkflowBoardResponse } from '../../lib/api.js';
 
 export interface LiveBoardWorkflowRecord {
+  name?: string;
   current_stage?: string | null;
   active_stages?: string[];
   work_item_summary?: {
     total_work_items: number;
+    completed_work_item_count?: number;
     open_work_item_count: number;
     awaiting_gate_count: number;
     active_stage_names?: string[];
   } | null;
   lifecycle?: 'standard' | 'continuous' | null;
   state?: string;
+  metrics?: {
+    total_cost_usd?: number;
+  };
+  created_at?: string;
 }
 
 function readLiveStageNames(workflow: LiveBoardWorkflowRecord): string[] {
@@ -118,4 +124,44 @@ export function describeBoardHeadline(
 export function isLiveWorkflow(workflow: LiveBoardWorkflowRecord): boolean {
   const posture = resolveBoardPosture(workflow);
   return posture === 'active' || posture === 'awaiting gate' || posture === 'blocked';
+}
+
+export function describeBoardProgress(workflow: LiveBoardWorkflowRecord): string {
+  const summary = workflow.work_item_summary;
+  if (!summary || summary.total_work_items === 0) {
+    return 'No work items queued';
+  }
+  const completedCount = summary.completed_work_item_count ?? 0;
+  return `${completedCount} of ${summary.total_work_items} work items complete`;
+}
+
+export function describeBoardSpend(workflow: LiveBoardWorkflowRecord): string {
+  const totalCostUsd = workflow.metrics?.total_cost_usd;
+  if (typeof totalCostUsd !== 'number') {
+    return 'No spend reported';
+  }
+  return `$${totalCostUsd.toFixed(2)} reported`;
+}
+
+export function formatRelativeTimestamp(value: string | null | undefined, now = Date.now()): string {
+  if (!value) {
+    return 'Unknown time';
+  }
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) {
+    return 'Unknown time';
+  }
+  const deltaMinutes = Math.max(0, Math.floor((now - timestamp) / 60_000));
+  if (deltaMinutes < 1) {
+    return 'Just now';
+  }
+  if (deltaMinutes < 60) {
+    return `${deltaMinutes}m ago`;
+  }
+  const deltaHours = Math.floor(deltaMinutes / 60);
+  if (deltaHours < 24) {
+    return `${deltaHours}h ago`;
+  }
+  const deltaDays = Math.floor(deltaHours / 24);
+  return `${deltaDays}d ago`;
 }

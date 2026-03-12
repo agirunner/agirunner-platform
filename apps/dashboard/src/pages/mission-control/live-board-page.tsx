@@ -49,7 +49,10 @@ import {
   countBlockedBoardItems,
   countOpenBoardItems,
   describeBoardHeadline,
+  describeBoardProgress,
+  describeBoardSpend,
   describeWorkflowStage,
+  formatRelativeTimestamp,
   isLiveWorkflow,
   resolveBoardPosture,
 } from './live-board-support.js';
@@ -363,6 +366,14 @@ export function LiveBoardPage(): JSX.Element {
       ),
     [activePlaybookWorkflows],
   );
+  const reportedSpend = useMemo(
+    () =>
+      activePlaybookWorkflows.reduce(
+        (sum, workflow) => sum + Number(workflow.metrics?.total_cost_usd ?? 0),
+        0,
+      ),
+    [activePlaybookWorkflows],
+  );
   const blockedItems = useMemo(
     () => boardEntries.flatMap((entry) => {
       if (!entry.board) {
@@ -485,30 +496,64 @@ export function LiveBoardPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <h1 className="text-2xl font-semibold">Operator Live Board</h1>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
-          <Input
-            value={searchQuery}
-            onChange={(event) =>
-              setSearchParams(
-                event.target.value.trim() ? { q: event.target.value.trim() } : {},
-                { replace: true },
-              )
-            }
-            placeholder="Search boards, work items, stages, gates, steps, or IDs"
-            className="pl-8"
-          />
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div className="space-y-2">
+          <Badge variant="outline" className="w-fit">
+            Mission control
+          </Badge>
+          <div className="space-y-1">
+            <h1 className="text-3xl font-semibold tracking-tight">Operator Live Board</h1>
+            <p className="max-w-3xl text-sm leading-6 text-muted">
+              Triage what needs attention first, then drill into the affected board, work item, or
+              review packet with full context.
+            </p>
+          </div>
         </div>
-        <SavedViews
-          storageKey="live-board"
-          currentFilters={savedViewFilters}
-          onApply={(filters) =>
-            setSearchParams(filters.q ? { q: filters.q } : {}, { replace: true })
-          }
-        />
       </div>
+
+      <Card className="border-border/70 shadow-sm">
+        <CardContent className="grid gap-4 p-4">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-foreground">Filter the live operator view</p>
+              <p className="text-xs text-muted">
+                Showing {activePlaybookWorkflows.length} live boards, {filteredStageGates.length}{' '}
+                stage gates, {filteredApprovalTasks.length} approvals, and {filteredFailedTasks.length}{' '}
+                failed specialist steps in the current scope.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {searchQuery ? <Badge variant="outline">Search: {searchQuery}</Badge> : null}
+              <Badge variant="outline">
+                {needsAction > 0 ? `${needsAction} interventions open` : 'No interventions open'}
+              </Badge>
+            </div>
+          </div>
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="relative min-w-0">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+              <Input
+                value={searchQuery}
+                onChange={(event) =>
+                  setSearchParams(
+                    event.target.value.trim() ? { q: event.target.value.trim() } : {},
+                    { replace: true },
+                  )
+                }
+                placeholder="Search boards, work items, stages, gates, steps, or IDs"
+                className="pl-8"
+              />
+            </div>
+            <SavedViews
+              storageKey="live-board"
+              currentFilters={savedViewFilters}
+              onApply={(filters) =>
+                setSearchParams(filters.q ? { q: filters.q } : {}, { replace: true })
+              }
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       <KpiCards
         activeBoards={activePlaybookWorkflows.length}
@@ -519,6 +564,7 @@ export function LiveBoardPage(): JSX.Element {
         blockedWorkItems={filteredBlockedItems.length}
         failedSteps={filteredFailedTasks.length}
         needsAction={needsAction}
+        reportedSpend={reportedSpend}
       />
 
       <NeedsAttentionSection
@@ -606,6 +652,7 @@ interface KpiCardsProps {
   blockedWorkItems: number;
   failedSteps: number;
   needsAction: number;
+  reportedSpend: number;
 }
 
 function KpiCards(props: KpiCardsProps): JSX.Element {
@@ -639,6 +686,13 @@ function KpiCards(props: KpiCardsProps): JSX.Element {
       color: 'text-amber-600',
     },
     {
+      label: 'Reported Spend',
+      value: props.reportedSpend > 0 ? `$${props.reportedSpend.toFixed(2)}` : '-',
+      detail: props.reportedSpend > 0 ? 'Across visible live boards' : 'No spend reported',
+      icon: DollarSign,
+      color: 'text-emerald-600',
+    },
+    {
       label: 'Blocked Work',
       value: props.blockedWorkItems,
       detail: 'Items in blocked board columns',
@@ -649,7 +703,7 @@ function KpiCards(props: KpiCardsProps): JSX.Element {
       label: 'Failed Steps',
       value: props.failedSteps,
       detail: 'Specialist steps needing review',
-      icon: DollarSign,
+      icon: AlertTriangle,
       color: props.failedSteps > 0 ? 'text-rose-600' : 'text-muted',
     },
     {
@@ -669,9 +723,9 @@ function KpiCards(props: KpiCardsProps): JSX.Element {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4">
       {cards.map((card) => (
-        <Card key={card.label}>
+        <Card key={card.label} className="border-border/70 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted">{card.label}</CardTitle>
             <card.icon className={cn('h-4 w-4', card.color)} />
@@ -866,47 +920,111 @@ function BoardSnapshotTable(props: {
   }
 
   return (
-    <Card>
+    <Card className="border-border/70 shadow-sm">
       <CardHeader>
         <CardTitle>Board Snapshot</CardTitle>
+        <p className="text-sm text-muted">
+          Compare board posture, progress, spend, and risk across the current live page.
+        </p>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Board</TableHead>
-              <TableHead>Posture</TableHead>
-              <TableHead>Active Stages</TableHead>
-              <TableHead>Open Work</TableHead>
-              <TableHead>Blocked</TableHead>
-              <TableHead>Gates</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {props.entries.map(({ workflow, board, isLoading, hasError }) => {
-              const posture = resolveBoardPosture(workflow, board);
-              return (
-                <TableRow key={workflow.id}>
-                  <TableCell className="font-medium">
-                    <Link className="text-accent hover:underline" to={`/work/workflows/${workflow.id}`}>
+        <div className="grid gap-3 lg:hidden">
+          {props.entries.map(({ workflow, board, isLoading, hasError }) => {
+            const posture = resolveBoardPosture(workflow, board);
+            return (
+              <div
+                key={workflow.id}
+                className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link
+                      className="block truncate text-sm font-semibold text-accent hover:underline"
+                      to={`/work/workflows/${workflow.id}`}
+                    >
                       {workflow.name}
                     </Link>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <Badge variant={statusBadgeVariant(posture)}>{posture}</Badge>
-                      <p className="text-xs text-muted">{describeBoardHeadline(workflow, board)}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>{describeWorkflowStage(workflow)}</TableCell>
-                  <TableCell>{isLoading ? 'Loading…' : hasError ? 'Unavailable' : countOpenBoardItems(board)}</TableCell>
-                  <TableCell>{isLoading ? 'Loading…' : hasError ? 'Unavailable' : countBlockedBoardItems(board)}</TableCell>
-                  <TableCell>{workflow.work_item_summary?.awaiting_gate_count ?? 0}</TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                    <p className="text-xs text-muted">{describeBoardHeadline(workflow, board)}</p>
+                  </div>
+                  <Badge variant={statusBadgeVariant(posture)}>{posture}</Badge>
+                </div>
+                <div className="grid gap-3 rounded-lg border border-border/60 bg-background/70 p-3 sm:grid-cols-2">
+                  <SnapshotMetric label="Live stages" value={describeWorkflowStage(workflow)} />
+                  <SnapshotMetric
+                    label="Progress"
+                    value={describeBoardProgress(workflow)}
+                  />
+                  <SnapshotMetric
+                    label="Blocked"
+                    value={isLoading ? 'Loading…' : hasError ? 'Unavailable' : String(countBlockedBoardItems(board))}
+                  />
+                  <SnapshotMetric
+                    label="Spend"
+                    value={describeBoardSpend(workflow)}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="hidden overflow-x-auto lg:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Board</TableHead>
+                <TableHead>Posture</TableHead>
+                <TableHead>Progress</TableHead>
+                <TableHead>Spend</TableHead>
+                <TableHead>Blocked</TableHead>
+                <TableHead>Updated</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {props.entries.map(({ workflow, board, isLoading, hasError }) => {
+                const posture = resolveBoardPosture(workflow, board);
+                return (
+                  <TableRow key={workflow.id}>
+                    <TableCell className="align-top font-medium">
+                      <div className="space-y-1">
+                        <Link
+                          className="text-accent hover:underline"
+                          to={`/work/workflows/${workflow.id}`}
+                        >
+                          {workflow.name}
+                        </Link>
+                        <p className="text-xs text-muted">{describeWorkflowStage(workflow)}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <div className="space-y-1">
+                        <Badge variant={statusBadgeVariant(posture)}>{posture}</Badge>
+                        <p className="text-xs text-muted">
+                          {describeBoardHeadline(workflow, board)}
+                        </p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="align-top text-sm">
+                      {describeBoardProgress(workflow)}
+                    </TableCell>
+                    <TableCell className="align-top text-sm">
+                      {describeBoardSpend(workflow)}
+                    </TableCell>
+                    <TableCell className="align-top text-sm">
+                      {isLoading
+                        ? 'Loading…'
+                        : hasError
+                          ? 'Unavailable'
+                          : `${countBlockedBoardItems(board)} blocked / ${countOpenBoardItems(board)} open`}
+                    </TableCell>
+                    <TableCell className="align-top text-sm">
+                      {formatRelativeTimestamp(workflow.started_at ?? workflow.created_at)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   );
@@ -934,9 +1052,12 @@ function ActivePlaybookBoards(props: {
   }
 
   return (
-    <Card>
+    <Card className="border-border/70 shadow-sm">
       <CardHeader>
         <CardTitle>Live Boards</CardTitle>
+        <p className="text-sm text-muted">
+          Each card highlights board posture first, then the active work and risk footprint.
+        </p>
       </CardHeader>
       <CardContent>
         <div className="grid gap-4 xl:grid-cols-2">
@@ -948,29 +1069,33 @@ function ActivePlaybookBoards(props: {
                 })
               : [];
             return (
-              <div key={workflow.id} className="rounded-md border p-4">
+              <div key={workflow.id} className="grid gap-4 rounded-xl border border-border/70 bg-muted/10 p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <Link to={`/work/workflows/${workflow.id}`} className="font-medium text-accent hover:underline">
+                  <div className="min-w-0">
+                    <Link to={`/work/workflows/${workflow.id}`} className="block truncate font-medium text-accent hover:underline">
                       {workflow.name}
                     </Link>
-                    <p className="text-xs text-muted">
-                      {describeWorkflowStage(workflow)}
-                    </p>
-                    <p className="mt-1 text-xs text-muted">
-                      {describeBoardHeadline(workflow, board)}
-                    </p>
+                    <p className="text-xs text-muted">{describeBoardHeadline(workflow, board)}</p>
                   </div>
                   <Badge variant={statusBadgeVariant(resolveBoardPosture(workflow, board))}>
                     {resolveBoardPosture(workflow, board)}
                   </Badge>
+                </div>
+                <div className="grid gap-3 rounded-lg border border-border/60 bg-background/80 p-3 sm:grid-cols-2">
+                  <SnapshotMetric label="Live stages" value={describeWorkflowStage(workflow)} />
+                  <SnapshotMetric label="Progress" value={describeBoardProgress(workflow)} />
+                  <SnapshotMetric label="Spend" value={describeBoardSpend(workflow)} />
+                  <SnapshotMetric
+                    label="Age"
+                    value={formatRelativeTimestamp(workflow.started_at ?? workflow.created_at)}
+                  />
                 </div>
                 {isLoading ? <p className="mt-3 text-sm text-muted">Loading board...</p> : null}
                 {hasError ? <p className="mt-3 text-sm text-red-600">Failed to load board.</p> : null}
                 {!isLoading && !hasError ? (
                   <div className="mt-3 space-y-2">
                     {activeItems.slice(0, 6).map((item) => (
-                      <div key={item.id} className="rounded-md border border-border/60 bg-muted/10 p-2">
+                      <div key={item.id} className="rounded-md border border-border/60 bg-background/80 p-3">
                         <div className="flex items-center justify-between gap-2">
                           <Link
                             to={buildWorkflowDetailPermalink(workflow.id, { workItemId: item.id })}
@@ -1046,9 +1171,12 @@ interface ThroughputChartProps {
 
 function ThroughputChart({ data }: ThroughputChartProps): JSX.Element {
   return (
-    <Card>
+    <Card className="border-border/70 shadow-sm">
       <CardHeader>
         <CardTitle>Specialist Step Throughput (24h)</CardTitle>
+        <p className="text-sm text-muted">
+          Recent completions only. Use this to spot drops in execution flow, not for billing.
+        </p>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={220}>
@@ -1082,12 +1210,15 @@ interface LiveEventStreamProps {
 
 function LiveEventStream({ events }: LiveEventStreamProps): JSX.Element {
   return (
-    <Card>
+    <Card className="border-border/70 shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Activity className="h-4 w-4" />
           Live Event Stream
         </CardTitle>
+        <p className="text-sm text-muted">
+          Latest human-readable operator activity across the visible live scope.
+        </p>
       </CardHeader>
       <CardContent>
         {events.length === 0 ? (
@@ -1095,23 +1226,37 @@ function LiveEventStream({ events }: LiveEventStreamProps): JSX.Element {
         ) : (
           <div className="space-y-2">
             {events.map((evt) => (
-              <div key={evt.id} className="flex items-start justify-between gap-3 rounded-md border p-3 text-sm">
+              <div key={evt.id} className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/10 p-3 text-sm sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant={eventBadgeVariant(evt.type)}>{describeTimelineEvent(evt).headline}</Badge>
                     <span className="text-muted">{describeEventScope(evt)}</span>
                   </div>
-                  <p className="truncate text-foreground">{describeTimelineEvent(evt).summary ?? 'Recent operator activity recorded.'}</p>
+                  <p className="text-foreground">
+                    {describeTimelineEvent(evt).summary ?? 'Recent operator activity recorded.'}
+                  </p>
                 </div>
-                <span className="text-xs text-muted">
-                  {new Date(evt.created_at).toLocaleTimeString()}
-                </span>
+                <div className="shrink-0 text-right text-xs text-muted">
+                  <p>{formatRelativeTimestamp(evt.created_at)}</p>
+                  <p>{new Date(evt.created_at).toLocaleTimeString()}</p>
+                </div>
               </div>
             ))}
           </div>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function SnapshotMetric(props: { label: string; value: string }): JSX.Element {
+  return (
+    <div className="space-y-1">
+      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
+        {props.label}
+      </p>
+      <p className="text-sm text-foreground">{props.value}</p>
+    </div>
   );
 }
 
