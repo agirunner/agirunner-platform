@@ -9,6 +9,7 @@ export interface MemoryEntry {
   key: string;
   value: unknown;
   scope: 'project' | 'work_item';
+  eventId?: number;
   workflowId?: string | null;
   workItemId?: string | null;
   taskId?: string | null;
@@ -70,6 +71,7 @@ export function normalizeWorkItemMemoryEntries(
     key: entry.key,
     value: entry.value,
     scope: 'work_item',
+    eventId: entry.event_id,
     workflowId: entry.workflow_id,
     workItemId: entry.work_item_id,
     taskId: entry.task_id,
@@ -92,6 +94,7 @@ export function normalizeWorkItemMemoryHistoryEntries(
       key: entry.key,
       value: entry.value,
       scope: 'work_item' as const,
+      eventId: entry.event_id,
       workflowId: entry.workflow_id,
       workItemId: entry.work_item_id,
       taskId: entry.task_id,

@@ -25,9 +25,16 @@ import {
   summarizeProjectTimeline,
 } from './project-memory-support.js';
 import {
+  buildMemoryActorOptions,
+  buildMemoryKeyOptions,
+  filterScopedMemoryEntries,
+  formatMemoryActor,
+} from './project-memory-history-support.js';
+import {
   buildWorkflowOptions,
   normalizeWorkItemOptions,
 } from './project-content-browser-support.js';
+import { ProjectMemoryHistoryPanel } from './project-memory-history-panel.js';
 
 interface MemoryBrowserPageProps {
   scopedProjectId?: string;
@@ -48,6 +55,8 @@ export function MemoryBrowserSurface(props: MemoryBrowserPageProps = {}): JSX.El
   const [selectedWorkflowId, setSelectedWorkflowId] = useState(scopedWorkflowId || (searchParams.get('workflow') ?? ''));
   const [selectedWorkItemId, setSelectedWorkItemId] = useState(scopedWorkItemId || (searchParams.get('work_item') ?? ''));
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
+  const [selectedHistoryAuthor, setSelectedHistoryAuthor] = useState(searchParams.get('author') ?? '');
+  const [selectedHistoryKey, setSelectedHistoryKey] = useState(searchParams.get('key') ?? '');
 
   const projectsQuery = useQuery({
     queryKey: ['projects'],
@@ -97,17 +106,42 @@ export function MemoryBrowserSurface(props: MemoryBrowserPageProps = {}): JSX.El
     () => normalizeWorkItemMemoryHistoryEntries(workItemMemoryHistoryQuery.data?.history),
     [workItemMemoryHistoryQuery.data?.history],
   );
+  const historyAuthorOptions = useMemo(
+    () => buildMemoryActorOptions(workItemMemoryHistoryEntries),
+    [workItemMemoryHistoryEntries],
+  );
+  const historyKeyOptions = useMemo(
+    () =>
+      buildMemoryKeyOptions(
+        filterScopedMemoryEntries(workItemMemoryHistoryEntries, {
+          query: searchQuery,
+          actor: selectedHistoryAuthor,
+          key: '',
+        }),
+      ),
+    [searchQuery, selectedHistoryAuthor, workItemMemoryHistoryEntries],
+  );
   const filteredProjectEntries = useMemo(
     () => filterMemoryEntries(projectMemoryEntries, searchQuery),
     [projectMemoryEntries, searchQuery],
   );
   const filteredWorkItemEntries = useMemo(
-    () => filterMemoryEntries(workItemMemoryEntries, searchQuery),
-    [searchQuery, workItemMemoryEntries],
+    () =>
+      filterScopedMemoryEntries(workItemMemoryEntries, {
+        query: searchQuery,
+        actor: selectedHistoryAuthor,
+        key: selectedHistoryKey,
+      }),
+    [searchQuery, selectedHistoryAuthor, selectedHistoryKey, workItemMemoryEntries],
   );
   const filteredWorkItemHistoryEntries = useMemo(
-    () => filterMemoryEntries(workItemMemoryHistoryEntries, searchQuery),
-    [searchQuery, workItemMemoryHistoryEntries],
+    () =>
+      filterScopedMemoryEntries(workItemMemoryHistoryEntries, {
+        query: searchQuery,
+        actor: selectedHistoryAuthor,
+        key: selectedHistoryKey,
+      }),
+    [searchQuery, selectedHistoryAuthor, selectedHistoryKey, workItemMemoryHistoryEntries],
   );
   const timelineSummary = useMemo(
     () => summarizeProjectTimeline(timelineQuery.data),
@@ -157,15 +191,35 @@ export function MemoryBrowserSurface(props: MemoryBrowserPageProps = {}): JSX.El
   }, [selectedWorkItemId, workItems]);
 
   useEffect(() => {
+    if (selectedHistoryAuthor && !historyAuthorOptions.some((option) => option.value === selectedHistoryAuthor)) {
+      setSelectedHistoryAuthor('');
+    }
+  }, [historyAuthorOptions, selectedHistoryAuthor]);
+
+  useEffect(() => {
+    if (historyKeyOptions.length === 0) {
+      if (selectedHistoryKey) {
+        setSelectedHistoryKey('');
+      }
+      return;
+    }
+    if (!selectedHistoryKey || !historyKeyOptions.some((option) => option.value === selectedHistoryKey)) {
+      setSelectedHistoryKey(historyKeyOptions[0].value);
+    }
+  }, [historyKeyOptions, selectedHistoryKey]);
+
+  useEffect(() => {
     const next = new URLSearchParams();
     if (!scopedProjectId && selectedProjectId) next.set('project', selectedProjectId); else next.delete('project');
     if (!scopedWorkflowId && selectedWorkflowId) next.set('workflow', selectedWorkflowId); else next.delete('workflow');
     if (!scopedWorkItemId && selectedWorkItemId) next.set('work_item', selectedWorkItemId); else next.delete('work_item');
     if (searchQuery) next.set('q', searchQuery); else next.delete('q');
+    if (selectedHistoryAuthor) next.set('author', selectedHistoryAuthor); else next.delete('author');
+    if (selectedHistoryKey) next.set('key', selectedHistoryKey); else next.delete('key');
     if (next.toString() !== searchParams.toString()) {
       setSearchParams(next, { replace: true });
     }
-  }, [scopedProjectId, scopedWorkflowId, scopedWorkItemId, searchParams, searchQuery, selectedProjectId, selectedWorkflowId, selectedWorkItemId, setSearchParams]);
+  }, [scopedProjectId, scopedWorkflowId, scopedWorkItemId, searchParams, searchQuery, selectedHistoryAuthor, selectedHistoryKey, selectedProjectId, selectedWorkflowId, selectedWorkItemId, setSearchParams]);
 
   return (
     <div className="space-y-6 p-6">
@@ -400,12 +454,13 @@ export function MemoryBrowserSurface(props: MemoryBrowserPageProps = {}): JSX.El
                           <Badge variant="outline">{entry.scope}</Badge>
                           {entry.stageName ? <Badge variant="secondary">{entry.stageName}</Badge> : null}
                           {entry.taskId ? <span>Task {entry.taskId}</span> : null}
+                          {entry.actorType ? (
+                            <span>{formatMemoryActor(entry.actorType, entry.actorId)}</span>
+                          ) : null}
                           {entry.updatedAt ? <span>{new Date(entry.updatedAt).toLocaleString()}</span> : null}
                         </div>
                         <p className="mt-2 font-mono text-sm">{entry.key}</p>
-                        <pre className="mt-2 overflow-x-auto rounded-md bg-border/10 p-3 text-xs">
-                          {typeof entry.value === 'string' ? entry.value : JSON.stringify(entry.value, null, 2)}
-                        </pre>
+                        <div className="mt-2">{renderMemoryPayload(entry.value)}</div>
                       </div>
                     ))}
                   </div>
@@ -418,50 +473,17 @@ export function MemoryBrowserSurface(props: MemoryBrowserPageProps = {}): JSX.El
                 )}
               </div>
 
-              <div className="space-y-3">
-                <div>
-                  <h3 className="text-sm font-medium">Work-item memory history</h3>
-                  <p className="text-xs text-muted">
-                    Review how scoped memory changed over time before editing shared project memory.
-                  </p>
-                </div>
-                {workItemMemoryHistoryQuery.isLoading ? (
-                  <div className="flex items-center gap-2 text-sm text-muted">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading work-item memory history...
-                  </div>
-                ) : filteredWorkItemHistoryEntries.length > 0 ? (
-                  <div className="space-y-2">
-                    {filteredWorkItemHistoryEntries.map((entry) => (
-                      <article
-                        key={`${entry.key}:${entry.updatedAt ?? 'unknown'}:${entry.eventType ?? 'updated'}`}
-                        className="rounded-md border p-3"
-                      >
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                          <Badge variant={entry.eventType === 'deleted' ? 'secondary' : 'outline'}>
-                            {entry.eventType === 'deleted' ? 'Deleted' : 'Updated'}
-                          </Badge>
-                          {entry.stageName ? <Badge variant="secondary">{entry.stageName}</Badge> : null}
-                          {entry.taskId ? <span>Task {entry.taskId}</span> : null}
-                          {entry.updatedAt ? (
-                            <time dateTime={entry.updatedAt} title={new Date(entry.updatedAt).toLocaleString()}>
-                              {new Date(entry.updatedAt).toLocaleString()}
-                            </time>
-                          ) : null}
-                        </div>
-                        <p className="mt-2 font-mono text-sm">{entry.key}</p>
-                        <div className="mt-2">{renderMemoryPayload(entry.value)}</div>
-                      </article>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted">
-                    {selectedWorkItemId
-                      ? 'No work-item memory history matched the current filter.'
-                      : 'Select a workflow work item to inspect memory history.'}
-                  </p>
-                )}
-              </div>
+              <ProjectMemoryHistoryPanel
+                entries={filteredWorkItemHistoryEntries}
+                isLoading={workItemMemoryHistoryQuery.isLoading}
+                isScopedSelectionReady={selectedWorkItemId.length > 0}
+                selectedActor={selectedHistoryAuthor}
+                selectedKey={selectedHistoryKey}
+                actorOptions={historyAuthorOptions}
+                keyOptions={historyKeyOptions}
+                onActorChange={setSelectedHistoryAuthor}
+                onKeyChange={setSelectedHistoryKey}
+              />
             </CardContent>
           </Card>
 

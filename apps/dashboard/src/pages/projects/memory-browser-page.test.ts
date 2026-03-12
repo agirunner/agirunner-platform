@@ -12,7 +12,11 @@ describe('memory browser page source', () => {
     expect(source).toContain('useSearchParams');
     expect(source).toContain("searchParams.get('workflow')");
     expect(source).toContain("searchParams.get('work_item')");
+    expect(source).toContain("searchParams.get('author')");
+    expect(source).toContain("searchParams.get('key')");
     expect(source).toContain("next.set('q'");
+    expect(source).toContain("next.set('author'");
+    expect(source).toContain("next.set('key'");
   });
 
   it('surfaces work-item memory and history alongside project memory', () => {
@@ -20,10 +24,20 @@ describe('memory browser page source', () => {
     expect(source).toContain('getWorkflowWorkItemMemory');
     expect(source).toContain('getWorkflowWorkItemMemoryHistory');
     expect(source).toContain('Work-item memory');
-    expect(source).toContain('Work-item memory history');
+    expect(source).toContain('ProjectMemoryHistoryPanel');
     expect(source).toContain('normalizeWorkItemMemoryEntries');
     expect(source).toContain('normalizeWorkItemMemoryHistoryEntries');
     expect(source).toContain('Read-only scoped memory entries');
+  });
+
+  it('adds structured author and per-key diff review for memory history', () => {
+    const source = readSource();
+    expect(source).toContain('buildMemoryActorOptions');
+    expect(source).toContain('buildMemoryKeyOptions');
+    expect(source).toContain('filterScopedMemoryEntries');
+    expect(source).toContain('selectedHistoryAuthor');
+    expect(source).toContain('selectedHistoryKey');
+    expect(source).toContain('formatMemoryActor');
   });
 
   it('supports discoverable project-scoped memory routes', () => {
