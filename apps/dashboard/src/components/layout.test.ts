@@ -40,4 +40,14 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain("label: 'Runtimes'");
     expect(source).not.toContain("label: 'Runtime Defaults'");
   });
+
+  it('wires keyboard-first command palette navigation and explicit search states', () => {
+    const source = readFileSync(resolve(import.meta.dirname, './layout.tsx'), 'utf8');
+    expect(source).toContain("event.key === 'ArrowDown'");
+    expect(source).toContain("event.key === 'ArrowUp'");
+    expect(source).toContain('dashboard-command-palette-results');
+    expect(source).toContain('Search the workspace');
+    expect(source).toContain('describeCommandPaletteState');
+    expect(source).toContain('shouldRunCommandPaletteSearch');
+  });
 });
