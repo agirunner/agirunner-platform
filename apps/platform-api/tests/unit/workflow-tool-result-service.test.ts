@@ -202,4 +202,37 @@ describe('WorkflowToolResultService', () => {
 
     expect(response).toEqual({ next_stage: 'implementation' });
   });
+
+  it('replaces an existing stored tool result after post-commit side-effect delivery completes', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('UPDATE workflow_tool_results')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'send_task_message',
+            'msg-1',
+            { success: true, delivery_state: 'delivered' },
+          ]);
+          return {
+            rowCount: 1,
+            rows: [{ response: { success: true, delivery_state: 'delivered' } }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    const service = new WorkflowToolResultService(pool as never);
+
+    const response = await service.replaceResult(
+      'tenant-1',
+      'workflow-1',
+      'send_task_message',
+      'msg-1',
+      { success: true, delivery_state: 'delivered' },
+    );
+
+    expect(response).toEqual({ success: true, delivery_state: 'delivered' });
+  });
 });

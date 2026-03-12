@@ -265,26 +265,26 @@ export class OrchestratorTaskMessageService {
       );
       const updated = result.rows[0] ?? row;
       if (result.rowCount) {
-      await this.eventService.emit(
-        {
-          tenantId: identity.tenantId,
-          type: delivered ? 'task.message_delivered' : 'task.message_delivery_deferred',
-          entityType: 'task',
-          entityId: updated.task_id,
-          actorType: 'system',
-          actorId: 'orchestrator_task_message_dispatcher',
-          data: {
-            workflow_id: updated.workflow_id,
-            task_id: updated.task_id,
-            stage_name: updated.stage_name,
-            message_id: updated.request_id,
-            urgency: updated.urgency,
-            delivery_state: updated.delivery_state,
-            assigned_worker_id: updated.worker_id,
+        await this.eventService.emit(
+          {
+            tenantId: identity.tenantId,
+            type: delivered ? 'task.message_delivered' : 'task.message_delivery_deferred',
+            entityType: 'task',
+            entityId: updated.task_id,
+            actorType: 'system',
+            actorId: 'orchestrator_task_message_dispatcher',
+            data: {
+              workflow_id: updated.workflow_id,
+              task_id: updated.task_id,
+              stage_name: updated.stage_name,
+              message_id: updated.request_id,
+              urgency: updated.urgency,
+              delivery_state: updated.delivery_state,
+              assigned_worker_id: updated.worker_id,
+            },
           },
-        },
-        client,
-      );
+          client,
+        );
       }
       await client.query('COMMIT');
       return updated;

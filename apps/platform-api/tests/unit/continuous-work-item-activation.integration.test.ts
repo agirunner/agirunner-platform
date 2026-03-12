@@ -180,4 +180,134 @@ describe('continuous workflow work-item activation integration', () => {
       'processing',
     ]);
   }, 120_000);
+
+  it('ignores a stale duplicate completion callback once the follow-on activation is already processing', async (context) => {
+    if (!canRunIntegration) {
+      context.skip();
+    }
+
+    const playbook = await harness.playbookService.createPlaybook(identity.tenantId, {
+      name: 'Continuous Replay Guard',
+      outcome: 'Avoid duplicate activation finalization',
+      definition: {
+        roles: ['developer'],
+        lifecycle: 'continuous',
+        board: {
+          columns: [
+            { id: 'triage', label: 'Triage' },
+            { id: 'done', label: 'Done', is_terminal: true },
+          ],
+        },
+        stages: [{ name: 'triage', goal: 'Review inbound work' }],
+      },
+    });
+
+    const registration = await harness.workerService.registerWorker(identity, {
+      name: 'activation-replay-worker',
+      runtime_type: 'external',
+      connection_mode: 'polling',
+      capabilities: ['llm-api'],
+      agents: [
+        {
+          name: 'workflow-orchestrator-replay-a',
+          execution_mode: 'orchestrator',
+          capabilities: ['llm-api', 'orchestrator'],
+        },
+        {
+          name: 'workflow-orchestrator-replay-b',
+          execution_mode: 'orchestrator',
+          capabilities: ['llm-api', 'orchestrator'],
+        },
+      ],
+    });
+    const orchestratorAgentA = registration.agents.find((agent) => agent.name === 'workflow-orchestrator-replay-a');
+    const orchestratorAgentB = registration.agents.find((agent) => agent.name === 'workflow-orchestrator-replay-b');
+    expect(orchestratorAgentA).toBeDefined();
+    expect(orchestratorAgentB).toBeDefined();
+
+    const workflow = await harness.workflowService.createWorkflow(identity, {
+      playbook_id: String(playbook.id),
+      name: 'Replay Guard Run',
+    });
+
+    await runWorkflowActivationDispatchTick(
+      harness.logger as never,
+      harness.workflowActivationDispatchService,
+    );
+
+    const firstClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentA?.id)), {
+      agent_id: String(orchestratorAgentA?.id),
+      worker_id: registration.worker_id,
+      capabilities: ['llm-api', 'orchestrator'],
+      include_context: true,
+      playbook_id: String(playbook.id),
+    });
+    expect(firstClaim?.is_orchestrator_task).toBe(true);
+
+    await harness.taskService.startTask(agentIdentity(String(orchestratorAgentA?.id)), String(firstClaim?.id), {
+      agent_id: String(orchestratorAgentA?.id),
+      worker_id: registration.worker_id,
+    });
+
+    await harness.workflowService.createWorkflowWorkItem(identity, String(workflow.id), {
+      request_id: 'wi-replay-1',
+      title: 'Investigate replay issue',
+      goal: 'Triage the new replay issue',
+    });
+
+    await harness.taskService.completeTask(agentIdentity(String(orchestratorAgentA?.id)), String(firstClaim?.id), {
+      agent_id: String(orchestratorAgentA?.id),
+      worker_id: registration.worker_id,
+      output: {
+        summary: 'Reviewed current workflow state',
+      },
+    });
+
+    const secondClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentB?.id)), {
+      agent_id: String(orchestratorAgentB?.id),
+      worker_id: registration.worker_id,
+      capabilities: ['llm-api', 'orchestrator'],
+      include_context: true,
+      playbook_id: String(playbook.id),
+    });
+    expect(secondClaim?.is_orchestrator_task).toBe(true);
+    expect(secondClaim?.activation_id).toBeTruthy();
+
+    const firstTask = await harness.taskService.getTask(identity.tenantId, String(firstClaim?.id)) as Record<string, unknown>;
+    const duplicateFinalizeClient = await db.pool.connect();
+    try {
+      await duplicateFinalizeClient.query('BEGIN');
+      await harness.workflowActivationDispatchService.finalizeActivationForTask(
+        identity.tenantId,
+        firstTask,
+        'completed',
+        duplicateFinalizeClient,
+      );
+      await duplicateFinalizeClient.query('COMMIT');
+    } catch (error) {
+      await duplicateFinalizeClient.query('ROLLBACK');
+      throw error;
+    } finally {
+      duplicateFinalizeClient.release();
+    }
+
+    const activationsAfterReplay = await harness.workflowActivationService.listWorkflowActivations(
+      identity.tenantId,
+      String(workflow.id),
+    );
+    expect(activationsAfterReplay).toHaveLength(2);
+    expect(activationsAfterReplay.map((activation) => activation.state)).toEqual([
+      'completed',
+      'processing',
+    ]);
+
+    const thirdClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentA?.id)), {
+      agent_id: String(orchestratorAgentA?.id),
+      worker_id: registration.worker_id,
+      capabilities: ['llm-api', 'orchestrator'],
+      include_context: true,
+      playbook_id: String(playbook.id),
+    });
+    expect(thirdClaim).toBeNull();
+  }, 120_000);
 });
