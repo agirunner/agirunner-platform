@@ -2,8 +2,7 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 import {
-  normalizeLegacyTaskStateAlias,
-  normalizeTaskState,
+  normalizeTaskStateInput,
 } from '../orchestration/task-state-machine.js';
 import { sanitizeSecretLikeValue } from './secret-redaction.js';
 import { buildTaskContext } from './task-context-service.js';
@@ -164,5 +163,5 @@ function normalizeResponseTaskState(value: unknown): unknown {
   if (typeof value !== 'string') {
     return value;
   }
-  return normalizeTaskState(value) ?? normalizeLegacyTaskStateAlias(value) ?? value;
+  return normalizeTaskStateInput(value) ?? value;
 }

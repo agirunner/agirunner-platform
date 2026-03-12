@@ -174,4 +174,31 @@ describe('project content browser support', () => {
       },
     ]);
   });
+
+  it('preserves canonical claimed tasks instead of collapsing them into in-progress', () => {
+    expect(
+      normalizeTaskOptions({
+        data: [
+          {
+            id: 'task-4',
+            title: 'Queued specialist',
+            state: 'claimed',
+            is_orchestrator_task: false,
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        id: 'task-4',
+        title: 'Queued specialist',
+        state: 'claimed',
+        stageName: null,
+        workItemId: null,
+        activationId: null,
+        role: null,
+        isOrchestratorTask: false,
+        createdAt: undefined,
+      },
+    ]);
+  });
 });

@@ -3,6 +3,7 @@ import type {
   DashboardProjectTimelineEntry,
   DashboardWorkflowWorkItemRecord,
 } from '../../lib/api.js';
+import { normalizeTaskState as normalizeCanonicalTaskState } from '../../lib/task-state.js';
 
 export interface ProjectWorkflowOption {
   id: string;
@@ -148,12 +149,5 @@ function normalizeWorkflowState(state: string | null | undefined): string {
 }
 
 function normalizeTaskState(state: string | null | undefined): string {
-  const normalized = (state ?? 'unknown').toLowerCase();
-  if (normalized === 'running' || normalized === 'claimed') {
-    return 'in_progress';
-  }
-  if (normalized === 'awaiting_escalation') {
-    return 'escalated';
-  }
-  return normalized;
+  return normalizeCanonicalTaskState(state ?? 'unknown');
 }

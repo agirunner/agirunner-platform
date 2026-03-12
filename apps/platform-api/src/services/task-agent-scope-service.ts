@@ -2,8 +2,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
 import { ForbiddenError } from '../errors/domain-errors.js';
 import {
-  normalizeLegacyTaskStateAlias,
-  normalizeTaskState,
+  normalizeTaskStateInput,
 } from '../orchestration/task-state-machine.js';
 
 export interface ActiveTaskScope {
@@ -44,10 +43,7 @@ export class TaskAgentScopeService {
     if (task.assigned_agent_id !== identity.ownerId) {
       throw new ForbiddenError('Task is not owned by the calling agent');
     }
-    const normalizedState =
-      normalizeTaskState(task.state)
-      ?? normalizeLegacyTaskStateAlias(task.state)
-      ?? task.state;
+    const normalizedState = normalizeTaskStateInput(task.state) ?? task.state;
     if (!['claimed', 'in_progress', 'output_pending_review', 'awaiting_approval'].includes(normalizedState)) {
       throw new ForbiddenError('Task-scoped tools require an active task');
     }

@@ -1,4 +1,5 @@
 import type { Task } from '@agirunner/sdk';
+import { normalizeTaskState as normalizeDashboardTaskState } from '../lib/task-state.js';
 
 type TaskWithStatus = Task & { status?: string | null };
 
@@ -37,7 +38,7 @@ export function parseJsonObject(value: string, errorMessage: string) {
 }
 
 export function normalizeTaskState(value: string | null | undefined) {
-  return (value ?? '').toLowerCase();
+  return normalizeDashboardTaskState(value);
 }
 
 export function readClarificationHistory(task: Task | null) {

@@ -110,6 +110,18 @@ describe('workflow detail model override display', () => {
     expect(source).toContain('ResolvedModelResolutionList');
     expect(source).toContain('Board-run overrides take precedence over project-level model settings.');
   });
+
+  it('loads and renders workflow budget visibility alongside mission-control actions', () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, './workflow-detail-page.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain("queryKey: ['workflow-budget', workflowId]");
+    expect(source).toContain('dashboardApi.getWorkflowBudget(workflowId)');
+    expect(source).toContain('WorkflowBudgetCard');
+    expect(source).toContain('context="workflow-detail"');
+  });
 });
 
 describe('workflow detail interaction timeline', () => {
@@ -215,6 +227,7 @@ describe('workflow detail deep links', () => {
     expect(source).toContain("['workflow-board', workflowId]");
     expect(source).toContain("['workflow-stages', workflowId]");
     expect(source).toContain("['workflow-activations', workflowId]");
+    expect(source).toContain("['workflow-budget', workflowId]");
     expect(source).toContain("['workflow-gates', workflowId]");
     expect(source).toContain("['workflow-model-overrides', workflowId]");
     expect(source).toContain("['workflow-resolved-models', workflowId]");
@@ -240,5 +253,11 @@ describe('workflow detail deep links', () => {
     expect(source).toContain('<CardTitle>Launch Child Board</CardTitle>');
     expect(source).toContain('Create Child Board');
     expect(source).toContain('<CardTitle>Board Summary</CardTitle>');
+    expect(source).toContain('Immediate context values');
+    expect(source).toContain('Structured context sections');
+    expect(source).toContain('Resolved inline values');
+    expect(source).toContain('Terminal run signals');
+    expect(source).toContain('PacketFactGrid');
+    expect(source).toContain('PacketBadgePanel');
   });
 });

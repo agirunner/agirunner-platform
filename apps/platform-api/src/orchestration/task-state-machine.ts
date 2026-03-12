@@ -64,7 +64,17 @@ export function normalizeTaskState(state: string | null | undefined): CanonicalT
   return taskStates.includes(state as CanonicalTaskState) ? (state as CanonicalTaskState) : null;
 }
 
-export function normalizeLegacyTaskStateAlias(
+export function normalizeTaskStateInput(
+  state: string | null | undefined,
+): CanonicalTaskState | null {
+  const normalizedState = normalizeTaskState(state);
+  if (normalizedState) {
+    return normalizedState;
+  }
+  return normalizeTaskStateAlias(state);
+}
+
+function normalizeTaskStateAlias(
   state: string | null | undefined,
 ): CanonicalTaskState | null {
   if (!state) {
