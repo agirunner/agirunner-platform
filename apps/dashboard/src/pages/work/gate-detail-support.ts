@@ -6,6 +6,8 @@ export interface GateIdentityShape {
   stage_name?: string | null;
   gate_status?: string | null;
   status?: string | null;
+  request_summary?: string | null;
+  summary?: string | null;
   recommendation?: string | null;
   requested_at?: string | null;
   decided_at?: string | null;
@@ -42,7 +44,38 @@ export interface GateIdentityShape {
     queued_at?: string | null;
     started_at?: string | null;
     completed_at?: string | null;
+    latest_event_at?: string | null;
+    event_count?: number | null;
+    summary?: string | null;
+    error?: Record<string, unknown> | null;
+    task?: {
+      id?: string | null;
+      title?: string | null;
+      state?: string | null;
+      started_at?: string | null;
+      completed_at?: string | null;
+    } | null;
   } | null;
+  orchestrator_resume_history?: Array<{
+    activation_id?: string | null;
+    state?: string | null;
+    event_type?: string | null;
+    reason?: string | null;
+    queued_at?: string | null;
+    started_at?: string | null;
+    completed_at?: string | null;
+    latest_event_at?: string | null;
+    event_count?: number | null;
+    summary?: string | null;
+    error?: Record<string, unknown> | null;
+    task?: {
+      id?: string | null;
+      title?: string | null;
+      state?: string | null;
+      started_at?: string | null;
+      completed_at?: string | null;
+    } | null;
+  }> | null;
   concerns?: string[] | null;
   key_artifacts?: Array<Record<string, unknown>> | null;
 }
@@ -154,11 +187,13 @@ export function readGateResumptionSummary(gate: GateIdentityShape): string {
     const state = readNonEmpty(resume.state)?.replaceAll('_', ' ') ?? 'queued';
     const eventType = readNonEmpty(resume.event_type)?.replaceAll('_', ' ');
     const activationId = readNonEmpty(resume.activation_id);
+    const task = readResumeTaskLabel(resume);
     const timing = readResumeTimingSummary(resume);
     return [
       state,
       eventType,
       activationId ? `activation ${activationId}` : null,
+      task,
       timing,
     ].filter(Boolean).join(' • ');
   }
@@ -202,6 +237,13 @@ export function readGateTimelineRows(gate: GateIdentityShape): Array<{ label: st
     rows.push({
       label: 'Activation',
       value: activationId,
+    });
+  }
+  const resumeTask = readResumeTaskLabel(gate.orchestrator_resume ?? null);
+  if (resumeTask) {
+    rows.push({
+      label: 'Orchestrator task',
+      value: resumeTask,
     });
   }
   rows.push({
@@ -291,6 +333,7 @@ function readResumeTimingSummary(
     queued_at?: string | null;
     started_at?: string | null;
     completed_at?: string | null;
+    latest_event_at?: string | null;
   },
 ): string | null {
   const completed = readTimeLabel(resume.completed_at);
@@ -304,6 +347,10 @@ function readResumeTimingSummary(
   const queued = readTimeLabel(resume.queued_at);
   if (queued) {
     return `queued ${queued}`;
+  }
+  const latest = readTimeLabel(resume.latest_event_at);
+  if (latest) {
+    return `latest event ${latest}`;
   }
   return null;
 }
@@ -322,4 +369,24 @@ function readGateRequestSourceValue(gate: GateIdentityShape): string | null {
 
 function readNonEmpty(value: string | null | undefined): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function readResumeTaskLabel(
+  resume:
+    | {
+        task?: {
+          id?: string | null;
+          title?: string | null;
+          state?: string | null;
+        } | null;
+      }
+    | null,
+): string | null {
+  const taskId = readNonEmpty(resume?.task?.id);
+  if (!taskId) {
+    return null;
+  }
+  const taskTitle = readNonEmpty(resume?.task?.title) ?? taskId;
+  const taskState = readNonEmpty(resume?.task?.state)?.replaceAll('_', ' ');
+  return taskState ? `${taskTitle} • ${taskState}` : taskTitle;
 }

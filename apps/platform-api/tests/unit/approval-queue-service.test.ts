@@ -26,6 +26,55 @@ describe('ApprovalQueueService', () => {
             }],
           };
         }
+        if (sql.includes("SELECT wa.payload->>'gate_id' AS gate_id")) {
+          return {
+            rowCount: 2,
+            rows: [
+              {
+                gate_id: 'gate-1',
+                id: 'activation-row-1',
+                workflow_id: 'workflow-1',
+                activation_id: 'activation-2',
+                request_id: 'gate-approval-1',
+                reason: 'stage.gate.approve',
+                event_type: 'stage.gate.approve',
+                state: 'processing',
+                queued_at: new Date('2026-03-11T01:01:00Z'),
+                started_at: new Date('2026-03-11T01:02:00Z'),
+                consumed_at: null,
+                completed_at: null,
+                summary: 'Queued orchestrator follow-up',
+                error: null,
+                task_id: 'task-orchestrator-1',
+                task_title: 'Resume requirements orchestration',
+                task_state: 'in_progress',
+                task_started_at: new Date('2026-03-11T01:02:30Z'),
+                task_completed_at: null,
+              },
+              {
+                gate_id: 'gate-1',
+                id: 'activation-row-2',
+                workflow_id: 'workflow-1',
+                activation_id: 'activation-2',
+                request_id: null,
+                reason: 'gate_decision_recorded',
+                event_type: 'gate_decision_recorded',
+                state: 'processing',
+                queued_at: new Date('2026-03-11T01:03:00Z'),
+                started_at: null,
+                consumed_at: null,
+                completed_at: null,
+                summary: 'Picked up by orchestrator',
+                error: null,
+                task_id: 'task-orchestrator-1',
+                task_title: 'Resume requirements orchestration',
+                task_state: 'in_progress',
+                task_started_at: new Date('2026-03-11T01:02:30Z'),
+                task_completed_at: null,
+              },
+            ],
+          };
+        }
         return {
           rowCount: 1,
           rows: [{
@@ -116,8 +165,19 @@ describe('ApprovalQueueService', () => {
         }),
         orchestrator_resume: expect.objectContaining({
           activation_id: 'activation-2',
-          state: 'queued',
+          state: 'processing',
+          task: expect.objectContaining({
+            id: 'task-orchestrator-1',
+            title: 'Resume requirements orchestration',
+            state: 'in_progress',
+          }),
         }),
+        orchestrator_resume_history: [
+          expect.objectContaining({
+            activation_id: 'activation-2',
+            event_count: 2,
+          }),
+        ],
         decision_history: [
           expect.objectContaining({
             action: 'requested',
@@ -131,53 +191,81 @@ describe('ApprovalQueueService', () => {
 
   it('looks up a gate by id', async () => {
     const pool = {
-      query: vi.fn(async () => ({
-        rowCount: 1,
-        rows: [{
-          id: 'gate-9',
-          workflow_id: 'workflow-9',
-          workflow_name: 'Workflow Nine',
-          stage_id: 'stage-9',
-          stage_name: 'qa',
-          stage_goal: 'Validate release',
-          status: 'awaiting_approval',
-          request_summary: 'Ready for final review',
-          recommendation: 'approve',
-          concerns: [],
-          key_artifacts: [],
-          requested_by_type: 'orchestrator',
-          requested_by_id: 'task-9',
-          requested_at: new Date('2026-03-11T02:00:00Z'),
-          updated_at: new Date('2026-03-11T02:00:00Z'),
-          decided_by_type: null,
-          decided_by_id: null,
-          decision_feedback: null,
-          decided_at: null,
-          decision_history: [
-            {
-              action: 'requested',
-              actor_type: 'agent',
-              actor_id: 'agent-9',
-              feedback: null,
-              created_at: '2026-03-11T02:00:00.000Z',
-            },
-            {
-              action: 'request_changes',
-              actor_type: 'admin',
-              actor_id: 'admin-1',
-              feedback: 'Needs revision',
-              created_at: '2026-03-11T02:05:00.000Z',
-            },
-            {
-              action: 'approve',
-              actor_type: 'admin',
-              actor_id: 'admin-1',
-              feedback: 'Looks good now',
-              created_at: '2026-03-11T02:10:00.000Z',
-            },
-          ],
-        }],
-      })),
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes("SELECT wa.payload->>'gate_id' AS gate_id")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              gate_id: 'gate-9',
+              id: 'activation-row-9',
+              workflow_id: 'workflow-9',
+              activation_id: 'activation-9',
+              request_id: 'gate-9-approve',
+              reason: 'stage.gate.approve',
+              event_type: 'stage.gate.approve',
+              state: 'queued',
+              queued_at: new Date('2026-03-11T02:11:00Z'),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: 'Queued follow-up',
+              error: null,
+              task_id: null,
+              task_title: null,
+              task_state: null,
+              task_started_at: null,
+              task_completed_at: null,
+            }],
+          };
+        }
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'gate-9',
+            workflow_id: 'workflow-9',
+            workflow_name: 'Workflow Nine',
+            stage_id: 'stage-9',
+            stage_name: 'qa',
+            stage_goal: 'Validate release',
+            status: 'awaiting_approval',
+            request_summary: 'Ready for final review',
+            recommendation: 'approve',
+            concerns: [],
+            key_artifacts: [],
+            requested_by_type: 'orchestrator',
+            requested_by_id: 'task-9',
+            requested_at: new Date('2026-03-11T02:00:00Z'),
+            updated_at: new Date('2026-03-11T02:00:00Z'),
+            decided_by_type: null,
+            decided_by_id: null,
+            decision_feedback: null,
+            decided_at: null,
+            decision_history: [
+              {
+                action: 'requested',
+                actor_type: 'agent',
+                actor_id: 'agent-9',
+                feedback: null,
+                created_at: '2026-03-11T02:00:00.000Z',
+              },
+              {
+                action: 'request_changes',
+                actor_type: 'admin',
+                actor_id: 'admin-1',
+                feedback: 'Needs revision',
+                created_at: '2026-03-11T02:05:00.000Z',
+              },
+              {
+                action: 'approve',
+                actor_type: 'admin',
+                actor_id: 'admin-1',
+                feedback: 'Looks good now',
+                created_at: '2026-03-11T02:10:00.000Z',
+              },
+            ],
+          }],
+        };
+      }),
     };
 
     const service = new ApprovalQueueService(pool as never);
@@ -193,6 +281,12 @@ describe('ApprovalQueueService', () => {
         workflow_id: 'workflow-9',
         stage_name: 'qa',
         requested_by_id: 'task-9',
+        orchestrator_resume_history: [
+          expect.objectContaining({
+            activation_id: 'activation-9',
+            state: 'processing',
+          }),
+        ],
         decision_history: [
           expect.objectContaining({ action: 'requested' }),
           expect.objectContaining({ action: 'request_changes', feedback: 'Needs revision' }),

@@ -106,9 +106,14 @@ describe('gate detail support', () => {
           state: 'processing',
           event_type: 'gate_decision_recorded',
           queued_at: '2026-03-12T12:01:00.000Z',
+          task: {
+            id: 'task-1',
+            title: 'Resume QA orchestration',
+            state: 'in_progress',
+          },
         },
       }),
-    ).toContain('processing • gate decision recorded • activation activation-1');
+    ).toContain('processing • gate decision recorded • activation activation-1 • Resume QA orchestration • in progress');
   });
 
   it('builds operator timeline rows for request and decision context', () => {

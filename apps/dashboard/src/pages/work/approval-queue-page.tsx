@@ -48,6 +48,7 @@ import {
   readGateRequestSourceSummary,
   readGateResumptionSummary,
 } from './gate-detail-support.js';
+import { readGateResumeTaskSummary } from './gate-handoff-support.js';
 import {
   buildTaskApprovalBreadcrumbs,
   computeWaitingTime,
@@ -413,6 +414,7 @@ function StageGateQueueCard(props: {
   const requestSource = readGateRequestSourceSummary(gate);
   const decisionSummary = readGateDecisionSummary(gate);
   const resumptionSummary = readGateResumptionSummary(gate);
+  const resumeTaskSummary = readGateResumeTaskSummary(gate);
 
   return (
     <Card className="border-border/80">
@@ -504,6 +506,9 @@ function StageGateQueueCard(props: {
               <p className="text-xs text-muted">{resumptionSummary}</p>
               {gate.orchestrator_resume?.reason ? (
                 <p className="mt-2 text-xs text-muted">{gate.orchestrator_resume.reason}</p>
+              ) : null}
+              {resumeTaskSummary ? (
+                <p className="mt-2 text-xs text-muted">Follow-up step: {resumeTaskSummary}</p>
               ) : null}
             </div>
           </div>

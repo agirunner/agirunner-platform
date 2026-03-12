@@ -19,11 +19,14 @@ describe('gate detail card source', () => {
     expect(source).toContain('Concerns');
     expect(source).toContain('Human decision');
     expect(source).toContain('Orchestrator follow-up');
+    expect(source).toContain('GateHandoffTrail');
     expect(source).toContain('readGateDecisionSummary');
     expect(source).toContain('readGateRequestSourceSummary');
     expect(source).toContain('readGateResumptionSummary');
     expect(source).toContain('Open work-item flow');
     expect(source).toContain('Open follow-up activation');
+    expect(source).toContain('Open follow-up step');
+    expect(source).toContain('follow-up activations have been recorded');
     expect(source).toContain('Key artifacts');
     expect(source).toContain('Permalink');
     expect(source).toContain('Gate ID');

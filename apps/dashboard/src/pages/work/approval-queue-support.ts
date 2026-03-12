@@ -99,6 +99,8 @@ export function matchesApprovalSearch(
     'orchestrator_resume' in gate ? gate.orchestrator_resume?.event_type : '',
     'orchestrator_resume' in gate ? gate.orchestrator_resume?.reason : '',
     'orchestrator_resume' in gate ? gate.orchestrator_resume?.summary : '',
+    'orchestrator_resume' in gate ? gate.orchestrator_resume?.task?.title : '',
+    'orchestrator_resume' in gate ? gate.orchestrator_resume?.task?.state : '',
     ...('requested_by_task' in gate ? readGateRequestSourceSummary(gate) : []),
     ...('human_decision' in gate ? [readGateDecisionSummary(gate)] : []),
     ...('orchestrator_resume' in gate ? [readGateResumptionSummary(gate)] : []),

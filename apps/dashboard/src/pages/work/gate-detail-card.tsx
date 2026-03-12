@@ -12,6 +12,7 @@ import { Card, CardContent } from '../../components/ui/card.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog.js';
 import { actOnGate, getGateDetail, type DashboardGateDetailRecord } from './gate-api.js';
+import { GateHandoffTrail } from './gate-handoff-trail.js';
 import { OperatorBreadcrumbTrail } from './operator-breadcrumb-trail.js';
 import {
   buildGateBreadcrumbs,
@@ -168,6 +169,7 @@ export function GateDetailCard(props: {
   const decisionSummary = readGateDecisionSummary(gate);
   const decisionHistory = readGateDecisionHistory(gate);
   const resumptionSummary = readGateResumptionSummary(gate);
+  const resumeHistoryCount = gate.orchestrator_resume_history?.length ?? (resume ? 1 : 0);
   const requestedWorkItemPermalink =
     workflowId && gate.requested_by_task?.work_item_id
       ? buildWorkflowDetailPermalink(workflowId, {
@@ -180,6 +182,7 @@ export function GateDetailCard(props: {
           activationId: resume.activation_id,
         })
       : null;
+  const resumeTaskPermalink = resume?.task?.id ? `/work/tasks/${resume.task.id}` : null;
 
   return (
     <>
@@ -204,6 +207,9 @@ export function GateDetailCard(props: {
                   <Badge variant="outline">orchestrator {resume.state.replaceAll('_', ' ')}</Badge>
                 ) : decisionAction ? (
                   <Badge variant="outline">awaiting orchestrator follow-up</Badge>
+                ) : null}
+                {resumeHistoryCount > 1 ? (
+                  <Badge variant="outline">{resumeHistoryCount} follow-up runs</Badge>
                 ) : null}
                 <span>Waiting {computeWaitingTime(gate.updated_at)}</span>
               </div>
@@ -284,6 +290,7 @@ export function GateDetailCard(props: {
                   </div>
                 </div>
               </div>
+              <GateHandoffTrail gate={gate} />
               {gate.requested_by_task ? (
                 <div className="rounded-md border border-border/70 bg-border/10 p-3">
                   <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
@@ -392,10 +399,33 @@ export function GateDetailCard(props: {
                     ) : null}
                     {resume?.reason ? <p>{resume.reason}</p> : null}
                     {resume?.summary ? <p>{resume.summary}</p> : null}
+                    {resume?.task ? (
+                      <div>
+                        Follow-up step:{' '}
+                        {resumeTaskPermalink ? (
+                          <Link className="text-accent hover:underline" to={resumeTaskPermalink}>
+                            {resume.task.title ?? resume.task.id}
+                          </Link>
+                        ) : (
+                          resume.task.title ?? resume.task.id
+                        )}
+                        {resume.task.state ? ` • ${resume.task.state.replaceAll('_', ' ')}` : ''}
+                      </div>
+                    ) : null}
+                    {resumeHistoryCount > 1 ? (
+                      <p>{resumeHistoryCount} follow-up activations have been recorded for this gate.</p>
+                    ) : null}
                     {resumePermalink ? (
                       <div>
                         <Link className="text-accent hover:underline" to={resumePermalink}>
                           Open follow-up activation
+                        </Link>
+                      </div>
+                    ) : null}
+                    {resumeTaskPermalink ? (
+                      <div>
+                        <Link className="text-accent hover:underline" to={resumeTaskPermalink}>
+                          Open follow-up step
                         </Link>
                       </div>
                     ) : null}

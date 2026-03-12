@@ -33,10 +33,12 @@ describe('approval queue page source', () => {
     expect(source).toContain('Oldest wait first');
     expect(source).toContain('readGateDecisionSummary');
     expect(source).toContain('readGateResumptionSummary');
+    expect(source).toContain('readGateResumeTaskSummary');
     expect(source).toContain('readGateRequestSourceSummary');
     expect(source).toContain('Gate packet');
     expect(source).toContain('Request source');
     expect(source).toContain('Orchestrator follow-up');
+    expect(source).toContain('Follow-up step:');
     expect(source).toContain('countPendingOrchestratorFollowUp');
   });
 

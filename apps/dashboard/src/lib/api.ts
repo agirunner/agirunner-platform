@@ -409,7 +409,36 @@ export interface DashboardApprovalStageGateRecord {
     completed_at?: string | null;
     summary?: string | null;
     error?: Record<string, unknown> | null;
+    latest_event_at?: string | null;
+    event_count?: number;
+    task?: {
+      id: string;
+      title?: string | null;
+      state?: string | null;
+      started_at?: string | null;
+      completed_at?: string | null;
+    } | null;
   } | null;
+  orchestrator_resume_history?: Array<{
+    activation_id: string;
+    state?: string | null;
+    event_type?: string | null;
+    reason?: string | null;
+    queued_at?: string | null;
+    started_at?: string | null;
+    completed_at?: string | null;
+    summary?: string | null;
+    error?: Record<string, unknown> | null;
+    latest_event_at?: string | null;
+    event_count?: number;
+    task?: {
+      id: string;
+      title?: string | null;
+      state?: string | null;
+      started_at?: string | null;
+      completed_at?: string | null;
+    } | null;
+  }>;
   requested_at?: string;
   decided_at?: string | null;
   updated_at: string;

@@ -1,5 +1,6 @@
 import type { DatabasePool } from '../db/database.js';
 import { NotFoundError } from '../errors/domain-errors.js';
+import { loadGateResumeHistory } from './gate-resume-history.js';
 import {
   toGateResponse,
   type WorkflowStageGateRecord,
@@ -166,6 +167,7 @@ export class ApprovalQueueService {
         [tenantId, ['stage.gate_requested', 'stage.gate.approve', 'stage.gate.reject', 'stage.gate.request_changes']],
       ),
     ]);
+    const stageGateRows = await this.attachGateResumeHistory(tenantId, stageGates.rows);
 
     return {
       task_approvals: tasks.rows.map((row) => ({
@@ -183,7 +185,7 @@ export class ApprovalQueueService {
         created_at: row.created_at.toISOString(),
         output: row.output,
       })),
-      stage_gates: stageGates.rows.map((row) => toGateResponse(row)),
+      stage_gates: stageGateRows.map((row) => toGateResponse(row)),
     };
   }
 
@@ -288,7 +290,8 @@ export class ApprovalQueueService {
         ORDER BY g.requested_at DESC`,
       [tenantId, workflowId, ['stage.gate_requested', 'stage.gate.approve', 'stage.gate.reject', 'stage.gate.request_changes']],
     );
-    return result.rows.map((row) => toGateResponse(row));
+    const rows = await this.attachGateResumeHistory(tenantId, result.rows, workflowId);
+    return rows.map((row) => toGateResponse(row));
   }
 
   async getGate(tenantId: string, gateId: string, workflowId?: string) {
@@ -407,6 +410,31 @@ export class ApprovalQueueService {
     if (!result.rowCount) {
       throw new NotFoundError('Workflow stage gate not found');
     }
-    return toGateResponse(result.rows[0]);
+    const rows = await this.attachGateResumeHistory(
+      tenantId,
+      result.rows,
+      workflowId ?? result.rows[0].workflow_id,
+    );
+    return toGateResponse(rows[0]);
+  }
+
+  private async attachGateResumeHistory(
+    tenantId: string,
+    rows: ApprovalStageRow[],
+    workflowId?: string,
+  ): Promise<ApprovalStageRow[]> {
+    if (rows.length === 0) {
+      return rows;
+    }
+    const resumeHistory = await loadGateResumeHistory(
+      this.pool,
+      tenantId,
+      rows.map((row) => row.id),
+      workflowId,
+    );
+    return rows.map((row) => ({
+      ...row,
+      resume_activation_history: resumeHistory.get(row.id) ?? [],
+    }));
   }
 }
