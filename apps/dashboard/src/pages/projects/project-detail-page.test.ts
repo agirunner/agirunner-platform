@@ -91,4 +91,11 @@ describe('project detail automation tab source', () => {
     expect(source).toContain('<label className="text-xs font-medium">Value Type</label>');
     expect(source).not.toContain('Value (string or JSON)');
   });
+
+  it('adds a first-class artifacts tab for inline project-scoped inspection', () => {
+    const source = readSource();
+    expect(source).toContain('TabsTrigger value="artifacts">Artifacts</TabsTrigger>');
+    expect(source).toContain('<ArtifactsTab projectId={project.id} />');
+    expect(source).toContain('<ProjectArtifactExplorerPanel projectId={projectId} />');
+  });
 });

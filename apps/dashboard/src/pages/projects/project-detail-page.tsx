@@ -55,6 +55,7 @@ import {
   type StructuredEntryDraft,
   type StructuredValueType,
 } from './project-detail-support.js';
+import { ProjectArtifactExplorerPanel } from './project-artifact-explorer-panel.js';
 
 /* ------------------------------------------------------------------ */
 /*  Spec Tab                                                           */
@@ -602,6 +603,10 @@ function MemoryTab({ projectId }: { projectId: string }): JSX.Element {
       </Card>
     </div>
   );
+}
+
+function ArtifactsTab({ projectId }: { projectId: string }): JSX.Element {
+  return <ProjectArtifactExplorerPanel projectId={projectId} />;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1741,6 +1746,7 @@ export function ProjectDetailPage(): JSX.Element {
           <TabsTrigger value="tools">Tools</TabsTrigger>
           <TabsTrigger value="timeline">Delivery</TabsTrigger>
           <TabsTrigger value="memory">Memory</TabsTrigger>
+          <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
           <TabsTrigger value="models">Models</TabsTrigger>
           <TabsTrigger value="automation">Automation</TabsTrigger>
         </TabsList>
@@ -1763,6 +1769,10 @@ export function ProjectDetailPage(): JSX.Element {
 
         <TabsContent value="memory">
           <MemoryTab projectId={project.id} />
+        </TabsContent>
+
+        <TabsContent value="artifacts">
+          <ArtifactsTab projectId={project.id} />
         </TabsContent>
 
         <TabsContent value="models">

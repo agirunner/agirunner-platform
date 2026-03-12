@@ -1,8 +1,12 @@
 import { useParams } from 'react-router-dom';
 
-import { ContentBrowserSurface } from './content-browser-page.js';
+import { ProjectArtifactExplorerPanel } from './project-artifact-explorer-panel.js';
 
 export function ProjectArtifactBrowserPage(): JSX.Element {
   const params = useParams<{ id: string }>();
-  return <ContentBrowserSurface scopedProjectId={params.id ?? ''} preferredTab="artifacts" />;
+  return (
+    <div className="space-y-6 p-6">
+      <ProjectArtifactExplorerPanel projectId={params.id ?? ''} showHeader />
+    </div>
+  );
 }

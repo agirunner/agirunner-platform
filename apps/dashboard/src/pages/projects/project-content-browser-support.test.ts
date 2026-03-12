@@ -73,6 +73,7 @@ describe('project content browser support', () => {
     ).toEqual([
       {
         id: 'task-1',
+        workflowId: null,
         title: 'Review PR',
         state: 'in_progress',
         stageName: 'review',
@@ -100,6 +101,7 @@ describe('project content browser support', () => {
     ).toEqual([
       {
         id: 'wi-1',
+        workflowId: 'wf-1',
         title: 'Build auth',
         stageName: 'implementation',
         columnId: 'active',
@@ -113,6 +115,7 @@ describe('project content browser support', () => {
         [
           {
             id: 'task-1',
+            workflowId: null,
             title: 'Build auth',
             state: 'claimed',
             stageName: 'implementation',
@@ -123,6 +126,7 @@ describe('project content browser support', () => {
           },
           {
             id: 'task-2',
+            workflowId: null,
             title: 'Review auth',
             state: 'pending',
             stageName: 'review',
@@ -137,6 +141,7 @@ describe('project content browser support', () => {
     ).toEqual([
       {
         id: 'task-1',
+        workflowId: null,
         title: 'Build auth',
         state: 'claimed',
         stageName: 'implementation',
@@ -163,6 +168,7 @@ describe('project content browser support', () => {
     ).toEqual([
       {
         id: 'task-3',
+        workflowId: null,
         title: 'Resolve blocker',
         state: 'escalated',
         stageName: null,
@@ -190,6 +196,7 @@ describe('project content browser support', () => {
     ).toEqual([
       {
         id: 'task-4',
+        workflowId: null,
         title: 'Queued specialist',
         state: 'claimed',
         stageName: null,

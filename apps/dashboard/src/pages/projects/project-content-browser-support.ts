@@ -14,6 +14,7 @@ export interface ProjectWorkflowOption {
 
 export interface ProjectTaskOption {
   id: string;
+  workflowId: string | null;
   title: string;
   state: string;
   stageName: string | null;
@@ -26,6 +27,7 @@ export interface ProjectTaskOption {
 
 export interface ProjectWorkItemOption {
   id: string;
+  workflowId: string | null;
   title: string;
   stageName: string;
   columnId: string;
@@ -91,6 +93,7 @@ export function normalizeTaskOptions(response: unknown): ProjectTaskOption[] {
 
     tasks.push({
       id,
+      workflowId: typeof task.workflow_id === 'string' ? task.workflow_id : null,
       title:
         (typeof task.title === 'string' && task.title) ||
         (typeof task.name === 'string' && task.name) ||
@@ -119,6 +122,7 @@ export function normalizeWorkItemOptions(
     .filter((item) => typeof item.id === 'string')
     .map((item) => ({
       id: item.id,
+      workflowId: item.workflow_id ?? null,
       title: item.title,
       stageName: item.stage_name,
       columnId: item.column_id,
