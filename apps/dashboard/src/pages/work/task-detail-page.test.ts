@@ -22,9 +22,19 @@ describe('task detail page source', () => {
     expect(source).toContain('escalated');
     expect(source).toContain('Open Escalation Context');
     expect(source).toContain('Open Work Item Flow');
-    expect(source).toContain('Operator Context');
-    expect(source).toContain('Step Output');
+    expect(source).toContain('Operator packet');
+    expect(source).toContain('Operator Output Packet');
     expect(source).not.toContain("status === 'running' || status === 'claimed'");
     expect(source).toContain("return 'Specialist step'");
+  });
+
+  it('renders an operator-first packet instead of a raw output dump', () => {
+    const source = readSource();
+    expect(source).toContain('Recommended next move');
+    expect(source).toContain('Review the rendered output first');
+    expect(source).toContain('Raw payload');
+    expect(source).toContain('Clarifications');
+    expect(source).toContain('Escalation and execution');
+    expect(source).toContain('StructuredRecordView');
   });
 });

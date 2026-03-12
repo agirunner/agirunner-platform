@@ -4,6 +4,7 @@ import { BrainCircuit, Loader2 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { dashboardApi } from '../../lib/api.js';
+import { StructuredRecordView } from '../../components/structured-data.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { Input } from '../../components/ui/input.js';
 import { Badge } from '../../components/ui/badge.js';
@@ -18,6 +19,7 @@ import { ProjectMemoryTable } from './project-memory-table.js';
 import {
   extractMemoryEntries,
   filterMemoryEntries,
+  normalizeWorkItemMemoryHistoryEntries,
   normalizeWorkItemMemoryEntries,
   normalizeProjectList,
   summarizeProjectTimeline,
@@ -71,6 +73,11 @@ export function MemoryBrowserSurface(props: MemoryBrowserPageProps = {}): JSX.El
     queryFn: () => dashboardApi.getWorkflowWorkItemMemory(selectedWorkflowId, selectedWorkItemId),
     enabled: selectedWorkflowId.length > 0 && selectedWorkItemId.length > 0,
   });
+  const workItemMemoryHistoryQuery = useQuery({
+    queryKey: ['work-item-memory-history', selectedWorkflowId, selectedWorkItemId],
+    queryFn: () => dashboardApi.getWorkflowWorkItemMemoryHistory(selectedWorkflowId, selectedWorkItemId),
+    enabled: selectedWorkflowId.length > 0 && selectedWorkItemId.length > 0,
+  });
 
   const projects = useMemo(() => normalizeProjectList(projectsQuery.data), [projectsQuery.data]);
   const workflows = useMemo(() => buildWorkflowOptions(timelineQuery.data), [timelineQuery.data]);
@@ -86,6 +93,10 @@ export function MemoryBrowserSurface(props: MemoryBrowserPageProps = {}): JSX.El
     () => normalizeWorkItemMemoryEntries(workItemMemoryQuery.data?.entries),
     [workItemMemoryQuery.data?.entries],
   );
+  const workItemMemoryHistoryEntries = useMemo(
+    () => normalizeWorkItemMemoryHistoryEntries(workItemMemoryHistoryQuery.data?.history),
+    [workItemMemoryHistoryQuery.data?.history],
+  );
   const filteredProjectEntries = useMemo(
     () => filterMemoryEntries(projectMemoryEntries, searchQuery),
     [projectMemoryEntries, searchQuery],
@@ -93,6 +104,10 @@ export function MemoryBrowserSurface(props: MemoryBrowserPageProps = {}): JSX.El
   const filteredWorkItemEntries = useMemo(
     () => filterMemoryEntries(workItemMemoryEntries, searchQuery),
     [searchQuery, workItemMemoryEntries],
+  );
+  const filteredWorkItemHistoryEntries = useMemo(
+    () => filterMemoryEntries(workItemMemoryHistoryEntries, searchQuery),
+    [searchQuery, workItemMemoryHistoryEntries],
   );
   const timelineSummary = useMemo(
     () => summarizeProjectTimeline(timelineQuery.data),
@@ -402,6 +417,51 @@ export function MemoryBrowserSurface(props: MemoryBrowserPageProps = {}): JSX.El
                   </p>
                 )}
               </div>
+
+              <div className="space-y-3">
+                <div>
+                  <h3 className="text-sm font-medium">Work-item memory history</h3>
+                  <p className="text-xs text-muted">
+                    Review how scoped memory changed over time before editing shared project memory.
+                  </p>
+                </div>
+                {workItemMemoryHistoryQuery.isLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading work-item memory history...
+                  </div>
+                ) : filteredWorkItemHistoryEntries.length > 0 ? (
+                  <div className="space-y-2">
+                    {filteredWorkItemHistoryEntries.map((entry) => (
+                      <article
+                        key={`${entry.key}:${entry.updatedAt ?? 'unknown'}:${entry.eventType ?? 'updated'}`}
+                        className="rounded-md border p-3"
+                      >
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                          <Badge variant={entry.eventType === 'deleted' ? 'secondary' : 'outline'}>
+                            {entry.eventType === 'deleted' ? 'Deleted' : 'Updated'}
+                          </Badge>
+                          {entry.stageName ? <Badge variant="secondary">{entry.stageName}</Badge> : null}
+                          {entry.taskId ? <span>Task {entry.taskId}</span> : null}
+                          {entry.updatedAt ? (
+                            <time dateTime={entry.updatedAt} title={new Date(entry.updatedAt).toLocaleString()}>
+                              {new Date(entry.updatedAt).toLocaleString()}
+                            </time>
+                          ) : null}
+                        </div>
+                        <p className="mt-2 font-mono text-sm">{entry.key}</p>
+                        <div className="mt-2">{renderMemoryPayload(entry.value)}</div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted">
+                    {selectedWorkItemId
+                      ? 'No work-item memory history matched the current filter.'
+                      : 'Select a workflow work item to inspect memory history.'}
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -448,4 +508,21 @@ export function MemoryBrowserSurface(props: MemoryBrowserPageProps = {}): JSX.El
       ) : null}
     </div>
   );
+}
+
+function renderMemoryPayload(value: unknown): JSX.Element {
+  if (typeof value === 'string') {
+    return <p className="whitespace-pre-wrap text-sm leading-6">{value}</p>;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return <p className="text-sm">{String(value)}</p>;
+  }
+  if (Array.isArray(value)) {
+    return (
+      <pre className="overflow-x-auto rounded-md bg-border/10 p-3 text-xs">
+        {JSON.stringify(value, null, 2)}
+      </pre>
+    );
+  }
+  return <StructuredRecordView data={value} emptyMessage="No memory payload recorded." />;
 }

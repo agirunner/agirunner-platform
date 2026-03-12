@@ -104,6 +104,11 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
     queryFn: () => dashboardApi.listTaskArtifacts(selectedTaskId),
     enabled: selectedTaskId.length > 0,
   });
+  const documentArtifactOptionsQuery = useQuery({
+    queryKey: ['document-artifact-options', documentDraft.taskId],
+    queryFn: () => dashboardApi.listTaskArtifacts(documentDraft.taskId),
+    enabled: documentDraft.source === 'artifact' && documentDraft.taskId.length > 0,
+  });
 
   const projects = useMemo(() => normalizeProjectList(projectsQuery.data), [projectsQuery.data]);
   const workflows = useMemo(() => buildWorkflowOptions(timelineQuery.data), [timelineQuery.data]);
@@ -119,6 +124,11 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
   const selectedWorkflow = workflows.find((workflow) => workflow.id === selectedWorkflowId) ?? null;
   const selectedWorkItem = workItems.find((workItem) => workItem.id === selectedWorkItemId) ?? null;
   const selectedTask = filteredTasks.find((task) => task.id === selectedTaskId) ?? null;
+  const selectedDocumentTask =
+    tasks.find((task) => task.id === documentDraft.taskId) ?? null;
+  const documentArtifactOptions = documentArtifactOptionsQuery.data ?? [];
+  const selectedDocumentArtifact =
+    documentArtifactOptions.find((artifact) => artifact.id === documentDraft.artifactId) ?? null;
   const parsedDocumentMetadata = useMemo(
     () => buildMetadataRecord(documentMetadataDrafts),
     [documentMetadataDrafts],
@@ -312,6 +322,46 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
     setDocumentError(null);
     setDocumentMessage(null);
   }, [selectedWorkflowId]);
+
+  useEffect(() => {
+    if (documentDraft.source !== 'artifact') {
+      return;
+    }
+    if (!documentDraft.taskId) {
+      if (documentDraft.artifactId || documentDraft.logicalPath) {
+        setDocumentDraft((current) => ({
+          ...current,
+          artifactId: '',
+          logicalPath: '',
+        }));
+      }
+      return;
+    }
+    if (
+      documentDraft.artifactId &&
+      !documentArtifactOptions.some((artifact) => artifact.id === documentDraft.artifactId)
+    ) {
+      setDocumentDraft((current) => ({
+        ...current,
+        artifactId: '',
+        logicalPath: '',
+      }));
+    }
+  }, [documentArtifactOptions, documentDraft.artifactId, documentDraft.logicalPath, documentDraft.source, documentDraft.taskId]);
+
+  useEffect(() => {
+    if (
+      documentDraft.source !== 'artifact' ||
+      !selectedDocumentArtifact ||
+      documentDraft.logicalPath.trim().length > 0
+    ) {
+      return;
+    }
+    setDocumentDraft((current) => ({
+      ...current,
+      logicalPath: selectedDocumentArtifact.logical_path,
+    }));
+  }, [documentDraft.logicalPath, documentDraft.source, selectedDocumentArtifact]);
 
   useEffect(() => {
     setArtifactError(null);
@@ -600,29 +650,101 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                       {documentDraft.source === 'artifact' ? (
                         <>
                           <label className="grid gap-2">
-                            <span className="text-sm font-medium">Task ID</span>
-                            <Input
-                              value={documentDraft.taskId}
-                              onChange={(event) =>
-                                setDocumentDraft((current) => ({
-                                  ...current,
-                                  taskId: event.target.value,
-                                }))
-                              }
-                              placeholder="Task UUID"
-                            />
+                            <span className="text-sm font-medium">Source task</span>
+                            {tasks.length > 0 ? (
+                              <Select
+                                value={documentDraft.taskId || '__unset__'}
+                                onValueChange={(value) =>
+                                  setDocumentDraft((current) => ({
+                                    ...current,
+                                    taskId: value === '__unset__' ? '' : value,
+                                    artifactId: '',
+                                    logicalPath: '',
+                                  }))
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a source task" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__unset__">Select a source task</SelectItem>
+                                  {tasks.map((task) => (
+                                    <SelectItem key={task.id} value={task.id}>
+                                      {task.title}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">
+                                No workflow tasks available yet. Create or run a task before linking an artifact-backed document.
+                              </p>
+                            )}
+                            {selectedDocumentTask ? (
+                              <p className="text-xs text-muted-foreground">
+                                {selectedDocumentTask.stageName ?? 'No stage'} • {selectedDocumentTask.state}
+                              </p>
+                            ) : null}
                           </label>
                           <label className="grid gap-2">
-                            <span className="text-sm font-medium">Artifact ID</span>
-                            <Input
-                              value={documentDraft.artifactId}
-                              onChange={(event) =>
-                                setDocumentDraft((current) => ({
-                                  ...current,
-                                  artifactId: event.target.value,
-                                }))
-                              }
-                              placeholder="Artifact UUID"
+                            <span className="text-sm font-medium">Artifact</span>
+                            {documentDraft.taskId ? (
+                              documentArtifactOptionsQuery.isLoading ? (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  Loading task artifacts...
+                                </div>
+                              ) : documentArtifactOptions.length > 0 ? (
+                                <Select
+                                  value={documentDraft.artifactId || '__unset__'}
+                                  onValueChange={(value) =>
+                                    setDocumentDraft((current) => {
+                                      const artifact = documentArtifactOptions.find(
+                                        (entry) => entry.id === value,
+                                      );
+                                      return {
+                                        ...current,
+                                        artifactId: value === '__unset__' ? '' : value,
+                                        logicalPath:
+                                          value === '__unset__'
+                                            ? ''
+                                            : artifact?.logical_path ?? current.logicalPath,
+                                      };
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select an artifact" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="__unset__">Select an artifact</SelectItem>
+                                    {documentArtifactOptions.map((artifact) => (
+                                      <SelectItem key={artifact.id} value={artifact.id}>
+                                        {artifact.logical_path}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <p className="text-sm text-muted-foreground">
+                                  This task has not produced any artifacts yet.
+                                </p>
+                              )
+                            ) : (
+                              <p className="text-sm text-muted-foreground">
+                                Select a source task to see artifact options.
+                              </p>
+                            )}
+                            {selectedDocumentArtifact ? (
+                              <p className="text-xs text-muted-foreground">
+                                {selectedDocumentArtifact.content_type} • {selectedDocumentArtifact.size_bytes.toLocaleString()} bytes
+                              </p>
+                            ) : null}
+                            <InlineStatusNotice
+                              tone="error"
+                              show={Boolean(documentArtifactOptionsQuery.error)}
+                              title="Artifact options unavailable"
+                              message="The selected task's artifacts could not be loaded."
                             />
                           </label>
                           <label className="grid gap-2 lg:col-span-2">
@@ -637,6 +759,9 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                               }
                               placeholder="artifact:task-id/brief.md"
                             />
+                            <p className="text-xs text-muted-foreground">
+                              Auto-filled from the selected artifact. Override only if the operator-facing path should differ.
+                            </p>
                           </label>
                         </>
                       ) : null}

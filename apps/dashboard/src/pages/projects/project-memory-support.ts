@@ -2,6 +2,7 @@ import type {
   DashboardProjectRecord,
   DashboardProjectTimelineEntry,
   DashboardWorkItemMemoryEntry,
+  DashboardWorkItemMemoryHistoryEntry,
 } from '../../lib/api.js';
 
 export interface MemoryEntry {
@@ -15,6 +16,7 @@ export interface MemoryEntry {
   actorType?: string | null;
   actorId?: string | null;
   updatedAt?: string | null;
+  eventType?: 'updated' | 'deleted';
 }
 
 export interface RecentWorkflowEntry {
@@ -76,6 +78,34 @@ export function normalizeWorkItemMemoryEntries(
     actorId: entry.actor_id,
     updatedAt: entry.updated_at,
   }));
+}
+
+export function normalizeWorkItemMemoryHistoryEntries(
+  entries: DashboardWorkItemMemoryHistoryEntry[] | undefined,
+): MemoryEntry[] {
+  if (!Array.isArray(entries)) {
+    return [];
+  }
+
+  return entries
+    .map((entry) => ({
+      key: entry.key,
+      value: entry.value,
+      scope: 'work_item' as const,
+      workflowId: entry.workflow_id,
+      workItemId: entry.work_item_id,
+      taskId: entry.task_id,
+      stageName: entry.stage_name,
+      actorType: entry.actor_type,
+      actorId: entry.actor_id,
+      updatedAt: entry.updated_at,
+      eventType: entry.event_type,
+    }))
+    .sort((left, right) => {
+      const leftTimestamp = left.updatedAt ?? '';
+      const rightTimestamp = right.updatedAt ?? '';
+      return rightTimestamp.localeCompare(leftTimestamp);
+    });
 }
 
 export function filterMemoryEntries(entries: MemoryEntry[], query: string): MemoryEntry[] {

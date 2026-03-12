@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { dashboardApi, type DashboardTaskArtifactRecord } from '../../lib/api.js';
 import { buildArtifactPermalink } from '../../components/artifact-preview-support.js';
+import { StructuredRecordView } from '../../components/structured-data.js';
 import { LogViewer } from '../../components/log-viewer/log-viewer.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -24,6 +25,15 @@ import {
   TabsTrigger,
   TabsContent,
 } from '../../components/ui/tabs.js';
+import {
+  buildTaskNextStep,
+  readClarificationAnswers,
+  readClarificationHistory,
+  readExecutionSummary,
+  readHumanEscalationResponse,
+  readReviewSignals,
+  readReworkDetails,
+} from '../task-detail-support.js';
 
 interface Task {
   id: string;
@@ -49,6 +59,13 @@ interface Task {
   cost?: number;
   output?: unknown;
   description?: string;
+  input?: Record<string, unknown>;
+  context?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  verification?: Record<string, unknown>;
+  metrics?: Record<string, unknown>;
+  rework_count?: number;
+  type?: string;
 }
 
 function normalizeTask(response: unknown): Task {
@@ -130,7 +147,7 @@ function InfoCard({
 }: {
   icon: React.ElementType;
   label: string;
-  value: string;
+  value: React.ReactNode;
 }): JSX.Element {
   return (
     <Card>
@@ -289,12 +306,403 @@ function OutputSection({ output }: { output: unknown }): JSX.Element {
     return <p className="text-sm text-muted">No output available.</p>;
   }
 
-  const formatted = typeof output === 'string' ? output : JSON.stringify(output, null, 2);
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl bg-border/10 p-4">
+        {renderOutputPreview(output)}
+      </div>
+      <details className="rounded-xl border border-border/70 bg-surface p-4">
+        <summary className="cursor-pointer text-sm font-medium">Raw payload</summary>
+        <pre className="mt-3 overflow-x-auto rounded-md bg-border/10 p-4 text-xs">
+          <code>{typeof output === 'string' ? output : JSON.stringify(output, null, 2)}</code>
+        </pre>
+      </details>
+    </div>
+  );
+}
+
+function renderOutputPreview(output: unknown): JSX.Element {
+  if (typeof output === 'string') {
+    return <p className="whitespace-pre-wrap text-sm leading-6">{output}</p>;
+  }
+  if (typeof output === 'number' || typeof output === 'boolean') {
+    return <p className="text-sm font-medium">{String(output)}</p>;
+  }
+  if (Array.isArray(output)) {
+    if (output.length === 0) {
+      return <p className="text-sm text-muted">Output array is empty.</p>;
+    }
+    const primitiveItems = output.every((item) =>
+      item === null || ['string', 'number', 'boolean'].includes(typeof item),
+    );
+    if (primitiveItems) {
+      return (
+        <ul className="list-disc space-y-2 pl-5 text-sm">
+          {output.map((item, index) => (
+            <li key={`${String(item)}-${index}`}>{String(item)}</li>
+          ))}
+        </ul>
+      );
+    }
+    return (
+      <div className="space-y-3">
+        {output.map((item, index) => (
+          <div key={index} className="rounded-lg bg-surface p-3">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+              Item {index + 1}
+            </p>
+            <StructuredRecordView data={item} emptyMessage="No output payload." />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return <StructuredRecordView data={output} emptyMessage="No structured output available." />;
+}
+
+function formatStatusLabel(status: string): string {
+  return status.replace(/_/g, ' ');
+}
+
+function renderTimestamp(value?: string): React.ReactNode {
+  if (!value) {
+    return '-';
+  }
+  return (
+    <time dateTime={value} title={formatTimestamp(value)}>
+      {formatRelativeTime(value)}
+    </time>
+  );
+}
+
+function formatRelativeTime(value: string): string {
+  const millis = new Date(value).getTime();
+  if (!Number.isFinite(millis)) {
+    return formatTimestamp(value);
+  }
+  const deltaSeconds = Math.round((Date.now() - millis) / 1000);
+  const absSeconds = Math.abs(deltaSeconds);
+  if (absSeconds < 60) {
+    return deltaSeconds >= 0 ? `${absSeconds}s ago` : `in ${absSeconds}s`;
+  }
+  const absMinutes = Math.round(absSeconds / 60);
+  if (absMinutes < 60) {
+    return deltaSeconds >= 0 ? `${absMinutes}m ago` : `in ${absMinutes}m`;
+  }
+  const absHours = Math.round(absMinutes / 60);
+  if (absHours < 24) {
+    return deltaSeconds >= 0 ? `${absHours}h ago` : `in ${absHours}h`;
+  }
+  const absDays = Math.round(absHours / 24);
+  return deltaSeconds >= 0 ? `${absDays}d ago` : `in ${absDays}d`;
+}
+
+function summarizeId(value?: string | null): string {
+  if (!value) {
+    return '-';
+  }
+  if (value.length <= 16) {
+    return value;
+  }
+  return `${value.slice(0, 8)}...${value.slice(-4)}`;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function readStringValue(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function RelatedLinks({ task }: { task: Task }): JSX.Element {
+  const workItemPermalink =
+    task.workflow_id && task.work_item_id
+      ? `/work/workflows/${task.workflow_id}?work_item=${encodeURIComponent(task.work_item_id)}#work-item-${encodeURIComponent(task.work_item_id)}`
+      : null;
 
   return (
-    <pre className="overflow-x-auto rounded-md border bg-border/10 p-4 text-xs">
-      <code>{formatted}</code>
-    </pre>
+    <div className="flex flex-wrap gap-2 text-sm">
+      {task.workflow_id ? (
+        <Link to={`/work/workflows/${task.workflow_id}`} className="text-accent hover:underline">
+          Open board
+        </Link>
+      ) : null}
+      {workItemPermalink ? (
+        <Link to={workItemPermalink} className="text-accent hover:underline">
+          Open work item flow
+        </Link>
+      ) : null}
+      {task.activation_id && task.workflow_id ? (
+        <Link
+          to={`/work/workflows/${task.workflow_id}#activation-${encodeURIComponent(task.activation_id)}`}
+          className="text-accent hover:underline"
+        >
+          Open activation
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
+function OperatorBriefingCard({ task, status }: { task: Task; status: string }): JSX.Element {
+  const nextStep = buildTaskNextStep(task as never);
+  const reviewSignals = readReviewSignals(task as never);
+  const reworkDetails = readReworkDetails(task as never);
+  const workItemFlow = usesWorkItemOperatorFlow(task);
+
+  return (
+    <Card className="border-border/70 shadow-sm">
+      <CardHeader className="space-y-4">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={statusBadgeVariant(status)} className="capitalize">
+                {formatStatusLabel(status)}
+              </Badge>
+              <Badge variant="outline">{describeTaskKind(task)}</Badge>
+              {task.stage_name ? <Badge variant="secondary">Stage {task.stage_name}</Badge> : null}
+              {task.role ? <Badge variant="outline">Role {task.role}</Badge> : null}
+            </div>
+            <div className="space-y-1">
+              <h1 className="text-2xl font-semibold tracking-tight">
+                {task.title ?? task.name ?? task.id}
+              </h1>
+              <p className="max-w-3xl text-sm leading-6 text-muted">
+                {task.description ?? nextStep.detail}
+              </p>
+            </div>
+            <RelatedLinks task={task} />
+          </div>
+          <TaskActionButtons task={task} />
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <section className="rounded-xl bg-border/10 p-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted">
+            Recommended next move
+          </p>
+          <h2 className="mt-2 text-lg font-semibold">{nextStep.title}</h2>
+          <p className="mt-2 text-sm leading-6 text-muted">{nextStep.detail}</p>
+          {workItemFlow ? (
+            <p className="mt-3 text-sm text-muted">
+              This task is attached to a workflow work item. Run approval, rework, and retry decisions from the work-item flow so stage state, linked steps, and board context stay aligned.
+            </p>
+          ) : null}
+        </section>
+        <section className="grid gap-3 rounded-xl bg-surface p-4 shadow-sm">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">Operator signals</p>
+          </div>
+          <SignalRow
+            label="Review status"
+            value={reviewSignals.reviewAction ? formatStatusLabel(reviewSignals.reviewAction) : 'No review action recorded'}
+          />
+          <SignalRow
+            label="Rework rounds"
+            value={reworkDetails.reworkCount > 0 ? String(reworkDetails.reworkCount) : 'No rework yet'}
+          />
+          <SignalRow
+            label="Escalation target"
+            value={reviewSignals.escalationTarget ?? 'No escalation target'}
+          />
+          <SignalRow
+            label="Clarification"
+            value={reworkDetails.clarificationRequested ? 'Clarification requested' : 'No clarification request recorded'}
+          />
+          {reviewSignals.reviewFeedback ? (
+            <div className="rounded-lg bg-border/10 p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted">Latest feedback</p>
+              <p className="mt-2 text-sm leading-6">{reviewSignals.reviewFeedback}</p>
+              {reviewSignals.reviewUpdatedAt ? (
+                <p className="mt-2 text-xs text-muted" title={formatTimestamp(reviewSignals.reviewUpdatedAt)}>
+                  Updated {formatRelativeTime(reviewSignals.reviewUpdatedAt)}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {reviewSignals.escalationAwaitingHuman ? (
+            <div className="rounded-lg bg-border/10 p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted">Escalation state</p>
+              <p className="mt-2 text-sm leading-6">
+                Waiting on a human response before the task can continue.
+              </p>
+            </div>
+          ) : null}
+        </section>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SignalRow({ label, value }: { label: string; value: string }): JSX.Element {
+  return (
+    <div className="flex items-start justify-between gap-3 text-sm">
+      <span className="text-muted">{label}</span>
+      <span className="text-right font-medium">{value}</span>
+    </div>
+  );
+}
+
+function ContextSection({ task, status }: { task: Task; status: string }): JSX.Element {
+  const clarificationAnswers = readClarificationAnswers(task as never);
+  const clarificationHistory = readClarificationHistory(task as never);
+  const escalationResponse = readHumanEscalationResponse(task as never);
+  const executionSummary = readExecutionSummary(task as never);
+  const reviewSignals = readReviewSignals(task as never);
+  const input = asRecord(task.input);
+  const context = asRecord(task.context);
+  const reviewPrompt = readStringValue(input.review_prompt);
+  const escalationNotes = [
+    reviewSignals.escalationReason ? `Reason: ${reviewSignals.escalationReason}` : null,
+    reviewSignals.escalationContext ? `Context: ${reviewSignals.escalationContext}` : null,
+  ].filter((value): value is string => Boolean(value));
+
+  return (
+    <div className="grid gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Operator packet</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-xl bg-border/10 p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">Current status</p>
+            <p className="mt-2 text-sm leading-6">
+              {formatStatusLabel(status)} {task.stage_name ? `in stage ${task.stage_name}` : ''}.
+              {task.work_item_id ? ` Attached to work item ${summarizeId(task.work_item_id)}.` : ''}
+            </p>
+            {reviewPrompt ? (
+              <>
+                <p className="mt-4 text-xs font-medium uppercase tracking-wide text-muted">
+                  Review prompt
+                </p>
+                <p className="mt-2 text-sm leading-6">{reviewPrompt}</p>
+              </>
+            ) : null}
+            {escalationNotes.length > 0 ? (
+              <>
+                <p
+                  id="escalation-response"
+                  className="mt-4 text-xs font-medium uppercase tracking-wide text-muted"
+                >
+                  Escalation briefing
+                </p>
+                <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6">
+                  {escalationNotes.map((note) => (
+                    <li key={note}>{note}</li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+          </div>
+          <div className="rounded-xl bg-surface p-4 shadow-sm">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">
+              Workflow routing
+            </p>
+            <dl className="mt-3 grid gap-3 text-sm">
+              <SignalListItem label="Board" value={task.workflow_name ?? summarizeId(task.workflow_id)} />
+              <SignalListItem label="Stage" value={task.stage_name ?? 'No stage'} />
+              <SignalListItem label="Work item" value={summarizeId(task.work_item_id)} />
+              <SignalListItem label="Activation" value={summarizeId(task.activation_id)} />
+              <SignalListItem label="Task type" value={task.type ?? describeTaskKind(task)} />
+            </dl>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Clarifications</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Object.keys(clarificationAnswers).length > 0 ? (
+              <StructuredRecordView
+                data={clarificationAnswers}
+                emptyMessage="No clarification answers recorded."
+              />
+            ) : (
+              <p className="text-sm text-muted">No clarification answers recorded.</p>
+            )}
+            {clarificationHistory.length > 0 ? (
+              <div className="space-y-3">
+                {clarificationHistory.map((entry, index) => (
+                  <article key={`${entry.answered_at ?? 'clarification'}-${index}`} className="rounded-xl bg-border/10 p-4">
+                    <p className="text-sm font-medium">
+                      {entry.feedback ?? 'Clarification request'}
+                    </p>
+                    <p className="mt-1 text-xs text-muted">
+                      {entry.answered_by ?? 'Unknown responder'}
+                      {entry.answered_at ? ` • ${formatTimestamp(entry.answered_at)}` : ''}
+                    </p>
+                    <div className="mt-3">
+                      <StructuredRecordView data={entry.answers ?? {}} emptyMessage="No answers captured." />
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Escalation and execution</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Object.keys(escalationResponse).length > 0 ? (
+              <StructuredRecordView
+                data={escalationResponse}
+                emptyMessage="No human escalation response recorded."
+              />
+            ) : (
+              <p className="text-sm text-muted">No human escalation response recorded.</p>
+            )}
+            {Object.keys(executionSummary.verification).length > 0 ? (
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+                  Verification
+                </p>
+                <StructuredRecordView
+                  data={executionSummary.verification}
+                  emptyMessage="No verification data."
+                />
+              </div>
+            ) : null}
+            {Object.keys(executionSummary.metrics).length > 0 ? (
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+                  Execution metrics
+                </p>
+                <StructuredRecordView
+                  data={executionSummary.metrics}
+                  emptyMessage="No execution metrics."
+                />
+              </div>
+            ) : null}
+            {Object.keys(context).length > 0 ? (
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+                  Runtime context
+                </p>
+                <StructuredRecordView data={context} emptyMessage="No runtime context." />
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function SignalListItem({ label, value }: { label: string; value: string }): JSX.Element {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <dt className="text-muted">{label}</dt>
+      <dd className="font-medium">{value}</dd>
+    </div>
   );
 }
 
@@ -372,29 +780,7 @@ export function TaskDetailPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold">{task.title ?? task.name ?? task.id}</h1>
-          <Badge variant={statusBadgeVariant(status)} className="capitalize">
-            {status.replace(/_/g, ' ')}
-          </Badge>
-          <Badge variant="outline">{describeTaskKind(task)}</Badge>
-        </div>
-        <TaskActionButtons task={task} />
-      </div>
-
-      <div className="flex flex-wrap gap-2 text-sm text-muted">
-        {task.workflow_id ? (
-          <Link to={`/work/workflows/${task.workflow_id}`} className="text-accent hover:underline">
-            Board {task.workflow_name ?? task.workflow_id}
-          </Link>
-        ) : (
-          <span>No board linked</span>
-        )}
-        {task.stage_name ? <span>Stage {task.stage_name}</span> : null}
-        {task.work_item_id ? <span>Work item {task.work_item_id}</span> : null}
-        {task.activation_id ? <span>Activation {task.activation_id}</span> : null}
-      </div>
+      <OperatorBriefingCard task={task} status={status} />
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         <InfoCard
@@ -413,12 +799,29 @@ export function TaskDetailPage(): JSX.Element {
           value={task.workflow_name ?? task.workflow_id ?? '-'}
         />
         <InfoCard icon={Workflow} label="Stage" value={task.stage_name ?? '-'} />
-        <InfoCard icon={Workflow} label="Work Item" value={task.work_item_id ?? '-'} />
-        <InfoCard icon={Workflow} label="Activation" value={task.activation_id ?? '-'} />
+        <InfoCard
+          icon={Workflow}
+          label="Work Item"
+          value={
+            <span title={task.work_item_id ?? undefined} className="font-mono text-xs">
+              {summarizeId(task.work_item_id)}
+            </span>
+          }
+        />
+        <InfoCard
+          icon={Workflow}
+          label="Activation"
+          value={
+            <span title={task.activation_id ?? undefined} className="font-mono text-xs">
+              {summarizeId(task.activation_id)}
+            </span>
+          }
+        />
         <InfoCard icon={User} label="Role" value={task.role ?? '-'} />
-        <InfoCard icon={Clock} label="Created" value={formatTimestamp(task.created_at)} />
-        <InfoCard icon={Clock} label="Started" value={formatTimestamp(task.started_at)} />
-        <InfoCard icon={Clock} label="Completed" value={formatTimestamp(task.completed_at)} />
+        <InfoCard icon={Clock} label="Created" value={renderTimestamp(task.created_at)} />
+        <InfoCard icon={Clock} label="Started" value={renderTimestamp(task.started_at)} />
+        <InfoCard icon={Clock} label="Completed" value={renderTimestamp(task.completed_at)} />
+        <InfoCard icon={Clock} label="Duration" value={formatDuration(task)} />
         <InfoCard
           icon={DollarSign}
           label="Cost"
@@ -439,33 +842,19 @@ export function TaskDetailPage(): JSX.Element {
         <TabsContent value="output">
           <Card>
             <CardHeader>
-              <CardTitle>Step Output</CardTitle>
+              <CardTitle>Operator Output Packet</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted">
+                Review the rendered output first. Use the raw payload only when you need exact serialized data.
+              </p>
               <OutputSection output={task.output} />
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="context">
-          <Card>
-            <CardHeader>
-              <CardTitle>Operator Context</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <InfoCard icon={Workflow} label="Task Kind" value={describeTaskKind(task)} />
-                <InfoCard icon={Workflow} label="Work Item" value={task.work_item_id ?? '-'} />
-                <InfoCard icon={Workflow} label="Status" value={status.replace(/_/g, ' ')} />
-              </div>
-              <div id="escalation-response" className="rounded-md border bg-border/10 p-4">
-                <h3 className="text-sm font-medium">Escalation & Review Context</h3>
-                <p className="mt-1 text-sm text-muted">
-                  Use this step’s board, stage, work item, activation, and review state to decide the next operator action.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <ContextSection task={task} status={status} />
         </TabsContent>
 
         <TabsContent value="logs">

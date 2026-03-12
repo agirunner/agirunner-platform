@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildTaskNextStep,
   normalizeTaskState,
   parseJsonObject,
   readClarificationAnswers,
   readClarificationHistory,
   readHumanEscalationResponse,
+  readReviewSignals,
   readReworkDetails,
 } from './task-detail-support.js';
 
@@ -57,6 +59,11 @@ describe('task detail lifecycle support', () => {
         review_action: 'request_changes',
         review_feedback: 'Tighten the plan',
         clarification_requested: true,
+        review_updated_at: '2026-03-08T12:00:00Z',
+        escalation_reason: 'Need rollout approval',
+        escalation_target: 'human',
+        escalation_context: 'Waiting for change window',
+        escalation_awaiting_human: true,
       },
       input: {
         human_escalation_response: {
@@ -74,5 +81,28 @@ describe('task detail lifecycle support', () => {
     expect(readHumanEscalationResponse(task as never)).toEqual({
       instructions: 'Use the approved rollout window.',
     });
+    expect(readReviewSignals(task as never)).toEqual({
+      reviewAction: 'request_changes',
+      reviewFeedback: 'Tighten the plan',
+      reviewUpdatedAt: '2026-03-08T12:00:00Z',
+      escalationReason: 'Need rollout approval',
+      escalationTarget: 'human',
+      escalationContext: 'Waiting for change window',
+      escalationAwaitingHuman: true,
+    });
+  });
+
+  it('builds operator next-step guidance from canonical task state', () => {
+    expect(buildTaskNextStep({ state: 'awaiting_approval' } as never)).toEqual({
+      title: 'Approve or reject this specialist step',
+      detail:
+        'Review the work-item packet, decide whether the step should advance, and keep the board state aligned with the operator decision.',
+    });
+    expect(buildTaskNextStep({ status: 'failed' } as never).title).toBe(
+      'Inspect failure context before retrying',
+    );
+    expect(buildTaskNextStep({ state: 'in_progress' } as never).title).toBe(
+      'Monitor execution and intervene only if needed',
+    );
   });
 });

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   extractMemoryEntries,
   filterMemoryEntries,
+  normalizeWorkItemMemoryHistoryEntries,
   normalizeWorkItemMemoryEntries,
   summarizeProjectTimeline,
 } from './project-memory-support.js';
@@ -71,6 +72,66 @@ describe('project memory support', () => {
         actorType: 'system',
         actorId: 'orchestrator',
         updatedAt: '2026-03-11T09:00:00.000Z',
+      },
+    ]);
+  });
+
+  it('normalizes and sorts work-item memory history for operator review', () => {
+    expect(
+      normalizeWorkItemMemoryHistoryEntries([
+        {
+          key: 'review_note',
+          value: { summary: 'older' },
+          event_id: 1,
+          updated_at: '2026-03-10T09:00:00.000Z',
+          actor_type: 'system',
+          actor_id: 'orchestrator',
+          workflow_id: 'workflow-1',
+          work_item_id: 'wi-1',
+          task_id: 'task-1',
+          stage_name: 'review',
+          event_type: 'updated',
+        },
+        {
+          key: 'review_note',
+          value: { summary: 'deleted' },
+          event_id: 2,
+          updated_at: '2026-03-11T09:00:00.000Z',
+          actor_type: 'system',
+          actor_id: 'orchestrator',
+          workflow_id: 'workflow-1',
+          work_item_id: 'wi-1',
+          task_id: 'task-2',
+          stage_name: 'review',
+          event_type: 'deleted',
+        },
+      ]),
+    ).toEqual([
+      {
+        key: 'review_note',
+        value: { summary: 'deleted' },
+        scope: 'work_item',
+        workflowId: 'workflow-1',
+        workItemId: 'wi-1',
+        taskId: 'task-2',
+        stageName: 'review',
+        actorType: 'system',
+        actorId: 'orchestrator',
+        updatedAt: '2026-03-11T09:00:00.000Z',
+        eventType: 'deleted',
+      },
+      {
+        key: 'review_note',
+        value: { summary: 'older' },
+        scope: 'work_item',
+        workflowId: 'workflow-1',
+        workItemId: 'wi-1',
+        taskId: 'task-1',
+        stageName: 'review',
+        actorType: 'system',
+        actorId: 'orchestrator',
+        updatedAt: '2026-03-10T09:00:00.000Z',
+        eventType: 'updated',
       },
     ]);
   });
