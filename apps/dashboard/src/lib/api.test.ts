@@ -1,7 +1,25 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { buildSearchResults, createDashboardApi } from './api.js';
 import { clearSession, readSession, writeSession } from './session.js';
+
+function readApiSource() {
+  return readFileSync(resolve(import.meta.dirname, './api.ts'), 'utf8');
+}
+
+function readInterfaceBlock(source: string, interfaceName: string) {
+  const start = source.indexOf(`export interface ${interfaceName} {`);
+  if (start < 0) {
+    throw new Error(`Interface ${interfaceName} not found`);
+  }
+  const end = source.indexOf('\n}\n', start);
+  if (end < 0) {
+    throw new Error(`Interface ${interfaceName} end not found`);
+  }
+  return source.slice(start, end);
+}
 
 function mockBrowserStorage() {
   const localStore = new Map<string, string>();
@@ -28,6 +46,17 @@ describe('dashboard api auth/session behavior', () => {
     vi.unstubAllGlobals();
     mockBrowserStorage();
     clearSession();
+  });
+
+  it('keeps live workflow contracts free of template and phase-era fields', () => {
+    const workflowBlock = readInterfaceBlock(readApiSource(), 'DashboardWorkflowRecord');
+
+    expect(workflowBlock).not.toContain('template_id');
+    expect(workflowBlock).not.toContain('template_name');
+    expect(workflowBlock).not.toContain('template_version');
+    expect(workflowBlock).not.toContain('current_phase');
+    expect(workflowBlock).not.toContain('workflow_phase');
+    expect(workflowBlock).not.toContain('phases');
   });
 
   it('refreshes token and retries request when access token is expired', async () => {

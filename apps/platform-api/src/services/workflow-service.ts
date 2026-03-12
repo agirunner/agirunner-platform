@@ -839,13 +839,23 @@ function normalizeWorkflowReadModel(
 }
 
 function sanitizeWorkflowReadModel(workflow: Record<string, unknown>) {
+  const {
+    template_id: _templateId,
+    template_name: _templateName,
+    template_version: _templateVersion,
+    current_phase: _currentPhase,
+    workflow_phase: _workflowPhase,
+    phases: _phases,
+    phase_summary: _phaseSummary,
+    ...rest
+  } = workflow;
   return {
-    ...workflow,
-    metadata: sanitizeWorkflowMetadata(workflow.metadata),
-    context: sanitizeWorkflowContext(workflow.context),
-    parameters: sanitizeWorkflowParameters(workflow.parameters),
-    resolved_config: sanitizeWorkflowConfigView(workflow.resolved_config),
-    config_layers: sanitizeWorkflowConfigLayers(workflow.config_layers),
+    ...rest,
+    metadata: sanitizeWorkflowMetadata(rest.metadata),
+    context: sanitizeWorkflowContext(rest.context),
+    parameters: sanitizeWorkflowParameters(rest.parameters),
+    resolved_config: sanitizeWorkflowConfigView(rest.resolved_config),
+    config_layers: sanitizeWorkflowConfigLayers(rest.config_layers),
   };
 }
 

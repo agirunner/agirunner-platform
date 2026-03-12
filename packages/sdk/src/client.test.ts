@@ -1,8 +1,37 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PlatformApiClient, PlatformApiError } from './client.js';
 
+function readSdkSource(fileName: string) {
+  return readFileSync(resolve(import.meta.dirname, `./${fileName}`), 'utf8');
+}
+
+function readInterfaceBlock(source: string, interfaceName: string) {
+  const start = source.indexOf(`export interface ${interfaceName} {`);
+  if (start < 0) {
+    throw new Error(`Interface ${interfaceName} not found`);
+  }
+  const end = source.indexOf('\n}\n', start);
+  if (end < 0) {
+    throw new Error(`Interface ${interfaceName} end not found`);
+  }
+  return source.slice(start, end);
+}
+
 describe('PlatformApiClient', () => {
+  it('keeps live workflow sdk types free of template and phase-era fields', () => {
+    const workflowBlock = readInterfaceBlock(readSdkSource('types.ts'), 'Workflow');
+
+    expect(workflowBlock).not.toContain('template_id');
+    expect(workflowBlock).not.toContain('template_name');
+    expect(workflowBlock).not.toContain('template_version');
+    expect(workflowBlock).not.toContain('current_phase');
+    expect(workflowBlock).not.toContain('workflow_phase');
+    expect(workflowBlock).not.toContain('phases');
+  });
+
   it('returns null when claim endpoint responds with 204', async () => {
     const fetcher = vi.fn().mockResolvedValue(
       new Response(undefined, {
