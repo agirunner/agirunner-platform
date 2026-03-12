@@ -166,6 +166,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
     app.pgPool,
     app.eventService,
     app.workerConnectionHub,
+    { staleAfterMs: app.config.ORCHESTRATOR_TASK_MESSAGE_DELIVERY_STALE_AFTER_MS },
   );
   const playbookControlService = new PlaybookWorkflowControlService({
     pool: app.pgPool,

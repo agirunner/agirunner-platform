@@ -53,6 +53,10 @@ interface CreateTaskMessageInput {
   urgency?: 'info' | 'important' | 'critical';
 }
 
+interface OrchestratorTaskMessageDeliveryPolicy {
+  staleAfterMs: number;
+}
+
 interface MessageDeliveryReservation {
   row: TaskMessageRow;
   shouldSend: boolean;
@@ -63,6 +67,7 @@ export class OrchestratorTaskMessageService {
     private readonly pool: DatabasePool,
     private readonly eventService: EventService,
     private readonly workerConnectionHub?: WorkerConnectionHub,
+    private readonly deliveryPolicy?: OrchestratorTaskMessageDeliveryPolicy,
   ) {}
 
   async prepareMessage(
@@ -198,11 +203,11 @@ export class OrchestratorTaskMessageService {
         await client.query('COMMIT');
         return null;
       }
-      if (row.delivery_state !== 'pending_delivery') {
+
+      if (!canResumeDelivery(row.delivery_state)) {
         await client.query('COMMIT');
         return { row, shouldSend: false };
       }
-
       const task = await this.loadManagedTask(tenantId, workflowId, row.task_id, client);
       const terminalState = determineInitialDeliveryState(task);
       if (terminalState !== 'pending_delivery') {
@@ -214,6 +219,10 @@ export class OrchestratorTaskMessageService {
         await client.query('COMMIT');
         return { row: updated, shouldSend: false };
       }
+      if (row.delivery_state === 'delivery_in_progress' && !this.isStaleDeliveryAttempt(row)) {
+        await client.query('COMMIT');
+        return { row, shouldSend: false };
+      }
 
       const reserved = await client.query<TaskMessageRow>(
         `UPDATE orchestrator_task_messages
@@ -223,11 +232,11 @@ export class OrchestratorTaskMessageService {
                 delivery_attempt_count = delivery_attempt_count + 1,
                 last_delivery_attempt_at = now()
           WHERE id = $1
-            AND delivery_state = 'pending_delivery'
+            AND delivery_state = ANY($4::text[])
         RETURNING id, tenant_id, workflow_id, task_id, orchestrator_task_id, activation_id, stage_name,
                   worker_id, request_id, urgency, message, delivery_state, delivery_attempt_count,
                   last_delivery_attempt_at, delivered_at, created_at`,
-        [row.id, task.assigned_worker_id, task.stage_name ?? row.stage_name],
+        [row.id, task.assigned_worker_id, task.stage_name ?? row.stage_name, resumableDeliveryStates],
       );
       if (!reserved.rowCount) {
         await client.query('COMMIT');
@@ -241,6 +250,21 @@ export class OrchestratorTaskMessageService {
     } finally {
       client.release();
     }
+  }
+
+  private isStaleDeliveryAttempt(row: TaskMessageRow): boolean {
+    if (row.delivery_state !== 'delivery_in_progress') {
+      return false;
+    }
+    if (!row.last_delivery_attempt_at) {
+      return true;
+    }
+    const staleAfterMs = this.deliveryPolicy?.staleAfterMs;
+    if (!staleAfterMs || staleAfterMs <= 0) {
+      return false;
+    }
+    const ageMs = Date.now() - row.last_delivery_attempt_at.getTime();
+    return ageMs >= staleAfterMs;
   }
 
   private async finalizeDelivery(
@@ -390,6 +414,17 @@ function determineInitialDeliveryState(task: ManagedTaskRow): DeliveryState {
     return 'worker_unassigned';
   }
   return 'pending_delivery';
+}
+
+const resumableDeliveryStates: DeliveryState[] = [
+  'pending_delivery',
+  'delivery_in_progress',
+  'worker_unassigned',
+  'worker_unavailable',
+];
+
+function canResumeDelivery(state: DeliveryState): boolean {
+  return resumableDeliveryStates.includes(state);
 }
 
 function toMessageResponse(row: TaskMessageRow): Record<string, unknown> {

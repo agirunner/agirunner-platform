@@ -1251,4 +1251,348 @@ describe('orchestratorControlRoutes', () => {
       }),
     );
   });
+
+  it('recovers a stale delivery_in_progress managed-task message on replay', async () => {
+    const managedTask = {
+      id: 'task-managed-1',
+      workflow_id: 'workflow-1',
+      is_orchestrator_task: false,
+      state: 'in_progress',
+      assigned_worker_id: 'worker-1',
+      stage_name: 'implementation',
+    };
+    const sendToWorker = vi.fn().mockReturnValue(true);
+    const emit = vi.fn(async () => undefined);
+    let messageRow: {
+      id: string;
+      tenant_id: string;
+      workflow_id: string;
+      task_id: string;
+      orchestrator_task_id: string;
+      activation_id: string;
+      stage_name: string;
+      worker_id: string;
+      request_id: string;
+      urgency: string;
+      message: string;
+      delivery_state: string;
+      delivery_attempt_count: number;
+      last_delivery_attempt_at: Date | null;
+      delivered_at: Date | null;
+      created_at: Date;
+    } = {
+      id: 'message-1',
+      tenant_id: 'tenant-1',
+      workflow_id: 'workflow-1',
+      task_id: 'task-managed-1',
+      orchestrator_task_id: 'task-orch-message',
+      activation_id: 'activation-1',
+      stage_name: 'implementation',
+      worker_id: 'worker-1',
+      request_id: 'msg-1',
+      urgency: 'important',
+      message: 'Focus on the failing API regression first.',
+      delivery_state: 'delivery_in_progress',
+      delivery_attempt_count: 1,
+      last_delivery_attempt_at: new Date('2026-03-12T00:00:00.000Z'),
+      delivered_at: null,
+      created_at: new Date('2026-03-12T00:00:00.000Z'),
+    };
+    let toolResult: Record<string, unknown> = {
+      success: true,
+      delivered: false,
+      task_id: 'task-managed-1',
+      message_id: 'msg-1',
+      urgency: 'important',
+      issued_at: '2026-03-12T00:00:00.000Z',
+      delivery_state: 'delivery_in_progress',
+    };
+    const dateNow = vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-03-12T00:00:20.000Z').getTime());
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          return { rowCount: 1, rows: [{ response: toolResult }] };
+        }
+        if (sql.includes('INSERT INTO orchestrator_task_messages')) {
+          throw new Error('replay should not insert a second task message row');
+        }
+        if (sql.includes('SELECT id, workflow_id, is_orchestrator_task, state, assigned_worker_id, stage_name')) {
+          expect(params).toEqual(['tenant-1', 'task-managed-1']);
+          return {
+            rowCount: 1,
+            rows: [managedTask],
+          };
+        }
+        if (sql.includes('FROM orchestrator_task_messages') && sql.includes('FOR UPDATE')) {
+          return {
+            rowCount: 1,
+            rows: [messageRow],
+          };
+        }
+        if (sql.includes("SET delivery_state = 'delivery_in_progress'")) {
+          messageRow = {
+            ...messageRow,
+            delivery_attempt_count: 2,
+            last_delivery_attempt_at: new Date('2026-03-12T00:00:20.000Z'),
+          };
+          return { rowCount: 1, rows: [messageRow] };
+        }
+        if (sql.includes('UPDATE orchestrator_task_messages') && sql.includes('delivered_at = CASE WHEN $2 = \'delivered\'')) {
+          messageRow = {
+            ...messageRow,
+            delivery_state: 'delivered',
+            delivered_at: new Date('2026-03-12T00:00:21.000Z'),
+          };
+          return { rowCount: 1, rows: [messageRow] };
+        }
+        throw new Error(`unexpected client query: ${sql} ${JSON.stringify(params)}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-orch-message']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-orch-message',
+              workflow_id: 'workflow-1',
+              project_id: 'project-1',
+              work_item_id: null,
+              stage_name: 'implementation',
+              activation_id: 'activation-1',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        if (sql.includes('UPDATE workflow_tool_results')) {
+          toolResult = params?.[4] as Record<string, unknown>;
+          return { rowCount: 1, rows: [{ response: toolResult }] };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => client),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', {
+      TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+      ORCHESTRATOR_TASK_MESSAGE_DELIVERY_STALE_AFTER_MS: 15000,
+    });
+    app.decorate('eventService', { emit });
+    app.decorate('workflowService', { getWorkflowBudget: vi.fn() });
+    app.decorate('workerConnectionHub', { sendToWorker });
+    app.decorate('taskService', { createTask: vi.fn(), getTask: vi.fn() });
+    app.decorate('projectService', {
+      patchProjectMemory: vi.fn(),
+      removeProjectMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orch-message/tasks/task-managed-1/message',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'msg-1',
+        message: 'Focus on the failing API regression first.',
+        urgency: 'important',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(sendToWorker).toHaveBeenCalledTimes(1);
+    expect(messageRow.delivery_attempt_count).toBe(2);
+    expect(response.json().data).toEqual(
+      expect.objectContaining({
+        success: true,
+        delivered: true,
+        message_id: 'msg-1',
+        delivery_state: 'delivered',
+      }),
+    );
+    dateNow.mockRestore();
+  });
+
+  it('retries a deferred worker_unavailable managed-task message on replay once the worker is reachable', async () => {
+    const managedTask = {
+      id: 'task-managed-1',
+      workflow_id: 'workflow-1',
+      is_orchestrator_task: false,
+      state: 'in_progress',
+      assigned_worker_id: 'worker-1',
+      stage_name: 'implementation',
+    };
+    const sendToWorker = vi.fn().mockReturnValue(true);
+    const emit = vi.fn(async () => undefined);
+    let messageRow: {
+      id: string;
+      tenant_id: string;
+      workflow_id: string;
+      task_id: string;
+      orchestrator_task_id: string;
+      activation_id: string;
+      stage_name: string;
+      worker_id: string;
+      request_id: string;
+      urgency: string;
+      message: string;
+      delivery_state: string;
+      delivery_attempt_count: number;
+      last_delivery_attempt_at: Date | null;
+      delivered_at: Date | null;
+      created_at: Date;
+    } = {
+      id: 'message-1',
+      tenant_id: 'tenant-1',
+      workflow_id: 'workflow-1',
+      task_id: 'task-managed-1',
+      orchestrator_task_id: 'task-orch-message',
+      activation_id: 'activation-1',
+      stage_name: 'implementation',
+      worker_id: 'worker-1',
+      request_id: 'msg-1',
+      urgency: 'important',
+      message: 'Focus on the failing API regression first.',
+      delivery_state: 'worker_unavailable',
+      delivery_attempt_count: 1,
+      last_delivery_attempt_at: new Date('2026-03-12T00:00:00.000Z'),
+      delivered_at: null,
+      created_at: new Date('2026-03-12T00:00:00.000Z'),
+    };
+    let toolResult: Record<string, unknown> = {
+      success: true,
+      delivered: false,
+      task_id: 'task-managed-1',
+      message_id: 'msg-1',
+      urgency: 'important',
+      issued_at: '2026-03-12T00:00:00.000Z',
+      delivery_state: 'worker_unavailable',
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          return { rowCount: 1, rows: [{ response: toolResult }] };
+        }
+        if (sql.includes('INSERT INTO orchestrator_task_messages')) {
+          throw new Error('replay should not insert a second task message row');
+        }
+        if (sql.includes('SELECT id, workflow_id, is_orchestrator_task, state, assigned_worker_id, stage_name')) {
+          expect(params).toEqual(['tenant-1', 'task-managed-1']);
+          return {
+            rowCount: 1,
+            rows: [managedTask],
+          };
+        }
+        if (sql.includes('FROM orchestrator_task_messages') && sql.includes('FOR UPDATE')) {
+          return {
+            rowCount: 1,
+            rows: [messageRow],
+          };
+        }
+        if (sql.includes("SET delivery_state = 'delivery_in_progress'")) {
+          messageRow = {
+            ...messageRow,
+            delivery_state: 'delivery_in_progress',
+            delivery_attempt_count: 2,
+            last_delivery_attempt_at: new Date('2026-03-12T00:00:10.000Z'),
+          };
+          return { rowCount: 1, rows: [messageRow] };
+        }
+        if (sql.includes('UPDATE orchestrator_task_messages') && sql.includes('delivered_at = CASE WHEN $2 = \'delivered\'')) {
+          messageRow = {
+            ...messageRow,
+            delivery_state: 'delivered',
+            delivered_at: new Date('2026-03-12T00:00:11.000Z'),
+          };
+          return { rowCount: 1, rows: [messageRow] };
+        }
+        throw new Error(`unexpected client query: ${sql} ${JSON.stringify(params)}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-orch-message']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-orch-message',
+              workflow_id: 'workflow-1',
+              project_id: 'project-1',
+              work_item_id: null,
+              stage_name: 'implementation',
+              activation_id: 'activation-1',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        if (sql.includes('UPDATE workflow_tool_results')) {
+          toolResult = params?.[4] as Record<string, unknown>;
+          return { rowCount: 1, rows: [{ response: toolResult }] };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => client),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit });
+    app.decorate('workflowService', { getWorkflowBudget: vi.fn() });
+    app.decorate('workerConnectionHub', { sendToWorker });
+    app.decorate('taskService', { createTask: vi.fn(), getTask: vi.fn() });
+    app.decorate('projectService', {
+      patchProjectMemory: vi.fn(),
+      removeProjectMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orch-message/tasks/task-managed-1/message',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'msg-1',
+        message: 'Focus on the failing API regression first.',
+        urgency: 'important',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(sendToWorker).toHaveBeenCalledTimes(1);
+    expect(messageRow.delivery_state).toBe('delivered');
+    expect(response.json().data).toEqual(
+      expect.objectContaining({
+        success: true,
+        delivered: true,
+        message_id: 'msg-1',
+        delivery_state: 'delivered',
+      }),
+    );
+  });
 });
