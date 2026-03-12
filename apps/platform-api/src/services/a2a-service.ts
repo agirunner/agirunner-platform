@@ -1,4 +1,5 @@
 import type { CreateTaskInput } from './task-service.types.js';
+import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
 
 const A2A_PROTOCOL_VERSION = '0.1';
 
@@ -64,15 +65,19 @@ export function mapA2ATaskToCreateInput(task: A2ATaskPayload): CreateTaskInput {
 }
 
 export function buildA2ATaskResponse(task: Record<string, unknown>) {
+  const metadata = sanitizeSecretLikeRecord(
+    asRecord(task.metadata).protocol_ingress ? { protocol_ingress: asRecord(task.metadata).protocol_ingress } : {},
+    { redactionValue: 'redacted://a2a-secret' },
+  );
   return {
     id: String(task.id),
     status: mapTaskStateToA2AStatus(task.state),
     title: readString(task.title),
     created_at: readString(task.created_at),
     updated_at: readString(task.updated_at),
-    result: task.output ?? null,
+    result: sanitizeSecretLikeValue(task.output ?? null, { redactionValue: 'redacted://a2a-secret' }),
     metadata: {
-      ...(asRecord(task.metadata).protocol_ingress ? { protocol_ingress: asRecord(task.metadata).protocol_ingress } : {}),
+      ...metadata,
       task_id: task.id,
       workflow_id: task.workflow_id,
       project_id: task.project_id,
@@ -93,7 +98,7 @@ export function buildA2AStreamEvent(event: {
     event_type: event.type,
     status: mapTaskStateToA2AStatus(asRecord(event.data).to_state ?? asRecord(event.data).state),
     created_at: event.created_at,
-    data: event.data ?? {},
+    data: sanitizeSecretLikeRecord(event.data ?? {}, { redactionValue: 'redacted://a2a-secret' }),
   };
 }
 
@@ -112,12 +117,10 @@ function mapTaskStateToA2AStatus(value: unknown) {
       return 'submitted';
     case 'claimed':
     case 'in_progress':
-    case 'running':
     case 'output_pending_review':
       return 'working';
     case 'awaiting_approval':
     case 'escalated':
-    case 'awaiting_escalation':
     case 'blocked':
       return 'input-required';
     case 'completed':

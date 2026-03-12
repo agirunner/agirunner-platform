@@ -52,7 +52,7 @@ describe('WorkflowCreationService', () => {
             },
           });
           expect(params?.[10]).toEqual({
-            template: { runtime: { timeout: 30 } },
+            playbook: { runtime: { timeout: 30 } },
             project: {
               model_override: {
                 model_id: '00000000-0000-0000-0000-000000000021',

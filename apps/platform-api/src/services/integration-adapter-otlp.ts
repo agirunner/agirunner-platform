@@ -3,6 +3,11 @@ import { createHash } from 'node:crypto';
 import type { AppEnv } from '../config/schema.js';
 import { ValidationError } from '../errors/domain-errors.js';
 import type { StreamEvent } from './event-stream-service.js';
+import {
+  decryptIntegrationHeaders,
+  normalizeIntegrationHeaders,
+  sanitizeIntegrationHeaders,
+} from './integration-adapter-headers.js';
 import type { DeliveryAttempt } from './integration-adapter-webhook.js';
 
 export interface PublicOtlpConfig {
@@ -22,6 +27,7 @@ export interface OtlpDeliveryTarget {
 export function normalizeStoredOtlpConfig(
   currentConfig: Record<string, unknown>,
   nextConfig: Record<string, unknown>,
+  encryptionKey: string,
 ): StoredOtlpConfig {
   const current = readExistingOtlpConfig(currentConfig);
   const endpoint = typeof nextConfig.endpoint === 'string' ? nextConfig.endpoint : current?.endpoint;
@@ -32,7 +38,10 @@ export function normalizeStoredOtlpConfig(
   validateEndpoint(endpoint);
   return {
     endpoint,
-    headers: nextConfig.headers !== undefined ? normalizeHeaders(nextConfig.headers) : (current?.headers ?? {}),
+    headers:
+      nextConfig.headers !== undefined
+        ? normalizeIntegrationHeaders(nextConfig.headers, encryptionKey)
+        : (current?.headers ?? {}),
     service_name:
       typeof nextConfig.service_name === 'string'
         ? nextConfig.service_name
@@ -41,14 +50,22 @@ export function normalizeStoredOtlpConfig(
 }
 
 export function toPublicOtlpConfig(config: Record<string, unknown>): PublicOtlpConfig {
-  return readStoredOtlpConfig(config);
-}
-
-export function toOtlpDeliveryTarget(config: Record<string, unknown>): OtlpDeliveryTarget {
   const stored = readStoredOtlpConfig(config);
   return {
     endpoint: stored.endpoint,
-    headers: stored.headers,
+    headers: sanitizeIntegrationHeaders(stored.headers),
+    service_name: stored.service_name,
+  };
+}
+
+export function toOtlpDeliveryTarget(
+  config: Record<string, unknown>,
+  encryptionKey: string,
+): OtlpDeliveryTarget {
+  const stored = readStoredOtlpConfig(config);
+  return {
+    endpoint: stored.endpoint,
+    headers: decryptIntegrationHeaders(stored.headers, encryptionKey),
     serviceName: stored.service_name,
   };
 }
@@ -178,7 +195,7 @@ function readStoredOtlpConfig(config: Record<string, unknown>): StoredOtlpConfig
   validateEndpoint(endpoint);
   return {
     endpoint,
-    headers: normalizeHeaders(config.headers),
+    headers: readStoredHeaders(config.headers),
     service_name:
       typeof config.service_name === 'string' && config.service_name.length > 0
         ? config.service_name
@@ -195,7 +212,7 @@ function readExistingOtlpConfig(config: Record<string, unknown>): StoredOtlpConf
   return readStoredOtlpConfig(config);
 }
 
-function normalizeHeaders(headers: unknown): Record<string, string> {
+function readStoredHeaders(headers: unknown): Record<string, string> {
   if (!headers || typeof headers !== 'object' || Array.isArray(headers)) {
     return {};
   }

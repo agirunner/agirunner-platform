@@ -105,6 +105,7 @@ export interface ProjectTimelineEntry {
   task_counts?: Record<string, unknown>;
   stage_progression?: Array<Record<string, unknown>>;
   stage_metrics?: Array<Record<string, unknown>>;
+  orchestrator_analytics?: Record<string, unknown>;
   produced_artifacts?: Array<Record<string, unknown>>;
   chain?: Record<string, unknown>;
   workflow_relations?: WorkflowRelations;
@@ -270,6 +271,7 @@ export interface GetWorkflowWorkItemQuery {
 export interface WorkflowActivation {
   id: string;
   workflow_id: string;
+  activation_id?: string;
   request_id?: string | null;
   reason: string;
   event_type: string;
@@ -277,9 +279,32 @@ export interface WorkflowActivation {
   state: string;
   queued_at: string;
   started_at?: string | null;
+  consumed_at?: string | null;
   completed_at?: string | null;
   summary?: string | null;
   error?: Record<string, unknown> | null;
+  recovery_status?: string | null;
+  recovery_reason?: string | null;
+  recovery_detected_at?: string | null;
+  stale_started_at?: string | null;
+  redispatched_task_id?: string | null;
+  latest_event_at?: string | null;
+  event_count?: number;
+  events?: Array<{
+    id: string;
+    activation_id?: string;
+    request_id?: string | null;
+    reason: string;
+    event_type: string;
+    payload: Record<string, unknown>;
+    state: string;
+    queued_at: string;
+    started_at?: string | null;
+    consumed_at?: string | null;
+    completed_at?: string | null;
+    summary?: string | null;
+    error?: Record<string, unknown> | null;
+  }>;
 }
 
 export interface WorkflowBoardColumn {
@@ -440,6 +465,15 @@ export interface CreatePlaybookInput {
   outcome: string;
   lifecycle?: 'standard' | 'continuous';
   definition: Record<string, unknown>;
+}
+
+export interface UpdatePlaybookInput {
+  name?: string;
+  slug?: string;
+  description?: string;
+  outcome?: string;
+  lifecycle?: 'standard' | 'continuous';
+  definition?: Record<string, unknown>;
 }
 
 export interface CreateWorkflowInput {

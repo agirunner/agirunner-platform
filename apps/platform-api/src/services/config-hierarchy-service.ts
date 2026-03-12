@@ -30,7 +30,7 @@ interface ConfigPolicy {
 export interface ResolvedWorkflowConfig {
   resolved: RecordValue;
   layers: {
-    template: RecordValue;
+    playbook: RecordValue;
     project: RecordValue;
     run: RecordValue;
   };
@@ -51,22 +51,22 @@ export interface EffectiveModelOverride {
 }
 
 export function resolveWorkflowConfig(
-  templateSchema: RecordValue,
+  playbookSchema: RecordValue,
   projectSpec: RecordValue,
   runOverrides: RecordValue,
 ): ResolvedWorkflowConfig {
-  const templateConfig = asRecord(templateSchema.config);
+  const playbookConfig = asRecord(playbookSchema.config);
   const projectConfig = readWorkflowConfigLayer(projectSpec);
   const runConfig = readWorkflowConfigLayer(runOverrides);
-  const policy = readConfigPolicy(templateSchema);
+  const policy = readConfigPolicy(playbookSchema);
 
   validateOverrides('project config', projectConfig, policy);
   validateOverrides('workflow config override', runConfig, policy);
 
   return {
-    resolved: mergeRecords(mergeRecords(templateConfig, projectConfig), runConfig),
+    resolved: mergeRecords(mergeRecords(playbookConfig, projectConfig), runConfig),
     layers: {
-      template: cloneRecord(templateConfig),
+      playbook: cloneRecord(playbookConfig),
       project: cloneRecord(projectConfig),
       run: cloneRecord(runConfig),
     },
@@ -74,10 +74,10 @@ export function resolveWorkflowConfig(
 }
 
 export function resolveInstructionConfig(
-  templateSchema: RecordValue,
+  playbookSchema: RecordValue,
   override: unknown,
 ): InstructionConfig {
-  const defaults = readInstructionConfig(templateSchema.default_instruction_config);
+  const defaults = readInstructionConfig(playbookSchema.default_instruction_config);
   if (override === undefined) {
     return defaults;
   }
@@ -139,8 +139,8 @@ export function overlayModelOverride(
   };
 }
 
-function readConfigPolicy(templateSchema: RecordValue): ConfigPolicy {
-  const policy = asRecord(templateSchema.config_policy);
+function readConfigPolicy(playbookSchema: RecordValue): ConfigPolicy {
+  const policy = asRecord(playbookSchema.config_policy);
   const locked = Array.isArray(policy.locked)
     ? policy.locked.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
     : [];
@@ -209,14 +209,14 @@ function annotateSources(
 function resolveSource(
   path: string[],
   layers: ResolvedWorkflowConfig['layers'],
-): 'template' | 'project' | 'run' {
+): 'playbook' | 'project' | 'run' {
   if (hasValueAtPath(layers.run, path)) {
     return 'run';
   }
   if (hasValueAtPath(layers.project, path)) {
     return 'project';
   }
-  return 'template';
+  return 'playbook';
 }
 
 function readInstructionConfig(value: unknown): InstructionConfig {

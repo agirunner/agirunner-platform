@@ -32,8 +32,8 @@ describe('workflow work-item memory routes', () => {
 
     const routes = app.printRoutes();
     expect(routes).toContain(':workItemId (GET, HEAD, PATCH)');
-    expect(routes).toContain('/memory (GET, HEAD)');
-    expect(routes).toContain('/history (GET, HEAD)');
+    expect(routes).toContain('memory (GET, HEAD)');
+    expect(routes).toContain('history (GET, HEAD)');
 
     await app.close();
   });

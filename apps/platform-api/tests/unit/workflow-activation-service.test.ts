@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { ConflictError } from '../../src/errors/domain-errors.js';
 import { WorkflowActivationService } from '../../src/services/workflow-activation-service.js';
 
 const identity = {
@@ -75,6 +76,69 @@ describe('WorkflowActivationService', () => {
     );
   });
 
+  it('redacts plaintext secrets in persisted and serialized activation payloads', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.startsWith('SELECT id FROM workflows')) {
+          return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+        }
+        if (sql.startsWith('INSERT INTO workflow_activations')) {
+          expect(params?.[5]).toEqual({
+            api_key: 'redacted://activation-secret',
+            nested: {
+              authorization: 'redacted://activation-secret',
+              secret_ref: 'secret:ACTIVATION_TOKEN',
+            },
+          });
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'req-1',
+              reason: 'task.completed',
+              event_type: 'task.completed',
+              payload: {
+                api_key: 'redacted://activation-secret',
+                nested: {
+                  authorization: 'redacted://activation-secret',
+                  secret_ref: 'secret:ACTIVATION_TOKEN',
+                },
+              },
+              state: 'queued',
+              queued_at: new Date('2026-03-11T00:00:00Z'),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new WorkflowActivationService(pool as never, { emit: vi.fn() } as never);
+
+    const result = await service.enqueue(identity, 'workflow-1', {
+      request_id: 'req-1',
+      reason: 'task.completed',
+      event_type: 'task.completed',
+      payload: {
+        api_key: 'sk-live-secret',
+        nested: {
+          authorization: 'Bearer header.payload.signature',
+          secret_ref: 'secret:ACTIVATION_TOKEN',
+        },
+      },
+    });
+
+    expect((result.payload as Record<string, any>).api_key).toBe('redacted://activation-secret');
+    expect((result.payload as Record<string, any>).nested.authorization).toBe('redacted://activation-secret');
+    expect((result.payload as Record<string, any>).nested.secret_ref).toBe('secret:ACTIVATION_TOKEN');
+  });
+
   it('returns the existing activation row when request_id conflicts', async () => {
     const pool = {
       query: vi.fn(async (sql: string) => {
@@ -126,6 +190,98 @@ describe('WorkflowActivationService', () => {
       }),
     );
     expect(eventService.emit).not.toHaveBeenCalled();
+  });
+
+  it('treats activation payloads with reordered object keys as the same request replay', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.startsWith('SELECT id FROM workflows')) {
+          return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+        }
+        if (sql.startsWith('INSERT INTO workflow_activations')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'req-1',
+              reason: 'work_item.created',
+              event_type: 'work_item.created',
+              payload: { stage_name: 'requirements', work_item_id: 'wi-1' },
+              state: 'queued',
+              queued_at: new Date('2026-03-11T00:00:00Z'),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new WorkflowActivationService(pool as never, { emit: vi.fn() } as never);
+
+    const result = await service.enqueue(identity, 'workflow-1', {
+      request_id: 'req-1',
+      reason: 'work_item.created',
+      event_type: 'work_item.created',
+      payload: { work_item_id: 'wi-1', stage_name: 'requirements' },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 'activation-1',
+        request_id: 'req-1',
+      }),
+    );
+  });
+
+  it('rejects a request_id replay when the existing activation payload does not match', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.startsWith('SELECT id FROM workflows')) {
+          return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+        }
+        if (sql.startsWith('INSERT INTO workflow_activations')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes('request_id = $3')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'req-1',
+              reason: 'work_item.created',
+              event_type: 'work_item.created',
+              payload: { work_item_id: 'wi-existing' },
+              state: 'queued',
+              queued_at: new Date('2026-03-11T00:00:00Z'),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new WorkflowActivationService(pool as never, { emit: vi.fn() } as never);
+
+    await expect(
+      service.enqueue(identity, 'workflow-1', {
+        request_id: 'req-1',
+        reason: 'work_item.created',
+        event_type: 'work_item.created',
+        payload: { work_item_id: 'wi-new' },
+      }),
+    ).rejects.toBeInstanceOf(ConflictError);
   });
 
   it('lists persisted activation events for a workflow', async () => {
@@ -400,5 +556,108 @@ describe('WorkflowActivationService', () => {
         ],
       }),
     );
+  });
+
+  it('redacts plaintext secrets from grouped activation event payloads on reads', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.startsWith('SELECT id FROM workflows')) {
+          return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+        }
+        if (sql.includes('FROM workflow_activations')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'activation-1',
+                workflow_id: 'workflow-1',
+                activation_id: 'activation-1',
+                request_id: 'req-1',
+                reason: 'task.completed',
+                event_type: 'task.completed',
+                payload: {
+                  refresh_token: 'plaintext-refresh-token',
+                  nested: { secret_ref: 'secret:SAFE_TOKEN' },
+                },
+                state: 'completed',
+                queued_at: new Date('2026-03-11T00:00:00Z'),
+                started_at: new Date('2026-03-11T00:00:10Z'),
+                consumed_at: new Date('2026-03-11T00:00:20Z'),
+                completed_at: new Date('2026-03-11T00:00:20Z'),
+                summary: 'done',
+                error: null,
+              },
+            ],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new WorkflowActivationService(pool as never, { emit: vi.fn() } as never);
+
+    const result = await service.get(identity.tenantId, 'workflow-1', 'activation-1');
+
+    expect((result.data.payload as Record<string, any>).refresh_token).toBe('redacted://activation-secret');
+    expect((result.data.events[0] as Record<string, any>).payload.nested.secret_ref).toBe('secret:SAFE_TOKEN');
+  });
+
+  it('caps grouped activation batches by limit even when many event rows are present', async () => {
+    const activationRows = Array.from({ length: 100 }, (_, batchIndex) => [
+      {
+        id: `activation-${batchIndex}-anchor`,
+        workflow_id: 'workflow-1',
+        activation_id: `activation-${batchIndex}`,
+        request_id: `req-${batchIndex}-a`,
+        reason: 'work_item.created',
+        event_type: 'work_item.created',
+        payload: { work_item_id: `wi-${batchIndex}` },
+        state: 'completed',
+        queued_at: new Date(`2026-03-11T00:00:${String(batchIndex % 60).padStart(2, '0')}Z`),
+        started_at: new Date(`2026-03-11T00:01:${String(batchIndex % 60).padStart(2, '0')}Z`),
+        consumed_at: new Date(`2026-03-11T00:02:${String(batchIndex % 60).padStart(2, '0')}Z`),
+        completed_at: new Date(`2026-03-11T00:02:${String(batchIndex % 60).padStart(2, '0')}Z`),
+        summary: 'done',
+        error: null,
+      },
+      {
+        id: `activation-${batchIndex}-follow`,
+        workflow_id: 'workflow-1',
+        activation_id: `activation-${batchIndex}`,
+        request_id: `req-${batchIndex}-b`,
+        reason: 'task.completed',
+        event_type: 'task.completed',
+        payload: { task_id: `task-${batchIndex}` },
+        state: 'completed',
+        queued_at: new Date(`2026-03-11T00:03:${String(batchIndex % 60).padStart(2, '0')}Z`),
+        started_at: new Date(`2026-03-11T00:03:${String(batchIndex % 60).padStart(2, '0')}Z`),
+        consumed_at: new Date(`2026-03-11T00:04:${String(batchIndex % 60).padStart(2, '0')}Z`),
+        completed_at: new Date(`2026-03-11T00:04:${String(batchIndex % 60).padStart(2, '0')}Z`),
+        summary: 'done',
+        error: null,
+      },
+    ]).flat();
+
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.startsWith('SELECT id FROM workflows')) {
+          return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+        }
+        if (sql.includes('FROM workflow_activations')) {
+          return { rowCount: activationRows.length, rows: activationRows };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new WorkflowActivationService(pool as never, { emit: vi.fn() } as never);
+
+    const result = await service.listWorkflowActivations(identity.tenantId, 'workflow-1', {
+      limit: 10,
+    });
+
+    expect(pool.query).toHaveBeenCalledTimes(2);
+    expect(result).toHaveLength(10);
+    expect(result.every((activation) => activation.event_count === 2)).toBe(true);
+    expect(result[0]?.activation_id).toBe('activation-0');
+    expect(result[9]?.activation_id).toBe('activation-9');
   });
 });

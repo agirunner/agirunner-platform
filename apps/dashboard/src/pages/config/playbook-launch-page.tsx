@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Loader2, Rocket } from 'lucide-react';
+import { Loader2, Plus, Rocket, Trash2 } from 'lucide-react';
 
 import {
   dashboardApi,
@@ -11,11 +11,10 @@ import {
   type DashboardProjectResolvedModelsResponse,
   type DashboardRoleModelOverride,
 } from '../../lib/api.js';
-import { Button } from '../../components/ui/button.js';
-import { Input } from '../../components/ui/input.js';
 import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
-import { Textarea } from '../../components/ui/textarea.js';
+import { Input } from '../../components/ui/input.js';
 import {
   Select,
   SelectContent,
@@ -23,7 +22,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select.js';
-import { StructuredRecordView } from '../../components/structured-data.js';
+import { Textarea } from '../../components/ui/textarea.js';
+import {
+  buildModelOverrides,
+  buildParametersFromDrafts,
+  buildStructuredObject,
+  createRoleOverrideDraft,
+  createStructuredEntryDraft,
+  defaultParameterDraftValue,
+  mergeStructuredObjects,
+  readLaunchDefinition,
+  syncRoleOverrideDrafts,
+  type LaunchParameterSpec,
+  type RoleOverrideDraft,
+  type StructuredEntryDraft,
+  type StructuredValueType,
+} from './playbook-launch-support.js';
 
 export function PlaybookLaunchPage(): JSX.Element {
   const navigate = useNavigate();
@@ -31,9 +45,10 @@ export function PlaybookLaunchPage(): JSX.Element {
   const [selectedPlaybookId, setSelectedPlaybookId] = useState(params.id ?? '');
   const [workflowName, setWorkflowName] = useState('');
   const [projectId, setProjectId] = useState('');
-  const [parametersText, setParametersText] = useState('{\n  \n}');
-  const [metadataText, setMetadataText] = useState('{\n  \n}');
-  const [modelOverridesText, setModelOverridesText] = useState('{\n  \n}');
+  const [parameterDrafts, setParameterDrafts] = useState<Record<string, string>>({});
+  const [extraParameterDrafts, setExtraParameterDrafts] = useState<StructuredEntryDraft[]>([]);
+  const [metadataDrafts, setMetadataDrafts] = useState<StructuredEntryDraft[]>([]);
+  const [modelOverrideDrafts, setModelOverrideDrafts] = useState<RoleOverrideDraft[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const playbooksQuery = useQuery({
@@ -49,9 +64,10 @@ export function PlaybookLaunchPage(): JSX.Element {
     () => (playbooksQuery.data?.data ?? []).find((playbook) => playbook.id === selectedPlaybookId) ?? null,
     [playbooksQuery.data?.data, selectedPlaybookId],
   );
-  const parsedWorkflowOverrides = useMemo(
-    () => parseModelOverrides(modelOverridesText, false),
-    [modelOverridesText],
+  const launchDefinition = useMemo(() => readLaunchDefinition(selectedPlaybook), [selectedPlaybook]);
+  const workflowOverrides = useMemo(
+    () => readWorkflowOverrides(modelOverrideDrafts),
+    [modelOverrideDrafts],
   );
   const projectResolvedModelsQuery = useQuery({
     queryKey: ['project-models', projectId],
@@ -62,18 +78,19 @@ export function PlaybookLaunchPage(): JSX.Element {
     queryKey: [
       'workflow-model-preview',
       projectId,
-      JSON.stringify(parsedWorkflowOverrides.value ?? {}),
+      JSON.stringify(workflowOverrides.value ?? {}),
       JSON.stringify(projectResolvedModelsQuery.data?.project_model_overrides ?? {}),
     ],
     queryFn: () =>
       dashboardApi.previewEffectiveModels({
+        roles: launchDefinition.roles,
         project_model_overrides: projectResolvedModelsQuery.data?.project_model_overrides ?? {},
-        workflow_model_overrides: parsedWorkflowOverrides.value ?? {},
+        workflow_model_overrides: workflowOverrides.value ?? {},
       }),
     enabled:
       selectedPlaybookId.length > 0 &&
-      !parsedWorkflowOverrides.error &&
-      (Object.keys(parsedWorkflowOverrides.value ?? {}).length > 0 || projectId.length > 0),
+      !workflowOverrides.error &&
+      (Object.keys(workflowOverrides.value ?? {}).length > 0 || projectId.length > 0),
   });
 
   useEffect(() => {
@@ -82,19 +99,36 @@ export function PlaybookLaunchPage(): JSX.Element {
     }
   }, [selectedPlaybook, workflowName]);
 
+  useEffect(() => {
+    setParameterDrafts((current) => {
+      const next: Record<string, string> = {};
+      for (const spec of launchDefinition.parameterSpecs) {
+        next[spec.key] = current[spec.key] ?? defaultParameterDraftValue(spec.defaultValue, spec.inputType);
+      }
+      return next;
+    });
+  }, [launchDefinition.parameterSpecs]);
+
+  useEffect(() => {
+    setModelOverrideDrafts((current) => syncRoleOverrideDrafts(launchDefinition.roles, current));
+  }, [launchDefinition.roles]);
+
   const launchMutation = useMutation({
     mutationFn: async () => {
-      const parameters = parseJsonObject(parametersText, 'Parameters');
-      const metadata = parseJsonObject(metadataText, 'Metadata');
-      const parsedModelOverrides = parseModelOverrides(modelOverridesText);
-      const modelOverrides = parsedModelOverrides.value ?? {};
+      const parameters = mergeStructuredObjects(
+        buildParametersFromDrafts(launchDefinition.parameterSpecs, parameterDrafts),
+        buildStructuredObject(extraParameterDrafts, 'Additional parameters'),
+        'Parameters',
+      );
+      const metadata = buildStructuredObject(metadataDrafts, 'Metadata');
+      const modelOverrides = buildModelOverrides(modelOverrideDrafts);
       return dashboardApi.createWorkflow({
         playbook_id: selectedPlaybookId,
         name: workflowName.trim(),
         project_id: projectId || undefined,
         parameters,
         metadata,
-        model_overrides: Object.keys(modelOverrides).length > 0 ? modelOverrides : undefined,
+        model_overrides: modelOverrides,
       });
     },
     onSuccess: (workflow) => {
@@ -114,7 +148,8 @@ export function PlaybookLaunchPage(): JSX.Element {
       <div>
         <h1 className="text-2xl font-semibold">Launch Playbook</h1>
         <p className="text-sm text-muted">
-          Create a new workflow run from a playbook instead of the legacy template launcher.
+          Create a new workflow run from a playbook with structured run inputs, board-aware context,
+          and role-based model overrides.
         </p>
       </div>
 
@@ -123,7 +158,7 @@ export function PlaybookLaunchPage(): JSX.Element {
           <CardHeader>
             <CardTitle>Run Configuration</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4">
+          <CardContent className="grid gap-6">
             <label className="grid gap-2 text-sm">
               <span className="font-medium">Playbook</span>
               <Select value={selectedPlaybookId} onValueChange={setSelectedPlaybookId}>
@@ -162,45 +197,86 @@ export function PlaybookLaunchPage(): JSX.Element {
               </Select>
             </label>
 
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Parameters JSON</span>
-              <Textarea
-                value={parametersText}
-                onChange={(event) => {
-                  setError(null);
-                  setParametersText(event.target.value);
-                }}
-                className="min-h-[180px] font-mono text-xs"
-              />
-            </label>
+            <StructuredSection
+              title="Playbook Parameters"
+              description={
+                launchDefinition.parameterSpecs.length > 0
+                  ? 'Launch-time parameters are driven from the selected playbook definition.'
+                  : 'This playbook does not define parameter specs yet. Add structured parameter keys as needed.'
+              }
+            >
+              {launchDefinition.parameterSpecs.length > 0 ? (
+                <div className="grid gap-4">
+                  {launchDefinition.parameterSpecs.map((spec) => (
+                    <ParameterField
+                      key={spec.key}
+                      spec={spec}
+                      value={parameterDrafts[spec.key] ?? ''}
+                      onChange={(value) => {
+                        setError(null);
+                        setParameterDrafts((current) => ({ ...current, [spec.key]: value }));
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : null}
 
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Metadata JSON</span>
-              <Textarea
-                value={metadataText}
-                onChange={(event) => {
+              <StructuredEntryEditor
+                title={launchDefinition.parameterSpecs.length > 0 ? 'Additional Parameters' : 'Parameters'}
+                description="Add extra launch parameters without typing a full JSON object."
+                drafts={extraParameterDrafts}
+                onChange={(drafts) => {
                   setError(null);
-                  setMetadataText(event.target.value);
+                  setExtraParameterDrafts(drafts);
                 }}
-                className="min-h-[160px] font-mono text-xs"
+                addLabel="Add parameter"
               />
-            </label>
+            </StructuredSection>
 
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Workflow Model Overrides JSON</span>
-              <Textarea
-                value={modelOverridesText}
-                onChange={(event) => {
+            <StructuredSection
+              title="Metadata"
+              description="Attach structured workflow metadata as key/value entries instead of a raw JSON blob."
+            >
+              <StructuredEntryEditor
+                title="Metadata Entries"
+                drafts={metadataDrafts}
+                onChange={(drafts) => {
                   setError(null);
-                  setModelOverridesText(event.target.value);
+                  setMetadataDrafts(drafts);
                 }}
-                className="min-h-[160px] font-mono text-xs"
-                placeholder={'{\n  "architect": {\n    "provider": "openai",\n    "model": "gpt-5"\n  }\n}'}
+                addLabel="Add metadata field"
               />
-            </label>
+            </StructuredSection>
 
-            {parsedWorkflowOverrides.error ? (
-              <p className="text-sm text-red-600">{parsedWorkflowOverrides.error}</p>
+            <StructuredSection
+              title="Workflow Model Overrides"
+              description="Configure workflow-scoped overrides per playbook role and preview the effective model stack before launch."
+            >
+              {launchDefinition.roles.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {launchDefinition.roles.map((role) => (
+                    <Badge key={role} variant="outline">
+                      {role}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted">
+                  This playbook definition does not declare roles, so custom override rows are available.
+                </p>
+              )}
+              <RoleOverrideEditor
+                drafts={modelOverrideDrafts}
+                playbookRoles={launchDefinition.roles}
+                onChange={(drafts) => {
+                  setError(null);
+                  setModelOverrideDrafts(drafts);
+                }}
+              />
+            </StructuredSection>
+
+            {workflowOverrides.error ? (
+              <p className="text-sm text-red-600">{workflowOverrides.error}</p>
             ) : null}
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
@@ -224,11 +300,265 @@ export function PlaybookLaunchPage(): JSX.Element {
           previewData={previewQuery.data}
           previewError={previewQuery.error}
           previewLoading={previewQuery.isLoading}
-          workflowOverrides={parsedWorkflowOverrides.value ?? {}}
+          workflowOverrides={workflowOverrides.value ?? {}}
+          launchDefinition={launchDefinition}
           isLoading={playbooksQuery.isLoading || projectsQuery.isLoading}
         />
       </div>
     </div>
+  );
+}
+
+function StructuredSection(props: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}): JSX.Element {
+  return (
+    <div className="space-y-3 rounded-md border border-border p-4">
+      <div>
+        <div className="font-medium">{props.title}</div>
+        <p className="text-sm text-muted">{props.description}</p>
+      </div>
+      {props.children}
+    </div>
+  );
+}
+
+function ParameterField(props: {
+  spec: LaunchParameterSpec;
+  value: string;
+  onChange(value: string): void;
+}): JSX.Element {
+  return (
+    <div className="grid gap-2 text-sm">
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-medium">{props.spec.label}</span>
+        <div className="flex gap-2">
+          {props.spec.options.length > 0 ? <Badge variant="outline">{props.spec.options.length} options</Badge> : null}
+          <Badge variant="secondary">{props.spec.key}</Badge>
+        </div>
+      </div>
+      {props.spec.description ? <p className="text-xs text-muted">{props.spec.description}</p> : null}
+      <ValueInput
+        valueType={props.spec.inputType === 'select' ? 'string' : props.spec.inputType}
+        value={props.value}
+        options={props.spec.options}
+        onChange={props.onChange}
+      />
+    </div>
+  );
+}
+
+function StructuredEntryEditor(props: {
+  title: string;
+  description?: string;
+  drafts: StructuredEntryDraft[];
+  onChange(drafts: StructuredEntryDraft[]): void;
+  addLabel: string;
+}): JSX.Element {
+  return (
+    <div className="space-y-3 rounded-md border border-dashed border-border p-3">
+      <div className="space-y-1">
+        <div className="text-sm font-medium">{props.title}</div>
+        {props.description ? <p className="text-xs text-muted">{props.description}</p> : null}
+      </div>
+      {props.drafts.length === 0 ? (
+        <p className="text-sm text-muted">No entries added yet.</p>
+      ) : (
+        props.drafts.map((draft) => (
+          <div key={draft.id} className="grid gap-3 rounded-md border border-border p-3">
+            <div className="grid gap-3 md:grid-cols-[1.1fr,0.7fr,1.2fr,auto]">
+              <label className="grid gap-1 text-xs">
+                <span className="font-medium">Key</span>
+                <Input
+                  value={draft.key}
+                  onChange={(event) => props.onChange(updateStructuredDraft(props.drafts, draft.id, { key: event.target.value }))}
+                />
+              </label>
+              <label className="grid gap-1 text-xs">
+                <span className="font-medium">Type</span>
+                <Select
+                  value={draft.valueType}
+                  onValueChange={(value) =>
+                    props.onChange(updateStructuredDraft(props.drafts, draft.id, { valueType: value as StructuredValueType }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="string">String</SelectItem>
+                    <SelectItem value="number">Number</SelectItem>
+                    <SelectItem value="boolean">Boolean</SelectItem>
+                    <SelectItem value="json">JSON</SelectItem>
+                  </SelectContent>
+                </Select>
+              </label>
+              <div className="grid gap-1 text-xs">
+                <span className="font-medium">Value</span>
+                <ValueInput
+                  valueType={draft.valueType}
+                  value={draft.value}
+                  onChange={(value) => props.onChange(updateStructuredDraft(props.drafts, draft.id, { value }))}
+                />
+              </div>
+              <div className="flex items-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => props.onChange(props.drafts.filter((entry) => entry.id !== draft.id))}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+      <Button type="button" variant="outline" onClick={() => props.onChange([...props.drafts, createStructuredEntryDraft()])}>
+        <Plus className="h-4 w-4" />
+        {props.addLabel}
+      </Button>
+    </div>
+  );
+}
+
+function RoleOverrideEditor(props: {
+  drafts: RoleOverrideDraft[];
+  playbookRoles: string[];
+  onChange(drafts: RoleOverrideDraft[]): void;
+}): JSX.Element {
+  return (
+    <div className="space-y-3">
+      {props.drafts.length === 0 ? (
+        <p className="text-sm text-muted">No workflow-specific model overrides configured.</p>
+      ) : (
+        props.drafts.map((draft) => {
+          const isPlaybookRole = props.playbookRoles.includes(draft.role.trim());
+          return (
+            <div key={draft.id} className="grid gap-3 rounded-md border border-border p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Badge variant={isPlaybookRole ? 'secondary' : 'outline'}>
+                    {isPlaybookRole ? 'playbook role' : 'custom role'}
+                  </Badge>
+                  <span className="text-sm font-medium">{draft.role.trim() || 'New role override'}</span>
+                </div>
+                {!isPlaybookRole ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => props.onChange(props.drafts.filter((entry) => entry.id !== draft.id))}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                ) : null}
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                <label className="grid gap-1 text-xs">
+                  <span className="font-medium">Role</span>
+                  <Input
+                    value={draft.role}
+                    disabled={isPlaybookRole}
+                    onChange={(event) => props.onChange(updateRoleDraft(props.drafts, draft.id, { role: event.target.value }))}
+                  />
+                </label>
+                <label className="grid gap-1 text-xs">
+                  <span className="font-medium">Provider</span>
+                  <Input
+                    value={draft.provider}
+                    placeholder="openai"
+                    onChange={(event) => props.onChange(updateRoleDraft(props.drafts, draft.id, { provider: event.target.value }))}
+                  />
+                </label>
+                <label className="grid gap-1 text-xs">
+                  <span className="font-medium">Model</span>
+                  <Input
+                    value={draft.model}
+                    placeholder="gpt-5"
+                    onChange={(event) => props.onChange(updateRoleDraft(props.drafts, draft.id, { model: event.target.value }))}
+                  />
+                </label>
+              </div>
+              <label className="grid gap-1 text-xs">
+                <span className="font-medium">Reasoning Config JSON</span>
+                <Textarea
+                  value={draft.reasoningConfig}
+                  placeholder='{"effort":"medium"}'
+                  className="min-h-[100px] font-mono text-xs"
+                  onChange={(event) => props.onChange(updateRoleDraft(props.drafts, draft.id, { reasoningConfig: event.target.value }))}
+                />
+              </label>
+            </div>
+          );
+        })
+      )}
+      <Button type="button" variant="outline" onClick={() => props.onChange([...props.drafts, createRoleOverrideDraft()])}>
+        <Plus className="h-4 w-4" />
+        Add custom role override
+      </Button>
+    </div>
+  );
+}
+
+function ValueInput(props: {
+  valueType: StructuredValueType;
+  value: string;
+  options?: string[];
+  onChange(value: string): void;
+}): JSX.Element {
+  if (props.options && props.options.length > 0) {
+    return (
+      <Select value={props.value || '__empty__'} onValueChange={(value) => props.onChange(value === '__empty__' ? '' : value)}>
+        <SelectTrigger>
+          <SelectValue placeholder="Select a value" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__empty__">Unset</SelectItem>
+          {props.options.map((option) => (
+            <SelectItem key={option} value={option}>
+              {option}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+  }
+
+  if (props.valueType === 'boolean') {
+    return (
+      <Select value={props.value || '__empty__'} onValueChange={(value) => props.onChange(value === '__empty__' ? '' : value)}>
+        <SelectTrigger>
+          <SelectValue placeholder="Unset" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__empty__">Unset</SelectItem>
+          <SelectItem value="true">True</SelectItem>
+          <SelectItem value="false">False</SelectItem>
+        </SelectContent>
+      </Select>
+    );
+  }
+
+  if (props.valueType === 'json') {
+    return (
+      <Textarea
+        value={props.value}
+        className="min-h-[100px] font-mono text-xs"
+        onChange={(event) => props.onChange(event.target.value)}
+      />
+    );
+  }
+
+  return (
+    <Input
+      type={props.valueType === 'number' ? 'number' : 'text'}
+      value={props.value}
+      onChange={(event) => props.onChange(event.target.value)}
+    />
   );
 }
 
@@ -246,15 +576,10 @@ function PlaybookSummaryCard(props: {
   previewError: unknown;
   previewLoading: boolean;
   workflowOverrides: Record<string, DashboardRoleModelOverride>;
+  launchDefinition: ReturnType<typeof readLaunchDefinition>;
   isLoading: boolean;
 }) {
   const selectedProject = props.projects.find((project) => project.id === props.selectedProjectId) ?? null;
-  const boardColumns = Array.isArray((props.playbook?.definition as { board?: { columns?: unknown[] } } | undefined)?.board?.columns)
-    ? (((props.playbook?.definition as { board?: { columns?: unknown[] } } | undefined)?.board?.columns?.length) ?? 0)
-    : 0;
-  const stages = Array.isArray((props.playbook?.definition as { stages?: unknown[] } | undefined)?.stages)
-    ? (((props.playbook?.definition as { stages?: unknown[] } | undefined)?.stages?.length) ?? 0)
-    : 0;
 
   return (
     <Card>
@@ -274,9 +599,24 @@ function PlaybookSummaryCard(props: {
             </div>
             <div className="flex flex-wrap gap-2">
               <Badge variant="secondary">{props.playbook.lifecycle}</Badge>
-              <Badge variant="outline">{boardColumns} columns</Badge>
-              <Badge variant="outline">{stages} stages</Badge>
+              <Badge variant="outline">{props.launchDefinition.boardColumns.length} columns</Badge>
+              <Badge variant="outline">{props.launchDefinition.stageNames.length} stages</Badge>
+              <Badge variant="outline">{props.launchDefinition.roles.length} roles</Badge>
             </div>
+            {props.launchDefinition.stageNames.length > 0 ? (
+              <SummaryList
+                title="Live Stages"
+                values={props.launchDefinition.stageNames}
+                emptyMessage="No stages defined."
+              />
+            ) : null}
+            {props.launchDefinition.boardColumns.length > 0 ? (
+              <SummaryList
+                title="Board Columns"
+                values={props.launchDefinition.boardColumns.map((column) => column.label)}
+                emptyMessage="No board columns defined."
+              />
+            ) : null}
             <div className="rounded-md border border-border bg-muted/20 p-3 text-sm">
               <div className="font-medium">Outcome</div>
               <div className="text-muted">{props.playbook.outcome}</div>
@@ -316,6 +656,29 @@ function PlaybookSummaryCard(props: {
   );
 }
 
+function SummaryList(props: {
+  title: string;
+  values: string[];
+  emptyMessage: string;
+}): JSX.Element {
+  return (
+    <div className="rounded-md border border-border bg-muted/20 p-3 text-sm">
+      <div className="font-medium">{props.title}</div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {props.values.length > 0 ? (
+          props.values.map((value) => (
+            <Badge key={value} variant="outline">
+              {value}
+            </Badge>
+          ))
+        ) : (
+          <span className="text-muted">{props.emptyMessage}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ResolvedModelList(props: {
   effectiveModels: Record<string, DashboardEffectiveModelResolution>;
 }) {
@@ -350,50 +713,30 @@ function ResolvedModelList(props: {
   );
 }
 
-function parseJsonObject(value: string, label: string): Record<string, unknown> | undefined {
-  const trimmed = value.trim();
-  if (!trimmed || trimmed === '{' || trimmed === '{\n  \n}') {
-    return undefined;
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(trimmed);
-  } catch (error) {
-    throw new Error(`${label} must be valid JSON: ${error instanceof Error ? error.message : 'parse error'}`);
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error(`${label} must be a JSON object.`);
-  }
-  return parsed as Record<string, unknown>;
+function updateStructuredDraft(
+  drafts: StructuredEntryDraft[],
+  draftId: string,
+  patch: Partial<StructuredEntryDraft>,
+): StructuredEntryDraft[] {
+  return drafts.map((draft) => (draft.id === draftId ? { ...draft, ...patch } : draft));
 }
 
-function parseModelOverrides(
-  value: string,
-  throwOnError = true,
+function updateRoleDraft(
+  drafts: RoleOverrideDraft[],
+  draftId: string,
+  patch: Partial<RoleOverrideDraft>,
+): RoleOverrideDraft[] {
+  return drafts.map((draft) => (draft.id === draftId ? { ...draft, ...patch } : draft));
+}
+
+function readWorkflowOverrides(
+  drafts: RoleOverrideDraft[],
 ): { value?: Record<string, DashboardRoleModelOverride>; error?: string } {
-  const trimmed = value.trim();
-  if (!trimmed || trimmed === '{' || trimmed === '{\n  \n}') {
-    return { value: {} };
-  }
-
-  let parsed: unknown;
   try {
-    parsed = JSON.parse(trimmed);
+    return { value: buildModelOverrides(drafts) ?? {} };
   } catch (error) {
-    const message = `Workflow model overrides must be valid JSON: ${error instanceof Error ? error.message : 'parse error'}`;
-    if (throwOnError) {
-      throw new Error(message);
-    }
-    return { error: message };
+    return {
+      error: error instanceof Error ? error.message : 'Workflow model overrides are invalid.',
+    };
   }
-
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    const message = 'Workflow model overrides must be a JSON object.';
-    if (throwOnError) {
-      throw new Error(message);
-    }
-    return { error: message };
-  }
-
-  return { value: parsed as Record<string, DashboardRoleModelOverride> };
 }

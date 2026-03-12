@@ -9,7 +9,7 @@ import {
 } from '../../src/services/config-hierarchy-service.js';
 
 describe('config hierarchy service', () => {
-  it('deep merges template, project, and run layers while preserving source snapshots', () => {
+  it('deep merges playbook, project, and run layers while preserving source snapshots', () => {
     const resolved = resolveWorkflowConfig(
       {
         config: {
@@ -80,7 +80,7 @@ describe('config hierarchy service', () => {
     expect(buildResolvedConfigView(resolved.resolved, resolved.layers, true)).toEqual({
       runtime: {
         timeout: { value: 50, source: 'run' },
-        mode: { value: 'safe', source: 'template' },
+        mode: { value: 'safe', source: 'playbook' },
       },
     });
   });
@@ -140,7 +140,7 @@ describe('config hierarchy service', () => {
     });
   });
 
-  it('replaces template instruction defaults when a run-level instruction config is present', () => {
+  it('replaces playbook instruction defaults when a run-level instruction config is present', () => {
     expect(
       resolveInstructionConfig(
         {

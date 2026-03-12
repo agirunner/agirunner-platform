@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildOrchestratorTaskContext } from '../../src/services/orchestrator-task-context.js';
 
 describe('buildOrchestratorTaskContext', () => {
-  it('derives active stages from open work items for continuous workflows', async () => {
+  it('derives active stages from open work items and gate posture for continuous workflows', async () => {
     const db = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes('FROM workflows w')) {
@@ -12,12 +12,19 @@ describe('buildOrchestratorTaskContext', () => {
               id: 'workflow-1',
               name: 'Workflow One',
               lifecycle: 'continuous',
-              current_stage: 'legacy-stage',
               metadata: {},
               playbook_name: 'Continuous Flow',
               playbook_outcome: 'Ship work',
               playbook_definition: {},
             }],
+          };
+        }
+        if (sql.includes('FROM workflow_stages')) {
+          return {
+            rows: [
+              { id: 'stage-1', name: 'triage', gate_status: 'not_requested' },
+              { id: 'stage-2', name: 'review', gate_status: 'awaiting_approval' },
+            ],
           };
         }
         if (sql.includes('FROM workflow_work_items')) {
@@ -43,7 +50,7 @@ describe('buildOrchestratorTaskContext', () => {
     expect(context?.workflow).toEqual(
       expect.objectContaining({
         lifecycle: 'continuous',
-        active_stages: ['triage', 'implementation'],
+        active_stages: ['triage', 'implementation', 'review'],
       }),
     );
     expect(context?.workflow).not.toHaveProperty('current_stage');

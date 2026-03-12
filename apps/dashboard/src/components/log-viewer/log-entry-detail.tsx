@@ -74,7 +74,7 @@ const DETAIL_CATEGORY_LABELS: Record<string, string> = {
   llm: 'LLM',
   tool: 'Tool',
   agent_loop: 'Agent Loop',
-  task_lifecycle: 'Task Lifecycle',
+  task_lifecycle: 'Execution Step Lifecycle',
   runtime_lifecycle: 'Runtime Lifecycle',
   container: 'Container',
   api: 'API',
@@ -149,7 +149,7 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
           </DetailRow>
         )}
         {(entry.workflow_name || entry.workflow_id) && (
-          <DetailRow label="Workflow">
+          <DetailRow label="Board">
             {entry.workflow_name ?? (
               <span className="font-mono text-xs text-muted-foreground/60">
                 {entry.workflow_id}
@@ -158,7 +158,7 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
           </DetailRow>
         )}
         {entry.task_id && (
-          <DetailRow label="Task ID">
+          <DetailRow label="Step ID">
             <span className="font-mono text-xs">{entry.task_id}</span>
           </DetailRow>
         )}
@@ -168,7 +168,7 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
           </DetailRow>
         )}
         {entry.task_title && (
-          <DetailRow label="Task Title">
+          <DetailRow label="Step Title">
             <span className="font-medium">{entry.task_title}</span>
           </DetailRow>
         )}
@@ -183,7 +183,7 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
           </DetailRow>
         )}
         {entry.is_orchestrator_task && (
-          <DetailRow label="Task Kind">
+          <DetailRow label="Step Kind">
             <span className="font-medium">Orchestrator</span>
           </DetailRow>
         )}

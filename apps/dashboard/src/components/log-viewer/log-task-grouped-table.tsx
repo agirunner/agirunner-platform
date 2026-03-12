@@ -186,7 +186,7 @@ export function LogTaskGroupedTable({
                 colSpan={COL_COUNT}
                 className="px-3 py-1.5 text-xs text-muted-foreground font-medium"
               >
-                {ungroupedCount} non-task{' '}
+                {ungroupedCount} non-step{' '}
                 {ungroupedCount === 1 ? 'entry' : 'entries'} (switch to
                 flat view to see all)
               </td>

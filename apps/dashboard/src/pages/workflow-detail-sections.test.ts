@@ -12,20 +12,29 @@ function readSource() {
 describe('workflow detail sections source', () => {
   it('surfaces stage-level work item summary in the playbook board card', () => {
     const source = readSource();
+    expect(source).toContain('Execution Steps');
+    expect(source).toContain('Execution steps grouped by board stage');
+    expect(source).toContain('Work Board');
     expect(source).toContain('stage_summary');
     expect(source).toContain('completed_count');
     expect(source).toContain('Acceptance:');
     expect(source).toContain('owner_role');
     expect(source).toContain('onSelectWorkItem');
     expect(source).toContain('selectedWorkItemId');
-    expect(source).toContain('Milestone groups');
-    expect(source).toContain('Grouped by milestone for parent-child orchestration visibility.');
+    expect(source).toContain('Grouped by Milestone');
+    expect(source).toContain('Flat Board');
+    expect(source).toContain('Grouped board mode keeps parent milestones first-class');
+    expect(source).toContain('Ungrouped board mode shows every work item directly');
     expect(source).toContain('children_completed');
     expect(source).toContain('% complete');
+    expect(source).toContain('Apply Board Move');
+    expect(source).toContain('Grouped move controls');
+    expect(source).toContain('dashboardApi.updateWorkflowWorkItem');
   });
 
   it('shows stage summaries directly on workflow stage cards', () => {
     const source = readSource();
+    expect(source).toContain('Stage Gates');
     expect(source).toContain('stage.summary');
     expect(source).toContain('Started');
     expect(source).toContain('Human Gate');
@@ -45,5 +54,14 @@ describe('workflow detail sections source', () => {
     expect(source).toContain('child-workflow-');
     expect(source).toContain('Permalink');
     expect(source).toContain('Highlight lineage');
+  });
+
+  it('shows stale recovery context on workflow activations', () => {
+    const source = readSource();
+    expect(source).toContain('Orchestrator Activations');
+    expect(source).toContain('describeActivationRecovery');
+    expect(source).toContain('recovery_status');
+    expect(source).toContain('stale_started_at');
+    expect(source).toContain('redispatched_task_id');
   });
 });

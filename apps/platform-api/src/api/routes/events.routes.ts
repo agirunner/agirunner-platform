@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyPluginAsync, FastifyReply, FastifyRequest 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { ValidationError } from '../../errors/domain-errors.js';
+import { sanitizeEventRow, sanitizeEventRows } from '../../services/event-service.js';
 
 function parseCsv(raw?: string): string[] | undefined {
   return raw?.split(',').map((value) => value.trim()).filter(Boolean);
@@ -42,9 +43,10 @@ async function streamEvents(app: FastifyInstance, request: FastifyRequest, reply
       gateId: query.gate_id,
     },
     (event) => {
+      const publicEvent = sanitizeEventRow(event);
       reply.raw.write(`id: ${event.id}\n`);
       reply.raw.write(`event: ${event.type}\n`);
-      reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
+      reply.raw.write(`data: ${JSON.stringify(publicEvent)}\n\n`);
     },
   );
 
@@ -133,7 +135,7 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
 
     const total = Number(totalResult.rows[0]?.count ?? '0');
     return {
-      data: rows.rows,
+      data: sanitizeEventRows(rows.rows),
       meta: {
         total,
         page,

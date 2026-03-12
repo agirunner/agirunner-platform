@@ -18,10 +18,9 @@ describe('task detail lifecycle support', () => {
     expect(parseJsonObject('[]', 'bad').error).toBe('bad');
   });
 
-  it('normalizes legacy task lifecycle labels to v2 operator language', () => {
-    expect(normalizeTaskState('running')).toBe('in_progress');
-    expect(normalizeTaskState('claimed')).toBe('in_progress');
-    expect(normalizeTaskState('awaiting_escalation')).toBe('escalated');
+  it('keeps task lifecycle labels canonical for the operator surface', () => {
+    expect(normalizeTaskState('in_progress')).toBe('in_progress');
+    expect(normalizeTaskState('escalated')).toBe('escalated');
     expect(normalizeTaskState('awaiting_approval')).toBe('awaiting_approval');
   });
 

@@ -63,7 +63,7 @@ export async function findDispatchCandidateWorkers(
             w.capabilities,
             w.quality_score,
             w.created_at,
-            COUNT(t.id) FILTER (WHERE t.state IN ('claimed','running')) AS task_load
+            COUNT(t.id) FILTER (WHERE t.state IN ('claimed','in_progress')) AS task_load
      FROM workers w
      LEFT JOIN tasks t ON t.assigned_worker_id = w.id
      WHERE w.tenant_id = $1

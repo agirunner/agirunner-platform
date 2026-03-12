@@ -1,4 +1,6 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
+import { ConflictError } from '../errors/domain-errors.js';
+import { areJsonValuesEquivalent } from './json-equivalence.js';
 
 interface StoredWorkflowToolResultRow {
   response: Record<string, unknown>;
@@ -6,6 +8,20 @@ interface StoredWorkflowToolResultRow {
 
 export class WorkflowToolResultService {
   constructor(private readonly pool: DatabasePool) {}
+
+  async lockRequest(
+    tenantId: string,
+    workflowId: string,
+    toolName: string,
+    requestId: string,
+    client?: DatabaseClient,
+  ): Promise<void> {
+    const db = client ?? this.pool;
+    await db.query(
+      `SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`,
+      [`${tenantId}:${workflowId}`, `${toolName}:${requestId}`],
+    );
+  }
 
   async getResult(
     tenantId: string,
@@ -51,6 +67,12 @@ export class WorkflowToolResultService {
     }
 
     const existing = await this.getResult(tenantId, workflowId, toolName, requestId, client);
-    return existing ?? response;
+    if (!existing) {
+      throw new Error('Failed to load existing workflow tool result after conflict');
+    }
+    if (!areJsonValuesEquivalent(existing, response)) {
+      throw new ConflictError('workflow tool request_id replay does not match the stored result');
+    }
+    return existing;
   }
 }

@@ -26,6 +26,7 @@ describe('PlaybookWorkflowControlService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          expect(sql).toContain('FOR UPDATE OF w');
           return {
             rowCount: 1,
             rows: [{
@@ -33,7 +34,7 @@ describe('PlaybookWorkflowControlService', () => {
               project_id: 'project-1',
               playbook_id: 'playbook-1',
               lifecycle: 'standard',
-              current_stage: 'requirements',
+              active_stage_name: 'requirements',
               state: 'active',
               definition,
             }],
@@ -154,6 +155,7 @@ describe('PlaybookWorkflowControlService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          expect(sql).toContain('FOR UPDATE OF w');
           return {
             rowCount: 1,
             rows: [{
@@ -161,7 +163,7 @@ describe('PlaybookWorkflowControlService', () => {
               project_id: 'project-1',
               playbook_id: 'playbook-1',
               lifecycle: 'standard',
-              current_stage: 'requirements',
+              active_stage_name: 'requirements',
               state: 'active',
               definition,
             }],
@@ -292,6 +294,7 @@ describe('PlaybookWorkflowControlService', () => {
     const pool = {
       query: vi.fn(async (sql: string, params: unknown[]) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          expect(sql).toContain('FOR UPDATE OF w');
           return {
             rowCount: 1,
             rows: [{
@@ -299,7 +302,7 @@ describe('PlaybookWorkflowControlService', () => {
               project_id: 'project-1',
               playbook_id: 'playbook-1',
               lifecycle: 'standard',
-              current_stage: 'requirements',
+              active_stage_name: 'requirements',
               state: 'active',
               definition,
             }],
@@ -377,7 +380,18 @@ describe('PlaybookWorkflowControlService', () => {
 
   it('records a gate decision and queues a follow-on activation', async () => {
     const activationService = {
-      enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-2' })),
+      enqueueForWorkflow: vi.fn(async () => ({
+        id: 'activation-2',
+        activation_id: 'activation-2',
+        state: 'queued',
+        event_type: 'stage.gate.approve',
+        reason: 'stage.gate.approve',
+        queued_at: '2026-03-11T00:31:00.000Z',
+        started_at: null,
+        completed_at: null,
+        summary: null,
+        error: null,
+      })),
     };
     const dispatchService = {
       dispatchActivation: vi.fn(async () => 'task-2'),
@@ -385,6 +399,7 @@ describe('PlaybookWorkflowControlService', () => {
     const pool = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          expect(sql).toContain('FOR UPDATE OF w');
           return {
             rowCount: 1,
             rows: [{
@@ -392,7 +407,7 @@ describe('PlaybookWorkflowControlService', () => {
               project_id: 'project-1',
               playbook_id: 'playbook-1',
               lifecycle: 'standard',
-              current_stage: 'requirements',
+              active_stage_name: 'requirements',
               state: 'active',
               definition,
             }],
@@ -476,6 +491,10 @@ describe('PlaybookWorkflowControlService', () => {
     );
 
     expect(stage.gate_status).toBe('approved');
+    expect(stage).toHaveProperty('orchestrator_resume.activation_id', 'activation-2');
+    expect(stage).toHaveProperty('orchestrator_resume.state', 'queued');
+    expect(stage).toHaveProperty('orchestrator_resume.event_type', 'stage.gate.approve');
+    expect(stage).toHaveProperty('orchestrator_resume.reason', 'stage.gate.approve');
     expect(activationService.enqueueForWorkflow).toHaveBeenCalledWith(
       expect.objectContaining({
         workflowId: 'workflow-1',
@@ -519,6 +538,7 @@ describe('PlaybookWorkflowControlService', () => {
           };
         }
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          expect(sql).toContain('FOR UPDATE OF w');
           return {
             rowCount: 1,
             rows: [{
@@ -526,7 +546,7 @@ describe('PlaybookWorkflowControlService', () => {
               project_id: 'project-1',
               playbook_id: 'playbook-1',
               lifecycle: 'standard',
-              current_stage: 'requirements',
+              active_stage_name: 'requirements',
               state: 'active',
               definition,
             }],
@@ -725,6 +745,69 @@ describe('PlaybookWorkflowControlService', () => {
     expect(dispatchService.dispatchActivation).not.toHaveBeenCalled();
   });
 
+  it('treats a repeated gate-id decision as idempotent even when the retried feedback differs', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const activationService = { enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-3' })) };
+    const dispatchService = { dispatchActivation: vi.fn(async () => 'task-3') };
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes("AND status = 'awaiting_approval'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_stage_gates') && sql.includes('AND id = $2') && !sql.includes("AND status = 'awaiting_approval'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'gate-1',
+              workflow_id: 'workflow-1',
+              stage_id: 'stage-1',
+              stage_name: 'requirements',
+              status: 'approved',
+              request_summary: 'Ready for review',
+              recommendation: 'approve',
+              concerns: [],
+              key_artifacts: [],
+              requested_by_type: 'agent',
+              requested_by_id: 'k1',
+              requested_at: new Date('2026-03-11T00:30:00Z'),
+              updated_at: new Date('2026-03-11T00:31:00Z'),
+              decided_by_type: 'admin',
+              decided_by_id: 'k1',
+              decision_feedback: 'Original approval note',
+              decided_at: new Date('2026-03-11T00:31:00Z'),
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: eventService as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'active') } as never,
+      activationService: activationService as never,
+      activationDispatchService: dispatchService as never,
+    });
+
+    const gate = await service.actOnGate(
+      { tenantId: 'tenant-1', scope: 'admin', ownerType: 'user', ownerId: 'user-1', keyPrefix: 'k1', id: 'key-1' },
+      'gate-1',
+      { action: 'approve', feedback: 'Retried approval note' },
+      pool as never,
+    );
+
+    expect(gate).toEqual(
+      expect.objectContaining({
+        gate_id: 'gate-1',
+        gate_status: 'approved',
+        decision_feedback: 'Original approval note',
+      }),
+    );
+    expect(eventService.emit).not.toHaveBeenCalled();
+    expect(activationService.enqueueForWorkflow).not.toHaveBeenCalled();
+    expect(dispatchService.dispatchActivation).not.toHaveBeenCalled();
+  });
+
   it('treats a repeated stage-addressed gate decision as idempotent once the stage already reflects it', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const activationService = { enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-4' })) };
@@ -732,6 +815,7 @@ describe('PlaybookWorkflowControlService', () => {
     const pool = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          expect(sql).toContain('FOR UPDATE OF w');
           return {
             rowCount: 1,
             rows: [{
@@ -739,7 +823,7 @@ describe('PlaybookWorkflowControlService', () => {
               project_id: 'project-1',
               playbook_id: 'playbook-1',
               lifecycle: 'standard',
-              current_stage: 'requirements',
+              active_stage_name: 'requirements',
               state: 'active',
               definition,
             }],
@@ -823,6 +907,306 @@ describe('PlaybookWorkflowControlService', () => {
     expect(dispatchService.dispatchActivation).not.toHaveBeenCalled();
   });
 
+  it('allows approving the same gate id after changes were previously requested', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const activationService = { enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-4', state: 'queued', event_type: 'stage.gate.approve', reason: 'stage.gate.approve', queued_at: null, started_at: null, completed_at: null, summary: null, error: null })) };
+    const dispatchService = { dispatchActivation: vi.fn(async () => 'task-4') };
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes("AND status = 'awaiting_approval'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_stage_gates') && sql.includes('AND id = $2') && !sql.includes("AND status = 'awaiting_approval'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'gate-1',
+              workflow_id: 'workflow-1',
+              stage_id: 'stage-1',
+              stage_name: 'requirements',
+              status: 'changes_requested',
+              request_summary: 'Ready for review',
+              recommendation: 'approve',
+              concerns: [],
+              key_artifacts: [],
+              requested_by_type: 'agent',
+              requested_by_id: 'k1',
+              requested_at: new Date('2026-03-11T00:30:00Z'),
+              updated_at: new Date('2026-03-11T00:31:00Z'),
+              decided_by_type: 'admin',
+              decided_by_id: 'k1',
+              decision_feedback: 'Please revise',
+              decided_at: new Date('2026-03-11T00:31:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              project_id: 'project-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'standard',
+              active_stage_name: 'requirements',
+              state: 'active',
+              definition,
+              orchestration_state: {},
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_stages') && sql.includes('name = $3')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'stage-1',
+              name: 'requirements',
+              position: 0,
+              goal: 'Define scope',
+              guidance: null,
+              human_gate: true,
+              status: 'active',
+              gate_status: 'changes_requested',
+              iteration_count: 1,
+              summary: 'Needs rework',
+              metadata: {},
+              started_at: new Date('2026-03-11T00:00:00Z'),
+              completed_at: null,
+              updated_at: new Date('2026-03-11T00:31:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('UPDATE workflow_stage_gates')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'gate-1',
+              workflow_id: 'workflow-1',
+              stage_id: 'stage-1',
+              stage_name: 'requirements',
+              status: 'approved',
+              request_summary: 'Ready for review',
+              recommendation: 'approve',
+              concerns: [],
+              key_artifacts: [],
+              requested_by_type: 'agent',
+              requested_by_id: 'k1',
+              requested_at: new Date('2026-03-11T00:30:00Z'),
+              updated_at: new Date('2026-03-11T00:35:00Z'),
+              decided_by_type: 'admin',
+              decided_by_id: 'k1',
+              decision_feedback: 'Looks good now.',
+              decided_at: new Date('2026-03-11T00:35:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('UPDATE workflow_stages')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'stage-1',
+              name: 'requirements',
+              position: 0,
+              goal: 'Define scope',
+              guidance: null,
+              human_gate: true,
+              status: 'awaiting_gate',
+              gate_status: 'approved',
+              iteration_count: 1,
+              summary: 'Needs rework',
+              metadata: {},
+              started_at: new Date('2026-03-11T00:00:00Z'),
+              completed_at: null,
+              updated_at: new Date('2026-03-11T00:35:00Z'),
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: eventService as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'active') } as never,
+      activationService: activationService as never,
+      activationDispatchService: dispatchService as never,
+    });
+
+    const gate = await service.actOnGate(
+      { tenantId: 'tenant-1', scope: 'admin', ownerType: 'user', ownerId: 'user-1', keyPrefix: 'k1', id: 'key-1' },
+      'gate-1',
+      { action: 'approve', feedback: 'Looks good now.' },
+      pool as never,
+    );
+
+    expect(gate).toEqual(
+      expect.objectContaining({
+        gate_id: 'gate-1',
+        gate_status: 'approved',
+        decision_feedback: 'Looks good now.',
+      }),
+    );
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'stage.gate.approve',
+        entityId: 'gate-1',
+      }),
+      pool,
+    );
+    expect(activationService.enqueueForWorkflow).toHaveBeenCalledTimes(1);
+    expect(dispatchService.dispatchActivation).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows approving a stage-addressed gate after changes were previously requested', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const activationService = { enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-4', activation_id: 'activation-4', state: 'queued', event_type: 'stage.gate.approve', reason: 'stage.gate.approve', queued_at: null, started_at: null, completed_at: null, summary: null, error: null })) };
+    const dispatchService = { dispatchActivation: vi.fn(async () => 'task-4') };
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              project_id: 'project-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'standard',
+              active_stage_name: 'requirements',
+              state: 'active',
+              definition,
+              orchestration_state: {},
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_stages') && sql.includes('name = $3')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'stage-1',
+              name: 'requirements',
+              position: 0,
+              goal: 'Define scope',
+              guidance: null,
+              human_gate: true,
+              status: 'active',
+              gate_status: 'changes_requested',
+              iteration_count: 1,
+              summary: 'Needs rework',
+              metadata: {},
+              started_at: new Date('2026-03-11T00:00:00Z'),
+              completed_at: null,
+              updated_at: new Date('2026-03-11T00:31:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_stage_gates') && sql.includes("AND status = 'awaiting_approval'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_stage_gates') && sql.includes('ORDER BY requested_at DESC')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'gate-1',
+              workflow_id: 'workflow-1',
+              stage_id: 'stage-1',
+              stage_name: 'requirements',
+              status: 'changes_requested',
+              request_summary: 'Ready for review',
+              recommendation: 'approve',
+              concerns: [],
+              key_artifacts: [],
+              requested_by_type: 'agent',
+              requested_by_id: 'k1',
+              requested_at: new Date('2026-03-11T00:30:00Z'),
+              updated_at: new Date('2026-03-11T00:31:00Z'),
+              decided_by_type: 'admin',
+              decided_by_id: 'k1',
+              decision_feedback: 'Please revise',
+              decided_at: new Date('2026-03-11T00:31:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('UPDATE workflow_stage_gates')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'gate-1',
+              workflow_id: 'workflow-1',
+              stage_id: 'stage-1',
+              stage_name: 'requirements',
+              status: 'approved',
+              request_summary: 'Ready for review',
+              recommendation: 'approve',
+              concerns: [],
+              key_artifacts: [],
+              requested_by_type: 'agent',
+              requested_by_id: 'k1',
+              requested_at: new Date('2026-03-11T00:30:00Z'),
+              updated_at: new Date('2026-03-11T00:35:00Z'),
+              decided_by_type: 'admin',
+              decided_by_id: 'k1',
+              decision_feedback: 'Looks good now.',
+              decided_at: new Date('2026-03-11T00:35:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('UPDATE workflow_stages')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'stage-1',
+              name: 'requirements',
+              position: 0,
+              goal: 'Define scope',
+              guidance: null,
+              human_gate: true,
+              status: 'awaiting_gate',
+              gate_status: 'approved',
+              iteration_count: 1,
+              summary: 'Needs rework',
+              metadata: {},
+              started_at: new Date('2026-03-11T00:00:00Z'),
+              completed_at: null,
+              updated_at: new Date('2026-03-11T00:35:00Z'),
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: eventService as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'active') } as never,
+      activationService: activationService as never,
+      activationDispatchService: dispatchService as never,
+    });
+
+    const stage = await service.actOnStageGate(
+      { tenantId: 'tenant-1', scope: 'admin', ownerType: 'user', ownerId: 'user-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      'requirements',
+      { action: 'approve', feedback: 'Looks good now.' },
+      pool as never,
+    );
+
+    expect(stage).toEqual(
+      expect.objectContaining({
+        name: 'requirements',
+        gate_status: 'approved',
+      }),
+    );
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'stage.gate.approve',
+        entityId: 'gate-1',
+      }),
+      pool,
+    );
+    expect(activationService.enqueueForWorkflow).toHaveBeenCalledTimes(1);
+    expect(dispatchService.dispatchActivation).toHaveBeenCalledTimes(1);
+  });
+
   it('emits move and reparent events and queues a follow-on activation when a work item changes', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const activationService = {
@@ -837,6 +1221,7 @@ describe('PlaybookWorkflowControlService', () => {
     const pool = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          expect(sql).toContain('FOR UPDATE OF w');
           return {
             rowCount: 1,
             rows: [{
@@ -844,7 +1229,7 @@ describe('PlaybookWorkflowControlService', () => {
               project_id: 'project-1',
               playbook_id: 'playbook-1',
               lifecycle: 'standard',
-              current_stage: 'requirements',
+              active_stage_name: 'requirements',
               state: 'active',
               definition,
             }],
@@ -973,10 +1358,22 @@ describe('PlaybookWorkflowControlService', () => {
     );
   });
 
-  it('rejects reparenting a work item under one of its descendants', async () => {
+  it('treats a no-op work-item patch as idempotent and skips side effects', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const activationService = {
+      enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-9' })),
+    };
+    const dispatchService = {
+      dispatchActivation: vi.fn(async () => 'task-9'),
+    };
+    const stateService = {
+      recomputeWorkflowState: vi.fn(async () => 'active'),
+    };
+    const updatedAt = new Date('2026-03-11T00:00:00Z');
     const pool = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          expect(sql).toContain('FOR UPDATE OF w');
           return {
             rowCount: 1,
             rows: [{
@@ -984,7 +1381,95 @@ describe('PlaybookWorkflowControlService', () => {
               project_id: 'project-1',
               playbook_id: 'playbook-1',
               lifecycle: 'standard',
-              current_stage: 'requirements',
+              active_stage_name: 'requirements',
+              state: 'active',
+              definition,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items') && sql.includes('AND id = $3') && sql.includes('FOR UPDATE')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'wi-2',
+              parent_work_item_id: 'wi-1',
+              stage_name: 'requirements',
+              title: 'Implement scope',
+              goal: 'Ship it',
+              acceptance_criteria: 'works',
+              column_id: 'planned',
+              owner_role: 'engineer',
+              priority: 'normal',
+              notes: null,
+              completed_at: null,
+              metadata: { lane: 'alpha' },
+              updated_at: updatedAt,
+            }],
+          };
+        }
+        if (sql.includes('WITH RECURSIVE descendants')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_work_items') && sql.includes('AND id = $3') && sql.includes('LIMIT 1') && !sql.includes('FOR UPDATE')) {
+          return { rowCount: 1, rows: [{ id: 'wi-1' }] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: eventService as never,
+      stateService: stateService as never,
+      activationService: activationService as never,
+      activationDispatchService: dispatchService as never,
+    });
+
+    const updated = await service.updateWorkItem(
+      { tenantId: 'tenant-1', scope: 'admin', ownerType: 'user', ownerId: 'user-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      'wi-2',
+      {
+        parent_work_item_id: 'wi-1',
+        title: ' Implement scope ',
+        goal: 'Ship it',
+        acceptance_criteria: 'works',
+        stage_name: 'requirements',
+        column_id: 'planned',
+        owner_role: 'engineer',
+        priority: 'normal',
+        notes: null,
+        metadata: { lane: 'alpha' },
+      },
+      pool as never,
+    );
+
+    expect(updated).toEqual(
+      expect.objectContaining({
+        id: 'wi-2',
+        updated_at: updatedAt.toISOString(),
+        metadata: { lane: 'alpha' },
+      }),
+    );
+    expect(pool.query).not.toHaveBeenCalledWith(expect.stringContaining('UPDATE workflow_work_items'), expect.anything());
+    expect(eventService.emit).not.toHaveBeenCalled();
+    expect(activationService.enqueueForWorkflow).not.toHaveBeenCalled();
+    expect(dispatchService.dispatchActivation).not.toHaveBeenCalled();
+    expect(stateService.recomputeWorkflowState).not.toHaveBeenCalled();
+  });
+
+  it('rejects reparenting a work item under one of its descendants', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          expect(sql).toContain('FOR UPDATE OF w');
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              project_id: 'project-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'standard',
+              active_stage_name: 'requirements',
               state: 'active',
               definition,
             }],
@@ -1042,6 +1527,7 @@ describe('PlaybookWorkflowControlService', () => {
     const pool = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          expect(sql).toContain('FOR UPDATE OF w');
           return {
             rowCount: 1,
             rows: [{
@@ -1049,7 +1535,7 @@ describe('PlaybookWorkflowControlService', () => {
               project_id: 'project-1',
               playbook_id: 'playbook-1',
               lifecycle: 'standard',
-              current_stage: 'requirements',
+              active_stage_name: 'requirements',
               state: 'active',
               definition,
             }],
@@ -1146,10 +1632,14 @@ describe('PlaybookWorkflowControlService', () => {
     expect(stage.gate_status).toBe('awaiting_approval');
   });
 
-  it('rejects a second pending gate request for the same stage', async () => {
+  it('treats a repeated pending gate request as idempotent when the existing request matches', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const activationService = { enqueueForWorkflow: vi.fn() };
+    const dispatchService = { dispatchActivation: vi.fn() };
     const pool = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          expect(sql).toContain('FOR UPDATE OF w');
           return {
             rowCount: 1,
             rows: [{
@@ -1157,7 +1647,93 @@ describe('PlaybookWorkflowControlService', () => {
               project_id: 'project-1',
               playbook_id: 'playbook-1',
               lifecycle: 'standard',
-              current_stage: 'requirements',
+              active_stage_name: 'requirements',
+              state: 'active',
+              definition,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_stages') && sql.includes('name = $3')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'stage-1',
+              name: 'requirements',
+              position: 0,
+              goal: 'Define scope',
+              guidance: null,
+              human_gate: true,
+              status: 'awaiting_gate',
+              gate_status: 'awaiting_approval',
+              iteration_count: 0,
+              summary: 'Ready for gate review',
+              metadata: {},
+              started_at: new Date('2026-03-11T00:00:00Z'),
+              completed_at: null,
+              updated_at: new Date('2026-03-11T00:00:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_stage_gates')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'gate-1',
+              workflow_id: 'workflow-1',
+              stage_id: 'stage-1',
+              stage_name: 'requirements',
+              status: 'awaiting_approval',
+              request_summary: 'Ready for gate review',
+              recommendation: null,
+              concerns: [],
+              key_artifacts: [],
+              requested_at: new Date('2026-03-11T00:15:00Z'),
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: eventService as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'active') } as never,
+      activationService: activationService as never,
+      activationDispatchService: dispatchService as never,
+    });
+
+    const stage = await service.requestStageGateApproval(
+      { tenantId: 'tenant-1', scope: 'agent', ownerType: 'agent', ownerId: 'agent-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      'requirements',
+      { summary: 'Ready for gate review' },
+      pool as never,
+    );
+
+    expect(stage).toEqual(
+      expect.objectContaining({
+        name: 'requirements',
+        gate_status: 'awaiting_approval',
+      }),
+    );
+    expect(eventService.emit).not.toHaveBeenCalled();
+    expect(activationService.enqueueForWorkflow).not.toHaveBeenCalled();
+    expect(dispatchService.dispatchActivation).not.toHaveBeenCalled();
+  });
+
+  it('rejects a second pending gate request for the same stage', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          expect(sql).toContain('FOR UPDATE OF w');
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              project_id: 'project-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'standard',
+              active_stage_name: 'requirements',
               state: 'active',
               definition,
             }],
@@ -1217,5 +1793,89 @@ describe('PlaybookWorkflowControlService', () => {
         pool as never,
       ),
     ).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it('treats a repeated stage advance as idempotent once the next stage is already current', async () => {
+    const service = new PlaybookWorkflowControlService({
+      pool: {} as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'active') } as never,
+      activationService: { enqueueForWorkflow: vi.fn() } as never,
+      activationDispatchService: { dispatchActivation: vi.fn() } as never,
+    });
+    const loadWorkflow = vi.spyOn(service as never, 'loadWorkflow').mockResolvedValue({
+      id: 'workflow-1',
+      project_id: 'project-1',
+      playbook_id: 'playbook-1',
+      lifecycle: 'standard',
+      active_stage_name: 'implementation',
+      state: 'active',
+      orchestration_state: {},
+      definition,
+    });
+    const loadStage = vi.spyOn(service as never, 'loadStage').mockResolvedValue({
+      id: 'stage-1',
+      name: 'requirements',
+      position: 0,
+      goal: 'Define scope',
+      guidance: null,
+      human_gate: true,
+      status: 'completed',
+      gate_status: 'approved',
+      iteration_count: 0,
+      summary: 'Requirements approved',
+      metadata: {},
+      started_at: new Date('2026-03-11T00:00:00Z'),
+      completed_at: new Date('2026-03-11T00:30:00Z'),
+      updated_at: new Date('2026-03-11T00:30:00Z'),
+    });
+
+    const result = await service.advanceStage(
+      { tenantId: 'tenant-1', scope: 'agent', ownerType: 'agent', ownerId: 'agent-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      'requirements',
+      { summary: 'Requirements approved' },
+      {} as never,
+    );
+
+    expect(result).toEqual({
+      completed_stage: 'requirements',
+      next_stage: 'implementation',
+    });
+    expect(loadWorkflow).toHaveBeenCalled();
+    expect(loadStage).toHaveBeenCalled();
+  });
+
+  it('treats a repeated workflow completion as idempotent once the workflow is already completed', async () => {
+    const service = new PlaybookWorkflowControlService({
+      pool: {} as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'completed') } as never,
+      activationService: { enqueueForWorkflow: vi.fn() } as never,
+      activationDispatchService: { dispatchActivation: vi.fn() } as never,
+    });
+    vi.spyOn(service as never, 'loadWorkflow').mockResolvedValue({
+      id: 'workflow-1',
+      project_id: 'project-1',
+      playbook_id: 'playbook-1',
+      lifecycle: 'standard',
+      active_stage_name: null,
+      state: 'completed',
+      orchestration_state: { completion_summary: 'Ship it' },
+      definition,
+    });
+
+    const result = await service.completeWorkflow(
+      { tenantId: 'tenant-1', scope: 'agent', ownerType: 'agent', ownerId: 'agent-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      { stage_name: 'implementation', summary: 'Ship it' },
+      {} as never,
+    );
+
+    expect(result).toEqual({
+      workflow_id: 'workflow-1',
+      state: 'completed',
+      summary: 'Ship it',
+    });
   });
 });

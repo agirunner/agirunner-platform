@@ -22,6 +22,24 @@ interface WorkflowStageRow {
   last_completed_work_item_at: Date | null;
 }
 
+export interface WorkflowStageResponse {
+  id: string;
+  name: string;
+  position: number;
+  goal: string;
+  guidance: string | null;
+  human_gate: boolean;
+  status: string;
+  is_active: boolean;
+  gate_status: string;
+  iteration_count: number;
+  summary: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  open_work_item_count: number;
+  total_work_item_count: number;
+}
+
 export class WorkflowStageService {
   constructor(private readonly pool: DatabasePool) {}
 
@@ -113,7 +131,7 @@ export class WorkflowStageService {
   }
 }
 
-function toStageResponse(row: WorkflowStageRow) {
+function toStageResponse(row: WorkflowStageRow): WorkflowStageResponse {
   const derived = deriveStageView(row);
   return {
     id: row.id,
@@ -132,6 +150,16 @@ function toStageResponse(row: WorkflowStageRow) {
     open_work_item_count: row.open_work_item_count,
     total_work_item_count: row.total_work_item_count,
   };
+}
+
+export function currentStageNameFromStages(
+  stages: Array<Pick<WorkflowStageResponse, 'name' | 'status' | 'position'>>,
+) {
+  return stages
+    .slice()
+    .sort((left, right) => left.position - right.position)
+    .find((stage) => isActiveStageStatus(stage.status))
+    ?.name ?? null;
 }
 
 function deriveStageView(row: WorkflowStageRow) {

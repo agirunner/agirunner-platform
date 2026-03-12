@@ -143,6 +143,12 @@ export interface DashboardWorkflowActivationRecord {
   completed_at?: string | null;
   summary?: string | null;
   error?: Record<string, unknown> | null;
+  recovery_status?: string | null;
+  recovery_reason?: string | null;
+  recovery_detected_at?: string | null;
+  stale_started_at?: string | null;
+  redispatched_task_id?: string | null;
+  latest_event_at?: string | null;
   event_count?: number;
   events?: Array<{
     id: string;
@@ -234,6 +240,32 @@ export interface DashboardWorkflowBoardResponse {
   }>;
 }
 
+export interface DashboardWorkflowRelationRef {
+  workflow_id: string;
+  name?: string | null;
+  state: string;
+  playbook_id?: string | null;
+  playbook_name?: string | null;
+  created_at?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  is_terminal: boolean;
+  link: string;
+}
+
+export interface DashboardWorkflowRelations {
+  parent: DashboardWorkflowRelationRef | null;
+  children: DashboardWorkflowRelationRef[];
+  latest_child_workflow_id: string | null;
+  child_status_counts: {
+    total: number;
+    active: number;
+    completed: number;
+    failed: number;
+    cancelled: number;
+  };
+}
+
 export interface DashboardWorkflowRecord {
   id: string;
   name: string;
@@ -257,6 +289,7 @@ export interface DashboardWorkflowRecord {
   task_counts?: Record<string, number>;
   metadata?: Record<string, unknown>;
   context?: Record<string, unknown>;
+  workflow_relations?: DashboardWorkflowRelations | null;
   workflow_stages?: DashboardWorkflowStageRecord[];
   work_items?: DashboardWorkflowWorkItemRecord[];
   activations?: DashboardWorkflowActivationRecord[];
@@ -344,9 +377,11 @@ export interface DashboardProjectTimelineEntry {
   task_counts?: Record<string, unknown>;
   stage_progression?: Array<Record<string, unknown>>;
   stage_metrics?: Array<Record<string, unknown>>;
+  orchestrator_analytics?: Record<string, unknown>;
   produced_artifacts?: Array<Record<string, unknown>>;
   chain?: Record<string, unknown>;
   link?: string;
+  workflow_relations?: DashboardWorkflowRelations;
 }
 
 export interface DashboardProjectRecord {
@@ -1019,6 +1054,17 @@ export interface DashboardApi {
     lifecycle?: 'standard' | 'continuous';
     definition: Record<string, unknown>;
   }): Promise<DashboardPlaybookRecord>;
+  updatePlaybook(
+    playbookId: string,
+    payload: {
+      name: string;
+      slug?: string;
+      description?: string;
+      outcome: string;
+      lifecycle?: 'standard' | 'continuous';
+      definition: Record<string, unknown>;
+    },
+  ): Promise<DashboardPlaybookRecord>;
   createWorkflow(payload: {
     playbook_id: string;
     name: string;
@@ -1232,6 +1278,7 @@ export interface DashboardApi {
     format?: 'json' | 'yaml';
   }): Promise<DashboardCustomizationExportResponse>;
   queryLogs(filters: Record<string, string>): Promise<LogQueryResponse>;
+  getLog(logId: string | number): Promise<{ data: LogEntry }>;
   getLogStats(filters: Record<string, string>): Promise<LogStatsResponse>;
   getLogOperations(filters?: Record<string, string>): Promise<{ data: LogOperationRecord[] }>;
   getLogRoles(filters?: Record<string, string>): Promise<{ data: LogRoleRecord[] }>;
@@ -1644,6 +1691,11 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(
         () => client.createPlaybook(payload as never) as Promise<DashboardPlaybookRecord>,
       ),
+    updatePlaybook: (playbookId, payload) =>
+      withRefresh(
+        () =>
+          client.updatePlaybook(playbookId, payload as never) as Promise<DashboardPlaybookRecord>,
+      ),
     createWorkflow: (payload) =>
       withRefresh(
         () => client.createWorkflow(payload as never) as Promise<DashboardWorkflowRecord>,
@@ -2034,6 +2086,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     queryLogs: (filters) =>
       withRefresh(() =>
         requestJson<LogQueryResponse>(`/api/v1/logs${buildQueryString(filters)}`, {
+          method: 'GET',
+        }),
+      ),
+    getLog: (logId) =>
+      withRefresh(() =>
+        requestJson<{ data: LogEntry }>(`/api/v1/logs/${encodeURIComponent(String(logId))}`, {
           method: 'GET',
         }),
       ),

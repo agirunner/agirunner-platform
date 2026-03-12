@@ -70,7 +70,7 @@ describe('FR-192: context versioning', () => {
             playbook_outcome: 'Shipped code',
             playbook_definition: { board: { columns: [{ id: 'todo', label: 'Todo' }] }, stages: [] },
             metadata: {
-              chain_source_workflow_id: 'wf-parent',
+              parent_workflow_id: 'wf-parent',
               child_workflow_ids: ['wf-child-1'],
             },
             context: {},
@@ -82,7 +82,7 @@ describe('FR-192: context versioning', () => {
       }
       if (sql.includes('SELECT DISTINCT stage_name')) {
         return Promise.resolve({
-          rows: [{ stage_name: 'build' }],
+          rows: [{ stage_name: 'build' }, { stage_name: 'review' }],
         });
       }
       if (sql.includes('LEFT JOIN playbooks pb') && sql.includes('ANY($2::uuid[])')) {
@@ -157,7 +157,7 @@ describe('FR-192: context versioning', () => {
     expect((context.workflow as Record<string, unknown>).playbook).toBeTruthy();
     expect((context.task as Record<string, unknown>).work_item).toBeTruthy();
     expect(context.workflow).not.toHaveProperty('current_stage');
-    expect((context.workflow as Record<string, unknown>).active_stages).toEqual(['build']);
+    expect((context.workflow as Record<string, unknown>).active_stages).toEqual(['build', 'review']);
     expect((context.workflow as Record<string, unknown>).relations).toEqual(
       expect.objectContaining({
         parent: expect.objectContaining({ workflow_id: 'wf-parent', state: 'completed' }),
@@ -285,9 +285,9 @@ describe('FR-404 / FR-SM-004: playbook definition surface', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FR-715: Phase-level cancellation
+// FR-715: workflow cancellation guardrails
 // ─────────────────────────────────────────────────────────────────────────────
-describe('FR-715: phase-level cancellation', () => {
+describe('FR-715: workflow cancellation guardrails', () => {
   it('WorkflowCancellationService is a real exported class with cancelWorkflow method', () => {
     expect(typeof WorkflowCancellationService).toBe('function');
     expect(typeof WorkflowCancellationService.prototype.cancelWorkflow).toBe('function');
@@ -392,7 +392,7 @@ describe('FR-819: external worker deliverable validation', () => {
   it('state machine prevents completing a task that is not in running state', async () => {
     const { assertValidTransition } = await import('../../src/orchestration/task-state-machine.js');
     expect(() => assertValidTransition('t1', 'pending', 'completed')).toThrow();
-    expect(() => assertValidTransition('t1', 'running', 'completed')).not.toThrow();
+    expect(() => assertValidTransition('t1', 'in_progress', 'completed')).not.toThrow();
   });
 });
 

@@ -34,6 +34,8 @@ import {
   toWebhookDeliveryTarget,
   type DeliveryAttempt,
 } from './integration-adapter-webhook.js';
+import { migrateStoredIntegrationHeaders } from './integration-adapter-headers.js';
+import { encryptWebhookSecret, isWebhookSecretEncrypted } from './webhook-secret-crypto.js';
 
 type IntegrationAdapterKind = 'webhook' | 'slack' | 'otlp_http' | 'github_issues';
 
@@ -121,7 +123,8 @@ export class IntegrationAdapterService {
       'SELECT * FROM integration_adapters WHERE tenant_id = $1 ORDER BY created_at DESC',
       [tenantId],
     );
-    return result.rows.map((row) => this.toPublicAdapter(row));
+    const rows = await Promise.all(result.rows.map((row) => this.ensureStoredSecretsEncrypted(row)));
+    return rows.map((row) => this.toPublicAdapter(row));
   }
 
   async deleteAdapter(tenantId: string, adapterId: string) {
@@ -192,7 +195,7 @@ export class IntegrationAdapterService {
         ORDER BY created_at ASC`,
       [tenantId, workflowId],
     );
-    return result.rows;
+    return Promise.all(result.rows.map((row) => this.ensureStoredSecretsEncrypted(row)));
   }
 
   private async insertPendingDelivery(tenantId: string, adapterId: string, eventId: number): Promise<string> {
@@ -270,7 +273,7 @@ export class IntegrationAdapterService {
       return deliverSlackEvent(
         this.fetchFn,
         this.config,
-        toSlackDeliveryTarget(row.config),
+        toSlackDeliveryTarget(row.config, this.config.WEBHOOK_ENCRYPTION_KEY),
         payload,
       );
     }
@@ -279,7 +282,7 @@ export class IntegrationAdapterService {
       return deliverOtlpEvent(
         this.fetchFn,
         this.config,
-        toOtlpDeliveryTarget(row.config),
+        toOtlpDeliveryTarget(row.config, this.config.WEBHOOK_ENCRYPTION_KEY),
         event,
       );
     }
@@ -336,7 +339,29 @@ export class IntegrationAdapterService {
     if (!result.rowCount) {
       throw new NotFoundError('Integration adapter not found');
     }
-    return result.rows[0];
+    return this.ensureStoredSecretsEncrypted(result.rows[0]);
+  }
+
+  private async ensureStoredSecretsEncrypted(row: IntegrationAdapterRow): Promise<IntegrationAdapterRow> {
+    const config = this.migrateLegacySecretConfig(row.kind, row.config);
+    if (config === row.config) {
+      return row;
+    }
+
+    await this.pool.query(
+      `UPDATE integration_adapters
+          SET config = $3::jsonb,
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [row.tenant_id, row.id, config],
+    );
+
+    return {
+      ...row,
+      config,
+      updated_at: new Date(),
+    };
   }
 
   private normalizeStoredConfig(kind: IntegrationAdapterKind, currentConfig: Record<string, unknown>, nextConfig: Record<string, unknown>) {
@@ -344,15 +369,31 @@ export class IntegrationAdapterService {
       return normalizeStoredWebhookConfig(currentConfig, nextConfig, this.config.WEBHOOK_ENCRYPTION_KEY);
     }
     if (kind === 'slack') {
-      return normalizeStoredSlackConfig(currentConfig, nextConfig);
+      return normalizeStoredSlackConfig(currentConfig, nextConfig, this.config.WEBHOOK_ENCRYPTION_KEY);
     }
     if (kind === 'otlp_http') {
-      return normalizeStoredOtlpConfig(currentConfig, nextConfig);
+      return normalizeStoredOtlpConfig(currentConfig, nextConfig, this.config.WEBHOOK_ENCRYPTION_KEY);
     }
     if (kind === 'github_issues') {
       return normalizeStoredGitHubIssuesConfig(currentConfig, nextConfig, this.config.WEBHOOK_ENCRYPTION_KEY);
     }
     throw new ValidationError(`Unsupported integration adapter kind '${kind}'`);
+  }
+
+  private migrateLegacySecretConfig(kind: IntegrationAdapterKind, config: Record<string, unknown>) {
+    if (kind === 'webhook') {
+      return migrateLegacyWebhookConfig(config, this.config.WEBHOOK_ENCRYPTION_KEY);
+    }
+    if (kind === 'slack') {
+      return migrateLegacySlackConfig(config, this.config.WEBHOOK_ENCRYPTION_KEY);
+    }
+    if (kind === 'otlp_http') {
+      return migrateLegacyOtlpConfig(config, this.config.WEBHOOK_ENCRYPTION_KEY);
+    }
+    if (kind === 'github_issues') {
+      return migrateLegacyGitHubIssuesConfig(config, this.config.WEBHOOK_ENCRYPTION_KEY);
+    }
+    return config;
   }
 
   private async deliverGitHubIssueEvent(
@@ -465,4 +506,72 @@ export class IntegrationAdapterService {
       [tenantId, adapterId, taskId, issue.externalId, issue.externalUrl],
     );
   }
+}
+
+function migrateLegacyWebhookConfig(config: Record<string, unknown>, encryptionKey: string) {
+  const nextConfig = { ...config };
+  let changed = false;
+
+  if (typeof nextConfig.secret === 'string' && shouldEncryptStoredSecret(nextConfig.secret)) {
+    nextConfig.secret = encryptWebhookSecret(nextConfig.secret, encryptionKey);
+    changed = true;
+  }
+
+  const headers = readHeaderRecord(nextConfig.headers);
+  const migratedHeaders = migrateStoredIntegrationHeaders(headers, encryptionKey);
+  if (migratedHeaders.changed) {
+    nextConfig.headers = migratedHeaders.headers;
+    changed = true;
+  }
+
+  return changed ? nextConfig : config;
+}
+
+function migrateLegacySlackConfig(config: Record<string, unknown>, encryptionKey: string) {
+  if (typeof config.webhook_url !== 'string' || !shouldEncryptStoredSecret(config.webhook_url)) {
+    return config;
+  }
+
+  return {
+    ...config,
+    webhook_url: encryptWebhookSecret(config.webhook_url, encryptionKey),
+  };
+}
+
+function migrateLegacyGitHubIssuesConfig(config: Record<string, unknown>, encryptionKey: string) {
+  if (typeof config.token !== 'string' || !shouldEncryptStoredSecret(config.token)) {
+    return config;
+  }
+
+  return {
+    ...config,
+    token: encryptWebhookSecret(config.token, encryptionKey),
+  };
+}
+
+function migrateLegacyOtlpConfig(config: Record<string, unknown>, encryptionKey: string) {
+  const headers = readHeaderRecord(config.headers);
+  const migrated = migrateStoredIntegrationHeaders(headers, encryptionKey);
+  if (!migrated.changed) {
+    return config;
+  }
+
+  return {
+    ...config,
+    headers: migrated.headers,
+  };
+}
+
+function readHeaderRecord(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).filter(([, headerValue]) => typeof headerValue === 'string'),
+  ) as Record<string, string>;
+}
+
+function shouldEncryptStoredSecret(value: string): boolean {
+  return value.length > 0 && !isWebhookSecretEncrypted(value) && !value.startsWith('secret:');
 }

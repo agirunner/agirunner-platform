@@ -16,10 +16,15 @@ import {
   buildApprovalQueueGatePermalink,
   buildWorkflowGatePermalink,
   isGateHighlighted,
+  readGateDecisionSummary,
+  readGateDecisionHistory,
   readGatePacketSummary,
+  readGateRequestSourceSummary,
+  readGateResumptionSummary,
   readGateTimelineRows,
   readGateId,
 } from './gate-detail-support.js';
+import { buildWorkflowDetailPermalink } from '../workflow-detail-permalinks.js';
 
 function computeWaitingTime(updatedAt: string): string {
   const diffMs = Date.now() - new Date(updatedAt).getTime();
@@ -74,7 +79,12 @@ export function GateDetailCard(props: {
   const workflowId = props.gate.workflow_id;
   const permalink = buildWorkflowGatePermalink(workflowId, props.gate.stage_name);
   const queuePermalink = gateId ? buildApprovalQueueGatePermalink(gateId) : null;
-  const highlighted = isGateHighlighted(location.search, location.hash, gateId);
+  const workflowDetailHighlight = new URLSearchParams(location.search).get('gate') === props.gate.stage_name
+    || location.hash === `#gate-${props.gate.stage_name}`;
+  const highlighted =
+    props.source === 'workflow-detail'
+      ? workflowDetailHighlight
+      : isGateHighlighted(location.search, location.hash, gateId);
 
   const detailQuery = useQuery({
     queryKey: ['workflow-gate', gateId],
@@ -105,7 +115,12 @@ export function GateDetailCard(props: {
       }
       return actOnGate(gateId, { action: 'approve' });
     },
-    onSuccess: () => void invalidateGateQueries(),
+    onSuccess: (updatedGate) => {
+      if (gateId) {
+        queryClient.setQueryData(['workflow-gate', gateId], updatedGate);
+      }
+      void invalidateGateQueries();
+    },
   });
   const rejectMutation = useMutation({
     mutationFn: async () => {
@@ -114,7 +129,12 @@ export function GateDetailCard(props: {
       }
       return actOnGate(gateId, { action: 'reject', feedback: 'Rejected from gate review' });
     },
-    onSuccess: () => void invalidateGateQueries(),
+    onSuccess: (updatedGate) => {
+      if (gateId) {
+        queryClient.setQueryData(['workflow-gate', gateId], updatedGate);
+      }
+      void invalidateGateQueries();
+    },
   });
   const requestChangesMutation = useMutation({
     mutationFn: async (changeFeedback: string) => {
@@ -123,9 +143,12 @@ export function GateDetailCard(props: {
       }
       return actOnGate(gateId, { action: 'request_changes', feedback: changeFeedback });
     },
-    onSuccess: () => {
+    onSuccess: (updatedGate) => {
       setIsChangesDialogOpen(false);
       setFeedback('');
+      if (gateId) {
+        queryClient.setQueryData(['workflow-gate', gateId], updatedGate);
+      }
       void invalidateGateQueries();
     },
   });
@@ -139,11 +162,27 @@ export function GateDetailCard(props: {
   const decisionAction = gate.human_decision?.action ?? null;
   const decisionFeedback = gate.human_decision?.feedback ?? gate.decision_feedback ?? null;
   const resume = gate.orchestrator_resume ?? null;
+  const requestSourceSummary = readGateRequestSourceSummary(gate);
+  const decisionSummary = readGateDecisionSummary(gate);
+  const decisionHistory = readGateDecisionHistory(gate);
+  const resumptionSummary = readGateResumptionSummary(gate);
+  const requestedWorkItemPermalink =
+    workflowId && gate.requested_by_task?.work_item_id
+      ? buildWorkflowDetailPermalink(workflowId, {
+          workItemId: gate.requested_by_task.work_item_id,
+        })
+      : null;
+  const resumePermalink =
+    workflowId && resume?.activation_id
+      ? buildWorkflowDetailPermalink(workflowId, {
+          activationId: resume.activation_id,
+        })
+      : null;
 
   return (
     <>
       <Card
-        id={gateId ? `gate-${gateId}` : undefined}
+        id={props.source === 'approval-queue' && gateId ? `gate-${gateId}` : undefined}
         data-highlighted={highlighted ? 'true' : 'false'}
         className={highlighted ? 'ring-2 ring-accent/50' : undefined}
       >
@@ -161,12 +200,23 @@ export function GateDetailCard(props: {
                 ) : null}
                 {resume?.state ? (
                   <Badge variant="outline">orchestrator {resume.state.replaceAll('_', ' ')}</Badge>
+                ) : decisionAction ? (
+                  <Badge variant="outline">awaiting orchestrator follow-up</Badge>
                 ) : null}
                 <span>Waiting {computeWaitingTime(gate.updated_at)}</span>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-wide text-muted">
                 <span>Operator breadcrumbs</span>
                 <span className="normal-case">{breadcrumbs.join(' / ')}</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                {requestSourceSummary.map((item) => (
+                  <Badge key={item} variant="secondary">
+                    {item}
+                  </Badge>
+                ))}
+                <Badge variant="outline">{decisionSummary}</Badge>
+                <Badge variant="outline">{resumptionSummary}</Badge>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Link
@@ -186,6 +236,16 @@ export function GateDetailCard(props: {
                 {props.source === 'workflow-detail' && queuePermalink ? (
                   <Button variant="ghost" size="sm" asChild>
                     <Link to={queuePermalink}>Open in approvals</Link>
+                  </Button>
+                ) : null}
+                {requestedWorkItemPermalink ? (
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link to={requestedWorkItemPermalink}>Open work-item flow</Link>
+                  </Button>
+                ) : null}
+                {resumePermalink ? (
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link to={resumePermalink}>Open follow-up activation</Link>
                   </Button>
                 ) : null}
               </div>
@@ -208,7 +268,7 @@ export function GateDetailCard(props: {
                 </div>
                 <div className="rounded-md border bg-border/10 p-3">
                   <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
-                    Operator trail
+                    Lifecycle trail
                   </div>
                   <div className="space-y-1 text-xs text-muted">
                     {timelineRows.map((row) => (
@@ -227,12 +287,34 @@ export function GateDetailCard(props: {
                   </div>
                   <div className="space-y-1 text-xs text-muted">
                     {gate.requested_by_task.work_item_title ? (
-                      <div>Work item: {gate.requested_by_task.work_item_title}</div>
+                      <div>
+                        Work item:{' '}
+                        {requestedWorkItemPermalink ? (
+                          <Link className="text-accent hover:underline" to={requestedWorkItemPermalink}>
+                            {gate.requested_by_task.work_item_title}
+                          </Link>
+                        ) : (
+                          gate.requested_by_task.work_item_title
+                        )}
+                      </div>
                     ) : null}
                     <div>
-                      Task: {gate.requested_by_task.title ?? gate.requested_by_task.id}
+                      Step:{' '}
+                      <Link className="text-accent hover:underline" to={`/work/tasks/${gate.requested_by_task.id}`}>
+                        {gate.requested_by_task.title ?? gate.requested_by_task.id}
+                      </Link>
                       {gate.requested_by_task.role ? ` • ${gate.requested_by_task.role}` : ''}
                     </div>
+                    {requestSourceSummary.length > 0 ? (
+                      <div>{requestSourceSummary.join(' • ')}</div>
+                    ) : null}
+                    {requestedWorkItemPermalink ? (
+                      <div>
+                        <Link className="text-accent hover:underline" to={requestedWorkItemPermalink}>
+                          Open work-item flow
+                        </Link>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               ) : null}
@@ -270,27 +352,50 @@ export function GateDetailCard(props: {
                   )}
                 </div>
               </div>
-              {decisionFeedback ? (
+              {decisionAction || decisionFeedback ? (
                 <div className="rounded-md border bg-border/10 p-3 text-xs text-muted">
                   <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
                     Human decision
                   </div>
-                  <p>{decisionFeedback}</p>
+                  <p>{decisionSummary}</p>
+                  {decisionFeedback ? <p className="mt-1">{decisionFeedback}</p> : null}
                 </div>
               ) : null}
-              {resume ? (
+              {decisionHistory.length > 0 ? (
                 <div className="rounded-md border bg-border/10 p-3 text-xs text-muted">
                   <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
-                    Orchestrator resumption
+                    Decision history
+                  </div>
+                  <div className="space-y-2">
+                    {decisionHistory.map((entry, index) => (
+                      <div key={`${entry.action}:${index}`} className="space-y-1">
+                        <p>{entry.summary}</p>
+                        {entry.feedback ? <p>{entry.feedback}</p> : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {resume || decisionAction ? (
+                <div className="rounded-md border bg-border/10 p-3 text-xs text-muted">
+                  <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
+                    Orchestrator follow-up
                   </div>
                   <div className="space-y-1">
-                    <p>
-                      {resume.state?.replaceAll('_', ' ') ?? 'queued'}
-                      {resume.event_type ? ` • ${resume.event_type}` : ''}
-                    </p>
-                    {resume.reason ? <p>{resume.reason}</p> : null}
-                    {resume.summary ? <p>{resume.summary}</p> : null}
-                    {resume.error ? (
+                    <p>{resumptionSummary}</p>
+                    {!resume && decisionAction ? (
+                      <p>The operator decision is recorded. The orchestrator follow-up activation has not been queued yet.</p>
+                    ) : null}
+                    {resume?.reason ? <p>{resume.reason}</p> : null}
+                    {resume?.summary ? <p>{resume.summary}</p> : null}
+                    {resumePermalink ? (
+                      <div>
+                        <Link className="text-accent hover:underline" to={resumePermalink}>
+                          Open follow-up activation
+                        </Link>
+                      </div>
+                    ) : null}
+                    {resume?.error ? (
                       <p className="text-red-600">{JSON.stringify(resume.error)}</p>
                     ) : null}
                   </div>
@@ -324,7 +429,7 @@ export function GateDetailCard(props: {
                               ) : null}
                             </div>
                             <Badge variant={taskId ? 'outline' : 'secondary'}>
-                              {taskId ? 'Task' : 'Reference'}
+                              {taskId ? 'Step' : 'Reference'}
                             </Badge>
                           </div>
                         </div>

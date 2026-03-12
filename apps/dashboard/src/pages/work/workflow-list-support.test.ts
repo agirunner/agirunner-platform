@@ -40,7 +40,7 @@ describe('workflow list support', () => {
       },
     };
 
-    expect(describeWorkflowType(workflow)).toBe('Continuous board');
+    expect(describeWorkflowType(workflow)).toBe('Continuous board run');
     expect(describeWorkflowStage(workflow)).toBe('implementation');
     expect(describeWorkItemSummary(workflow)).toBe('3 open / 5 total, 1 live stage');
     expect(describeGateSummary(workflow)).toBe('1 gate waiting');
@@ -71,6 +71,49 @@ describe('workflow list support', () => {
     expect(describeWorkflowStage(workflow)).toBe('implementation, verification');
   });
 
+  it('prefers work-item summary stage ordering over top-level active stage arrays for continuous workflows', () => {
+    const workflow = {
+      id: 'workflow-2c',
+      name: 'Ordered Continuous',
+      status: 'running',
+      created_at: '2026-03-11',
+      lifecycle: 'continuous' as const,
+      active_stages: ['verification', 'implementation'],
+      work_item_summary: {
+        total_work_items: 4,
+        open_work_item_count: 2,
+        completed_work_item_count: 2,
+        active_stage_count: 2,
+        awaiting_gate_count: 0,
+        active_stage_names: ['implementation', 'verification'],
+      },
+    };
+
+    expect(describeWorkflowStage(workflow)).toBe('implementation, verification');
+  });
+
+  it('does not fall back to workflow current_stage for continuous workflows without live work', () => {
+    const workflow = {
+      id: 'workflow-2b',
+      name: 'Idle Continuous',
+      status: 'pending',
+      created_at: '2026-03-11',
+      lifecycle: 'continuous' as const,
+      current_stage: 'legacy-review',
+      active_stages: [],
+      work_item_summary: {
+        total_work_items: 0,
+        open_work_item_count: 0,
+        completed_work_item_count: 0,
+        active_stage_count: 0,
+        awaiting_gate_count: 0,
+        active_stage_names: [],
+      },
+    };
+
+    expect(describeWorkflowStage(workflow)).toBe('-');
+  });
+
   it('treats standard workflows as the default active type', () => {
     const workflow = {
       id: 'workflow-1',
@@ -81,7 +124,7 @@ describe('workflow list support', () => {
       task_counts: { completed: 2, running: 1 },
     };
 
-    expect(describeWorkflowType(workflow)).toBe('Milestone board');
+    expect(describeWorkflowType(workflow)).toBe('Milestone board run');
     expect(describeWorkflowStage(workflow)).toBe('review');
     expect(describeWorkItemSummary(workflow)).toBe('No work items');
     expect(formatTaskProgress(workflow.task_counts)).toBe('2/3');
@@ -120,7 +163,7 @@ describe('workflow list support', () => {
         status: 'completed',
         created_at: '2026-03-11',
       }),
-    ).toBe('Delivery complete');
+    ).toBe('Board run complete');
 
     expect(
       describeOperatorSignal({
@@ -138,7 +181,7 @@ describe('workflow list support', () => {
         status: 'cancelled',
         created_at: '2026-03-11',
       }),
-    ).toBe('Delivery cancelled');
+    ).toBe('Board run cancelled');
 
     expect(
       describeOperatorSignal({
@@ -147,6 +190,6 @@ describe('workflow list support', () => {
         status: 'failed',
         created_at: '2026-03-11',
       }),
-    ).toBe('Delivery blocked by failure');
+    ).toBe('Board run blocked by failure');
   });
 });

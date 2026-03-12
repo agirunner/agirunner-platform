@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 import { UnauthorizedError, ValidationError } from '../errors/domain-errors.js';
+import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 import type { CreateWorkItemInput } from './work-item-service.js';
 import { decryptWebhookSecret } from './webhook-secret-crypto.js';
 
@@ -75,13 +76,17 @@ export function toPublicTrigger(row: WorkItemTriggerRow) {
     event_types: row.event_types ?? [],
     signature_header: row.signature_header,
     signature_mode: row.signature_mode,
-    field_mappings: row.field_mappings ?? {},
-    defaults: row.defaults ?? {},
+    field_mappings: sanitizeTriggerConfig(row.field_mappings),
+    defaults: sanitizeTriggerConfig(row.defaults),
     is_active: row.is_active,
     secret_configured: true,
     created_at: row.created_at.toISOString(),
     updated_at: row.updated_at.toISOString(),
   };
+}
+
+function sanitizeTriggerConfig(value: unknown) {
+  return sanitizeSecretLikeRecord(value, { redactionValue: 'redacted://trigger-secret' });
 }
 
 export function verifyTriggerSignature(

@@ -30,7 +30,11 @@ describe('McpStdioServer', () => {
         vi.useRealTimers();
     });
     it('lists tools via tools/list', async () => {
-        const response = await new McpStdioServer(createClient()).handle({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
+        const response = await new McpStdioServer(createClient()).handle({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'tools/list',
+        });
         expect(response.error).toBeUndefined();
         expect(response.result.tools.length).toBeGreaterThan(0);
     });
@@ -38,23 +42,59 @@ describe('McpStdioServer', () => {
         { name: 'list_tasks', args: { state: 'ready' }, method: 'listTasks' },
         { name: 'get_task', args: { id: 'task-1' }, method: 'getTask' },
         { name: 'create_task', args: { title: 'Do work', type: 'code' }, method: 'createTask' },
-        { name: 'claim_task', args: { agent_id: 'agent-1', capabilities: ['ts'] }, method: 'claimTask' },
+        {
+            name: 'claim_task',
+            args: { agent_id: 'agent-1', capabilities: ['ts'] },
+            method: 'claimTask',
+        },
         { name: 'complete_task', args: { id: 'task-1', output: { ok: true } }, method: 'completeTask' },
         { name: 'list_workflows', args: { state: 'active' }, method: 'listWorkflows' },
         { name: 'get_workflow', args: { id: 'pipe-1' }, method: 'getWorkflow' },
-        { name: 'create_workflow', args: { playbook_id: 'pb-1', name: 'Pipe' }, method: 'createWorkflow' },
+        {
+            name: 'create_workflow',
+            args: { playbook_id: 'pb-1', name: 'Pipe' },
+            method: 'createWorkflow',
+        },
         { name: 'cancel_workflow', args: { id: 'pipe-1' }, method: 'cancelWorkflow' },
         { name: 'get_workflow_board', args: { workflow_id: 'pipe-1' }, method: 'getWorkflowBoard' },
         { name: 'list_workflow_stages', args: { workflow_id: 'pipe-1' }, method: 'listWorkflowStages' },
-        { name: 'list_workflow_work_items', args: { workflow_id: 'pipe-1' }, method: 'listWorkflowWorkItems' },
-        { name: 'get_workflow_work_item', args: { workflow_id: 'pipe-1', work_item_id: 'wi-1' }, method: 'getWorkflowWorkItem' },
-        { name: 'list_workflow_activations', args: { workflow_id: 'pipe-1' }, method: 'listWorkflowActivations' },
-        { name: 'create_workflow_work_item', args: { workflow_id: 'pipe-1', title: 'Investigate' }, method: 'createWorkflowWorkItem' },
-        { name: 'update_workflow_work_item', args: { workflow_id: 'pipe-1', work_item_id: 'wi-1', priority: 'high' }, method: 'updateWorkflowWorkItem' },
-        { name: 'act_on_stage_gate', args: { workflow_id: 'pipe-1', stage_name: 'review', action: 'approve' }, method: 'actOnStageGate' },
+        {
+            name: 'list_workflow_work_items',
+            args: { workflow_id: 'pipe-1' },
+            method: 'listWorkflowWorkItems',
+        },
+        {
+            name: 'get_workflow_work_item',
+            args: { workflow_id: 'pipe-1', work_item_id: 'wi-1' },
+            method: 'getWorkflowWorkItem',
+        },
+        {
+            name: 'list_workflow_activations',
+            args: { workflow_id: 'pipe-1' },
+            method: 'listWorkflowActivations',
+        },
+        {
+            name: 'create_workflow_work_item',
+            args: { workflow_id: 'pipe-1', title: 'Investigate' },
+            method: 'createWorkflowWorkItem',
+        },
+        {
+            name: 'update_workflow_work_item',
+            args: { workflow_id: 'pipe-1', work_item_id: 'wi-1', priority: 'high' },
+            method: 'updateWorkflowWorkItem',
+        },
+        {
+            name: 'act_on_stage_gate',
+            args: { workflow_id: 'pipe-1', stage_name: 'review', action: 'approve' },
+            method: 'actOnStageGate',
+        },
         { name: 'list_playbooks', args: {}, method: 'listPlaybooks' },
         { name: 'get_playbook', args: { id: 'pb-1' }, method: 'getPlaybook' },
-        { name: 'create_playbook', args: { name: 'Ship', outcome: 'Ship', definition: {} }, method: 'createPlaybook' },
+        {
+            name: 'create_playbook',
+            args: { name: 'Ship', outcome: 'Ship', definition: {} },
+            method: 'createPlaybook',
+        },
         { name: 'get_approval_queue', args: {}, method: 'getApprovalQueue' },
     ])('executes %s handler and returns structured content', async ({ name, args, method }) => {
         const client = createClient();
@@ -118,7 +158,11 @@ describe('McpStdioServer', () => {
         expect(response.error?.message).toContain(error);
     });
     it('returns method not found for unknown methods', async () => {
-        const response = await new McpStdioServer(createClient()).handle({ jsonrpc: '2.0', id: 5, method: 'nope' });
+        const response = await new McpStdioServer(createClient()).handle({
+            jsonrpc: '2.0',
+            id: 5,
+            method: 'nope',
+        });
         expect(response.error?.code).toBe(-32601);
     });
     it('returns unknown tool error', async () => {

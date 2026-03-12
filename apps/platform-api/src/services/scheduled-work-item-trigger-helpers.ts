@@ -1,4 +1,5 @@
 import { ValidationError } from '../errors/domain-errors.js';
+import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 import type { CreateWorkItemInput } from './work-item-service.js';
 
 type WorkItemPriority = 'critical' | 'high' | 'normal' | 'low';
@@ -53,13 +54,17 @@ export function toPublicScheduledTrigger(row: ScheduledWorkItemTriggerRow) {
     project_id: row.project_id,
     workflow_id: row.workflow_id,
     cadence_minutes: row.cadence_minutes,
-    defaults: row.defaults ?? {},
+    defaults: sanitizeTriggerDefaults(row.defaults),
     is_active: row.is_active,
     last_fired_at: row.last_fired_at?.toISOString() ?? null,
     next_fire_at: row.next_fire_at.toISOString(),
     created_at: row.created_at.toISOString(),
     updated_at: row.updated_at.toISOString(),
   };
+}
+
+function sanitizeTriggerDefaults(value: unknown) {
+  return sanitizeSecretLikeRecord(value, { redactionValue: 'redacted://trigger-secret' });
 }
 
 export function buildScheduledWorkItem(

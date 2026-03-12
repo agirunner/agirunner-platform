@@ -26,6 +26,14 @@ interface WebhookRow {
   event_types: string[] | null;
 }
 
+interface WebhookApiRow {
+  id: string;
+  url: string;
+  event_types: string[] | null;
+  is_active: boolean;
+  created_at: string;
+}
+
 function validateWebhookUrl(url: string): void {
   if (!/^https?:\/\//.test(url)) {
     throw new ValidationError('Webhook url must be http(s)');
@@ -85,7 +93,7 @@ export class WebhookService {
       [identity.tenantId, input.url, encryptedSecret, input.event_types ?? []],
     );
 
-    return { ...result.rows[0], secret };
+    return toWebhookApiRow(result.rows[0] as WebhookApiRow);
   }
 
   async updateWebhook(tenantId: string, webhookId: string, input: UpdateWebhookInput) {
@@ -107,7 +115,7 @@ export class WebhookService {
       throw new NotFoundError('Webhook not found');
     }
 
-    return result.rows[0];
+    return toWebhookApiRow(result.rows[0] as WebhookApiRow);
   }
 
   async listWebhooks(tenantId: string) {
@@ -115,7 +123,7 @@ export class WebhookService {
       'SELECT id, url, event_types, is_active, created_at FROM webhooks WHERE tenant_id = $1 ORDER BY created_at DESC',
       [tenantId],
     );
-    return result.rows;
+    return result.rows.map((row) => toWebhookApiRow(row as WebhookApiRow));
   }
 
   async deleteWebhook(tenantId: string, webhookId: string) {
@@ -212,4 +220,11 @@ export class WebhookService {
       );
     }
   }
+}
+
+function toWebhookApiRow(row: WebhookApiRow) {
+  return {
+    ...row,
+    secret_configured: true,
+  };
 }

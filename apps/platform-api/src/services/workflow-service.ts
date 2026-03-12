@@ -4,6 +4,7 @@ import { createArtifactStorage } from '../content/storage-factory.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
+import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { buildResolvedConfigView } from './config-hierarchy-service.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { WorkflowActivationService } from './workflow-activation-service.js';
@@ -28,9 +29,14 @@ import {
   type ListWorkflowWorkItemsInput,
   type WorkItemReadModel,
 } from './work-item-service.js';
-import { WorkflowStageService } from './workflow-stage-service.js';
+import {
+  currentStageNameFromStages,
+  WorkflowStageService,
+  type WorkflowStageResponse,
+} from './workflow-stage-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
 import { ProjectTimelineService } from './project-timeline-service.js';
+import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
 import type { LogService } from '../logging/log-service.js';
 import type { WorkerConnectionHub } from './worker-connection-hub.js';
 import type {
@@ -166,7 +172,13 @@ export class WorkflowService {
         `SELECT w.*,
                 p.name AS project_name,
                 pb.name AS playbook_name,
+                pb.definition AS playbook_definition,
                 COALESCE(task_counts.task_counts, '{}'::jsonb) AS task_counts,
+                CASE
+                  WHEN w.lifecycle = 'standard'
+                  THEN COALESCE(stage_summary.current_stage_name, w.current_stage)
+                  ELSE NULL
+                END AS current_stage,
                 CASE
                   WHEN w.playbook_id IS NULL THEN NULL
                   ELSE jsonb_build_object(
@@ -251,7 +263,16 @@ export class WorkflowService {
                         )
                       ),
                       0
-                    )::int AS active_stage_count
+                    )::int AS active_stage_count,
+                    (
+                      SELECT ws_active.name
+                        FROM workflow_stages ws_active
+                       WHERE ws_active.tenant_id = w.tenant_id
+                         AND ws_active.workflow_id = w.id
+                         AND ws_active.status IN ('active', 'awaiting_gate', 'blocked')
+                       ORDER BY ws_active.position ASC
+                       LIMIT 1
+                    ) AS current_stage_name
                FROM workflow_stages ws
               WHERE ws.tenant_id = w.tenant_id
                 AND ws.workflow_id = w.id
@@ -267,7 +288,7 @@ export class WorkflowService {
 
     const workflowsWithRelations = await this.attachWorkflowRelations(tenantId, rows.rows);
     return {
-      data: workflowsWithRelations.map((workflow) => normalizeWorkflowReadModel(workflow)),
+      data: workflowsWithRelations.map((workflow) => normalizeWorkflowReadModel(sanitizeWorkflowReadModel(workflow))),
       meta: {
         total,
         page: query.page,
@@ -314,12 +335,18 @@ export class WorkflowService {
       );
       const workflowWithRelations = await this.attachWorkflowRelations(tenantId, [workflowRow]);
       const normalizedWorkflow = normalizeWorkflowReadModel(
-        workflowWithRelations[0],
+        sanitizeWorkflowReadModel(workflowWithRelations[0]),
         buildWorkflowWorkItemSummary(workItems, workflowStages),
       );
       return {
         ...normalizedWorkflow,
-        tasks,
+        ...(workflowRow.lifecycle !== 'continuous'
+          ? {
+              current_stage:
+                currentStageNameFromStages(workflowStages as never) ?? workflowRow.current_stage ?? null,
+            }
+          : {}),
+        tasks: tasks.map((task) => sanitizeTaskReadModel(task)),
         work_items: workItems,
         activations,
         workflow_stages: workflowStages,
@@ -328,8 +355,8 @@ export class WorkflowService {
     }
     const workflowWithRelations = await this.attachWorkflowRelations(tenantId, [workflowRow]);
     return {
-      ...normalizeWorkflowReadModel(workflowWithRelations[0]),
-      tasks,
+      ...normalizeWorkflowReadModel(sanitizeWorkflowReadModel(workflowWithRelations[0])),
+      tasks: tasks.map((task) => sanitizeTaskReadModel(task)),
     } as Record<string, unknown>;
   }
 
@@ -348,7 +375,7 @@ export class WorkflowService {
     for (const workflow of workflows) {
       const metadata = asRecord(workflow.metadata);
       metadataByWorkflowId.set(String(workflow.id), metadata);
-      const parentId = asOptionalString(metadata.chain_source_workflow_id);
+      const parentId = asOptionalString(metadata.parent_workflow_id);
       if (parentId) {
         parentIds.add(parentId);
       }
@@ -405,14 +432,14 @@ export class WorkflowService {
     const resolved = ((workflow.resolved_config ?? {}) as Record<string, unknown>) ?? {};
     const rawLayers = ((workflow.config_layers ?? {}) as Record<string, unknown>) ?? {};
     const layers = {
-      template: ((rawLayers.template ?? {}) as Record<string, unknown>) ?? {},
-      project: ((rawLayers.project ?? {}) as Record<string, unknown>) ?? {},
-      run: ((rawLayers.run ?? {}) as Record<string, unknown>) ?? {},
+      playbook: sanitizeWorkflowConfigView((rawLayers.playbook ?? {}) as Record<string, unknown>),
+      project: sanitizeWorkflowConfigView((rawLayers.project ?? {}) as Record<string, unknown>),
+      run: sanitizeWorkflowConfigView((rawLayers.run ?? {}) as Record<string, unknown>),
     };
 
     return {
       workflow_id: workflowId,
-      resolved_config: buildResolvedConfigView(resolved, layers, showLayers),
+      resolved_config: buildResolvedConfigView(sanitizeWorkflowConfigView(resolved), layers, showLayers),
       ...(showLayers ? { config_layers: layers } : {}),
     };
   }
@@ -654,7 +681,7 @@ function buildWorkflowRelations(
   metadata: Record<string, unknown>,
   relatedById: Map<string, Record<string, unknown>>,
 ) {
-  const parentId = asOptionalString(metadata.chain_source_workflow_id);
+  const parentId = asOptionalString(metadata.parent_workflow_id);
   const childIds = readWorkflowIdArray(metadata.child_workflow_ids);
   const parent = parentId ? toWorkflowRelationRef(parentId, relatedById.get(parentId)) : null;
   const children = childIds.map((childId) => toWorkflowRelationRef(childId, relatedById.get(childId)));
@@ -662,7 +689,7 @@ function buildWorkflowRelations(
   return {
     parent,
     children,
-    latest_child_workflow_id: asOptionalString(metadata.latest_chained_workflow_id) ?? null,
+    latest_child_workflow_id: asOptionalString(metadata.latest_child_workflow_id) ?? null,
     child_status_counts: {
       total: children.length,
       active: children.filter((child) => child.state === 'pending' || child.state === 'active' || child.state === 'paused').length,
@@ -753,28 +780,83 @@ function normalizeWorkflowReadModel(
   workflow: Record<string, unknown>,
   detailSummary?: WorkflowWorkItemSummary,
 ) {
+  const orderedSummary = normalizeWorkflowWorkItemSummary(
+    detailSummary ?? asRecord(workflow.work_item_summary),
+    workflow.playbook_definition,
+  );
   if (workflow.lifecycle !== 'continuous') {
-    return workflow;
+    const { playbook_definition: _playbookDefinition, ...rest } = workflow;
+    return rest;
   }
 
-  const workItemSummary = normalizeWorkflowWorkItemSummary(
-    detailSummary ?? asRecord(workflow.work_item_summary),
-  );
-
-  const { current_stage: _currentStage, ...rest } = workflow;
+  const { current_stage: _currentStage, playbook_definition: _playbookDefinition, ...rest } = workflow;
   return {
     ...rest,
-    ...(workItemSummary ? { work_item_summary: workItemSummary } : {}),
-    active_stages: workItemSummary?.active_stage_names ?? [],
+    ...(orderedSummary ? { work_item_summary: orderedSummary } : {}),
+    active_stages: orderedSummary?.active_stage_names ?? [],
   };
 }
 
-function normalizeWorkflowWorkItemSummary(value: unknown): WorkflowWorkItemSummary | null {
+function sanitizeWorkflowReadModel(workflow: Record<string, unknown>) {
+  return {
+    ...workflow,
+    metadata: sanitizeWorkflowMetadata(workflow.metadata),
+    context: sanitizeWorkflowContext(workflow.context),
+    parameters: sanitizeWorkflowParameters(workflow.parameters),
+    resolved_config: sanitizeWorkflowConfigView(workflow.resolved_config),
+    config_layers: sanitizeWorkflowConfigLayers(workflow.config_layers),
+  };
+}
+
+function sanitizeTaskReadModel(task: Record<string, unknown>) {
+  return {
+    ...task,
+    input: sanitizeTaskPayload(task.input),
+    context: sanitizeTaskPayload(task.context),
+    output: sanitizeTaskPayload(task.output),
+    error: sanitizeTaskPayload(task.error),
+    role_config: sanitizeTaskPayload(task.role_config),
+    environment: sanitizeTaskPayload(task.environment),
+    resource_bindings: sanitizeTaskPayload(task.resource_bindings),
+    metrics: sanitizeTaskPayload(task.metrics),
+    git_info: sanitizeTaskPayload(task.git_info),
+    metadata: sanitizeTaskPayload(task.metadata),
+  };
+}
+
+function sanitizeWorkflowMetadata(value: unknown) {
+  return sanitizeSecretLikeRecord(value, { redactionValue: 'redacted://workflow-metadata-secret' });
+}
+
+function sanitizeWorkflowContext(value: unknown) {
+  return sanitizeSecretLikeRecord(value, { redactionValue: 'redacted://workflow-context-secret' });
+}
+
+function sanitizeWorkflowParameters(value: unknown) {
+  return sanitizeSecretLikeRecord(value, { redactionValue: 'redacted://workflow-parameters-secret' });
+}
+
+function sanitizeWorkflowConfigView(value: unknown) {
+  return sanitizeSecretLikeRecord(value, { redactionValue: 'redacted://workflow-config-secret' });
+}
+
+function sanitizeWorkflowConfigLayers(value: unknown) {
+  return sanitizeSecretLikeRecord(value, { redactionValue: 'redacted://workflow-config-secret' });
+}
+
+function sanitizeTaskPayload(value: unknown) {
+  return sanitizeSecretLikeValue(value, { redactionValue: 'redacted://task-secret' });
+}
+
+function normalizeWorkflowWorkItemSummary(
+  value: unknown,
+  definition: unknown,
+): WorkflowWorkItemSummary | null {
   const summary = asRecord(value);
   if (Object.keys(summary).length === 0) {
     return null;
   }
-  const activeStageNames = uniqueStageNames(summary.active_stage_names);
+  const activeStageNames = orderStageNamesByDefinition(uniqueStageNames(summary.active_stage_names), definition);
   return {
     total_work_items: readCount(summary.total_work_items),
     open_work_item_count: readCount(summary.open_work_item_count),
@@ -785,19 +867,58 @@ function normalizeWorkflowWorkItemSummary(value: unknown): WorkflowWorkItemSumma
   };
 }
 
+function orderStageNamesByDefinition(stageNames: string[], definition: unknown): string[] {
+  if (stageNames.length <= 1) {
+    return stageNames;
+  }
+  const stageOrder = readPlaybookStageOrder(definition);
+  if (stageOrder.length === 0) {
+    return stageNames;
+  }
+  const remaining = new Set(stageNames);
+  const ordered: string[] = [];
+
+  for (const stageName of stageOrder) {
+    if (!remaining.has(stageName)) {
+      continue;
+    }
+    ordered.push(stageName);
+    remaining.delete(stageName);
+  }
+  for (const stageName of stageNames) {
+    if (!remaining.has(stageName)) {
+      continue;
+    }
+    ordered.push(stageName);
+    remaining.delete(stageName);
+  }
+  return ordered;
+}
+
+function readPlaybookStageOrder(definition: unknown): string[] {
+  try {
+    return parsePlaybookDefinition(definition).stages.map((stage) => stage.name);
+  } catch {
+    return [];
+  }
+}
+
 function buildWorkflowWorkItemSummary(
   workItems: Array<Record<string, unknown>>,
-  workflowStages: Array<Record<string, unknown>>,
+  workflowStages: Array<Pick<WorkflowStageResponse, 'name' | 'position' | 'gate_status'>>,
 ): WorkflowWorkItemSummary {
   const totalWorkItems = workItems.length;
   const openWorkItems = workItems.filter((item) => item.completed_at == null);
   const gateActiveStages = workflowStages
     .filter((stage) => isActiveContinuousGateState(stage.gate_status))
     .map((stage) => stage.name);
-  const activeStageNames = uniqueStageNames([
-    ...openWorkItems.map((item) => item.stage_name),
-    ...gateActiveStages,
-  ]);
+  const activeStageNames = orderStageNames(
+    uniqueStageNames([
+      ...openWorkItems.map((item) => item.stage_name),
+      ...gateActiveStages,
+    ]),
+    workflowStages,
+  );
   const awaitingGateCount = workflowStages.filter((stage) => stage.gate_status === 'awaiting_approval').length;
   return {
     total_work_items: totalWorkItems,
@@ -807,6 +928,35 @@ function buildWorkflowWorkItemSummary(
     awaiting_gate_count: awaitingGateCount,
     active_stage_names: activeStageNames,
   };
+}
+
+function orderStageNames(
+  stageNames: string[],
+  workflowStages: Array<Record<string, unknown>>,
+): string[] {
+  const orderedStageNames = workflowStages
+    .map((stage) => asOptionalString(stage.name))
+    .filter((stageName): stageName is string => Boolean(stageName));
+  const remaining = new Set(stageNames);
+  const ordered: string[] = [];
+
+  for (const stageName of orderedStageNames) {
+    if (!remaining.has(stageName)) {
+      continue;
+    }
+    ordered.push(stageName);
+    remaining.delete(stageName);
+  }
+
+  for (const stageName of stageNames) {
+    if (!remaining.has(stageName)) {
+      continue;
+    }
+    ordered.push(stageName);
+    remaining.delete(stageName);
+  }
+
+  return ordered;
 }
 
 function buildBoardStageSummary(
@@ -829,7 +979,7 @@ function buildBoardStageSummary(
     const definition = stageDefinitions.find((stage) => stage.name === stageName);
     const workflowStage = workflowStages.find((stage) => stage.name === stageName);
     const stageItems = workItems.filter((item) => item.stage_name === stageName);
-    const completedCount = stageItems.filter((item) => terminalColumns.has(String(item.column_id))).length;
+    const completedCount = stageItems.filter((item) => isCompletedBoardChild(item, terminalColumns)).length;
     const openCount = stageItems.length - completedCount;
     const status = typeof workflowStage?.status === 'string' ? workflowStage.status : 'pending';
     return {

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { canTransitionState } from '../../src/orchestration/task-state-machine.js';
+import {
+  canTransitionState,
+  normalizeTaskState,
+  toStoredTaskState,
+} from '../../src/orchestration/task-state-machine.js';
 
 const states = [
   'pending',
@@ -65,8 +69,16 @@ describe('task state machine', () => {
     }
   });
 
-  it('accepts legacy aliases at the transition boundary', () => {
+  it('keeps legacy aliases behind explicit normalization helpers only', () => {
+    expect(normalizeTaskState('running')).toBe('in_progress');
+    expect(normalizeTaskState('awaiting_escalation')).toBe('escalated');
+    expect(toStoredTaskState('running')).toBe('in_progress');
+    expect(toStoredTaskState('awaiting_escalation')).toBe('escalated');
+  });
+
+  it('still tolerates legacy aliases only inside the state-machine compatibility layer', () => {
     expect(canTransitionState('claimed', 'running')).toBe(true);
     expect(canTransitionState('running', 'awaiting_escalation')).toBe(true);
+    expect(canTransitionState('running', 'completed')).toBe(true);
   });
 });

@@ -101,3 +101,89 @@ describe('WebhookService delivery behavior', () => {
     expect(String(updateCalls[0][6])).toContain('network timeout');
   });
 });
+
+describe('WebhookService api responses', () => {
+  it('registers webhooks with encrypted storage and does not return the plaintext secret', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params: unknown[]) => {
+        if (sql.includes('INSERT INTO webhooks')) {
+          return {
+            rows: [{
+              id: 'hook-1',
+              url: 'https://hooks.example.com',
+              event_types: ['task.*'],
+              is_active: true,
+              created_at: '2026-03-12T00:00:00.000Z',
+            }],
+            rowCount: 1,
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    };
+    const service = new WebhookService(pool as never, {
+      WEBHOOK_ENCRYPTION_KEY: 'a'.repeat(32),
+    } as never);
+
+    const result = await service.registerWebhook(
+      {
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: 'user-1',
+        keyPrefix: 'k1',
+        id: 'key-1',
+      },
+      {
+        url: 'https://hooks.example.com',
+        event_types: ['task.*'],
+        secret: 'my-webhook-secret',
+      },
+    );
+
+    const [, params] = pool.query.mock.calls[0];
+    expect(String(params[2])).toMatch(/^enc:v1:/);
+    expect(result).toEqual({
+      id: 'hook-1',
+      url: 'https://hooks.example.com',
+      event_types: ['task.*'],
+      is_active: true,
+      created_at: '2026-03-12T00:00:00.000Z',
+      secret_configured: true,
+    });
+    expect(result).not.toHaveProperty('secret');
+  });
+
+  it('lists webhook entities without serializing secret material', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('SELECT id, url, event_types, is_active, created_at FROM webhooks')) {
+          return {
+            rows: [{
+              id: 'hook-1',
+              url: 'https://hooks.example.com',
+              event_types: ['task.*'],
+              is_active: true,
+              created_at: '2026-03-12T00:00:00.000Z',
+            }],
+            rowCount: 1,
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    };
+    const service = new WebhookService(pool as never, {} as never);
+
+    const result = await service.listWebhooks('tenant-1');
+
+    expect(result).toEqual([{
+      id: 'hook-1',
+      url: 'https://hooks.example.com',
+      event_types: ['task.*'],
+      is_active: true,
+      created_at: '2026-03-12T00:00:00.000Z',
+      secret_configured: true,
+    }]);
+    expect(result[0]).not.toHaveProperty('secret');
+  });
+});

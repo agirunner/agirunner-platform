@@ -17,6 +17,11 @@ describe('project detail automation tab source', () => {
     expect(source).toContain('Stages ${completed}/${progression.length}');
     expect(source).toContain('Work items ${total - open}/${total}');
     expect(source).toContain('Gates waiting ${waiting}');
+    expect(source).toContain('summarizeOrchestratorAnalytics(entry.orchestrator_analytics)');
+    expect(source).toContain('Activations ${activationCount}');
+    expect(source).toContain('Reworked tasks ${reworkedTaskCount}');
+    expect(source).toContain('Stale recoveries ${staleDetections}');
+    expect(source).toContain('Cost $${totalCostUsd.toFixed(2)}');
     expect(source).toContain('Artifacts ${count}');
   });
 

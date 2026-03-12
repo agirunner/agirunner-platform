@@ -1,4 +1,5 @@
 import type { DatabaseQueryable } from '../db/database.js';
+import { currentStageNameFromStages, type WorkflowStageResponse } from './workflow-stage-service.js';
 
 interface ActivationRow {
   id: string;
@@ -19,7 +20,6 @@ interface WorkflowRow {
   id: string;
   name: string;
   lifecycle: string | null;
-  current_stage: string | null;
   metadata: Record<string, unknown> | null;
   playbook_name: string;
   playbook_outcome: string | null;
@@ -47,7 +47,6 @@ export async function buildOrchestratorTaskContext(
         `SELECT w.id,
                 w.name,
                 w.lifecycle,
-                w.current_stage,
                 w.metadata,
                 p.name AS playbook_name,
                 p.outcome AS playbook_outcome,
@@ -146,11 +145,12 @@ export async function buildOrchestratorTaskContext(
     return null;
   }
   const activeStages = activeStageNames(workItemsRes.rows);
+  const currentStage = currentStageNameFromStages(stagesRes.rows as unknown as WorkflowStageResponse[]);
   const workflowContext = {
     id: workflow.id,
     name: workflow.name,
     lifecycle: workflow.lifecycle,
-    active_stages: activeStages,
+    active_stages: mergeActiveStageNames(activeStages, stagesRes.rows),
     metadata: workflow.metadata ?? {},
     playbook: {
       name: workflow.playbook_name,
@@ -159,7 +159,7 @@ export async function buildOrchestratorTaskContext(
     },
   } as Record<string, unknown>;
   if (workflow.lifecycle !== 'continuous') {
-    workflowContext.current_stage = workflow.current_stage;
+    workflowContext.current_stage = currentStage;
   }
 
   return {
@@ -213,4 +213,18 @@ function activeStageNames(rows: Record<string, unknown>[]): string[] {
         .map((row) => String(row.stage_name)),
     ),
   );
+}
+
+function mergeActiveStageNames(
+  workItemStages: string[],
+  stageRows: Record<string, unknown>[],
+): string[] {
+  const gateStages = stageRows
+    .filter((row) => isActiveContinuousGateState(row.gate_status))
+    .map((row) => String(row.name));
+  return Array.from(new Set([...workItemStages, ...gateStages]));
+}
+
+function isActiveContinuousGateState(gateStatus: unknown) {
+  return gateStatus === 'awaiting_approval' || gateStatus === 'changes_requested' || gateStatus === 'rejected';
 }

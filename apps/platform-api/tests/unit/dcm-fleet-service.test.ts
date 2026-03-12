@@ -255,6 +255,11 @@ describe('FleetService DCM', () => {
       });
 
       expect(result.should_drain).toBe(true);
+      expect(result.runtime_id).toBe(RUNTIME_ID);
+      expect(result.playbook_id).toBe(PLAYBOOK_ID);
+      expect(result.pool_kind).toBe('specialist');
+      expect(result.state).toBe('idle');
+      expect(result.task_id).toBeNull();
     });
 
     it('accepts executing state with task_id', async () => {
@@ -512,6 +517,39 @@ describe('FleetService DCM', () => {
       expect(countQuery).toContain('created_at >=');
       expect(countQuery).toContain('created_at <=');
     });
+
+    it('redacts secret-bearing payload values from fleet event reads', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [{ count: 1 }], rowCount: 1 })
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              id: '1',
+              event_type: 'runtime.started',
+              level: 'info',
+              payload: {
+                api_key: 'sk-secret-value',
+                nested: {
+                  authorization: 'Bearer top-secret-token',
+                  safe: 'visible',
+                },
+              },
+              created_at: new Date(),
+            },
+          ],
+          rowCount: 1,
+        });
+
+      const result = await service.listFleetEvents(TENANT_ID, { limit: 10, offset: 0 });
+
+      expect(result.events[0]?.payload).toEqual({
+        api_key: 'redacted://fleet-event-secret',
+        nested: {
+          authorization: 'redacted://fleet-event-secret',
+          safe: 'visible',
+        },
+      });
+    });
   });
 
   describe('recordFleetEvent', () => {
@@ -597,6 +635,30 @@ describe('FleetService DCM', () => {
       }
 
       expect(pool.query).toHaveBeenCalledTimes(validLevels.length);
+    });
+
+    it('redacts secret-bearing payload values before persistence', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+      await service.recordFleetEvent(TENANT_ID, {
+        event_type: 'runtime.started',
+        payload: {
+          api_key: 'sk-secret-value',
+          headers: {
+            Authorization: 'Bearer top-secret-token',
+          },
+          safe: 'visible',
+        },
+      });
+
+      const params = pool.query.mock.calls[0][1] as unknown[];
+      expect(JSON.parse(params[8] as string)).toEqual({
+        api_key: 'redacted://fleet-event-secret',
+        headers: {
+          Authorization: 'redacted://fleet-event-secret',
+        },
+        safe: 'visible',
+      });
     });
   });
 
@@ -688,6 +750,42 @@ describe('FleetService DCM', () => {
       expect(result.recent_events).toHaveLength(2);
       expect(result.recent_events[0].id).toBe('evt-1');
       expect(result.recent_events[1].event_type).toBe('runtime.shutdown');
+    });
+
+    it('redacts secret-bearing payload values in recent fleet events', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [{ config_value: '5' }], rowCount: 1 });
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'evt-1',
+            event_type: 'runtime.started',
+            level: 'info',
+            payload: {
+              api_key: 'sk-secret-value',
+              nested: {
+                authorization: 'Bearer top-secret-token',
+                safe: 'visible',
+              },
+            },
+            created_at: new Date(),
+          },
+        ],
+        rowCount: 1,
+      });
+
+      const result = await service.getFleetStatus(TENANT_ID);
+
+      expect(result.recent_events[0]?.payload).toEqual({
+        api_key: 'redacted://fleet-event-secret',
+        nested: {
+          authorization: 'redacted://fleet-event-secret',
+          safe: 'visible',
+        },
+      });
     });
 
     it('queries fleet_events with correct tenant and limit', async () => {

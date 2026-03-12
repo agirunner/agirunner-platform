@@ -107,7 +107,7 @@ describe('requirements structural backfill', () => {
 
   it('covers FR-SM-004 and FR-SM-006/FR-SM-007 state-machine + auditability primitives', () => {
     expect(() => assertValidTransition('task-1', 'ready', 'claimed')).not.toThrow();
-    expect(() => assertValidTransition('task-1', 'completed', 'running')).toThrow(/Cannot transition/);
+    expect(() => assertValidTransition('task-1', 'completed', 'in_progress')).toThrow(/Cannot transition/);
 
     // events schema has entityType and data columns
     expect(events.entityType).toBeDefined();

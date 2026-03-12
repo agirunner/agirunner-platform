@@ -1,6 +1,11 @@
 import type { AppEnv } from '../config/schema.js';
 import { ValidationError } from '../errors/domain-errors.js';
 import type { StreamEvent } from './event-stream-service.js';
+import {
+  decryptIntegrationHeaders,
+  normalizeIntegrationHeaders,
+  sanitizeIntegrationHeaders,
+} from './integration-adapter-headers.js';
 import { createWebhookSignature } from './webhook-delivery.js';
 import { decryptWebhookSecret, encryptWebhookSecret } from './webhook-secret-crypto.js';
 
@@ -52,7 +57,7 @@ export function toPublicWebhookConfig(config: Record<string, unknown>): PublicWe
   const storedConfig = readStoredWebhookConfig(config);
   return {
     url: storedConfig.url,
-    headers: storedConfig.headers,
+    headers: sanitizeIntegrationHeaders(storedConfig.headers),
     secret_configured: typeof storedConfig.secret === 'string' && storedConfig.secret.length > 0,
   };
 }
@@ -71,7 +76,10 @@ export function normalizeStoredWebhookConfig(
 
   return {
     url,
-    headers: nextConfig.headers !== undefined ? normalizeHeaders(nextConfig.headers) : (current?.headers ?? {}),
+    headers:
+      nextConfig.headers !== undefined
+        ? normalizeIntegrationHeaders(nextConfig.headers, encryptionKey)
+        : (current?.headers ?? {}),
     ...normalizeSecret(current?.secret, nextConfig.secret, encryptionKey),
   };
 }
@@ -84,7 +92,7 @@ export function toWebhookDeliveryTarget(
   return {
     url: storedConfig.url,
     secret: decryptSecret(storedConfig.secret, encryptionKey),
-    headers: storedConfig.headers,
+    headers: decryptIntegrationHeaders(storedConfig.headers, encryptionKey),
   };
 }
 
@@ -139,7 +147,7 @@ function validateWebhookUrl(url: string): void {
   }
 }
 
-function normalizeHeaders(headers: unknown): Record<string, string> {
+function readStoredHeaders(headers: unknown): Record<string, string> {
   if (!headers || typeof headers !== 'object' || Array.isArray(headers)) {
     return {};
   }
@@ -181,7 +189,7 @@ function readStoredWebhookConfig(config: Record<string, unknown>): StoredWebhook
 
   return {
     url,
-    headers: normalizeHeaders(config.headers),
+    headers: readStoredHeaders(config.headers),
     ...(typeof config.secret === 'string' && config.secret.length > 0 ? { secret: config.secret } : {}),
   };
 }
@@ -194,7 +202,7 @@ function readExistingStoredWebhookConfig(config: Record<string, unknown>): Store
 
   return {
     url,
-    headers: normalizeHeaders(config.headers),
+    headers: readStoredHeaders(config.headers),
     ...(typeof config.secret === 'string' && config.secret.length > 0 ? { secret: config.secret } : {}),
   };
 }

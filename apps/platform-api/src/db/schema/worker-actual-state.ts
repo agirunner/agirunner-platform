@@ -1,4 +1,4 @@
-import { bigint, index, pgTable, real, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { bigint, pgTable, real, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 import { workerDesiredState } from './worker-desired-state.js';
 
@@ -18,5 +18,5 @@ export const workerActualState = pgTable(
     startedAt: timestamp('started_at', { withTimezone: true }),
     lastUpdated: timestamp('last_updated', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index('idx_worker_actual_state_desired').on(table.desiredStateId)],
+  (table) => [uniqueIndex('idx_worker_actual_state_desired').on(table.desiredStateId)],
 );

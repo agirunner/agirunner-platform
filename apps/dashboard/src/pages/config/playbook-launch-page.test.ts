@@ -7,12 +7,27 @@ function readSource() {
 }
 
 describe('playbook launch model override source', () => {
-  it('supports workflow override entry and resolved model preview during launch', () => {
+  it('describes playbook launch in v2 workflow terms', () => {
     const source = readSource();
-    expect(source).toContain('Workflow Model Overrides JSON');
-    expect(source).toContain('dashboardApi.getResolvedProjectModels(projectId)');
-    expect(source).toContain('dashboardApi.previewEffectiveModels({');
-    expect(source).toContain('model_overrides: Object.keys(modelOverrides).length > 0 ? modelOverrides : undefined');
+    expect(source).toContain('Create a new workflow run from a playbook with structured run inputs, board-aware context,');
+  });
+
+  it('builds structured launch controls instead of raw JSON textareas', () => {
+    const source = readSource();
+    expect(source).toContain('Playbook Parameters');
+    expect(source).toContain('Metadata Entries');
+    expect(source).toContain('Workflow Model Overrides');
+    expect(source).toContain('RoleOverrideEditor');
+    expect(source).toContain('StructuredEntryEditor');
+  });
+
+  it('assembles the existing workflow create contract from structured launch state', () => {
+    const source = readSource();
+    expect(source).toContain('buildParametersFromDrafts');
+    expect(source).toContain("buildStructuredObject(metadataDrafts, 'Metadata')");
+    expect(source).toContain('buildModelOverrides(modelOverrideDrafts)');
+    expect(source).toContain('dashboardApi.createWorkflow({');
+    expect(source).toContain('model_overrides: modelOverrides');
     expect(source).toContain('Resolved Effective Models');
   });
 });

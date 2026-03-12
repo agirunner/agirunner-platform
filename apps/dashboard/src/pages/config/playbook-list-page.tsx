@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Plus, Search, Rocket } from 'lucide-react';
+import { Plus, Rocket, Search, Settings2 } from 'lucide-react';
 
 import { dashboardApi, type DashboardPlaybookRecord } from '../../lib/api.js';
 import { Button } from '../../components/ui/button.js';
@@ -17,12 +17,12 @@ import {
   DialogTitle,
 } from '../../components/ui/dialog.js';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../components/ui/select.js';
+  buildPlaybookDefinition,
+  createDefaultAuthoringDraft,
+  type PlaybookAuthoringDraft,
+} from './playbook-authoring-support.js';
+import { PlaybookAuthoringForm } from './playbook-authoring-form.js';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select.js';
 
 const DEFAULT_LIFECYCLE = 'continuous';
 
@@ -35,7 +35,7 @@ export function PlaybookListPage(): JSX.Element {
   const [description, setDescription] = useState('');
   const [outcome, setOutcome] = useState('');
   const [lifecycle, setLifecycle] = useState<'standard' | 'continuous'>(DEFAULT_LIFECYCLE);
-  const [definitionText, setDefinitionText] = useState(defaultDefinition(DEFAULT_LIFECYCLE));
+  const [draft, setDraft] = useState<PlaybookAuthoringDraft>(() => createDefaultAuthoringDraft(DEFAULT_LIFECYCLE));
   const [definitionError, setDefinitionError] = useState<string | null>(null);
 
   const playbooksQuery = useQuery({
@@ -45,9 +45,9 @@ export function PlaybookListPage(): JSX.Element {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const parsed = parseDefinition(definitionText);
-      if (!parsed.ok) {
-        throw new Error(parsed.error);
+      const definition = buildPlaybookDefinition(lifecycle, draft);
+      if (!definition.ok) {
+        throw new Error(definition.error);
       }
       return dashboardApi.createPlaybook({
         name: name.trim(),
@@ -55,7 +55,7 @@ export function PlaybookListPage(): JSX.Element {
         description: description.trim() || undefined,
         outcome: outcome.trim(),
         lifecycle,
-        definition: parsed.value,
+        definition: definition.value,
       });
     },
     onSuccess: async () => {
@@ -88,15 +88,14 @@ export function PlaybookListPage(): JSX.Element {
     setDescription('');
     setOutcome('');
     setLifecycle(DEFAULT_LIFECYCLE);
-    setDefinitionText(defaultDefinition(DEFAULT_LIFECYCLE));
+    setDraft(createDefaultAuthoringDraft(DEFAULT_LIFECYCLE));
     setDefinitionError(null);
   }
 
   function handleLifecycleChange(next: 'standard' | 'continuous') {
     setLifecycle(next);
-    if (definitionText === defaultDefinition(lifecycle)) {
-      setDefinitionText(defaultDefinition(next));
-    }
+    setDraft(createDefaultAuthoringDraft(next));
+    setDefinitionError(null);
   }
 
   return (
@@ -150,7 +149,7 @@ export function PlaybookListPage(): JSX.Element {
           <DialogHeader>
             <DialogTitle>Create Playbook</DialogTitle>
             <DialogDescription>
-              Define the board, stages, and orchestration rules in JSON.
+              Define roles, board flow, stages, runtime pools, and workflow parameters in structured sections.
             </DialogDescription>
           </DialogHeader>
 
@@ -193,17 +192,11 @@ export function PlaybookListPage(): JSX.Element {
               </Select>
             </label>
 
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Definition JSON</span>
-              <Textarea
-                value={definitionText}
-                onChange={(event) => {
-                  setDefinitionError(null);
-                  setDefinitionText(event.target.value);
-                }}
-                className="min-h-[320px] font-mono text-xs"
-              />
-            </label>
+            <PlaybookAuthoringForm
+              draft={draft}
+              onChange={setDraft}
+              onClearError={() => setDefinitionError(null)}
+            />
 
             {definitionError ? <p className="text-sm text-red-600">{definitionError}</p> : null}
 
@@ -223,6 +216,7 @@ export function PlaybookListPage(): JSX.Element {
       </Dialog>
     </div>
   );
+
 }
 
 function PlaybookCard({ playbook }: { playbook: DashboardPlaybookRecord }) {
@@ -256,60 +250,22 @@ function PlaybookCard({ playbook }: { playbook: DashboardPlaybookRecord }) {
           <div className="text-muted">{playbook.outcome}</div>
         </div>
         <div className="flex justify-end">
-          <Button asChild>
+          <div className="flex gap-2">
+            <Button asChild variant="outline">
+              <Link to={`/config/playbooks/${playbook.id}`}>
+                <Settings2 className="h-4 w-4" />
+                Manage
+              </Link>
+            </Button>
+            <Button asChild>
             <Link to={`/config/playbooks/${playbook.id}/launch`}>
               <Rocket className="h-4 w-4" />
               Launch
             </Link>
-          </Button>
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
   );
-}
-
-function parseDefinition(value: string):
-  | { ok: true; value: Record<string, unknown> }
-  | { ok: false; error: string } {
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return { ok: false, error: 'Definition must be a JSON object.' };
-    }
-    return { ok: true, value: parsed as Record<string, unknown> };
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : 'Definition must be valid JSON.',
-    };
-  }
-}
-
-function defaultDefinition(lifecycle: 'standard' | 'continuous'): string {
-  const definition = {
-    roles: ['developer'],
-    lifecycle,
-    board: {
-      columns: [
-        { id: 'inbox', label: 'Inbox' },
-        { id: 'doing', label: 'Doing' },
-        { id: 'done', label: 'Done', is_terminal: true },
-      ],
-    },
-    stages: lifecycle === 'continuous'
-      ? [
-          { name: 'triage', goal: 'Clarify and route new work' },
-          { name: 'delivery', goal: 'Complete the work item' },
-        ]
-      : [
-          { name: 'plan', goal: 'Plan the workflow' },
-          { name: 'deliver', goal: 'Ship the outcome', human_gate: true },
-        ],
-    orchestrator: {
-      max_active_tasks: 4,
-      max_active_tasks_per_work_item: 2,
-      allow_parallel_work_items: true,
-    },
-  };
-  return JSON.stringify(definition, null, 2);
 }

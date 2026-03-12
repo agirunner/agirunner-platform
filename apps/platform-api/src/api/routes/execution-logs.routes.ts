@@ -4,7 +4,11 @@ import { z } from 'zod';
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { withRole } from '../../auth/rbac.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
-import { PUBLIC_LOG_CSV_COLUMNS, toPublicLogRow } from '../../logging/public-log-row.js';
+import {
+  PUBLIC_LOG_CSV_COLUMNS,
+  toPublicLogRow,
+  toPublicLogSummaryRow,
+} from '../../logging/public-log-row.js';
 import type { LogStreamFilters } from '../../logging/log-stream-service.js';
 import type { LogFilters, LogRow, LogStatsFilters } from '../../logging/log-service.js';
 
@@ -179,10 +183,27 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
         order: query.order === 'asc' ? 'asc' : 'desc',
       };
       const page = await logService.query(request.auth!.tenantId, filters);
+      const detailMode = query.detail === 'summary' ? 'summary' : 'full';
       return {
         ...page,
-        data: page.data.map(toPublicLogRow),
+        data: page.data.map((row) =>
+          detailMode === 'summary' ? toPublicLogSummaryRow(row) : toPublicLogRow(row),
+        ),
       };
+    },
+  );
+
+  app.get(
+    '/api/v1/logs/:id',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const row = await logService.getById(request.auth!.tenantId, params.id);
+      if (!row) {
+        reply.status(404);
+        return { error: 'Not found' };
+      }
+      return { data: toPublicLogRow(row) };
     },
   );
 

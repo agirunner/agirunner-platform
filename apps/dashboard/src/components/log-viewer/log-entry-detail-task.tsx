@@ -12,20 +12,20 @@ function shortId(v: unknown): string {
 }
 
 const FIELDS: readonly FieldDef[] = [
-  { label: 'Task Title', key: 'task_title' },
+  { label: 'Step Title', key: 'task_title' },
   { label: 'Stage', key: 'stage_name' },
   { label: 'Action', key: 'action' },
   { label: 'Entity', key: 'entity_name' },
   { label: 'Role', key: 'role' },
   { label: 'Model', key: 'model' },
   { label: 'Image', key: 'image' },
-  { label: 'Status', key: 'task_status' },
+  { label: 'State', key: 'task_status' },
   { label: 'From State', key: 'from_state' },
   { label: 'To State', key: 'to_state' },
   { label: 'Reuse', key: 'reuse_decision' },
-  { label: 'Task Count', key: 'task_count' },
-  { label: 'Failed Tasks', key: 'failed_task_count' },
-  { label: 'Workflow', key: 'workflow_name' },
+  { label: 'Step Count', key: 'task_count' },
+  { label: 'Failed Steps', key: 'failed_task_count' },
+  { label: 'Board', key: 'workflow_name' },
   { label: 'Work Item ID', key: 'work_item_id', format: shortId },
   { label: 'Activation ID', key: 'activation_id', format: shortId },
   {
@@ -37,7 +37,7 @@ const FIELDS: readonly FieldDef[] = [
     },
   },
   { label: 'Method', key: 'method' },
-  { label: 'Workflow ID', key: 'workflow_id', format: shortId },
+  { label: 'Board ID', key: 'workflow_id', format: shortId },
   { label: 'Runtime ID', key: 'runtime_id', format: shortId },
   { label: 'Container ID', key: 'container_id', format: shortId },
 ];
@@ -47,7 +47,7 @@ export function LogEntryDetailTask({ payload }: { payload: Record<string, unknow
 
   return (
     <div className="rounded-md border border-border p-4">
-      <h4 className="mb-3 text-sm font-semibold">Task Lifecycle</h4>
+      <h4 className="mb-3 text-sm font-semibold">Execution Step Lifecycle</h4>
       <div className="grid max-w-lg grid-cols-[auto_1fr] gap-x-6 gap-y-0 text-sm">
         {visible.map(({ label, key, format }) => (
           <Fragment key={key}>

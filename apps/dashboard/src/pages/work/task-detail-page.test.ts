@@ -20,9 +20,11 @@ describe('task detail page source', () => {
     const source = readSource();
     expect(source).toContain('approveTaskOutput');
     expect(source).toContain('escalated');
-    expect(source).toContain('Resolve Escalation');
-    expect(source).toContain('Execution Context');
-    expect(source).toContain("status === 'running' || status === 'claimed'");
-    expect(source).not.toContain("claimed: 'default'");
+    expect(source).toContain('Open Escalation Context');
+    expect(source).toContain('Open Work Item Flow');
+    expect(source).toContain('Operator Context');
+    expect(source).toContain('Step Output');
+    expect(source).not.toContain("status === 'running' || status === 'claimed'");
+    expect(source).toContain("return 'Specialist step'");
   });
 });

@@ -1,5 +1,6 @@
 import type { DatabaseClient, DatabasePool, DatabaseQueryable } from '../db/database.js';
 import { EventService } from './event-service.js';
+import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 
 export interface WorkflowActivationEventRow {
   id: string;
@@ -50,6 +51,9 @@ export async function enqueueWorkflowActivationRecord(
   params: WorkflowActivationRecordParams,
 ) {
   const requestId = params.requestId?.trim() || null;
+  const payload = sanitizeSecretLikeRecord(params.payload ?? {}, {
+    redactionValue: 'redacted://activation-secret',
+  });
   const result = await db.query<WorkflowActivationEventRow>(
     `INSERT INTO workflow_activations (tenant_id, workflow_id, request_id, reason, event_type, payload)
      VALUES ($1,$2,$3,$4,$5,$6)
@@ -64,7 +68,7 @@ export async function enqueueWorkflowActivationRecord(
       requestId,
       params.reason.trim(),
       params.eventType.trim(),
-      params.payload ?? {},
+      payload,
     ],
   );
   if (!result.rowCount) {

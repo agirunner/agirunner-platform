@@ -8,6 +8,7 @@ import {
   type PlaybookDefinition,
 } from '../orchestration/playbook-model.js';
 import { EventService } from './event-service.js';
+import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from './workflow-activation-service.js';
 import { toGateResponse, type WorkflowStageGateRecord } from './workflow-stage-gate-service.js';
@@ -18,8 +19,9 @@ interface WorkflowContextRow {
   project_id: string | null;
   playbook_id: string;
   lifecycle: string | null;
-  current_stage: string | null;
+  active_stage_name: string | null;
   state: string;
+  orchestration_state?: Record<string, unknown> | null;
   definition: unknown;
 }
 
@@ -105,6 +107,20 @@ export interface AdvanceStageInput {
 export interface CompleteWorkflowInput {
   stage_name?: string;
   summary: string;
+}
+
+interface NormalizedWorkItemUpdate {
+  parent_work_item_id: string | null;
+  title: string;
+  goal: string | null;
+  acceptance_criteria: string | null;
+  stage_name: string;
+  column_id: string;
+  owner_role: string | null;
+  priority: 'critical' | 'high' | 'normal' | 'low';
+  notes: string | null;
+  completed_at: Date | null;
+  metadata: Record<string, unknown>;
 }
 
 interface Dependencies {
@@ -244,6 +260,9 @@ export class PlaybookWorkflowControlService {
 
     const existingGate = await this.loadAwaitingGate(identity.tenantId, workflowId, stage.id, db);
     if (existingGate) {
+      if (isIdempotentGateRequest(existingGate, input)) {
+        return toStageResponse(stage);
+      }
       throw new ConflictError(`Stage '${stageName}' already has a pending gate approval`);
     }
 
@@ -333,12 +352,16 @@ export class PlaybookWorkflowControlService {
     if (!gate) {
       const latestGate = await this.loadLatestGateForStage(identity.tenantId, workflowId, stage.id, db);
       if (isIdempotentGateDecision(latestGate, input)) {
-        return toStageResponse(stage);
+        return toStageDecisionResponse(stage);
+      }
+      if (isFollowOnGateDecisionAllowed(latestGate, input)) {
+        const outcome = await this.applyGateDecision(identity, workflowId, stage, latestGate, input, db);
+        return toStageDecisionResponse(outcome.stage, outcome.activation);
       }
       throw new ConflictError('No pending gate approval exists for this stage');
     }
     const outcome = await this.applyGateDecision(identity, workflowId, stage, gate, input, db);
-    return toStageResponse(outcome.stage);
+    return toStageDecisionResponse(outcome.stage, outcome.activation);
   }
 
   private async actOnGateInTransaction(
@@ -352,6 +375,26 @@ export class PlaybookWorkflowControlService {
       const existingGate = await this.loadGateById(identity.tenantId, gateId, db);
       if (isIdempotentGateDecision(existingGate, input)) {
         return toGateResponse(existingGate);
+      }
+      if (isFollowOnGateDecisionAllowed(existingGate, input)) {
+        const workflow = await this.loadWorkflow(identity.tenantId, existingGate.workflow_id, db);
+        if (workflow.lifecycle !== 'standard') {
+          throw new ConflictError('Stage gate approvals are only supported for standard playbook workflows');
+        }
+        const stage = await this.loadStage(identity.tenantId, workflow.id, existingGate.stage_name, db);
+        const outcome = await this.applyGateDecision(identity, workflow.id, stage, existingGate, input, db);
+        return toGateResponse({
+          ...outcome.gate,
+          resume_activation_id: outcome.activation.activation_id ?? outcome.activation.id,
+          resume_activation_state: outcome.activation.state,
+          resume_activation_event_type: outcome.activation.event_type,
+          resume_activation_reason: outcome.activation.reason,
+          resume_activation_queued_at: parseOptionalTimestamp(outcome.activation.queued_at),
+          resume_activation_started_at: parseOptionalTimestamp(outcome.activation.started_at),
+          resume_activation_completed_at: parseOptionalTimestamp(outcome.activation.completed_at),
+          resume_activation_summary: outcome.activation.summary,
+          resume_activation_error: outcome.activation.error,
+        });
       }
       throw new ConflictError('No pending gate approval exists for this gate');
     }
@@ -390,16 +433,21 @@ export class PlaybookWorkflowControlService {
 
     const definition = parsePlaybookDefinition(workflow.definition);
     const sourceStage = await this.loadStage(identity.tenantId, workflowId, stageName, db);
-    if (workflow.current_stage !== sourceStage.name) {
+    const nextStageName = input.to_stage_name ?? nextStageNameFor(definition, sourceStage.name);
+    if (!nextStageName) {
+      throw new ValidationError('No next stage is available; use complete_workflow for the final stage');
+    }
+    if (workflow.active_stage_name !== sourceStage.name) {
+      if (isIdempotentStageAdvance(workflow.active_stage_name, sourceStage, nextStageName)) {
+        return {
+          completed_stage: stageName,
+          next_stage: nextStageName,
+        };
+      }
       throw new ValidationError(`Stage '${stageName}' is not the current workflow stage`);
     }
     if (sourceStage.human_gate && sourceStage.gate_status !== 'approved') {
       throw new ValidationError(`Stage '${stageName}' requires human approval before it can advance`);
-    }
-
-    const nextStageName = input.to_stage_name ?? nextStageNameFor(definition, sourceStage.name);
-    if (!nextStageName) {
-      throw new ValidationError('No next stage is available; use complete_workflow for the final stage');
     }
 
     const nextStage = await this.loadStage(identity.tenantId, workflowId, nextStageName, db);
@@ -478,10 +526,17 @@ export class PlaybookWorkflowControlService {
     if (workflow.lifecycle !== 'standard') {
       throw new ConflictError('Only standard playbook workflows can be completed by the orchestrator');
     }
+    if (workflow.state === 'completed') {
+      return {
+        workflow_id: workflowId,
+        state: 'completed',
+        summary: readCompletionSummary(workflow) ?? input.summary.trim(),
+      };
+    }
 
     if (input.stage_name) {
       const stage = await this.loadStage(identity.tenantId, workflowId, input.stage_name, db);
-      if (workflow.current_stage !== stage.name) {
+      if (workflow.active_stage_name !== stage.name) {
         throw new ValidationError(`Stage '${stage.name}' is not the current workflow stage`);
       }
       if (stage.human_gate && stage.gate_status !== 'approved') {
@@ -577,14 +632,31 @@ export class PlaybookWorkflowControlService {
 
   private async loadWorkflow(tenantId: string, workflowId: string, db: DatabaseClient | DatabasePool) {
     const result = await db.query<WorkflowContextRow>(
-      `SELECT w.id, w.project_id, w.playbook_id, w.lifecycle, w.current_stage, w.state, p.definition
+      `SELECT w.id,
+              w.project_id,
+              w.playbook_id,
+              w.lifecycle,
+              active_stage.name AS active_stage_name,
+              w.state,
+              p.definition
+              , w.orchestration_state
          FROM workflows w
          JOIN playbooks p
            ON p.tenant_id = w.tenant_id
           AND p.id = w.playbook_id
+         LEFT JOIN LATERAL (
+           SELECT ws.name
+             FROM workflow_stages ws
+            WHERE ws.tenant_id = w.tenant_id
+              AND ws.workflow_id = w.id
+              AND ws.status IN ('active', 'awaiting_gate', 'blocked')
+            ORDER BY ws.position ASC
+            LIMIT 1
+        ) AS active_stage
+           ON true
         WHERE w.tenant_id = $1
           AND w.id = $2
-        FOR UPDATE`,
+        FOR UPDATE OF w`,
       [tenantId, workflowId],
     );
     if (!result.rowCount) {
@@ -641,8 +713,15 @@ export class PlaybookWorkflowControlService {
     const terminalColumns = new Set(
       definition.board.columns.filter((column) => column.is_terminal).map((column) => column.id),
     );
-    const completedAt = terminalColumns.has(nextColumnId) ? new Date() : null;
-    const metadata = mergeRecord(workItem.metadata, input.metadata);
+    const normalizedUpdate = normalizeWorkItemUpdate(workItem, input, {
+      parentWorkItemId: nextParentWorkItemId,
+      stageName: nextStageName,
+      columnId: nextColumnId,
+      terminalColumns,
+    });
+    if (sameNormalizedWorkItem(workItem, normalizedUpdate)) {
+      return toWorkItemResponse(workItem);
+    }
 
     const result = await db.query<WorkflowWorkItemRow>(
       `UPDATE workflow_work_items
@@ -667,17 +746,17 @@ export class PlaybookWorkflowControlService {
         identity.tenantId,
         workflowId,
         workItemId,
-        nextParentWorkItemId,
-        input.title?.trim() || workItem.title,
-        nullableTextOrNull(input.goal, workItem.goal),
-        nullableTextOrNull(input.acceptance_criteria, workItem.acceptance_criteria),
-        nextStageName,
-        nextColumnId,
-        nullableTextOrNull(input.owner_role, workItem.owner_role),
-        input.priority ?? workItem.priority,
-        nullableTextOrNull(input.notes, workItem.notes),
-        completedAt,
-        metadata,
+        normalizedUpdate.parent_work_item_id,
+        normalizedUpdate.title,
+        normalizedUpdate.goal,
+        normalizedUpdate.acceptance_criteria,
+        normalizedUpdate.stage_name,
+        normalizedUpdate.column_id,
+        normalizedUpdate.owner_role,
+        normalizedUpdate.priority,
+        normalizedUpdate.notes,
+        normalizedUpdate.completed_at,
+        normalizedUpdate.metadata,
       ],
     );
 
@@ -1033,11 +1112,79 @@ function isIdempotentGateDecision(
   if (!gate) {
     return false;
   }
-  if (gate.status !== gateStatusForAction(input.action)) {
+  return gate.status === gateStatusForAction(input.action);
+}
+
+function isFollowOnGateDecisionAllowed(
+  gate: WorkflowStageGateRow | null,
+  input: StageGateDecisionInput,
+) {
+  if (!gate) {
     return false;
   }
-  const feedback = nullableText(input.feedback);
-  return feedback === null || gate.decision_feedback === feedback;
+  return gate.status === 'changes_requested' && input.action === 'approve';
+}
+
+function isIdempotentGateRequest(
+  gate: WorkflowStageGateRow,
+  input: StageGateRequestInput,
+) {
+  return gate.status === 'awaiting_approval'
+    && gate.request_summary === input.summary.trim()
+    && gate.recommendation === nullableText(input.recommendation)
+    && sameStringArray(normalizeConcernList(input.concerns), normalizeStringArray(gate.concerns))
+    && sameRecordArray(normalizeArtifactList(input.key_artifacts), normalizeRecordArray(gate.key_artifacts));
+}
+
+function isIdempotentStageAdvance(
+  currentStageName: string | null,
+  sourceStage: WorkflowStageRow,
+  nextStageName: string,
+) {
+  return sourceStage.status === 'completed' && currentStageName === nextStageName;
+}
+
+function readCompletionSummary(workflow: WorkflowContextRow) {
+  const state = workflow.orchestration_state;
+  if (!state || typeof state !== 'object') {
+    return null;
+  }
+  const value = state.completion_summary;
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function normalizeStringArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [] as string[];
+  }
+  return value.filter((entry): entry is string => typeof entry === 'string');
+}
+
+function normalizeRecordArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [] as Array<Record<string, string>>;
+  }
+  return value.filter(
+    (entry): entry is Record<string, string> =>
+      Boolean(entry) && typeof entry === 'object' && !Array.isArray(entry),
+  );
+}
+
+function sameStringArray(left: string[], right: string[]) {
+  if (left.length !== right.length) {
+    return false;
+  }
+  return left.every((value, index) => value === right[index]);
+}
+
+function sameRecordArray(
+  left: Array<Record<string, string>>,
+  right: Array<Record<string, string>>,
+) {
+  if (left.length !== right.length) {
+    return false;
+  }
+  return left.every((value, index) => areJsonValuesEquivalent(value, right[index]));
 }
 
 function gateStatusForAction(action: StageGateDecisionInput['action']) {
@@ -1056,6 +1203,54 @@ function mergeRecord(
     ...(current ?? {}),
     ...(patch ?? {}),
   };
+}
+
+function normalizeWorkItemUpdate(
+  current: WorkflowWorkItemRow,
+  input: UpdateWorkflowWorkItemInput,
+  resolved: {
+    parentWorkItemId: string | null;
+    stageName: string;
+    columnId: string;
+    terminalColumns: Set<string>;
+  },
+): NormalizedWorkItemUpdate {
+  return {
+    parent_work_item_id: resolved.parentWorkItemId,
+    title: input.title?.trim() || current.title,
+    goal: nullableTextOrNull(input.goal, current.goal),
+    acceptance_criteria: nullableTextOrNull(input.acceptance_criteria, current.acceptance_criteria),
+    stage_name: resolved.stageName,
+    column_id: resolved.columnId,
+    owner_role: nullableTextOrNull(input.owner_role, current.owner_role),
+    priority: input.priority ?? current.priority,
+    notes: nullableTextOrNull(input.notes, current.notes),
+    completed_at: resolved.terminalColumns.has(resolved.columnId)
+      ? current.completed_at ?? new Date()
+      : null,
+    metadata: mergeRecord(current.metadata, input.metadata),
+  };
+}
+
+function sameNormalizedWorkItem(
+  current: WorkflowWorkItemRow,
+  next: NormalizedWorkItemUpdate,
+) {
+  return current.parent_work_item_id === next.parent_work_item_id
+    && current.title === next.title
+    && current.goal === next.goal
+    && current.acceptance_criteria === next.acceptance_criteria
+    && current.stage_name === next.stage_name
+    && current.column_id === next.column_id
+    && current.owner_role === next.owner_role
+    && current.priority === next.priority
+    && current.notes === next.notes
+    && sameCompletionState(current.completed_at, next.completed_at)
+    && areJsonValuesEquivalent(current.metadata ?? {}, next.metadata);
+}
+
+function sameCompletionState(left: Date | null, right: Date | null) {
+  return (left === null) === (right === null);
 }
 
 async function emitWorkItemEvent(
@@ -1177,4 +1372,32 @@ function toStageResponse(row: WorkflowStageRow) {
     completed_at: row.completed_at?.toISOString() ?? null,
     updated_at: row.updated_at.toISOString(),
   };
+}
+
+function toStageDecisionResponse(
+  row: WorkflowStageRow,
+  activation?: Record<string, unknown> | null,
+) {
+  const stage = toStageResponse(row);
+  if (!activation) {
+    return stage;
+  }
+  return {
+    ...stage,
+    orchestrator_resume: {
+      activation_id: activation.activation_id ?? activation.id ?? null,
+      state: activation.state ?? null,
+      event_type: activation.event_type ?? null,
+      reason: activation.reason ?? null,
+      queued_at: parseOptionalTimestamp(asString(activation.queued_at)),
+      started_at: parseOptionalTimestamp(asString(activation.started_at)),
+      completed_at: parseOptionalTimestamp(asString(activation.completed_at)),
+      summary: activation.summary ?? null,
+      error: activation.error ?? null,
+    },
+  };
+}
+
+function asString(value: unknown) {
+  return typeof value === 'string' ? value : null;
 }

@@ -32,7 +32,13 @@ import {
   DialogDescription,
 } from '../../components/ui/dialog.js';
 import { GateDetailCard } from './gate-detail-card.js';
-import { buildGateBreadcrumbs, readGatePacketSummary } from './gate-detail-support.js';
+import {
+  buildGateBreadcrumbs,
+  readGateDecisionSummary,
+  readGatePacketSummary,
+  readGateRequestSourceSummary,
+  readGateResumptionSummary,
+} from './gate-detail-support.js';
 import { invalidateWorkflowQueries } from '../workflow-detail-query.js';
 import { buildWorkflowDetailPermalink } from '../workflow-detail-permalinks.js';
 
@@ -78,9 +84,20 @@ function sortStageGates(stageGates: DashboardApprovalStageGateRecord[]): Dashboa
 
 function summarizeFirstGate(stageGates: DashboardApprovalStageGateRecord[]): string {
   if (stageGates.length === 0) {
-    return 'No gates waiting';
+    return 'No stage gates waiting';
   }
   return buildGateBreadcrumbs(stageGates[0]).join(' / ');
+}
+
+function countPendingOrchestratorFollowUp(
+  stageGates: DashboardApprovalStageGateRecord[],
+): number {
+  return stageGates.filter((gate) => {
+    const decisionAction = gate.human_decision?.action;
+    const resumeState = gate.orchestrator_resume?.state;
+    const activationId = gate.orchestrator_resume?.activation_id;
+    return Boolean(decisionAction) && !resumeState && !activationId;
+  }).length;
 }
 
 function matchesApprovalSearch(
@@ -105,6 +122,17 @@ function matchesApprovalSearch(
     'title' in gate ? gate.title : '',
     gate.id,
     'gate_id' in gate ? gate.gate_id : '',
+    'request_summary' in gate ? gate.request_summary : '',
+    'decision_feedback' in gate ? gate.decision_feedback : '',
+    'human_decision' in gate ? gate.human_decision?.feedback : '',
+    'human_decision' in gate ? gate.human_decision?.action : '',
+    'orchestrator_resume' in gate ? gate.orchestrator_resume?.state : '',
+    'orchestrator_resume' in gate ? gate.orchestrator_resume?.event_type : '',
+    'orchestrator_resume' in gate ? gate.orchestrator_resume?.reason : '',
+    'orchestrator_resume' in gate ? gate.orchestrator_resume?.summary : '',
+    ...('requested_by_task' in gate ? readGateRequestSourceSummary(gate) : []),
+    ...('human_decision' in gate ? [readGateDecisionSummary(gate)] : []),
+    ...('orchestrator_resume' in gate ? [readGateResumptionSummary(gate)] : []),
     ...('concerns' in gate ? gate.concerns : []),
   ]
     .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
@@ -121,6 +149,10 @@ function invalidateApprovalWorkflowQueries(
     return Promise.resolve();
   }
   return invalidateWorkflowQueries(queryClient, workflowId);
+}
+
+function usesWorkItemOperatorFlow(task: DashboardApprovalTaskRecord): boolean {
+  return Boolean(task.workflow_id && task.work_item_id);
 }
 
 function TaskApprovalCard({ task }: { task: DashboardApprovalTaskRecord }): JSX.Element {
@@ -170,6 +202,7 @@ function TaskApprovalCard({ task }: { task: DashboardApprovalTaskRecord }): JSX.
 
   const outputPreview = truncateOutput(task.output);
   const taskLabel = task.title ?? task.id;
+  const workItemFlow = usesWorkItemOperatorFlow(task);
   const workflowContextLink =
     task.workflow_id && task.work_item_id
       ? buildWorkflowDetailPermalink(task.workflow_id, {
@@ -195,7 +228,7 @@ function TaskApprovalCard({ task }: { task: DashboardApprovalTaskRecord }): JSX.
 
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                 <Badge variant={isOutputReview ? 'warning' : 'secondary'}>
-                  {isOutputReview ? 'Output review' : 'Manual approval'}
+                  {isOutputReview ? 'Output gate' : 'Step approval'}
                 </Badge>
                 {task.workflow_name && (
                   <span>
@@ -228,42 +261,61 @@ function TaskApprovalCard({ task }: { task: DashboardApprovalTaskRecord }): JSX.
             </div>
 
             <div className="flex shrink-0 gap-2">
-              <Button
-                size="sm"
-                disabled={isActionPending}
-                onClick={() => approveMutation.mutate()}
-              >
-                {approveMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <CheckCircle className="h-4 w-4" />
-                )}
-                {isOutputReview ? 'Approve Output' : 'Approve'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isActionPending}
-                onClick={() => setIsChangesDialogOpen(true)}
-              >
-                <MessageSquare className="h-4 w-4" />
-                Request Changes
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                disabled={isActionPending}
-                onClick={() => rejectMutation.mutate()}
-              >
-                {rejectMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <XCircle className="h-4 w-4" />
-                )}
-                Reject
-              </Button>
+              {workItemFlow && workflowContextLink ? (
+                <>
+                  <Button size="sm" asChild>
+                    <Link to={workflowContextLink}>Open Work Item Flow</Link>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to={`/work/tasks/${task.id}`}>Open Step Record</Link>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    size="sm"
+                    disabled={isActionPending}
+                    onClick={() => approveMutation.mutate()}
+                  >
+                    {approveMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4" />
+                    )}
+                    {isOutputReview ? 'Approve Output' : 'Approve'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isActionPending}
+                    onClick={() => setIsChangesDialogOpen(true)}
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    Request Changes
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={isActionPending}
+                    onClick={() => rejectMutation.mutate()}
+                  >
+                    {rejectMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <XCircle className="h-4 w-4" />
+                    )}
+                    Reject
+                  </Button>
+                </>
+              )}
             </div>
           </div>
+
+          {workItemFlow ? (
+            <p className="mt-2 text-xs text-muted">
+              This step is attached to a work item. Review, rework, and retry decisions should flow through the board work-item panel so the full operator context stays together.
+            </p>
+          ) : null}
 
           {(approveMutation.isError || rejectMutation.isError) && (
             <p className="mt-2 text-xs text-red-600">Action failed. Please try again.</p>
@@ -271,7 +323,7 @@ function TaskApprovalCard({ task }: { task: DashboardApprovalTaskRecord }): JSX.
         </CardContent>
       </Card>
 
-      <Dialog open={isChangesDialogOpen} onOpenChange={setIsChangesDialogOpen}>
+      <Dialog open={!workItemFlow && isChangesDialogOpen} onOpenChange={setIsChangesDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Request Changes</DialogTitle>
@@ -369,6 +421,7 @@ export function ApprovalQueuePage(): JSX.Element {
   const totalApprovals = taskApprovals.length + stageGates.length;
   const oldestWaiting = summarizeOldestWaiting(stageGates, taskApprovals);
   const firstGateSummary = summarizeFirstGate(stageGates);
+  const pendingFollowUpCount = countPendingOrchestratorFollowUp(stageGates);
   const savedViewFilters = useMemo<SavedViewFilters>(
     () => ({
       ...(searchQuery ? { q: searchQuery } : {}),
@@ -402,7 +455,7 @@ export function ApprovalQueuePage(): JSX.Element {
             <Badge variant="secondary">{totalApprovals}</Badge>
           </div>
           <p className="text-sm text-muted">
-            Review stage gates first, then task-level approvals that remain after orchestration.
+            Review stage gates first, then specialist step approvals and output gates that remain after orchestration.
           </p>
         </div>
         <div className="flex w-full flex-col gap-3 md:max-w-3xl">
@@ -423,7 +476,7 @@ export function ApprovalQueuePage(): JSX.Element {
                     return next;
                   }, { replace: true })
                 }
-                placeholder="Search gates, work items, workflows, or IDs"
+                placeholder="Search gates, boards, work items, stages, steps, or IDs"
                 className="pl-8"
               />
             </div>
@@ -459,7 +512,7 @@ export function ApprovalQueuePage(): JSX.Element {
                   return next;
                 }, { replace: true })}
               >
-                Tasks
+                Steps
               </Button>
               <SavedViews
                 storageKey="approval-queue"
@@ -476,7 +529,7 @@ export function ApprovalQueuePage(): JSX.Element {
               />
             </div>
           </div>
-          <div className="grid gap-2 sm:grid-cols-4">
+          <div className="grid gap-2 sm:grid-cols-5">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted">
@@ -490,9 +543,15 @@ export function ApprovalQueuePage(): JSX.Element {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted">
                 <FileText className="h-3.5 w-3.5" />
-                Task reviews
+                Specialist step reviews
               </div>
               <div className="mt-2 text-2xl font-semibold">{taskApprovals.length}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-xs uppercase tracking-wide text-muted">Awaiting follow-up</div>
+              <div className="mt-2 text-sm font-semibold">{pendingFollowUpCount} gates</div>
             </CardContent>
           </Card>
           <Card>
@@ -515,9 +574,9 @@ export function ApprovalQueuePage(): JSX.Element {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Inbox className="h-12 w-12 text-muted" />
-            <p className="mt-4 text-lg font-medium">No tasks awaiting approval</p>
+            <p className="mt-4 text-lg font-medium">No operator queue items waiting</p>
             <p className="mt-1 text-sm text-muted">
-              Task approvals and stage gates will appear here.
+              Stage gates, specialist step approvals, and output gates will appear here.
             </p>
           </CardContent>
         </Card>
@@ -541,7 +600,14 @@ export function ApprovalQueuePage(): JSX.Element {
                     <Badge variant="outline">Queue priority</Badge>
                     <span>{buildGateBreadcrumbs(gate).join(' / ')}</span>
                     {readGatePacketSummary(gate).map((item) => (
-                    <Badge key={`${gate.workflow_id}:${gate.stage_name}:${item}`} variant="secondary">
+                      <Badge key={`${gate.workflow_id}:${gate.stage_name}:${item}`} variant="secondary">
+                        {item}
+                      </Badge>
+                    ))}
+                    <Badge variant="outline">{readGateDecisionSummary(gate)}</Badge>
+                    <Badge variant="outline">{readGateResumptionSummary(gate)}</Badge>
+                    {readGateRequestSourceSummary(gate).map((item) => (
+                      <Badge key={`${gate.workflow_id}:${gate.stage_name}:${item}`} variant="secondary">
                         {item}
                       </Badge>
                     ))}
@@ -551,7 +617,7 @@ export function ApprovalQueuePage(): JSX.Element {
                       })}
                       className="text-accent hover:underline"
                     >
-                      Open workflow gate
+                      Open board gate
                     </Link>
                   </div>
                   <GateDetailCard gate={gate} source="approval-queue" />
@@ -563,9 +629,12 @@ export function ApprovalQueuePage(): JSX.Element {
           {taskApprovals.length > 0 ? (
             <section className="space-y-3">
               <div className="flex items-center gap-2">
-                <h2 className="text-lg font-medium">Task Reviews</h2>
+                <h2 className="text-lg font-medium">Step Approvals</h2>
                 <Badge variant="secondary">{taskApprovals.length}</Badge>
               </div>
+              <p className="text-sm text-muted">
+                These operator decisions apply to specialist steps that are blocked on approval, output review, or rework guidance.
+              </p>
               {taskApprovals.map((task) => (
                 <TaskApprovalCard key={task.id} task={task} />
               ))}

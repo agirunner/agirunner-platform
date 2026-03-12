@@ -1,15 +1,21 @@
 import type { AppEnv } from '../config/schema.js';
 import { ValidationError } from '../errors/domain-errors.js';
 import type { DeliveryAttempt } from './integration-adapter-webhook.js';
+import { decryptWebhookSecret, encryptWebhookSecret } from './webhook-secret-crypto.js';
 
 export interface PublicSlackConfig {
-  webhook_url: string;
+  webhook_url_configured: boolean;
   channel?: string;
   username?: string;
   icon_emoji?: string;
 }
 
-export interface StoredSlackConfig extends PublicSlackConfig {}
+export interface StoredSlackConfig {
+  webhook_url: string;
+  channel?: string;
+  username?: string;
+  icon_emoji?: string;
+}
 
 interface SlackActionLink {
   url: string;
@@ -30,8 +36,9 @@ export interface SlackDeliveryTarget {
 export function normalizeStoredSlackConfig(
   currentConfig: Record<string, unknown>,
   nextConfig: Record<string, unknown>,
+  encryptionKey: string,
 ): StoredSlackConfig {
-  const current = readExistingSlackConfig(currentConfig);
+  const current = readExistingSlackConfig(currentConfig, encryptionKey);
   const webhookUrl =
     typeof nextConfig.webhook_url === 'string' ? nextConfig.webhook_url : current?.webhook_url;
   if (!webhookUrl) {
@@ -40,7 +47,7 @@ export function normalizeStoredSlackConfig(
 
   validateWebhookUrl(webhookUrl);
   return {
-    webhook_url: webhookUrl,
+    webhook_url: encryptWebhookSecret(webhookUrl, encryptionKey),
     ...(typeof nextConfig.channel === 'string'
       ? { channel: nextConfig.channel }
       : current?.channel
@@ -60,13 +67,24 @@ export function normalizeStoredSlackConfig(
 }
 
 export function toPublicSlackConfig(config: Record<string, unknown>): PublicSlackConfig {
-  return readStoredSlackConfig(config);
-}
-
-export function toSlackDeliveryTarget(config: Record<string, unknown>): SlackDeliveryTarget {
   const stored = readStoredSlackConfig(config);
   return {
-    webhookUrl: stored.webhook_url,
+    webhook_url_configured: stored.webhook_url.length > 0,
+    ...(stored.channel ? { channel: stored.channel } : {}),
+    ...(stored.username ? { username: stored.username } : {}),
+    ...(stored.icon_emoji ? { icon_emoji: stored.icon_emoji } : {}),
+  };
+}
+
+export function toSlackDeliveryTarget(
+  config: Record<string, unknown>,
+  encryptionKey: string,
+): SlackDeliveryTarget {
+  const stored = readStoredSlackConfig(config);
+  const webhookUrl = decryptWebhookSecret(stored.webhook_url, encryptionKey);
+  validateWebhookUrl(webhookUrl);
+  return {
+    webhookUrl,
     channel: stored.channel,
     username: stored.username,
     iconEmoji: stored.icon_emoji,
@@ -209,7 +227,6 @@ function readStoredSlackConfig(config: Record<string, unknown>): StoredSlackConf
     throw new ValidationError('Slack integration adapter requires webhook_url');
   }
 
-  validateWebhookUrl(webhookUrl);
   return {
     webhook_url: webhookUrl,
     ...(typeof config.channel === 'string' ? { channel: config.channel } : {}),
@@ -218,13 +235,19 @@ function readStoredSlackConfig(config: Record<string, unknown>): StoredSlackConf
   };
 }
 
-function readExistingSlackConfig(config: Record<string, unknown>): StoredSlackConfig | null {
+function readExistingSlackConfig(
+  config: Record<string, unknown>,
+  encryptionKey: string,
+): Omit<StoredSlackConfig, 'webhook_url'> & { webhook_url: string } | null {
   const webhookUrl = config.webhook_url;
   if (typeof webhookUrl !== 'string' || webhookUrl.length === 0) {
     return null;
   }
 
-  return readStoredSlackConfig(config);
+  return {
+    ...readStoredSlackConfig(config),
+    webhook_url: decryptWebhookSecret(webhookUrl, encryptionKey),
+  };
 }
 
 function validateWebhookUrl(url: string): void {

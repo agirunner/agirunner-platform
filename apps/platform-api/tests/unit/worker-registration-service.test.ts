@@ -5,7 +5,7 @@ vi.mock('../../src/auth/api-key.js', () => ({
 }));
 
 import { createApiKey } from '../../src/auth/api-key.js';
-import { registerWorker } from '../../src/services/worker-registration-service.js';
+import { getWorker, listWorkers, registerWorker } from '../../src/services/worker-registration-service.js';
 
 const mockedCreateApiKey = vi.mocked(createApiKey);
 
@@ -120,5 +120,91 @@ describe('worker registration service', () => {
     expect(result.worker_id).toBe('worker-2');
     expect(result.agents).toEqual([]);
     expect(mockedCreateApiKey).toHaveBeenCalledTimes(1);
+  });
+
+  it('redacts secret-bearing worker metadata and host info on list reads', async () => {
+    const pool = {
+      query: vi.fn().mockResolvedValue({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'worker-1',
+            name: 'my-runtime',
+            metadata: {
+              api_key: 'sk-secret-value',
+              nested: {
+                authorization: 'Bearer top-secret-token',
+                safe: 'visible',
+              },
+            },
+            host_info: {
+              token: 'secret:RUNTIME_TOKEN',
+              safe_host: 'builder-01',
+            },
+          },
+        ],
+      }),
+    };
+
+    const result = await listWorkers({ pool } as never, 'tenant-1');
+
+    expect(result).toEqual([
+      {
+        id: 'worker-1',
+        name: 'my-runtime',
+        metadata: {
+          api_key: 'redacted://worker-secret',
+          nested: {
+            authorization: 'redacted://worker-secret',
+            safe: 'visible',
+          },
+        },
+        host_info: {
+          token: 'secret:RUNTIME_TOKEN',
+          safe_host: 'builder-01',
+        },
+      },
+    ]);
+  });
+
+  it('redacts secret-bearing worker metadata and host info on single-worker reads', async () => {
+    const pool = {
+      query: vi.fn().mockResolvedValue({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'worker-1',
+            name: 'my-runtime',
+            metadata: {
+              credentials: {
+                password: 'plain-secret',
+              },
+            },
+            host_info: {
+              headers: {
+                authorization: 'Bearer top-secret-token',
+              },
+            },
+          },
+        ],
+      }),
+    };
+
+    const result = await getWorker({ pool } as never, 'tenant-1', 'worker-1');
+
+    expect(result).toEqual({
+      id: 'worker-1',
+      name: 'my-runtime',
+      metadata: {
+        credentials: {
+          password: 'redacted://worker-secret',
+        },
+      },
+      host_info: {
+        headers: {
+          authorization: 'redacted://worker-secret',
+        },
+      },
+    });
   });
 });

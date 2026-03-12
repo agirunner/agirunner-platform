@@ -15,9 +15,18 @@ export interface GateIdentityShape {
   decided_by_id?: string | null;
   human_decision?: {
     action?: 'approve' | 'reject' | 'request_changes' | null;
+    decided_by_type?: string | null;
+    decided_by_id?: string | null;
     feedback?: string | null;
     decided_at?: string | null;
   } | null;
+  decision_history?: Array<{
+    action?: string | null;
+    actor_type?: string | null;
+    actor_id?: string | null;
+    feedback?: string | null;
+    created_at?: string | null;
+  }> | null;
   requested_by_task?: {
     id?: string | null;
     title?: string | null;
@@ -104,6 +113,54 @@ export function readGatePacketSummary(gate: GateIdentityShape): string[] {
   return summary;
 }
 
+export function readGateRequestSourceSummary(gate: GateIdentityShape): string[] {
+  const summary: string[] = [];
+  const workItemTitle = readNonEmpty(gate.requested_by_task?.work_item_title);
+  if (workItemTitle) {
+    summary.push(`work item: ${workItemTitle}`);
+  }
+  const taskLabel = readNonEmpty(gate.requested_by_task?.title) ?? readNonEmpty(gate.requested_by_task?.id);
+  const taskRole = readNonEmpty(gate.requested_by_task?.role);
+  if (taskLabel) {
+    summary.push(taskRole ? `step: ${taskLabel} • ${taskRole}` : `step: ${taskLabel}`);
+  }
+  const actor = readGateActorLabel(gate.requested_by_type, gate.requested_by_id);
+  if (actor) {
+    summary.push(`requested by ${actor}`);
+  }
+  return summary;
+}
+
+export function readGateDecisionSummary(gate: GateIdentityShape): string {
+  const action = readNonEmpty(gate.human_decision?.action);
+  if (!action) {
+    return 'Pending operator decision';
+  }
+  const actor = readGateActorLabel(
+    gate.human_decision?.decided_by_type ?? gate.decided_by_type,
+    gate.human_decision?.decided_by_id ?? gate.decided_by_id,
+  );
+  const when = readTimeLabel(gate.human_decision?.decided_at ?? gate.decided_at);
+  return [
+    action.replaceAll('_', ' '),
+    actor ? `by ${actor}` : null,
+    when ? `at ${when}` : null,
+  ].filter(Boolean).join(' ');
+}
+
+export function readGateResumptionSummary(gate: GateIdentityShape): string {
+  const resume = gate.orchestrator_resume ?? null;
+  if (resume) {
+    const state = readNonEmpty(resume.state)?.replaceAll('_', ' ') ?? 'queued';
+    const eventType = readNonEmpty(resume.event_type)?.replaceAll('_', ' ');
+    return [state, eventType].filter(Boolean).join(' • ');
+  }
+  if (readNonEmpty(gate.human_decision?.action)) {
+    return 'Decision recorded • awaiting orchestrator follow-up';
+  }
+  return 'Follow-up not queued';
+}
+
 export function readGateTimelineRows(gate: GateIdentityShape): Array<{ label: string; value: string }> {
   const rows: Array<{ label: string; value: string }> = [];
   const requestedBy = readGateActorLabel(gate.requested_by_type, gate.requested_by_id);
@@ -122,7 +179,7 @@ export function readGateTimelineRows(gate: GateIdentityShape): Array<{ label: st
   const resumeState = readNonEmpty(gate.orchestrator_resume?.state);
   if (resumeState || gate.orchestrator_resume?.queued_at) {
     rows.push({
-      label: 'Orchestrator',
+      label: 'Orchestrator follow-up',
       value: readResumeValue(gate.orchestrator_resume ?? null),
     });
   }
@@ -131,6 +188,30 @@ export function readGateTimelineRows(gate: GateIdentityShape): Array<{ label: st
     value: readGateStatusLabel(gate),
   });
   return rows;
+}
+
+export function readGateDecisionHistory(
+  gate: GateIdentityShape,
+): Array<{ action: string; summary: string; feedback: string | null }> {
+  const entries = Array.isArray(gate.decision_history) ? gate.decision_history : [];
+  return entries
+    .filter((entry) => Boolean(readNonEmpty(entry.action)))
+    .map((entry) => {
+      const action = readNonEmpty(entry.action) ?? 'unknown';
+      const actor = readGateActorLabel(entry.actor_type, entry.actor_id);
+      const when = readTimeLabel(entry.created_at);
+      return {
+        action,
+        summary: [
+          action.replaceAll('_', ' '),
+          actor ? `by ${actor}` : null,
+          when ? `at ${when}` : null,
+        ]
+          .filter(Boolean)
+          .join(' '),
+        feedback: readNonEmpty(entry.feedback),
+      };
+    });
 }
 
 function readTimelineValue(timestamp: string | null | undefined, actor: string | null): string {

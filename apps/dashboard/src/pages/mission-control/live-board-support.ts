@@ -104,13 +104,13 @@ export function describeBoardHeadline(
     return 'All work items in terminal columns';
   }
   if (workflow.state === 'failed') {
-    return 'Workflow failed';
+    return 'Board execution failed';
   }
   if (workflow.state === 'cancelled') {
-    return 'Workflow cancelled';
+    return 'Board execution cancelled';
   }
   if (workflow.state === 'paused') {
-    return 'Workflow paused';
+    return 'Board execution paused';
   }
   return 'No work items queued';
 }

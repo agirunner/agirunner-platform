@@ -261,11 +261,35 @@ function renderMarkdown(markdown: string): string {
 }
 
 function renderInlineMarkdown(input: string): string {
-  const escaped = escapeHtml(input);
-  return escaped
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
+  const inlineTokens: string[] = [];
+  const markdownWithTokens = input
+    .replace(/`([^`]+)`/g, (_match, code) =>
+      createInlineToken(`<code>${escapeHtml(String(code))}</code>`, inlineTokens),
+    )
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label, href) =>
+      createInlineToken(
+        `<a href="${escapeHtmlAttribute(String(href).trim())}">${escapeHtml(String(label))}</a>`,
+        inlineTokens,
+      ),
+    );
+  const escaped = escapeHtml(markdownWithTokens)
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+  return restoreInlineTokens(escaped, inlineTokens);
+}
+
+function createInlineToken(value: string, tokens: string[]): string {
+  const token = `INLINE_TOKEN_${tokens.length}__`;
+  tokens.push(value);
+  return token;
+}
+
+function restoreInlineTokens(source: string, tokens: string[]): string {
+  return tokens.reduce(
+    (rendered, value, index) => rendered.replaceAll(`INLINE_TOKEN_${index}__`, value),
+    source,
+  );
 }
 
 function normalizeContentType(contentType: string): string {

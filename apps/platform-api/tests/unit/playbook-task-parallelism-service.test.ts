@@ -140,4 +140,162 @@ describe('PlaybookTaskParallelismService', () => {
       client,
     );
   });
+
+  it('requeues a lower-precedence ready task so an older retried task can reclaim the freed slot', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const retriedCreatedAt = new Date('2026-03-12T12:00:00.000Z');
+    const readyCreatedAt = new Date('2026-03-12T12:10:00.000Z');
+    const client = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              definition: {
+                board: { columns: [{ id: 'todo', label: 'Todo' }] },
+                stages: [{ name: 'build', goal: 'Build it' }],
+                orchestrator: { max_active_tasks: 2, max_active_tasks_per_work_item: 1 },
+              },
+            }],
+          };
+        }
+        if (sql.includes('GROUP BY work_item_id')) {
+          return {
+            rowCount: 2,
+            rows: [
+              { work_item_id: 'wi-a', total: '1' },
+              { work_item_id: 'wi-c', total: '1' },
+            ],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('AND id = $2')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-b1',
+              work_item_id: 'wi-b',
+              priority: 'normal',
+              created_at: retriedCreatedAt,
+            }],
+          };
+        }
+        if (sql.includes("AND state = 'ready'") && sql.includes('id <> $3::uuid')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-c1',
+              work_item_id: 'wi-c',
+              priority: 'normal',
+              created_at: readyCreatedAt,
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'pending'")) {
+          expect(values).toEqual(['tenant-1', 'task-c1']);
+          return { rowCount: 1, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    const service = new PlaybookTaskParallelismService({ query: vi.fn() } as never);
+    const reclaimed = await service.reclaimReadySlotForTask(
+      eventService as never,
+      'tenant-1',
+      {
+        taskId: 'task-b1',
+        workflowId: 'wf-1',
+        workItemId: 'wi-b',
+        isOrchestratorTask: false,
+        currentState: 'failed',
+      },
+      client as never,
+    );
+
+    expect(reclaimed).toBe(true);
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'task.state_changed',
+        entityId: 'task-c1',
+        data: expect.objectContaining({
+          from_state: 'ready',
+          to_state: 'pending',
+          reason: 'parallelism_retry_fairness_requeue',
+          reclaimed_by_task_id: 'task-b1',
+        }),
+      }),
+      client,
+    );
+  });
+
+  it('does not requeue an older ready task for a younger retry candidate', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const retriedCreatedAt = new Date('2026-03-12T12:10:00.000Z');
+    const readyCreatedAt = new Date('2026-03-12T12:00:00.000Z');
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              definition: {
+                board: { columns: [{ id: 'todo', label: 'Todo' }] },
+                stages: [{ name: 'build', goal: 'Build it' }],
+                orchestrator: { max_active_tasks: 2, max_active_tasks_per_work_item: 1 },
+              },
+            }],
+          };
+        }
+        if (sql.includes('GROUP BY work_item_id')) {
+          return {
+            rowCount: 2,
+            rows: [
+              { work_item_id: 'wi-a', total: '1' },
+              { work_item_id: 'wi-c', total: '1' },
+            ],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('AND id = $2')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-b1',
+              work_item_id: 'wi-b',
+              priority: 'normal',
+              created_at: retriedCreatedAt,
+            }],
+          };
+        }
+        if (sql.includes("AND state = 'ready'") && sql.includes('id <> $3::uuid')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-c1',
+              work_item_id: 'wi-c',
+              priority: 'normal',
+              created_at: readyCreatedAt,
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    const service = new PlaybookTaskParallelismService({ query: vi.fn() } as never);
+    const reclaimed = await service.reclaimReadySlotForTask(
+      eventService as never,
+      'tenant-1',
+      {
+        taskId: 'task-b1',
+        workflowId: 'wf-1',
+        workItemId: 'wi-b',
+        isOrchestratorTask: false,
+        currentState: 'failed',
+      },
+      client as never,
+    );
+
+    expect(reclaimed).toBe(false);
+    expect(eventService.emit).not.toHaveBeenCalled();
+  });
 });

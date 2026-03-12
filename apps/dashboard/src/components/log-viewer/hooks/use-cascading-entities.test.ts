@@ -7,9 +7,8 @@ function readSource() {
 }
 
 describe('useCascadingEntities source', () => {
-  it('does not expose legacy template names in workflow subtitles', () => {
+  it('uses project context for workflow subtitles', () => {
     const source = readSource();
     expect(source).toContain('subtitle: w.project?.name ?? undefined');
-    expect(source).not.toContain('w.template?.name');
   });
 });

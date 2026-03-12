@@ -102,7 +102,7 @@ function describeTaskKind(task: Task): string {
     return 'Orchestrator activation';
   }
   if (resolveStatus(task) === 'escalated') {
-    return 'Escalated specialist task';
+    return 'Escalated specialist step';
   }
   if (resolveStatus(task) === 'output_pending_review') {
     return 'Output review';
@@ -110,7 +110,7 @@ function describeTaskKind(task: Task): string {
   if (resolveStatus(task) === 'awaiting_approval') {
     return 'Operator approval';
   }
-  return 'Specialist task';
+  return 'Specialist step';
 }
 
 function describeTaskScope(task: Task): string {
@@ -145,8 +145,6 @@ function formatStatusLabel(status: string): string {
 }
 
 function normalizeTaskStatus(status: string): string {
-  if (status === 'running' || status === 'claimed') return 'in_progress';
-  if (status === 'awaiting_escalation') return 'escalated';
   return status;
 }
 
@@ -213,9 +211,9 @@ export function TaskListPage(): JSX.Element {
   return (
     <div className="space-y-6 p-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold">Specialist Tasks</h1>
+        <h1 className="text-2xl font-semibold">Execution Steps</h1>
         <p className="text-sm text-muted">
-          Operator view of specialist execution, reviews, escalations, and orchestrator turns.
+          Operator view of specialist steps, reviews, escalations, and orchestrator turns.
         </p>
       </div>
 
@@ -242,7 +240,7 @@ export function TaskListPage(): JSX.Element {
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted" />
           <Input
-            placeholder="Search tasks, workflows, stages, or work items..."
+            placeholder="Search steps, boards, stages, activations, or work items..."
             className="pl-9"
             value={searchQuery}
             onChange={(e) => {

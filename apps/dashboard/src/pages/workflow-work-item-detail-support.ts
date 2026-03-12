@@ -29,6 +29,17 @@ export interface DashboardGroupedWorkItemRecord extends DashboardWorkflowWorkIte
   children?: DashboardGroupedWorkItemRecord[];
 }
 
+export interface MilestoneOperatorSummary {
+  totalChildren: number;
+  completedChildren: number;
+  openChildren: number;
+  awaitingStepReviews: number;
+  failedSteps: number;
+  inFlightSteps: number;
+  activeStageNames: string[];
+  activeColumnIds: string[];
+}
+
 export function normalizeWorkItemTasks(response: unknown): DashboardWorkItemTaskRecord[] {
   const records = Array.isArray(asWrappedList(response)) ? asWrappedList(response) : [];
   const normalized: DashboardWorkItemTaskRecord[] = [];
@@ -121,11 +132,79 @@ export function findWorkItemById(
   return null;
 }
 
+export function buildWorkItemBreadcrumbs(
+  workItems: DashboardGroupedWorkItemRecord[],
+  workItemId: string,
+): string[] {
+  const index = buildWorkItemIndex(workItems);
+  const breadcrumbs: string[] = [];
+  const visited = new Set<string>();
+  let currentId: string | null = workItemId;
+
+  while (currentId) {
+    if (visited.has(currentId)) {
+      break;
+    }
+    visited.add(currentId);
+    const current = index.get(currentId);
+    if (!current) {
+      break;
+    }
+    breadcrumbs.unshift(current.title);
+    currentId = current.parent_work_item_id ?? null;
+  }
+
+  return breadcrumbs;
+}
+
 export function isMilestoneWorkItem(workItem: DashboardGroupedWorkItemRecord | null | undefined): boolean {
   if (!workItem) {
     return false;
   }
   return (workItem.children?.length ?? 0) > 0 || (workItem.children_count ?? 0) > 0 || workItem.is_milestone === true;
+}
+
+export function summarizeMilestoneOperatorFlow(
+  children: DashboardGroupedWorkItemRecord[],
+  tasks: DashboardWorkItemTaskRecord[],
+): MilestoneOperatorSummary {
+  const totalChildren = children.length;
+  const completedChildren = children.filter((child) => Boolean(child.completed_at)).length;
+  const openChildren = totalChildren - completedChildren;
+  const awaitingStepReviews = tasks.filter((task) =>
+    task.state === 'awaiting_approval' || task.state === 'output_pending_review',
+  ).length;
+  const failedSteps = tasks.filter((task) =>
+    task.state === 'failed' || task.state === 'escalated',
+  ).length;
+  const inFlightSteps = tasks.filter((task) =>
+    task.state === 'in_progress' || task.state === 'ready' || task.state === 'blocked',
+  ).length;
+  const activeStageNames = Array.from(
+    new Set(
+      children
+        .map((child) => child.stage_name)
+        .filter((stageName): stageName is string => typeof stageName === 'string' && stageName.length > 0),
+    ),
+  );
+  const activeColumnIds = Array.from(
+    new Set(
+      children
+        .map((child) => child.column_id)
+        .filter((columnId): columnId is string => typeof columnId === 'string' && columnId.length > 0),
+    ),
+  );
+
+  return {
+    totalChildren,
+    completedChildren,
+    openChildren,
+    awaitingStepReviews,
+    failedSteps,
+    inFlightSteps,
+    activeStageNames,
+    activeColumnIds,
+  };
 }
 
 export function flattenArtifactsByTask(
@@ -139,11 +218,11 @@ export function flattenArtifactsByTask(
       ...artifact,
       task_title: taskTitles.get(artifact.task_id) ?? artifact.task_id,
     }))
-    .sort((left, right) => right.created_at.localeCompare(left.created_at));
+    .sort((left, right) => compareTimestampsDescending(left.created_at, right.created_at));
 }
 
 export function sortEventsNewestFirst(events: DashboardEventRecord[]): DashboardEventRecord[] {
-  return [...events].sort((left, right) => right.created_at.localeCompare(left.created_at));
+  return [...events].sort((left, right) => compareTimestampsDescending(left.created_at, right.created_at));
 }
 
 export function sortMemoryEntriesByKey(
@@ -159,8 +238,37 @@ export function sortMemoryHistoryNewestFirst(
     if (left.updated_at === right.updated_at) {
       return right.event_id - left.event_id;
     }
-    return right.updated_at.localeCompare(left.updated_at);
+    return compareTimestampsDescending(left.updated_at, right.updated_at);
   });
+}
+
+function compareTimestampsDescending(left: unknown, right: unknown): number {
+  const normalizedLeft = normalizeTimestamp(left);
+  const normalizedRight = normalizeTimestamp(right);
+  return normalizedRight.localeCompare(normalizedLeft);
+}
+
+function buildWorkItemIndex(
+  workItems: DashboardGroupedWorkItemRecord[],
+): Map<string, DashboardGroupedWorkItemRecord> {
+  const index = new Map<string, DashboardGroupedWorkItemRecord>();
+  for (const item of workItems) {
+    index.set(item.id, item);
+    for (const child of item.children ?? []) {
+      index.set(child.id, child);
+    }
+  }
+  return index;
+}
+
+function normalizeTimestamp(value: unknown): string {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return new Date(value).toISOString();
+  }
+  return typeof value === 'string' ? value : '';
 }
 
 function asWrappedList(value: unknown): unknown[] {

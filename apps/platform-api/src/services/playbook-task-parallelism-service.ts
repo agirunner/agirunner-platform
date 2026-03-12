@@ -26,6 +26,13 @@ interface ActiveTaskCountRow {
   total: string;
 }
 
+interface OrderedTaskRow {
+  id: string;
+  work_item_id: string | null;
+  priority: 'low' | 'normal' | 'high' | 'critical';
+  created_at: Date;
+}
+
 interface PlaybookWorkflowPolicy {
   maxActiveTasks: number | null;
   maxActiveTasksPerWorkItem: number | null;
@@ -166,6 +173,88 @@ export class PlaybookTaskParallelismService {
     return promoted;
   }
 
+  async reclaimReadySlotForTask(
+    eventService: EventService,
+    tenantId: string,
+    input: ReadyDecisionInput & { taskId: string; workflowId: string },
+    client: DatabaseClient,
+  ): Promise<boolean> {
+    if (input.isOrchestratorTask) {
+      return false;
+    }
+
+    const policy = await this.loadPolicy(tenantId, input.workflowId, client);
+    if (!policy) {
+      return false;
+    }
+
+    const retriedTask = await this.loadOrderedTask(tenantId, input.taskId, client);
+    if (!retriedTask) {
+      return false;
+    }
+
+    const counts = await this.loadActiveCounts(tenantId, input.workflowId, client, input);
+    const readyCandidates = await client.query<OrderedTaskRow>(
+      `SELECT id, work_item_id, priority, created_at
+         FROM tasks
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND is_orchestrator_task = false
+          AND state = 'ready'
+          AND id <> $3::uuid
+        ORDER BY ${priorityCase} ASC, created_at DESC
+        FOR UPDATE`,
+      [tenantId, input.workflowId, input.taskId],
+    );
+
+    for (const candidate of readyCandidates.rows) {
+      if (!outranks(retriedTask, candidate)) {
+        continue;
+      }
+
+      const simulatedCounts = new Map(counts);
+      const candidateKey = normalizeWorkItemKey(candidate.work_item_id);
+      simulatedCounts.set(candidateKey, Math.max(0, (simulatedCounts.get(candidateKey) ?? 0) - 1));
+      if (!canSchedule(policy, simulatedCounts, input.workItemId ?? null)) {
+        continue;
+      }
+
+      const updated = await client.query(
+        `UPDATE tasks
+            SET state = 'pending',
+                state_changed_at = now()
+          WHERE tenant_id = $1
+            AND id = $2
+            AND state = 'ready'`,
+        [tenantId, candidate.id],
+      );
+      if (!updated.rowCount) {
+        continue;
+      }
+
+      await eventService.emit(
+        {
+          tenantId,
+          type: 'task.state_changed',
+          entityType: 'task',
+          entityId: candidate.id,
+          actorType: 'system',
+          actorId: 'playbook_parallelism',
+          data: {
+            from_state: 'ready',
+            to_state: 'pending',
+            reason: 'parallelism_retry_fairness_requeue',
+            reclaimed_by_task_id: input.taskId,
+          },
+        },
+        client,
+      );
+      return true;
+    }
+
+    return false;
+  }
+
   private async loadPolicy(
     tenantId: string,
     workflowId: string,
@@ -224,8 +313,79 @@ export class PlaybookTaskParallelismService {
     }
     return counts;
   }
+
+  private async loadOrderedTask(
+    tenantId: string,
+    taskId: string,
+    db: DatabaseClient | DatabasePool,
+  ): Promise<OrderedTaskRow | null> {
+    const result = await db.query<OrderedTaskRow>(
+      `SELECT id, work_item_id, priority, created_at
+         FROM tasks
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [tenantId, taskId],
+    );
+    return result.rows[0] ?? null;
+  }
 }
 
 function normalizeWorkItemKey(value: string | null): string {
   return value ?? '__none__';
+}
+
+function canSchedule(
+  policy: PlaybookWorkflowPolicy,
+  counts: Map<string, number>,
+  workItemId: string | null,
+): boolean {
+  const totalActive = Array.from(counts.values()).reduce((sum, value) => sum + value, 0);
+  if (policy.maxActiveTasks && totalActive >= policy.maxActiveTasks) {
+    return false;
+  }
+
+  const workItemKey = normalizeWorkItemKey(workItemId);
+  if (
+    policy.maxActiveTasksPerWorkItem &&
+    (counts.get(workItemKey) ?? 0) >= policy.maxActiveTasksPerWorkItem
+  ) {
+    return false;
+  }
+
+  if (!policy.allowParallelWorkItems) {
+    for (const [key, count] of counts.entries()) {
+      if (count > 0 && key !== workItemKey) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+function outranks(left: OrderedTaskRow, right: OrderedTaskRow): boolean {
+  const priorityDelta = priorityRank(left.priority) - priorityRank(right.priority);
+  if (priorityDelta !== 0) {
+    return priorityDelta > 0;
+  }
+
+  const createdAtDelta = left.created_at.getTime() - right.created_at.getTime();
+  if (createdAtDelta !== 0) {
+    return createdAtDelta < 0;
+  }
+
+  return left.id.localeCompare(right.id) < 0;
+}
+
+function priorityRank(priority: OrderedTaskRow['priority']): number {
+  switch (priority) {
+    case 'critical':
+      return 4;
+    case 'high':
+      return 3;
+    case 'normal':
+      return 2;
+    default:
+      return 1;
+  }
 }

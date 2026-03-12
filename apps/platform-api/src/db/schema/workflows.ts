@@ -1,4 +1,5 @@
-import { boolean, index, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import { boolean, check, index, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { projects } from './projects.js';
 import { playbooks } from './playbooks.js';
@@ -42,5 +43,9 @@ export const workflows = pgTable(
     index('idx_workflows_project').on(table.projectId),
     index('idx_workflows_state').on(table.tenantId, table.state),
     index('idx_workflows_playbook').on(table.playbookId),
+    check(
+      'chk_workflows_continuous_current_stage_null',
+      sql`(${table.lifecycle} IS DISTINCT FROM 'continuous' OR ${table.currentStage} IS NULL)`,
+    ),
   ],
 );

@@ -101,4 +101,24 @@ describe('PlatformApiClient', () => {
             globalThis.fetch = originalFetch;
         }
     });
+    it('builds grouped workflow work-item query strings for list and detail reads', async () => {
+        const fetcher = vi
+            .fn()
+            .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 'wi-parent', children_count: 2, is_milestone: true }] }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'wi-parent', children: [{ id: 'wi-child-1' }] } }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        const client = new PlatformApiClient({
+            baseUrl: 'http://localhost:8080',
+            accessToken: 'jwt-token',
+            fetcher,
+        });
+        await client.listWorkflowWorkItems('wf-1', {
+            parent_work_item_id: 'wi-root',
+            stage_name: 'implementation',
+            column_id: 'active',
+            grouped: true,
+        });
+        await client.getWorkflowWorkItem('wf-1', 'wi-parent', { include_children: true });
+        expect(vi.mocked(fetcher).mock.calls[0]?.[0]).toBe('http://localhost:8080/api/v1/workflows/wf-1/work-items?parent_work_item_id=wi-root&stage_name=implementation&column_id=active&grouped=true');
+        expect(vi.mocked(fetcher).mock.calls[1]?.[0]).toBe('http://localhost:8080/api/v1/workflows/wf-1/work-items/wi-parent?include_children=true');
+    });
 });

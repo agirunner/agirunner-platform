@@ -81,9 +81,13 @@ interface TaskRecord {
   title?: string;
   name?: string;
   status: string;
+  state?: string;
   output?: unknown;
   assigned_worker?: string | null;
   workflow_id?: string;
+  work_item_id?: string | null;
+  stage_name?: string | null;
+  role?: string | null;
   retry_count?: number;
   error_message?: string;
   created_at?: string;
@@ -143,7 +147,7 @@ function buildThroughputData(events: DashboardEventRecord[]): ThroughputPoint[] 
 
 function statusBadgeVariant(status: string): 'default' | 'success' | 'warning' | 'destructive' | 'secondary' {
   switch (status) {
-    case 'running':
+    case 'in_progress':
     case 'online':
       return 'success';
     case 'awaiting gate':
@@ -160,6 +164,24 @@ function statusBadgeVariant(status: string): 'default' | 'success' | 'warning' |
     default:
       return 'secondary';
   }
+}
+
+function resolveTaskOperatorState(task: TaskRecord): string {
+  return (task.state ?? task.status ?? 'unknown').toLowerCase();
+}
+
+function describeAttentionStep(task: TaskRecord): string {
+  const state = resolveTaskOperatorState(task);
+  if (state === 'awaiting_approval') {
+    return 'Step approval';
+  }
+  if (state === 'output_pending_review') {
+    return 'Output gate';
+  }
+  if (state === 'failed') {
+    return 'Execution failure';
+  }
+  return 'Execution step';
 }
 
 export function LiveBoardPage(): JSX.Element {
@@ -244,10 +266,19 @@ export function LiveBoardPage(): JSX.Element {
         if (!normalizedQuery) {
           return true;
         }
+        const stageTokens =
+          workflow.lifecycle === 'continuous'
+            ? [
+                ...(workflow.active_stages ?? []),
+                ...(workflow.work_item_summary?.active_stage_names ?? []),
+              ]
+            : [
+                ...(workflow.active_stages ?? []),
+                ...(workflow.work_item_summary?.active_stage_names ?? []),
+                workflow.current_stage ?? '',
+              ];
         const stageNames = [
-          ...(workflow.active_stages ?? []),
-          ...(workflow.work_item_summary?.active_stage_names ?? []),
-          workflow.current_stage ?? '',
+          ...stageTokens,
         ]
           .filter((value) => value.trim().length > 0)
           .join(' ')
@@ -261,8 +292,14 @@ export function LiveBoardPage(): JSX.Element {
     [activeWorkflows],
   );
   const onlineWorkers = useMemo(() => workers.filter((w) => w.status === 'online' || w.status === 'active'), [workers]);
-  const approvalTasks = useMemo(() => tasks.filter((t) => t.status === 'awaiting_approval'), [tasks]);
-  const failedTasks = useMemo(() => tasks.filter((t) => t.status === 'failed'), [tasks]);
+  const approvalTasks = useMemo(
+    () => tasks.filter((task) => resolveTaskOperatorState(task) === 'awaiting_approval'),
+    [tasks],
+  );
+  const failedTasks = useMemo(
+    () => tasks.filter((task) => resolveTaskOperatorState(task) === 'failed'),
+    [tasks],
+  );
   const stageGates = approvalsQuery.data?.stage_gates ?? [];
   const filteredApprovalTasks = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -270,7 +307,7 @@ export function LiveBoardPage(): JSX.Element {
       return approvalTasks;
     }
     return approvalTasks.filter((task) =>
-      `${task.title ?? task.name ?? ''} ${task.id} ${task.workflow_id ?? ''}`
+      `${task.title ?? task.name ?? ''} ${task.id} ${task.workflow_id ?? ''} ${task.work_item_id ?? ''} ${task.stage_name ?? ''} ${task.role ?? ''}`
         .toLowerCase()
         .includes(normalizedQuery),
     );
@@ -281,7 +318,7 @@ export function LiveBoardPage(): JSX.Element {
       return failedTasks;
     }
     return failedTasks.filter((task) =>
-      `${task.title ?? task.name ?? ''} ${task.id} ${task.workflow_id ?? ''} ${task.error_message ?? ''}`
+      `${task.title ?? task.name ?? ''} ${task.id} ${task.workflow_id ?? ''} ${task.work_item_id ?? ''} ${task.stage_name ?? ''} ${task.role ?? ''} ${task.error_message ?? ''}`
         .toLowerCase()
         .includes(normalizedQuery),
     );
@@ -375,7 +412,7 @@ export function LiveBoardPage(): JSX.Element {
       return stageGates;
     }
     return stageGates.filter((gate) =>
-      `${gate.workflow_name} ${gate.workflow_id} ${gate.stage_name} ${gate.stage_goal} ${gate.gate_id}`
+      `${gate.workflow_name} ${gate.workflow_id} ${gate.stage_name} ${gate.stage_goal} ${gate.gate_id} ${('request_summary' in gate && typeof gate.request_summary === 'string') ? gate.request_summary : ''} ${gate.recommendation ?? ''}`
         .toLowerCase()
         .includes(normalizedQuery),
     );
@@ -442,7 +479,7 @@ export function LiveBoardPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <h1 className="text-2xl font-semibold">Live Board</h1>
+      <h1 className="text-2xl font-semibold">Operator Live Board</h1>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-sm">
           <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
@@ -454,7 +491,7 @@ export function LiveBoardPage(): JSX.Element {
                 { replace: true },
               )
             }
-            placeholder="Search workflows, work items, stages, gates, or IDs"
+            placeholder="Search boards, work items, stages, gates, steps, or IDs"
             className="pl-8"
           />
         </div>
@@ -511,7 +548,7 @@ function KpiCards(props: KpiCardsProps): JSX.Element {
     { label: 'Live Boards', value: props.activeBoards, icon: WorkflowIcon, color: 'text-blue-600' },
     { label: 'Open Work Items', value: props.openWorkItems, icon: Activity, color: 'text-green-600' },
     { label: 'Live Stages', value: props.liveStages, icon: Cpu, color: 'text-indigo-600' },
-    { label: 'Gate Reviews', value: props.gateReviews, icon: CheckCircle2, color: 'text-amber-600' },
+    { label: 'Stage Gates', value: props.gateReviews, icon: CheckCircle2, color: 'text-amber-600' },
     { label: 'Workers Online', value: props.workersOnline, icon: Server, color: 'text-indigo-600' },
     { label: 'Containers Running', value: props.workersOnline, icon: Container, color: 'text-purple-600' },
     { label: 'Cost Today', value: '$--', icon: DollarSign, color: 'text-emerald-600' },
@@ -562,7 +599,7 @@ function NeedsAttentionSection({ approvalTasks, failedTasks, blockedItems, stage
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted">No gates, blocked work items, or specialist-task interventions require attention right now.</p>
+          <p className="text-sm text-muted">No stage gates, blocked work items, or specialist-step interventions require attention right now.</p>
         </CardContent>
       </Card>
     );
@@ -573,7 +610,7 @@ function NeedsAttentionSection({ approvalTasks, failedTasks, blockedItems, stage
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <AlertTriangle className="h-5 w-5 text-amber-600" />
-          Needs Your Attention ({items.length + stageGates.length + blockedItems.length})
+          Operator Queue ({items.length + stageGates.length + blockedItems.length})
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -590,14 +627,14 @@ function NeedsAttentionSection({ approvalTasks, failedTasks, blockedItems, stage
                   {gate.workflow_name}
                 </Link>
                 <div className="mt-1 flex items-center gap-2">
-                  <Badge variant="warning">gate review</Badge>
+                  <Badge variant="warning">stage gate</Badge>
                   <span className="text-xs text-muted">{gate.stage_name}</span>
                 </div>
                 <p className="mt-1 text-xs text-muted">{gate.stage_goal}</p>
               </div>
               <div className="ml-4 shrink-0">
                 <Button size="sm" asChild>
-                  <Link to={`/work/approvals`}>Review</Link>
+                  <Link to={`/work/approvals`}>Open Gate</Link>
                 </Button>
               </div>
             </div>
@@ -626,23 +663,26 @@ function NeedsAttentionSection({ approvalTasks, failedTasks, blockedItems, stage
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium text-sm">{task.title ?? task.name ?? task.id}</p>
                 <div className="mt-1 flex items-center gap-2">
-                  <Badge variant={task.status === 'failed' ? 'destructive' : 'warning'}>
-                    {task.status.replace(/_/g, ' ')}
+                  <Badge variant={resolveTaskOperatorState(task) === 'failed' ? 'destructive' : 'warning'}>
+                    {describeAttentionStep(task)}
                   </Badge>
+                  {task.stage_name ? <span className="text-xs text-muted">Stage: {task.stage_name}</span> : null}
+                  {task.work_item_id ? <span className="text-xs text-muted">Work item: {task.work_item_id}</span> : null}
+                  {task.role ? <span className="text-xs text-muted">Role: {task.role}</span> : null}
                   {task.assigned_worker && (
                     <span className="text-xs text-muted">Worker: {task.assigned_worker}</span>
                   )}
                 </div>
               </div>
               <div className="ml-4 flex shrink-0 gap-2">
-                {task.status === 'awaiting_approval' && (
+                {resolveTaskOperatorState(task) === 'awaiting_approval' && (
                   <>
-                    <Button size="sm" onClick={() => dashboardApi.approveTask(task.id)}>Approve</Button>
-                    <Button size="sm" variant="outline" onClick={() => dashboardApi.rejectTask(task.id, { feedback: 'Rejected from live board' })}>Reject</Button>
+                    <Button size="sm" onClick={() => dashboardApi.approveTask(task.id)}>Approve Step</Button>
+                    <Button size="sm" variant="outline" onClick={() => dashboardApi.rejectTask(task.id, { feedback: 'Rejected from live board' })}>Reject Step</Button>
                   </>
                 )}
-                {task.status === 'failed' && (
-                  <Button size="sm" variant="outline" onClick={() => dashboardApi.retryTask(task.id)}>Retry</Button>
+                {resolveTaskOperatorState(task) === 'failed' && (
+                  <Button size="sm" variant="outline" onClick={() => dashboardApi.retryTask(task.id)}>Retry Step</Button>
                 )}
               </div>
             </div>
@@ -791,7 +831,7 @@ function ActivePlaybookBoards(props: {
                         </div>
                         <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted">
                           <span>{item.stage_name}</span>
-                          {item.task_count !== undefined ? <span>{item.task_count} specialist tasks</span> : null}
+                          {item.task_count !== undefined ? <span>{item.task_count} specialist steps</span> : null}
                           <span>{item.priority}</span>
                         </div>
                       </div>
@@ -836,7 +876,7 @@ function FleetStatusPanel({ workers }: FleetStatusPanelProps): JSX.Element {
                 </div>
                 <div className="flex items-center gap-2">
                   {w.current_tasks != null && (
-                    <span className="text-xs text-muted">{w.current_tasks} tasks</span>
+                    <span className="text-xs text-muted">{w.current_tasks} steps</span>
                   )}
                   <Badge variant={statusBadgeVariant(w.status)}>{w.status}</Badge>
                 </div>
@@ -857,7 +897,7 @@ function ThroughputChart({ data }: ThroughputChartProps): JSX.Element {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Specialist Task Throughput (24h)</CardTitle>
+        <CardTitle>Specialist Step Throughput (24h)</CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={220}>

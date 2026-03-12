@@ -26,6 +26,7 @@ import { Card, CardContent } from '../../components/ui/card.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 
 const PAGE_SIZE = '50';
+const SUMMARY_DETAIL_MODE = 'summary';
 
 export function LogsPage(): JSX.Element {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -43,6 +44,7 @@ export function LogsPage(): JSX.Element {
   const queryFilters = useMemo(
     () => ({
       ...baseFilters,
+      detail: SUMMARY_DETAIL_MODE,
       per_page: PAGE_SIZE,
       ...(cursor ? { cursor } : {}),
     }),
@@ -102,8 +104,22 @@ export function LogsPage(): JSX.Element {
   }, [logsQuery.data, cursor]);
 
   const entries = pagedEntries;
+  const effectiveSelectedLogId = selectedLogId ?? entries[0]?.id ?? null;
+  const selectedEntrySummary =
+    entries.find((entry) => entry.id === effectiveSelectedLogId) ?? null;
+  const selectedEntryQuery = useQuery({
+    queryKey: ['execution-inspector', 'log', effectiveSelectedLogId],
+    queryFn: () => dashboardApi.getLog(effectiveSelectedLogId ?? ''),
+    enabled: effectiveSelectedLogId !== null,
+    staleTime: 30_000,
+  });
   const selectedEntry =
-    entries.find((entry) => entry.id === selectedLogId) ?? entries[0] ?? null;
+    selectedEntryQuery.data?.data ?? selectedEntrySummary ?? null;
+  const isSelectedOutsideSegment = Boolean(
+    effectiveSelectedLogId !== null &&
+      selectedEntryQuery.data?.data &&
+      !selectedEntrySummary,
+  );
 
   function updateFilters(nextFilters: InspectorFilters): void {
     setSearchParams((current) => writeInspectorFilters(current, nextFilters), {
@@ -233,15 +249,25 @@ export function LogsPage(): JSX.Element {
           ) : null}
           <ExecutionInspectorDetailView
             entries={entries}
-            selectedLogId={selectedEntry?.id ?? null}
+            selectedLogId={effectiveSelectedLogId}
             isLoading={logsQuery.isLoading}
             hasMore={Boolean(logsQuery.data?.pagination.has_more && logsQuery.data.pagination.next_cursor)}
+            loadedCount={entries.length}
+            isSelectedOutsideSegment={isSelectedOutsideSegment}
             onSelect={updateSelection}
             onLoadMore={() => setCursor(logsQuery.data?.pagination.next_cursor ?? null)}
+            onClearSelection={() => updateSelection(null)}
           />
         </TabsContent>
 
         <TabsContent value="debug">
+          {selectedEntryQuery.isLoading && !selectedEntrySummary ? (
+            <Card>
+              <CardContent className="p-5 text-sm text-muted">
+                Loading selected trace detail…
+              </CardContent>
+            </Card>
+          ) : null}
           <ExecutionInspectorDebugView entry={selectedEntry as LogEntry | null} />
         </TabsContent>
       </Tabs>
@@ -261,5 +287,5 @@ function buildInspectorPermalink(
   } else {
     next.set('view', view);
   }
-  return `/mission-control/logs?${next.toString()}`;
+  return `/logs?${next.toString()}`;
 }

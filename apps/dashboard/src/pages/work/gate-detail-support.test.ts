@@ -5,7 +5,10 @@ import {
   buildApprovalQueueGatePermalink,
   buildWorkflowGatePermalink,
   isGateHighlighted,
+  readGateDecisionSummary,
   readGatePacketSummary,
+  readGateRequestSourceSummary,
+  readGateResumptionSummary,
   readGateTimelineRows,
   readGateId,
 } from './gate-detail-support.js';
@@ -55,6 +58,50 @@ describe('gate detail support', () => {
     ).toEqual(['2 concerns', '1 artifact', 'recommendation: approve', 'decision: request changes']);
   });
 
+  it('reads request-source, decision, and resumption summaries for operator surfaces', () => {
+    expect(
+      readGateRequestSourceSummary({
+        requested_by_type: 'orchestrator',
+        requested_by_id: 'task-1',
+        requested_by_task: {
+          title: 'Draft release notes',
+          role: 'writer',
+          work_item_title: 'Ship onboarding polish',
+        },
+      }),
+    ).toEqual([
+      'work item: Ship onboarding polish',
+      'step: Draft release notes • writer',
+      'requested by orchestrator:task-1',
+    ]);
+
+    expect(
+      readGateDecisionSummary({
+        human_decision: {
+          action: 'request_changes',
+          decided_by_type: 'admin',
+          decided_by_id: 'user-1',
+          decided_at: '2026-03-12T12:00:00.000Z',
+        },
+      }),
+    ).toContain('request changes by admin:user-1 at');
+
+    expect(
+      readGateResumptionSummary({
+        human_decision: { action: 'approve' },
+      }),
+    ).toBe('Decision recorded • awaiting orchestrator follow-up');
+
+    expect(
+      readGateResumptionSummary({
+        orchestrator_resume: {
+          state: 'processing',
+          event_type: 'gate_decision_recorded',
+        },
+      }),
+    ).toBe('processing • gate decision recorded');
+  });
+
   it('builds operator timeline rows for request and decision context', () => {
     const rows = readGateTimelineRows({
       gate_status: 'awaiting_approval',
@@ -76,7 +123,7 @@ describe('gate detail support', () => {
     expect(rows[0].value).toContain('orchestrator:task-1');
     expect(rows[1].label).toBe('Last decision');
     expect(rows[1].value).toContain('admin:user-1');
-    expect(rows[2].label).toBe('Orchestrator');
+    expect(rows[2].label).toBe('Orchestrator follow-up');
     expect(rows[2].value).toContain('processing');
     expect(rows[3]).toEqual({ label: 'Status', value: 'awaiting approval' });
   });

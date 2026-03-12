@@ -4,12 +4,12 @@
   "version": "0.1.0",
   "packageManager": "pnpm@10.6.1",
   "scripts": {
-    "build": "turbo run build",
+    "build": "corepack pnpm -r build",
     "dev": "turbo run dev --parallel",
-    "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck",
-    "test": "turbo run test",
-    "test:ci": "turbo run test",
+    "lint": "corepack pnpm -r lint",
+    "typecheck": "corepack pnpm -r typecheck",
+    "test": "corepack pnpm -r test",
+    "test:ci": "corepack pnpm -r test",
     "test:v2-contract": "./scripts/test-v2-contract.sh",
     "format": "prettier --check .",
     "format:write": "prettier --write ."

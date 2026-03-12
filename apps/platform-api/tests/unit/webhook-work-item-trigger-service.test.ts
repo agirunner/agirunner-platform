@@ -297,6 +297,62 @@ describe('WebhookWorkItemTriggerService', () => {
     )).rejects.toThrowError(new ValidationError("Webhook trigger default column_id must match a playbook board column"));
   });
 
+  it('migrates plaintext stored trigger secrets during public list reads', async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            ...(await buildTriggerRow()),
+            secret: 'legacy-trigger-secret',
+            field_mappings: {
+              title: 'issue.title',
+              metadata: {
+                authorization: 'Bearer trigger-metadata-secret',
+              },
+            },
+            defaults: {
+              owner_role: 'triager',
+              metadata: {
+                webhook_secret: 'plain-trigger-secret',
+                secret_ref: 'secret:TRIGGER_SECRET',
+              },
+            },
+          },
+        ],
+        rowCount: 1,
+      })
+      .mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+    const result = await service.listTriggers('tenant-1');
+
+    expect(result).toEqual({
+      data: [
+        expect.objectContaining({
+          id: 'trigger-1',
+          field_mappings: {
+            title: 'issue.title',
+            metadata: {
+              authorization: 'redacted://trigger-secret',
+            },
+          },
+          defaults: {
+            owner_role: 'triager',
+            metadata: {
+              webhook_secret: 'redacted://trigger-secret',
+              secret_ref: 'secret:TRIGGER_SECRET',
+            },
+          },
+          secret_configured: true,
+        }),
+      ],
+    });
+    expect(pool.query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('UPDATE webhook_work_item_triggers'),
+      ['tenant-1', 'trigger-1', expect.stringMatching(/^enc:v\d+:/)],
+    );
+  });
+
   async function buildTriggerRow() {
     return {
       id: 'trigger-1',

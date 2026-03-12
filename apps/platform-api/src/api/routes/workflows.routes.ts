@@ -11,6 +11,7 @@ import { PlaybookWorkflowControlService } from '../../services/playbook-workflow
 import { WorkflowActivationDispatchService } from '../../services/workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from '../../services/workflow-activation-service.js';
 import { WorkflowStateService } from '../../services/workflow-state-service.js';
+import { sanitizeEventRows } from '../../services/event-service.js';
 
 const roleModelOverrideSchema = z.object({
   provider: z.string().min(1).max(120),
@@ -243,7 +244,7 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
 
       const total = Number(totalResult.rows[0]?.count ?? '0');
       return {
-        data: rows.rows,
+        data: sanitizeEventRows(rows.rows),
         meta: {
           total,
           page,

@@ -251,7 +251,7 @@ importers:
         specifier: 2.1.8
         version: 2.1.8(@types/node@22.13.5)(lightningcss@1.31.1)
 
-  packages/config:
+  packages/external-worker-config:
     devDependencies:
       vitest:
         specifier: 2.1.8

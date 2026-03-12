@@ -104,7 +104,7 @@ describe('task query service git activity (FR-055)', () => {
     expect(response.is_orchestrator_task).toBe(true);
   });
 
-  it('canonicalizes public task response states to in_progress and escalated', () => {
+  it('normalizes stale persisted task aliases before serializing the public response', () => {
     const service = new TaskQueryService(createPool({
       id: taskId,
       tenant_id: tenantId,
@@ -218,6 +218,102 @@ describe('task query service git activity (FR-055)', () => {
         extra: { preserved: true },
       },
     });
+  });
+
+  it('redacts plaintext secrets from git activity payloads and task context responses', async () => {
+    const queries = vi.fn(async (sql: string) => {
+      if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1 AND id = $2')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: taskId,
+            tenant_id: tenantId,
+            workflow_id: 'workflow-1',
+            project_id: 'project-1',
+            work_item_id: 'wi-1',
+            depends_on: [],
+            input: { credentials: { api_key: 'sk-top-secret', secret_ref: 'secret:API_KEY' } },
+            role_config: { llm_api_key: 'plaintext-key' },
+            context: { oauth: { access_token: 'plaintext-access-token' } },
+            git_info: {
+              linked_prs: [{ id: 7 }],
+              extra_headers: { Authorization: 'Bearer header.payload.signature' },
+              nested: { token_ref: 'secret:GIT_TOKEN' },
+            },
+          }],
+        };
+      }
+      if (sql.includes('FROM projects')) {
+        return {
+          rows: [{
+            id: 'project-1',
+            name: 'Project',
+            description: 'Desc',
+            memory: { deployment_token: 'deploy-secret' },
+          }],
+        };
+      }
+      if (sql.includes('FROM workflows p')) {
+        return {
+          rows: [{
+            id: 'workflow-1',
+            name: 'Workflow',
+            lifecycle: 'continuous',
+            context: { auth: { password: 'workflow-password' } },
+            git_branch: 'main',
+            parameters: { secret_ref: 'secret:SAFE' },
+            resolved_config: { provider_token: 'provider-secret' },
+            instruction_config: {},
+            metadata: {},
+            playbook_id: 'pb-1',
+            project_spec_version: null,
+            playbook_name: 'Playbook',
+            playbook_outcome: 'Done',
+            playbook_definition: {},
+          }],
+        };
+      }
+      if (sql.includes('SELECT project_id, project_spec_version') && sql.includes('FROM workflows')) {
+        return {
+          rowCount: 1,
+          rows: [{ project_id: 'project-1', project_spec_version: 1 }],
+        };
+      }
+      if (sql.includes('FROM project_spec_versions')) {
+        return {
+          rowCount: 1,
+          rows: [{ spec: {} }],
+        };
+      }
+      if (sql.includes('FROM workflow_documents')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('SELECT DISTINCT stage_name')) return { rows: [] };
+      if (sql.includes('FROM workflow_work_items')) {
+        return {
+          rows: [{
+            id: 'wi-1',
+            stage_name: 'build',
+            column_id: 'todo',
+            title: 'Item',
+            metadata: { webhook_url: 'https://hooks.slack.com/services/secret' },
+          }],
+        };
+      }
+      return { rows: [] };
+    });
+    const service = new TaskQueryService({ query: queries } as never);
+
+    const git = await service.getTaskGitActivity(tenantId, taskId);
+    const context = await service.getTaskContext(tenantId, taskId);
+
+    expect((git.raw as Record<string, any>).extra_headers.Authorization).toBe('redacted://task-secret');
+    expect((git.raw as Record<string, any>).nested.token_ref).toBe('secret:GIT_TOKEN');
+    expect((context.project as Record<string, any>).memory.deployment_token).toBe('redacted://task-context-secret');
+    expect((context.workflow as Record<string, any>).resolved_config.provider_token).toBe('redacted://task-context-secret');
+    expect((context.task as Record<string, any>).input.credentials.api_key).toBe('redacted://task-context-secret');
+    expect((context.task as Record<string, any>).input.credentials.secret_ref).toBe('secret:API_KEY');
+    expect((context.task as Record<string, any>).context.oauth.access_token).toBe('redacted://task-context-secret');
   });
 
   it('returns defaults when git_info is absent', async () => {

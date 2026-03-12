@@ -12,6 +12,11 @@ import {
 
 const VALID_POOL_MODES = new Set(['warm', 'cold']);
 const VALID_POOL_KINDS = new Set(['orchestrator', 'specialist']);
+const FLEET_ENV_SECRET_REDACTION = 'redacted://fleet-environment-secret';
+const FLEET_EVENT_SECRET_REDACTION = 'redacted://fleet-event-secret';
+const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
+const secretLikeValuePattern =
+  /(?:^enc:v\d+:|^secret:|^redacted:\/\/|^Bearer\s+\S+|^sk-[A-Za-z0-9_-]+|^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/i;
 
 interface FleetLogger {
   warn(obj: Record<string, unknown>, msg: string): void;
@@ -81,6 +86,11 @@ interface DesiredStateRow {
   updated_by: string | null;
 }
 
+interface PublicDesiredStateRow extends Omit<DesiredStateRow, 'environment' | 'llm_api_key_secret_ref'> {
+  environment: Record<string, unknown>;
+  llm_api_key_secret_ref_configured: boolean;
+}
+
 interface ActualStateRow {
   id: string;
   desired_state_id: string;
@@ -94,7 +104,7 @@ interface ActualStateRow {
   last_updated: Date;
 }
 
-interface FleetWorkerView extends DesiredStateRow {
+interface FleetWorkerView extends PublicDesiredStateRow {
   actual: ActualStateRow[];
 }
 
@@ -123,6 +133,102 @@ interface ContainerImageRow {
   last_seen: Date;
 }
 
+function toPublicDesiredStateRow(row: DesiredStateRow): PublicDesiredStateRow {
+  const { llm_api_key_secret_ref: llmApiKeySecretRef, ...rest } = row;
+  return {
+    ...rest,
+    environment: redactEnvironmentSecrets(row.environment),
+    llm_api_key_secret_ref_configured:
+      typeof llmApiKeySecretRef === 'string' && llmApiKeySecretRef.trim().length > 0,
+  };
+}
+
+function redactEnvironmentSecrets(environment: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(environment).map(([key, value]) => [key, redactEnvironmentValue(key, value)]),
+  );
+}
+
+function redactEnvironmentValue(key: string, value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => redactEnvironmentValue(key, entry));
+  }
+
+  if (value && typeof value === 'object') {
+    return redactEnvironmentSecrets(value as Record<string, unknown>);
+  }
+
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  if (isSecretReference(value) || !isSecretLikeKey(key)) {
+    return value;
+  }
+
+  return FLEET_ENV_SECRET_REDACTION;
+}
+
+function isSecretReference(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return normalized.startsWith('secret:') || normalized.startsWith('redacted://');
+}
+
+function isSecretLikeKey(key: string): boolean {
+  return secretLikeKeyPattern.test(key);
+}
+
+function sanitizeFleetEventRows<T extends { payload?: Record<string, unknown> | null }>(rows: T[]): T[] {
+  return rows.map((row) => sanitizeFleetEventRow(row));
+}
+
+function sanitizeFleetEventRow<T extends { payload?: Record<string, unknown> | null }>(row: T): T {
+  return {
+    ...row,
+    payload: sanitizeFleetEventPayload(row.payload),
+  };
+}
+
+function sanitizeFleetEventPayload(payload: Record<string, unknown> | null | undefined): Record<string, unknown> {
+  if (!payload) {
+    return {};
+  }
+
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(payload)) {
+    sanitized[key] = sanitizeFleetEventValue(value, isSecretLikeKey(key));
+  }
+  return sanitized;
+}
+
+function sanitizeFleetEventValue(value: unknown, inheritedSecret: boolean): unknown {
+  if (typeof value === 'string') {
+    return inheritedSecret || isSecretLikeValue(value) ? FLEET_EVENT_SECRET_REDACTION : value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => sanitizeFleetEventValue(entry, inheritedSecret));
+  }
+
+  if (value && typeof value === 'object') {
+    const sanitized: Record<string, unknown> = {};
+    for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
+      sanitized[key] = sanitizeFleetEventValue(nestedValue, inheritedSecret || isSecretLikeKey(key));
+    }
+    return sanitized;
+  }
+
+  return value;
+}
+
+function isSecretLikeValue(value: string): boolean {
+  const normalized = value.trim();
+  if (normalized.length === 0) {
+    return false;
+  }
+  return secretLikeValuePattern.test(normalized);
+}
+
 export class FleetService {
   private readonly logger: FleetLogger;
 
@@ -143,7 +249,7 @@ export class FleetService {
         'SELECT * FROM worker_actual_state WHERE desired_state_id = $1',
         [d.id],
       );
-      views.push({ ...d, actual: actual.rows });
+      views.push({ ...toPublicDesiredStateRow(d), actual: actual.rows });
     }
     return views;
   }
@@ -157,10 +263,10 @@ export class FleetService {
       'SELECT * FROM worker_actual_state WHERE desired_state_id = $1',
       [id],
     );
-    return { ...row, actual: actual.rows };
+    return { ...toPublicDesiredStateRow(row), actual: actual.rows };
   }
 
-  async createWorker(tenantId: string, input: CreateDesiredStateInput): Promise<DesiredStateRow> {
+  async createWorker(tenantId: string, input: CreateDesiredStateInput): Promise<PublicDesiredStateRow> {
     const validated = createDesiredStateSchema.parse(input);
 
     const result = await this.pool.query<DesiredStateRow>(
@@ -187,10 +293,10 @@ export class FleetService {
         validated.enabled,
       ],
     );
-    return result.rows[0];
+    return toPublicDesiredStateRow(result.rows[0]);
   }
 
-  async updateWorker(tenantId: string, id: string, input: UpdateDesiredStateInput): Promise<DesiredStateRow> {
+  async updateWorker(tenantId: string, id: string, input: UpdateDesiredStateInput): Promise<PublicDesiredStateRow> {
     const validated = updateDesiredStateSchema.parse(input);
     const setClauses: string[] = [];
     const values: unknown[] = [tenantId, id];
@@ -220,8 +326,7 @@ export class FleetService {
     }
 
     if (setClauses.length === 0) {
-      const worker = await this.getWorker(tenantId, id);
-      return worker;
+      return toPublicDesiredStateRow(await this.loadDesiredStateRow(tenantId, id));
     }
 
     setClauses.push('version = version + 1');
@@ -232,7 +337,7 @@ export class FleetService {
       values,
     );
     if (!result.rowCount) throw new NotFoundError('Fleet worker not found');
-    return result.rows[0];
+    return toPublicDesiredStateRow(result.rows[0]);
   }
 
   async deleteWorker(tenantId: string, id: string): Promise<void> {
@@ -243,24 +348,24 @@ export class FleetService {
     if (!result.rowCount) throw new NotFoundError('Fleet worker not found');
   }
 
-  async restartWorker(tenantId: string, id: string): Promise<DesiredStateRow> {
+  async restartWorker(tenantId: string, id: string): Promise<PublicDesiredStateRow> {
     const result = await this.pool.query<DesiredStateRow>(
       `UPDATE worker_desired_state SET restart_requested = true, updated_at = NOW()
        WHERE tenant_id = $1 AND id = $2 RETURNING *`,
       [tenantId, id],
     );
     if (!result.rowCount) throw new NotFoundError('Fleet worker not found');
-    return result.rows[0];
+    return toPublicDesiredStateRow(result.rows[0]);
   }
 
-  async drainWorker(tenantId: string, id: string): Promise<DesiredStateRow> {
+  async drainWorker(tenantId: string, id: string): Promise<PublicDesiredStateRow> {
     const result = await this.pool.query<DesiredStateRow>(
       `UPDATE worker_desired_state SET draining = true, updated_at = NOW()
        WHERE tenant_id = $1 AND id = $2 RETURNING *`,
       [tenantId, id],
     );
     if (!result.rowCount) throw new NotFoundError('Fleet worker not found');
-    return result.rows[0];
+    return toPublicDesiredStateRow(result.rows[0]);
   }
 
   async listContainers(tenantId: string): Promise<ContainerView[]> {
@@ -546,10 +651,19 @@ export class FleetService {
     });
   }
 
+  private async loadDesiredStateRow(tenantId: string, id: string): Promise<DesiredStateRow> {
+    const repo = new TenantScopedRepository(this.pool, tenantId);
+    const row = await repo.findById<DesiredStateRow>('worker_desired_state', '*', id);
+    if (!row) {
+      throw new NotFoundError('Fleet worker not found');
+    }
+    return row;
+  }
+
   async recordHeartbeat(
     tenantId: string,
     payload: HeartbeatPayload,
-  ): Promise<{ should_drain: boolean }> {
+  ): Promise<HeartbeatAck> {
     const validStates = ['idle', 'executing', 'draining'];
     if (!validStates.includes(payload.state)) {
       throw new ValidationError(`Invalid heartbeat state: ${payload.state}`);
@@ -585,7 +699,14 @@ export class FleetService {
     );
 
     const drainRequested = result.rows[0]?.drain_requested ?? false;
-    return { should_drain: drainRequested };
+    return {
+      runtime_id: payload.runtime_id,
+      playbook_id: payload.playbook_id,
+      pool_kind: payload.pool_kind,
+      state: payload.state,
+      task_id: payload.task_id ?? null,
+      should_drain: drainRequested,
+    };
   }
 
   async listHeartbeats(tenantId: string): Promise<HeartbeatListRow[]> {
@@ -746,7 +867,7 @@ export class FleetService {
       worker_pools: workerPools,
       by_playbook: [...playbookMap.values()],
       by_playbook_pool: [...playbookPoolMap.values()],
-      recent_events: recentEventsResult.rows,
+      recent_events: sanitizeFleetEventRows(recentEventsResult.rows),
     };
   }
 
@@ -793,7 +914,7 @@ export class FleetService {
     );
 
     return {
-      events: eventsResult.rows,
+      events: sanitizeFleetEventRows(eventsResult.rows),
       total: countResult.rows[0]?.count ?? 0,
     };
   }
@@ -830,7 +951,7 @@ export class FleetService {
         event.task_id ?? null,
         event.workflow_id ?? null,
         event.container_id ?? null,
-        JSON.stringify(event.payload ?? {}),
+        JSON.stringify(sanitizeFleetEventPayload(event.payload ?? {})),
       ],
     );
   }
@@ -914,6 +1035,15 @@ export interface HeartbeatPayload {
   uptime_seconds?: number;
   last_claim_at?: string | null;
   image?: string;
+}
+
+export interface HeartbeatAck {
+  runtime_id: string;
+  playbook_id: string;
+  pool_kind: PlaybookRuntimePoolKind;
+  state: string;
+  task_id: string | null;
+  should_drain: boolean;
 }
 
 interface HeartbeatRow {

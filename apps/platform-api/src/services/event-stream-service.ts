@@ -1,4 +1,5 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
+import { sanitizeEventRow } from './event-service.js';
 
 interface EventFilters {
   types?: string[];
@@ -92,7 +93,7 @@ export class EventStreamService {
     if (!eventRes.rowCount) {
       return;
     }
-    const event = eventRes.rows[0];
+    const event = sanitizeEventRow(eventRes.rows[0]);
 
     for (const subscriber of this.subscribers.values()) {
       if (subscriber.tenantId && subscriber.tenantId !== event.tenant_id) {

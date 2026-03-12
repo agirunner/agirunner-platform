@@ -4,12 +4,13 @@ export const taskStateEnum = pgEnum('task_state', [
   'pending',
   'ready',
   'claimed',
-  'running',
+  'in_progress',
   'completed',
   'failed',
   'cancelled',
   'awaiting_approval',
   'output_pending_review',
+  'escalated',
 ]);
 
 export const taskPriorityEnum = pgEnum('task_priority', ['critical', 'high', 'normal', 'low']);
@@ -50,7 +51,6 @@ export const eventEntityTypeEnum = pgEnum('event_entity_type', [
   'agent',
   'worker',
   'project',
-  'template',
   'system',
 ]);
 

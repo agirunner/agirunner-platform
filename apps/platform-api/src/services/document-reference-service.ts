@@ -1,5 +1,6 @@
 import type { DatabaseQueryable } from '../db/database.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 
 type DocumentSource = 'repository' | 'artifact' | 'external';
 
@@ -287,7 +288,9 @@ function buildProjectDocumentReference(
     source: normalized.source,
     ...(normalized.title ? { title: normalized.title } : {}),
     ...(normalized.description ? { description: normalized.description } : {}),
-    metadata: normalized.metadata,
+    metadata: sanitizeSecretLikeRecord(normalized.metadata, {
+      redactionValue: 'redacted://document-secret',
+    }),
     ...(normalized.repository ? { repository: normalized.repository } : {}),
     ...(normalized.path ? { path: normalized.path } : {}),
     ...(normalized.url ? { url: normalized.url } : {}),
@@ -297,7 +300,9 @@ function buildProjectDocumentReference(
 function buildWorkflowDocumentReference(
   row: WorkflowDocumentRow,
 ): ResolvedDocumentReference {
-  const metadata = asRecord(row.metadata);
+  const metadata = sanitizeSecretLikeRecord(row.metadata, {
+    redactionValue: 'redacted://document-secret',
+  });
   const base: ResolvedDocumentReference = {
     logical_name: row.logical_name,
     scope: 'workflow',

@@ -8,7 +8,7 @@ import { WorkflowActivationDispatchService } from './workflow-activation-dispatc
 import type { CreateWorkflowInput } from './workflow-service.types.js';
 import { EventService } from './event-service.js';
 import type { ModelCatalogService } from './model-catalog-service.js';
-import { WorkflowStageService } from './workflow-stage-service.js';
+import { currentStageNameFromStages, WorkflowStageService } from './workflow-stage-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
 
 interface WorkflowCreationDeps {
@@ -132,7 +132,7 @@ export class WorkflowCreationService {
         client,
       );
 
-      if (shouldEmitInitialStageStart(workflow)) {
+      if (definition.lifecycle === 'standard' && initialStageName) {
         await this.deps.eventService.emit(
           {
             tenantId: identity.tenantId,
@@ -141,7 +141,7 @@ export class WorkflowCreationService {
             entityId: workflow.id as string,
             actorType: identity.scope,
             actorId: identity.keyPrefix,
-            data: { stage_name: workflow.current_stage },
+            data: { stage_name: initialStageName },
           },
           client,
         );
@@ -153,7 +153,7 @@ export class WorkflowCreationService {
           workflowId: workflow.id as string,
           reason: 'workflow.created',
           eventType: 'workflow.created',
-          payload: workflow.current_stage ? { stage_name: workflow.current_stage } : {},
+          payload: initialStageName ? { stage_name: initialStageName } : {},
           actorType: identity.scope,
           actorId: identity.keyPrefix,
         },
@@ -168,6 +168,10 @@ export class WorkflowCreationService {
       await client.query('COMMIT');
       return sanitizeCreatedWorkflow({
         ...workflow,
+        current_stage:
+          definition.lifecycle === 'standard'
+            ? currentStageNameFromStages(createdStages as never)
+            : null,
         workflow_stages: createdStages,
         work_items: [],
         activations: [activation],
@@ -205,10 +209,6 @@ function initialWorkflowStageName(definition: ReturnType<typeof parsePlaybookDef
     return null;
   }
   return defaultStageName(definition);
-}
-
-function shouldEmitInitialStageStart(workflow: PersistedWorkflowRow): boolean {
-  return workflow.lifecycle === 'standard' && typeof workflow.current_stage === 'string';
 }
 
 function sanitizeCreatedWorkflow(workflow: CreatedWorkflow): CreatedWorkflow {

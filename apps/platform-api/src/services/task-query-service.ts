@@ -1,6 +1,8 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { NotFoundError } from '../errors/domain-errors.js';
+import { normalizeTaskState } from '../orchestration/task-state-machine.js';
+import { sanitizeSecretLikeValue } from './secret-redaction.js';
 import { buildTaskContext } from './task-context-service.js';
 import type { ListTaskQuery } from './task-service.types.js';
 
@@ -23,7 +25,7 @@ export class TaskQueryService {
     const metadata = (sanitizedTask.metadata ?? {}) as Record<string, unknown>;
     return {
       ...sanitizedTask,
-      state: toPublicTaskState(sanitizedTask.state),
+      state: normalizeResponseTaskState(sanitizedTask.state),
       description: metadata.description ?? null,
       parent_id: metadata.parent_id ?? null,
       verification: metadata.verification ?? null,
@@ -94,18 +96,21 @@ export class TaskQueryService {
 
   async getTaskGitActivity(tenantId: string, taskId: string) {
     const task = await this.loadTaskOrThrow(tenantId, taskId);
+    const gitInfo = sanitizeSecretLikeValue((task.git_info as Record<string, unknown> | null) ?? {}, {
+      redactionValue: SECRET_REDACTION,
+    }) as Record<string, unknown>;
     return {
-      linked_prs: Array.isArray((task.git_info as Record<string, unknown> | null)?.linked_prs)
-        ? ((task.git_info as Record<string, unknown>).linked_prs as unknown[])
+      linked_prs: Array.isArray(gitInfo.linked_prs)
+        ? (gitInfo.linked_prs as unknown[])
         : [],
-      branches: Array.isArray((task.git_info as Record<string, unknown> | null)?.branches)
-        ? ((task.git_info as Record<string, unknown>).branches as unknown[])
+      branches: Array.isArray(gitInfo.branches)
+        ? (gitInfo.branches as unknown[])
         : [],
-      ci_status: (task.git_info as Record<string, unknown> | null)?.ci_status ?? null,
-      merge_history: Array.isArray((task.git_info as Record<string, unknown> | null)?.merge_history)
-        ? ((task.git_info as Record<string, unknown>).merge_history as unknown[])
+      ci_status: gitInfo.ci_status ?? null,
+      merge_history: Array.isArray(gitInfo.merge_history)
+        ? (gitInfo.merge_history as unknown[])
         : [],
-      raw: (task.git_info as Record<string, unknown> | null) ?? {},
+      raw: gitInfo,
     };
   }
 
@@ -152,12 +157,6 @@ function isSecretLikeKey(key: string): boolean {
   return secretLikeKeyPattern.test(key);
 }
 
-function toPublicTaskState(value: unknown): unknown {
-  if (value === 'running') {
-    return 'in_progress';
-  }
-  if (value === 'awaiting_escalation') {
-    return 'escalated';
-  }
-  return value;
+function normalizeResponseTaskState(value: unknown): unknown {
+  return typeof value === 'string' ? (normalizeTaskState(value) ?? value) : value;
 }

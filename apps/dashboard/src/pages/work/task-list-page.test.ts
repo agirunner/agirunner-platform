@@ -9,8 +9,8 @@ function readSource() {
 describe('task list page source', () => {
   it('frames the list as specialist execution instead of a generic task table', () => {
     const source = readSource();
-    expect(source).toContain('Specialist Tasks');
-    expect(source).toContain('Operator view of specialist execution');
+    expect(source).toContain('Execution Steps');
+    expect(source).toContain('Operator view of specialist steps');
     expect(source).toContain('describeTaskKind');
     expect(source).toContain('Orchestrator activation');
   });
@@ -22,7 +22,7 @@ describe('task list page source', () => {
     expect(source).toContain('activation_id');
     expect(source).toContain('output_pending_review');
     expect(source).toContain('escalated');
-    expect(source).toContain("status === 'running' || status === 'claimed'");
-    expect(source).not.toContain("| 'claimed'");
+    expect(source).not.toContain("status === 'running' || status === 'claimed'");
+    expect(source).toContain("return 'Specialist step'");
   });
 });

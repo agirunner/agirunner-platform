@@ -7,7 +7,7 @@ const ACTIVE_ORCHESTRATOR_TASK_STATES = [
   'pending',
   'ready',
   'claimed',
-  'running',
+  'in_progress',
   'awaiting_approval',
   'output_pending_review',
 ] as const;
@@ -40,6 +40,35 @@ interface WorkflowDispatchRow {
   playbook_id: string;
   playbook_name: string;
   playbook_outcome: string | null;
+}
+
+interface ActivationTaskRow {
+  id: string;
+}
+
+interface ExistingActivationTaskRow extends ActivationTaskRow {
+  state: string;
+  workflow_id: string;
+  activation_id: string | null;
+  is_orchestrator_task: boolean;
+  title: string;
+  output: Record<string, unknown> | null;
+  error: Record<string, unknown> | null;
+}
+
+interface ActivationTaskDefinition {
+  title: string;
+  stageName: string | null;
+  input: Record<string, unknown>;
+  roleConfig: Record<string, unknown>;
+  environment: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+}
+
+interface ExistingActivationTaskResolution {
+  kind: 'active' | 'reactivated' | 'finalized';
+  taskId: string;
+  previousState?: string;
 }
 
 interface DispatchCandidateRow {
@@ -205,7 +234,11 @@ export class WorkflowActivationDispatchService {
                   consumed_at = now(),
                   completed_at = now(),
                   summary = $4,
-                  error = NULL
+                  error = CASE
+                    WHEN jsonb_typeof(error->'recovery') = 'object'
+                      THEN jsonb_build_object('recovery', error->'recovery')
+                    ELSE NULL
+                  END
             WHERE tenant_id = $1
               AND workflow_id = $2
               AND (id = $3 OR activation_id = $3)
@@ -316,7 +349,9 @@ export class WorkflowActivationDispatchService {
         return null;
       }
       const activationAnchor = findActivationAnchor(activation.id, activationBatch);
-      const taskResult = await client.query<{ id: string }>(
+      const taskRequestId = `activation:${activationAnchor.id}`;
+      const taskDefinition = buildActivationTaskDefinition(workflow, activationAnchor, activationBatch);
+      const taskResult = await client.query<ActivationTaskRow>(
         `INSERT INTO tasks (
            tenant_id,
            workflow_id,
@@ -348,52 +383,91 @@ export class WorkflowActivationDispatchService {
            $1, $2, $3, $4, $5, $6, 'high', 'ready', '{}'::uuid[], false, false,
            $7, '{}'::jsonb, $8::text[], $9::jsonb, $10::jsonb, '[]'::jsonb, $11, $12, true, $13, NULL, NULL, false, 0, $14::jsonb
          )
+         ON CONFLICT (tenant_id, workflow_id, request_id)
+         WHERE request_id IS NOT NULL
+           AND workflow_id IS NOT NULL
+         DO NOTHING
          RETURNING id`,
         [
           activationAnchor.tenant_id,
           activationAnchor.workflow_id,
           workflow.project_id,
-          buildActivationTaskTitle(workflow, activationAnchor),
+          taskDefinition.title,
           'orchestrator',
-          activationTaskStageName(workflow, activationBatch),
-          buildActivationTaskInput(workflow, activationAnchor, activationBatch),
+          taskDefinition.stageName,
+          taskDefinition.input,
           ['orchestrator'],
-          buildActivationRoleConfig(),
-          { execution_mode: 'orchestrator' },
+          taskDefinition.roleConfig,
+          taskDefinition.environment,
           activationAnchor.id,
-          `activation:${activationAnchor.id}`,
+          taskRequestId,
           this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES,
-          {
-            activation_event_type: activationAnchor.event_type,
-            activation_reason: 'queued_events',
-            activation_request_id: activationAnchor.request_id,
-            activation_event_count: activationBatch.length,
-          },
+          taskDefinition.metadata,
         ],
       );
-      const taskId = taskResult.rows[0]?.id ?? null;
-      if (!taskId) {
+      const createdTask = taskResult.rows[0] ?? null;
+      const existingTask = createdTask
+        ? null
+        : await this.resolveExistingActivationTask(
+          activationAnchor.tenant_id,
+          activationAnchor.workflow_id,
+          activationAnchor.id,
+          taskRequestId,
+          taskDefinition,
+          client,
+        );
+      const taskId = createdTask?.id ?? existingTask?.taskId ?? null;
+      if (!taskId || !createdTask && !existingTask) {
         throw new Error('Failed to create orchestrator task');
       }
 
-      await this.deps.eventService.emit(
-        {
-          tenantId: activationAnchor.tenant_id,
-          type: 'task.created',
-          entityType: 'task',
-          entityId: taskId,
-          actorType: 'system',
-          actorId: 'workflow_activation_dispatcher',
-          data: {
-            workflow_id: activationAnchor.workflow_id,
-            role: 'orchestrator',
-            state: 'ready',
-            activation_id: activationAnchor.id,
-            is_orchestrator_task: true,
+      if (existingTask?.kind === 'active' || existingTask?.kind === 'finalized') {
+        if (ownsClient) {
+          await client.query('COMMIT');
+        }
+        return taskId;
+      }
+
+      if (createdTask == null) {
+        await this.deps.eventService.emit(
+          {
+            tenantId: activationAnchor.tenant_id,
+            type: 'task.state_changed',
+            entityType: 'task',
+            entityId: taskId,
+            actorType: 'system',
+            actorId: 'workflow_activation_dispatcher',
+            data: {
+              previous_state: existingTask?.previousState ?? null,
+              state: 'ready',
+              reason: 'activation_redispatched',
+              activation_id: activationAnchor.id,
+              is_orchestrator_task: true,
+            },
           },
-        },
-        client,
-      );
+          client,
+        );
+      } else {
+        await this.deps.eventService.emit(
+          {
+            tenantId: activationAnchor.tenant_id,
+            type: 'task.created',
+            entityType: 'task',
+            entityId: taskId,
+            actorType: 'system',
+            actorId: 'workflow_activation_dispatcher',
+            data: {
+              workflow_id: activationAnchor.workflow_id,
+              role: 'orchestrator',
+              state: 'ready',
+              activation_id: activationAnchor.id,
+              is_orchestrator_task: true,
+            },
+          },
+          client,
+        );
+      }
+
       await this.deps.eventService.emit(
         {
           tenantId: activationAnchor.tenant_id,
@@ -557,11 +631,20 @@ export class WorkflowActivationDispatchService {
            ON p.tenant_id = w.tenant_id
           AND p.id = w.playbook_id
          LEFT JOIN LATERAL (
-           SELECT ARRAY_AGG(DISTINCT wi.stage_name ORDER BY wi.stage_name) AS active_stages
-             FROM workflow_work_items wi
-            WHERE wi.tenant_id = w.tenant_id
-              AND wi.workflow_id = w.id
-              AND wi.completed_at IS NULL
+           SELECT ARRAY_AGG(DISTINCT active_stage_name ORDER BY active_stage_name) AS active_stages
+             FROM (
+               SELECT wi.stage_name AS active_stage_name
+                 FROM workflow_work_items wi
+                WHERE wi.tenant_id = w.tenant_id
+                  AND wi.workflow_id = w.id
+                  AND wi.completed_at IS NULL
+               UNION
+               SELECT ws.name AS active_stage_name
+                 FROM workflow_stages ws
+                WHERE ws.tenant_id = w.tenant_id
+                  AND ws.workflow_id = w.id
+                  AND ws.gate_status IN ('awaiting_approval', 'changes_requested', 'rejected')
+             ) AS active_stage_names
          ) AS active_work_items ON true
         WHERE w.tenant_id = $1
           AND w.id = $2
@@ -591,6 +674,103 @@ export class WorkflowActivationDispatchService {
     return result.rows.sort((left, right) => left.queued_at.getTime() - right.queued_at.getTime());
   }
 
+  private async resolveExistingActivationTask(
+    tenantId: string,
+    workflowId: string,
+    activationId: string,
+    requestId: string,
+    taskDefinition: ActivationTaskDefinition,
+    client: DatabaseClient,
+  ): Promise<ExistingActivationTaskResolution | null> {
+    const result = await client.query<ExistingActivationTaskRow>(
+      `SELECT id,
+              state,
+              workflow_id,
+              activation_id,
+              is_orchestrator_task,
+              title,
+              output,
+              error
+         FROM tasks
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND request_id = $3
+          AND is_orchestrator_task = true
+        LIMIT 1`,
+      [tenantId, workflowId, requestId],
+    );
+    const existingTask = result.rows[0] ?? null;
+    if (!existingTask) {
+      return null;
+    }
+
+    if (isActiveOrchestratorTaskState(existingTask.state)) {
+      return { kind: 'active', taskId: existingTask.id };
+    }
+
+    if (existingTask.state === 'completed') {
+      await this.finalizeActivationForTask(tenantId, { ...existingTask }, 'completed', client);
+      return { kind: 'finalized', taskId: existingTask.id };
+    }
+
+    await this.reactivateExistingActivationTask(
+      tenantId,
+      existingTask.id,
+      activationId,
+      taskDefinition,
+      client,
+    );
+      return { kind: 'reactivated', taskId: existingTask.id, previousState: existingTask.state };
+  }
+
+  private async reactivateExistingActivationTask(
+    tenantId: string,
+    taskId: string,
+    activationId: string,
+    taskDefinition: ActivationTaskDefinition,
+    client: DatabaseClient,
+  ): Promise<void> {
+    const result = await client.query(
+      `UPDATE tasks
+          SET state = 'ready',
+              state_changed_at = now(),
+              title = $3,
+              stage_name = $4,
+              input = $5::jsonb,
+              role_config = $6::jsonb,
+              environment = $7::jsonb,
+              metadata = $8::jsonb,
+              activation_id = $9::uuid,
+              assigned_agent_id = NULL,
+              assigned_worker_id = NULL,
+              claimed_at = NULL,
+              started_at = NULL,
+              completed_at = NULL,
+              output = NULL,
+              error = NULL,
+              metrics = NULL,
+              git_info = NULL,
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND id = $2
+          AND is_orchestrator_task = true`,
+      [
+        tenantId,
+        taskId,
+        taskDefinition.title,
+        taskDefinition.stageName,
+        taskDefinition.input,
+        taskDefinition.roleConfig,
+        taskDefinition.environment,
+        taskDefinition.metadata,
+        activationId,
+      ],
+    );
+    if (!result.rowCount) {
+      throw new Error('Failed to reactivate existing orchestrator task');
+    }
+  }
+
   private async recoverStaleActivation(
     tenantId: string,
     activationId: string,
@@ -607,6 +787,10 @@ export class WorkflowActivationDispatchService {
       }
 
       if (staleState.active_task_id) {
+        if (hasReportedStaleRecovery(staleState.error, staleState.active_task_id)) {
+          await client.query('COMMIT');
+          return { requeued: 0, redispatched: 0, reported: 0, details: [] };
+        }
         await this.markRecoveryDetected(staleState, client);
         await this.deps.eventService.emit(
           {
@@ -860,6 +1044,26 @@ function buildActivationTaskTitle(
   return `Orchestrate ${workflow.name}: ${activation.reason}`;
 }
 
+function buildActivationTaskDefinition(
+  workflow: WorkflowDispatchRow,
+  activation: QueuedActivationRow,
+  activationBatch: QueuedActivationRow[],
+): ActivationTaskDefinition {
+  return {
+    title: buildActivationTaskTitle(workflow, activation),
+    stageName: activationTaskStageName(workflow, activationBatch),
+    input: buildActivationTaskInput(workflow, activation, activationBatch),
+    roleConfig: buildActivationRoleConfig(),
+    environment: { execution_mode: 'orchestrator' },
+    metadata: {
+      activation_event_type: activation.event_type,
+      activation_reason: 'queued_events',
+      activation_request_id: activation.request_id,
+      activation_event_count: activationBatch.length,
+    },
+  };
+}
+
 function buildActivationTaskInput(
   workflow: WorkflowDispatchRow,
   activation: QueuedActivationRow,
@@ -869,7 +1073,7 @@ function buildActivationTaskInput(
     activation_id: activation.id,
     activation_reason: 'queued_events',
     lifecycle: workflow.lifecycle,
-    current_stage: workflow.lifecycle === 'continuous' ? null : workflow.current_stage,
+    ...(workflow.lifecycle !== 'continuous' ? { current_stage: workflow.current_stage } : {}),
     active_stages: workflow.active_stages,
     events: activationBatch.map((event) => ({
       queue_id: event.id,
@@ -1012,4 +1216,25 @@ function isReadyForDispatch(activation: QueuedActivationRow, activationDelayMs: 
   }
 
   return Date.now() - activation.queued_at.getTime() >= activationDelayMs;
+}
+
+function hasReportedStaleRecovery(
+  error: Record<string, unknown> | null,
+  activeTaskId: string,
+): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const recovery = error.recovery;
+  if (!recovery || typeof recovery !== 'object') {
+    return false;
+  }
+  const recoveryRecord = recovery as Record<string, unknown>;
+  const status = typeof recoveryRecord.status === 'string' ? recoveryRecord.status : null;
+  const taskId = typeof recoveryRecord.task_id === 'string' ? recoveryRecord.task_id : null;
+  return status === 'stale_detected' && taskId === activeTaskId;
+}
+
+function isActiveOrchestratorTaskState(state: string | null): boolean {
+  return state != null && ACTIVE_ORCHESTRATOR_TASK_STATES.includes(state as (typeof ACTIVE_ORCHESTRATOR_TASK_STATES)[number]);
 }

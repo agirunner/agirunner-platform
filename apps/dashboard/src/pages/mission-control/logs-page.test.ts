@@ -22,6 +22,8 @@ describe('execution inspector page source', () => {
   it('uses the active log surfaces instead of the shared log viewer', () => {
     const source = readPage();
     expect(source).toContain('dashboardApi.queryLogs');
+    expect(source).toContain("detail: SUMMARY_DETAIL_MODE");
+    expect(source).toContain('dashboardApi.getLog');
     expect(source).toContain('dashboardApi.getLogStats');
     expect(source).not.toContain('LogViewer');
   });
@@ -32,6 +34,14 @@ describe('execution inspector page source', () => {
     expect(source).toContain('readInspectorFilters(searchParams)');
     expect(source).toContain("next.set('log', String(logId))");
     expect(source).toContain("next.set('view', view)");
+    expect(source).toContain("return `/logs?");
     expect(source).toContain('Permalink');
+  });
+
+  it('shows segment-oriented pagination copy and lazy selected-detail loading', () => {
+    const source = readPage();
+    expect(source).toContain('Loading selected trace detail…');
+    expect(source).toContain('isSelectedOutsideSegment');
+    expect(source).toContain('loadedCount={entries.length}');
   });
 });

@@ -192,6 +192,16 @@ describe('sdk full client coverage', () => {
         }),
       )
       .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: { id: 'playbook-3', version: 2 } }), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: { id: 'playbook-4', version: 3 } }), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(
         new Response(JSON.stringify({ data: { id: 'wf-1', playbook_id: 'playbook-1' } }), {
           status: 200,
         }),
@@ -372,12 +382,31 @@ describe('sdk full client coverage', () => {
             data: [
               {
                 id: 'activation-1',
+                activation_id: 'activation-batch-1',
                 workflow_id: 'wf-1',
                 reason: 'work_item.created',
                 event_type: 'work_item.created',
                 payload: {},
                 state: 'queued',
                 queued_at: '2026-03-11T00:00:00Z',
+                recovery_status: 'stale_detected',
+                recovery_reason: 'orchestrator task heartbeat expired',
+                recovery_detected_at: '2026-03-11T00:05:00Z',
+                stale_started_at: '2026-03-11T00:03:00Z',
+                redispatched_task_id: 'task-redispatch-1',
+                latest_event_at: '2026-03-11T00:05:00Z',
+                event_count: 2,
+                events: [
+                  {
+                    id: 'activation-event-1',
+                    activation_id: 'activation-batch-1',
+                    reason: 'work_item.created',
+                    event_type: 'work_item.created',
+                    payload: {},
+                    state: 'queued',
+                    queued_at: '2026-03-11T00:00:00Z',
+                  },
+                ],
               },
             ],
           }),
@@ -449,6 +478,14 @@ describe('sdk full client coverage', () => {
       outcome: 'Ship production code',
       definition: { lifecycle: 'standard', stages: [] },
     });
+    const updatedPlaybook = await client.updatePlaybook('playbook-2', {
+      description: 'Rev 2',
+    });
+    const replacedPlaybook = await client.replacePlaybook('playbook-3', {
+      name: 'Delivery',
+      outcome: 'Ship production code',
+      definition: { lifecycle: 'continuous', stages: [] },
+    });
     const workflow = await client.createWorkflow({
       playbook_id: 'playbook-1',
       name: 'Delivery run',
@@ -481,6 +518,8 @@ describe('sdk full client coverage', () => {
     expect(playbooks[0].id).toBe('playbook-1');
     expect(playbook.id).toBe('playbook-1');
     expect(createdPlaybook.id).toBe('playbook-2');
+    expect(updatedPlaybook.version).toBe(2);
+    expect(replacedPlaybook.version).toBe(3);
     expect(workflow.playbook_id).toBe('playbook-1');
     expect(board.columns[0].id).toBe('todo');
     expect(stages[0].name).toBe('build');
@@ -496,6 +535,11 @@ describe('sdk full client coverage', () => {
     expect(updatedItem.notes).toBe('Updated');
     expect(createdItem.id).toBe('item-2');
     expect(activations[0].id).toBe('activation-1');
+    expect(activations[0].activation_id).toBe('activation-batch-1');
+    expect(activations[0].recovery_status).toBe('stale_detected');
+    expect(activations[0].redispatched_task_id).toBe('task-redispatch-1');
+    expect(activations[0].event_count).toBe(2);
+    expect(activations[0].events?.[0]?.id).toBe('activation-event-1');
     expect(gated.current_stage).toBe('review');
     expect(approvals.task_approvals[0].id).toBe('task-1');
     expect(taskMemory.memory).toEqual({ architecture: 'v2' });

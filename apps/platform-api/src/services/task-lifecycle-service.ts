@@ -12,6 +12,7 @@ import type { ArtifactService } from './artifact-service.js';
 import { applyTaskCompletionSideEffects } from './task-completion-side-effects.js';
 import { registerTaskOutputDocuments } from './document-reference-service.js';
 import { EventService } from './event-service.js';
+import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
 import { applyOutputStateDeclarations } from './task-output-storage.js';
@@ -98,6 +99,49 @@ function asRecord(value: unknown): Record<string, unknown> {
 function normalizeTaskRecord(task: Record<string, unknown>): Record<string, unknown> {
   const normalizedState = normalizeTaskState(task.state as string | null | undefined);
   return normalizedState ? { ...task, state: normalizedState } : task;
+}
+
+function isJsonEquivalent(left: unknown, right: unknown): boolean {
+  return areJsonValuesEquivalent(left, right);
+}
+
+function matchesReviewMetadata(
+  task: Record<string, unknown>,
+  expected: {
+    action: string;
+    feedback?: string;
+    preferredAgentId?: string | null;
+    preferredWorkerId?: string | null;
+  },
+): boolean {
+  const metadata = asRecord(task.metadata);
+  return (
+    metadata.review_action === expected.action &&
+    (expected.feedback === undefined || metadata.review_feedback === expected.feedback) &&
+    (expected.preferredAgentId === undefined ||
+      (metadata.preferred_agent_id ?? null) === expected.preferredAgentId) &&
+    (expected.preferredWorkerId === undefined ||
+      (metadata.preferred_worker_id ?? null) === expected.preferredWorkerId)
+  );
+}
+
+function hasMatchingManualEscalation(
+  task: Record<string, unknown>,
+  reason: string,
+  escalationTarget?: string,
+): boolean {
+  const metadata = asRecord(task.metadata);
+  const escalations = Array.isArray(metadata.escalations)
+    ? (metadata.escalations as Array<Record<string, unknown>>)
+    : [];
+  const latestEscalation = escalations.at(-1);
+  if (!latestEscalation) {
+    return false;
+  }
+  return latestEscalation.reason === reason
+    && (latestEscalation.target ?? null) === (escalationTarget ?? null)
+    && metadata.review_action === 'escalate'
+    && metadata.review_feedback === reason;
 }
 
 export class TaskLifecycleService {
@@ -427,7 +471,31 @@ export class TaskLifecycleService {
       },
       client,
     );
-    return shouldQueue ? 'pending' : 'ready';
+    if (!shouldQueue) {
+      return 'ready';
+    }
+
+    if (
+      task.state === 'failed' &&
+      typeof task.workflow_id === 'string' &&
+      typeof this.deps.parallelismService.reclaimReadySlotForTask === 'function' &&
+      (await this.deps.parallelismService.reclaimReadySlotForTask(
+        this.deps.eventService,
+        tenantId,
+        {
+          taskId: String(task.id),
+          workflowId: task.workflow_id,
+          workItemId: (task.work_item_id as string | null | undefined) ?? null,
+          isOrchestratorTask: Boolean(task.is_orchestrator_task),
+          currentState: task.state as TaskState,
+        },
+        client,
+      ))
+    ) {
+      return 'ready';
+    }
+
+    return 'pending';
   }
 
   async startTask(
@@ -606,13 +674,33 @@ export class TaskLifecycleService {
   }
 
   async approveTask(identity: ApiKeyIdentity, taskId: string) {
+    const currentTask = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+    if (
+      (currentTask.state === 'ready' || currentTask.state === 'pending') &&
+      matchesReviewMetadata(currentTask, { action: 'approve' })
+    ) {
+      return this.deps.toTaskResponse(currentTask);
+    }
+
     return this.applyStateTransition(identity, taskId, 'ready', {
       expectedStates: ['awaiting_approval'],
+      metadataPatch: {
+        review_action: 'approve',
+        review_updated_at: new Date().toISOString(),
+      },
       reason: 'approved',
     });
   }
 
   async approveTaskOutput(identity: ApiKeyIdentity, taskId: string) {
+    const currentTask = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+    if (
+      currentTask.state === 'completed' &&
+      matchesReviewMetadata(currentTask, { action: 'approve_output' })
+    ) {
+      return this.deps.toTaskResponse(currentTask);
+    }
+
     return this.applyStateTransition(identity, taskId, 'completed', {
       expectedStates: ['output_pending_review'],
       clearLifecycleControlMetadata: true,
@@ -634,6 +722,14 @@ export class TaskLifecycleService {
     payload: { override_input?: Record<string, unknown>; force?: boolean } = {},
   ) {
     const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+    if (
+      (task.state === 'ready' || task.state === 'pending')
+      && task.assigned_agent_id == null
+      && task.assigned_worker_id == null
+    ) {
+      return this.deps.toTaskResponse(task);
+    }
+
     const expectedStates: TaskState[] = payload.force
       ? [
           'failed',
@@ -665,6 +761,9 @@ export class TaskLifecycleService {
 
   async cancelTask(identity: ApiKeyIdentity, taskId: string) {
     const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+    if (task.state === 'cancelled') {
+      return this.deps.toTaskResponse(task);
+    }
     if (task.state === 'completed') throw new ConflictError('Completed task cannot be cancelled');
 
     if (
@@ -734,6 +833,19 @@ export class TaskLifecycleService {
       ...asRecord(task.input),
       review_feedback: payload.feedback,
     };
+    if (
+      (task.state === 'ready' || task.state === 'pending' || task.state === 'failed') &&
+      isJsonEquivalent(task.input, nextInput) &&
+      matchesReviewMetadata(task, {
+        action: 'request_changes',
+        feedback: payload.feedback,
+        preferredAgentId: payload.preferred_agent_id ?? undefined,
+        preferredWorkerId: payload.preferred_worker_id ?? undefined,
+      })
+    ) {
+      return this.deps.toTaskResponse(task);
+    }
+
     const lifecyclePolicy = readPersistedLifecyclePolicy(task.metadata);
     const nextReworkCount = Number(task.rework_count ?? 0) + 1;
     const maxReworkCount = lifecyclePolicy?.rework?.max_cycles ?? 3;
@@ -826,6 +938,15 @@ export class TaskLifecycleService {
   }
 
   async skipTask(identity: ApiKeyIdentity, taskId: string, payload: { reason: string }) {
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+    if (
+      task.state === 'completed' &&
+      isJsonEquivalent(task.output, { skipped: true, reason: payload.reason }) &&
+      matchesReviewMetadata(task, { action: 'skip', feedback: payload.reason })
+    ) {
+      return this.deps.toTaskResponse(task);
+    }
+
     return this.applyStateTransition(identity, taskId, 'completed', {
       expectedStates: [
         'pending',
@@ -857,6 +978,18 @@ export class TaskLifecycleService {
     payload: { preferred_agent_id?: string; preferred_worker_id?: string; reason: string },
   ) {
     const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+    if (
+      (task.state === 'ready' || task.state === 'pending') &&
+      matchesReviewMetadata(task, {
+        action: 'reassign',
+        feedback: payload.reason,
+        preferredAgentId: payload.preferred_agent_id ?? null,
+        preferredWorkerId: payload.preferred_worker_id ?? null,
+      })
+    ) {
+      return this.deps.toTaskResponse(task);
+    }
+
     if (
       (task.state === 'claimed' || task.state === 'in_progress') &&
       typeof task.assigned_worker_id === 'string' &&
@@ -903,12 +1036,20 @@ export class TaskLifecycleService {
     payload: { reason: string; escalation_target?: string },
   ) {
     const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+    if (
+      task.state === 'escalated'
+      && hasMatchingManualEscalation(task, payload.reason, payload.escalation_target)
+    ) {
+      return this.deps.toTaskResponse(task);
+    }
     const existingEscalations = Array.isArray(asRecord(task.metadata).escalations)
       ? (asRecord(task.metadata).escalations as unknown[])
       : [];
 
-    return this.applyStateTransition(identity, taskId, task.state as TaskState, {
-      expectedStates: [task.state as TaskState],
+    return this.applyStateTransition(identity, taskId, 'escalated', {
+      expectedStates: ['claimed', 'in_progress'],
+      clearAssignment: true,
+      clearLifecycleControlMetadata: true,
       metadataPatch: {
         escalations: [
           ...existingEscalations,
@@ -918,9 +1059,38 @@ export class TaskLifecycleService {
             escalated_at: new Date().toISOString(),
           },
         ],
+        escalation_reason: payload.reason,
+        escalation_target: payload.escalation_target ?? 'human',
+        escalation_awaiting_human: true,
         review_action: 'escalate',
         review_feedback: payload.reason,
         review_updated_at: new Date().toISOString(),
+      },
+      afterUpdate: async (_updatedTask, client) => {
+        await this.enqueuePlaybookActivationIfNeeded(identity, task, 'task.escalated', {
+          task_id: taskId,
+          task_role: task.role ?? null,
+          task_title: task.title ?? null,
+          work_item_id: task.work_item_id ?? null,
+          stage_name: task.stage_name ?? null,
+          escalation_target: payload.escalation_target ?? 'human',
+          escalation_reason: payload.reason,
+        }, client);
+        await this.deps.eventService.emit(
+          {
+            tenantId: identity.tenantId,
+            type: 'task.escalated',
+            entityType: 'task',
+            entityId: taskId,
+            actorType: identity.scope,
+            actorId: identity.keyPrefix,
+            data: {
+              reason: payload.reason,
+              escalation_target: payload.escalation_target ?? 'human',
+            },
+          },
+          client,
+        );
       },
       reason: 'task_escalated',
     });
@@ -931,6 +1101,15 @@ export class TaskLifecycleService {
     taskId: string,
     payload: { output: unknown; reason: string },
   ) {
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+    if (
+      task.state === 'completed' &&
+      isJsonEquivalent(task.output, payload.output) &&
+      matchesReviewMetadata(task, { action: 'override_output', feedback: payload.reason })
+    ) {
+      return this.deps.toTaskResponse(task);
+    }
+
     return this.applyStateTransition(identity, taskId, 'completed', {
       expectedStates: ['output_pending_review', 'failed', 'cancelled', 'completed'],
       clearAssignment: true,
@@ -962,6 +1141,15 @@ export class TaskLifecycleService {
     const escalationTask = normalizeTaskRecord(
       await this.deps.loadTaskOrThrow(identity.tenantId, escalationTaskId),
     );
+    const existingEscalationResponse = asRecord(asRecord(escalationTask.input).human_escalation_response);
+    if (
+      existingEscalationResponse.instructions === payload.instructions &&
+      isJsonEquivalent(existingEscalationResponse.context ?? {}, payload.context ?? {}) &&
+      typeof asRecord(escalationTask.metadata).human_escalation_response_at === 'string'
+    ) {
+      return this.deps.toTaskResponse(escalationTask);
+    }
+
     const nextInput = {
       ...asRecord(escalationTask.input),
       human_escalation_response: {
@@ -1216,6 +1404,15 @@ export class TaskLifecycleService {
     },
   ) {
     const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+    const existingResolution = asRecord(asRecord(task.input).escalation_resolution);
+    if (
+      task.state === 'ready' &&
+      existingResolution.instructions === payload.instructions &&
+      isJsonEquivalent(existingResolution.context ?? {}, payload.context ?? {})
+    ) {
+      return this.deps.toTaskResponse(task);
+    }
+
     if (task.state !== 'escalated') {
       throw new ConflictError('Task is not awaiting escalation');
     }

@@ -8,7 +8,7 @@ describe('methodToAction', () => {
   });
 
   it('convertsUpdatePrefix', () => {
-    expect(methodToAction('updateTemplate')).toBe('updated');
+    expect(methodToAction('updateProject')).toBe('updated');
   });
 
   it('convertsDeletePrefix', () => {
@@ -154,14 +154,13 @@ describe('createLoggedService', () => {
         workflowId: 'workflow-1',
         workItemId: 'work-item-1',
         stageName: 'implementation',
-        workflowPhase: 'legacy-phase',
       }),
     };
     const logInsert = vi.fn().mockResolvedValue(undefined);
     const logService = { insert: logInsert };
 
     const wrapped = createLoggedService(service, 'TaskService', logService as never);
-    await wrapped.createTask({ workflowId: 'workflow-1', workflowPhase: 'legacy-phase' });
+    await wrapped.createTask({ workflowId: 'workflow-1', stageName: 'implementation' });
 
     await new Promise((resolve) => setTimeout(resolve, 10));
 

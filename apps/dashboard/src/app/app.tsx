@@ -69,6 +69,7 @@ const IntegrationsPage = lazyWithRetry(() => import('../pages/config/integration
 const PlatformInstructionsPage = lazyWithRetry(() => import('../pages/config/platform-instructions-page.js').then((m) => ({ default: m.PlatformInstructionsPage })));
 const AiConfigAssistantPage = lazyWithRetry(() => import('../pages/config/ai-config-assistant-page.js').then((m) => ({ default: m.AiConfigAssistantPage })));
 const PlaybookListPage = lazyWithRetry(() => import('../pages/config/playbook-list-page.js').then((m) => ({ default: m.PlaybookListPage })));
+const PlaybookDetailPage = lazyWithRetry(() => import('../pages/config/playbook-detail-page.js').then((m) => ({ default: m.PlaybookDetailPage })));
 const PlaybookLaunchPage = lazyWithRetry(() => import('../pages/config/playbook-launch-page.js').then((m) => ({ default: m.PlaybookLaunchPage })));
 const RuntimeDefaultsPage = lazyWithRetry(() => import('../pages/config/runtime-defaults-page.js').then((m) => ({ default: m.RuntimeDefaultsPage })));
 const ToolsPage = lazyWithRetry(() => import('../pages/config/tools-page.js').then((m) => ({ default: m.ToolsPage })));
@@ -201,6 +202,7 @@ export function App(): JSX.Element {
 
             {/* Configuration */}
             <Route path="/config/playbooks" element={<PlaybookListPage />} />
+            <Route path="/config/playbooks/:id" element={<PlaybookDetailPage />} />
             <Route path="/config/playbooks/:id/launch" element={<PlaybookLaunchPage />} />
             <Route path="/config/playbooks/launch" element={<PlaybookLaunchPage />} />
             <Route path="/config/roles" element={<RoleDefinitionsPage />} />

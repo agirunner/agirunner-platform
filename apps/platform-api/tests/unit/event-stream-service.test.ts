@@ -106,4 +106,37 @@ describe('EventStreamService', () => {
 
     expect(callback).not.toHaveBeenCalled();
   });
+
+  it('redacts secret-bearing event data before notifying subscribers', async () => {
+    const callback = vi.fn();
+    service.subscribe('tenant-1', { workflowId: 'wf-1' }, callback);
+
+    await simulateNotification(
+      sampleEvent({
+        entity_type: 'workflow',
+        entity_id: 'wf-1',
+        data: {
+          workflow_id: 'wf-1',
+          activation_id: 'activation-1',
+          api_key: 'sk-secret-value',
+          headers: {
+            Authorization: 'Bearer top-secret-token',
+          },
+        },
+      }),
+    );
+
+    expect(callback).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          workflow_id: 'wf-1',
+          activation_id: 'activation-1',
+          api_key: 'redacted://event-secret',
+          headers: {
+            Authorization: 'redacted://event-secret',
+          },
+        },
+      }),
+    );
+  });
 });

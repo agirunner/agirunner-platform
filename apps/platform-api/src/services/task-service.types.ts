@@ -59,7 +59,7 @@ export type PublicTaskState =
   | 'failed'
   | 'cancelled';
 
-export type AcceptedTaskStateFilter = PublicTaskState | 'running' | 'awaiting_escalation';
+export type AcceptedTaskStateFilter = PublicTaskState;
 
 export type TaskServiceConfig = Pick<AppEnv, 'TASK_DEFAULT_TIMEOUT_MINUTES'> &
   Partial<

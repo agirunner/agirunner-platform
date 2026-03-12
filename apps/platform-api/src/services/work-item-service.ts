@@ -1,6 +1,6 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import {
   defaultColumnId,
   defaultStageName,
@@ -14,6 +14,8 @@ import {
   type WorkItemMemoryEntry,
   type WorkItemMemoryHistoryEntry,
 } from './project-memory-scope-service.js';
+import { areJsonValuesEquivalent } from './json-equivalence.js';
+import { sanitizeSecretLikeValue } from './secret-redaction.js';
 import { WorkflowActivationService } from './workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
 
@@ -57,6 +59,13 @@ export interface WorkItemReadModel extends Record<string, unknown> {
 
 export interface GroupedWorkItemReadModel extends WorkItemReadModel {
   children?: WorkItemReadModel[];
+}
+
+interface WorkflowStageContextRow {
+  id: string;
+  lifecycle: string | null;
+  active_stage_name: string | null;
+  definition: unknown;
 }
 
 export class WorkItemService {
@@ -124,7 +133,9 @@ export class WorkItemService {
         ORDER BY created_at ASC`,
       [tenantId, workflowId, workItemId],
     );
-    return result.rows;
+    return result.rows.map((row) =>
+      sanitizeSecretLikeValue(row, { redactionValue: 'redacted://work-item-secret' }) as Record<string, unknown>,
+    );
   }
 
   async listWorkItemEvents(
@@ -149,7 +160,9 @@ export class WorkItemService {
         LIMIT $5`,
       [tenantId, workItemId, workflowId, workItemId, limit],
     );
-    return result.rows;
+    return result.rows.map((row) =>
+      sanitizeSecretLikeValue(row, { redactionValue: 'redacted://work-item-secret' }) as Record<string, unknown>,
+    );
   }
 
   async getWorkItemMemory(
@@ -276,10 +289,22 @@ export class WorkItemService {
         if (!existing.rowCount) {
           throw new Error('Failed to load existing workflow work item after conflict');
         }
+        assertMatchingCreateWorkItemReplay(existing.rows[0] as Record<string, unknown>, {
+          parent_work_item_id: input.parent_work_item_id ?? null,
+          stage_name: stageName,
+          title: input.title.trim(),
+          goal: input.goal?.trim() ?? null,
+          acceptance_criteria: input.acceptance_criteria?.trim() ?? null,
+          column_id: columnId,
+          owner_role: input.owner_role ?? null,
+          priority: input.priority ?? 'normal',
+          notes: input.notes?.trim() ?? null,
+          metadata: input.metadata ?? {},
+        });
         if (ownsClient) {
           await client.query('COMMIT');
         }
-        return existing.rows[0];
+        return toWorkItemReadModel(existing.rows[0] as Record<string, unknown>);
       }
 
       const workItem = result.rows[0];
@@ -326,7 +351,7 @@ export class WorkItemService {
       if (ownsClient) {
         await client.query('COMMIT');
       }
-      return workItem;
+      return toWorkItemReadModel(workItem as Record<string, unknown>);
     } catch (error) {
       if (ownsClient) {
         await client.query('ROLLBACK');
@@ -345,20 +370,33 @@ export class WorkItemService {
     client: DatabaseClient,
   ) {
     const result = await client.query(
-      `SELECT w.id, w.lifecycle, w.current_stage, p.definition
+      `SELECT w.id,
+              w.lifecycle,
+              active_stage.name AS active_stage_name,
+              p.definition
          FROM workflows w
          JOIN playbooks p
            ON p.tenant_id = w.tenant_id
           AND p.id = w.playbook_id
+         LEFT JOIN LATERAL (
+           SELECT ws.name
+             FROM workflow_stages ws
+            WHERE ws.tenant_id = w.tenant_id
+              AND ws.workflow_id = w.id
+              AND ws.status IN ('active', 'awaiting_gate', 'blocked')
+            ORDER BY ws.position ASC
+            LIMIT 1
+        ) AS active_stage
+           ON true
         WHERE w.tenant_id = $1
           AND w.id = $2
-        FOR UPDATE`,
+        FOR UPDATE OF w`,
       [tenantId, workflowId],
     );
     if (!result.rowCount) {
       throw new NotFoundError('Playbook workflow not found');
     }
-    return result.rows[0] as { id: string; current_stage: string | null; definition: unknown };
+    return result.rows[0] as WorkflowStageContextRow;
   }
 
   private async loadWorkItemContext(tenantId: string, workflowId: string, workItemId: string) {
@@ -408,7 +446,8 @@ export class WorkItemService {
     const result = await this.pool.query(
       `SELECT wi.*,
               COUNT(DISTINCT t.id)::int AS task_count,
-              COUNT(DISTINCT child.id)::int AS children_count
+              COUNT(DISTINCT child.id)::int AS children_count,
+              COUNT(DISTINCT child.id) FILTER (WHERE child.completed_at IS NOT NULL)::int AS children_completed
          FROM workflow_work_items wi
          LEFT JOIN tasks t
            ON t.tenant_id = wi.tenant_id
@@ -433,7 +472,7 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function resolveWorkItemStageName(
   inputStageName: string | undefined,
-  workflow: Record<string, unknown>,
+  workflow: { lifecycle: string | null; active_stage_name: string | null },
   definition: ReturnType<typeof parsePlaybookDefinition>,
 ): string | null {
   if (inputStageName) {
@@ -442,7 +481,7 @@ function resolveWorkItemStageName(
   if (workflow.lifecycle === 'continuous') {
     return defaultStageName(definition);
   }
-  return (workflow.current_stage as string | null) ?? defaultStageName(definition);
+  return (workflow.active_stage_name as string | null) ?? defaultStageName(definition);
 }
 
 function createdByForIdentity(identity: ApiKeyIdentity): 'api' | 'manual' | 'orchestrator' | 'webhook' {
@@ -462,20 +501,24 @@ function actorTypeForIdentity(identity: ApiKeyIdentity): string {
 }
 
 function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
-  const childrenCount = readCount(row.children_count);
+  const sanitizedRow = sanitizeSecretLikeValue(row, {
+    redactionValue: 'redacted://work-item-secret',
+  }) as Record<string, unknown>;
+  const childrenCount = readCount(sanitizedRow.children_count);
   return {
-    ...row,
-    id: String(row.id ?? ''),
-    workflow_id: String(row.workflow_id ?? ''),
-    parent_work_item_id: typeof row.parent_work_item_id === 'string' ? row.parent_work_item_id : null,
-    stage_name: typeof row.stage_name === 'string' ? row.stage_name : null,
-    column_id: typeof row.column_id === 'string' ? row.column_id : null,
+    ...sanitizedRow,
+    id: String(sanitizedRow.id ?? ''),
+    workflow_id: String(sanitizedRow.workflow_id ?? ''),
+    parent_work_item_id: typeof sanitizedRow.parent_work_item_id === 'string' ? sanitizedRow.parent_work_item_id : null,
+    stage_name: typeof sanitizedRow.stage_name === 'string' ? sanitizedRow.stage_name : null,
+    column_id: typeof sanitizedRow.column_id === 'string' ? sanitizedRow.column_id : null,
     completed_at:
-      typeof row.completed_at === 'string' || row.completed_at instanceof Date
-        ? row.completed_at
+      typeof sanitizedRow.completed_at === 'string' || sanitizedRow.completed_at instanceof Date
+        ? sanitizedRow.completed_at
         : null,
-    task_count: readCount(row.task_count),
+    task_count: readCount(sanitizedRow.task_count),
     children_count: childrenCount,
+    children_completed: readCount(sanitizedRow.children_completed),
     is_milestone: childrenCount > 0,
   } as WorkItemReadModel;
 }
@@ -518,4 +561,35 @@ function readCount(value: unknown) {
     return Number.isFinite(parsed) ? parsed : 0;
   }
   return 0;
+}
+
+function assertMatchingCreateWorkItemReplay(
+  existing: Record<string, unknown>,
+  expected: {
+    parent_work_item_id: string | null;
+    stage_name: string;
+    title: string;
+    goal: string | null;
+    acceptance_criteria: string | null;
+    column_id: string;
+    owner_role: string | null;
+    priority: string;
+    notes: string | null;
+    metadata: Record<string, unknown>;
+  },
+): void {
+  if (
+    (existing.parent_work_item_id ?? null) !== expected.parent_work_item_id ||
+    existing.stage_name !== expected.stage_name ||
+    existing.title !== expected.title ||
+    (existing.goal ?? null) !== expected.goal ||
+    (existing.acceptance_criteria ?? null) !== expected.acceptance_criteria ||
+    existing.column_id !== expected.column_id ||
+    (existing.owner_role ?? null) !== expected.owner_role ||
+    existing.priority !== expected.priority ||
+    (existing.notes ?? null) !== expected.notes ||
+    !areJsonValuesEquivalent(asRecord(existing.metadata), expected.metadata)
+  ) {
+    throw new ConflictError('work item request_id replay does not match the existing work item');
+  }
 }

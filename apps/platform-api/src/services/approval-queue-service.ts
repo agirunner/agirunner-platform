@@ -30,6 +30,7 @@ interface ApprovalStageRow extends WorkflowStageGateRecord {
   status: string;
   request_summary: string | null;
   updated_at: Date;
+  decision_history: unknown;
 }
 
 export class ApprovalQueueService {
@@ -97,7 +98,8 @@ export class ApprovalQueueService {
                 resume.started_at AS resume_activation_started_at,
                 resume.completed_at AS resume_activation_completed_at,
                 resume.summary AS resume_activation_summary,
-                resume.error AS resume_activation_error
+                resume.error AS resume_activation_error,
+                history.decision_history
            FROM workflow_stage_gates g
            JOIN workflow_stages ws
              ON ws.tenant_id = g.tenant_id
@@ -130,10 +132,38 @@ export class ApprovalQueueService {
               ORDER BY wa.queued_at DESC
               LIMIT 1
            ) resume ON true
+           LEFT JOIN LATERAL (
+             SELECT jsonb_agg(
+                      jsonb_build_object(
+                        'action',
+                        CASE
+                          WHEN e.type = 'stage.gate_requested' THEN 'requested'
+                          WHEN e.type = 'stage.gate.approve' THEN 'approve'
+                          WHEN e.type = 'stage.gate.reject' THEN 'reject'
+                          WHEN e.type = 'stage.gate.request_changes' THEN 'request_changes'
+                          ELSE e.type
+                        END,
+                        'actor_type',
+                        e.actor_type,
+                        'actor_id',
+                        e.actor_id,
+                        'feedback',
+                        e.data->>'feedback',
+                        'created_at',
+                        e.created_at
+                      )
+                      ORDER BY e.created_at ASC, e.id ASC
+                    ) AS decision_history
+               FROM events e
+              WHERE e.tenant_id = g.tenant_id
+                AND e.entity_type = 'gate'
+                AND e.entity_id = g.id
+                AND e.type = ANY($2::text[])
+           ) history ON true
           WHERE g.tenant_id = $1
             AND g.status = 'awaiting_approval'
           ORDER BY g.requested_at ASC`,
-        [tenantId],
+        [tenantId, ['stage.gate_requested', 'stage.gate.approve', 'stage.gate.reject', 'stage.gate.request_changes']],
       ),
     ]);
 
@@ -191,7 +221,8 @@ export class ApprovalQueueService {
               resume.started_at AS resume_activation_started_at,
               resume.completed_at AS resume_activation_completed_at,
               resume.summary AS resume_activation_summary,
-              resume.error AS resume_activation_error
+              resume.error AS resume_activation_error,
+              history.decision_history
          FROM workflow_stage_gates g
          JOIN workflow_stages ws
            ON ws.tenant_id = g.tenant_id
@@ -224,16 +255,45 @@ export class ApprovalQueueService {
             ORDER BY wa.queued_at DESC
             LIMIT 1
          ) resume ON true
+         LEFT JOIN LATERAL (
+           SELECT jsonb_agg(
+                    jsonb_build_object(
+                      'action',
+                      CASE
+                        WHEN e.type = 'stage.gate_requested' THEN 'requested'
+                        WHEN e.type = 'stage.gate.approve' THEN 'approve'
+                        WHEN e.type = 'stage.gate.reject' THEN 'reject'
+                        WHEN e.type = 'stage.gate.request_changes' THEN 'request_changes'
+                        ELSE e.type
+                      END,
+                      'actor_type',
+                      e.actor_type,
+                      'actor_id',
+                      e.actor_id,
+                      'feedback',
+                      e.data->>'feedback',
+                      'created_at',
+                      e.created_at
+                    )
+                    ORDER BY e.created_at ASC, e.id ASC
+                  ) AS decision_history
+             FROM events e
+            WHERE e.tenant_id = g.tenant_id
+              AND e.entity_type = 'gate'
+              AND e.entity_id = g.id
+              AND e.type = ANY($3::text[])
+         ) history ON true
         WHERE g.tenant_id = $1
           AND g.workflow_id = $2
         ORDER BY g.requested_at DESC`,
-      [tenantId, workflowId],
+      [tenantId, workflowId, ['stage.gate_requested', 'stage.gate.approve', 'stage.gate.reject', 'stage.gate.request_changes']],
     );
     return result.rows.map((row) => toGateResponse(row));
   }
 
   async getGate(tenantId: string, gateId: string, workflowId?: string) {
     const values: unknown[] = [tenantId, gateId];
+    const historyEventsParameter = workflowId ? '$4' : '$3';
     const workflowClause = workflowId
       ? (() => {
           values.push(workflowId);
@@ -273,7 +333,8 @@ export class ApprovalQueueService {
               resume.started_at AS resume_activation_started_at,
               resume.completed_at AS resume_activation_completed_at,
               resume.summary AS resume_activation_summary,
-              resume.error AS resume_activation_error
+              resume.error AS resume_activation_error,
+              history.decision_history
          FROM workflow_stage_gates g
          JOIN workflow_stages ws
            ON ws.tenant_id = g.tenant_id
@@ -306,11 +367,42 @@ export class ApprovalQueueService {
             ORDER BY wa.queued_at DESC
             LIMIT 1
          ) resume ON true
+         LEFT JOIN LATERAL (
+           SELECT jsonb_agg(
+                    jsonb_build_object(
+                      'action',
+                      CASE
+                        WHEN e.type = 'stage.gate_requested' THEN 'requested'
+                        WHEN e.type = 'stage.gate.approve' THEN 'approve'
+                        WHEN e.type = 'stage.gate.reject' THEN 'reject'
+                        WHEN e.type = 'stage.gate.request_changes' THEN 'request_changes'
+                        ELSE e.type
+                      END,
+                      'actor_type',
+                      e.actor_type,
+                      'actor_id',
+                      e.actor_id,
+                      'feedback',
+                      e.data->>'feedback',
+                      'created_at',
+                      e.created_at
+                    )
+                    ORDER BY e.created_at ASC, e.id ASC
+                  ) AS decision_history
+             FROM events e
+            WHERE e.tenant_id = g.tenant_id
+              AND e.entity_type = 'gate'
+              AND e.entity_id = g.id
+              AND e.type = ANY(${historyEventsParameter}::text[])
+         ) history ON true
         WHERE g.tenant_id = $1
           AND g.id = $2
           ${workflowClause}
         LIMIT 1`,
-      values,
+      [
+        ...values,
+        ['stage.gate_requested', 'stage.gate.approve', 'stage.gate.reject', 'stage.gate.request_changes'],
+      ],
     );
     if (!result.rowCount) {
       throw new NotFoundError('Workflow stage gate not found');

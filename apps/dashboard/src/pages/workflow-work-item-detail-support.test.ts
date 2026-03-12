@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildWorkItemBreadcrumbs,
   findWorkItemById,
   flattenArtifactsByTask,
   flattenGroupedWorkItems,
@@ -8,6 +9,7 @@ import {
   isMilestoneWorkItem,
   normalizeWorkItemTasks,
   selectTasksForWorkItem,
+  summarizeMilestoneOperatorFlow,
   sortMemoryEntriesByKey,
   sortMemoryHistoryNewestFirst,
   sortEventsNewestFirst,
@@ -151,6 +153,80 @@ describe('workflow work item detail support', () => {
       'task-1',
       'task-2',
     ]);
+    expect(buildWorkItemBreadcrumbs(grouped, 'wi-child-1')).toEqual([
+      'Auth milestone',
+      'Auth implementation',
+    ]);
+  });
+
+  it('summarizes grouped milestone operator flow for child work items and linked steps', () => {
+    const summary = summarizeMilestoneOperatorFlow(
+      [
+        {
+          id: 'wi-child-1',
+          workflow_id: 'wf-1',
+          parent_work_item_id: 'wi-parent',
+          stage_name: 'implementation',
+          title: 'Auth implementation',
+          column_id: 'active',
+          priority: 'normal',
+          completed_at: null,
+        },
+        {
+          id: 'wi-child-2',
+          workflow_id: 'wf-1',
+          parent_work_item_id: 'wi-parent',
+          stage_name: 'verification',
+          title: 'Auth verification',
+          column_id: 'review',
+          priority: 'normal',
+          completed_at: '2026-03-12T10:00:00.000Z',
+        },
+      ],
+      [
+        {
+          id: 'task-1',
+          title: 'Implement auth',
+          state: 'in_progress',
+          role: null,
+          stage_name: 'implementation',
+          completed_at: null,
+          depends_on: [],
+          work_item_id: 'wi-child-1',
+        },
+        {
+          id: 'task-2',
+          title: 'Review auth',
+          state: 'awaiting_approval',
+          role: null,
+          stage_name: 'verification',
+          completed_at: null,
+          depends_on: [],
+          work_item_id: 'wi-child-2',
+        },
+        {
+          id: 'task-3',
+          title: 'Fix auth',
+          state: 'failed',
+          role: null,
+          stage_name: 'implementation',
+          completed_at: null,
+          depends_on: [],
+          work_item_id: 'wi-child-1',
+        },
+      ],
+    );
+
+    expect(summary).toEqual({
+      totalChildren: 2,
+      completedChildren: 1,
+      openChildren: 1,
+      awaitingStepReviews: 1,
+      failedSteps: 1,
+      inFlightSteps: 1,
+      activeStageNames: ['implementation', 'verification'],
+      activeColumnIds: ['active', 'review'],
+    });
   });
 
   it('sorts work item events in reverse chronological order', () => {
@@ -174,6 +250,72 @@ describe('workflow work item detail support', () => {
     ]);
 
     expect(events.map((event) => event.id)).toEqual(['evt-1', 'evt-2']);
+  });
+
+  it('sorts event and artifact timestamps safely when the api layer supplies Date values', () => {
+    const events = sortEventsNewestFirst([
+      {
+        id: 'evt-date-1',
+        type: 'work_item.updated',
+        entity_type: 'work_item',
+        entity_id: 'wi-1',
+        actor_type: 'system',
+        created_at: new Date('2026-03-10T10:00:00.000Z') as unknown as string,
+      },
+      {
+        id: 'evt-date-2',
+        type: 'work_item.created',
+        entity_type: 'work_item',
+        entity_id: 'wi-1',
+        actor_type: 'system',
+        created_at: new Date('2026-03-10T09:00:00.000Z') as unknown as string,
+      },
+    ]);
+    const artifacts = flattenArtifactsByTask(
+      [
+        {
+          id: 'task-1',
+          title: 'Draft design',
+          state: 'completed',
+          role: null,
+          stage_name: null,
+          completed_at: null,
+          depends_on: [],
+          work_item_id: 'wi-1',
+        },
+      ],
+      [
+        [
+          {
+            id: 'artifact-older',
+            task_id: 'task-1',
+            logical_path: 'docs/older.md',
+            content_type: 'text/markdown',
+            size_bytes: 64,
+            checksum_sha256: 'sha-1',
+            metadata: {},
+            retention_policy: {},
+            created_at: new Date('2026-03-10T09:00:00.000Z') as unknown as string,
+            download_url: '/download/older',
+          },
+          {
+            id: 'artifact-newer',
+            task_id: 'task-1',
+            logical_path: 'docs/newer.md',
+            content_type: 'text/markdown',
+            size_bytes: 64,
+            checksum_sha256: 'sha-2',
+            metadata: {},
+            retention_policy: {},
+            created_at: new Date('2026-03-10T10:00:00.000Z') as unknown as string,
+            download_url: '/download/newer',
+          },
+        ],
+      ],
+    );
+
+    expect(events.map((event) => event.id)).toEqual(['evt-date-1', 'evt-date-2']);
+    expect(artifacts.map((artifact) => artifact.id)).toEqual(['artifact-newer', 'artifact-older']);
   });
 
   it('sorts work-item memory entries by key and history by most recent event', () => {

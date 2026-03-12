@@ -89,7 +89,7 @@ export const tasks = pgTable(
     index('idx_tasks_depends_on').using('gin', table.dependsOn),
     index('idx_tasks_running_timeout')
       .on(table.startedAt)
-      .where(sql`${table.state} = 'running'`),
+      .where(sql`${table.state} = 'in_progress'`),
     uniqueIndex('idx_tasks_request_id_workflow')
       .on(table.tenantId, table.workflowId, table.requestId)
       .where(sql`${table.requestId} IS NOT NULL AND ${table.workflowId} IS NOT NULL`),

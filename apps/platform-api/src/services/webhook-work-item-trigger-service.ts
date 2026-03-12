@@ -12,7 +12,7 @@ import {
   type WorkItemTriggerInvocationHeaders,
   type WorkItemTriggerRow,
 } from './webhook-work-item-trigger-helpers.js';
-import { encryptWebhookSecret } from './webhook-secret-crypto.js';
+import { encryptWebhookSecret, isWebhookSecretEncrypted } from './webhook-secret-crypto.js';
 import type { WorkflowService } from './workflow-service.js';
 
 interface InvocationRow {
@@ -167,7 +167,8 @@ export class WebhookWorkItemTriggerService {
         ORDER BY created_at DESC`,
       [tenantId],
     );
-    return { data: result.rows.map(toPublicTrigger) };
+    const rows = await Promise.all(result.rows.map((row) => this.ensureStoredSecretEncrypted(row)));
+    return { data: rows.map(toPublicTrigger) };
   }
 
   async deleteTrigger(tenantId: string, triggerId: string) {
@@ -404,7 +405,7 @@ export class WebhookWorkItemTriggerService {
     if (!result.rowCount) {
       throw new NotFoundError('Webhook work item trigger not found');
     }
-    return result.rows[0];
+    return this.ensureStoredSecretEncrypted(result.rows[0]);
   }
 
   private async loadTriggerById(triggerId: string) {
@@ -415,7 +416,29 @@ export class WebhookWorkItemTriggerService {
     if (!result.rowCount) {
       throw new NotFoundError('Webhook work item trigger not found');
     }
-    return result.rows[0];
+    return this.ensureStoredSecretEncrypted(result.rows[0]);
+  }
+
+  private async ensureStoredSecretEncrypted(row: WorkItemTriggerRow): Promise<WorkItemTriggerRow> {
+    if (isWebhookSecretEncrypted(row.secret)) {
+      return row;
+    }
+
+    const encryptedSecret = encryptWebhookSecret(row.secret, this.encryptionKey);
+    await this.pool.query(
+      `UPDATE webhook_work_item_triggers
+          SET secret = $3,
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [row.tenant_id, row.id, encryptedSecret],
+    );
+
+    return {
+      ...row,
+      secret: encryptedSecret,
+      updated_at: new Date(),
+    };
   }
 
   private decryptlessSecretSentinel(currentSecret?: string) {

@@ -44,7 +44,6 @@ DO $$ BEGIN
     'agent',
     'worker',
     'project',
-    'template',
     'system'
   );
 EXCEPTION WHEN duplicate_object THEN NULL;
@@ -110,13 +109,13 @@ DO $$ BEGIN
     'pending',
     'ready',
     'claimed',
-    'running',
+    'in_progress',
     'completed',
     'failed',
     'cancelled',
     'awaiting_approval',
     'output_pending_review',
-    'awaiting_escalation'
+    'escalated'
   );
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
@@ -322,27 +321,10 @@ CREATE TABLE public.agents (
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
-CREATE TABLE public.templates (
-    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    tenant_id uuid NOT NULL,
-    name text NOT NULL,
-    slug text NOT NULL,
-    description text,
-    version integer DEFAULT 1 NOT NULL,
-    is_built_in boolean DEFAULT false NOT NULL,
-    is_published boolean DEFAULT false NOT NULL,
-    schema jsonb NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    deleted_at timestamp with time zone
-);
-
 CREATE TABLE public.workflows (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     tenant_id uuid NOT NULL,
     project_id uuid,
-    template_id uuid,
-    template_version integer,
     name text NOT NULL,
     state public.workflow_state DEFAULT 'pending'::public.workflow_state NOT NULL,
     parameters jsonb DEFAULT '{}'::jsonb NOT NULL,
@@ -606,13 +588,13 @@ CREATE TABLE public.workflow_documents (
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
-CREATE TABLE public.webhook_task_triggers (
+CREATE TABLE public.webhook_work_item_triggers (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     tenant_id uuid NOT NULL,
     name text NOT NULL,
     source text NOT NULL,
     project_id uuid,
-    workflow_id uuid,
+    workflow_id uuid NOT NULL,
     event_header text,
     event_types text[] DEFAULT ARRAY[]::text[] NOT NULL,
     signature_header text NOT NULL,
@@ -625,13 +607,13 @@ CREATE TABLE public.webhook_task_triggers (
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
-CREATE TABLE public.webhook_task_trigger_invocations (
+CREATE TABLE public.webhook_work_item_trigger_invocations (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     tenant_id uuid NOT NULL,
     trigger_id uuid NOT NULL,
     event_type text,
     dedupe_key text,
-    task_id uuid,
+    work_item_id uuid,
     status text NOT NULL,
     error text,
     created_at timestamp with time zone DEFAULT now() NOT NULL
@@ -882,7 +864,7 @@ CREATE TABLE public.fleet_events (
     event_type text NOT NULL,
     level text DEFAULT 'info'::text NOT NULL,
     runtime_id uuid,
-    template_id uuid,
+    playbook_id uuid,
     task_id uuid,
     workflow_id uuid,
     container_id text,
@@ -894,7 +876,7 @@ CREATE TABLE public.fleet_events (
 CREATE TABLE public.runtime_heartbeats (
     runtime_id uuid NOT NULL,
     tenant_id uuid NOT NULL,
-    template_id uuid NOT NULL,
+    playbook_id uuid NOT NULL,
     state text DEFAULT 'idle'::text NOT NULL,
     task_id uuid,
     uptime_seconds integer DEFAULT 0 NOT NULL,
@@ -944,8 +926,7 @@ CREATE TABLE public.execution_logs (
     workflow_name text,
     project_name text,
     role text,
-    task_title text,
-    workflow_phase text
+    task_title text
 )
 PARTITION BY RANGE (created_at);
 
@@ -971,9 +952,6 @@ ALTER TABLE ONLY public.workers
 
 ALTER TABLE ONLY public.agents
     ADD CONSTRAINT agents_pkey PRIMARY KEY (id);
-
-ALTER TABLE ONLY public.templates
-    ADD CONSTRAINT templates_pkey PRIMARY KEY (id);
 
 ALTER TABLE ONLY public.workflows
     ADD CONSTRAINT workflows_pkey PRIMARY KEY (id);
@@ -1023,11 +1001,11 @@ ALTER TABLE ONLY public.project_spec_versions
 ALTER TABLE ONLY public.workflow_documents
     ADD CONSTRAINT workflow_documents_pkey PRIMARY KEY (id);
 
-ALTER TABLE ONLY public.webhook_task_triggers
-    ADD CONSTRAINT webhook_task_triggers_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.webhook_work_item_triggers
+    ADD CONSTRAINT webhook_work_item_triggers_pkey PRIMARY KEY (id);
 
-ALTER TABLE ONLY public.webhook_task_trigger_invocations
-    ADD CONSTRAINT webhook_task_trigger_invocations_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.webhook_work_item_trigger_invocations
+    ADD CONSTRAINT webhook_work_item_trigger_invocations_pkey PRIMARY KEY (id);
 
 ALTER TABLE ONLY public.audit_logs
     ADD CONSTRAINT audit_logs_pkey PRIMARY KEY (id);
@@ -1130,9 +1108,6 @@ ALTER TABLE ONLY public.worker_desired_state
 ALTER TABLE ONLY public.projects
     ADD CONSTRAINT uq_project_tenant_slug UNIQUE (tenant_id, slug);
 
-ALTER TABLE ONLY public.templates
-    ADD CONSTRAINT uq_template_tenant_slug_version UNIQUE (tenant_id, slug, version);
-
 ALTER TABLE ONLY public.user_identities
     ADD CONSTRAINT user_identities_provider_provider_user_id_key UNIQUE (provider, provider_user_id);
 
@@ -1196,7 +1171,7 @@ CREATE INDEX idx_events_entity ON public.events USING btree (entity_type, entity
 CREATE INDEX idx_events_tenant_time ON public.events USING btree (tenant_id, created_at DESC);
 CREATE INDEX idx_events_type ON public.events USING btree (tenant_id, type, created_at DESC);
 CREATE INDEX idx_fleet_events_runtime ON public.fleet_events USING btree (runtime_id, created_at DESC);
-CREATE INDEX idx_fleet_events_template ON public.fleet_events USING btree (template_id, created_at DESC);
+CREATE INDEX idx_fleet_events_playbook ON public.fleet_events USING btree (playbook_id, created_at DESC);
 CREATE INDEX idx_fleet_events_tenant_created ON public.fleet_events USING btree (tenant_id, created_at DESC);
 CREATE INDEX idx_fleet_events_type ON public.fleet_events USING btree (event_type);
 CREATE INDEX idx_integration_actions_lookup ON public.integration_actions USING btree (token_hash, expires_at);
@@ -1226,26 +1201,23 @@ CREATE INDEX idx_role_definitions_tenant ON public.role_definitions USING btree 
 CREATE INDEX idx_role_model_assignments_tenant ON public.role_model_assignments USING btree (tenant_id);
 CREATE INDEX idx_runtime_defaults_tenant ON public.runtime_defaults USING btree (tenant_id);
 CREATE INDEX idx_runtime_heartbeats_state ON public.runtime_heartbeats USING btree (state);
-CREATE INDEX idx_runtime_heartbeats_template ON public.runtime_heartbeats USING btree (template_id);
+CREATE INDEX idx_runtime_heartbeats_playbook ON public.runtime_heartbeats USING btree (playbook_id);
 CREATE INDEX idx_runtime_heartbeats_tenant ON public.runtime_heartbeats USING btree (tenant_id);
 CREATE INDEX idx_tasks_agent ON public.tasks USING btree (assigned_agent_id) WHERE (assigned_agent_id IS NOT NULL);
 CREATE INDEX idx_tasks_claimable ON public.tasks USING btree (tenant_id, priority DESC, created_at) WHERE (state = 'ready'::public.task_state);
 CREATE INDEX idx_tasks_depends_on ON public.tasks USING gin (depends_on);
 CREATE INDEX idx_tasks_project ON public.tasks USING btree (project_id);
-CREATE INDEX idx_tasks_running_timeout ON public.tasks USING btree (started_at) WHERE (state = 'running'::public.task_state);
+CREATE INDEX idx_tasks_running_timeout ON public.tasks USING btree (started_at) WHERE (state = 'in_progress'::public.task_state);
 CREATE INDEX idx_tasks_state ON public.tasks USING btree (tenant_id, state);
 CREATE INDEX idx_tasks_tenant ON public.tasks USING btree (tenant_id);
 CREATE INDEX idx_tasks_workflow ON public.tasks USING btree (workflow_id);
-CREATE INDEX idx_templates_built_in ON public.templates USING btree (is_built_in) WHERE (is_built_in = true);
-CREATE INDEX idx_templates_not_deleted ON public.templates USING btree (tenant_id, created_at DESC) WHERE (deleted_at IS NULL);
-CREATE INDEX idx_templates_tenant ON public.templates USING btree (tenant_id);
 CREATE INDEX idx_tool_tags_tenant_created ON public.tool_tags USING btree (tenant_id, created_at DESC);
 CREATE INDEX idx_user_identities_user ON public.user_identities USING btree (user_id);
 CREATE INDEX idx_users_email ON public.users USING btree (email);
 CREATE INDEX idx_users_tenant ON public.users USING btree (tenant_id);
 CREATE INDEX idx_webhook_deliveries_pending ON public.webhook_deliveries USING btree (tenant_id, status, created_at DESC);
-CREATE INDEX idx_webhook_task_trigger_invocations_tenant_trigger ON public.webhook_task_trigger_invocations USING btree (tenant_id, trigger_id, created_at DESC);
-CREATE INDEX idx_webhook_task_triggers_tenant ON public.webhook_task_triggers USING btree (tenant_id, is_active, created_at DESC);
+CREATE INDEX idx_webhook_work_item_trigger_invocations_tenant_trigger ON public.webhook_work_item_trigger_invocations USING btree (tenant_id, trigger_id, created_at DESC);
+CREATE INDEX idx_webhook_work_item_triggers_tenant ON public.webhook_work_item_triggers USING btree (tenant_id, is_active, created_at DESC);
 CREATE INDEX idx_webhooks_tenant ON public.webhooks USING btree (tenant_id, is_active);
 CREATE INDEX idx_worker_actual_state_desired ON public.worker_actual_state USING btree (desired_state_id);
 CREATE INDEX idx_worker_desired_state_enabled ON public.worker_desired_state USING btree (tenant_id, enabled);
@@ -1261,11 +1233,10 @@ CREATE INDEX idx_workflow_documents_tenant_task ON public.workflow_documents USI
 CREATE INDEX idx_workflow_documents_tenant_workflow ON public.workflow_documents USING btree (tenant_id, workflow_id, created_at);
 CREATE INDEX idx_workflows_project ON public.workflows USING btree (project_id);
 CREATE INDEX idx_workflows_state ON public.workflows USING btree (tenant_id, state);
-CREATE INDEX idx_workflows_template ON public.workflows USING btree (template_id);
 CREATE INDEX idx_workflows_tenant ON public.workflows USING btree (tenant_id);
 CREATE UNIQUE INDEX uq_platform_instruction_versions_tenant_version ON public.platform_instruction_versions USING btree (tenant_id, version);
 CREATE UNIQUE INDEX uq_project_spec_versions_project_version ON public.project_spec_versions USING btree (project_id, version);
-CREATE UNIQUE INDEX uq_webhook_task_trigger_invocations_dedupe ON public.webhook_task_trigger_invocations USING btree (trigger_id, dedupe_key) WHERE (dedupe_key IS NOT NULL);
+CREATE UNIQUE INDEX uq_webhook_work_item_trigger_invocations_dedupe ON public.webhook_work_item_trigger_invocations USING btree (trigger_id, dedupe_key) WHERE (dedupe_key IS NOT NULL);
 CREATE UNIQUE INDEX uq_workflow_documents_workflow_logical_name ON public.workflow_documents USING btree (tenant_id, workflow_id, logical_name);
 
 -- Triggers
@@ -1278,7 +1249,6 @@ CREATE TRIGGER trg_integration_adapter_deliveries_updated_at BEFORE UPDATE ON pu
 CREATE TRIGGER trg_integration_adapters_updated_at BEFORE UPDATE ON public.integration_adapters FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 CREATE TRIGGER trg_projects_updated_at BEFORE UPDATE ON public.projects FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 CREATE TRIGGER trg_tasks_updated_at BEFORE UPDATE ON public.tasks FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
-CREATE TRIGGER trg_templates_updated_at BEFORE UPDATE ON public.templates FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 CREATE TRIGGER trg_tenants_updated_at BEFORE UPDATE ON public.tenants FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 CREATE TRIGGER trg_webhook_deliveries_updated_at BEFORE UPDATE ON public.webhook_deliveries FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 CREATE TRIGGER trg_workers_updated_at BEFORE UPDATE ON public.workers FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
@@ -1407,9 +1377,6 @@ ALTER TABLE ONLY public.runtime_defaults
     ADD CONSTRAINT runtime_defaults_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
 
 ALTER TABLE ONLY public.runtime_heartbeats
-    ADD CONSTRAINT runtime_heartbeats_template_id_fkey FOREIGN KEY (template_id) REFERENCES public.templates(id) ON DELETE CASCADE;
-
-ALTER TABLE ONLY public.runtime_heartbeats
     ADD CONSTRAINT runtime_heartbeats_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
 
 ALTER TABLE ONLY public.tasks
@@ -1426,9 +1393,6 @@ ALTER TABLE ONLY public.tasks
 
 ALTER TABLE ONLY public.tasks
     ADD CONSTRAINT tasks_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES public.workflows(id);
-
-ALTER TABLE ONLY public.templates
-    ADD CONSTRAINT templates_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
 
 ALTER TABLE ONLY public.tool_tags
     ADD CONSTRAINT tool_tags_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
@@ -1448,23 +1412,20 @@ ALTER TABLE ONLY public.webhook_deliveries
 ALTER TABLE ONLY public.webhook_deliveries
     ADD CONSTRAINT webhook_deliveries_webhook_id_fkey FOREIGN KEY (webhook_id) REFERENCES public.webhooks(id);
 
-ALTER TABLE ONLY public.webhook_task_trigger_invocations
-    ADD CONSTRAINT webhook_task_trigger_invocations_task_id_fkey FOREIGN KEY (task_id) REFERENCES public.tasks(id);
+ALTER TABLE ONLY public.webhook_work_item_trigger_invocations
+    ADD CONSTRAINT webhook_work_item_trigger_invocations_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
 
-ALTER TABLE ONLY public.webhook_task_trigger_invocations
-    ADD CONSTRAINT webhook_task_trigger_invocations_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+ALTER TABLE ONLY public.webhook_work_item_trigger_invocations
+    ADD CONSTRAINT webhook_work_item_trigger_invocations_trigger_id_fkey FOREIGN KEY (trigger_id) REFERENCES public.webhook_work_item_triggers(id);
 
-ALTER TABLE ONLY public.webhook_task_trigger_invocations
-    ADD CONSTRAINT webhook_task_trigger_invocations_trigger_id_fkey FOREIGN KEY (trigger_id) REFERENCES public.webhook_task_triggers(id);
+ALTER TABLE ONLY public.webhook_work_item_triggers
+    ADD CONSTRAINT webhook_work_item_triggers_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id);
 
-ALTER TABLE ONLY public.webhook_task_triggers
-    ADD CONSTRAINT webhook_task_triggers_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id);
+ALTER TABLE ONLY public.webhook_work_item_triggers
+    ADD CONSTRAINT webhook_work_item_triggers_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
 
-ALTER TABLE ONLY public.webhook_task_triggers
-    ADD CONSTRAINT webhook_task_triggers_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
-
-ALTER TABLE ONLY public.webhook_task_triggers
-    ADD CONSTRAINT webhook_task_triggers_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES public.workflows(id);
+ALTER TABLE ONLY public.webhook_work_item_triggers
+    ADD CONSTRAINT webhook_work_item_triggers_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES public.workflows(id);
 
 ALTER TABLE ONLY public.webhooks
     ADD CONSTRAINT webhooks_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
@@ -1519,9 +1480,6 @@ ALTER TABLE ONLY public.workflow_documents
 
 ALTER TABLE ONLY public.workflows
     ADD CONSTRAINT workflows_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id);
-
-ALTER TABLE ONLY public.workflows
-    ADD CONSTRAINT workflows_template_id_fkey FOREIGN KEY (template_id) REFERENCES public.templates(id);
 
 ALTER TABLE ONLY public.workflows
     ADD CONSTRAINT workflows_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);

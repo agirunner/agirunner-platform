@@ -33,6 +33,19 @@ const sampleDesiredState = {
   updated_by: null,
 };
 
+const sampleDesiredStateWithSecrets = {
+  ...sampleDesiredState,
+  environment: {
+    SAFE_NAME: 'worker-a',
+    API_TOKEN: 'top-secret-token',
+    nested: {
+      authorization: 'Bearer nested-secret',
+      keep_ref: 'secret:RUNTIME_KEY',
+    },
+  },
+  llm_api_key_secret_ref: 'secret:OPENAI_API_KEY',
+};
+
 const sampleActualState = {
   id: '00000000-0000-0000-0000-000000000050',
   desired_state_id: WORKER_ID,
@@ -75,6 +88,25 @@ describe('FleetService', () => {
 
       expect(result).toEqual([]);
     });
+
+    it('redacts secret-bearing environment values and secret refs in worker reads', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [sampleDesiredStateWithSecrets], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [sampleActualState], rowCount: 1 });
+
+      const result = await service.listWorkers(TENANT_ID);
+
+      expect(result[0]).not.toHaveProperty('llm_api_key_secret_ref');
+      expect(result[0]?.llm_api_key_secret_ref_configured).toBe(true);
+      expect(result[0]?.environment).toEqual({
+        SAFE_NAME: 'worker-a',
+        API_TOKEN: 'redacted://fleet-environment-secret',
+        nested: {
+          authorization: 'redacted://fleet-environment-secret',
+          keep_ref: 'secret:RUNTIME_KEY',
+        },
+      });
+    });
   });
 
   describe('getWorker', () => {
@@ -89,6 +121,25 @@ describe('FleetService', () => {
       expect(result.actual).toEqual([sampleActualState]);
     });
 
+    it('does not expose llm api key secret refs on single-worker reads', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [sampleDesiredStateWithSecrets], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [sampleActualState], rowCount: 1 });
+
+      const result = await service.getWorker(TENANT_ID, WORKER_ID);
+
+      expect(result).not.toHaveProperty('llm_api_key_secret_ref');
+      expect(result.llm_api_key_secret_ref_configured).toBe(true);
+      expect(result.environment).toEqual({
+        SAFE_NAME: 'worker-a',
+        API_TOKEN: 'redacted://fleet-environment-secret',
+        nested: {
+          authorization: 'redacted://fleet-environment-secret',
+          keep_ref: 'secret:RUNTIME_KEY',
+        },
+      });
+    });
+
     it('throws NotFoundError when worker does not exist', async () => {
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
@@ -98,7 +149,7 @@ describe('FleetService', () => {
 
   describe('createWorker', () => {
     it('creates a new desired state entry', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [sampleDesiredState], rowCount: 1 });
+      pool.query.mockResolvedValueOnce({ rows: [sampleDesiredStateWithSecrets], rowCount: 1 });
 
       const result = await service.createWorker(TENANT_ID, {
         workerName: 'test-worker',
@@ -108,12 +159,23 @@ describe('FleetService', () => {
         cpuLimit: '2',
         memoryLimit: '2g',
         networkPolicy: 'restricted',
-        environment: {},
+        environment: sampleDesiredStateWithSecrets.environment,
+        llmApiKeySecretRef: 'secret:OPENAI_API_KEY',
         replicas: 1,
         enabled: true,
       });
 
       expect(result.worker_name).toBe('test-worker');
+      expect(result).not.toHaveProperty('llm_api_key_secret_ref');
+      expect(result.llm_api_key_secret_ref_configured).toBe(true);
+      expect(result.environment).toEqual({
+        SAFE_NAME: 'worker-a',
+        API_TOKEN: 'redacted://fleet-environment-secret',
+        nested: {
+          authorization: 'redacted://fleet-environment-secret',
+          keep_ref: 'secret:RUNTIME_KEY',
+        },
+      });
       const params = pool.query.mock.calls[0][1] as unknown[];
       expect(params).toContain('orchestrator');
       const sql = pool.query.mock.calls[0][0] as string;
@@ -123,7 +185,12 @@ describe('FleetService', () => {
 
   describe('updateWorker', () => {
     it('updates specified fields and increments version', async () => {
-      const updated = { ...sampleDesiredState, replicas: 3, pool_kind: 'orchestrator', version: 2 };
+      const updated = {
+        ...sampleDesiredStateWithSecrets,
+        replicas: 3,
+        pool_kind: 'orchestrator',
+        version: 2,
+      };
       pool.query.mockResolvedValueOnce({ rows: [updated], rowCount: 1 });
 
       const result = await service.updateWorker(TENANT_ID, WORKER_ID, {
@@ -133,6 +200,8 @@ describe('FleetService', () => {
 
       expect(result.replicas).toBe(3);
       expect(result.pool_kind).toBe('orchestrator');
+      expect(result).not.toHaveProperty('llm_api_key_secret_ref');
+      expect(result.llm_api_key_secret_ref_configured).toBe(true);
       const sql = pool.query.mock.calls[0][0] as string;
       expect(sql).toContain('version = version + 1');
     });
@@ -146,13 +215,13 @@ describe('FleetService', () => {
     });
 
     it('returns existing worker when no fields to update', async () => {
-      pool.query
-        .mockResolvedValueOnce({ rows: [sampleDesiredState], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({ rows: [sampleDesiredStateWithSecrets], rowCount: 1 });
 
       const result = await service.updateWorker(TENANT_ID, WORKER_ID, {});
 
       expect(result.id).toBe(WORKER_ID);
+      expect(result).not.toHaveProperty('llm_api_key_secret_ref');
+      expect(result.llm_api_key_secret_ref_configured).toBe(true);
     });
   });
 
@@ -175,12 +244,13 @@ describe('FleetService', () => {
 
   describe('restartWorker', () => {
     it('sets restart_requested flag', async () => {
-      const restarted = { ...sampleDesiredState, restart_requested: true };
+      const restarted = { ...sampleDesiredStateWithSecrets, restart_requested: true };
       pool.query.mockResolvedValueOnce({ rows: [restarted], rowCount: 1 });
 
       const result = await service.restartWorker(TENANT_ID, WORKER_ID);
 
       expect(result.restart_requested).toBe(true);
+      expect(result).not.toHaveProperty('llm_api_key_secret_ref');
       const sql = pool.query.mock.calls[0][0] as string;
       expect(sql).toContain('restart_requested = true');
     });
@@ -194,12 +264,13 @@ describe('FleetService', () => {
 
   describe('drainWorker', () => {
     it('sets draining flag', async () => {
-      const drained = { ...sampleDesiredState, draining: true };
+      const drained = { ...sampleDesiredStateWithSecrets, draining: true };
       pool.query.mockResolvedValueOnce({ rows: [drained], rowCount: 1 });
 
       const result = await service.drainWorker(TENANT_ID, WORKER_ID);
 
       expect(result.draining).toBe(true);
+      expect(result).not.toHaveProperty('llm_api_key_secret_ref');
       const sql = pool.query.mock.calls[0][0] as string;
       expect(sql).toContain('draining = true');
     });

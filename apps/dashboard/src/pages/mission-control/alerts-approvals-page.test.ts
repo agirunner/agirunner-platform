@@ -25,7 +25,8 @@ describe('alerts approvals page source', () => {
     expect(source).toContain('Execution Failures');
     expect(source).toContain('escalated');
     expect(source).toContain('output_pending_review');
-    expect(source).not.toContain('Review prompt from template');
+    expect(source).toContain('Cancel Failed Step');
+    expect(source).toContain('Cancel Work');
   });
 
   it('uses board and specialist-step language instead of generic workflow status copy', () => {
@@ -36,6 +37,19 @@ describe('alerts approvals page source', () => {
     expect(source).toContain('Board:');
     expect(source).toContain('Upstream steps:');
     expect(source).toContain('Awaiting Operator Decision');
+    expect(source).toContain('dismissedEscalationTaskIds');
+    expect(source).toContain('dismissedFailureTaskIds');
     expect(source).not.toContain('No failed tasks.');
+  });
+
+  it('keeps the page shell visible when one intervention lane fails instead of blanking the entire surface', () => {
+    const source = readSource();
+    expect(source).toContain('showInitialLoading');
+    expect(source).toContain('approvalsError');
+    expect(source).toContain('escalationError');
+    expect(source).toContain('failedError');
+    expect(source).toContain('LaneErrorState');
+    expect(source).toContain('LaneLoadingState');
+    expect(source).not.toContain('Failed to load operator intervention lanes. Please retry.');
   });
 });

@@ -7,6 +7,7 @@ import { listOAuthProfiles } from '../../catalogs/oauth-profiles.js';
 import { ValidationError } from '../../errors/domain-errors.js';
 
 const OAUTH_CALLBACK_PORT = 1455;
+const GENERIC_OAUTH_ERROR = 'OAuth callback failed. Retry the connection or reconnect the provider.';
 
 export const oauthRoutes: FastifyPluginAsync = async (app) => {
   const service = app.oauthService;
@@ -85,26 +86,43 @@ export const oauthRoutes: FastifyPluginAsync = async (app) => {
     const dashboardUrl = process.env.DASHBOARD_URL ?? 'http://localhost:3000';
 
     if (error) {
-      res.writeHead(302, { Location: `${dashboardUrl}/config/llm?oauth_error=${encodeURIComponent(error)}` });
+      res.writeHead(302, {
+        Location: buildDashboardRedirect(dashboardUrl, {
+          oauth_error: sanitizeOAuthRedirectMessage(error),
+        }),
+      });
       res.end();
       return;
     }
 
     if (!code || !state) {
-      res.writeHead(302, { Location: `${dashboardUrl}/config/llm?oauth_error=${encodeURIComponent('Missing code or state')}` });
+      res.writeHead(302, {
+        Location: buildDashboardRedirect(dashboardUrl, {
+          oauth_error: 'Missing code or state',
+        }),
+      });
       res.end();
       return;
     }
 
     try {
       const result = await service.handleCallback(code, state);
-      const params = new URLSearchParams({ oauth_success: 'true', provider_id: result.providerId });
-      if (result.email) params.set('oauth_email', result.email);
-      res.writeHead(302, { Location: `${dashboardUrl}/config/llm?${params.toString()}` });
+      const query: Record<string, string> = {
+        oauth_success: 'true',
+        provider_id: result.providerId,
+      };
+      if (result.email) {
+        query.oauth_email = result.email;
+      }
+      res.writeHead(302, { Location: buildDashboardRedirect(dashboardUrl, query) });
       res.end();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'OAuth callback failed';
-      res.writeHead(302, { Location: `${dashboardUrl}/config/llm?oauth_error=${encodeURIComponent(message)}` });
+      const message = err instanceof Error ? err.message : GENERIC_OAUTH_ERROR;
+      res.writeHead(302, {
+        Location: buildDashboardRedirect(dashboardUrl, {
+          oauth_error: sanitizeOAuthRedirectMessage(message),
+        }),
+      });
       res.end();
     }
   });
@@ -126,3 +144,33 @@ export const oauthRoutes: FastifyPluginAsync = async (app) => {
     callbackServer.close();
   });
 };
+
+function buildDashboardRedirect(
+  dashboardUrl: string,
+  query: Record<string, string>,
+): string {
+  const params = new URLSearchParams(query);
+  return `${dashboardUrl}/config/llm?${params.toString()}`;
+}
+
+function sanitizeOAuthRedirectMessage(value: string): string {
+  const normalized = value.trim().replace(/\s+/g, ' ');
+  if (!normalized) {
+    return GENERIC_OAUTH_ERROR;
+  }
+  if (containsSecretLikeValue(normalized)) {
+    return GENERIC_OAUTH_ERROR;
+  }
+  return normalized.length > 180 ? `${normalized.slice(0, 179)}...` : normalized;
+}
+
+function containsSecretLikeValue(value: string): boolean {
+  return (
+    /(?:access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization|bearer|api[_-]?key|password|secret)/i.test(value)
+    || /enc:v\d+:/i.test(value)
+    || /secret:[A-Z0-9_:-]+/i.test(value)
+    || /Bearer\s+\S+/i.test(value)
+    || /\b(?:sk|rk|ghp|ghu|github_pat)_[A-Za-z0-9_-]{8,}\b/.test(value)
+    || /[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/.test(value)
+  );
+}

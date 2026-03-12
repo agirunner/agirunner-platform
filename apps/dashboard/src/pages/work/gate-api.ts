@@ -29,6 +29,13 @@ export interface DashboardGateDetailRecord {
     feedback?: string | null;
     decided_at?: string | null;
   } | null;
+  decision_history?: Array<{
+    action: 'requested' | 'approve' | 'reject' | 'request_changes' | string;
+    actor_type?: string | null;
+    actor_id?: string | null;
+    feedback?: string | null;
+    created_at?: string | null;
+  }>;
   requested_by_task?: {
     id: string;
     title?: string | null;

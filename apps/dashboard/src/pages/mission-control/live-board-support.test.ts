@@ -74,7 +74,7 @@ describe('live board support', () => {
           },
         },
       ),
-    ).toBe('Workflow failed');
+    ).toBe('Board execution failed');
     expect(isLiveWorkflow({ state: 'failed' })).toBe(true);
     expect(isLiveWorkflow({ state: 'completed' })).toBe(false);
   });

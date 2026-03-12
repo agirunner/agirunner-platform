@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
+import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
 import type {
   CreateDesiredStateInput,
   UpdateDesiredStateInput,
@@ -21,6 +22,62 @@ export const fleetRoutes: FastifyPluginAsync = async (app) => {
     last_claim_at: z.string().datetime({ offset: true }).nullable().optional(),
     image: z.string().min(1).optional(),
   });
+  const actualStateSchema = z
+    .object({
+      desiredStateId: z.string().uuid().optional(),
+      desired_state_id: z.string().uuid().optional(),
+      containerId: z.string().min(1).optional(),
+      container_id: z.string().min(1).optional(),
+      containerStatus: z.string().min(1).optional(),
+      container_status: z.string().min(1).optional(),
+      cpuUsagePercent: z.number().finite().optional(),
+      cpu_usage_percent: z.number().finite().optional(),
+      memoryUsageBytes: z.number().int().nonnegative().optional(),
+      memory_usage_bytes: z.number().int().nonnegative().optional(),
+      networkRxBytes: z.number().int().nonnegative().optional(),
+      network_rx_bytes: z.number().int().nonnegative().optional(),
+      networkTxBytes: z.number().int().nonnegative().optional(),
+      network_tx_bytes: z.number().int().nonnegative().optional(),
+    })
+    .transform((value) => ({
+      desiredStateId: value.desiredStateId ?? value.desired_state_id,
+      containerId: value.containerId ?? value.container_id,
+      containerStatus: value.containerStatus ?? value.container_status,
+      cpuUsagePercent: value.cpuUsagePercent ?? value.cpu_usage_percent,
+      memoryUsageBytes: value.memoryUsageBytes ?? value.memory_usage_bytes,
+      networkRxBytes: value.networkRxBytes ?? value.network_rx_bytes,
+      networkTxBytes: value.networkTxBytes ?? value.network_tx_bytes,
+    }))
+    .superRefine((value, ctx) => {
+      if (!value.desiredStateId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'desiredStateId is required',
+          path: ['desiredStateId'],
+        });
+      }
+      if (!value.containerId) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'containerId is required',
+          path: ['containerId'],
+        });
+      }
+      if (!value.containerStatus) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'containerStatus is required',
+          path: ['containerStatus'],
+        });
+      }
+    });
+
+  function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
+    if (result.success) {
+      return result.data;
+    }
+    throw new SchemaValidationFailedError('Invalid request body', { issues: result.error.flatten() });
+  }
 
   // --- Desired State (Fleet Workers) ---
 
@@ -119,16 +176,8 @@ export const fleetRoutes: FastifyPluginAsync = async (app) => {
     '/api/v1/fleet/workers/actual-state',
     { preHandler: [authenticateApiKey, withScope('worker')] },
     async (request, reply) => {
-      const body = request.body as {
-        desiredStateId: string;
-        containerId: string;
-        containerStatus: string;
-        cpuUsagePercent?: number;
-        memoryUsageBytes?: number;
-        networkRxBytes?: number;
-        networkTxBytes?: number;
-      };
-      await service.reportActualState(body.desiredStateId, body.containerId, body.containerStatus, {
+      const body = parseOrThrow(actualStateSchema.safeParse(request.body));
+      await service.reportActualState(body.desiredStateId!, body.containerId!, body.containerStatus!, {
         cpuPercent: body.cpuUsagePercent,
         memoryBytes: body.memoryUsageBytes,
         rxBytes: body.networkRxBytes,
@@ -202,7 +251,7 @@ export const fleetRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const body = heartbeatSchema.parse(request.body) as HeartbeatPayload;
       const result = await service.recordHeartbeat(request.auth!.tenantId, body);
-      return result;
+      return { data: result };
     },
   );
 

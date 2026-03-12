@@ -1,8 +1,12 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { WorkflowService } from '../../src/services/workflow-service.js';
 
 describe('WorkflowService workflow relations', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('hydrates child workflow status visibility on workflow lists', async () => {
     const pool = {
       query: vi
@@ -16,8 +20,9 @@ describe('WorkflowService workflow relations', () => {
               name: 'Parent workflow',
               state: 'active',
               metadata: {
+                parent_workflow_id: null,
                 child_workflow_ids: ['wf-child-1', 'wf-child-2'],
-                latest_chained_workflow_id: 'wf-child-2',
+                latest_child_workflow_id: 'wf-child-2',
               },
             },
           ],
@@ -137,48 +142,69 @@ describe('WorkflowService workflow relations', () => {
     });
   });
 
-  it('does not hydrate legacy runtime summary projections on non-playbook workflow reads', async () => {
+  it('redacts secret-bearing resolved config views while preserving secret references', async () => {
     const pool = {
-      query: vi
-        .fn()
-        .mockResolvedValueOnce({
-          rows: [
-            {
-              id: 'wf-legacy',
-              tenant_id: 'tenant-1',
-              name: 'Legacy workflow',
-              state: 'active',
-              playbook_id: null,
-              metadata: {
-                workflow: {
-                  phases: [{ name: 'build', task_ids: ['task-1'] }],
-                },
-                workflow_runtime: {
-                  phase_gates: {
-                    build: { status: 'approved' },
-                  },
-                },
-              },
-            },
-          ],
-          rowCount: 1,
-        })
-        .mockResolvedValueOnce({
-          rows: [{ id: 'task-1', workflow_id: 'wf-legacy', state: 'ready' }],
-        })
-        .mockResolvedValueOnce({ rows: [] }),
+      query: vi.fn(),
     };
-
+    const repoModule = await import('../../src/db/tenant-scoped-repository.js');
+    vi.spyOn(repoModule.TenantScopedRepository.prototype, 'findById').mockResolvedValue({
+      id: 'wf-1',
+      tenant_id: 'tenant-1',
+      resolved_config: {
+        provider: {
+          api_key: 'inline-secret',
+          api_key_secret_ref: 'secret:OPENAI_API_KEY',
+        },
+      },
+      config_layers: {
+        playbook: {
+          provider: {
+            api_key: 'playbook-secret',
+          },
+        },
+        run: {
+          headers: {
+            authorization: 'Bearer runtime-secret',
+          },
+        },
+      },
+    });
     const service = new WorkflowService(
       pool as never,
       { emit: vi.fn() } as never,
       { TASK_DEFAULT_TIMEOUT_MINUTES: 30, ARTIFACT_STORAGE_BACKEND: 'local', ARTIFACT_LOCAL_ROOT: '/tmp' } as never,
     );
 
-    const workflow = await service.getWorkflow('tenant-1', 'wf-legacy');
+    const result = await service.getResolvedConfig('tenant-1', 'wf-1', true);
 
-    expect(Array.isArray(workflow.tasks)).toBe(true);
-    expect(workflow.active_stages ?? []).toEqual([]);
-    expect(workflow.workflow_stages ?? []).toEqual([]);
+    expect(result).toEqual({
+      workflow_id: 'wf-1',
+      resolved_config: {
+        provider: {
+          api_key: {
+            value: 'redacted://workflow-config-secret',
+            source: 'playbook',
+          },
+          api_key_secret_ref: {
+            value: 'secret:OPENAI_API_KEY',
+            source: 'playbook',
+          },
+        },
+      },
+      config_layers: {
+        playbook: {
+          provider: {
+            api_key: 'redacted://workflow-config-secret',
+          },
+        },
+        project: {},
+        run: {
+          headers: {
+            authorization: 'redacted://workflow-config-secret',
+          },
+        },
+      },
+    });
   });
+
 });

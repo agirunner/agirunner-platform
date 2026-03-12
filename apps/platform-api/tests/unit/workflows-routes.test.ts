@@ -140,4 +140,94 @@ describe('workflow routes', () => {
     expect(selectSql).toContain('ORDER BY created_at DESC');
     expect(selectParams).toEqual(['tenant-1', 'workflow-1', 'implementation', 'activation-1', 20, 0]);
   });
+
+  it('redacts secret-bearing workflow event data in workflow-scoped browsing responses', async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [{ count: '1' }], rowCount: 1 })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 1,
+            type: 'workflow.activation_requeued',
+            entity_type: 'workflow',
+            entity_id: 'workflow-1',
+            data: {
+              workflow_id: 'workflow-1',
+              activation_id: 'activation-1',
+              api_key: 'sk-secret-value',
+              credentials: {
+                refresh_token: 'secret:oauth-refresh',
+              },
+            },
+          },
+        ],
+        rowCount: 1,
+      });
+
+    app = fastify();
+    app.decorate('workflowService', {
+      createWorkflow: async () => ({}),
+      listWorkflows: async () => ({ data: [], meta: {} }),
+      getWorkflow: async () => ({}),
+      getWorkflowBoard: async () => ({}),
+      listWorkflowStages: async () => ([]),
+      listWorkflowWorkItems: async () => ([]),
+      createWorkflowWorkItem: async () => ({}),
+      getWorkflowWorkItem: async () => ({}),
+      listWorkflowWorkItemTasks: async () => ([]),
+      listWorkflowWorkItemEvents: async () => ([]),
+      getWorkflowWorkItemMemory: async () => ({ entries: [] }),
+      getWorkflowWorkItemMemoryHistory: async () => ({ history: [] }),
+      updateWorkflowWorkItem: async () => ({}),
+      actOnStageGate: async () => ({}),
+      getResolvedConfig: async () => ({}),
+      cancelWorkflow: async () => ({}),
+      pauseWorkflow: async () => ({}),
+      resumeWorkflow: async () => ({}),
+      deleteWorkflow: async () => ({}),
+    });
+    app.decorate('pgPool', { query });
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: async () => undefined });
+    app.decorate('projectService', { getProject: async () => ({ settings: {} }) });
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: async () => null,
+      listProviders: async () => [],
+      listModels: async () => [],
+      getProviderForOperations: async () => null,
+    });
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/workflows/workflow-1/events',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: [
+        {
+          id: 1,
+          type: 'workflow.activation_requeued',
+          entity_type: 'workflow',
+          entity_id: 'workflow-1',
+          data: {
+            workflow_id: 'workflow-1',
+            activation_id: 'activation-1',
+            api_key: 'redacted://event-secret',
+            credentials: {
+              refresh_token: 'redacted://event-secret',
+            },
+          },
+        },
+      ],
+      meta: {
+        total: 1,
+        page: 1,
+        per_page: 20,
+        pages: 1,
+      },
+    });
+  });
 });

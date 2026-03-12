@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import {
   dashboardApi,
   type DashboardEffectiveModelResolution,
+  type DashboardWorkflowRelationRef,
   type DashboardWorkflowActivationRecord,
   type DashboardWorkflowModelOverridesResponse,
   type DashboardWorkflowBoardResponse,
@@ -73,8 +74,8 @@ function deriveWorkflowStageDisplay(
 
   const liveStages = Array.from(
     new Set([
-      ...(workflow.active_stages ?? []),
       ...(workflow.work_item_summary?.active_stage_names ?? []),
+      ...(workflow.active_stages ?? []),
     ]),
   ).filter((stage) => stage.trim().length > 0);
 
@@ -201,6 +202,8 @@ export function WorkflowDetailPage(): JSX.Element {
 
   useEffect(() => {
     const workItems = flattenGroupedWorkItems(groupWorkflowWorkItems(boardQuery.data?.work_items ?? []));
+    const hasExplicitNonWorkItemSelection =
+      selectedActivationId !== null || selectedChildWorkflowId !== null || selectedGateStageName !== null;
     if (workItems.length === 0) {
       if (selectedWorkItemId !== null) {
         clearWorkflowSelection('work_item');
@@ -210,8 +213,17 @@ export function WorkflowDetailPage(): JSX.Element {
     if (selectedWorkItemId && workItems.some((item) => item.id === selectedWorkItemId)) {
       return;
     }
+    if (hasExplicitNonWorkItemSelection) {
+      return;
+    }
     updateWorkflowSelection('work_item', workItems[0].id);
-  }, [boardQuery.data?.work_items, selectedWorkItemId]);
+  }, [
+    boardQuery.data?.work_items,
+    selectedActivationId,
+    selectedChildWorkflowId,
+    selectedGateStageName,
+    selectedWorkItemId,
+  ]);
 
   useEffect(() => {
     if (!workflowId) {
@@ -245,14 +257,13 @@ export function WorkflowDetailPage(): JSX.Element {
     for (const stage of stagesQuery.data ?? []) {
       names.add(stage.name);
     }
-    for (const stageName of workflowQuery.data?.active_stages ?? []) {
-      names.add(stageName);
-    }
     for (const stageName of workflowQuery.data?.work_item_summary?.active_stage_names ?? []) {
       names.add(stageName);
     }
-    const shouldUseCurrentStageFallback =
-      workflowQuery.data?.lifecycle !== 'continuous' || names.size === 0;
+    for (const stageName of workflowQuery.data?.active_stages ?? []) {
+      names.add(stageName);
+    }
+    const shouldUseCurrentStageFallback = workflowQuery.data?.lifecycle !== 'continuous';
     const currentWorkflowStage = workflowQuery.data?.current_stage;
     if (currentWorkflowStage && shouldUseCurrentStageFallback) {
       names.add(currentWorkflowStage);
@@ -300,14 +311,22 @@ export function WorkflowDetailPage(): JSX.Element {
     () => readProjectMemoryEntries(projectQuery.data),
     [projectQuery.data],
   );
+  const projectTimelineEntries = useMemo(
+    () =>
+      mergeTimelineEntriesWithWorkflowRelations(
+        timelineQuery.data ?? [],
+        workflowQuery.data?.workflow_relations?.children ?? [],
+      ),
+    [timelineQuery.data, workflowQuery.data?.workflow_relations?.children],
+  );
 
   if (workflowQuery.data && !workflowQuery.data.playbook_id) {
     return (
       <section className="grid">
         <div className="card">
-          <h2>Workflow Unavailable</h2>
+          <h2>Board Detail Unavailable</h2>
           <p className="muted">
-            This detail view requires a playbook-backed workflow record.
+            This detail view requires a playbook-backed board run.
           </p>
         </div>
       </section>
@@ -401,9 +420,9 @@ export function WorkflowDetailPage(): JSX.Element {
     <section className="grid">
       <div className="grid two">
         <div className="card">
-          <h2>Workflow Detail</h2>
-          {workflowQuery.isLoading ? <p>Loading workflow...</p> : null}
-          {workflowQuery.error ? <p style={{ color: '#dc2626' }}>Failed to load workflow</p> : null}
+          <h2>Board Detail</h2>
+          {workflowQuery.isLoading ? <p>Loading board run...</p> : null}
+          {workflowQuery.error ? <p style={{ color: '#dc2626' }}>Failed to load board run</p> : null}
           {workflowQuery.data ? (
             <div className="grid">
               <div className="row">
@@ -505,19 +524,22 @@ export function WorkflowDetailPage(): JSX.Element {
       ) : null}
 
       <div className="card">
-        <h3>Chain Workflow</h3>
-        <p className="muted">Create a linked follow-up workflow using a playbook.</p>
+        <h3>Launch Child Board</h3>
+        <p className="muted">Create a linked follow-up board run using a playbook.</p>
         <div className="row" style={{ justifyContent: 'flex-end' }}>
-          <Button onClick={() => setIsChainDialogOpen(true)}>Create Follow-up Workflow</Button>
+          <Button onClick={() => setIsChainDialogOpen(true)}>Create Child Board</Button>
         </div>
       </div>
 
       <PlaybookBoardCard
+        workflowId={workflowId}
         board={boardQuery.data}
+        stages={stagesQuery.data ?? []}
         isLoading={boardQuery.isLoading}
         hasError={Boolean(boardQuery.error)}
         selectedWorkItemId={selectedWorkItemId}
         onSelectWorkItem={(workItemId) => updateWorkflowSelection('work_item', workItemId)}
+        onBoardChanged={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}
       />
 
       {selectedWorkItemId ? (
@@ -527,8 +549,11 @@ export function WorkflowDetailPage(): JSX.Element {
             workItemId={selectedWorkItemId}
             workItems={groupedWorkItems}
             selectedWorkItem={selectedBoardWorkItem}
+            columns={boardQuery.data?.columns ?? []}
+            stages={stagesQuery.data ?? []}
             tasks={selectedWorkItemTasks}
             onSelectWorkItem={(workItemId) => updateWorkflowSelection('work_item', workItemId)}
+            onWorkItemChanged={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}
             onClearSelection={() => clearWorkflowSelection('work_item')}
           />
         </div>
@@ -557,17 +582,17 @@ export function WorkflowDetailPage(): JSX.Element {
         <div className="card">
           <h3>Model Overrides</h3>
           <p className="muted">
-            Workflow overrides are set at launch time and take precedence over project-level model
+            Board-run overrides are set at launch time and take precedence over project-level model
             overrides.
           </p>
           {workflowModelOverridesQuery.isLoading ? <p>Loading model overrides...</p> : null}
           {workflowModelOverridesQuery.error ? (
-            <p style={{ color: '#dc2626' }}>Failed to load workflow model overrides.</p>
+            <p style={{ color: '#dc2626' }}>Failed to load board-run model overrides.</p>
           ) : null}
           {workflowModelOverridesQuery.data ? (
             <StructuredRecordView
               data={workflowModelOverridesQuery.data}
-              emptyMessage="No workflow model overrides configured."
+              emptyMessage="No board-run model overrides configured."
             />
           ) : null}
         </div>
@@ -592,7 +617,7 @@ export function WorkflowDetailPage(): JSX.Element {
         <div className="card">
           <h3>Resolved Config</h3>
           <p className="muted">
-            Merged playbook, project, and run configuration for this workflow.
+            Merged playbook, project, and board-run configuration for this operator surface.
           </p>
           {configQuery.isLoading ? <p>Loading config...</p> : null}
           {configQuery.error ? (
@@ -607,9 +632,9 @@ export function WorkflowDetailPage(): JSX.Element {
         </div>
 
         <div className="card">
-          <h3>Run Summary</h3>
+          <h3>Board Summary</h3>
           <p className="muted">
-            Continuity summary written into project memory at terminal workflow state.
+            Continuity summary written into project memory when the board run reaches a terminal state.
           </p>
           {runSummary ? (
             <StructuredRecordView
@@ -665,7 +690,7 @@ export function WorkflowDetailPage(): JSX.Element {
         <ProjectTimelineCard
           isLoading={timelineQuery.isLoading}
           hasError={Boolean(timelineQuery.error)}
-          entries={timelineQuery.data ?? []}
+          entries={projectTimelineEntries}
           currentWorkflowId={workflowId}
           selectedChildWorkflowId={selectedChildWorkflowId}
           onSelectChildWorkflow={(childWorkflowId) =>
@@ -715,5 +740,53 @@ function ResolvedModelResolutionList(props: {
         </div>
       ))}
     </div>
+  );
+}
+
+function mergeTimelineEntriesWithWorkflowRelations(
+  timelineEntries: DashboardProjectTimelineEntry[],
+  childRelations: DashboardWorkflowRelationRef[],
+): DashboardProjectTimelineEntry[] {
+  if (childRelations.length === 0) {
+    return timelineEntries;
+  }
+
+  const timelineByWorkflowId = new Map(
+    timelineEntries.map((entry) => [entry.workflow_id, entry] as const),
+  );
+
+  for (const child of childRelations) {
+    if (timelineByWorkflowId.has(child.workflow_id)) {
+      continue;
+    }
+    timelineByWorkflowId.set(child.workflow_id, {
+      workflow_id: child.workflow_id,
+      name: child.name ?? child.workflow_id,
+      state: child.state,
+      created_at: child.created_at ?? new Date(0).toISOString(),
+      started_at: child.started_at ?? null,
+      completed_at: child.completed_at ?? null,
+      workflow_relations: {
+        parent: null,
+        children: [],
+        latest_child_workflow_id: null,
+        child_status_counts: {
+          total: 0,
+          active: 0,
+          completed: 0,
+          failed: 0,
+          cancelled: 0,
+        },
+      },
+      chain: {
+        source: 'workflow_relations',
+        is_terminal: child.is_terminal,
+      },
+      link: child.link,
+    });
+  }
+
+  return Array.from(timelineByWorkflowId.values()).sort((left, right) =>
+    right.created_at.localeCompare(left.created_at),
   );
 }

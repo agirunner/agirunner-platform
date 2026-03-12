@@ -143,8 +143,8 @@ export function WorkflowListPage(): JSX.Element {
     <section className="card">
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <div>
-          <h2>Delivery Runs</h2>
-          <p className="muted">Filterable real-time list and fallback posture board backed by SSE updates.</p>
+          <h2>Board Runs</h2>
+          <p className="muted">Filterable real-time board-run list and posture view backed by SSE updates.</p>
         </div>
         <div className="row">
           <button
@@ -196,7 +196,7 @@ export function WorkflowListPage(): JSX.Element {
       <div className="card">
         <h3>Start With AI Planning</h3>
         <p className="muted">
-          Launch a planning workflow from the dashboard using a project brief and get a playbook-aligned delivery plan ready for operator review.
+          Launch a planning board run from the dashboard using a project brief and get a playbook-aligned work plan ready for operator review.
         </p>
         <div className="grid">
           <label htmlFor="planning-project-select">Project</label>
@@ -237,8 +237,8 @@ export function WorkflowListPage(): JSX.Element {
         </div>
       </div>
 
-      {query.isLoading ? <p>Loading runs...</p> : null}
-      {query.error ? <p style={{ color: '#dc2626' }}>Failed to load runs</p> : null}
+      {query.isLoading ? <p>Loading board runs...</p> : null}
+      {query.error ? <p style={{ color: '#dc2626' }}>Failed to load board runs</p> : null}
 
       {view === 'list' ? (
         <table className="table">

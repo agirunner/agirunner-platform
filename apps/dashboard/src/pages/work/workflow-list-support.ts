@@ -23,12 +23,12 @@ export interface WorkflowListRecord {
 }
 
 function readLiveStageNames(workflow: WorkflowListRecord): string[] {
-  const activeStages = workflow.active_stages?.filter((stage): stage is string => stage.trim().length > 0) ?? [];
   const summaryStages =
     workflow.work_item_summary?.active_stage_names.filter(
       (stage): stage is string => typeof stage === 'string' && stage.trim().length > 0,
     ) ?? [];
-  return Array.from(new Set([...activeStages, ...summaryStages]));
+  const activeStages = workflow.active_stages?.filter((stage): stage is string => stage.trim().length > 0) ?? [];
+  return Array.from(new Set([...summaryStages, ...activeStages]));
 }
 
 export type StatusFilter = 'all' | 'planned' | 'active' | 'gated' | 'blocked' | 'done';
@@ -112,19 +112,13 @@ export function formatCost(cost?: number): string {
 }
 
 export function describeWorkflowType(workflow: WorkflowListRecord): string {
-  return workflow.lifecycle === 'continuous' ? 'Continuous board' : 'Milestone board';
+  return workflow.lifecycle === 'continuous' ? 'Continuous board run' : 'Milestone board run';
 }
 
 export function describeWorkflowStage(workflow: WorkflowListRecord): string {
   const liveStages = readLiveStageNames(workflow);
   if (workflow.lifecycle === 'continuous') {
-    if (liveStages.length > 0) {
-      return liveStages.join(', ');
-    }
-    if (workflow.current_stage) {
-      return workflow.current_stage;
-    }
-    return '-';
+    return liveStages.length > 0 ? liveStages.join(', ') : '-';
   }
   if (workflow.current_stage) {
     return workflow.current_stage;
@@ -156,7 +150,7 @@ export function describeOperatorSignal(workflow: WorkflowListRecord): string {
     if (summary && summary.total_work_items > 0) {
       return `${summary.completed_work_item_count} completed work item${summary.completed_work_item_count === 1 ? '' : 's'}`;
     }
-    return 'Delivery complete';
+    return 'Board run complete';
   }
   if (status === 'blocked') {
     const rawState = (workflow.status ?? workflow.state ?? '').toLowerCase();
@@ -164,10 +158,10 @@ export function describeOperatorSignal(workflow: WorkflowListRecord): string {
       return 'Stage or gate work paused';
     }
     if (rawState === 'cancelled') {
-      return 'Delivery cancelled';
+      return 'Board run cancelled';
     }
     if (rawState === 'failed' || rawState === 'error') {
-      return 'Delivery blocked by failure';
+      return 'Board run blocked by failure';
     }
     return 'Operator attention needed';
   }

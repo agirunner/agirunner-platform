@@ -32,7 +32,7 @@ export function readWorkflowProjectId(workflow: unknown): string | undefined {
 
 export function readWorkflowRunSummary(workflow: unknown): Record<string, unknown> | undefined {
   const metadata = asRecord(asRecord(workflow).metadata);
-  return asRecord(metadata.run_summary ?? metadata.timeline_summary);
+  return asRecord(metadata.run_summary);
 }
 
 export function groupTasksByStage(
@@ -123,8 +123,6 @@ export function summarizeTasks(tasks: Array<{ state: string }>): MissionControlS
 }
 
 function normalizeTaskState(state: string): string {
-  if (state === 'running' || state === 'claimed') return 'in_progress';
-  if (state === 'awaiting_escalation') return 'escalated';
   return state;
 }
 

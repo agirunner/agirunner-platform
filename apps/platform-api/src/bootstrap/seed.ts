@@ -139,7 +139,7 @@ async function seedRuntimeDefaults(
     configKey: 'default_runtime_image',
     configValue: 'agirunner-runtime:local',
     configType: 'string',
-    description: 'Default Docker image for runtime containers when template does not specify',
+    description: 'Default Docker image for runtime containers when the playbook does not specify one',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {

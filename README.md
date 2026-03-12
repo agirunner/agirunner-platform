@@ -7,6 +7,30 @@ Task coordination broker for AI agents. TypeScript/Node/Fastify/PostgreSQL.
 - [agirunner](https://github.com/agirunner/agirunner) — Specs, requirements, design docs
 - [agirunner-runtime](https://github.com/agirunner/agirunner-runtime) — Agentic Runtime (Go/Docker)
 
+## V2 Operator References
+
+The active operator and integration model is V2-only:
+
+- playbooks launch workflows
+- work items move through board columns and stages
+- activations wake the orchestrator
+- approvals happen through stage gates and task review flows
+- artifacts are previewed through platform permalinks
+- memory and history are explicit project/workflow/work-item surfaces
+
+Primary operator routes:
+
+- `/mission-control` — live board
+- `/work/workflows` — workflow list and workflow detail entry
+- `/work/approvals` — approval queue
+- `/logs` — execution inspector
+
+Reference docs:
+
+- `../agirunner-docs/designv2/orchestrated-workflow-architecture.md`
+- `../agirunner-docs/design/v2-migration-guide.md`
+- `../agirunner-docs/design/v2-release-notes.md`
+
 ## Testing Documentation (Canonical in Repo)
 
 - `docs/testing/test-plan-v1.0.md`

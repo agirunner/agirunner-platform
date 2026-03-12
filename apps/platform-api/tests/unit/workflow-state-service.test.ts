@@ -78,7 +78,7 @@ describe('WorkflowStateService', () => {
     );
   });
 
-  it('keeps continuous workflows active even when they are idle with completed stage history', async () => {
+  it('returns pending for continuous workflows when no active work-item or gate posture remains', async () => {
     const pool = createPool([
       workflowRow({ state: 'active' }),
       rowSet([{ lifecycle: 'continuous', current_stage: null }]),
@@ -90,8 +90,14 @@ describe('WorkflowStateService', () => {
     const eventService = { emit: vi.fn() };
     const service = new WorkflowStateService(pool as never, eventService as never);
     const result = await service.recomputeWorkflowState('tenant-1', 'workflow-1');
-    expect(result).toBe('active');
-    expect(eventService.emit).not.toHaveBeenCalled();
+    expect(result).toBe('pending');
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'workflow.state_changed',
+        data: { from_state: 'active', to_state: 'pending' },
+      }),
+      undefined,
+    );
   });
 
   it('returns active for continuous workflows when a stage gate is awaiting approval', async () => {
@@ -116,16 +122,61 @@ describe('WorkflowStateService', () => {
     );
   });
 
+  it('returns active for continuous workflows when an orchestrator task is already in progress', async () => {
+    const pool = createPool([
+      workflowRow({ state: 'pending' }),
+      rowSet([{ lifecycle: 'continuous', current_stage: null }]),
+      rowSet([]),
+      rowSet([{ exists: 1 }]),
+      rowSet([{ open_work_item_count: 0 }]),
+      rowSet([]),
+    ]);
+    const eventService = { emit: vi.fn() };
+    const service = new WorkflowStateService(pool as never, eventService as never);
+    const result = await service.recomputeWorkflowState('tenant-1', 'workflow-1');
+    expect(result).toBe('active');
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'workflow.state_changed',
+        data: { from_state: 'pending', to_state: 'active' },
+      }),
+      undefined,
+    );
+  });
+
+  it('keeps workflows paused while the pause marker remains even if work-item posture is still active', async () => {
+    const pool = createPool([
+      workflowRow({
+        state: 'paused',
+        metadata: { pause_requested_at: '2026-03-11T00:00:00.000Z' },
+      }),
+      rowSet([]),
+    ]);
+    const eventService = { emit: vi.fn() };
+    const service = new WorkflowStateService(pool as never, eventService as never);
+    const result = await service.recomputeWorkflowState('tenant-1', 'workflow-1');
+    expect(result).toBe('paused');
+    expect(eventService.emit).not.toHaveBeenCalled();
+  });
+
+  it('does not reopen completed workflows when later task lifecycle callbacks recompute state', async () => {
+    const pool = createPool([
+      workflowRow({ state: 'completed' }),
+      rowSet([]),
+    ]);
+    const eventService = { emit: vi.fn() };
+    const service = new WorkflowStateService(pool as never, eventService as never);
+    const result = await service.recomputeWorkflowState('tenant-1', 'workflow-1');
+    expect(result).toBe('completed');
+    expect(eventService.emit).not.toHaveBeenCalled();
+  });
+
   it('returns paused during cancellation when work items remain open', async () => {
     const pool = createPool([
       workflowRow({
         state: 'active',
         metadata: { cancel_requested_at: '2026-03-11T00:00:00.000Z' },
       }),
-      rowSet([{ lifecycle: 'standard', current_stage: null }]),
-      rowSet([{ status: 'pending', gate_status: 'not_requested' }]),
-      rowSet([]),
-      rowSet([{ open_work_item_count: 0 }]),
       rowSet([{ lifecycle: 'standard', current_stage: null }]),
       rowSet([{ status: 'pending', gate_status: 'not_requested' }]),
       rowSet([]),
@@ -155,12 +206,34 @@ describe('WorkflowStateService', () => {
       rowSet([{ status: 'pending', gate_status: 'not_requested' }]),
       rowSet([]),
       rowSet([{ open_work_item_count: 0 }]),
-      rowSet([{ lifecycle: 'standard', current_stage: null }]),
-      rowSet([{ status: 'pending', gate_status: 'not_requested' }]),
+      rowSet([]),
+      rowSet([{ task_count: 3, failed_task_count: 1 }]),
+    ]);
+    const eventService = { emit: vi.fn() };
+    const service = new WorkflowStateService(pool as never, eventService as never);
+    const result = await service.recomputeWorkflowState('tenant-1', 'workflow-1');
+    expect(result).toBe('cancelled');
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'workflow.state_changed',
+        data: { from_state: 'active', to_state: 'cancelled' },
+      }),
+      undefined,
+    );
+  });
+
+  it('returns cancelled during cancellation when only a stage marker remains but no work is left to drain', async () => {
+    const pool = createPool([
+      workflowRow({
+        state: 'active',
+        metadata: { cancel_requested_at: '2026-03-11T00:00:00.000Z' },
+      }),
+      rowSet([{ lifecycle: 'standard', current_stage: 'requirements' }]),
+      rowSet([{ status: 'active', gate_status: 'not_requested' }]),
       rowSet([]),
       rowSet([{ open_work_item_count: 0 }]),
       rowSet([]),
-      rowSet([{ task_count: 3, failed_task_count: 1 }]),
+      rowSet([{ task_count: 0, failed_task_count: 0 }]),
     ]);
     const eventService = { emit: vi.fn() };
     const service = new WorkflowStateService(pool as never, eventService as never);

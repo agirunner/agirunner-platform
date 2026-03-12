@@ -2,6 +2,11 @@ import { createApiKey, type ApiKeyIdentity } from '../auth/api-key.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import type { WorkerServiceContext, RegisterWorkerInput } from './worker-service.js';
 
+const WORKER_SECRET_REDACTION = 'redacted://worker-secret';
+const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
+const secretLikeValuePattern =
+  /(?:^enc:v\d+:|^secret:|^redacted:\/\/|^Bearer\s+\S+|^sk-[A-Za-z0-9_-]+|^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/i;
+
 export async function registerWorker(
   context: WorkerServiceContext,
   identity: ApiKeyIdentity,
@@ -126,7 +131,7 @@ export async function listWorkers(context: WorkerServiceContext, tenantId: strin
      ORDER BY created_at DESC`,
     [tenantId],
   );
-  return res.rows;
+  return res.rows.map((row) => sanitizeWorkerRow(row as Record<string, unknown>));
 }
 
 export async function getWorker(context: WorkerServiceContext, tenantId: string, workerId: string) {
@@ -141,7 +146,7 @@ export async function getWorker(context: WorkerServiceContext, tenantId: string,
   if (!res.rowCount) {
     throw new NotFoundError('Worker not found');
   }
-  return res.rows[0];
+  return sanitizeWorkerRow(res.rows[0] as Record<string, unknown>);
 }
 
 export async function deleteWorker(context: WorkerServiceContext, identity: ApiKeyIdentity, workerId: string): Promise<void> {
@@ -178,4 +183,64 @@ export async function deleteWorker(context: WorkerServiceContext, identity: ApiK
     actorId: identity.keyPrefix,
     data: { name: worker.name },
   });
+}
+
+function sanitizeWorkerRow<T extends Record<string, unknown>>(row: T): T {
+  return {
+    ...row,
+    metadata: sanitizeSecretLikeRecord(row.metadata),
+    host_info: sanitizeSecretLikeRecord(row.host_info),
+  } as T;
+}
+
+function sanitizeSecretLikeRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    sanitized[key] = sanitizeSecretLikeValue(entry, isSecretLikeKey(key));
+  }
+  return sanitized;
+}
+
+function sanitizeSecretLikeValue(value: unknown, inheritedSecret: boolean): unknown {
+  if (typeof value === 'string') {
+    if (isSecretReference(value)) {
+      return value;
+    }
+    return inheritedSecret || isSecretLikeValue(value) ? WORKER_SECRET_REDACTION : value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => sanitizeSecretLikeValue(entry, inheritedSecret));
+  }
+
+  if (value && typeof value === 'object') {
+    const sanitized: Record<string, unknown> = {};
+    for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
+      sanitized[key] = sanitizeSecretLikeValue(nestedValue, inheritedSecret || isSecretLikeKey(key));
+    }
+    return sanitized;
+  }
+
+  return value;
+}
+
+function isSecretLikeKey(key: string): boolean {
+  return secretLikeKeyPattern.test(key);
+}
+
+function isSecretLikeValue(value: string): boolean {
+  const normalized = value.trim();
+  if (normalized.length === 0) {
+    return false;
+  }
+  return secretLikeValuePattern.test(normalized);
+}
+
+function isSecretReference(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return normalized.startsWith('secret:') || normalized.startsWith('redacted://');
 }

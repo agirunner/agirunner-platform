@@ -27,6 +27,7 @@ import type {
   TaskMemory,
   TaskArtifact,
   Worker,
+  UpdatePlaybookInput,
 } from './types.js';
 
 export class PlatformApiError extends Error {
@@ -355,6 +356,28 @@ export class PlatformApiClient {
     return response.data;
   }
 
+  async updatePlaybook(playbookId: string, payload: UpdatePlaybookInput): Promise<Playbook> {
+    const response = await this.request<ApiDataResponse<Playbook>>(
+      `/api/v1/playbooks/${playbookId}`,
+      {
+        method: 'PATCH',
+        body: payload,
+      },
+    );
+    return response.data;
+  }
+
+  async replacePlaybook(playbookId: string, payload: CreatePlaybookInput): Promise<Playbook> {
+    const response = await this.request<ApiDataResponse<Playbook>>(
+      `/api/v1/playbooks/${playbookId}`,
+      {
+        method: 'PUT',
+        body: payload,
+      },
+    );
+    return response.data;
+  }
+
   async listTaskArtifacts(taskId: string): Promise<TaskArtifact[]> {
     const response = await this.request<ApiDataResponse<TaskArtifact[]>>(
       `/api/v1/tasks/${taskId}/artifacts`,
@@ -452,7 +475,7 @@ export class PlatformApiClient {
   private async request<T>(
     path: string,
     options: {
-      method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+      method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
       body?: unknown;
       token?: string;
       includeAuth?: boolean;

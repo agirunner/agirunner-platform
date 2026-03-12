@@ -2,6 +2,8 @@ import type { DatabaseQueryable } from '../db/database.js';
 import { listTaskDocuments } from './document-reference-service.js';
 import { normalizeInstructionDocument } from './instruction-policy.js';
 import { buildOrchestratorTaskContext } from './orchestrator-task-context.js';
+import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
+import { currentStageNameFromStages, type WorkflowStageResponse } from './workflow-stage-service.js';
 
 export async function buildTaskContext(
   db: DatabaseQueryable,
@@ -35,7 +37,7 @@ export async function buildTaskContext(
       ? db.query(
           `SELECT p.id, p.name, p.context, p.git_branch, p.parameters, p.resolved_config, p.instruction_config,
                   p.metadata,
-                  p.playbook_id, p.lifecycle, p.current_stage,
+                  p.playbook_id, p.lifecycle,
                   p.project_spec_version,
                   pb.name AS playbook_name, pb.outcome AS playbook_outcome, pb.definition AS playbook_definition
            FROM workflows p
@@ -63,6 +65,10 @@ export async function buildTaskContext(
   const workflowRow = workflowRes.rows[0] as Record<string, unknown> | undefined;
   const workItem = await loadWorkItemContext(db, tenantId, task);
   const activeStages = workflowRow ? await loadWorkflowActiveStages(db, tenantId, String(workflowRow.id)) : [];
+  const currentStage =
+    workflowRow && workflowRow.lifecycle !== 'continuous'
+      ? await loadWorkflowCurrentStage(db, tenantId, String(workflowRow.id))
+      : null;
   const workflowRelations = workflowRow
     ? await loadWorkflowRelations(db, tenantId, workflowRow)
     : null;
@@ -88,30 +94,31 @@ export async function buildTaskContext(
     ? buildWorkflowContext({
         workflowRow,
         activeStages,
+        currentStage,
         workflowRelations,
         parentWorkflowContext,
       })
     : null;
 
   return {
-    agent,
-    project: projectRes.rows[0] ?? null,
-    workflow: workflowContext,
-    orchestrator: orchestratorContext,
-    documents,
+    agent: sanitizeSecretLikeValue(agent, { redactionValue: 'redacted://task-context-secret' }),
+    project: sanitizeSecretLikeValue(projectRes.rows[0] ?? null, { redactionValue: 'redacted://task-context-secret' }),
+    workflow: sanitizeSecretLikeValue(workflowContext, { redactionValue: 'redacted://task-context-secret' }),
+    orchestrator: sanitizeSecretLikeValue(orchestratorContext, { redactionValue: 'redacted://task-context-secret' }),
+    documents: sanitizeSecretLikeValue(documents, { redactionValue: 'redacted://task-context-secret' }),
     instructions: flatInstructions,
     instruction_layers: instructionLayers,
     task: {
       id: task.id,
-      input: task.input,
-      context: task.context,
-      work_item: workItem,
+      input: sanitizeSecretLikeValue(task.input, { redactionValue: 'redacted://task-context-secret' }),
+      context: sanitizeSecretLikeValue(task.context, { redactionValue: 'redacted://task-context-secret' }),
+      work_item: sanitizeSecretLikeValue(workItem, { redactionValue: 'redacted://task-context-secret' }),
       failure_mode:
         task.context && typeof task.context === 'object' && !Array.isArray(task.context)
           ? ((task.context as Record<string, unknown>).failure_mode ?? null)
           : null,
-      role_config: task.role_config,
-      upstream_outputs: upstreamOutputs,
+      role_config: sanitizeSecretLikeValue(task.role_config, { redactionValue: 'redacted://task-context-secret' }),
+      upstream_outputs: sanitizeSecretLikeValue(upstreamOutputs, { redactionValue: 'redacted://task-context-secret' }),
     },
   };
 }
@@ -119,6 +126,7 @@ export async function buildTaskContext(
 function buildWorkflowContext(params: {
   workflowRow: Record<string, unknown>;
   activeStages: string[];
+  currentStage: string | null;
   workflowRelations: Record<string, unknown> | null;
   parentWorkflowContext: Record<string, unknown> | null;
 }) {
@@ -129,8 +137,12 @@ function buildWorkflowContext(params: {
     active_stages: params.activeStages,
     context: params.workflowRow.context,
     git_branch: params.workflowRow.git_branch,
-    resolved_config: params.workflowRow.resolved_config ?? {},
-    variables: params.workflowRow.parameters ?? {},
+    resolved_config: sanitizeSecretLikeRecord(params.workflowRow.resolved_config, {
+      redactionValue: 'redacted://task-context-secret',
+    }),
+    variables: sanitizeSecretLikeRecord(params.workflowRow.parameters, {
+      redactionValue: 'redacted://task-context-secret',
+    }),
     playbook: params.workflowRow.playbook_id
       ? {
           id: params.workflowRow.playbook_id,
@@ -143,7 +155,7 @@ function buildWorkflowContext(params: {
     parent_workflow: params.parentWorkflowContext,
   };
   if (params.workflowRow.lifecycle !== 'continuous') {
-    context.current_stage = params.workflowRow.current_stage ?? null;
+    context.current_stage = params.currentStage;
   }
   return context;
 }
@@ -155,14 +167,54 @@ async function loadWorkflowActiveStages(
 ): Promise<string[]> {
   const result = await db.query<{ stage_name: string }>(
     `SELECT DISTINCT stage_name
-       FROM workflow_work_items
-      WHERE tenant_id = $1
-        AND workflow_id = $2
-        AND completed_at IS NULL
+       FROM (
+         SELECT wi.stage_name
+           FROM workflow_work_items wi
+          WHERE wi.tenant_id = $1
+            AND wi.workflow_id = $2
+            AND wi.completed_at IS NULL
+         UNION
+         SELECT ws.name AS stage_name
+           FROM workflow_stages ws
+          WHERE ws.tenant_id = $1
+            AND ws.workflow_id = $2
+            AND ws.gate_status IN ('awaiting_approval', 'changes_requested', 'rejected')
+       ) AS active_stage_names
+      WHERE stage_name IS NOT NULL
       ORDER BY stage_name ASC`,
     [tenantId, workflowId],
   );
   return result.rows.map((row) => row.stage_name);
+}
+
+async function loadWorkflowCurrentStage(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+): Promise<string | null> {
+  const result = await db.query<WorkflowStageResponse>(
+    `SELECT id,
+            name,
+            position,
+            goal,
+            guidance,
+            human_gate,
+            status,
+            false AS is_active,
+            gate_status,
+            iteration_count,
+            summary,
+            started_at,
+            completed_at,
+            0::int AS open_work_item_count,
+            0::int AS total_work_item_count
+       FROM workflow_stages
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+      ORDER BY position ASC`,
+    [tenantId, workflowId],
+  );
+  return currentStageNameFromStages(result.rows);
 }
 
 async function loadWorkItemContext(
@@ -191,14 +243,14 @@ async function loadWorkflowRelations(
   workflowRow: Record<string, unknown>,
 ) {
   const metadata = asRecord(workflowRow.metadata);
-  const parentId = asOptionalString(metadata.chain_source_workflow_id);
+  const parentId = asOptionalString(metadata.parent_workflow_id);
   const childIds = readWorkflowIdArray(metadata.child_workflow_ids);
   const relatedIds = [...new Set([...(parentId ? [parentId] : []), ...childIds])];
   if (relatedIds.length === 0) {
     return {
       parent: null,
       children: [],
-      latest_child_workflow_id: asOptionalString(metadata.latest_chained_workflow_id) ?? null,
+      latest_child_workflow_id: asOptionalString(metadata.latest_child_workflow_id) ?? null,
       child_status_counts: { total: 0, active: 0, completed: 0, failed: 0, cancelled: 0 },
     };
   }
@@ -221,7 +273,7 @@ async function loadWorkflowRelations(
   return {
     parent: parentId ? toWorkflowRelationRef(parentId, relatedById.get(parentId)) : null,
     children,
-    latest_child_workflow_id: asOptionalString(metadata.latest_chained_workflow_id) ?? null,
+    latest_child_workflow_id: asOptionalString(metadata.latest_child_workflow_id) ?? null,
     child_status_counts: {
       total: children.length,
       active: children.filter((child) => child.state === 'pending' || child.state === 'active' || child.state === 'paused').length,
@@ -259,7 +311,7 @@ async function loadParentWorkflowContext(
     resolved_config: row.resolved_config ?? {},
     started_at: row.started_at ?? null,
     completed_at: row.completed_at ?? null,
-    run_summary: asRecord(metadata.run_summary ?? metadata.timeline_summary),
+    run_summary: asRecord(metadata.run_summary),
   };
 }
 

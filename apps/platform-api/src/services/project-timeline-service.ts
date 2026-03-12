@@ -3,9 +3,39 @@ import { ConflictError } from '../errors/domain-errors.js';
 import { buildPlaybookRunSummary } from './playbook-run-summary.js';
 
 const PROJECT_TIMELINE_KEY = 'project_timeline';
-const PROJECT_LAST_SUMMARY_KEY = 'last_workflow_summary';
-const PROJECT_RUN_SUMMARIES_KEY = 'run_summaries';
 const PROJECT_LAST_RUN_SUMMARY_KEY = 'last_run_summary';
+const WORKFLOW_TIMELINE_EVENT_TYPES = [
+  'stage.started',
+  'stage.completed',
+  'workflow.activation_queued',
+  'workflow.activation_started',
+  'workflow.activation_completed',
+  'workflow.activation_failed',
+  'workflow.activation_requeued',
+  'workflow.activation_stale_detected',
+] as const;
+const CHILD_WORKFLOW_TIMELINE_EVENT_TYPES = [
+  'child_workflow.completed',
+  'child_workflow.failed',
+  'child_workflow.cancelled',
+] as const;
+const GATE_TIMELINE_EVENT_TYPES = [
+  'stage.gate_requested',
+  'stage.gate.approve',
+  'stage.gate.reject',
+  'stage.gate.request_changes',
+] as const;
+const TASK_TIMELINE_EVENT_TYPES = [
+  'task.agent_escalated',
+  'task.escalation_task_created',
+  'task.escalation_response_recorded',
+  'task.escalation_resolved',
+  'task.escalation_depth_exceeded',
+] as const;
+const WORK_ITEM_TIMELINE_EVENT_TYPES = [
+  'work_item.created',
+  'work_item.updated',
+] as const;
 
 export class ProjectTimelineService {
   constructor(private readonly pool: DatabasePool) {}
@@ -46,35 +76,49 @@ export class ProjectTimelineService {
     );
     const [eventsResult, stagesResult, workItemsResult] = await Promise.all([
       db.query(
-        `SELECT type, actor_type, actor_id, data, created_at
-           FROM events
-          WHERE tenant_id = $1
+        `SELECT e.type, e.actor_type, e.actor_id, e.data, e.created_at
+           FROM events e
+           LEFT JOIN tasks task_events
+             ON e.entity_type = 'task'
+            AND task_events.tenant_id = e.tenant_id
+            AND task_events.id::text = e.entity_id::text
+          WHERE e.tenant_id = $1
             AND (
               (
-                entity_type = 'workflow'
-                AND entity_id = $2
-                AND type = ANY($3::text[])
+                e.entity_type = 'workflow'
+                AND e.entity_id = $2
+                AND e.type = ANY($3::text[])
               )
               OR (
-                entity_type = 'gate'
-                AND COALESCE(data->>'workflow_id', '') = $2
-                AND type = ANY($4::text[])
+                e.entity_type = 'workflow'
+                AND COALESCE(e.data->>'parent_workflow_id', '') = $2::text
+                AND e.type = ANY($4::text[])
+              )
+              OR (
+                e.entity_type = 'gate'
+                AND COALESCE(e.data->>'workflow_id', '') = $2::text
+                AND e.type = ANY($5::text[])
+              )
+              OR (
+                e.entity_type = 'task'
+                AND task_events.workflow_id = $2::uuid
+                AND e.type = ANY($6::text[])
+              )
+              OR (
+                e.entity_type = 'work_item'
+                AND COALESCE(e.data->>'workflow_id', '') = $2::text
+                AND e.type = ANY($7::text[])
               )
             )
-          ORDER BY created_at ASC`,
+          ORDER BY e.created_at ASC`,
         [
           tenantId,
           workflowId,
-          [
-            'stage.started',
-            'stage.completed',
-          ],
-          [
-            'stage.gate_requested',
-            'stage.gate.approve',
-            'stage.gate.reject',
-            'stage.gate.request_changes',
-          ],
+          [...WORKFLOW_TIMELINE_EVENT_TYPES],
+          [...CHILD_WORKFLOW_TIMELINE_EVENT_TYPES],
+          [...GATE_TIMELINE_EVENT_TYPES],
+          [...TASK_TIMELINE_EVENT_TYPES],
+          [...WORK_ITEM_TIMELINE_EVENT_TYPES],
         ],
       ),
       db.query(
@@ -109,7 +153,7 @@ export class ProjectTimelineService {
               updated_at = now()
         WHERE tenant_id = $1
           AND id = $2`,
-      [tenantId, workflowId, { timeline_summary: summary, run_summary: summary }],
+      [tenantId, workflowId, { run_summary: summary }],
     );
 
     const projectResult = await db.query(
@@ -141,8 +185,6 @@ export class ProjectTimelineService {
         {
           ...currentMemory,
           [PROJECT_TIMELINE_KEY]: nextTimeline,
-          [PROJECT_LAST_SUMMARY_KEY]: summary,
-          [PROJECT_RUN_SUMMARIES_KEY]: nextTimeline,
           [PROJECT_LAST_RUN_SUMMARY_KEY]: summary,
         },
       ],
@@ -163,7 +205,7 @@ export class ProjectTimelineService {
 
     return workflowsResult.rows.map((row) => {
       const metadata = asRecord(row.metadata);
-      return metadata.run_summary ?? metadata.timeline_summary ?? null;
+      return metadata.run_summary ?? null;
     }).filter((entry): entry is Record<string, unknown> => Boolean(entry));
   }
 }

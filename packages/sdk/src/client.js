@@ -43,7 +43,10 @@ export class PlatformApiClient {
         return response.data;
     }
     async createTask(payload) {
-        const response = await this.request('/api/v1/tasks', { method: 'POST', body: payload });
+        const response = await this.request('/api/v1/tasks', {
+            method: 'POST',
+            body: payload,
+        });
         return response.data;
     }
     async claimTask(payload) {
@@ -185,6 +188,20 @@ export class PlatformApiClient {
     async createPlaybook(payload) {
         const response = await this.request('/api/v1/playbooks', {
             method: 'POST',
+            body: payload,
+        });
+        return response.data;
+    }
+    async updatePlaybook(playbookId, payload) {
+        const response = await this.request(`/api/v1/playbooks/${playbookId}`, {
+            method: 'PATCH',
+            body: payload,
+        });
+        return response.data;
+    }
+    async replacePlaybook(playbookId, payload) {
+        const response = await this.request(`/api/v1/playbooks/${playbookId}`, {
+            method: 'PUT',
             body: payload,
         });
         return response.data;

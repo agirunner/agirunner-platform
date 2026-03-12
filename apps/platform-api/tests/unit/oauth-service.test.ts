@@ -3,6 +3,48 @@ import { describe, expect, it, vi } from 'vitest';
 import { OAuthService } from '../../src/services/oauth-service.js';
 
 describe('OAuthService', () => {
+  it('redacts secret-bearing token exchange error details from thrown validation messages', async () => {
+    expect.assertions(4);
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: vi.fn().mockResolvedValue('invalid_client access_token=sk-secret-value refresh_token=abc'),
+    }) as never;
+
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('DELETE FROM oauth_states')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              tenant_id: 'tenant-1',
+              user_id: 'user-1',
+              profile_id: 'openai-codex',
+              code_verifier: 'verifier-1',
+            }],
+          };
+        }
+        if (sql.includes('SELECT id FROM llm_providers')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new OAuthService(pool as never);
+
+    try {
+      await service.handleCallback('code-1', 'state-1');
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toContain('OAuth token exchange failed with status 401');
+      expect((error as Error).message).not.toContain('sk-secret-value');
+      expect((error as Error).message).not.toContain('refresh_token');
+    }
+
+    global.fetch = originalFetch;
+  });
+
   it('returns encrypted oauth secret material instead of plaintext tokens', async () => {
     process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
     const client = {

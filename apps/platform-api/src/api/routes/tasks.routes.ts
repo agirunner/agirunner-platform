@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { authenticateApiKey, withAllowedScopes, withScope } from '../../auth/fastify-auth-hook.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
-import { normalizeTaskState, toStoredTaskState } from '../../orchestration/task-state-machine.js';
+import type { PublicTaskState } from '../../services/task-service.types.js';
 
 
 const taskCreateSchema = z.object({
@@ -141,15 +141,27 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   throw new SchemaValidationFailedError('Invalid request body', { issues: result.error.flatten() });
 }
 
+const publicTaskStateFilters = new Set<PublicTaskState>([
+  'pending',
+  'ready',
+  'claimed',
+  'in_progress',
+  'awaiting_approval',
+  'output_pending_review',
+  'escalated',
+  'completed',
+  'failed',
+  'cancelled',
+]);
+
 function parseTaskStateFilter(value: string | undefined) {
   if (value === undefined) {
     return undefined;
   }
-  const normalized = normalizeTaskState(value);
-  if (!normalized) {
+  if (!publicTaskStateFilters.has(value as PublicTaskState)) {
     throw new ValidationError(`Invalid task state '${value}'`);
   }
-  return toStoredTaskState(normalized);
+  return value;
 }
 
 export const taskRoutes: FastifyPluginAsync = async (app) => {

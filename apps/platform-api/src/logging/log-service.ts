@@ -190,6 +190,7 @@ export interface LogLevelFilter {
 
 export class LogService {
   private levelFilter: LogLevelFilter | null = null;
+  private readonly ensuredPartitionDates = new Set<string>();
   constructor(private readonly pool: DatabasePool) {}
 
   /** Attach a write-side level filter. Entries below the tenant threshold are silently dropped. */
@@ -203,65 +204,23 @@ export class LogService {
       if (!shouldWrite) return;
     }
 
+    const partitionDate = partitionDateFor(entry.createdAt);
+    await this.ensurePartition(partitionDate);
+
     const workflowName = entry.workflowName ?? null;
     const projectName = entry.projectName ?? null;
     const stageName = entry.stageName ?? null;
 
-    await this.pool.query(
-      `INSERT INTO execution_logs (
-        tenant_id, trace_id, span_id, parent_span_id,
-        source, category, level, operation, status, duration_ms,
-        payload, error,
-        project_id, workflow_id, workflow_name, project_name, task_id,
-        work_item_id, activation_id, task_title, stage_name, is_orchestrator_task,
-        role,
-        actor_type, actor_id, actor_name,
-        resource_type, resource_id, resource_name,
-        created_at
-      ) VALUES (
-        $1, $2, $3, $4,
-        $5, $6, $7, $8, $9, $10,
-        $11, $12,
-        $13, $14, $15, $16, $17,
-        $18, $19, $20, $21, $22,
-        $23,
-        $24, $25, $26,
-        $27, $28, $29,
-        COALESCE($30::timestamptz, now())
-      )`,
-      [
-        entry.tenantId,
-        entry.traceId,
-        entry.spanId,
-        entry.parentSpanId ?? null,
-        entry.source,
-        entry.category,
-        entry.level,
-        entry.operation,
-        entry.status,
-        entry.durationMs ?? null,
-        JSON.stringify(redactPayload(entry.payload) ?? {}),
-        entry.error ? JSON.stringify(redactError(entry.error)) : null,
-        entry.projectId ?? null,
-        entry.workflowId ?? null,
-        workflowName,
-        projectName,
-        entry.taskId ?? null,
-        entry.workItemId ?? null,
-        entry.activationId ?? null,
-        entry.taskTitle ?? null,
-        stageName,
-        entry.isOrchestratorTask ?? false,
-        entry.role ?? null,
-        entry.actorType ?? null,
-        entry.actorId ?? null,
-        entry.actorName ?? null,
-        entry.resourceType ?? null,
-        entry.resourceId ?? null,
-        entry.resourceName ?? null,
-        entry.createdAt ?? null,
-      ],
-    );
+    try {
+      await this.insertRow(entry, workflowName, projectName, stageName);
+    } catch (error) {
+      if (!isMissingExecutionLogPartitionError(error)) {
+        throw error;
+      }
+      this.ensuredPartitionDates.delete(partitionDate);
+      await this.ensurePartition(partitionDate);
+      await this.insertRow(entry, workflowName, projectName, stageName);
+    }
   }
 
   async insertBatch(entries: ExecutionLogEntry[]): Promise<{ accepted: number; rejected: number }> {
@@ -338,6 +297,27 @@ export class LogService {
         prev_cursor: filters.cursor ?? null,
       },
     };
+  }
+
+  async getById(tenantId: string, id: string): Promise<LogRow | null> {
+    const result = await this.pool.query<LogRow>(
+      `SELECT id, tenant_id, trace_id, span_id, parent_span_id,
+              source, category, level, operation, status, duration_ms,
+              payload, error,
+              project_id, workflow_id, workflow_name, project_name, task_id,
+              work_item_id, stage_name, activation_id, is_orchestrator_task,
+              task_title,
+              role,
+              actor_type, actor_id, actor_name,
+              resource_type, resource_id, resource_name,
+              created_at
+         FROM execution_logs
+        WHERE tenant_id = $1
+          AND id = $2
+        LIMIT 1`,
+      [tenantId, id],
+    );
+    return result.rows[0] ?? null;
   }
 
   async stats(tenantId: string, filters: LogStatsFilters): Promise<LogStats> {
@@ -482,6 +462,77 @@ export class LogService {
       }
       cursor = page.pagination.next_cursor;
     }
+  }
+
+  private async insertRow(
+    entry: ExecutionLogEntry,
+    workflowName: string | null,
+    projectName: string | null,
+    stageName: string | null,
+  ): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO execution_logs (
+        tenant_id, trace_id, span_id, parent_span_id,
+        source, category, level, operation, status, duration_ms,
+        payload, error,
+        project_id, workflow_id, workflow_name, project_name, task_id,
+        work_item_id, activation_id, task_title, stage_name, is_orchestrator_task,
+        role,
+        actor_type, actor_id, actor_name,
+        resource_type, resource_id, resource_name,
+        created_at
+      ) VALUES (
+        $1, $2, $3, $4,
+        $5, $6, $7, $8, $9, $10,
+        $11, $12,
+        $13, $14, $15, $16, $17,
+        $18, $19, $20, $21, $22,
+        $23,
+        $24, $25, $26,
+        $27, $28, $29,
+        COALESCE($30::timestamptz, now())
+      )`,
+      [
+        entry.tenantId,
+        entry.traceId,
+        entry.spanId,
+        entry.parentSpanId ?? null,
+        entry.source,
+        entry.category,
+        entry.level,
+        entry.operation,
+        entry.status,
+        entry.durationMs ?? null,
+        JSON.stringify(redactPayload(entry.payload) ?? {}),
+        entry.error ? JSON.stringify(redactError(entry.error)) : null,
+        entry.projectId ?? null,
+        entry.workflowId ?? null,
+        workflowName,
+        projectName,
+        entry.taskId ?? null,
+        entry.workItemId ?? null,
+        entry.activationId ?? null,
+        entry.taskTitle ?? null,
+        stageName,
+        entry.isOrchestratorTask ?? false,
+        entry.role ?? null,
+        entry.actorType ?? null,
+        entry.actorId ?? null,
+        entry.actorName ?? null,
+        entry.resourceType ?? null,
+        entry.resourceId ?? null,
+        entry.resourceName ?? null,
+        entry.createdAt ?? null,
+      ],
+    );
+  }
+
+  private async ensurePartition(partitionDate: string): Promise<void> {
+    if (this.ensuredPartitionDates.has(partitionDate)) {
+      return;
+    }
+    await this.pool.query(`SELECT create_execution_logs_partition($1::date)`, [partitionDate]);
+    this.ensuredPartitionDates.add(partitionDate);
   }
 
   private applyFilters(conditions: string[], values: unknown[], filters: LogFilters): void {
@@ -696,6 +747,21 @@ function redactString(key: string, value: string): string {
     return value;
   }
   return SECRET_PATTERN.test(value) || SECRET_VALUE_PATTERN.test(value) ? '[REDACTED]' : value;
+}
+
+function partitionDateFor(createdAt: string | null | undefined): string {
+  const value = createdAt ? new Date(createdAt) : new Date();
+  if (Number.isNaN(value.getTime())) {
+    return new Date().toISOString().slice(0, 10);
+  }
+  return value.toISOString().slice(0, 10);
+}
+
+function isMissingExecutionLogPartitionError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  return error.message.includes('no partition of relation "execution_logs" found for row');
 }
 
 function buildAgg(row: {

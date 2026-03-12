@@ -147,6 +147,8 @@ function FeedbackAction({
 
 export function AlertsApprovalsPage(): JSX.Element {
   const queryClient = useQueryClient();
+  const [dismissedEscalationTaskIds, setDismissedEscalationTaskIds] = useState<string[]>([]);
+  const [dismissedFailureTaskIds, setDismissedFailureTaskIds] = useState<string[]>([]);
 
   const approvalsQuery = useQuery<DashboardApprovalQueueResponse>({
     queryKey: ['approval-queue'],
@@ -176,94 +178,131 @@ export function AlertsApprovalsPage(): JSX.Element {
     () => approvalTasks.filter((task) => task.state !== 'output_pending_review'),
     [approvalTasks],
   );
-  const failedTasks = useMemo(() => normalizeArray(failedQuery.data), [failedQuery.data]);
-  const escalationTasks = useMemo(() => normalizeArray(escalationQuery.data), [escalationQuery.data]);
+  const failedTasks = useMemo(
+    () =>
+      normalizeArray(failedQuery.data).filter((task) => !dismissedFailureTaskIds.includes(task.id)),
+    [dismissedFailureTaskIds, failedQuery.data],
+  );
+  const escalationTasks = useMemo(
+    () =>
+      normalizeArray(escalationQuery.data).filter(
+        (task) => !dismissedEscalationTaskIds.includes(task.id),
+      ),
+    [dismissedEscalationTaskIds, escalationQuery.data],
+  );
 
   const allItems = [...stageGates, ...manualApprovalTasks, ...reviewTasks, ...failedTasks, ...escalationTasks];
-  const isLoading = approvalsQuery.isLoading || failedQuery.isLoading || escalationQuery.isLoading;
-  const hasError = approvalsQuery.error || failedQuery.error || escalationQuery.error;
+  const approvalsError = approvalsQuery.error;
+  const failedError = failedQuery.error;
+  const escalationError = escalationQuery.error;
+  const showInitialLoading =
+    approvalsQuery.isLoading && failedQuery.isLoading && escalationQuery.isLoading;
 
-  const invalidateAll = () => {
-    queryClient.invalidateQueries({ queryKey: ['tasks'] });
-    queryClient.invalidateQueries({ queryKey: ['approval-queue'] });
-    queryClient.invalidateQueries({ queryKey: ['workflows'] });
+  const invalidateAll = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['tasks'] }),
+      queryClient.invalidateQueries({ queryKey: ['approval-queue'] }),
+      queryClient.invalidateQueries({ queryKey: ['workflows'] }),
+    ]);
   };
 
   const approveMutation = useMutation({
     mutationFn: (taskId: string) => dashboardApi.approveTask(taskId),
-    onSuccess: () => { invalidateAll(); toast.success('Specialist step approved'); },
+    onSuccess: async () => { await invalidateAll(); toast.success('Specialist step approved'); },
     onError: () => { toast.error('Failed to approve specialist step'); },
   });
 
   const approveOutputMutation = useMutation({
     mutationFn: (taskId: string) => dashboardApi.approveTaskOutput(taskId),
-    onSuccess: () => { invalidateAll(); toast.success('Output gate approved'); },
+    onSuccess: async () => { await invalidateAll(); toast.success('Output gate approved'); },
     onError: () => { toast.error('Failed to approve output gate'); },
   });
 
   const rejectMutation = useMutation({
     mutationFn: ({ taskId, feedback }: { taskId: string; feedback: string }) =>
       dashboardApi.rejectTask(taskId, { feedback }),
-    onSuccess: () => { invalidateAll(); toast.success('Specialist step rejected'); },
+    onSuccess: async () => { await invalidateAll(); toast.success('Specialist step rejected'); },
     onError: () => { toast.error('Failed to reject specialist step'); },
   });
 
   const requestChangesMutation = useMutation({
     mutationFn: ({ taskId, feedback }: { taskId: string; feedback: string }) =>
       dashboardApi.requestTaskChanges(taskId, { feedback }),
-    onSuccess: () => { invalidateAll(); toast.success('Rework requested — the specialist step will re-run with operator feedback'); },
+    onSuccess: async () => {
+      await invalidateAll();
+      toast.success('Rework requested — the specialist step will re-run with operator feedback');
+    },
     onError: () => { toast.error('Failed to request rework'); },
   });
 
   const skipMutation = useMutation({
     mutationFn: ({ taskId, reason }: { taskId: string; reason: string }) =>
       dashboardApi.skipTask(taskId, { reason }),
-    onSuccess: () => { invalidateAll(); toast.success('Specialist step bypassed'); },
+    onSuccess: async () => { await invalidateAll(); toast.success('Specialist step bypassed'); },
     onError: () => { toast.error('Failed to bypass specialist step'); },
   });
 
   const retryMutation = useMutation({
     mutationFn: (taskId: string) => dashboardApi.retryTask(taskId),
-    onSuccess: () => { invalidateAll(); toast.success('Specialist step re-run initiated'); },
+    onSuccess: async () => { await invalidateAll(); toast.success('Specialist step re-run initiated'); },
     onError: () => { toast.error('Failed to re-run specialist step'); },
   });
 
   const retryOnDifferentWorkerMutation = useMutation({
     mutationFn: (taskId: string) => dashboardApi.retryTask(taskId, { force: true }),
-    onSuccess: () => { invalidateAll(); toast.success('Specialist step re-run on a new worker initiated'); },
+    onSuccess: async () => {
+      await invalidateAll();
+      toast.success('Specialist step re-run on a new worker initiated');
+    },
     onError: () => { toast.error('Failed to re-run step on a new worker'); },
   });
 
-  const cancelMutation = useMutation({
+  const cancelFailedMutation = useMutation({
     mutationFn: (taskId: string) => dashboardApi.cancelTask(taskId),
-    onSuccess: () => { invalidateAll(); toast.success('Work cancelled'); },
-    onError: () => { toast.error('Failed to cancel work'); },
+    onMutate: async (taskId) => {
+      setDismissedFailureTaskIds((current) => (current.includes(taskId) ? current : [...current, taskId]));
+    },
+    onSuccess: async () => { await invalidateAll(); toast.success('Failed step cancelled'); },
+    onError: (_error, taskId) => {
+      setDismissedFailureTaskIds((current) => current.filter((id) => id !== taskId));
+      toast.error('Failed to cancel failed step');
+    },
   });
 
   const resolveEscalationMutation = useMutation({
     mutationFn: ({ taskId, instructions }: { taskId: string; instructions: string }) =>
       dashboardApi.resolveEscalation(taskId, { instructions }),
-    onSuccess: () => { invalidateAll(); toast.success('Operator guidance submitted — the specialist step will resume'); },
-    onError: () => { toast.error('Failed to submit operator guidance'); },
+    onMutate: async ({ taskId }) => {
+      setDismissedEscalationTaskIds((current) =>
+        current.includes(taskId) ? current : [...current, taskId],
+      );
+    },
+    onSuccess: async () => {
+      await invalidateAll();
+      toast.success('Operator guidance submitted — the specialist step will resume');
+    },
+    onError: (_error, variables) => {
+      setDismissedEscalationTaskIds((current) => current.filter((id) => id !== variables.taskId));
+      toast.error('Failed to submit operator guidance');
+    },
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-12 text-muted">
-        <RefreshCw className="mr-2 h-5 w-5 animate-spin" />
-        Loading operator intervention lanes...
-      </div>
-    );
-  }
-
-  if (hasError) {
-    return (
-      <div className="p-6 text-red-600">
-        <AlertTriangle className="mr-2 inline h-5 w-5" />
-        Failed to load operator intervention lanes. Please retry.
-      </div>
-    );
-  }
+  const cancelEscalationMutation = useMutation({
+    mutationFn: (taskId: string) => dashboardApi.cancelTask(taskId),
+    onMutate: async (taskId) => {
+      setDismissedEscalationTaskIds((current) =>
+        current.includes(taskId) ? current : [...current, taskId],
+      );
+    },
+    onSuccess: async () => {
+      await invalidateAll();
+      toast.success('Escalated step cancelled');
+    },
+    onError: (_error, taskId) => {
+      setDismissedEscalationTaskIds((current) => current.filter((id) => id !== taskId));
+      toast.error('Failed to cancel escalated step');
+    },
+  });
 
   const anyApprovalLoading =
     approveMutation.isPending || rejectMutation.isPending ||
@@ -307,13 +346,13 @@ export function AlertsApprovalsPage(): JSX.Element {
         onRetry={() => retryMutation.mutate(task.id)}
         onRetryDifferentWorker={() => retryOnDifferentWorkerMutation.mutate(task.id)}
         onSkip={(reason) => skipMutation.mutate({ taskId: task.id, reason })}
-        onCancel={() => cancelMutation.mutate(task.id)}
-        isLoading={retryMutation.isPending || retryOnDifferentWorkerMutation.isPending || skipMutation.isPending || cancelMutation.isPending}
+        onCancel={() => cancelFailedMutation.mutate(task.id)}
+        isLoading={retryMutation.isPending || retryOnDifferentWorkerMutation.isPending || skipMutation.isPending || cancelFailedMutation.isPending}
       />
     ));
 
   const anyEscalationLoading =
-    resolveEscalationMutation.isPending || skipMutation.isPending || cancelMutation.isPending;
+    resolveEscalationMutation.isPending || skipMutation.isPending || cancelEscalationMutation.isPending;
 
   const renderGateCards = () =>
     stageGates.map((gate) => (
@@ -331,7 +370,7 @@ export function AlertsApprovalsPage(): JSX.Element {
         task={task}
         onResolve={(instructions) => resolveEscalationMutation.mutate({ taskId: task.id, instructions })}
         onSkip={(reason) => skipMutation.mutate({ taskId: task.id, reason })}
-        onCancel={() => cancelMutation.mutate(task.id)}
+        onCancel={() => cancelEscalationMutation.mutate(task.id)}
         isLoading={anyEscalationLoading}
       />
     ));
@@ -345,6 +384,10 @@ export function AlertsApprovalsPage(): JSX.Element {
         </p>
       </div>
 
+      {showInitialLoading ? (
+        <LaneLoadingState message="Loading operator intervention lanes..." />
+      ) : null}
+
       <Tabs defaultValue="all">
         <TabsList>
           <TabsTrigger value="all">Operator Queue ({allItems.length})</TabsTrigger>
@@ -357,6 +400,12 @@ export function AlertsApprovalsPage(): JSX.Element {
 
         <TabsContent value="all">
           <div className="space-y-4">
+            {approvalsQuery.isLoading ? <LaneLoadingState message="Loading stage gates and operator approvals..." /> : null}
+            {escalationQuery.isLoading ? <LaneLoadingState message="Loading operator guidance escalations..." /> : null}
+            {failedQuery.isLoading ? <LaneLoadingState message="Loading execution failures..." /> : null}
+            {approvalsError ? <LaneErrorState message="Failed to load stage gates and operator approvals." /> : null}
+            {escalationError ? <LaneErrorState message="Failed to load operator guidance escalations." /> : null}
+            {failedError ? <LaneErrorState message="Failed to load execution failures." /> : null}
             {allItems.length === 0 && <EmptyState />}
             {renderGateCards()}
             {renderApprovalCards(manualApprovalTasks)}
@@ -368,6 +417,8 @@ export function AlertsApprovalsPage(): JSX.Element {
 
         <TabsContent value="gates">
           <div className="space-y-4">
+            {approvalsQuery.isLoading ? <LaneLoadingState message="Loading stage gates..." /> : null}
+            {approvalsError ? <LaneErrorState message="Failed to load stage gates." /> : null}
             {stageGates.length === 0 && <EmptyState message="No stage gates awaiting operator review." />}
             {renderGateCards()}
           </div>
@@ -375,6 +426,8 @@ export function AlertsApprovalsPage(): JSX.Element {
 
         <TabsContent value="approvals">
           <div className="space-y-4">
+            {approvalsQuery.isLoading ? <LaneLoadingState message="Loading specialist step approvals..." /> : null}
+            {approvalsError ? <LaneErrorState message="Failed to load specialist step approvals." /> : null}
             {manualApprovalTasks.length === 0 && <EmptyState message="No specialist steps awaiting operator approval." />}
             {renderApprovalCards(manualApprovalTasks)}
           </div>
@@ -382,6 +435,8 @@ export function AlertsApprovalsPage(): JSX.Element {
 
         <TabsContent value="reviews">
           <div className="space-y-4">
+            {approvalsQuery.isLoading ? <LaneLoadingState message="Loading output gates..." /> : null}
+            {approvalsError ? <LaneErrorState message="Failed to load output gates." /> : null}
             {reviewTasks.length === 0 && <EmptyState message="No specialist outputs waiting at an operator quality gate." />}
             {renderReviewCards(reviewTasks)}
           </div>
@@ -389,6 +444,8 @@ export function AlertsApprovalsPage(): JSX.Element {
 
         <TabsContent value="escalations">
           <div className="space-y-4">
+            {escalationQuery.isLoading ? <LaneLoadingState message="Loading specialist escalations..." /> : null}
+            {escalationError ? <LaneErrorState message="Failed to load specialist escalations." /> : null}
             {escalationTasks.length === 0 && <EmptyState message="No specialist steps are waiting for operator guidance." />}
             {renderEscalationCards(escalationTasks)}
           </div>
@@ -396,6 +453,8 @@ export function AlertsApprovalsPage(): JSX.Element {
 
         <TabsContent value="failures">
           <div className="space-y-4">
+            {failedQuery.isLoading ? <LaneLoadingState message="Loading execution failures..." /> : null}
+            {failedError ? <LaneErrorState message="Failed to load execution failures." /> : null}
             {failedTasks.length === 0 && <EmptyState message="No specialist steps have failed and need operator intervention." />}
             {renderFailedCards(failedTasks)}
           </div>
@@ -412,6 +471,28 @@ function EmptyState({ message = 'No operator queue items require action.' }: { m
       <CardContent className="flex items-center gap-3 p-8 text-center">
         <CheckCircle2 className="mx-auto h-8 w-8 text-green-600" />
         <p className="text-muted">{message}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function LaneErrorState({ message }: { message: string }): JSX.Element {
+  return (
+    <Card>
+      <CardContent className="flex items-center gap-3 p-4 text-red-600">
+        <AlertTriangle className="h-4 w-4" />
+        <p className="text-sm">{message}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function LaneLoadingState({ message }: { message: string }): JSX.Element {
+  return (
+    <Card>
+      <CardContent className="flex items-center gap-3 p-4 text-muted">
+        <RefreshCw className="h-4 w-4 animate-spin" />
+        <p className="text-sm">{message}</p>
       </CardContent>
     </Card>
   );
@@ -703,7 +784,7 @@ function FailedCard({ task, onRetry, onRetryDifferentWorker, onSkip, onCancel, i
           />
           <Button size="sm" variant="destructive" onClick={onCancel} disabled={isLoading}>
             <XCircle className="mr-1 h-3.5 w-3.5" />
-            Cancel Work
+            Cancel Failed Step
           </Button>
         </div>
       </CardContent>

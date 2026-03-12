@@ -39,7 +39,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   llm: 'LLM',
   tool: 'Tool',
   agent_loop: 'Agent Loop',
-  task_lifecycle: 'Task',
+  task_lifecycle: 'Step',
   runtime_lifecycle: 'Runtime',
   container: 'Container',
   api: 'API',

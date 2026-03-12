@@ -71,7 +71,7 @@ export function registerRequestLogger(app: FastifyInstance, logService: LogServi
       durationMs: duration,
       payload: {
         method,
-        path: request.url,
+        path: sanitizeRequestPath(request.url, routePath),
         route: routePath,
         status_code: reply.statusCode,
         request_id: request.id,
@@ -90,4 +90,16 @@ function normalizeRoute(route: string): string {
     .replace(/^\/api\/v1\//, '')
     .replace(/\/:[^/]+/g, '.:param')
     .replace(/\//g, '.');
+}
+
+function sanitizeRequestPath(url: string, routePath: string): string {
+  if (routePath && routePath.startsWith('/')) {
+    return routePath;
+  }
+  return stripQueryString(url);
+}
+
+function stripQueryString(url: string): string {
+  const [path] = url.split('?', 1);
+  return path || url;
 }

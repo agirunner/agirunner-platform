@@ -6,7 +6,7 @@ import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-
 import { readModelOverride, type ModelOverride } from './config-hierarchy-service.js';
 import { EventService } from './event-service.js';
 import type { ProjectMemoryMutationContext } from './project-memory-scope-service.js';
-import { encryptWebhookSecret, decryptWebhookSecret } from './webhook-secret-crypto.js';
+import { encryptWebhookSecret, decryptWebhookSecret, isWebhookSecretEncrypted } from './webhook-secret-crypto.js';
 
 interface ProjectListQuery {
   page: number;
@@ -35,6 +35,7 @@ interface UpdateProjectInput {
 
 type ProjectRow = TenantRow & Record<string, unknown>;
 const PROJECT_MEMORY_SECRET_REDACTION = 'redacted://project-memory-secret';
+const PROJECT_SETTINGS_SECRET_REDACTION = 'redacted://project-settings-secret';
 const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
 
 function byteLengthJson(value: Record<string, unknown>): number {
@@ -52,15 +53,23 @@ function sanitizeMemoryEventValue(key: string, value: unknown): unknown {
   return sanitizeSecretLikeValue(value, isSecretLikeKey(key));
 }
 
-function sanitizeSecretLikeValue(value: unknown, inheritedSecret: boolean): unknown {
+function sanitizeProjectRecordValue(key: string, value: unknown, redactionValue: string): unknown {
+  return sanitizeSecretLikeValue(value, isSecretLikeKey(key), redactionValue);
+}
+
+function sanitizeSecretLikeValue(
+  value: unknown,
+  inheritedSecret: boolean,
+  redactionValue = PROJECT_MEMORY_SECRET_REDACTION,
+): unknown {
   if (typeof value === 'string') {
     return inheritedSecret && !isSecretReference(value)
-      ? PROJECT_MEMORY_SECRET_REDACTION
+      ? redactionValue
       : value;
   }
 
   if (Array.isArray(value)) {
-    return value.map((item) => sanitizeSecretLikeValue(item, inheritedSecret));
+    return value.map((item) => sanitizeSecretLikeValue(item, inheritedSecret, redactionValue));
   }
 
   if (!value || typeof value !== 'object') {
@@ -72,6 +81,7 @@ function sanitizeSecretLikeValue(value: unknown, inheritedSecret: boolean): unkn
     sanitized[nestedKey] = sanitizeSecretLikeValue(
       nestedValue,
       inheritedSecret || isSecretLikeKey(nestedKey),
+      redactionValue,
     );
   }
   return sanitized;
@@ -154,7 +164,7 @@ export class ProjectService {
         data: { slug: project.slug },
       });
 
-      return redactWebhookSecret(project);
+      return redactProjectSecrets(project);
     } catch (error) {
       if (isUniqueViolation(error, 'uq_project_tenant_slug')) {
         throw new ConflictError('Project slug already exists');
@@ -193,8 +203,10 @@ export class ProjectService {
       ),
     ]);
 
+    const migratedRows = await Promise.all(rows.map((row) => this.ensureGitWebhookSecretEncrypted(tenantId, row)));
+
     return {
-      data: rows,
+      data: migratedRows.map((row) => redactProjectSecrets(row)),
       meta: {
         total,
         page: query.page,
@@ -210,7 +222,7 @@ export class ProjectService {
     if (!project) {
       throw new NotFoundError('Project not found');
     }
-    return redactWebhookSecret(project);
+    return redactProjectSecrets(await this.ensureGitWebhookSecretEncrypted(tenantId, project));
   }
 
   async updateProject(identity: ApiKeyIdentity, projectId: string, input: UpdateProjectInput) {
@@ -265,7 +277,7 @@ export class ProjectService {
         },
       });
 
-      return redactWebhookSecret(project);
+      return redactProjectSecrets(project);
     } catch (error) {
       if (isUniqueViolation(error, 'uq_project_tenant_slug')) {
         throw new ConflictError('Project slug already exists');
@@ -332,7 +344,7 @@ export class ProjectService {
       client,
     );
 
-    return redactWebhookSecret(updatedProject);
+    return redactProjectSecrets(updatedProject);
   }
 
   async removeProjectMemory(
@@ -386,7 +398,7 @@ export class ProjectService {
       client,
     );
 
-    return redactWebhookSecret(updatedProject);
+    return redactProjectSecrets(updatedProject);
   }
 
   async deleteProject(identity: ApiKeyIdentity, projectId: string) {
@@ -481,9 +493,15 @@ export class ProjectService {
       return null;
     }
 
+    const secret = await this.ensureProjectWebhookSecretEncrypted(
+      tenantId,
+      projectId,
+      row.git_webhook_secret,
+    );
+
     return {
       provider: row.git_webhook_provider,
-      secret: decryptWebhookSecret(row.git_webhook_secret, this.encryptionKey),
+      secret: decryptWebhookSecret(secret, this.encryptionKey),
     };
   }
 
@@ -532,16 +550,80 @@ export class ProjectService {
       throw new ValidationError('project.settings.model_override.model_id must reference an enabled model');
     }
   }
+
+  private async ensureGitWebhookSecretEncrypted(tenantId: string, project: ProjectRow): Promise<ProjectRow> {
+    const record = project as Record<string, unknown>;
+    const secret = typeof record.git_webhook_secret === 'string' ? record.git_webhook_secret : null;
+    if (!secret) {
+      return project;
+    }
+
+    const encryptedSecret = await this.ensureProjectWebhookSecretEncrypted(
+      tenantId,
+      String(record.id),
+      secret,
+    );
+    if (encryptedSecret === secret) {
+      return project;
+    }
+
+    return {
+      ...project,
+      git_webhook_secret: encryptedSecret,
+      updated_at: new Date(),
+    };
+  }
+
+  private async ensureProjectWebhookSecretEncrypted(
+    tenantId: string,
+    projectId: string,
+    secret: string,
+  ): Promise<string> {
+    if (isWebhookSecretEncrypted(secret)) {
+      return secret;
+    }
+
+    const encryptedSecret = encryptWebhookSecret(secret, this.encryptionKey);
+    await this.pool.query(
+      `UPDATE projects
+          SET git_webhook_secret = $3,
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [tenantId, projectId, encryptedSecret],
+    );
+    return encryptedSecret;
+  }
 }
 
-function redactWebhookSecret(project: ProjectRow): Record<string, unknown> {
+function redactProjectSecrets(project: ProjectRow): Record<string, unknown> {
   const record = project as Record<string, unknown>;
   const hasSecret = typeof record.git_webhook_secret === 'string' && record.git_webhook_secret.length > 0;
-  const { git_webhook_secret: _removed, ...rest } = record;
+  const { git_webhook_secret: _removed, settings, memory, ...rest } = record;
   return {
     ...rest,
+    settings: sanitizeProjectSettings(settings),
+    memory: sanitizeProjectMemory(memory),
     git_webhook_secret_configured: hasSecret,
   };
+}
+
+function sanitizeProjectSettings(value: unknown): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(normalizeRecord(value)).map(([key, entry]) => [
+      key,
+      sanitizeProjectRecordValue(key, entry, PROJECT_SETTINGS_SECRET_REDACTION),
+    ]),
+  );
+}
+
+function sanitizeProjectMemory(value: unknown): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(normalizeRecord(value)).map(([key, entry]) => [
+      key,
+      sanitizeProjectRecordValue(key, entry, PROJECT_MEMORY_SECRET_REDACTION),
+    ]),
+  );
 }
 
 function normalizeRepoUrl(url: string): string {

@@ -46,9 +46,13 @@ export class WorkflowStateService {
       throw new ConflictError('Workflow state recomputation is only supported for playbook workflows');
     }
     const workflowMetadata = asRecord(workflowRes.rows[0].metadata);
-    let derivedState = await this.derivePlaybookWorkflowState(tenantId, workflowId, previousState, db);
+    let derivedState: string;
     if (workflowMetadata.cancel_requested_at) {
       derivedState = await this.deriveCancellationState(tenantId, workflowId, db);
+    } else if (hasWorkflowPauseMarker(workflowMetadata)) {
+      derivedState = 'paused';
+    } else {
+      derivedState = await this.derivePlaybookWorkflowState(tenantId, workflowId, previousState, db);
     }
 
     const setStartedAt = derivedState === 'active';
@@ -137,9 +141,8 @@ export class WorkflowStateService {
     workflowId: string,
     db: DatabaseClient | DatabasePool,
   ) {
-    return hasActiveWorkflowPosture(await this.loadWorkflowPosture(tenantId, workflowId, db))
-      ? 'paused'
-      : 'cancelled';
+    const posture = await this.loadWorkflowPosture(tenantId, workflowId, db);
+    return hasPendingCancellationWork(posture) ? 'paused' : 'cancelled';
   }
 
   private async enqueueParentWorkflowOutcome(
@@ -193,11 +196,10 @@ export class WorkflowStateService {
     previousState: string,
     db: DatabaseClient | DatabasePool,
   ) {
-    if (['completed', 'failed', 'cancelled', 'paused'].includes(previousState)) return previousState;
+    if (isTerminalWorkflowState(previousState)) return previousState;
 
     const posture = await this.loadWorkflowPosture(tenantId, workflowId, db);
-    const lifecycle = posture.lifecycle;
-    if (lifecycle === 'continuous') {
+    if (posture.lifecycle === 'continuous') {
       return deriveContinuousWorkflowState(posture);
     }
 
@@ -228,7 +230,7 @@ export class WorkflowStateService {
           WHERE tenant_id = $1
             AND workflow_id = $2
             AND is_orchestrator_task = true
-            AND state IN ('ready', 'claimed', 'running', 'awaiting_approval', 'output_pending_review')
+            AND state IN ('ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review')
           LIMIT 1`,
         [tenantId, workflowId],
       ),
@@ -276,8 +278,8 @@ function readOptionalString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
-function deriveContinuousWorkflowState(_posture: WorkflowPosture) {
-  return 'active';
+function deriveContinuousWorkflowState(posture: WorkflowPosture) {
+  return hasContinuousWorkflowPosture(posture) ? 'active' : 'pending';
 }
 
 function hasActiveWorkflowPosture(posture: WorkflowPosture) {
@@ -285,6 +287,25 @@ function hasActiveWorkflowPosture(posture: WorkflowPosture) {
   if (posture.stages.some((stage) => isAttentionGateStatus(stage.gate_status))) return true;
   if (posture.stages.some((stage) => isActiveStageStatus(stage.status))) return true;
   return Boolean(posture.currentStage && posture.stages.some((stage) => stage.status !== 'completed'));
+}
+
+function hasContinuousWorkflowPosture(posture: WorkflowPosture) {
+  if (posture.hasActiveOrchestratorTask || posture.openWorkItemCount > 0) return true;
+  if (posture.stages.some((stage) => isAttentionGateStatus(stage.gate_status))) return true;
+  return posture.stages.some((stage) => isActiveStageStatus(stage.status));
+}
+
+function hasPendingCancellationWork(posture: WorkflowPosture) {
+  if (posture.hasActiveOrchestratorTask || posture.openWorkItemCount > 0) return true;
+  return posture.stages.some((stage) => isAttentionGateStatus(stage.gate_status));
+}
+
+function hasWorkflowPauseMarker(metadata: Record<string, unknown>) {
+  return readOptionalString(metadata.pause_requested_at) !== null;
+}
+
+function isTerminalWorkflowState(state: string) {
+  return state === 'completed' || state === 'failed' || state === 'cancelled';
 }
 
 function isAttentionGateStatus(status: string) {

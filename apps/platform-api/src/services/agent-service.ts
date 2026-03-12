@@ -5,6 +5,11 @@ import type { AppEnv } from '../config/schema.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
 
+const AGENT_SECRET_REDACTION = 'redacted://agent-secret';
+const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
+const secretLikeValuePattern =
+  /(?:^enc:v\d+:|^secret:|^redacted:\/\/|^Bearer\s+\S+|^sk-[A-Za-z0-9_-]+|^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/i;
+
 interface RegisterAgentInput {
   name: string;
   protocol?: 'rest' | 'acp';
@@ -90,8 +95,11 @@ export class AgentService {
       capabilities: agent.capabilities,
       status: agent.status,
       api_key: apiKey,
-      metadata: agent.metadata,
-      tools: (agent.metadata as Record<string, unknown>)?.tools ?? { required: [], optional: [] },
+      metadata: sanitizeSecretLikeRecord(agent.metadata),
+      tools: sanitizeSecretLikeValue(
+        (agent.metadata as Record<string, unknown>)?.tools ?? { required: [], optional: [] },
+        false,
+      ),
     };
   }
 
@@ -117,11 +125,11 @@ export class AgentService {
       `SELECT id, worker_id, name, capabilities, status, current_task_id, heartbeat_interval_seconds,
               last_heartbeat_at, metadata, registered_at, created_at, updated_at
        FROM agents
-       WHERE tenant_id = $1
+      WHERE tenant_id = $1
        ORDER BY created_at DESC`,
       [tenantId],
     );
-    return result.rows;
+    return result.rows.map((row) => sanitizeAgentRow(row as Record<string, unknown>));
   }
 
   async enforceHeartbeatTimeouts(now = new Date()): Promise<number> {
@@ -173,7 +181,7 @@ export class AgentService {
                  assigned_worker_id = NULL,
                  claimed_at = NULL,
                  started_at = NULL
-             WHERE tenant_id = $1 AND id = $2 AND state IN ('claimed', 'running')`,
+             WHERE tenant_id = $1 AND id = $2 AND state IN ('claimed', 'in_progress')`,
             [agent.tenant_id, agent.current_task_id],
           );
 
@@ -214,4 +222,63 @@ function normalizeAgentCapabilities(
     values.add('orchestrator');
   }
   return [...values];
+}
+
+function sanitizeAgentRow(row: Record<string, unknown>) {
+  return {
+    ...row,
+    metadata: sanitizeSecretLikeRecord(row.metadata),
+  };
+}
+
+function sanitizeSecretLikeRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    sanitized[key] = sanitizeSecretLikeValue(entry, isSecretLikeKey(key));
+  }
+  return sanitized;
+}
+
+function sanitizeSecretLikeValue(value: unknown, inheritedSecret: boolean): unknown {
+  if (typeof value === 'string') {
+    if (isSecretReference(value)) {
+      return value;
+    }
+    return inheritedSecret || isSecretLikeValue(value) ? AGENT_SECRET_REDACTION : value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => sanitizeSecretLikeValue(entry, inheritedSecret));
+  }
+
+  if (value && typeof value === 'object') {
+    const sanitized: Record<string, unknown> = {};
+    for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
+      sanitized[key] = sanitizeSecretLikeValue(nestedValue, inheritedSecret || isSecretLikeKey(key));
+    }
+    return sanitized;
+  }
+
+  return value;
+}
+
+function isSecretLikeKey(key: string): boolean {
+  return secretLikeKeyPattern.test(key);
+}
+
+function isSecretLikeValue(value: string): boolean {
+  const normalized = value.trim();
+  if (normalized.length === 0) {
+    return false;
+  }
+  return secretLikeValuePattern.test(normalized);
+}
+
+function isSecretReference(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return normalized.startsWith('secret:') || normalized.startsWith('redacted://');
 }

@@ -362,7 +362,13 @@ function NavSectionGroup({
   section: NavSection;
   isActive: boolean;
 }): JSX.Element {
-  const [expanded, setExpanded] = useState(isActive);
+  const [expanded, setExpanded] = useState(true);
+
+  useEffect(() => {
+    if (isActive) {
+      setExpanded(true);
+    }
+  }, [isActive]);
   const Icon = section.icon;
 
   return (

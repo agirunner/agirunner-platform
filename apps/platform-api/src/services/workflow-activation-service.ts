@@ -1,7 +1,9 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import { NotFoundError } from '../errors/domain-errors.js';
+import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
+import { areJsonValuesEquivalent } from './json-equivalence.js';
+import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 import {
   enqueueWorkflowActivationRecord,
   type WorkflowActivationEventRow,
@@ -95,6 +97,7 @@ export class WorkflowActivationService {
     const db = client ?? this.pool;
     await this.assertWorkflow(params.tenantId, params.workflowId, db);
     const activation = await enqueueWorkflowActivationRecord(db, this.eventService, params);
+    assertIdempotentActivationReplay(activation, params);
     return toActivationResponse(activation as ActivationRow);
   }
 
@@ -183,7 +186,9 @@ function toActivationResponse(row: ActivationRow, rows: ActivationRow[] = [row])
     request_id: row.request_id,
     reason: row.reason,
     event_type: row.event_type,
-    payload: row.payload ?? {},
+    payload: sanitizeSecretLikeRecord(row.payload, {
+      redactionValue: 'redacted://activation-secret',
+    }),
     state: deriveActivationState(row),
     queued_at: row.queued_at.toISOString(),
     started_at: row.started_at?.toISOString() ?? null,
@@ -222,7 +227,9 @@ function serializeEvent(row: WorkflowActivationEventRow) {
     request_id: row.request_id,
     reason: row.reason,
     event_type: row.event_type,
-    payload: row.payload ?? {},
+    payload: sanitizeSecretLikeRecord(row.payload, {
+      redactionValue: 'redacted://activation-secret',
+    }),
     state: deriveActivationState(row),
     queued_at: row.queued_at.toISOString(),
     started_at: row.started_at?.toISOString() ?? null,
@@ -294,4 +301,23 @@ function groupActivationRows(rows: ActivationRow[]) {
 function findActivationAnchor(rows: ActivationRow[]) {
   const anchorId = rows[0]?.activation_id ?? rows[0]?.id;
   return rows.find((row) => row.id === anchorId) ?? rows[0];
+}
+
+function assertIdempotentActivationReplay(
+  activation: WorkflowActivationEventRow,
+  params: EnqueueActivationParams,
+): void {
+  const expectedReason = params.reason.trim();
+  const expectedEventType = params.eventType.trim();
+  const expectedPayload = sanitizeSecretLikeRecord(params.payload ?? {}, {
+    redactionValue: 'redacted://activation-secret',
+  });
+
+  if (
+    activation.reason !== expectedReason ||
+    activation.event_type !== expectedEventType ||
+    !areJsonValuesEquivalent(activation.payload ?? {}, expectedPayload)
+  ) {
+    throw new ConflictError('workflow activation request_id replay does not match the existing activation');
+  }
 }

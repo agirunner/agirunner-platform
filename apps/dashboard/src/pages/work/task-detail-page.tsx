@@ -89,9 +89,13 @@ function describeTaskKind(task: Task): string {
     return 'Operator approval';
   }
   if (status === 'escalated') {
-    return 'Escalated specialist task';
+    return 'Escalated specialist step';
   }
-  return 'Specialist task';
+  return 'Specialist step';
+}
+
+function usesWorkItemOperatorFlow(task: Task): boolean {
+  return Boolean(task.workflow_id && task.work_item_id);
 }
 
 function formatTimestamp(value?: string): string {
@@ -149,6 +153,11 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
   const isEscalated = status === 'escalated';
   const isFailed = status === 'failed';
   const isInProgress = status === 'in_progress';
+  const workItemFlow = usesWorkItemOperatorFlow(task);
+  const workItemPermalink =
+    task.workflow_id && task.work_item_id
+      ? `/work/workflows/${task.workflow_id}?work_item=${encodeURIComponent(task.work_item_id)}#work-item-${encodeURIComponent(task.work_item_id)}`
+      : null;
 
   const approveMutation = useMutation({
     mutationFn: () =>
@@ -189,6 +198,21 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
     retryMutation.isPending ||
     cancelMutation.isPending;
 
+  if (workItemFlow && workItemPermalink) {
+    return (
+      <div className="space-y-2">
+        <div className="flex gap-2">
+          <Button size="sm" asChild>
+            <Link to={workItemPermalink}>Open Work Item Flow</Link>
+          </Button>
+        </div>
+        <p className="text-xs text-muted">
+          This step belongs to a workflow work item. Operator review, rework, and retry decisions should run through the work-item panel so gate state, linked steps, and board context stay aligned.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex gap-2">
       {isAwaitingApproval && (
@@ -199,7 +223,7 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
             onClick={() => approveMutation.mutate()}
           >
             <CheckCircle className="h-4 w-4" />
-            Approve
+            Approve Step
           </Button>
           <Button
             variant="destructive"
@@ -208,7 +232,7 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
             onClick={() => rejectMutation.mutate()}
           >
             <XCircle className="h-4 w-4" />
-            Reject
+            Reject Step
           </Button>
         </>
       )}
@@ -226,7 +250,7 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
         <Button variant="outline" size="sm" asChild>
           <a href="#escalation-response">
             <Workflow className="h-4 w-4" />
-            Resolve Escalation
+            Open Escalation Context
           </a>
         </Button>
       )}
@@ -238,7 +262,7 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
           onClick={() => retryMutation.mutate()}
         >
           <RotateCcw className="h-4 w-4" />
-          Retry
+          Retry Step
         </Button>
       )}
       {isInProgress && (
@@ -257,8 +281,6 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
 }
 
 function normalizeTaskStatus(status: string): string {
-  if (status === 'running' || status === 'claimed') return 'in_progress';
-  if (status === 'awaiting_escalation') return 'escalated';
   return status;
 }
 
@@ -364,10 +386,10 @@ export function TaskDetailPage(): JSX.Element {
       <div className="flex flex-wrap gap-2 text-sm text-muted">
         {task.workflow_id ? (
           <Link to={`/work/workflows/${task.workflow_id}`} className="text-accent hover:underline">
-            Workflow {task.workflow_name ?? task.workflow_id}
+            Board {task.workflow_name ?? task.workflow_id}
           </Link>
         ) : (
-          <span>No workflow linked</span>
+          <span>No board linked</span>
         )}
         {task.stage_name ? <span>Stage {task.stage_name}</span> : null}
         {task.work_item_id ? <span>Work item {task.work_item_id}</span> : null}
@@ -387,7 +409,7 @@ export function TaskDetailPage(): JSX.Element {
         />
         <InfoCard
           icon={Workflow}
-          label="Workflow"
+          label="Board"
           value={task.workflow_name ?? task.workflow_id ?? '-'}
         />
         <InfoCard icon={Workflow} label="Stage" value={task.stage_name ?? '-'} />
@@ -409,7 +431,7 @@ export function TaskDetailPage(): JSX.Element {
       <Tabs defaultValue="output">
         <TabsList>
           <TabsTrigger value="output">Output</TabsTrigger>
-          <TabsTrigger value="context">Execution Context</TabsTrigger>
+          <TabsTrigger value="context">Operator Context</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
           <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
         </TabsList>
@@ -417,7 +439,7 @@ export function TaskDetailPage(): JSX.Element {
         <TabsContent value="output">
           <Card>
             <CardHeader>
-              <CardTitle>Execution Output</CardTitle>
+              <CardTitle>Step Output</CardTitle>
             </CardHeader>
             <CardContent>
               <OutputSection output={task.output} />
@@ -428,17 +450,18 @@ export function TaskDetailPage(): JSX.Element {
         <TabsContent value="context">
           <Card>
             <CardHeader>
-              <CardTitle>Execution Context</CardTitle>
+              <CardTitle>Operator Context</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <InfoCard icon={Workflow} label="Task Kind" value={describeTaskKind(task)} />
+                <InfoCard icon={Workflow} label="Work Item" value={task.work_item_id ?? '-'} />
                 <InfoCard icon={Workflow} label="Status" value={status.replace(/_/g, ' ')} />
               </div>
               <div id="escalation-response" className="rounded-md border bg-border/10 p-4">
                 <h3 className="text-sm font-medium">Escalation & Review Context</h3>
                 <p className="mt-1 text-sm text-muted">
-                  Use this task’s workflow, stage, work item, activation, and review state to decide the next operator action.
+                  Use this step’s board, stage, work item, activation, and review state to decide the next operator action.
                 </p>
               </div>
             </CardContent>

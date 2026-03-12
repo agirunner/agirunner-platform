@@ -32,6 +32,10 @@ export class WorkflowCancellationService {
       if (workflow.state === 'completed' || workflow.state === 'failed' || workflow.state === 'cancelled') {
         throw new ConflictError('Workflow is already terminal');
       }
+      if (hasCancellationRequest(workflow.metadata)) {
+        await client.query('COMMIT');
+        return this.deps.getWorkflow(identity.tenantId, workflowId);
+      }
 
       const immediateCancellationStates = ['pending', 'ready', 'awaiting_approval', 'output_pending_review', 'failed'];
       const cancelledTasks = await client.query(
@@ -44,12 +48,43 @@ export class WorkflowCancellationService {
         [identity.tenantId, workflowId, immediateCancellationStates],
       );
 
+      await client.query(
+        `UPDATE workflow_stage_gates
+            SET status = 'rejected',
+                decision_feedback = COALESCE(decision_feedback, 'Workflow cancelled by operator.'),
+                decided_by_type = COALESCE(decided_by_type, $3),
+                decided_by_id = COALESCE(decided_by_id, $4),
+                decided_at = COALESCE(decided_at, now()),
+                updated_at = now()
+          WHERE tenant_id = $1
+            AND workflow_id = $2
+            AND status = 'awaiting_approval'`,
+        [identity.tenantId, workflowId, identity.scope, identity.keyPrefix],
+      );
+
+      await client.query(
+        `UPDATE workflow_stages
+            SET gate_status = CASE
+                  WHEN gate_status = 'awaiting_approval' THEN 'rejected'
+                  ELSE gate_status
+                END,
+                status = CASE
+                  WHEN status = 'awaiting_gate' THEN 'blocked'
+                  ELSE status
+                END,
+                updated_at = now()
+          WHERE tenant_id = $1
+            AND workflow_id = $2
+            AND gate_status = 'awaiting_approval'`,
+        [identity.tenantId, workflowId],
+      );
+
       const activeTasks = await client.query(
         `SELECT id, assigned_worker_id
            FROM tasks
           WHERE tenant_id = $1
             AND workflow_id = $2
-            AND state IN ('claimed', 'running')
+            AND state IN ('claimed', 'in_progress')
           FOR UPDATE`,
         [identity.tenantId, workflowId],
       );
@@ -191,4 +226,12 @@ export class WorkflowCancellationService {
       client.release();
     }
   }
+}
+
+function hasCancellationRequest(metadata: unknown) {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return false;
+  }
+  const value = (metadata as Record<string, unknown>).cancel_requested_at;
+  return typeof value === 'string' && value.trim().length > 0;
 }

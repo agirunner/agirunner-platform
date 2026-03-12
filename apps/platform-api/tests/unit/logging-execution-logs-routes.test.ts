@@ -354,6 +354,7 @@ describe('execution-logs route helpers', () => {
             prev_cursor: null,
           },
         }),
+        getById: vi.fn().mockResolvedValue(unsafeRow),
         export: vi.fn(async function* () {
           yield unsafeRow;
         }),
@@ -386,6 +387,41 @@ describe('execution-logs route helpers', () => {
       expect(payload.data[0].payload.nested.authorization).toBe('[REDACTED]');
       expect(payload.data[0].payload.nested.secret_ref).toBe('[REDACTED]');
       expect(payload.data[0].error.message).toBe('[REDACTED]');
+    });
+
+    it('returns summary rows without payload bodies when detail=summary is requested', async () => {
+      await registerRoutes();
+
+      const response = await app!.inject({
+        method: 'GET',
+        url: '/api/v1/logs?detail=summary',
+        headers: { authorization: 'Bearer test' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const payload = response.json();
+      expect(payload.data[0].payload).toBeNull();
+      expect(payload.data[0].error).toEqual({
+        code: 'AUTH_FAILED',
+        message: '[REDACTED]',
+      });
+      expect(response.body).not.toContain('nested');
+    });
+
+    it('returns a single full log entry by id for lazy detail loading', async () => {
+      await registerRoutes();
+
+      const response = await app!.inject({
+        method: 'GET',
+        url: '/api/v1/logs/1',
+        headers: { authorization: 'Bearer test' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const payload = response.json();
+      expect(payload.data.id).toBe('1');
+      expect(payload.data.payload.nested.safe).toBe('visible');
+      expect(payload.data.payload.api_key).toBe('[REDACTED]');
     });
 
     it('redacts exported logs on the JSON wire', async () => {

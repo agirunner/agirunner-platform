@@ -14,8 +14,9 @@ export const taskStates = [
 ] as const;
 
 export type CanonicalTaskState = (typeof taskStates)[number];
-export type LegacyTaskStateAlias = 'running' | 'awaiting_escalation';
-export type TaskState = CanonicalTaskState | LegacyTaskStateAlias;
+export type TaskState = CanonicalTaskState;
+
+type LegacyTaskStateAlias = 'running' | 'awaiting_escalation';
 
 const legacyTaskStateAliases: Record<LegacyTaskStateAlias, CanonicalTaskState> = {
   running: 'in_progress',
@@ -35,7 +36,7 @@ const transitionTable: Record<CanonicalTaskState, ReadonlySet<CanonicalTaskState
   cancelled: new Set(),
 };
 
-export function canTransitionState(current: TaskState, requested: TaskState): boolean {
+export function canTransitionState(current: string, requested: string): boolean {
   const normalizedCurrent = normalizeTaskState(current);
   const normalizedRequested = normalizeTaskState(requested);
   if (!normalizedCurrent || !normalizedRequested) {
@@ -44,7 +45,7 @@ export function canTransitionState(current: TaskState, requested: TaskState): bo
   return transitionTable[normalizedCurrent].has(normalizedRequested);
 }
 
-export function assertValidTransition(taskId: string, current: TaskState, requested: TaskState): void {
+export function assertValidTransition(taskId: string, current: string, requested: string): void {
   if (canTransitionState(current, requested)) {
     return;
   }
@@ -66,6 +67,13 @@ export function normalizeTaskState(state: string | null | undefined): CanonicalT
   return taskStates.includes(state as CanonicalTaskState) ? (state as CanonicalTaskState) : null;
 }
 
-export function toStoredTaskState(state: TaskState): string {
-  return state === 'in_progress' ? 'running' : state === 'escalated' ? 'awaiting_escalation' : state;
+export function toStoredTaskState(state: string): CanonicalTaskState {
+  const normalized = normalizeTaskState(state);
+  if (!normalized) {
+    throw new InvalidStateTransitionError(`Unknown task state '${state}'`, {
+      current_state: state,
+      requested_state: state,
+    });
+  }
+  return normalized;
 }

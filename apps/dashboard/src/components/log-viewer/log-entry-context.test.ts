@@ -67,4 +67,27 @@ describe('log entry context', () => {
     expect(source).toContain('gateStageName');
     expect(source).toContain('!entry.work_item_id && !entry.activation_id');
   });
+
+  it('uses board and execution-step labels in active telemetry detail surfaces', () => {
+    const detailSource = readFileSync(
+      resolve(import.meta.dirname, './log-entry-detail.tsx'),
+      'utf8',
+    );
+    const taskDetailSource = readFileSync(
+      resolve(import.meta.dirname, './log-entry-detail-task.tsx'),
+      'utf8',
+    );
+    const groupedTableSource = readFileSync(
+      resolve(import.meta.dirname, './log-task-grouped-table.tsx'),
+      'utf8',
+    );
+
+    expect(detailSource).toContain("task_lifecycle: 'Execution Step Lifecycle'");
+    expect(detailSource).toContain('<DetailRow label="Board">');
+    expect(detailSource).toContain('<DetailRow label="Step ID">');
+    expect(taskDetailSource).toContain('Execution Step Lifecycle');
+    expect(taskDetailSource).toContain("label: 'Board'");
+    expect(taskDetailSource).toContain("label: 'Step Title'");
+    expect(groupedTableSource).toContain('non-step');
+  });
 });

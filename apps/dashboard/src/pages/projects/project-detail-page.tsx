@@ -1178,6 +1178,7 @@ function describeDeliveryEntry(entry: DashboardProjectTimelineEntry): string {
     summarizeStageProgress(entry.stage_progression),
     summarizeWorkItemProgress(entry.stage_metrics),
     summarizeGateAttention(entry.stage_metrics),
+    summarizeOrchestratorAnalytics(entry.orchestrator_analytics),
     summarizeArtifactCount(entry.produced_artifacts),
   ].filter(Boolean);
 
@@ -1251,6 +1252,35 @@ function summarizeArtifactCount(
 ): string | null {
   const count = Array.isArray(artifacts) ? artifacts.length : 0;
   return count > 0 ? `Artifacts ${count}` : null;
+}
+
+function summarizeOrchestratorAnalytics(
+  analytics: DashboardProjectTimelineEntry['orchestrator_analytics'],
+): string | null {
+  const record = analytics && typeof analytics === 'object' ? (analytics as Record<string, unknown>) : null;
+  if (!record) {
+    return null;
+  }
+
+  const parts: string[] = [];
+  const activationCount = Number(record.activation_count ?? 0);
+  const reworkedTaskCount = Number(record.reworked_task_count ?? 0);
+  const staleDetections = Number(record.stale_detection_count ?? 0);
+  const totalCostUsd = Number(record.total_cost_usd ?? 0);
+
+  if (activationCount > 0) {
+    parts.push(`Activations ${activationCount}`);
+  }
+  if (reworkedTaskCount > 0) {
+    parts.push(`Reworked tasks ${reworkedTaskCount}`);
+  }
+  if (staleDetections > 0) {
+    parts.push(`Stale recoveries ${staleDetections}`);
+  }
+  if (totalCostUsd > 0) {
+    parts.push(`Cost $${totalCostUsd.toFixed(2)}`);
+  }
+  return parts.length > 0 ? parts.join(' • ') : null;
 }
 
 /* ------------------------------------------------------------------ */

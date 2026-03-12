@@ -34,7 +34,7 @@ export class WorkflowChainingService {
       name: payload.name ?? `${String(sourceWorkflow.name)} follow-up`,
       parameters: payload.parameters,
       metadata: {
-        chain_source_workflow_id: sourceWorkflowId,
+        parent_workflow_id: sourceWorkflowId,
         chain_origin: 'explicit',
       },
     });
@@ -84,7 +84,7 @@ export class WorkflowChainingService {
       name: payload.name ?? `${String(sourceWorkflow.name)} follow-up`,
       parameters,
       metadata: {
-        chain_source_workflow_id: sourceWorkflowId,
+        parent_workflow_id: sourceWorkflowId,
         chain_origin: 'suggested_plan',
       },
     });
@@ -131,7 +131,7 @@ export class WorkflowChainingService {
         sourceWorkflowId,
         {
           child_workflow_ids: childWorkflowIds,
-          latest_chained_workflow_id: childWorkflowId,
+          latest_child_workflow_id: childWorkflowId,
         },
       ],
     );

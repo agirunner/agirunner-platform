@@ -15,8 +15,11 @@ interface ExecutionInspectorDetailViewProps {
   selectedLogId: number | null;
   isLoading: boolean;
   hasMore: boolean;
+  loadedCount: number;
+  isSelectedOutsideSegment?: boolean;
   onSelect(logId: number): void;
   onLoadMore(): void;
+  onClearSelection?(): void;
 }
 
 export function ExecutionInspectorDetailView(
@@ -28,6 +31,24 @@ export function ExecutionInspectorDetailView(
         {props.isLoading ? <p className="p-5 text-sm text-muted">Loading execution entries…</p> : null}
         {!props.isLoading && props.entries.length === 0 ? (
           <p className="p-5 text-sm text-muted">No execution entries match the current filters.</p>
+        ) : null}
+        {!props.isLoading && props.entries.length > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/20 px-5 py-3 text-xs text-muted">
+            <span>
+              Loaded {props.loadedCount} trace summaries
+              {props.hasMore ? ' in the current segment' : ''}
+            </span>
+            {props.isSelectedOutsideSegment ? (
+              <div className="flex items-center gap-3">
+                <span>Selected trace is pinned outside the loaded segment.</span>
+                {props.onClearSelection ? (
+                  <Button variant="ghost" size="sm" onClick={props.onClearSelection}>
+                    Return to segment
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
         ) : null}
         <div className="divide-y divide-border">
           {props.entries.map((entry) => {
@@ -86,7 +107,7 @@ export function ExecutionInspectorDetailView(
         {props.hasMore ? (
           <div className="border-t border-border p-4">
             <Button variant="outline" onClick={props.onLoadMore}>
-              Load More
+              Load Older Segment
             </Button>
           </div>
         ) : null}

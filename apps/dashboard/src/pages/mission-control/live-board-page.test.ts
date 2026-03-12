@@ -25,4 +25,16 @@ describe('live board page source', () => {
     expect(source).toContain('workItemId: item.id');
     expect(source).toContain('gateStageName: gate.stage_name');
   });
+
+  it('uses board and step language and avoids raw task-status comparisons in the operator lane', () => {
+    const source = readSource();
+    expect(source).toContain('Operator Live Board');
+    expect(source).toContain('Search boards, work items, stages, gates, steps, or IDs');
+    expect(source).toContain('describeAttentionStep');
+    expect(source).toContain('resolveTaskOperatorState');
+    expect(source).toContain('Approve Step');
+    expect(source).toContain('Retry Step');
+    expect(source).not.toContain("t.status === 'awaiting_approval'");
+    expect(source).not.toContain("t.status === 'failed'");
+  });
 });

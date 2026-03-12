@@ -191,10 +191,11 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     );
 
     const roleConfig = (result as Record<string, unknown>).role_config as Record<string, unknown>;
+    const credentials = (result as Record<string, unknown>).credentials as Record<string, unknown>;
     expect(roleConfig.system_prompt).toContain('Be safe');
-    expect(roleConfig.llm_provider).toBe('openai');
-    expect(roleConfig.llm_model).toBe('gpt-4');
-    expect(roleConfig.llm_api_key).toBe('sk-test');
+    expect(credentials.llm_provider).toBe('openai');
+    expect(credentials.llm_model).toBe('gpt-4');
+    expect(credentials.llm_api_key).toBe('sk-test');
   });
 
   it('does not set system_prompt when no instruction layers exist', async () => {

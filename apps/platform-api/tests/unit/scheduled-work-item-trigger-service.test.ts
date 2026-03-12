@@ -133,6 +133,41 @@ describe('ScheduledWorkItemTriggerService', () => {
     expect(eventService.emit).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'trigger.fired' }));
   });
 
+  it('redacts secret-bearing scheduled trigger defaults on public reads', async () => {
+    pool.query.mockResolvedValueOnce({
+      rows: [
+        {
+          ...buildTriggerRow(),
+          defaults: {
+            title: 'Run inbox triage',
+            metadata: {
+              api_key: 'plain-secret',
+              secret_ref: 'secret:SCHEDULE_TRIGGER_SECRET',
+            },
+          },
+        },
+      ],
+      rowCount: 1,
+    });
+
+    const result = await service.listTriggers('tenant-1');
+
+    expect(result).toEqual({
+      data: [
+        expect.objectContaining({
+          id: 'trigger-1',
+          defaults: {
+            title: 'Run inbox triage',
+            metadata: {
+              api_key: 'redacted://trigger-secret',
+              secret_ref: 'secret:SCHEDULE_TRIGGER_SECRET',
+            },
+          },
+        }),
+      ],
+    });
+  });
+
   it('rejects scheduled triggers that target a non-playbook workflow', async () => {
     pool.query.mockResolvedValueOnce({
       rows: [{ project_id: 'project-1', playbook_id: null, definition: null }],

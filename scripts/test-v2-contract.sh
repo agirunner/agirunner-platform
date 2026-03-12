@@ -9,6 +9,7 @@ corepack pnpm exec vitest run \
   tests/unit/playbook-workflow.integration.test.ts \
   tests/unit/continuous-work-item-activation.integration.test.ts \
   tests/unit/escalation-roundtrip.integration.test.ts \
+  tests/unit/v2-reset-setup.integration.test.ts \
   tests/unit/workflow-activation-dispatch-service.test.ts \
   tests/unit/workflow-tool-result-service.test.ts \
   tests/unit/task-lifecycle-service.test.ts \

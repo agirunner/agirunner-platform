@@ -10,9 +10,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { matchesSubscription, processSseBuffer, resetEventTransportForTests, subscribeToEvents } from './sse.js';
 import { clearSession, writeSession } from './session.js';
 
-function mockLocalStorage() {
-  const store = new Map<string, string>();
-  vi.stubGlobal('localStorage', {
+function mockBrowserStorage() {
+  const localStore = new Map<string, string>();
+  const sessionStore = new Map<string, string>();
+  vi.stubGlobal('localStorage', createStorage(localStore));
+  vi.stubGlobal('sessionStorage', createStorage(sessionStore));
+}
+
+function createStorage(store: Map<string, string>) {
+  return {
     getItem: (key: string) => store.get(key) ?? null,
     setItem: (key: string, value: string) => {
       store.set(key, value);
@@ -20,7 +26,7 @@ function mockLocalStorage() {
     removeItem: (key: string) => {
       store.delete(key);
     },
-  });
+  };
 }
 
 describe('FR-030a / FR-423a: SSE buffer processing', () => {
@@ -85,7 +91,7 @@ describe('FR-031 / FR-423a: shared subscribeToEvents behavior', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
-    mockLocalStorage();
+    mockBrowserStorage();
     clearSession();
     resetEventTransportForTests();
   });

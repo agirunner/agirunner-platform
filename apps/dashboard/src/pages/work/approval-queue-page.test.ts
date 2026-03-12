@@ -15,8 +15,9 @@ describe('approval queue page source', () => {
     expect(source).toContain('Review stage gates first');
     expect(source).toContain('Oldest wait');
     expect(source).toContain('First up');
+    expect(source).toContain('Awaiting follow-up');
     expect(source).toContain('Stage gates');
-    expect(source).toContain('Task reviews');
+    expect(source).toContain('Step Approvals');
   });
 
   it('renders richer stage gate context and artifact sections', () => {
@@ -25,6 +26,10 @@ describe('approval queue page source', () => {
     expect(source).toContain('source="approval-queue"');
     expect(source).toContain('Queue priority');
     expect(source).toContain('oldest wait first');
+    expect(source).toContain('readGateDecisionSummary');
+    expect(source).toContain('readGateResumptionSummary');
+    expect(source).toContain('readGateRequestSourceSummary');
+    expect(source).toContain('countPendingOrchestratorFollowUp');
   });
 
   it('adds url-driven search, saved views, and workflow gate deep links', () => {
@@ -35,7 +40,7 @@ describe('approval queue page source', () => {
     expect(source).toContain('SavedViews');
     expect(source).toContain("storageKey=\"approval-queue\"");
     expect(source).toContain('buildWorkflowDetailPermalink');
-    expect(source).toContain('Open workflow gate');
+    expect(source).toContain('Open board gate');
   });
 
   it('subscribes to realtime updates and invalidates workflow detail queries after decisions', () => {
@@ -52,6 +57,11 @@ describe('approval queue page source', () => {
     expect(source).toContain('Stage:');
     expect(source).toContain('Role:');
     expect(source).toContain('Rework round');
+    expect(source).toContain('Step approval');
+    expect(source).toContain('Output gate');
     expect(source).toContain('activationId: task.activation_id ?? null');
+    expect(source).toContain('Open Work Item Flow');
+    expect(source).toContain('Open Step Record');
+    expect(source).toContain('usesWorkItemOperatorFlow');
   });
 });

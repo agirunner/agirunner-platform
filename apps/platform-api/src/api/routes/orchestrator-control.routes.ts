@@ -89,6 +89,7 @@ const projectMemoryWriteSchema = z.object({
   request_id: z.string().max(255).optional(),
   key: z.string().min(1).max(256),
   value: z.unknown(),
+  work_item_id: z.string().uuid().optional(),
 });
 
 const childWorkflowCreateSchema = z.object({
@@ -326,6 +327,13 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
       if (!taskScope.project_id) {
         throw new ValidationError('This workflow is not linked to a project');
       }
+      if (body.work_item_id) {
+        await app.workflowService.getWorkflowWorkItem(
+          request.auth!.tenantId,
+          taskScope.workflow_id,
+          body.work_item_id,
+        );
+      }
       const stored = await runIdempotentMutation(
         app,
         toolResultService,
@@ -341,7 +349,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
               ...body,
               context: {
                 workflow_id: taskScope.workflow_id,
-                work_item_id: taskScope.work_item_id,
+                work_item_id: body.work_item_id ?? taskScope.work_item_id,
                 task_id: taskScope.id,
                 stage_name: taskScope.stage_name,
               },
@@ -497,6 +505,13 @@ async function runIdempotentMutation<T extends Record<string, unknown>>(
   const client = await app.pgPool.connect();
   try {
     await client.query('BEGIN');
+    await toolResultService.lockRequest(
+      tenantId,
+      workflowId,
+      toolName,
+      normalizedRequestId,
+      client,
+    );
     const existing = await toolResultService.getResult(
       tenantId,
       workflowId,

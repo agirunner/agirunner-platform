@@ -62,6 +62,15 @@ describe('ApprovalQueueService', () => {
             resume_activation_completed_at: null,
             resume_activation_summary: null,
             resume_activation_error: null,
+            decision_history: [
+              {
+                action: 'requested',
+                actor_type: 'agent',
+                actor_id: 'agent-1',
+                feedback: null,
+                created_at: '2026-03-11T01:00:00.000Z',
+              },
+            ],
           }],
         };
       }),
@@ -69,6 +78,14 @@ describe('ApprovalQueueService', () => {
 
     const service = new ApprovalQueueService(pool as never);
     const queue = await service.listApprovals('tenant-1');
+    expect(pool.query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('AND e.entity_id = g.id'),
+      expect.any(Array),
+    );
+    expect((pool.query as unknown as { mock: { calls: Array<[string]> } }).mock.calls[1][0]).not.toContain(
+      'e.entity_id = g.id::text',
+    );
 
     expect(queue.task_approvals).toHaveLength(1);
     expect(queue.stage_gates).toHaveLength(1);
@@ -101,6 +118,13 @@ describe('ApprovalQueueService', () => {
           activation_id: 'activation-2',
           state: 'queued',
         }),
+        decision_history: [
+          expect.objectContaining({
+            action: 'requested',
+            actor_type: 'agent',
+            actor_id: 'agent-1',
+          }),
+        ],
       }),
     );
   });
@@ -129,12 +153,39 @@ describe('ApprovalQueueService', () => {
           decided_by_id: null,
           decision_feedback: null,
           decided_at: null,
+          decision_history: [
+            {
+              action: 'requested',
+              actor_type: 'agent',
+              actor_id: 'agent-9',
+              feedback: null,
+              created_at: '2026-03-11T02:00:00.000Z',
+            },
+            {
+              action: 'request_changes',
+              actor_type: 'admin',
+              actor_id: 'admin-1',
+              feedback: 'Needs revision',
+              created_at: '2026-03-11T02:05:00.000Z',
+            },
+            {
+              action: 'approve',
+              actor_type: 'admin',
+              actor_id: 'admin-1',
+              feedback: 'Looks good now',
+              created_at: '2026-03-11T02:10:00.000Z',
+            },
+          ],
         }],
       })),
     };
 
     const service = new ApprovalQueueService(pool as never);
     const gate = await service.getGate('tenant-1', 'gate-9');
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('AND e.entity_id = g.id'),
+      ['tenant-1', 'gate-9', ['stage.gate_requested', 'stage.gate.approve', 'stage.gate.reject', 'stage.gate.request_changes']],
+    );
 
     expect(gate).toEqual(
       expect.objectContaining({
@@ -142,6 +193,11 @@ describe('ApprovalQueueService', () => {
         workflow_id: 'workflow-9',
         stage_name: 'qa',
         requested_by_id: 'task-9',
+        decision_history: [
+          expect.objectContaining({ action: 'requested' }),
+          expect.objectContaining({ action: 'request_changes', feedback: 'Needs revision' }),
+          expect.objectContaining({ action: 'approve', feedback: 'Looks good now' }),
+        ],
       }),
     );
   });

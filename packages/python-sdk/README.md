@@ -12,6 +12,7 @@ This package covers the workflow and project surfaces added during the dashboard
 - workflow documents
 - task artifacts
 - planning workflow creation
-- phase gate and phase cancel actions
+- stage gate and workflow control actions
+- playbook-backed workflow launch examples
 
 The client uses the Python standard library by default and supports transport injection for tests.

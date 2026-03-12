@@ -32,6 +32,7 @@ export interface WorkflowStageGateRecord {
   resume_activation_completed_at?: Date | null;
   resume_activation_summary?: string | null;
   resume_activation_error?: Record<string, unknown> | null;
+  decision_history?: unknown;
 }
 
 export function toGateResponse(row: WorkflowStageGateRecord) {
@@ -62,6 +63,7 @@ export function toGateResponse(row: WorkflowStageGateRecord) {
       feedback: row.decision_feedback ?? null,
       decided_at: row.decided_at?.toISOString() ?? null,
     },
+    decision_history: normalizeDecisionHistory(row.decision_history),
     requested_by_task: row.requested_by_task_id
       ? {
           id: row.requested_by_task_id,
@@ -118,4 +120,35 @@ function decisionActionForStatus(status: string | null | undefined) {
     return 'reject';
   }
   return null;
+}
+
+function normalizeDecisionHistory(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [] as Array<{
+      action: string;
+      actor_type: string | null;
+      actor_id: string | null;
+      feedback: string | null;
+      created_at: string | null;
+    }>;
+  }
+  return value
+    .filter(
+      (
+        entry,
+      ): entry is {
+        action?: unknown;
+        actor_type?: unknown;
+        actor_id?: unknown;
+        feedback?: unknown;
+        created_at?: unknown;
+      } => Boolean(entry) && typeof entry === 'object' && !Array.isArray(entry),
+    )
+    .map((entry) => ({
+      action: typeof entry.action === 'string' ? entry.action : 'unknown',
+      actor_type: typeof entry.actor_type === 'string' ? entry.actor_type : null,
+      actor_id: typeof entry.actor_id === 'string' ? entry.actor_id : null,
+      feedback: typeof entry.feedback === 'string' ? entry.feedback : null,
+      created_at: typeof entry.created_at === 'string' ? entry.created_at : null,
+    }));
 }

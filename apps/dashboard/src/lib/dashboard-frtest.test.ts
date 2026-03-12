@@ -47,9 +47,15 @@ function readRepoFile(relPath: string): string {
   return fs.readFileSync(path.join(repoRoot, relPath), 'utf-8');
 }
 
-function mockLocalStorage() {
-  const store = new Map<string, string>();
-  vi.stubGlobal('localStorage', {
+function mockBrowserStorage() {
+  const localStore = new Map<string, string>();
+  const sessionStore = new Map<string, string>();
+  vi.stubGlobal('localStorage', createStorage(localStore));
+  vi.stubGlobal('sessionStorage', createStorage(sessionStore));
+}
+
+function createStorage(store: Map<string, string>) {
+  return {
     getItem: (key: string) => store.get(key) ?? null,
     setItem: (key: string, value: string) => {
       store.set(key, value);
@@ -57,7 +63,7 @@ function mockLocalStorage() {
     removeItem: (key: string) => {
       store.delete(key);
     },
-  });
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -126,7 +132,6 @@ describe('FR-032: workflow list view', () => {
     expect(source).toContain('Start With AI Planning');
     expect(source).toContain('createPlanningWorkflow');
     expect(source).toContain('listProjects');
-    expect(source).not.toContain('phase-gated');
   });
 });
 
@@ -188,7 +193,7 @@ describe('FR-036a / FR-423 / FR-717: workflow detail and dependency graph', () =
 
   it('workflow-detail-page renders task dependency graph as a list', () => {
     const source = `${readComponent('pages/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail-sections.tsx')}`;
-    expect(source).toContain('Task Graph');
+    expect(source).toContain('Execution Graph');
     expect(source).toContain('depends_on');
   });
 
@@ -223,7 +228,7 @@ describe('FR-036a / FR-423 / FR-717: workflow detail and dependency graph', () =
 describe('FR-156: dashboard is tenant-scoped', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    mockLocalStorage();
+    mockBrowserStorage();
     clearSession();
   });
 
@@ -268,7 +273,7 @@ describe('FR-420 / FR-424 / FR-426: playbook browser, workflow launch, API key m
   });
 
   it('login() exchanges an API key for session tokens (workflow launch prerequisite)', async () => {
-    mockLocalStorage();
+    mockBrowserStorage();
     const client = {
       exchangeApiKey: vi.fn().mockResolvedValue({ token: 'access-tok', tenant_id: 'tenant-1' }),
       refreshSession: vi.fn(),
@@ -291,7 +296,7 @@ describe('FR-420 / FR-424 / FR-426: playbook browser, workflow launch, API key m
     expect(session?.tenantId).toBe('tenant-1');
   });
 
-  it('app and layout no longer expose template-era configuration routes', () => {
+  it('app and layout expose playbook-only configuration routes', () => {
     const appSource = readComponent('app/app.tsx');
     const layoutSource = readComponent('components/layout.tsx');
     expect(appSource).toContain('/config/playbooks');

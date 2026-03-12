@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { ConflictError } from '../../src/errors/domain-errors.js';
 import { WorkItemService } from '../../src/services/work-item-service.js';
 
 describe('WorkItemService', () => {
@@ -9,12 +10,14 @@ describe('WorkItemService', () => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rows: [], rowCount: 0 };
         }
-        if (sql.includes('SELECT w.id, w.lifecycle, w.current_stage, p.definition')) {
+        if (sql.includes('SELECT w.id,') && sql.includes('active_stage.name AS active_stage_name')) {
+          expect(sql).toContain('FOR UPDATE OF w');
           return {
             rows: [
               {
                 id: 'workflow-1',
-                current_stage: 'triage',
+                active_stage_name: 'triage',
+                lifecycle: 'continuous',
                 definition: {
                   roles: ['triager'],
                   lifecycle: 'continuous',
@@ -106,12 +109,13 @@ describe('WorkItemService', () => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rows: [], rowCount: 0 };
         }
-        if (sql.includes('SELECT w.id, w.lifecycle, w.current_stage, p.definition')) {
+        if (sql.includes('SELECT w.id,') && sql.includes('active_stage.name AS active_stage_name')) {
+          expect(sql).toContain('FOR UPDATE OF w');
           return {
             rows: [
               {
                 id: 'workflow-1',
-                current_stage: 'triage',
+                active_stage_name: 'triage',
                 definition: {
                   roles: ['triager'],
                   lifecycle: 'continuous',
@@ -134,8 +138,16 @@ describe('WorkItemService', () => {
                 id: 'work-item-1',
                 workflow_id: 'workflow-1',
                 request_id: 'req-1',
+                parent_work_item_id: null,
                 stage_name: 'triage',
+                title: 'Incoming webhook item',
+                goal: null,
+                acceptance_criteria: null,
                 column_id: 'planned',
+                owner_role: null,
+                priority: 'normal',
+                notes: null,
+                metadata: {},
               },
             ],
             rowCount: 1,
@@ -183,6 +195,250 @@ describe('WorkItemService', () => {
     expect(eventService.emit).not.toHaveBeenCalled();
     expect(activationService.enqueueForWorkflow).not.toHaveBeenCalled();
     expect(activationDispatchService.dispatchActivation).not.toHaveBeenCalled();
+  });
+
+  it('rejects a request_id replay when the existing work item does not match the requested mutation', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('SELECT w.id,') && sql.includes('active_stage.name AS active_stage_name')) {
+          return {
+            rows: [
+              {
+                id: 'workflow-1',
+                active_stage_name: 'triage',
+                lifecycle: 'continuous',
+                definition: {
+                  roles: ['triager'],
+                  lifecycle: 'continuous',
+                  board: { columns: [{ id: 'planned', label: 'Planned' }] },
+                  stages: [{ name: 'triage', goal: 'Triage inbound work' }],
+                },
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('INSERT INTO workflow_work_items')) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM workflow_work_items') && sql.includes('request_id = $3')) {
+          return {
+            rows: [
+              {
+                id: 'work-item-1',
+                workflow_id: 'workflow-1',
+                request_id: 'req-1',
+                parent_work_item_id: null,
+                stage_name: 'triage',
+                title: 'Existing title',
+                goal: null,
+                acceptance_criteria: null,
+                column_id: 'planned',
+                owner_role: null,
+                priority: 'normal',
+                notes: null,
+                metadata: {},
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      connect: vi.fn().mockResolvedValue(client),
+    };
+    const service = new WorkItemService(
+      pool as never,
+      { emit: vi.fn().mockResolvedValue(undefined) } as never,
+      { enqueueForWorkflow: vi.fn().mockResolvedValue({ id: 'activation-1' }) } as never,
+      { dispatchActivation: vi.fn().mockResolvedValue(undefined) } as never,
+    );
+
+    await expect(
+      service.createWorkItem(
+        {
+          id: 'admin:1',
+          tenantId: 'tenant-1',
+          scope: 'admin',
+          ownerType: 'tenant',
+          ownerId: 'tenant-1',
+          keyPrefix: 'admin-key',
+        },
+        'workflow-1',
+        {
+          request_id: 'req-1',
+          title: 'New title',
+        },
+      ),
+    ).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it('treats metadata with reordered object keys as the same work-item replay', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('SELECT w.id,') && sql.includes('active_stage.name AS active_stage_name')) {
+          return {
+            rows: [
+              {
+                id: 'workflow-1',
+                active_stage_name: 'triage',
+                lifecycle: 'continuous',
+                definition: {
+                  roles: ['triager'],
+                  lifecycle: 'continuous',
+                  board: { columns: [{ id: 'planned', label: 'Planned' }] },
+                  stages: [{ name: 'triage', goal: 'Triage inbound work' }],
+                },
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('INSERT INTO workflow_work_items')) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM workflow_work_items') && sql.includes('request_id = $3')) {
+          return {
+            rows: [
+              {
+                id: 'work-item-1',
+                workflow_id: 'workflow-1',
+                request_id: 'req-1',
+                parent_work_item_id: null,
+                stage_name: 'triage',
+                title: 'Existing title',
+                goal: null,
+                acceptance_criteria: null,
+                column_id: 'planned',
+                owner_role: null,
+                priority: 'normal',
+                notes: null,
+                metadata: {
+                  nested: { first: 'one', second: 'two' },
+                  status: 'open',
+                },
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      connect: vi.fn().mockResolvedValue(client),
+    };
+    const service = new WorkItemService(
+      pool as never,
+      { emit: vi.fn().mockResolvedValue(undefined) } as never,
+      { enqueueForWorkflow: vi.fn().mockResolvedValue({ id: 'activation-1' }) } as never,
+      { dispatchActivation: vi.fn().mockResolvedValue(undefined) } as never,
+    );
+
+    const result = await service.createWorkItem(
+      {
+        id: 'admin:1',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'tenant',
+        ownerId: 'tenant-1',
+        keyPrefix: 'admin-key',
+      },
+      'workflow-1',
+      {
+        request_id: 'req-1',
+        title: 'Existing title',
+        metadata: {
+          status: 'open',
+          nested: { second: 'two', first: 'one' },
+        },
+      },
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 'work-item-1',
+        request_id: 'req-1',
+      }),
+    );
+  });
+
+  it('redacts plaintext secrets from create-work-item responses', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('SELECT w.id,') && sql.includes('active_stage.name AS active_stage_name')) {
+          expect(sql).toContain('FOR UPDATE OF w');
+          return {
+            rows: [{
+              id: 'workflow-1',
+              active_stage_name: 'triage',
+              definition: {
+                roles: ['triager'],
+                lifecycle: 'continuous',
+                board: { columns: [{ id: 'planned', label: 'Planned' }] },
+                stages: [{ name: 'triage', goal: 'Triage inbound work' }],
+              },
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('INSERT INTO workflow_work_items')) {
+          return {
+            rows: [{
+              id: 'work-item-1',
+              workflow_id: 'workflow-1',
+              stage_name: 'triage',
+              column_id: 'planned',
+              metadata: {
+                webhook_secret: 'plaintext-secret',
+                secret_ref: 'secret:WORK_ITEM_SECRET',
+              },
+            }],
+            rowCount: 1,
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkItemService(
+      { connect: vi.fn().mockResolvedValue(client) } as never,
+      { emit: vi.fn().mockResolvedValue(undefined) } as never,
+      { enqueueForWorkflow: vi.fn().mockResolvedValue({ id: 'activation-1' }) } as never,
+      { dispatchActivation: vi.fn().mockResolvedValue(undefined) } as never,
+    );
+
+    const result = await service.createWorkItem(
+      {
+        id: 'admin:1',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'tenant',
+        ownerId: 'tenant-1',
+        keyPrefix: 'admin-key',
+      },
+      'workflow-1',
+      {
+        title: 'Create item',
+        metadata: { webhook_secret: 'plaintext-secret' },
+      },
+    );
+
+    expect((result as Record<string, any>).metadata.webhook_secret).toBe('redacted://work-item-secret');
+    expect((result as Record<string, any>).metadata.secret_ref).toBe('secret:WORK_ITEM_SECRET');
   });
 
   it('lists work-item tasks through a dedicated subresource query', async () => {
@@ -285,10 +541,78 @@ describe('WorkItemService', () => {
     ]);
   });
 
+  it('redacts plaintext secrets from work-item metadata and event payloads', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('SELECT wi.id, wi.workflow_id, w.project_id')) {
+          return {
+            rows: [{ id: 'work-item-1', workflow_id: 'workflow-1', project_id: 'project-1' }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM workflow_work_items wi')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1']);
+          return {
+            rows: [
+              {
+                id: 'work-item-1',
+                workflow_id: 'workflow-1',
+                parent_work_item_id: null,
+                stage_name: 'triage',
+                column_id: 'planned',
+                metadata: {
+                  webhook_secret: 'plaintext-secret',
+                  secret_ref: 'secret:WORK_ITEM_SECRET',
+                },
+                task_count: '0',
+                children_count: '0',
+                children_completed: '0',
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM events')) {
+          return {
+            rows: [
+              {
+                id: 1,
+                entity_type: 'work_item',
+                entity_id: 'work-item-1',
+                type: 'work_item.updated',
+                data: {
+                  api_key: 'sk-event-secret',
+                  secret_ref: 'secret:EVENT_TOKEN',
+                },
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    };
+    const service = new WorkItemService(
+      pool as never,
+      { emit: vi.fn() } as never,
+      { enqueueForWorkflow: vi.fn() } as never,
+      { dispatchActivation: vi.fn() } as never,
+    );
+
+    const [workItem] = await service.listWorkflowWorkItems('tenant-1', 'workflow-1');
+    const [event] = await service.listWorkItemEvents('tenant-1', 'workflow-1', 'work-item-1', 20);
+
+    expect((workItem as Record<string, any>).metadata.webhook_secret).toBe('redacted://work-item-secret');
+    expect((workItem as Record<string, any>).metadata.secret_ref).toBe('secret:WORK_ITEM_SECRET');
+    expect((event as Record<string, any>).data.api_key).toBe('redacted://work-item-secret');
+    expect((event as Record<string, any>).data.secret_ref).toBe('secret:EVENT_TOKEN');
+  });
+
   it('lists milestone-aware work items with filters and grouped children', async () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         expect(sql).toContain('COUNT(DISTINCT child.id)::int AS children_count');
+        expect(sql).toContain('COUNT(DISTINCT child.id) FILTER (WHERE child.completed_at IS NOT NULL)::int AS children_completed');
         expect(sql).toContain('wi.stage_name = $3');
         expect(sql).toContain('wi.column_id = $4');
         expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation', 'active']);
@@ -304,6 +628,7 @@ describe('WorkItemService', () => {
               priority: 'high',
               task_count: '1',
               children_count: '2',
+              children_completed: '1',
               created_at: '2026-03-11T00:00:00.000Z',
             },
             {
@@ -316,6 +641,7 @@ describe('WorkItemService', () => {
               priority: 'normal',
               task_count: '2',
               children_count: '0',
+              children_completed: '0',
               created_at: '2026-03-11T00:01:00.000Z',
             },
           ],
@@ -341,12 +667,14 @@ describe('WorkItemService', () => {
         id: 'wi-parent',
         task_count: 1,
         children_count: 2,
+        children_completed: 1,
         is_milestone: true,
         children: [
           expect.objectContaining({
             id: 'wi-child',
             parent_work_item_id: 'wi-parent',
             children_count: 0,
+            children_completed: 0,
             is_milestone: false,
             task_count: 2,
           }),
@@ -372,6 +700,7 @@ describe('WorkItemService', () => {
               priority: 'normal',
               task_count: '2',
               children_count: '0',
+              children_completed: '0',
               created_at: '2026-03-11T00:01:00.000Z',
             },
           ],
@@ -395,6 +724,7 @@ describe('WorkItemService', () => {
         id: 'wi-child',
         parent_work_item_id: 'wi-parent',
         children_count: 0,
+        children_completed: 0,
         is_milestone: false,
       }),
     ]);
@@ -416,6 +746,7 @@ describe('WorkItemService', () => {
               priority: 'high',
               task_count: '1',
               children_count: '2',
+              children_completed: '1',
               created_at: '2026-03-11T00:00:00.000Z',
             },
           ],
@@ -433,6 +764,7 @@ describe('WorkItemService', () => {
               priority: 'normal',
               task_count: '2',
               children_count: '0',
+              children_completed: '0',
               created_at: '2026-03-11T00:01:00.000Z',
             },
             {
@@ -445,6 +777,7 @@ describe('WorkItemService', () => {
               priority: 'normal',
               task_count: '1',
               children_count: '0',
+              children_completed: '0',
               created_at: '2026-03-11T00:02:00.000Z',
             },
           ],
@@ -466,6 +799,7 @@ describe('WorkItemService', () => {
       expect.objectContaining({
         id: 'wi-parent',
         children_count: 2,
+        children_completed: 1,
         is_milestone: true,
         children: [
           expect.objectContaining({ id: 'wi-child-1', is_milestone: false }),
@@ -491,6 +825,7 @@ describe('WorkItemService', () => {
               priority: 'high',
               task_count: '1',
               children_count: '1',
+              children_completed: '0',
               created_at: '2026-03-11T00:00:00.000Z',
             },
           ],
@@ -508,6 +843,7 @@ describe('WorkItemService', () => {
               priority: 'normal',
               task_count: '2',
               children_count: '0',
+              children_completed: '0',
               created_at: '2026-03-11T00:01:00.000Z',
             },
           ],

@@ -6,6 +6,16 @@ function createMockPool() {
   return { query: vi.fn().mockResolvedValue({ rowCount: 1, rows: [] }) };
 }
 
+function getInsertCall(pool: ReturnType<typeof createMockPool>) {
+  return pool.query.mock.calls.find(([sql]) => String(sql).includes('INSERT INTO execution_logs'));
+}
+
+function getPartitionCalls(pool: ReturnType<typeof createMockPool>) {
+  return pool.query.mock.calls.filter(([sql]) =>
+    String(sql).includes('create_execution_logs_partition'),
+  );
+}
+
 describe('LogService', () => {
   describe('insert', () => {
     it('insertsLogEntryWithAllFields', async () => {
@@ -35,8 +45,9 @@ describe('LogService', () => {
         resourceName: 'My Project',
       });
 
-      expect(pool.query).toHaveBeenCalledTimes(1);
-      const [sql, params] = pool.query.mock.calls[0];
+      expect(pool.query).toHaveBeenCalledTimes(2);
+      expect(getPartitionCalls(pool)).toHaveLength(1);
+      const [sql, params] = getInsertCall(pool)!;
       expect(sql).toContain('INSERT INTO execution_logs');
       expect(params[0]).toBe('tenant-1');
       expect(params[1]).toBe('trace-1');
@@ -62,8 +73,8 @@ describe('LogService', () => {
         status: 'completed',
       });
 
-      expect(pool.query).toHaveBeenCalledTimes(1);
-      const [, params] = pool.query.mock.calls[0];
+      expect(pool.query).toHaveBeenCalledTimes(2);
+      const [, params] = getInsertCall(pool)!;
       expect(params[3]).toBeNull();
       expect(params[12]).toBeNull();
       expect(params[13]).toBeNull();
@@ -95,7 +106,7 @@ describe('LogService', () => {
         isOrchestratorTask: true,
       });
 
-      const [, params] = pool.query.mock.calls[0];
+      const [, params] = getInsertCall(pool)!;
       expect(params[17]).toBe('work-item-1');
       expect(params[18]).toBe('activation-1');
       expect(params[20]).toBe('implementation');
@@ -118,7 +129,7 @@ describe('LogService', () => {
         payload: { provider: 'openai', model: 'gpt-4.1-mini' },
       });
 
-      const [, params] = pool.query.mock.calls[0];
+      const [, params] = getInsertCall(pool)!;
       expect(params[10]).toBe('{"provider":"openai","model":"gpt-4.1-mini"}');
     });
 
@@ -138,10 +149,71 @@ describe('LogService', () => {
         error: { code: 'VALIDATION_ERROR', message: 'Invalid input' },
       });
 
-      const [, params] = pool.query.mock.calls[0];
+      const [, params] = getInsertCall(pool)!;
       const errorJson = JSON.parse(params[11] as string);
       expect(errorJson.code).toBe('VALIDATION_ERROR');
       expect(errorJson.message).toBe('Invalid input');
+    });
+
+    it('ensuresPartitionOnlyOncePerDate', async () => {
+      const pool = createMockPool();
+      const service = new LogService(pool as never);
+
+      await service.insert({
+        tenantId: 'tenant-1',
+        traceId: 'trace-1',
+        spanId: 'span-1',
+        source: 'platform',
+        category: 'api',
+        level: 'info',
+        operation: 'api.first',
+        status: 'completed',
+        createdAt: '2026-03-12T11:28:01.888699Z',
+      });
+      await service.insert({
+        tenantId: 'tenant-1',
+        traceId: 'trace-2',
+        spanId: 'span-2',
+        source: 'platform',
+        category: 'api',
+        level: 'info',
+        operation: 'api.second',
+        status: 'completed',
+        createdAt: '2026-03-12T12:00:00.000Z',
+      });
+
+      expect(getPartitionCalls(pool)).toHaveLength(1);
+      expect(pool.query).toHaveBeenCalledTimes(3);
+    });
+
+    it('retriesInsertAfterCreatingMissingPartition', async () => {
+      const pool = createMockPool();
+      pool.query
+        .mockResolvedValueOnce({ rowCount: 1, rows: [] })
+        .mockRejectedValueOnce(
+          new Error('no partition of relation "execution_logs" found for row'),
+        )
+        .mockResolvedValueOnce({ rowCount: 1, rows: [] })
+        .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+      const service = new LogService(pool as never);
+
+      await service.insert({
+        tenantId: 'tenant-1',
+        traceId: 'trace-1',
+        spanId: 'span-1',
+        source: 'platform',
+        category: 'api',
+        level: 'info',
+        operation: 'api.retry',
+        status: 'completed',
+        createdAt: '2026-03-12T11:28:01.888699Z',
+      });
+
+      expect(getPartitionCalls(pool)).toHaveLength(2);
+      const insertCalls = pool.query.mock.calls.filter(([sql]) =>
+        String(sql).includes('INSERT INTO execution_logs'),
+      );
+      expect(insertCalls).toHaveLength(2);
     });
   });
 
@@ -163,7 +235,8 @@ describe('LogService', () => {
 
       const result = await service.insertBatch(entries);
       expect(result).toEqual({ accepted: 3, rejected: 0 });
-      expect(pool.query).toHaveBeenCalledTimes(3);
+      expect(getPartitionCalls(pool)).toHaveLength(1);
+      expect(pool.query).toHaveBeenCalledTimes(4);
     });
 
     it('countsRejectedEntriesOnQueryFailure', async () => {
@@ -214,7 +287,8 @@ describe('LogService', () => {
 
       const result = await service.insertBatch(entries);
       expect(result.accepted).toBe(100);
-      expect(pool.query).toHaveBeenCalledTimes(100);
+      expect(getPartitionCalls(pool)).toHaveLength(1);
+      expect(pool.query).toHaveBeenCalledTimes(101);
     });
 
     it('redactsSecretKeysOnDirectInsert', async () => {
@@ -236,7 +310,7 @@ describe('LogService', () => {
         },
       });
 
-      const [, params] = pool.query.mock.calls[0];
+      const [, params] = getInsertCall(pool)!;
       const payload = JSON.parse(params[10] as string);
       expect(payload.api_key).toBe('[REDACTED]');
       expect(payload.safe_field).toBe('visible');
@@ -268,7 +342,7 @@ describe('LogService', () => {
         },
       ]);
 
-      const [, params] = pool.query.mock.calls[0];
+      const [, params] = getInsertCall(pool)!;
       const payload = JSON.parse(params[10] as string);
       expect(payload.api_key).toBe('[REDACTED]');
       expect(payload.password).toBe('[REDACTED]');
@@ -301,7 +375,7 @@ describe('LogService', () => {
         },
       ]);
 
-      const [, params] = pool.query.mock.calls[0];
+      const [, params] = getInsertCall(pool)!;
       const payload = JSON.parse(params[10] as string);
       expect(payload.input).toBe('[REDACTED]');
       expect(payload.output).toBe('success');
@@ -332,7 +406,7 @@ describe('LogService', () => {
         },
       });
 
-      const [, params] = pool.query.mock.calls[0];
+      const [, params] = getInsertCall(pool)!;
       const payload = JSON.parse(params[10] as string);
       const error = JSON.parse(params[11] as string);
 
@@ -343,6 +417,24 @@ describe('LogService', () => {
   });
 
   describe('query', () => {
+    it('loadsSingleLogRowsByTenantAndId', async () => {
+      const pool = createMockPool();
+      pool.query.mockResolvedValue({
+        rowCount: 1,
+        rows: [{ id: 'log-1', tenant_id: 'tenant-1', created_at: '2026-03-12T00:00:00.000Z' }],
+      });
+      const service = new LogService(pool as never);
+
+      const result = await service.getById('tenant-1', 'log-1');
+
+      expect(pool.query).toHaveBeenCalledTimes(1);
+      const [sql, params] = pool.query.mock.calls[0];
+      expect(sql).toContain('FROM execution_logs');
+      expect(sql).toContain('id = $2');
+      expect(params).toEqual(['tenant-1', 'log-1']);
+      expect(result).toEqual(expect.objectContaining({ id: 'log-1' }));
+    });
+
     it('appliesDefaultTimeBoundsWhenNoTimeFilter', async () => {
       const pool = createMockPool();
       pool.query.mockResolvedValue({ rows: [], rowCount: 0 });
@@ -543,6 +635,21 @@ describe('LogService', () => {
       expect(sql).toContain('ORDER BY created_at ASC');
     });
 
+    it('usesAscendingKeysetComparatorWhenCursorAndAscOrderAreRequested', async () => {
+      const pool = createMockPool();
+      pool.query.mockResolvedValue({ rows: [], rowCount: 0 });
+      const service = new LogService(pool as never);
+
+      const cursor = encodeCursor('500', '2026-03-09T12:00:00.000Z');
+      await service.query('tenant-1', { cursor, order: 'asc' });
+
+      const [sql, params] = pool.query.mock.calls[0];
+      expect(sql).toContain('(created_at, id) >');
+      expect(sql).toContain('ORDER BY created_at ASC');
+      expect(params).toContain('2026-03-09T12:00:00.000Z');
+      expect(params).toContain('500');
+    });
+
     it('clampsPerPageToMaximum', async () => {
       const pool = createMockPool();
       pool.query.mockResolvedValue({ rows: [], rowCount: 0 });
@@ -550,6 +657,79 @@ describe('LogService', () => {
 
       const result = await service.query('tenant-1', { perPage: 9999 });
       expect(result.pagination.per_page).toBe(500);
+    });
+
+    it('exports inspector logs across multiple keyset pages without over-fetching page size', async () => {
+      const pool = createMockPool();
+      pool.query
+        .mockResolvedValueOnce({
+          rows: [
+            { id: 'log-3', created_at: '2026-03-09T12:00:03.000Z' },
+            { id: 'log-2', created_at: '2026-03-09T12:00:02.000Z' },
+            { id: 'log-1', created_at: '2026-03-09T12:00:01.000Z' },
+          ],
+          rowCount: 3,
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            { id: 'log-0', created_at: '2026-03-09T12:00:00.000Z' },
+          ],
+          rowCount: 1,
+        });
+      const service = new LogService(pool as never);
+
+      const exportedIds: string[] = [];
+      for await (const row of service.export('tenant-1', { perPage: 2 })) {
+        exportedIds.push(String(row.id));
+      }
+
+      expect(exportedIds).toEqual(['log-3', 'log-2', 'log-0']);
+      expect(pool.query).toHaveBeenCalledTimes(2);
+      expect(pool.query.mock.calls[0][1]?.at(-1)).toBe(3);
+      expect(pool.query.mock.calls[1][1]).toContain('log-2');
+      expect(pool.query.mock.calls[1][1]?.at(-1)).toBe(3);
+    });
+
+    it('exports inspector logs deterministically across multiple full pages with stable cursors', async () => {
+      const pool = createMockPool();
+      pool.query
+        .mockResolvedValueOnce({
+          rows: [
+            { id: 'log-5', created_at: '2026-03-09T12:00:05.000Z' },
+            { id: 'log-4', created_at: '2026-03-09T12:00:04.000Z' },
+            { id: 'log-3', created_at: '2026-03-09T12:00:03.000Z' },
+          ],
+          rowCount: 3,
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            { id: 'log-3', created_at: '2026-03-09T12:00:03.000Z' },
+            { id: 'log-2', created_at: '2026-03-09T12:00:02.000Z' },
+            { id: 'log-1', created_at: '2026-03-09T12:00:01.000Z' },
+          ],
+          rowCount: 3,
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            { id: 'log-1', created_at: '2026-03-09T12:00:01.000Z' },
+            { id: 'log-0', created_at: '2026-03-09T12:00:00.000Z' },
+          ],
+          rowCount: 2,
+        });
+      const service = new LogService(pool as never);
+
+      const exportedIds: string[] = [];
+      for await (const row of service.export('tenant-1', { perPage: 2 })) {
+        exportedIds.push(String(row.id));
+      }
+
+      expect(exportedIds).toEqual(['log-5', 'log-4', 'log-3', 'log-2', 'log-1', 'log-0']);
+      expect(pool.query).toHaveBeenCalledTimes(3);
+      expect(pool.query.mock.calls[0][1]?.at(-1)).toBe(3);
+      expect(pool.query.mock.calls[1][1]).toContain('log-4');
+      expect(pool.query.mock.calls[1][1]?.at(-1)).toBe(3);
+      expect(pool.query.mock.calls[2][1]).toContain('log-2');
+      expect(pool.query.mock.calls[2][1]?.at(-1)).toBe(3);
     });
   });
 
@@ -749,6 +929,31 @@ describe('LogService', () => {
         rows.push(row);
       }
       expect(rows).toHaveLength(4);
+    });
+
+    it('reuses capped keyset page sizes during large exports', async () => {
+      const pool = createMockPool();
+      const page1 = Array.from({ length: 501 }, (_, i) => ({
+        id: String(i),
+        created_at: `2026-03-09T12:${String(Math.floor(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}.000Z`,
+      }));
+      const page2 = [{ id: '999', created_at: '2026-03-09T13:00:00.000Z' }];
+      pool.query
+        .mockResolvedValueOnce({ rows: page1, rowCount: 501 })
+        .mockResolvedValueOnce({ rows: page2, rowCount: 1 });
+      const service = new LogService(pool as never);
+
+      const rows: unknown[] = [];
+      for await (const row of service.export('tenant-1', { perPage: 9999 })) {
+        rows.push(row);
+      }
+
+      expect(rows).toHaveLength(501);
+      expect(pool.query).toHaveBeenCalledTimes(2);
+      const firstParams = pool.query.mock.calls[0]?.[1] as unknown[];
+      const secondParams = pool.query.mock.calls[1]?.[1] as unknown[];
+      expect(firstParams.at(-1)).toBe(501);
+      expect(secondParams.at(-1)).toBe(501);
     });
   });
 

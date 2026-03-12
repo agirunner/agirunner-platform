@@ -12,11 +12,11 @@ describe('workflow mission-control summary', () => {
   it('counts task states into mission-control buckets', () => {
     const summary = summarizeTasks([
       { state: 'ready' },
-      { state: 'running' },
-      { state: 'claimed' },
+      { state: 'in_progress' },
+      { state: 'in_progress' },
       { state: 'awaiting_approval' },
       { state: 'output_pending_review' },
-      { state: 'awaiting_escalation' },
+      { state: 'escalated' },
       { state: 'completed' },
       { state: 'failed' },
       { state: 'cancelled' },
@@ -102,6 +102,7 @@ describe('workflow detail model override display', () => {
     expect(source).toContain('<h3>Model Overrides</h3>');
     expect(source).toContain('<h3>Effective Models</h3>');
     expect(source).toContain('ResolvedModelResolutionList');
+    expect(source).toContain('Board-run overrides are set at launch time');
   });
 });
 
@@ -122,6 +123,28 @@ describe('workflow detail deep links', () => {
     expect(source).toContain("updateWorkflowSelection('gate'");
   });
 
+  it('does not replace explicit child, gate, or activation deep links with a default work-item selection', () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, './workflow-detail-page.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('hasExplicitNonWorkItemSelection');
+    expect(source).toContain('selectedActivationId !== null || selectedChildWorkflowId !== null || selectedGateStageName !== null');
+    expect(source).toContain('if (hasExplicitNonWorkItemSelection) {');
+  });
+
+  it('hydrates child workflow lineage from workflow relations when project timeline is lagging', () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, './workflow-detail-page.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('mergeTimelineEntriesWithWorkflowRelations');
+    expect(source).toContain('workflowQuery.data?.workflow_relations?.children ?? []');
+    expect(source).toContain("source: 'workflow_relations'");
+  });
+
   it('groups board work items for milestone-aware selection and task rollup', () => {
     const source = readFileSync(
       resolve(import.meta.dirname, './workflow-detail-page.tsx'),
@@ -133,6 +156,11 @@ describe('workflow detail deep links', () => {
     expect(source).toContain('findWorkItemById');
     expect(source).toContain('selectTasksForWorkItem(workItemTasks, selectedWorkItemId, groupedWorkItems)');
     expect(source).toContain('selectedWorkItem={selectedBoardWorkItem}');
+    expect(source).toContain('workflowId={workflowId}');
+    expect(source).toContain('columns={boardQuery.data?.columns ?? []}');
+    expect(source).toContain('stages={stagesQuery.data ?? []}');
+    expect(source).toContain('onWorkItemChanged={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}');
+    expect(source).toContain('onBoardChanged={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}');
   });
 
   it('broadens workflow detail invalidation to board, stages, activations, gates, and effective models', () => {
@@ -149,14 +177,25 @@ describe('workflow detail deep links', () => {
     expect(source).toContain("['workflow-resolved-models', workflowId]");
   });
 
-  it('fails closed on non-playbook workflow records without template-era fallback messaging', () => {
+  it('fails closed on non-playbook workflow records without legacy fallback messaging', () => {
     const source = readFileSync(
       resolve(import.meta.dirname, './workflow-detail-page.tsx'),
       'utf8',
     );
 
-    expect(source).toContain('This detail view requires a playbook-backed workflow record.');
+    expect(source).toContain('This detail view requires a playbook-backed board run.');
     expect(source).not.toContain('Legacy Workflow Removed');
-    expect(source).not.toContain('Template and phase-era workflow interaction');
+  });
+
+  it('uses board-run and child-board language in the primary operator surface', () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, './workflow-detail-page.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('<h2>Board Detail</h2>');
+    expect(source).toContain('<h3>Launch Child Board</h3>');
+    expect(source).toContain('Create Child Board');
+    expect(source).toContain('<h3>Board Summary</h3>');
   });
 });

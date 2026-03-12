@@ -35,11 +35,15 @@ describe('artifact preview support', () => {
 
   it('renders markdown into safe preview markup', () => {
     const descriptor = describeArtifactPreview('text/markdown', 'summary.md');
-    const markup = renderArtifactPreviewMarkup('# Title\n\n- item\n\n<script>bad()</script>', descriptor);
+    const markup = renderArtifactPreviewMarkup(
+      '# Title\n\n- item\n\n[safe link](https://example.com)\n\n<script>bad()</script>',
+      descriptor,
+    );
 
     expect(markup).toContain('<h1>Title</h1>');
     expect(markup).toContain('<ul>');
     expect(markup).toContain('<li>item</li>');
+    expect(markup).toContain('href="https://example.com"');
     expect(markup).not.toContain('<script>');
   });
 

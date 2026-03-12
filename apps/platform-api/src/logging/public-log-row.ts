@@ -4,6 +4,11 @@ export interface PublicLogRow extends LogRow {
   stage_name: string | null;
 }
 
+export interface PublicLogSummaryRow extends Omit<PublicLogRow, 'payload' | 'error'> {
+  payload: null;
+  error: { code?: string; message: string } | null;
+}
+
 export const PUBLIC_LOG_CSV_COLUMNS = [
   'id',
   'created_at',
@@ -38,6 +43,20 @@ export function toPublicLogRow(row: LogRow): PublicLogRow {
     payload: redactPayload(row.payload),
     error: redactError(row.error),
     stage_name: row.stage_name ?? null,
+  };
+}
+
+export function toPublicLogSummaryRow(row: LogRow): PublicLogSummaryRow {
+  const publicRow = toPublicLogRow(row);
+  return {
+    ...publicRow,
+    payload: null,
+    error: publicRow.error
+      ? {
+          ...(publicRow.error.code ? { code: publicRow.error.code } : {}),
+          message: publicRow.error.message,
+        }
+      : null,
   };
 }
 
