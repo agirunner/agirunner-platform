@@ -15,6 +15,7 @@ import { Switch } from '../../components/ui/switch.js';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog.js';
@@ -39,6 +40,13 @@ interface CreateWebhookForm {
   url: string;
   event_types: string[];
   secret: string;
+}
+
+interface WebhookDeleteTarget {
+  id: string;
+  url: string;
+  event_types: string[];
+  is_active: boolean;
 }
 
 const WEBHOOK_EVENT_OPTIONS = [
@@ -251,15 +259,15 @@ function CreateWebhookDialog(): JSX.Element {
 }
 
 function DeleteWebhookDialog({
-  webhookId,
+  webhook,
   onClose,
 }: {
-  webhookId: string;
+  webhook: WebhookDeleteTarget;
   onClose: () => void;
 }): JSX.Element {
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: () => deleteWebhook(webhookId),
+    mutationFn: () => deleteWebhook(webhook.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['webhooks'] });
       onClose();
@@ -275,15 +283,34 @@ function DeleteWebhookDialog({
       <DialogContent className="max-h-[70vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Delete Webhook</DialogTitle>
+          <DialogDescription>
+            Remove this outbound endpoint from the notification catalog. This action cannot be
+            undone.
+          </DialogDescription>
         </DialogHeader>
-        <p className="text-sm text-muted">
-          Are you sure you want to delete this webhook? This action cannot be undone.
-        </p>
+        <div className="grid gap-4 rounded-xl border border-border/70 bg-muted/10 p-4">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-foreground break-all">{webhook.url}</p>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant={webhook.is_active ? 'default' : 'secondary'}>
+                {webhook.is_active ? 'Active' : 'Inactive'}
+              </Badge>
+              <Badge variant="outline">
+                {webhook.event_types.length > 0
+                  ? `${webhook.event_types.length} event filter${webhook.event_types.length === 1 ? '' : 's'}`
+                  : 'All events'}
+              </Badge>
+            </div>
+          </div>
+          <p className="text-sm text-muted">
+            Deleting this webhook stops all future outbound deliveries to this endpoint.
+          </p>
+        </div>
         {mutation.error && (
           <p className="text-sm text-red-600">{String(mutation.error)}</p>
         )}
-        <div className="flex justify-end gap-2 mt-4">
-          <Button variant="outline" onClick={onClose}>
+        <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button variant="outline" onClick={onClose} disabled={mutation.isPending}>
             Cancel
           </Button>
           <Button
@@ -295,7 +322,7 @@ function DeleteWebhookDialog({
             {mutation.isPending && (
               <Loader2 className="h-4 w-4 animate-spin" />
             )}
-            Delete
+            Delete Webhook
           </Button>
         </div>
       </DialogContent>
@@ -309,7 +336,7 @@ function WebhookRow({
   webhook: WebhookRecord;
 }): JSX.Element {
   const queryClient = useQueryClient();
-  const [deleteTarget, setDeleteTarget] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<WebhookDeleteTarget | null>(null);
 
   const toggleMutation = useMutation({
     mutationFn: (checked: boolean) =>
@@ -351,18 +378,27 @@ function WebhookRow({
         </TableCell>
         <TableCell>
           <Button
-            size="icon"
+            size="sm"
             variant="ghost"
-            onClick={() => setDeleteTarget(true)}
+            className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30"
+            onClick={() =>
+              setDeleteTarget({
+                id: webhook.id,
+                url: webhook.url,
+                event_types: webhook.event_types,
+                is_active: webhook.is_active,
+              })
+            }
           >
             <Trash2 className="h-4 w-4" />
+            Delete Webhook
           </Button>
         </TableCell>
       </TableRow>
       {deleteTarget && (
         <DeleteWebhookDialog
-          webhookId={webhook.id}
-          onClose={() => setDeleteTarget(false)}
+          webhook={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
         />
       )}
     </>
@@ -397,7 +433,7 @@ export function WebhooksPage(): JSX.Element {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Webhooks</h1>
           <p className="text-sm text-muted">
@@ -422,7 +458,7 @@ export function WebhooksPage(): JSX.Element {
               <TableHead>URL</TableHead>
               <TableHead>Event Types</TableHead>
               <TableHead>Active</TableHead>
-              <TableHead className="w-[60px]">Actions</TableHead>
+              <TableHead className="w-[180px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

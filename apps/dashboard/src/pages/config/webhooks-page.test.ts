@@ -20,4 +20,15 @@ describe('webhooks page source', () => {
     expect(source).toContain('max-h-[80vh] max-w-3xl overflow-y-auto');
     expect(source).toContain('max-h-[70vh] max-w-lg overflow-y-auto');
   });
+
+  it('uses labeled destructive actions with contextual confirmation instead of icon-only deletion', () => {
+    const source = readSource();
+    expect(source).toContain('Delete Webhook');
+    expect(source).toContain('DialogDescription');
+    expect(source).toContain('DeleteWebhookDialog');
+    expect(source).toContain('Delete Webhook');
+    expect(source).toContain('Delete Webhook');
+    expect(source).toContain('Deleting this webhook stops all future outbound deliveries');
+    expect(source).not.toContain('size="icon"');
+  });
 });
