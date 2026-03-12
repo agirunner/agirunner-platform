@@ -60,7 +60,7 @@ describe('project content browser support', () => {
           {
             id: 'task-1',
             title: 'Review PR',
-            state: 'running',
+            state: 'in_progress',
             stage_name: 'review',
             work_item_id: 'wi-1',
             activation_id: 'act-1',
@@ -153,14 +153,14 @@ describe('project content browser support', () => {
     ]);
   });
 
-  it('normalizes escalation task aliases into v2 task states', () => {
+  it('preserves canonical escalation task state', () => {
     expect(
       normalizeTaskOptions({
         data: [
           {
             id: 'task-3',
             title: 'Resolve blocker',
-            state: 'awaiting_escalation',
+            state: 'escalated',
             is_orchestrator_task: false,
           },
         ],

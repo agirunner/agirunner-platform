@@ -6,12 +6,12 @@ import {
 } from './workflow-detail-support.js';
 
 describe('workflow detail support', () => {
-  it('normalizes legacy task aliases before building mission-control summaries', () => {
+  it('summarizes canonical task states before building mission-control summaries', () => {
     expect(
       summarizeTasks([
         { state: 'ready' },
-        { state: 'running' },
-        { state: 'awaiting_escalation' },
+        { state: 'in_progress' },
+        { state: 'escalated' },
         { state: 'completed' },
       ]),
     ).toEqual({

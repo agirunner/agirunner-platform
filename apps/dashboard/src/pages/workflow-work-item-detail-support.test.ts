@@ -26,7 +26,7 @@ describe('workflow work item detail support', () => {
         {
           id: 'task-1',
           title: 'Draft design',
-          state: 'running',
+          state: 'in_progress',
           role: 'architect',
           work_item_id: 'wi-1',
           stage_name: 'design',
@@ -66,7 +66,7 @@ describe('workflow work item detail support', () => {
         {
           id: 'task-running',
           title: 'Active specialist',
-          state: 'running',
+          state: 'in_progress',
           role: 'reviewer',
           stage_name: 'review',
           completed_at: null,
@@ -100,7 +100,7 @@ describe('workflow work item detail support', () => {
       {
         id: 'task-2',
         title: 'Review design',
-        state: 'running',
+        state: 'in_progress',
         role: null,
         stage_name: null,
         completed_at: null,
@@ -349,9 +349,9 @@ describe('workflow work item detail support', () => {
 
     expect(
       describeTaskOperatorPosture({
-        id: 'task-legacy',
-        title: 'Legacy running task',
-        state: 'running',
+        id: 'task-active',
+        title: 'Active task',
+        state: 'in_progress',
         role: 'reviewer',
         stage_name: 'verification',
         completed_at: null,
