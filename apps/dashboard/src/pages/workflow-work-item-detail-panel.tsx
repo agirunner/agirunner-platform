@@ -105,6 +105,7 @@ const errorTextClass = 'rounded-lg border border-red-200 bg-red-50 px-4 py-3 tex
 export function WorkflowWorkItemDetailPanel(
   props: WorkflowWorkItemDetailPanelProps,
 ): JSX.Element {
+  const panelTitleId = `work-item-detail-title-${props.workItemId}`;
   const workItemQuery = useQuery({
     queryKey: ['workflow-work-item', props.workflowId, props.workItemId],
     queryFn: () => dashboardApi.getWorkflowWorkItem(props.workflowId, props.workItemId),
@@ -374,6 +375,9 @@ export function WorkflowWorkItemDetailPanel(
       className="overflow-hidden border-accent/30 bg-surface/95 shadow-lg ring-1 ring-accent/10"
       data-testid="work-item-detail-shell"
       data-selected-panel="true"
+      data-workflow-focus-anchor="true"
+      tabIndex={-1}
+      aria-labelledby={panelTitleId}
     >
       <CardHeader className="gap-4 border-b border-border/70 bg-gradient-to-br from-surface via-surface to-border/10">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -386,7 +390,9 @@ export function WorkflowWorkItemDetailPanel(
               ) : null}
             </div>
             <div className="grid gap-2">
-              <CardTitle className="text-xl">Work Item Detail</CardTitle>
+              <CardTitle id={panelTitleId} className="text-xl">
+                Work Item Detail
+              </CardTitle>
               <CardDescription className="max-w-3xl text-sm leading-6">
                 Operator view of the selected work item, including linked execution steps,
                 artifacts, event history, and scoped memory.

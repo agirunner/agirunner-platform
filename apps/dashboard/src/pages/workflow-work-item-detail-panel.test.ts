@@ -27,6 +27,9 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('RelativeTimestamp');
     expect(source).toContain('OperatorStatusBadge');
     expect(source).toContain('data-selected-panel="true"');
+    expect(source).toContain('data-workflow-focus-anchor="true"');
+    expect(source).toContain('tabIndex={-1}');
+    expect(source).toContain('aria-labelledby={panelTitleId}');
     expect(source).not.toContain('className="card"');
     expect(source).not.toContain('className="row"');
     expect(source).not.toContain('className="button"');

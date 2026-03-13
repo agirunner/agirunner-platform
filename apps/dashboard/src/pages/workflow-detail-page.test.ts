@@ -239,8 +239,12 @@ describe('workflow detail deep links', () => {
     );
 
     expect(source).toContain('useLocation');
-    expect(source).toContain('document.getElementById(targetId)');
-    expect(source).toContain("target?.scrollIntoView({ block: 'start' })");
+    expect(source).toContain('readActiveWorkflowDetailTargetId');
+    expect(source).toContain('decodeURIComponent(targetId)');
+    expect(source).toContain('focusWorkflowDetailTarget');
+    expect(source).toContain("querySelector<HTMLElement>('[data-workflow-focus-anchor=\"true\"]')");
+    expect(source).toContain('focusTarget.focus({ preventScroll: true })');
+    expect(source).toContain("target.scrollIntoView({ block: 'start' })");
   });
 
   it('hydrates child workflow lineage from workflow relations when project timeline is lagging', () => {
@@ -268,6 +272,7 @@ describe('workflow detail deep links', () => {
     expect(source).toContain('workflowId={workflowId}');
     expect(source).toContain('columns={boardQuery.data?.columns ?? []}');
     expect(source).toContain('stages={stagesQuery.data ?? []}');
+    expect(source).toContain('aria-label="Selected work-item focus"');
     expect(source).toContain('onWorkItemChanged={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}');
     expect(source).toContain('onBoardChanged={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}');
   });

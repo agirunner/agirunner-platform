@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 
@@ -70,7 +70,6 @@ import {
 import { WorkflowDocumentsCard, ProjectMemoryCard } from './workflow-detail-content.js';
 import { invalidateWorkflowQueries } from './workflow-detail-query.js';
 import { deriveWorkflowStageDisplay } from './workflow-detail-stage-presentation.js';
-import { buildWorkflowDetailHash } from './workflow-detail-permalinks.js';
 import { ChainWorkflowDialog } from '../components/chain-workflow-dialog.js';
 import {
   CopyableIdBadge,
@@ -103,6 +102,59 @@ interface TaskListResult {
   data: DashboardWorkflowTaskRow[];
 }
 
+function decodeWorkflowDetailTargetId(hash: string): string | null {
+  if (!hash) {
+    return null;
+  }
+  const targetId = hash.startsWith('#') ? hash.slice(1) : hash;
+  if (!targetId) {
+    return null;
+  }
+  try {
+    return decodeURIComponent(targetId);
+  } catch {
+    return targetId;
+  }
+}
+
+function readActiveWorkflowDetailTargetId(selection: {
+  hash: string;
+  selectedWorkItemId: string | null;
+  selectedActivationId: string | null;
+  selectedChildWorkflowId: string | null;
+  selectedGateStageName: string | null;
+}): string | null {
+  const hashTargetId = decodeWorkflowDetailTargetId(selection.hash);
+  if (hashTargetId) {
+    return hashTargetId;
+  }
+  if (selection.selectedWorkItemId) {
+    return `work-item-${selection.selectedWorkItemId}`;
+  }
+  if (selection.selectedActivationId) {
+    return `activation-${selection.selectedActivationId}`;
+  }
+  if (selection.selectedChildWorkflowId) {
+    return `child-workflow-${selection.selectedChildWorkflowId}`;
+  }
+  if (selection.selectedGateStageName) {
+    return `gate-${selection.selectedGateStageName}`;
+  }
+  return null;
+}
+
+function focusWorkflowDetailTarget(targetId: string): boolean {
+  const target = document.getElementById(targetId);
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  const focusTarget =
+    target.querySelector<HTMLElement>('[data-workflow-focus-anchor="true"]') ?? target;
+  target.scrollIntoView({ block: 'start' });
+  focusTarget.focus({ preventScroll: true });
+  return true;
+}
+
 export function WorkflowDetailPage(): JSX.Element {
   const params = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -132,6 +184,7 @@ export function WorkflowDetailPage(): JSX.Element {
   const [secondarySurface, setSecondarySurface] = useState<
     'context' | 'knowledge' | 'activity'
   >('context');
+  const lastFocusedTargetIdRef = useRef<string | null>(null);
   const selectedWorkItemId = searchParams.get('work_item');
   const selectedActivationId = searchParams.get('activation');
   const selectedChildWorkflowId = searchParams.get('child');
@@ -275,30 +328,6 @@ export function WorkflowDetailPage(): JSX.Element {
   }, [workflowId, projectId, queryClient]);
 
   useEffect(() => {
-    if (!location.hash) {
-      return;
-    }
-    const targetId = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash;
-    if (!targetId) {
-      return;
-    }
-    const frame = window.requestAnimationFrame(() => {
-      const target = document.getElementById(targetId);
-      target?.scrollIntoView({ block: 'start' });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [
-    activationsQuery.data?.length,
-    boardQuery.data?.work_items,
-    location.hash,
-    selectedActivationId,
-    selectedChildWorkflowId,
-    selectedGateStageName,
-    selectedWorkItemId,
-    stagesQuery.data?.length,
-  ]);
-
-  useEffect(() => {
     if (selectedChildWorkflowId) {
       setSecondarySurface('activity');
       return;
@@ -438,6 +467,46 @@ export function WorkflowDetailPage(): JSX.Element {
     () => validateWorkItemMetadataEntries(workItemMetadataDrafts),
     [workItemMetadataDrafts],
   );
+  const activeFocusTargetId = useMemo(
+    () =>
+      readActiveWorkflowDetailTargetId({
+        hash: location.hash,
+        selectedWorkItemId,
+        selectedActivationId,
+        selectedChildWorkflowId,
+        selectedGateStageName,
+      }),
+    [
+      location.hash,
+      selectedActivationId,
+      selectedChildWorkflowId,
+      selectedGateStageName,
+      selectedWorkItemId,
+    ],
+  );
+
+  useEffect(() => {
+    if (!activeFocusTargetId) {
+      lastFocusedTargetIdRef.current = null;
+      return;
+    }
+    if (lastFocusedTargetIdRef.current === activeFocusTargetId) {
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      if (focusWorkflowDetailTarget(activeFocusTargetId)) {
+        lastFocusedTargetIdRef.current = activeFocusTargetId;
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    activeFocusTargetId,
+    activationsQuery.data?.length,
+    boardQuery.data?.columns.length,
+    projectTimelineEntries.length,
+    selectedWorkItemId,
+    stagesQuery.data?.length,
+  ]);
 
   if (workflowQuery.data && !workflowQuery.data.playbook_id) {
     return (
@@ -926,9 +995,10 @@ export function WorkflowDetailPage(): JSX.Element {
 
           {selectedWorkItemId ? (
             <aside
-              id={buildWorkflowDetailHash({ workItemId: selectedWorkItemId }).slice(1)}
+              id={`work-item-${selectedWorkItemId}`}
               className="grid content-start gap-3 rounded-3xl border border-accent/20 bg-accent/5 p-4 shadow-sm 2xl:sticky 2xl:top-6"
               data-testid="selected-work-item-rail"
+              aria-label="Selected work-item focus"
             >
               <div className="grid gap-1 rounded-2xl border border-accent/20 bg-background/80 px-4 py-3">
                 <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted">

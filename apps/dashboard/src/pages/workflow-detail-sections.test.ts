@@ -66,6 +66,8 @@ describe('workflow detail sections source', () => {
     expect(source).toContain('GateDetailCard');
     expect(source).toContain('stable gate permalinks');
     expect(source).toContain("id={`gate-${stage.name}`}");
+    expect(source).toContain('data-workflow-focus-anchor="true"');
+    expect(source).toContain('aria-labelledby={`gate-heading-${stage.id}`}');
     expect(source).toContain("'gate'");
     expect(source).toContain('Gate focus');
   });
@@ -73,11 +75,13 @@ describe('workflow detail sections source', () => {
   it('adds workflow-detail permalinks for work items, activations, and child workflows', () => {
     const source = readSource();
     expect(source).toContain('buildWorkflowDetailPermalink');
-    expect(source).toContain('work-item-');
+    expect(source).toContain('work-item-card-');
     expect(source).toContain('activation-');
     expect(source).toContain('child-workflow-');
     expect(source).toContain('Permalink');
     expect(source).toContain('Highlight lineage');
+    expect(source).toContain('aria-labelledby={`activation-heading-${activation.id}`}');
+    expect(source).toContain('aria-labelledby={`child-workflow-heading-${entry.workflow_id}`}');
   });
 
   it('turns the workflow-detail project timeline into a continuity packet surface', () => {

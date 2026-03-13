@@ -542,7 +542,7 @@ function BoardWorkItemCard(props: {
   return (
     <article
       key={props.item.id}
-      id={`work-item-${props.item.id}`}
+      id={`work-item-card-${props.item.id}`}
       className={
         props.compact
           ? 'grid gap-3 rounded-lg border border-border/70 bg-surface/80 p-3'
@@ -766,6 +766,9 @@ export function WorkflowStagesCard(props: {
             key={stage.id}
             id={`gate-${stage.name}`}
             className="grid gap-3 rounded-lg border border-border/70 bg-border/10 p-4"
+            tabIndex={-1}
+            data-workflow-focus-anchor="true"
+            aria-labelledby={`gate-heading-${stage.id}`}
             data-highlighted={
               props.selectedGateStageName === stage.name ||
               isWorkflowDetailTargetHighlighted(location.search, location.hash, 'gate', stage.name)
@@ -775,7 +778,9 @@ export function WorkflowStagesCard(props: {
           >
             <div className="flex items-start justify-between gap-3">
               <div className="grid gap-1">
-                <strong>{stage.position + 1}. {stage.name}</strong>
+                <strong id={`gate-heading-${stage.id}`}>
+                  {stage.position + 1}. {stage.name}
+                </strong>
                 <span className="text-sm text-muted">
                   {stage.summary?.trim() || 'Stage packet ready for operator review.'}
                 </span>
@@ -990,6 +995,9 @@ export function WorkflowActivationsCard(props: {
               key={activation.id}
               id={`activation-${activation.activation_id ?? activation.id}`}
               className="grid gap-3 rounded-lg border border-border/70 bg-border/10 p-4"
+              tabIndex={-1}
+              data-workflow-focus-anchor="true"
+              aria-labelledby={`activation-heading-${activation.id}`}
               data-highlighted={
                 props.selectedActivationId === (activation.activation_id ?? activation.id) ||
                 isWorkflowDetailTargetHighlighted(
@@ -1004,7 +1012,7 @@ export function WorkflowActivationsCard(props: {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="grid gap-1">
-                  <strong>{descriptor.headline}</strong>
+                  <strong id={`activation-heading-${activation.id}`}>{descriptor.headline}</strong>
                   <p className="text-sm text-muted">
                     {activation.summary?.trim() || descriptor.summary || 'Activation packet ready for operator review.'}
                   </p>
@@ -1367,6 +1375,9 @@ export function ProjectTimelineCard(props: {
             key={entry.workflow_id}
             id={`child-workflow-${entry.workflow_id}`}
             className="grid gap-3 rounded-lg border border-border/70 bg-border/10 p-4"
+            tabIndex={-1}
+            data-workflow-focus-anchor="true"
+            aria-labelledby={`child-workflow-heading-${entry.workflow_id}`}
             data-highlighted={
               props.selectedChildWorkflowId === entry.workflow_id ||
               isWorkflowDetailTargetHighlighted(
@@ -1381,7 +1392,9 @@ export function ProjectTimelineCard(props: {
           >
             <div className="flex items-start justify-between gap-3">
               <div className="grid gap-1">
-                <strong>{packet.workflowName}</strong>
+                <strong id={`child-workflow-heading-${entry.workflow_id}`}>
+                  {packet.workflowName}
+                </strong>
                 <p className="text-sm text-muted">{packet.summary}</p>
               </div>
               <div className="flex flex-wrap gap-2">
