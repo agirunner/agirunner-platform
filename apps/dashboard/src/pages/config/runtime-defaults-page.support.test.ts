@@ -5,6 +5,10 @@ import {
   SECTION_DEFINITIONS,
 } from './runtime-defaults.schema.js';
 import { buildValidationErrors } from './runtime-defaults.validation.js';
+import {
+  summarizeRuntimeDefaults,
+  summarizeRuntimeDefaultSections,
+} from './runtime-defaults-page.support.js';
 
 describe('runtime defaults page support', () => {
   it('exposes dedicated runtime sections for agent context, orchestrator overrides, and safeguards', () => {
@@ -42,5 +46,75 @@ describe('runtime defaults page support', () => {
       'overall history budget',
     );
     expect(errors['agent.loop_detection_repeat']).toContain('at least 1');
+  });
+
+  it('summarizes configured overrides, blockers, and search posture', () => {
+    expect(
+      summarizeRuntimeDefaults(
+        {
+          default_runtime_image: 'agirunner-runtime:local',
+          'tools.web_search_provider': 'serper',
+        },
+        {
+          global_max_runtimes: 'Global runtime cap must be at least 1.',
+        },
+      ),
+    ).toEqual([
+      {
+        label: 'Configured overrides',
+        value: '2 overrides',
+        detail: '2 runtime settings currently override the baked-in platform defaults.',
+      },
+      {
+        label: 'Save blockers',
+        value: '1 issue',
+        detail: 'Resolve the highlighted validation issues before saving runtime defaults.',
+      },
+      {
+        label: 'Search posture',
+        value: '1 search setting',
+        detail: '1 web research settings are explicitly configured.',
+      },
+    ]);
+  });
+
+  it('builds section summaries with configured and error counts', () => {
+    expect(
+      summarizeRuntimeDefaultSections(
+        {
+          default_runtime_image: 'agirunner-runtime:local',
+          'agent.history_max_messages': '100',
+          'agent.history_preserve_recent': '25',
+          'tools.web_search_provider': 'serper',
+        },
+        {
+          'agent.history_preserve_recent': 'Preserve recent specialist messages must stay within the overall history budget.',
+        },
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        {
+          key: 'containers',
+          title: 'Agent container defaults',
+          configuredCount: 1,
+          fieldCount: 5,
+          errorCount: 0,
+        },
+        {
+          key: 'agent_context',
+          title: 'Agent context handling',
+          configuredCount: 2,
+          fieldCount: 4,
+          errorCount: 1,
+        },
+        {
+          key: 'search',
+          title: 'Web research',
+          configuredCount: 1,
+          fieldCount: 3,
+          errorCount: 0,
+        },
+      ]),
+    );
   });
 });

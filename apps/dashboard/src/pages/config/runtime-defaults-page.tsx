@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, RotateCcw, Save, Server } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, RotateCcw, Save, Server } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
-import { Card, CardDescription, CardHeader, CardTitle } from '../../components/ui/card.js';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../../components/ui/card.js';
 import { toast } from '../../lib/toast.js';
 import {
   deleteRuntimeDefault,
@@ -16,6 +22,10 @@ import { FIELD_DEFINITIONS, fieldsForSection, SECTION_DEFINITIONS } from './runt
 import type { FormValues } from './runtime-defaults.types.js';
 import { buildValidationErrors } from './runtime-defaults.validation.js';
 import { ActiveRuntimeImageCard, BuildHistoryCard } from './runtimes-build-history.js';
+import {
+  summarizeRuntimeDefaults,
+  summarizeRuntimeDefaultSections,
+} from './runtime-defaults-page.support.js';
 
 function buildSaveOperations(
   values: FormValues,
@@ -49,7 +59,19 @@ export function RuntimeDefaultsPage(): JSX.Element {
 
   const defaultsByKey = useMemo(() => buildDefaultsByKey(data), [data]);
   const validationErrors = useMemo(() => buildValidationErrors(formValues), [formValues]);
+  const summaryCards = useMemo(
+    () => summarizeRuntimeDefaults(formValues, validationErrors),
+    [formValues, validationErrors],
+  );
+  const sectionSummaries = useMemo(
+    () => summarizeRuntimeDefaultSections(formValues, validationErrors),
+    [formValues, validationErrors],
+  );
   const hasValidationErrors = Object.keys(validationErrors).length > 0;
+  const validationIssues = useMemo(
+    () => [...new Set(Object.values(validationErrors))],
+    [validationErrors],
+  );
 
   useEffect(() => {
     setFormValues(buildFormValues(data));
@@ -125,7 +147,7 @@ export function RuntimeDefaultsPage(): JSX.Element {
                   save to fall back to the platform default.
                 </CardDescription>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 xl:hidden">
                 <Button variant="outline" onClick={resetForm} disabled={!isDirty || saveMutation.isPending}>
                   <RotateCcw className="h-4 w-4" />
                   Reset changes
@@ -145,20 +167,125 @@ export function RuntimeDefaultsPage(): JSX.Element {
             </CardHeader>
           </Card>
 
+          <div className="grid gap-4 md:grid-cols-3">
+            {summaryCards.map((summary) => (
+              <Card key={summary.label} className="border-border/70 shadow-sm">
+                <CardHeader className="space-y-1">
+                  <p className="text-sm font-medium text-muted">{summary.label}</p>
+                  <CardTitle className="text-2xl">{summary.value}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm leading-6 text-muted">{summary.detail}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
           {SECTION_DEFINITIONS.map((section) => (
-            <RuntimeDefaultsSection
-              key={section.key}
-              title={section.title}
-              description={section.description}
-              fields={fieldsForSection(section.key)}
-              values={formValues}
-              errors={validationErrors}
-              onChange={updateField}
-            />
+            <section key={section.key} id={`runtime-defaults-${section.key}`}>
+              <RuntimeDefaultsSection
+                title={section.title}
+                description={section.description}
+                fields={fieldsForSection(section.key)}
+                values={formValues}
+                errors={validationErrors}
+                onChange={updateField}
+              />
+            </section>
           ))}
         </div>
 
         <div className="space-y-6">
+          <Card className="xl:sticky xl:top-6">
+            <CardHeader>
+              <CardTitle>Save readiness</CardTitle>
+              <CardDescription>
+                Track blocking validation, section coverage, and save actions while you configure runtime defaults.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div
+                className={
+                  hasValidationErrors
+                    ? 'rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300'
+                    : 'rounded-lg bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300'
+                }
+              >
+                <div className="flex items-start gap-3">
+                  {hasValidationErrors ? (
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  ) : (
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  )}
+                  <div>
+                    <p className="font-medium">
+                      {hasValidationErrors
+                        ? 'Resolve these runtime issues before saving.'
+                        : isDirty
+                          ? 'Ready to save runtime defaults.'
+                          : 'No unsaved runtime changes.'}
+                    </p>
+                    {hasValidationErrors ? (
+                      <ul className="mt-2 space-y-1">
+                        {validationIssues.map((issue) => (
+                          <li key={issue}>{issue}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                  Section outline
+                </p>
+                {sectionSummaries.map((section) => (
+                  <a
+                    key={section.key}
+                    href={`#runtime-defaults-${section.key}`}
+                    className="block rounded-lg border border-border/70 bg-muted/10 px-4 py-3 transition-colors hover:bg-muted/20"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-medium text-foreground">{section.title}</p>
+                      <span className="text-xs text-muted">
+                        {section.configuredCount}/{section.fieldCount}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm text-muted">
+                      {section.errorCount > 0
+                        ? `${section.errorCount} validation blocker${section.errorCount === 1 ? '' : 's'}`
+                        : 'No validation blockers'}
+                    </p>
+                  </a>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={resetForm}
+                  disabled={!isDirty || saveMutation.isPending}
+                  className="flex-1"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Reset changes
+                </Button>
+                <Button
+                  onClick={saveForm}
+                  disabled={!isDirty || saveMutation.isPending || hasValidationErrors}
+                  className="flex-1"
+                >
+                  {saveMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  Save
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
           <ActiveRuntimeImageCard />
           <BuildHistoryCard />
         </div>

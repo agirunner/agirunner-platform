@@ -37,6 +37,11 @@ describe('runtime defaults page source', () => {
     expect(source).toContain('RuntimeDefaultsSection');
     expect(source).toContain('SECTION_DEFINITIONS.map');
     expect(source).toContain('buildValidationErrors');
+    expect(source).toContain('summarizeRuntimeDefaults');
+    expect(source).toContain('summarizeRuntimeDefaultSections');
+    expect(source).toContain('Save readiness');
+    expect(source).toContain('Section outline');
+    expect(source).toContain('runtime-defaults-');
     expect(source).toContain('ActiveRuntimeImageCard');
     expect(source).toContain('BuildHistoryCard');
     expect(source).not.toContain('JSON.parse');
