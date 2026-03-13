@@ -115,17 +115,29 @@ describe('logs page support', () => {
     expect(packets).toHaveLength(1);
     expect(packets[0]).toMatchObject({
       id: 44,
-      headline: 'Step Review smoke result completed Task awaiting approval',
+      actorLabel: 'QA Agent',
+      emphasisLabel: 'Needs review',
+      emphasisTone: 'warning',
+      narrativeHeadline: 'QA Agent completed Review smoke result',
       summary: 'board Board Alpha • stage qa • work item workitem • activation activati • Recorded by QA Agent • via runtime • task lifecycle',
+      outcomeLabel: 'Execution completed without runtime errors.',
       nextAction: 'Review this warning before it turns into a gate or board blocker.',
+      scopeSummary: 'Board Alpha • Stage qa • Work item workitem • Activation activati',
       context: ['board Board Alpha', 'step Review smoke result', 'stage qa', 'work item workitem', 'activation activati'],
       signals: ['Activation', 'Work item', 'Stage'],
       createdAtLabel: '15m ago',
       createdAtIso: '2026-03-12T22:00:00.000Z',
       createdAtDetail: new Date('2026-03-12T22:00:00.000Z').toLocaleString(),
-      workflowContextHref:
-        '/work/workflows/workflow-12345678?work_item=workitem-88888888&activation=activation-9999',
-      taskRecordHref: '/work/tasks/task-abcdef12',
+      actions: [
+        {
+          href: '/work/workflows/workflow-12345678?work_item=workitem-88888888&activation=activation-9999',
+          label: 'Board context',
+        },
+        {
+          href: '/work/tasks/task-abcdef12',
+          label: 'Step diagnostics',
+        },
+      ],
     });
   });
 });

@@ -29,8 +29,19 @@ export function LogsPageActivityPackets(props: {
             className="grid gap-3 rounded-xl border border-border/70 bg-background/70 p-4"
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="grid gap-1">
-                <div className="text-sm font-medium text-foreground">{packet.headline}</div>
+              <div className="grid gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline">{packet.actorLabel}</Badge>
+                  <Badge variant={packet.emphasisTone}>{packet.emphasisLabel}</Badge>
+                  {packet.signals.map((signal) => (
+                    <Badge key={`${packet.id}:${signal}`} variant="outline">
+                      {signal}
+                    </Badge>
+                  ))}
+                </div>
+                <div className="text-sm font-medium text-foreground">
+                  {packet.narrativeHeadline}
+                </div>
                 <time
                   className="text-xs text-muted"
                   dateTime={packet.createdAtIso}
@@ -45,6 +56,12 @@ export function LogsPageActivityPackets(props: {
             </div>
 
             <p className="text-sm leading-6 text-muted">{packet.summary}</p>
+            {packet.outcomeLabel ? (
+              <p className="text-sm leading-6 text-foreground">{packet.outcomeLabel}</p>
+            ) : null}
+            {packet.scopeSummary ? (
+              <p className="text-xs leading-5 text-muted">{packet.scopeSummary}</p>
+            ) : null}
             <p className="text-xs leading-5 text-muted">{packet.nextAction}</p>
 
             {packet.context.length > 0 ? (
@@ -57,30 +74,15 @@ export function LogsPageActivityPackets(props: {
               </div>
             ) : null}
 
-            {packet.signals.length > 0 ? (
+            {packet.actions.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {packet.signals.map((signal) => (
-                  <Badge key={`${packet.id}:${signal}`} variant="secondary">
-                    {signal}
-                  </Badge>
+                {packet.actions.map((action) => (
+                  <Button key={`${packet.id}:${action.label}`} size="sm" variant="outline" asChild>
+                    <Link to={action.href}>{action.label}</Link>
+                  </Button>
                 ))}
               </div>
             ) : null}
-
-            <div className="flex flex-wrap gap-2">
-              {packet.workflowContextHref ? (
-                <Button size="sm" variant="outline" asChild>
-                  <Link to={packet.workflowContextHref}>Board context</Link>
-                </Button>
-              ) : null}
-              {packet.taskRecordHref ? (
-                <Button size="sm" variant="outline" asChild>
-                  <Link to={packet.taskRecordHref}>
-                    {packet.workflowContextHref ? 'Step diagnostics' : 'Step record'}
-                  </Link>
-                </Button>
-              ) : null}
-            </div>
           </article>
         ))}
       </CardContent>

@@ -52,9 +52,13 @@ describe('logs page source', () => {
     expect(source).toContain('buildRecentLogActivityPackets(entries)');
     expect(source).toContain("updateView('detailed')");
     expect(packetsSource).toContain('Recent activity packets');
+    expect(packetsSource).toContain('packet.actorLabel');
+    expect(packetsSource).toContain('packet.emphasisLabel');
+    expect(packetsSource).toContain('packet.narrativeHeadline');
+    expect(packetsSource).toContain('packet.outcomeLabel');
+    expect(packetsSource).toContain('packet.scopeSummary');
+    expect(packetsSource).toContain('packet.actions.map((action)');
     expect(packetsSource).toContain('Open trace detail');
-    expect(packetsSource).toContain('Board context');
-    expect(packetsSource).toContain("packet.workflowContextHref ? 'Step diagnostics' : 'Step record'");
     expect(packetsSource).toContain('dateTime={packet.createdAtIso}');
     expect(packetsSource).toContain('title={packet.createdAtDetail}');
     expect(packetsSource).toContain('Use these human-readable summaries to decide whether to stay in the raw stream');

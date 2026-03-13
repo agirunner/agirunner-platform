@@ -25,16 +25,25 @@ export interface InspectorOverviewCard {
 
 export interface RecentLogActivityPacket {
   id: number;
-  headline: string;
+  actorLabel: string;
+  emphasisLabel: string;
+  emphasisTone: 'secondary' | 'warning' | 'destructive' | 'success';
+  narrativeHeadline: string;
   summary: string;
+  outcomeLabel: string | null;
   nextAction: string;
+  scopeSummary: string | null;
   context: string[];
   signals: string[];
   createdAtLabel: string;
   createdAtIso: string;
   createdAtDetail: string;
-  workflowContextHref: string | null;
-  taskRecordHref: string | null;
+  actions: RecentLogActivityAction[];
+}
+
+export interface RecentLogActivityAction {
+  href: string;
+  label: string;
 }
 
 export function buildInspectorOverviewCards(
@@ -69,19 +78,49 @@ export function buildRecentLogActivityPackets(
   limit = 3,
   now = Date.now(),
 ): RecentLogActivityPacket[] {
-  return entries.slice(0, limit).map((entry) => ({
-    id: entry.id,
-    headline: describeExecutionHeadline(entry),
-    summary: describeExecutionSummary(entry),
-    nextAction: describeExecutionNextAction(entry),
-    context: summarizeLogContext(entry),
-    signals: readExecutionSignals(entry),
-    createdAtLabel: formatRecentActivityAge(entry.created_at, now),
-    createdAtIso: entry.created_at,
-    createdAtDetail: new Date(entry.created_at).toLocaleString(),
-    workflowContextHref: buildLogWorkflowContextLink(entry),
-    taskRecordHref: entry.task_id ? `/work/tasks/${entry.task_id}` : null,
-  }));
+  return entries.slice(0, limit).map((entry) => {
+    const actorLabel = describeLogActorLabel(entry);
+    const emphasisTone = describeLogEmphasisTone(entry);
+    const workflowContextHref = buildLogWorkflowContextLink(entry);
+    const taskRecordHref = entry.task_id ? `/work/tasks/${entry.task_id}` : null;
+    return {
+      id: entry.id,
+      actorLabel,
+      emphasisLabel: describeLogEmphasisLabel(entry),
+      emphasisTone,
+      narrativeHeadline: buildLogNarrativeHeadline(entry, actorLabel),
+      summary: describeExecutionSummary(entry),
+      outcomeLabel: describeLogOutcomeLabel(entry),
+      nextAction: describeExecutionNextAction(entry),
+      scopeSummary: buildLogScopeSummary(entry),
+      context: summarizeLogContext(entry),
+      signals: readExecutionSignals(entry),
+      createdAtLabel: formatRecentActivityAge(entry.created_at, now),
+      createdAtIso: entry.created_at,
+      createdAtDetail: new Date(entry.created_at).toLocaleString(),
+      actions: buildRecentLogActivityActions({
+        taskRecordHref,
+        workflowContextHref,
+      }),
+    };
+  });
+}
+
+function buildRecentLogActivityActions(input: {
+  taskRecordHref: string | null;
+  workflowContextHref: string | null;
+}): RecentLogActivityAction[] {
+  const actions: RecentLogActivityAction[] = [];
+  if (input.workflowContextHref) {
+    actions.push({ href: input.workflowContextHref, label: 'Board context' });
+  }
+  if (input.taskRecordHref) {
+    actions.push({
+      href: input.taskRecordHref,
+      label: input.workflowContextHref ? 'Step diagnostics' : 'Step record',
+    });
+  }
+  return actions;
 }
 
 export function buildLogWorkflowContextLink(
@@ -130,6 +169,138 @@ function describeInspectorFocus(filters: InspectorFilters, scopedWorkflowId: str
     return `Board ${shortId(scopedWorkflowId)}`;
   }
   return 'All execution';
+}
+
+function buildLogNarrativeHeadline(entry: LogEntry, actorLabel: string): string {
+  const target =
+    entry.task_title ??
+    entry.workflow_name ??
+    entry.resource_name ??
+    (entry.task_id ? `step ${shortId(entry.task_id)}` : null) ??
+    (entry.workflow_id ? `board ${shortId(entry.workflow_id)}` : null);
+  const operation = describeExecutionOperationLabel(entry.operation).toLowerCase();
+
+  if (entry.error?.message || entry.status === 'failed') {
+    return target
+      ? `${actorLabel} hit a failure while driving ${target}`
+      : `${actorLabel} hit a failure during ${operation}`;
+  }
+  if (entry.status === 'started') {
+    return target
+      ? `${actorLabel} started ${target}`
+      : `${actorLabel} started ${operation}`;
+  }
+  if (entry.status === 'completed') {
+    return target
+      ? `${actorLabel} completed ${target}`
+      : `${actorLabel} completed ${operation}`;
+  }
+  if (entry.status === 'skipped') {
+    return target
+      ? `${actorLabel} skipped ${target}`
+      : `${actorLabel} skipped ${operation}`;
+  }
+  return target
+    ? `${actorLabel} recorded activity on ${target}`
+    : `${actorLabel} recorded ${operation}`;
+}
+
+function buildLogScopeSummary(entry: LogEntry): string | null {
+  const parts = [
+    entry.workflow_name ?? (entry.workflow_id ? `Board ${shortId(entry.workflow_id)}` : null),
+    entry.stage_name ? `Stage ${entry.stage_name}` : null,
+    entry.work_item_id ? `Work item ${shortId(entry.work_item_id)}` : null,
+    entry.activation_id ? `Activation ${shortId(entry.activation_id)}` : null,
+  ].filter((part): part is string => Boolean(part));
+  return parts.length > 0 ? parts.join(' • ') : null;
+}
+
+function describeLogActorLabel(entry: LogEntry): string {
+  if (entry.actor_name && entry.actor_name.trim().length > 0) {
+    return entry.actor_name.trim();
+  }
+  if (entry.is_orchestrator_task) {
+    return 'Orchestrator';
+  }
+  if (entry.role && entry.role.trim().length > 0) {
+    return `${humanizeRole(entry.role)} specialist`;
+  }
+  return humanizeActorToken(entry.actor_type);
+}
+
+function describeLogEmphasisLabel(entry: LogEntry): string {
+  if (entry.error?.message || entry.status === 'failed') {
+    return 'Needs recovery';
+  }
+  if (entry.level === 'warn') {
+    return 'Needs review';
+  }
+  if (entry.status === 'completed') {
+    return 'Completed';
+  }
+  if (entry.status === 'started') {
+    return 'In progress';
+  }
+  if (entry.status === 'skipped') {
+    return 'Skipped';
+  }
+  return 'Recorded';
+}
+
+function describeLogEmphasisTone(
+  entry: LogEntry,
+): RecentLogActivityPacket['emphasisTone'] {
+  if (entry.error?.message || entry.status === 'failed') {
+    return 'destructive';
+  }
+  if (entry.level === 'warn' || entry.status === 'skipped') {
+    return 'warning';
+  }
+  if (entry.status === 'completed') {
+    return 'success';
+  }
+  return 'secondary';
+}
+
+function describeLogOutcomeLabel(entry: LogEntry): string | null {
+  if (entry.error?.message) {
+    return entry.error.message;
+  }
+  if (entry.status === 'completed') {
+    return 'Execution completed without runtime errors.';
+  }
+  if (entry.status === 'started') {
+    return 'Execution is still in flight.';
+  }
+  if (entry.status === 'skipped') {
+    return 'Execution was skipped for this scope.';
+  }
+  return null;
+}
+
+function humanizeActorToken(value: string): string {
+  if (value === 'agent') {
+    return 'Agent';
+  }
+  if (value === 'operator') {
+    return 'Operator';
+  }
+  if (value === 'system') {
+    return 'System';
+  }
+  return value
+    .split(/[_:\-.]/g)
+    .filter((part) => part.length > 0)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function humanizeRole(value: string): string {
+  return value
+    .split(/[_:\-.]/g)
+    .filter((part) => part.length > 0)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 function describeTimeWindow(timeWindowHours: string): string {
