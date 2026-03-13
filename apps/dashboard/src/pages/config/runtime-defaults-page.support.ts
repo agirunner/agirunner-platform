@@ -2,6 +2,7 @@ import {
   FIELD_DEFINITIONS,
   SECTION_DEFINITIONS,
 } from './runtime-defaults.schema.js';
+import { summarizeWebSearchPosture } from './runtime-defaults-search.support.js';
 import type { FormValues } from './runtime-defaults.types.js';
 
 export interface RuntimeDefaultsSummaryCard {
@@ -26,9 +27,7 @@ export function summarizeRuntimeDefaults(
     Boolean(values[field.key]?.trim()),
   ).length;
   const errorCount = Object.keys(errors).length;
-  const searchConfigured = SECTION_DEFINITIONS.find((section) => section.key === 'search')
-    ? countSectionConfigured(values, 'search')
-    : 0;
+  const searchPosture = summarizeWebSearchPosture(values);
 
   return [
     {
@@ -50,14 +49,8 @@ export function summarizeRuntimeDefaults(
     },
     {
       label: 'Search posture',
-      value:
-        searchConfigured === 0
-          ? 'Fallback only'
-          : `${searchConfigured} search setting${searchConfigured === 1 ? '' : 's'}`,
-      detail:
-        searchConfigured === 0
-          ? 'Web research uses built-in provider defaults.'
-          : `${searchConfigured} web research settings are explicitly configured.`,
+      value: searchPosture.providerLabel,
+      detail: `${searchPosture.endpointStatus} ${searchPosture.apiKeyStatus}`,
     },
   ];
 }
@@ -76,10 +69,4 @@ export function summarizeRuntimeDefaultSections(
       errorCount: fields.filter((field) => Boolean(errors[field.key])).length,
     };
   });
-}
-
-function countSectionConfigured(values: FormValues, sectionKey: string): number {
-  return FIELD_DEFINITIONS.filter(
-    (field) => field.section === sectionKey && Boolean(values[field.key]?.trim()),
-  ).length;
 }

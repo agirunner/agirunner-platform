@@ -54,6 +54,7 @@ describe('runtime defaults page support', () => {
         {
           default_runtime_image: 'agirunner-runtime:local',
           'tools.web_search_provider': 'serper',
+          'tools.web_search_api_key_secret_ref': 'secret:SERPER_API_KEY',
         },
         {
           global_max_runtimes: 'Global runtime cap must be at least 1.',
@@ -62,8 +63,8 @@ describe('runtime defaults page support', () => {
     ).toEqual([
       {
         label: 'Configured overrides',
-        value: '2 overrides',
-        detail: '2 runtime settings currently override the baked-in platform defaults.',
+        value: '3 overrides',
+        detail: '3 runtime settings currently override the baked-in platform defaults.',
       },
       {
         label: 'Save blockers',
@@ -72,8 +73,8 @@ describe('runtime defaults page support', () => {
       },
       {
         label: 'Search posture',
-        value: '1 search setting',
-        detail: '1 web research settings are explicitly configured.',
+        value: 'Serper',
+        detail: 'Using provider default endpoint. Secret reference configured.',
       },
     ]);
   });

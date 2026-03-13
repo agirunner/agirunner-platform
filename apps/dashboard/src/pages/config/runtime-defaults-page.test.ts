@@ -47,6 +47,12 @@ describe('runtime defaults page source', () => {
     expect(source).not.toContain('JSON.parse');
   });
 
+  it('renders web search provider controls through a dedicated first-class section instead of generic rows', () => {
+    const source = readSource('./runtime-defaults-fields.tsx');
+    expect(source).toContain('RuntimeDefaultsSearchSection');
+    expect(source).toContain("fields[0]?.section === 'search'");
+  });
+
   it('uses the supported runtime-defaults API routes, including delete for clearing values', () => {
     const source = readSource('./runtime-defaults.api.ts');
     expect(source).toContain('/api/v1/config/runtime-defaults');

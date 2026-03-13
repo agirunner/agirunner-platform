@@ -18,8 +18,8 @@ import {
 import {
   PLATFORM_DEFAULT_SELECT_VALUE,
   PULL_POLICY_OPTIONS,
-  WEB_SEARCH_PROVIDER_OPTIONS,
 } from './runtime-defaults.schema.js';
+import { RuntimeDefaultsSearchSection } from './runtime-defaults-search.js';
 import type { FieldDefinition, FormValues } from './runtime-defaults.types.js';
 
 export function RuntimeDefaultsSection({
@@ -43,16 +43,25 @@ export function RuntimeDefaultsSection({
         <CardTitle className="text-lg">{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-5 md:grid-cols-2">
-        {fields.map((field) => (
-          <RuntimeField
-            key={field.key}
-            field={field}
-            value={values[field.key] ?? ''}
-            error={errors[field.key]}
-            onChange={(nextValue) => onChange(field.key, nextValue)}
+      <CardContent className={fields[0]?.section === 'search' ? 'space-y-5' : 'grid gap-5 md:grid-cols-2'}>
+        {fields[0]?.section === 'search' ? (
+          <RuntimeDefaultsSearchSection
+            fields={fields}
+            values={values}
+            errors={errors}
+            onChange={onChange}
           />
-        ))}
+        ) : (
+          fields.map((field) => (
+            <RuntimeField
+              key={field.key}
+              field={field}
+              value={values[field.key] ?? ''}
+              error={errors[field.key]}
+              onChange={(nextValue) => onChange(field.key, nextValue)}
+            />
+          ))
+        )}
       </CardContent>
     </Card>
   );
@@ -104,16 +113,6 @@ function renderFieldControl(
   const describedBy = hasError ? `${descriptionId} ${errorId}` : descriptionId;
   if (field.key === 'default_pull_policy') {
     return renderSelectField(field, value, onChange, PULL_POLICY_OPTIONS, hasError, describedBy);
-  }
-  if (field.key === 'tools.web_search_provider') {
-    return renderSelectField(
-      field,
-      value,
-      onChange,
-      WEB_SEARCH_PROVIDER_OPTIONS,
-      hasError,
-      describedBy,
-    );
   }
   return (
     <Input
