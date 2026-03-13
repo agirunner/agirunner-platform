@@ -164,7 +164,7 @@ describe('task query service git activity (FR-055)', () => {
     ).toEqual(expect.objectContaining({ state: 'escalated' }));
   });
 
-  it('redacts plaintext secrets from task API responses while preserving secret refs', () => {
+  it('redacts plaintext secrets and secret refs from task API responses', () => {
     const service = new TaskQueryService(createPool({
       id: taskId,
       tenant_id: tenantId,
@@ -216,10 +216,10 @@ describe('task query service git activity (FR-055)', () => {
     }) as Record<string, any>;
 
     expect(response.input.credentials.git_token).toBe('redacted://task-secret');
-    expect(response.input.credentials.git_token_ref).toBe('secret:GIT_TOKEN');
+    expect(response.input.credentials.git_token_ref).toBe('redacted://task-secret');
     expect(response.role_config.llm_api_key).toBe('redacted://task-secret');
     expect(response.resource_bindings[0].credentials.ssh_private_key).toBe('redacted://task-secret');
-    expect(response.resource_bindings[0].credentials.secret_ref).toBe('secret:GIT_SSH_KEY');
+    expect(response.resource_bindings[0].credentials.secret_ref).toBe('redacted://task-secret');
   });
 
   it('returns normalized git activity payload from task.git_info', async () => {
@@ -254,7 +254,7 @@ describe('task query service git activity (FR-055)', () => {
     });
   });
 
-  it('redacts plaintext secrets from git activity payloads and task context responses', async () => {
+  it('redacts plaintext secrets and secret refs from git activity and task context responses', async () => {
     const queries = vi.fn(async (sql: string) => {
       if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1 AND id = $2')) {
         return {
@@ -266,8 +266,14 @@ describe('task query service git activity (FR-055)', () => {
             project_id: 'project-1',
             work_item_id: 'wi-1',
             depends_on: [],
-            input: { credentials: { api_key: 'sk-top-secret', secret_ref: 'secret:API_KEY' } },
-            role_config: { llm_api_key: 'plaintext-key' },
+            input: {
+              credentials: { api_key: 'sk-top-secret', secret_ref: 'secret:API_KEY' },
+              instructions: 'Use secret:TASK_PROMPT_TOKEN when contacting the service.',
+            },
+            role_config: {
+              llm_api_key: 'plaintext-key',
+              instructions: 'Role instructions reference secret:ROLE_API_KEY for auth.',
+            },
             context: { oauth: { access_token: 'plaintext-access-token' } },
             git_info: {
               linked_prs: [{ id: 7 }],
@@ -342,12 +348,19 @@ describe('task query service git activity (FR-055)', () => {
     const context = await service.getTaskContext(tenantId, taskId);
 
     expect((git.raw as Record<string, any>).extra_headers.Authorization).toBe('redacted://task-secret');
-    expect((git.raw as Record<string, any>).nested.token_ref).toBe('secret:GIT_TOKEN');
+    expect((git.raw as Record<string, any>).nested.token_ref).toBe('redacted://task-secret');
     expect((context.project as Record<string, any>).memory.deployment_token).toBe('redacted://task-context-secret');
     expect((context.workflow as Record<string, any>).resolved_config.provider_token).toBe('redacted://task-context-secret');
     expect((context.task as Record<string, any>).input.credentials.api_key).toBe('redacted://task-context-secret');
-    expect((context.task as Record<string, any>).input.credentials.secret_ref).toBe('secret:API_KEY');
+    expect((context.task as Record<string, any>).input.credentials.secret_ref).toBe('redacted://task-context-secret');
     expect((context.task as Record<string, any>).context.oauth.access_token).toBe('redacted://task-context-secret');
+    expect(context.instructions).toBe('redacted://task-context-secret');
+    expect(((context.instruction_layers as Record<string, any>).role as Record<string, any>).content).toBe(
+      'redacted://task-context-secret',
+    );
+    expect(((context.instruction_layers as Record<string, any>).task as Record<string, any>).content).toBe(
+      'redacted://task-context-secret',
+    );
   });
 
   it('returns defaults when git_info is absent', async () => {

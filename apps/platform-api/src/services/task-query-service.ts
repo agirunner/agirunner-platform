@@ -9,7 +9,6 @@ import { buildTaskContext } from './task-context-service.js';
 import type { ListTaskQuery } from './task-service.types.js';
 
 const SECRET_REDACTION = 'redacted://task-secret';
-const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
 
 export class TaskQueryService {
   constructor(private readonly pool: DatabasePool) {}
@@ -100,6 +99,7 @@ export class TaskQueryService {
     const task = await this.loadTaskOrThrow(tenantId, taskId);
     const gitInfo = sanitizeSecretLikeValue((task.git_info as Record<string, unknown> | null) ?? {}, {
       redactionValue: SECRET_REDACTION,
+      allowSecretReferences: false,
     }) as Record<string, unknown>;
     return {
       linked_prs: Array.isArray(gitInfo.linked_prs)
@@ -122,41 +122,10 @@ export class TaskQueryService {
 }
 
 function sanitizeTaskRecord(task: Record<string, unknown>): Record<string, unknown> {
-  const sanitized: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(task)) {
-    sanitized[key] = sanitizeValue(value, isSecretLikeKey(key));
-  }
-  return sanitized;
-}
-
-function sanitizeValue(value: unknown, inheritedSecret: boolean): unknown {
-  if (typeof value === 'string') {
-    if (!inheritedSecret || isAllowedSecretReference(value)) {
-      return value;
-    }
-    return value.trim().length === 0 ? value : SECRET_REDACTION;
-  }
-  if (Array.isArray(value)) {
-    return value.map((item) => sanitizeValue(item, inheritedSecret));
-  }
-  if (!value || typeof value !== 'object') {
-    return value;
-  }
-
-  const sanitized: Record<string, unknown> = {};
-  for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
-    sanitized[key] = sanitizeValue(nestedValue, inheritedSecret || isSecretLikeKey(key));
-  }
-  return sanitized;
-}
-
-function isAllowedSecretReference(value: string): boolean {
-  const normalized = value.trim();
-  return normalized.startsWith('secret:') || normalized.startsWith('redacted://');
-}
-
-function isSecretLikeKey(key: string): boolean {
-  return secretLikeKeyPattern.test(key);
+  return sanitizeSecretLikeValue(task, {
+    redactionValue: SECRET_REDACTION,
+    allowSecretReferences: false,
+  }) as Record<string, unknown>;
 }
 
 function normalizeResponseTaskState(value: unknown): unknown {

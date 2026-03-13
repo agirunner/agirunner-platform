@@ -6,6 +6,8 @@ import { buildOrchestratorTaskContext } from './orchestrator-task-context.js';
 import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
 import { currentStageNameFromStages, type WorkflowStageResponse } from './workflow-stage-service.js';
 
+const TASK_CONTEXT_SECRET_REDACTION = 'redacted://task-context-secret';
+
 export async function buildTaskContext(
   db: DatabaseQueryable,
   tenantId: string,
@@ -117,24 +119,24 @@ export async function buildTaskContext(
     : null;
 
   return {
-    agent: sanitizeSecretLikeValue(agent, { redactionValue: 'redacted://task-context-secret' }),
-    project: sanitizeSecretLikeValue(projectRes.rows[0] ?? null, { redactionValue: 'redacted://task-context-secret' }),
-    workflow: sanitizeSecretLikeValue(workflowContext, { redactionValue: 'redacted://task-context-secret' }),
-    orchestrator: sanitizeSecretLikeValue(orchestratorContext, { redactionValue: 'redacted://task-context-secret' }),
-    documents: sanitizeSecretLikeValue(documents, { redactionValue: 'redacted://task-context-secret' }),
-    instructions: flatInstructions,
-    instruction_layers: instructionLayers,
+    agent: sanitizeTaskContextValue(agent),
+    project: sanitizeTaskContextValue(projectRes.rows[0] ?? null),
+    workflow: sanitizeTaskContextValue(workflowContext),
+    orchestrator: sanitizeTaskContextValue(orchestratorContext),
+    documents: sanitizeTaskContextValue(documents),
+    instructions: sanitizeTaskContextValue(flatInstructions),
+    instruction_layers: sanitizeTaskContextValue(instructionLayers),
     task: {
       id: task.id,
-      input: sanitizeSecretLikeValue(task.input, { redactionValue: 'redacted://task-context-secret' }),
-      context: sanitizeSecretLikeValue(task.context, { redactionValue: 'redacted://task-context-secret' }),
-      work_item: sanitizeSecretLikeValue(workItem, { redactionValue: 'redacted://task-context-secret' }),
+      input: sanitizeTaskContextValue(task.input),
+      context: sanitizeTaskContextValue(task.context),
+      work_item: sanitizeTaskContextValue(workItem),
       failure_mode:
         task.context && typeof task.context === 'object' && !Array.isArray(task.context)
           ? ((task.context as Record<string, unknown>).failure_mode ?? null)
           : null,
-      role_config: sanitizeSecretLikeValue(task.role_config, { redactionValue: 'redacted://task-context-secret' }),
-      upstream_outputs: sanitizeSecretLikeValue(upstreamOutputs, { redactionValue: 'redacted://task-context-secret' }),
+      role_config: sanitizeTaskContextValue(task.role_config),
+      upstream_outputs: sanitizeTaskContextValue(upstreamOutputs),
     },
   };
 }
@@ -154,10 +156,12 @@ function buildWorkflowContext(params: {
     context: params.workflowRow.context,
     git_branch: params.workflowRow.git_branch,
     resolved_config: sanitizeSecretLikeRecord(params.workflowRow.resolved_config, {
-      redactionValue: 'redacted://task-context-secret',
+      redactionValue: TASK_CONTEXT_SECRET_REDACTION,
+      allowSecretReferences: false,
     }),
     variables: sanitizeSecretLikeRecord(params.workflowRow.parameters, {
-      redactionValue: 'redacted://task-context-secret',
+      redactionValue: TASK_CONTEXT_SECRET_REDACTION,
+      allowSecretReferences: false,
     }),
     playbook: params.workflowRow.playbook_id
       ? {
@@ -499,6 +503,13 @@ function readFlatInstructions(roleConfig: Record<string, unknown>, agentMetadata
     10_000,
   );
   return roleInstructions?.content ?? readAgentProfileInstructions(agentMetadata);
+}
+
+function sanitizeTaskContextValue(value: unknown): unknown {
+  return sanitizeSecretLikeValue(value, {
+    redactionValue: TASK_CONTEXT_SECRET_REDACTION,
+    allowSecretReferences: false,
+  });
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
