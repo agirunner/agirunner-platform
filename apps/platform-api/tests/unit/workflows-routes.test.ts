@@ -1,6 +1,11 @@
 import fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  createWorkflowDocument,
+  deleteWorkflowDocument,
+  updateWorkflowDocument,
+} from '../../src/services/document-reference-service.js';
 import { workflowRoutes } from '../../src/api/routes/workflows.routes.js';
 
 vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
@@ -15,6 +20,13 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
     };
   },
   withScope: () => async () => {},
+}));
+
+vi.mock('../../src/services/document-reference-service.js', () => ({
+  createWorkflowDocument: vi.fn(),
+  deleteWorkflowDocument: vi.fn(),
+  listWorkflowDocuments: vi.fn(async () => []),
+  updateWorkflowDocument: vi.fn(),
 }));
 
 function createWorkflowControlReplayPool(
@@ -55,6 +67,44 @@ function createWorkflowControlReplayPool(
   return { pool, client };
 }
 
+function createTransactionalWorkflowReplayPool(
+  workflowId: string,
+  toolName: string,
+) {
+  let storedResponse: Record<string, unknown> | null = null;
+  const client = {
+    query: vi.fn(async (sql: string, params?: unknown[]) => {
+      if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('pg_advisory_xact_lock')) {
+        return { rowCount: 1, rows: [] };
+      }
+      if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+        expect(params).toEqual(['tenant-1', workflowId, toolName, 'request-1']);
+        return storedResponse
+          ? { rowCount: 1, rows: [{ response: storedResponse }] }
+          : { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('INSERT INTO workflow_tool_results')) {
+        storedResponse = params?.[4] as Record<string, unknown>;
+        return { rowCount: 1, rows: [{ response: storedResponse }] };
+      }
+      throw new Error(`unexpected client query: ${sql}`);
+    }),
+    release: vi.fn(),
+  };
+
+  const pool = {
+    connect: vi.fn(async () => client),
+    query: vi.fn(async () => {
+      throw new Error('unexpected pool query');
+    }),
+  };
+
+  return { pool, client };
+}
+
 describe('workflow routes', () => {
   let app: ReturnType<typeof fastify> | undefined;
 
@@ -63,6 +113,7 @@ describe('workflow routes', () => {
       await app.close();
       app = undefined;
     }
+    vi.clearAllMocks();
   });
 
   it('does not register the removed manual-rework route', async () => {
@@ -667,5 +718,228 @@ describe('workflow routes', () => {
     expect(second.statusCode).toBe(200);
     expect(resumeWorkflow).toHaveBeenCalledTimes(1);
     expect(second.json().data).toEqual(first.json().data);
+  });
+
+  it('deduplicates repeated workflow document creation requests by request_id', async () => {
+    const { pool } = createTransactionalWorkflowReplayPool(
+      'workflow-1',
+      'operator_create_workflow_document',
+    );
+    vi.mocked(createWorkflowDocument).mockResolvedValue({
+      logical_name: 'spec',
+      scope: 'workflow',
+      source: 'repository',
+      path: 'docs/spec.md',
+      metadata: {},
+      created_at: '2026-03-12T00:00:00.000Z',
+    });
+
+    app = fastify();
+    app.decorate('workflowService', {
+      createWorkflow: async () => ({}),
+      listWorkflows: async () => ({ data: [], meta: {} }),
+      getWorkflow: async () => ({}),
+      getWorkflowBudget: async () => ({}),
+      getWorkflowBoard: async () => ({}),
+      listWorkflowStages: async () => ([]),
+      listWorkflowWorkItems: async () => ([]),
+      createWorkflowWorkItem: async () => ({}),
+      getWorkflowWorkItem: async () => ({}),
+      listWorkflowWorkItemTasks: async () => ([]),
+      listWorkflowWorkItemEvents: async () => ([]),
+      getWorkflowWorkItemMemory: async () => ({ entries: [] }),
+      getWorkflowWorkItemMemoryHistory: async () => ({ history: [] }),
+      updateWorkflowWorkItem: async () => ({}),
+      actOnStageGate: async () => ({}),
+      getResolvedConfig: async () => ({}),
+      cancelWorkflow: async () => ({}),
+      pauseWorkflow: async () => ({}),
+      resumeWorkflow: async () => ({}),
+      deleteWorkflow: async () => ({}),
+    });
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: async () => undefined });
+    app.decorate('projectService', { getProject: async () => ({ settings: {} }) });
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: async () => null,
+      listProviders: async () => [],
+      listModels: async () => [],
+      getProviderForOperations: async () => null,
+    });
+    await app.register(workflowRoutes);
+
+    const payload = {
+      request_id: 'request-1',
+      logical_name: 'spec',
+      source: 'repository',
+      path: 'docs/spec.md',
+    };
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/documents',
+      payload,
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/documents',
+      payload,
+    });
+
+    expect(first.statusCode).toBe(201);
+    expect(second.statusCode).toBe(201);
+    expect(createWorkflowDocument).toHaveBeenCalledTimes(1);
+    expect(createWorkflowDocument).toHaveBeenCalledWith(
+      expect.objectContaining({ query: expect.any(Function) }),
+      'tenant-1',
+      'workflow-1',
+      {
+        logical_name: 'spec',
+        source: 'repository',
+        path: 'docs/spec.md',
+      },
+    );
+    expect(second.json().data).toEqual(first.json().data);
+  });
+
+  it('deduplicates repeated workflow document update requests by request_id', async () => {
+    const { pool } = createTransactionalWorkflowReplayPool(
+      'workflow-1',
+      'operator_update_workflow_document',
+    );
+    vi.mocked(updateWorkflowDocument).mockResolvedValue({
+      logical_name: 'spec',
+      scope: 'workflow',
+      source: 'repository',
+      path: 'docs/spec-v2.md',
+      metadata: {},
+      created_at: '2026-03-12T00:00:00.000Z',
+    });
+
+    app = fastify();
+    app.decorate('workflowService', {
+      createWorkflow: async () => ({}),
+      listWorkflows: async () => ({ data: [], meta: {} }),
+      getWorkflow: async () => ({}),
+      getWorkflowBudget: async () => ({}),
+      getWorkflowBoard: async () => ({}),
+      listWorkflowStages: async () => ([]),
+      listWorkflowWorkItems: async () => ([]),
+      createWorkflowWorkItem: async () => ({}),
+      getWorkflowWorkItem: async () => ({}),
+      listWorkflowWorkItemTasks: async () => ([]),
+      listWorkflowWorkItemEvents: async () => ([]),
+      getWorkflowWorkItemMemory: async () => ({ entries: [] }),
+      getWorkflowWorkItemMemoryHistory: async () => ({ history: [] }),
+      updateWorkflowWorkItem: async () => ({}),
+      actOnStageGate: async () => ({}),
+      getResolvedConfig: async () => ({}),
+      cancelWorkflow: async () => ({}),
+      pauseWorkflow: async () => ({}),
+      resumeWorkflow: async () => ({}),
+      deleteWorkflow: async () => ({}),
+    });
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: async () => undefined });
+    app.decorate('projectService', { getProject: async () => ({ settings: {} }) });
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: async () => null,
+      listProviders: async () => [],
+      listModels: async () => [],
+      getProviderForOperations: async () => null,
+    });
+    await app.register(workflowRoutes);
+
+    const payload = {
+      request_id: 'request-1',
+      path: 'docs/spec-v2.md',
+    };
+    const first = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/workflows/workflow-1/documents/spec',
+      payload,
+    });
+    const second = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/workflows/workflow-1/documents/spec',
+      payload,
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(updateWorkflowDocument).toHaveBeenCalledTimes(1);
+    expect(updateWorkflowDocument).toHaveBeenCalledWith(
+      expect.objectContaining({ query: expect.any(Function) }),
+      'tenant-1',
+      'workflow-1',
+      'spec',
+      {
+        path: 'docs/spec-v2.md',
+      },
+    );
+    expect(second.json().data).toEqual(first.json().data);
+  });
+
+  it('deduplicates repeated workflow document delete requests by request_id', async () => {
+    const { pool } = createTransactionalWorkflowReplayPool(
+      'workflow-1',
+      'operator_delete_workflow_document',
+    );
+    vi.mocked(deleteWorkflowDocument).mockResolvedValue(undefined);
+
+    app = fastify();
+    app.decorate('workflowService', {
+      createWorkflow: async () => ({}),
+      listWorkflows: async () => ({ data: [], meta: {} }),
+      getWorkflow: async () => ({}),
+      getWorkflowBudget: async () => ({}),
+      getWorkflowBoard: async () => ({}),
+      listWorkflowStages: async () => ([]),
+      listWorkflowWorkItems: async () => ([]),
+      createWorkflowWorkItem: async () => ({}),
+      getWorkflowWorkItem: async () => ({}),
+      listWorkflowWorkItemTasks: async () => ([]),
+      listWorkflowWorkItemEvents: async () => ([]),
+      getWorkflowWorkItemMemory: async () => ({ entries: [] }),
+      getWorkflowWorkItemMemoryHistory: async () => ({ history: [] }),
+      updateWorkflowWorkItem: async () => ({}),
+      actOnStageGate: async () => ({}),
+      getResolvedConfig: async () => ({}),
+      cancelWorkflow: async () => ({}),
+      pauseWorkflow: async () => ({}),
+      resumeWorkflow: async () => ({}),
+      deleteWorkflow: async () => ({}),
+    });
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: async () => undefined });
+    app.decorate('projectService', { getProject: async () => ({ settings: {} }) });
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: async () => null,
+      listProviders: async () => [],
+      listModels: async () => [],
+      getProviderForOperations: async () => null,
+    });
+    await app.register(workflowRoutes);
+
+    const first = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/workflows/workflow-1/documents/spec?request_id=request-1',
+    });
+    const second = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/workflows/workflow-1/documents/spec?request_id=request-1',
+    });
+
+    expect(first.statusCode).toBe(204);
+    expect(second.statusCode).toBe(204);
+    expect(deleteWorkflowDocument).toHaveBeenCalledTimes(1);
+    expect(deleteWorkflowDocument).toHaveBeenCalledWith(
+      expect.objectContaining({ query: expect.any(Function) }),
+      'tenant-1',
+      'workflow-1',
+      'spec',
+    );
   });
 });

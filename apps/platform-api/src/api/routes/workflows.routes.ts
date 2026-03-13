@@ -94,6 +94,7 @@ const workItemUpdateSchema = z.object({
 });
 
 const workflowDocumentCreateSchema = z.object({
+  request_id: z.string().min(1).max(255).optional(),
   logical_name: z.string().min(1).max(255),
   source: z.enum(['repository', 'artifact', 'external']),
   title: z.string().max(4000).optional(),
@@ -109,6 +110,7 @@ const workflowDocumentCreateSchema = z.object({
 
 const workflowDocumentUpdateSchema = z
   .object({
+    request_id: z.string().min(1).max(255).optional(),
     source: z.enum(['repository', 'artifact', 'external']).optional(),
     title: z.string().max(4000).nullable().optional(),
     description: z.string().max(8000).nullable().optional(),
@@ -120,9 +122,13 @@ const workflowDocumentUpdateSchema = z
     artifact_id: z.string().uuid().nullable().optional(),
     logical_path: z.string().min(1).max(4000).nullable().optional(),
   })
-  .refine((value) => Object.keys(value).length > 0, {
+  .refine(hasWorkflowDocumentUpdateFields, {
     message: 'At least one field is required',
   });
+
+const workflowDocumentDeleteQuerySchema = z.object({
+  request_id: z.string().min(1).max(255).optional(),
+});
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
@@ -444,7 +450,7 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
       const body = parseOrThrow(stageGateSchema.safeParse(request.body));
       const { request_id: requestId, ...decision } = body;
       return {
-        data: await runIdempotentGateDecision(
+        data: await runIdempotentTransactionalWorkflowAction(
           app,
           toolResultService,
           request.auth!.tenantId,
@@ -465,7 +471,7 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
       const body = parseOrThrow(stageGateSchema.safeParse(request.body));
       await approvalQueueService.getGate(request.auth!.tenantId, params.gateId, params.id);
       const { request_id: requestId, ...decision } = body;
-      const gate = await runIdempotentGateDecision(
+      const gate = await runIdempotentTransactionalWorkflowAction(
         app,
         toolResultService,
         request.auth!.tenantId,
@@ -494,7 +500,16 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(workflowDocumentCreateSchema.safeParse(request.body));
-      const document = await createWorkflowDocument(app.pgPool, request.auth!.tenantId, params.id, body);
+      const { request_id: requestId, ...input } = body;
+      const document = await runIdempotentTransactionalWorkflowAction(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        params.id,
+        'operator_create_workflow_document',
+        requestId,
+        (client) => createWorkflowDocument(client, request.auth!.tenantId, params.id, input),
+      );
       return reply.status(201).send({ data: document });
     },
   );
@@ -505,13 +520,23 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string; logicalName: string };
       const body = parseOrThrow(workflowDocumentUpdateSchema.safeParse(request.body));
+      const { request_id: requestId, ...input } = body;
       return {
-        data: await updateWorkflowDocument(
-          app.pgPool,
+        data: await runIdempotentTransactionalWorkflowAction(
+          app,
+          toolResultService,
           request.auth!.tenantId,
           params.id,
-          decodeURIComponent(params.logicalName),
-          body,
+          'operator_update_workflow_document',
+          requestId,
+          (client) =>
+            updateWorkflowDocument(
+              client,
+              request.auth!.tenantId,
+              params.id,
+              decodeURIComponent(params.logicalName),
+              input,
+            ),
         ),
       };
     },
@@ -522,11 +547,23 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request, reply) => {
       const params = request.params as { id: string; logicalName: string };
-      await deleteWorkflowDocument(
-        app.pgPool,
+      const query = parseOrThrow(workflowDocumentDeleteQuerySchema.safeParse(request.query ?? {}));
+      await runIdempotentTransactionalWorkflowAction(
+        app,
+        toolResultService,
         request.auth!.tenantId,
         params.id,
-        decodeURIComponent(params.logicalName),
+        'operator_delete_workflow_document',
+        query.request_id,
+        async (client) => {
+          await deleteWorkflowDocument(
+            client,
+            request.auth!.tenantId,
+            params.id,
+            decodeURIComponent(params.logicalName),
+          );
+          return { deleted: true };
+        },
       );
       return reply.status(204).send();
     },
@@ -682,7 +719,7 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
   );
 };
 
-async function runIdempotentGateDecision<T extends Record<string, unknown>>(
+async function runIdempotentTransactionalWorkflowAction<T extends object>(
   app: FastifyInstance,
   toolResultService: WorkflowToolResultService,
   tenantId: string,
@@ -717,7 +754,7 @@ async function runIdempotentGateDecision<T extends Record<string, unknown>>(
         workflowId,
         toolName,
         normalizedRequestId,
-        result,
+        result as Record<string, unknown>,
         client,
       );
       await client.query('COMMIT');
@@ -732,6 +769,10 @@ async function runIdempotentGateDecision<T extends Record<string, unknown>>(
   } finally {
     client.release();
   }
+}
+
+function hasWorkflowDocumentUpdateFields(value: Record<string, unknown>) {
+  return Object.keys(value).some((key) => key !== 'request_id');
 }
 
 async function runIdempotentWorkflowAction<T extends object>(
