@@ -17,6 +17,10 @@ export interface AddProviderValidation {
   isValid: boolean;
 }
 
+export interface AddProviderValidationContext {
+  existingNames?: string[];
+}
+
 export function describeProviderTypeSetup(providerType: ProviderType): {
   title: string;
   detail: string;
@@ -57,11 +61,17 @@ export function describeProviderTypeSetup(providerType: ProviderType): {
   };
 }
 
-export function validateAddProviderDraft(draft: AddProviderDraft): AddProviderValidation {
+export function validateAddProviderDraft(
+  draft: AddProviderDraft,
+  context: AddProviderValidationContext = {},
+): AddProviderValidation {
   const fieldErrors: AddProviderValidation['fieldErrors'] = {};
+  const normalizedName = draft.name.trim();
 
-  if (!draft.name.trim()) {
+  if (!normalizedName) {
     fieldErrors.name = 'Enter a provider name.';
+  } else if (hasDuplicateProviderName(normalizedName, context.existingNames ?? [])) {
+    fieldErrors.name = 'Choose a distinct provider name. This label is already in use.';
   }
 
   if (!draft.baseUrl.trim()) {
@@ -83,6 +93,15 @@ export function validateAddProviderDraft(draft: AddProviderDraft): AddProviderVa
     issues,
     isValid: issues.length === 0,
   };
+}
+
+function hasDuplicateProviderName(name: string, existingNames: string[]): boolean {
+  const normalizedName = normalizeProviderName(name);
+  return existingNames.some((value) => normalizeProviderName(value) === normalizedName);
+}
+
+function normalizeProviderName(value: string): string {
+  return value.trim().toLowerCase();
 }
 
 function isValidProviderUrl(value: string, providerType: ProviderType): boolean {

@@ -653,12 +653,22 @@ function OAuthProviderCard({
 
 /* ─── Add Provider Dialog ───────────────────────────────────────────────── */
 
-function AddProviderDialog(): JSX.Element {
+function AddProviderDialog(props: {
+  existingNames: string[];
+}): JSX.Element {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [form, setForm] = useState<AddProviderDraft>(INITIAL_FORM);
-  const validation = validateAddProviderDraft(form);
+  const validation = validateAddProviderDraft(form, {
+    existingNames: props.existingNames,
+  });
   const providerSetup = describeProviderTypeSetup(form.providerType);
+  const providerDefaults = getProviderTypeDefaults(form.providerType);
+  const canResetRecommendedEndpoint =
+    form.baseUrl.trim() !== providerDefaults.baseUrl.trim();
+  const showsRecommendedName =
+    providerDefaults.name.trim().length > 0
+    && form.name.trim() !== providerDefaults.name.trim();
 
   function handleProviderTypeChange(providerType: ProviderType) {
     const defaults = PROVIDER_TYPE_DEFAULTS[providerType];
@@ -668,6 +678,14 @@ function AddProviderDialog(): JSX.Element {
       name: defaults.name,
       baseUrl: defaults.baseUrl,
     }));
+  }
+
+  function handleOpenChange(nextOpen: boolean) {
+    setIsOpen(nextOpen);
+    if (!nextOpen) {
+      setForm(INITIAL_FORM);
+      mutation.reset();
+    }
   }
 
   const mutation = useMutation({
@@ -689,7 +707,7 @@ function AddProviderDialog(): JSX.Element {
   });
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <Button onClick={() => setIsOpen(true)}>
         <Plus className="h-4 w-4" />
         Add Provider
@@ -740,7 +758,24 @@ function AddProviderDialog(): JSX.Element {
           </section>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Provider Type</label>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="text-sm font-medium">Provider Type</label>
+              {canResetRecommendedEndpoint ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      baseUrl: providerDefaults.baseUrl,
+                    }))
+                  }
+                >
+                  Restore recommended endpoint
+                </Button>
+              ) : null}
+            </div>
             <Select
               value={form.providerType}
               onValueChange={(v) => handleProviderTypeChange(v as ProviderType)}
@@ -755,7 +790,9 @@ function AddProviderDialog(): JSX.Element {
                 <SelectItem value="openai-compatible">OpenAI-Compatible (Ollama, vLLM, etc.)</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted">Selecting a provider type auto-fills the recommended name and base URL.</p>
+            <p className="text-xs text-muted">
+              Selecting a provider type auto-fills the recommended name and base URL.
+            </p>
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Name</label>
@@ -770,6 +807,10 @@ function AddProviderDialog(): JSX.Element {
             />
             {validation.fieldErrors.name ? (
               <p className="text-xs text-red-600">{validation.fieldErrors.name}</p>
+            ) : showsRecommendedName ? (
+              <p className="text-xs text-muted">
+                Recommended operator label for this provider type: {providerDefaults.name}
+              </p>
             ) : (
               <p className="text-xs text-muted">Use a short operator-facing label that will still make sense in assignment and fleet views.</p>
             )}
@@ -791,7 +832,7 @@ function AddProviderDialog(): JSX.Element {
               <p className="text-xs text-muted">
                 {form.providerType === 'openai-compatible'
                   ? 'Compatible gateways may use either http:// or https:// endpoints.'
-                  : 'Hosted providers should use a secure https:// endpoint.'}
+                  : `Hosted providers should use a secure https:// endpoint. Recommended: ${providerDefaults.baseUrl}`}
               </p>
             )}
           </div>
@@ -827,7 +868,7 @@ function AddProviderDialog(): JSX.Element {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsOpen(false)}
+              onClick={() => handleOpenChange(false)}
             >
               Cancel
             </Button>
@@ -1645,7 +1686,7 @@ export function LlmProvidersPage(): JSX.Element {
         </div>
         <div className="flex gap-2">
           <ConnectOAuthDialog />
-          <AddProviderDialog />
+          <AddProviderDialog existingNames={providers.map((provider) => provider.name)} />
         </div>
       </div>
 

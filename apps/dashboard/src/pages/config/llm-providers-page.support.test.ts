@@ -41,6 +41,28 @@ describe('llm providers page support', () => {
     expect(result.fieldErrors).toEqual({});
   });
 
+  it('rejects duplicate provider names with recovery guidance', () => {
+    const result = validateAddProviderDraft(
+      {
+        providerType: 'anthropic',
+        name: '  openai  ',
+        baseUrl: 'https://api.anthropic.com/v1',
+        apiKey: 'secret',
+      },
+      {
+        existingNames: ['OpenAI', 'Google'],
+      },
+    );
+
+    expect(result).toEqual({
+      fieldErrors: {
+        name: 'Choose a distinct provider name. This label is already in use.',
+      },
+      issues: ['Choose a distinct provider name. This label is already in use.'],
+      isValid: false,
+    });
+  });
+
   it('describes provider setup expectations for each provider type', () => {
     expect(describeProviderTypeSetup('openai')).toEqual({
       title: 'OpenAI API',
