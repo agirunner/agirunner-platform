@@ -1,25 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Loader2, Webhook, Zap } from 'lucide-react';
-
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../../components/ui/table.js';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table.js';
 import { dashboardApi } from '../../lib/api.js';
-import type {
-  DashboardProjectRecord,
-  DashboardScheduledWorkItemTriggerRecord,
-  DashboardWebhookWorkItemTriggerRecord,
-  DashboardWorkflowRecord,
-} from '../../lib/api.js';
+import type { DashboardProjectRecord, DashboardScheduledWorkItemTriggerRecord, DashboardWebhookWorkItemTriggerRecord, DashboardWorkflowRecord } from '../../lib/api.js';
+import { describeScheduledTriggerHealth, describeScheduledTriggerPacket, describeWebhookTriggerPacket, summarizeTriggerOverview } from './work-item-triggers-page.support.js';
 
 export function WorkItemTriggersPage(): JSX.Element {
   const projectsQuery = useQuery({
@@ -61,20 +49,38 @@ export function WorkItemTriggersPage(): JSX.Element {
   const workflows = (workflowsQuery.data?.data ?? []) as DashboardWorkflowRecord[];
   const scheduled = (scheduledQuery.data?.data ?? []) as DashboardScheduledWorkItemTriggerRecord[];
   const webhooks = (webhookQuery.data?.data ?? []) as DashboardWebhookWorkItemTriggerRecord[];
+  const summaryCards = summarizeTriggerOverview(scheduled, webhooks);
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Trigger Overview</h1>
-          <p className="text-sm text-muted">
-            Scheduled work-item triggers now live with project settings. Use this page to review
-            health, next runs, and legacy webhook coverage across projects.
-          </p>
-        </div>
-        <Button asChild>
-          <Link to="/projects">Open project settings</Link>
-        </Button>
+      <Card>
+        <CardHeader className="gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2">
+            <CardTitle className="text-2xl">Trigger Overview</CardTitle>
+            <p className="max-w-3xl text-sm text-muted">
+              Scheduled work-item triggers live with project automation settings. Use this page to
+              review recurring work creation, webhook intake coverage, and which rules need operator
+              attention before opening the owning project.
+            </p>
+          </div>
+          <Button asChild>
+            <Link to="/projects">Open project settings</Link>
+          </Button>
+        </CardHeader>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {summaryCards.map((summary) => (
+          <Card key={summary.label}>
+            <CardHeader className="space-y-1">
+              <p className="text-sm font-medium text-muted">{summary.label}</p>
+              <CardTitle className="text-2xl">{summary.value}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted">{summary.detail}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <Card>
@@ -83,47 +89,86 @@ export function WorkItemTriggersPage(): JSX.Element {
             <Zap className="h-4 w-4" />
             Scheduled Triggers
           </CardTitle>
+          <p className="text-sm text-muted">
+            Review cadence, next-run posture, and owning project scope before editing the trigger in
+            the project automation tab.
+          </p>
         </CardHeader>
         <CardContent>
           {scheduled.length === 0 ? (
             <p className="text-sm text-muted">No scheduled work-item triggers configured.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Workflow</TableHead>
-                  <TableHead>Cadence</TableHead>
-                  <TableHead>Next Run</TableHead>
-                  <TableHead>Health</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              <div className="space-y-4 lg:hidden">
                 {scheduled
                   .slice()
                   .sort((left, right) => left.next_fire_at.localeCompare(right.next_fire_at))
-                  .map((trigger) => (
-                    <TableRow key={trigger.id}>
-                      <TableCell className="font-medium">
-                        <div className="space-y-1">
-                          <div>{trigger.name}</div>
-                          <div className="text-xs text-muted">{trigger.source}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{renderProjectLink(projects, trigger.project_id)}</TableCell>
-                      <TableCell>{renderWorkflowName(workflows, trigger.workflow_id)}</TableCell>
-                      <TableCell>{formatCadence(trigger.cadence_minutes)}</TableCell>
-                      <TableCell>{formatDateTime(trigger.next_fire_at)}</TableCell>
-                      <TableCell>
-                        <Badge variant={describeHealth(trigger).variant}>
-                          {describeHealth(trigger).label}
-                        </Badge>
-                      </TableCell>
+                  .map((trigger) => {
+                    const details = describeScheduledTriggerPacket(trigger);
+                    const health = describeScheduledTriggerHealth(trigger);
+                    return (
+                      <Card key={trigger.id}>
+                        <CardHeader className="gap-3">
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <CardTitle className="text-base">{trigger.name}</CardTitle>
+                              <Badge variant={health.variant}>{health.label}</Badge>
+                              <Badge variant="outline">{details.source}</Badge>
+                            </div>
+                            <p className="text-sm text-muted">
+                              {details.cadence} • Next run {details.nextRun}
+                            </p>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="grid gap-2 text-sm">
+                          <p>Project {renderProjectLabel(projects, trigger.project_id)}</p>
+                          <p>Run {renderWorkflowName(workflows, trigger.workflow_id)}</p>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+              </div>
+              <div className="hidden overflow-x-auto lg:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Trigger</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Run</TableHead>
+                      <TableHead>Cadence</TableHead>
+                      <TableHead>Next Run</TableHead>
+                      <TableHead>Health</TableHead>
                     </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {scheduled
+                      .slice()
+                      .sort((left, right) => left.next_fire_at.localeCompare(right.next_fire_at))
+                      .map((trigger) => {
+                        const details = describeScheduledTriggerPacket(trigger);
+                        const health = describeScheduledTriggerHealth(trigger);
+                        return (
+                          <TableRow key={trigger.id}>
+                            <TableCell className="font-medium">
+                              <div className="space-y-1">
+                                <div>{trigger.name}</div>
+                                <div className="text-xs text-muted">{details.source}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell>{renderProjectLink(projects, trigger.project_id)}</TableCell>
+                            <TableCell>{renderWorkflowName(workflows, trigger.workflow_id)}</TableCell>
+                            <TableCell>{details.cadence}</TableCell>
+                            <TableCell>{details.nextRun}</TableCell>
+                            <TableCell>
+                              <Badge variant={health.variant}>{health.label}</Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -134,44 +179,83 @@ export function WorkItemTriggersPage(): JSX.Element {
             <Webhook className="h-4 w-4" />
             Webhook Triggers
           </CardTitle>
+          <p className="text-sm text-muted">
+            Review inbound trigger coverage, signature mode, and owning scope before adjusting the
+            source system or project wiring.
+          </p>
         </CardHeader>
         <CardContent>
           {webhooks.length === 0 ? (
             <p className="text-sm text-muted">No webhook work-item triggers configured.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Workflow</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead>Mode</TableHead>
-                  <TableHead>Active</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              <div className="space-y-4 lg:hidden">
                 {webhooks
                   .slice()
                   .sort((left, right) => left.name.localeCompare(right.name))
-                  .map((trigger) => (
-                    <TableRow key={trigger.id}>
-                      <TableCell className="font-medium">{trigger.name}</TableCell>
-                      <TableCell>{renderProjectLink(projects, trigger.project_id)}</TableCell>
-                      <TableCell>{renderWorkflowName(workflows, trigger.workflow_id)}</TableCell>
-                      <TableCell>{trigger.source}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{trigger.signature_mode}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={trigger.is_active ? 'success' : 'secondary'}>
-                          {trigger.is_active ? 'Active' : 'Disabled'}
-                        </Badge>
-                      </TableCell>
+                  .map((trigger) => {
+                    const details = describeWebhookTriggerPacket(trigger);
+                    return (
+                      <Card key={trigger.id}>
+                        <CardHeader className="gap-3">
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <CardTitle className="text-base">{trigger.name}</CardTitle>
+                              <Badge variant={trigger.is_active ? 'success' : 'secondary'}>
+                                {details.activity}
+                              </Badge>
+                              <Badge variant="outline">{details.mode}</Badge>
+                            </div>
+                            <p className="text-sm text-muted">{details.source}</p>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="grid gap-2 text-sm">
+                          <p>Project {renderProjectLabel(projects, trigger.project_id)}</p>
+                          <p>Run {renderWorkflowName(workflows, trigger.workflow_id)}</p>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+              </div>
+              <div className="hidden overflow-x-auto lg:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Trigger</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Run</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead>Mode</TableHead>
+                      <TableHead>Active</TableHead>
                     </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {webhooks
+                      .slice()
+                      .sort((left, right) => left.name.localeCompare(right.name))
+                      .map((trigger) => {
+                        const details = describeWebhookTriggerPacket(trigger);
+                        return (
+                          <TableRow key={trigger.id}>
+                            <TableCell className="font-medium">{trigger.name}</TableCell>
+                            <TableCell>{renderProjectLink(projects, trigger.project_id)}</TableCell>
+                            <TableCell>{renderWorkflowName(workflows, trigger.workflow_id)}</TableCell>
+                            <TableCell>{details.source}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{details.mode}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={trigger.is_active ? 'success' : 'secondary'}>
+                                {details.activity}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -194,29 +278,13 @@ function renderProjectLink(
   );
 }
 
+function renderProjectLabel(
+  projects: DashboardProjectRecord[],
+  projectId: string | null | undefined,
+): string {
+  return projectId ? projects.find((entry) => entry.id === projectId)?.name ?? projectId : 'Unscoped';
+}
+
 function renderWorkflowName(workflows: DashboardWorkflowRecord[], workflowId: string): string {
   return workflows.find((entry) => entry.id === workflowId)?.name ?? workflowId;
-}
-
-function formatCadence(minutes: number): string {
-  if (minutes < 60) return `Every ${minutes} min`;
-  if (minutes % 60 === 0) return `Every ${minutes / 60} hr`;
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  return `Every ${hours} hr ${remainder} min`;
-}
-
-function formatDateTime(value: string): string {
-  const timestamp = Date.parse(value);
-  return Number.isNaN(timestamp) ? value : new Date(timestamp).toLocaleString();
-}
-
-function describeHealth(trigger: DashboardScheduledWorkItemTriggerRecord) {
-  if (!trigger.is_active) {
-    return { label: 'Disabled', variant: 'secondary' as const };
-  }
-  if (Date.parse(trigger.next_fire_at) <= Date.now()) {
-    return { label: 'Due', variant: 'warning' as const };
-  }
-  return { label: 'Scheduled', variant: 'success' as const };
 }
