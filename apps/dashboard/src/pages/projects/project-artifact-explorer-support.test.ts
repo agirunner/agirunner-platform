@@ -7,6 +7,8 @@ import {
   buildProjectArtifactEntries,
   filterProjectArtifactEntries,
   formatArtifactFileSize,
+  normalizeProjectArtifactEntries,
+  normalizeProjectArtifactSummary,
   summarizeProjectArtifactEntries,
   type ProjectArtifactEntry,
 } from './project-artifact-explorer-support.js';
@@ -189,6 +191,60 @@ describe('project artifact explorer support', () => {
     expect(formatArtifactFileSize(300)).toBe('300 B');
     expect(formatArtifactFileSize(2048)).toBe('2.0 KB');
     expect(formatArtifactFileSize(2 * 1024 * 1024)).toBe('2.0 MB');
+  });
+
+  it('normalizes bounded project artifact api payloads for the explorer surface', () => {
+    expect(
+      normalizeProjectArtifactEntries([
+        {
+          id: 'artifact-1',
+          workflow_id: 'workflow-1',
+          task_id: 'task-1',
+          logical_path: 'artifact:workflow-1/release-notes.md',
+          content_type: 'text/markdown',
+          size_bytes: 2048,
+          created_at: '2026-03-11T11:00:00.000Z',
+          download_url: '/api/v1/tasks/task-1/artifacts/artifact-1',
+          metadata: { audience: 'operators' },
+          workflow_name: 'Release board',
+          workflow_state: 'active',
+          work_item_id: 'wi-1',
+          work_item_title: 'Prepare release packet',
+          stage_name: 'delivery',
+          role: 'writer',
+          task_title: 'Build release notes',
+          task_state: 'completed',
+          preview_eligible: true,
+          preview_mode: 'text',
+        },
+      ]),
+    ).toEqual([
+      {
+        ...entries[0],
+        logicalPath: 'artifact:workflow-1/release-notes.md',
+        downloadUrl: '/api/v1/tasks/task-1/artifacts/artifact-1',
+      },
+    ]);
+
+    expect(
+      normalizeProjectArtifactSummary({
+        total_artifacts: 2,
+        previewable_artifacts: 1,
+        total_bytes: 3072,
+        workflow_count: 1,
+        work_item_count: 1,
+        task_count: 2,
+        role_count: 1,
+      }),
+    ).toEqual({
+      totalArtifacts: 2,
+      previewableArtifacts: 1,
+      totalBytes: 3072,
+      workflowCount: 1,
+      workItemCount: 1,
+      taskCount: 2,
+      roleCount: 1,
+    });
   });
 
   it('builds scope chips and next-action guidance for adaptive review', () => {

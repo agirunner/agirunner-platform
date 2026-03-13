@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import {
   MAX_INLINE_ARTIFACT_PREVIEW_BYTES,
@@ -7,11 +7,6 @@ import {
 } from '../../components/artifact-preview-support.js';
 import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
-import {
-  buildWorkflowOptions,
-  normalizeTaskOptions,
-  normalizeWorkItemOptions,
-} from './project-content-browser-support.js';
 import {
   ProjectArtifactBulkActionBar,
   ProjectArtifactFilterCard,
@@ -22,19 +17,15 @@ import {
 } from './project-artifact-explorer-adaptive-support.js';
 import { ProjectArtifactExplorerAdaptiveLayout } from './project-artifact-explorer-layout.js';
 import {
-  buildArtifactContentTypeOptions,
-  buildArtifactRoleOptions,
-  buildArtifactStageOptions,
-  buildProjectArtifactEntries,
-  filterProjectArtifactEntries,
-  summarizeProjectArtifactEntries,
+  normalizeProjectArtifactEntries,
+  normalizeProjectArtifactSummary,
   type ProjectArtifactPreviewMode,
   type ProjectArtifactSort,
 } from './project-artifact-explorer-support.js';
-import {
-  ProjectArtifactExplorerSkeleton,
-} from './project-artifact-explorer-presentation.js';
+import { ProjectArtifactExplorerSkeleton } from './project-artifact-explorer-presentation.js';
 import { ProjectArtifactExplorerShell } from './project-artifact-explorer-shell.js';
+
+const PROJECT_ARTIFACT_PAGE_SIZE = 50;
 
 export function ProjectArtifactExplorerPanel(props: {
   projectId: string;
@@ -51,113 +42,73 @@ export function ProjectArtifactExplorerPanel(props: {
   const [createdFrom, setCreatedFrom] = useState('');
   const [createdTo, setCreatedTo] = useState('');
   const [sort, setSort] = useState<ProjectArtifactSort>('newest');
+  const [page, setPage] = useState(1);
   const [selectedArtifactId, setSelectedArtifactId] = useState('');
   const [selectedArtifactIds, setSelectedArtifactIds] = useState<string[]>([]);
   const [isBulkDownloading, setIsBulkDownloading] = useState(false);
 
-  const timelineQuery = useQuery({
-    queryKey: ['project-timeline', props.projectId],
-    queryFn: () => dashboardApi.getProjectTimeline(props.projectId),
+  const artifactQuery = useQuery({
+    queryKey: [
+      'project-artifacts',
+      props.projectId,
+      query,
+      selectedWorkflowId,
+      selectedWorkItemId,
+      selectedTaskId,
+      selectedStageName,
+      selectedRole,
+      selectedContentType,
+      previewMode,
+      createdFrom,
+      createdTo,
+      sort,
+      page,
+    ],
+    queryFn: () =>
+      dashboardApi.listProjectArtifacts(props.projectId, {
+        q: query,
+        workflow_id: selectedWorkflowId,
+        work_item_id: selectedWorkItemId,
+        task_id: selectedTaskId,
+        stage_name: selectedStageName,
+        role: selectedRole,
+        content_type: selectedContentType,
+        preview_mode: previewMode === 'all' ? '' : previewMode,
+        created_from: createdFrom,
+        created_to: createdTo,
+        sort,
+        page: String(page),
+        per_page: String(PROJECT_ARTIFACT_PAGE_SIZE),
+      }),
+    placeholderData: keepPreviousData,
   });
 
-  const workflows = useMemo(
-    () => buildWorkflowOptions(timelineQuery.data),
-    [timelineQuery.data],
+  const artifacts = useMemo(
+    () => normalizeProjectArtifactEntries(artifactQuery.data?.data),
+    [artifactQuery.data?.data],
   );
-  const scopedWorkflowIds = useMemo(
-    () => (selectedWorkflowId ? [selectedWorkflowId] : workflows.map((workflow) => workflow.id)),
-    [selectedWorkflowId, workflows],
+  const summary = useMemo(
+    () => normalizeProjectArtifactSummary(artifactQuery.data?.meta.summary),
+    [artifactQuery.data?.meta.summary],
   );
+  const filterOptions = artifactQuery.data?.meta.filters;
+  const workflows = filterOptions?.workflows ?? [];
+  const workItems = filterOptions?.work_items ?? [];
+  const tasks = filterOptions?.tasks ?? [];
+  const stageOptions = filterOptions?.stages ?? [];
+  const roleOptions = filterOptions?.roles ?? [];
+  const contentTypeOptions = filterOptions?.content_types ?? [];
+  const totalPages = artifactQuery.data?.meta.total_pages ?? 1;
+  const totalArtifacts = artifactQuery.data?.meta.total ?? 0;
 
-  const taskQueries = useQueries({
-    queries: scopedWorkflowIds.map((workflowId) => ({
-      queryKey: ['project-artifact-workflow-tasks', workflowId],
-      queryFn: () => dashboardApi.listTasks({ workflow_id: workflowId, per_page: '100' }),
-      enabled: workflowId.length > 0,
-    })),
-  });
-  const workItemQueries = useQueries({
-    queries: scopedWorkflowIds.map((workflowId) => ({
-      queryKey: ['project-artifact-work-items', workflowId],
-      queryFn: () => dashboardApi.listWorkflowWorkItems(workflowId),
-      enabled: workflowId.length > 0,
-    })),
-  });
-
-  const tasks = useMemo(
-    () => taskQueries.flatMap((queryResult) => normalizeTaskOptions(queryResult.data)),
-    [taskQueries],
-  );
-  const workItems = useMemo(
-    () => workItemQueries.flatMap((queryResult) => normalizeWorkItemOptions(queryResult.data)),
-    [workItemQueries],
-  );
   const selectedWorkflow =
     workflows.find((workflow) => workflow.id === selectedWorkflowId) ?? null;
   const selectedWorkItem =
     workItems.find((workItem) => workItem.id === selectedWorkItemId) ?? null;
   const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
-  const scopedTaskIds = useMemo(() => {
-    return tasks
-      .filter((task) => (selectedWorkItemId ? task.workItemId === selectedWorkItemId : true))
-      .filter((task) => (selectedTaskId ? task.id === selectedTaskId : true))
-      .filter((task) => (selectedStageName ? task.stageName === selectedStageName : true))
-      .map((task) => task.id);
-  }, [selectedStageName, selectedTaskId, selectedWorkItemId, tasks]);
+  const selectedArtifact =
+    artifacts.find((artifact) => artifact.id === selectedArtifactId) ?? artifacts[0] ?? null;
 
-  const artifactQueries = useQueries({
-    queries: scopedTaskIds.map((taskId) => ({
-      queryKey: ['project-artifact-task-artifacts', taskId],
-      queryFn: () => dashboardApi.listTaskArtifacts(taskId),
-      enabled: taskId.length > 0,
-    })),
-  });
-
-  const artifactEntries = useMemo(() => {
-    const artifactsByTask = Object.fromEntries(
-      scopedTaskIds.map((taskId, index) => [taskId, artifactQueries[index]?.data]),
-    );
-    return buildProjectArtifactEntries({
-      workflows,
-      tasks,
-      workItems,
-      artifactsByTask,
-    });
-  }, [artifactQueries, scopedTaskIds, tasks, workflows, workItems]);
-  const filteredArtifacts = useMemo(
-    () =>
-      filterProjectArtifactEntries(artifactEntries, {
-        query,
-        workflowId: selectedWorkflowId,
-        workItemId: selectedWorkItemId,
-        taskId: selectedTaskId,
-        stageName: selectedStageName,
-        role: selectedRole,
-        contentType: selectedContentType,
-        previewMode,
-        createdFrom,
-        createdTo,
-        sort,
-      }),
-    [
-      artifactEntries,
-      createdFrom,
-      createdTo,
-      query,
-      selectedRole,
-      selectedContentType,
-      selectedStageName,
-      selectedTaskId,
-      selectedWorkflowId,
-      selectedWorkItemId,
-      previewMode,
-      sort,
-    ],
-  );
-  const summary = useMemo(
-    () => summarizeProjectArtifactEntries(filteredArtifacts),
-    [filteredArtifacts],
-  );
   const scopeChips = useMemo(
     () =>
       buildProjectArtifactScopeChips({
@@ -177,64 +128,23 @@ export function ProjectArtifactExplorerPanel(props: {
       createdTo,
       previewMode,
       query,
-      selectedRole,
       selectedContentType,
+      selectedRole,
       selectedStageName,
       selectedTask?.title,
       selectedWorkItem?.title,
       selectedWorkflow?.name,
     ],
   );
-  const contentTypeOptions = useMemo(
-    () => buildArtifactContentTypeOptions(artifactEntries),
-    [artifactEntries],
-  );
-  const stageOptions = useMemo(
-    () => buildArtifactStageOptions(artifactEntries),
-    [artifactEntries],
-  );
-  const roleOptions = useMemo(
-    () => buildArtifactRoleOptions(artifactEntries),
-    [artifactEntries],
-  );
-  const visibleWorkItems = useMemo(
-    () =>
-      workItems
-        .filter((workItem) =>
-          selectedWorkflowId ? workItem.workflowId === selectedWorkflowId : true,
-        )
-        .filter((workItem) =>
-          selectedStageName ? workItem.stageName === selectedStageName : true,
-        ),
-    [selectedStageName, selectedWorkflowId, workItems],
-  );
-  const visibleTasks = useMemo(
-    () =>
-      tasks
-        .filter((task) => (selectedWorkflowId ? task.workflowId === selectedWorkflowId : true))
-        .filter((task) => (selectedWorkItemId ? task.workItemId === selectedWorkItemId : true))
-        .filter((task) => (selectedStageName ? task.stageName === selectedStageName : true)),
-    [selectedStageName, selectedWorkflowId, selectedWorkItemId, tasks],
-  );
-
-  const selectedArtifact =
-    filteredArtifacts.find((artifact) => artifact.id === selectedArtifactId) ??
-    filteredArtifacts[0] ??
-    null;
   const nextAction = useMemo(
     () =>
       describeProjectArtifactNextAction({
-        totalArtifacts: filteredArtifacts.length,
+        totalArtifacts,
         selectedCount: selectedArtifactIds.length,
         selectedArtifactName: selectedArtifact?.fileName ?? null,
         activeFilterCount: scopeChips.length,
       }),
-    [
-      filteredArtifacts.length,
-      scopeChips.length,
-      selectedArtifact?.fileName,
-      selectedArtifactIds.length,
-    ],
+    [scopeChips.length, selectedArtifact?.fileName, selectedArtifactIds.length, totalArtifacts],
   );
   const previewDescriptor = selectedArtifact
     ? describeArtifactPreview(selectedArtifact.contentType, selectedArtifact.logicalPath)
@@ -251,16 +161,22 @@ export function ProjectArtifactExplorerPanel(props: {
   });
 
   useEffect(() => {
-    if (selectedWorkItemId && !visibleWorkItems.some((workItem) => workItem.id === selectedWorkItemId)) {
-      setSelectedWorkItemId('');
+    if (selectedWorkflowId && !workflows.some((workflow) => workflow.id === selectedWorkflowId)) {
+      setSelectedWorkflowId('');
     }
-  }, [selectedWorkItemId, visibleWorkItems]);
+  }, [selectedWorkflowId, workflows]);
 
   useEffect(() => {
-    if (selectedTaskId && !visibleTasks.some((task) => task.id === selectedTaskId)) {
+    if (selectedWorkItemId && !workItems.some((workItem) => workItem.id === selectedWorkItemId)) {
+      setSelectedWorkItemId('');
+    }
+  }, [selectedWorkItemId, workItems]);
+
+  useEffect(() => {
+    if (selectedTaskId && !tasks.some((task) => task.id === selectedTaskId)) {
       setSelectedTaskId('');
     }
-  }, [selectedTaskId, visibleTasks]);
+  }, [selectedTaskId, tasks]);
 
   useEffect(() => {
     if (selectedArtifact && selectedArtifact.id !== selectedArtifactId) {
@@ -273,12 +189,23 @@ export function ProjectArtifactExplorerPanel(props: {
 
   useEffect(() => {
     setSelectedArtifactIds((current) =>
-      current.filter((artifactId) => filteredArtifacts.some((artifact) => artifact.id === artifactId)),
+      current.filter((artifactId) => artifacts.some((artifact) => artifact.id === artifactId)),
     );
-  }, [filteredArtifacts]);
+  }, [artifacts]);
+
+  function setPageAndReset(nextPage: number): void {
+    setPage(nextPage);
+    setSelectedArtifactId('');
+    setSelectedArtifactIds([]);
+  }
+
+  function updateFilters(update: () => void): void {
+    update();
+    setPage(1);
+  }
 
   async function handleBulkDownload() {
-    const artifactsToDownload = filteredArtifacts.filter((artifact) =>
+    const artifactsToDownload = artifacts.filter((artifact) =>
       selectedArtifactIds.includes(artifact.id),
     );
     if (artifactsToDownload.length === 0) {
@@ -305,34 +232,22 @@ export function ProjectArtifactExplorerPanel(props: {
     }
   }
 
-  if (timelineQuery.isLoading) {
+  if (artifactQuery.isLoading && !artifactQuery.data) {
     return <ProjectArtifactExplorerSkeleton showHeader={props.showHeader ?? false} />;
   }
-
-  const isLoading =
-    taskQueries.some((queryResult) => queryResult.isLoading) ||
-    workItemQueries.some((queryResult) => queryResult.isLoading) ||
-    artifactQueries.some((queryResult) => queryResult.isLoading);
 
   return (
     <ProjectArtifactExplorerShell
       projectId={props.projectId}
       showHeader={props.showHeader ?? false}
       summary={summary}
-      filteredArtifacts={filteredArtifacts}
-      selectedArtifact={selectedArtifact}
-      selectedArtifactId={selectedArtifactId}
-      selectedArtifactIds={selectedArtifactIds}
-      isBulkDownloading={isBulkDownloading}
-      isLoading={isLoading}
-      timelineError={timelineQuery.error}
-      scopeChips={scopeChips}
-      nextAction={nextAction}
+      loadError={artifactQuery.error}
       filterCard={
         <ProjectArtifactFilterCard
-          visibleArtifactCount={filteredArtifacts.length}
+          loadedArtifactCount={artifacts.length}
+          totalArtifactCount={summary.totalArtifacts}
           selectedArtifactCount={selectedArtifactIds.length}
-          previewableArtifactCount={filteredArtifacts.filter((artifact) => artifact.canPreview).length}
+          previewableArtifactCount={summary.previewableArtifacts}
           roleCount={summary.roleCount}
           nextAction={nextAction}
           scopeChips={scopeChips}
@@ -349,36 +264,38 @@ export function ProjectArtifactExplorerPanel(props: {
           sort={sort}
           workflows={workflows}
           stageOptions={stageOptions}
-          workItems={visibleWorkItems}
-          tasks={visibleTasks}
+          workItems={workItems}
+          tasks={tasks}
           roleOptions={roleOptions}
           contentTypeOptions={contentTypeOptions}
-          onQueryChange={setQuery}
-          onWorkflowChange={setSelectedWorkflowId}
-          onStageChange={setSelectedStageName}
-          onWorkItemChange={setSelectedWorkItemId}
-          onTaskChange={setSelectedTaskId}
-          onRoleChange={setSelectedRole}
-          onContentTypeChange={setSelectedContentType}
+          onQueryChange={(value) => updateFilters(() => setQuery(value))}
+          onWorkflowChange={(value) => updateFilters(() => setSelectedWorkflowId(value))}
+          onStageChange={(value) => updateFilters(() => setSelectedStageName(value))}
+          onWorkItemChange={(value) => updateFilters(() => setSelectedWorkItemId(value))}
+          onTaskChange={(value) => updateFilters(() => setSelectedTaskId(value))}
+          onRoleChange={(value) => updateFilters(() => setSelectedRole(value))}
+          onContentTypeChange={(value) => updateFilters(() => setSelectedContentType(value))}
           onPreviewModeChange={(value) =>
-            setPreviewMode((value || 'all') as ProjectArtifactPreviewMode)
+            updateFilters(() => setPreviewMode((value || 'all') as ProjectArtifactPreviewMode))
           }
-          onCreatedFromChange={setCreatedFrom}
-          onCreatedToChange={setCreatedTo}
-          onSortChange={setSort}
-          onReset={() => {
-            setQuery('');
-            setSelectedWorkflowId('');
-            setSelectedWorkItemId('');
-            setSelectedTaskId('');
-            setSelectedStageName('');
-            setSelectedRole('');
-            setSelectedContentType('');
-            setPreviewMode('all');
-            setCreatedFrom('');
-            setCreatedTo('');
-            setSort('newest');
-          }}
+          onCreatedFromChange={(value) => updateFilters(() => setCreatedFrom(value))}
+          onCreatedToChange={(value) => updateFilters(() => setCreatedTo(value))}
+          onSortChange={(value) => updateFilters(() => setSort(value))}
+          onReset={() =>
+            updateFilters(() => {
+              setQuery('');
+              setSelectedWorkflowId('');
+              setSelectedWorkItemId('');
+              setSelectedTaskId('');
+              setSelectedStageName('');
+              setSelectedRole('');
+              setSelectedContentType('');
+              setPreviewMode('all');
+              setCreatedFrom('');
+              setCreatedTo('');
+              setSort('newest');
+            })
+          }
         />
       }
       bulkActionBar={
@@ -391,7 +308,7 @@ export function ProjectArtifactExplorerPanel(props: {
       }
       adaptiveLayout={
         <ProjectArtifactExplorerAdaptiveLayout
-          artifactCount={filteredArtifacts.length}
+          artifactCount={summary.totalArtifacts}
           selectedArtifactName={selectedArtifact?.fileName ?? null}
           selectedArtifact={selectedArtifact}
           previewDescriptor={previewDescriptor}
@@ -407,12 +324,19 @@ export function ProjectArtifactExplorerPanel(props: {
                   : [...current, artifactId],
               ),
           }}
-          artifacts={filteredArtifacts}
-          isLoading={isLoading}
+          artifacts={artifacts}
+          isLoading={artifactQuery.isFetching}
+          pagination={{
+            page,
+            totalPages,
+            totalArtifacts,
+            pageSize: PROJECT_ARTIFACT_PAGE_SIZE,
+            onPrevious: () => setPageAndReset(Math.max(page - 1, 1)),
+            onNext: () => setPageAndReset(Math.min(page + 1, totalPages)),
+          }}
           previewState={{
             isLoading: previewQuery.isLoading,
-            error:
-              previewQuery.error instanceof Error ? previewQuery.error.message : null,
+            error: previewQuery.error instanceof Error ? previewQuery.error.message : null,
           }}
         />
       }

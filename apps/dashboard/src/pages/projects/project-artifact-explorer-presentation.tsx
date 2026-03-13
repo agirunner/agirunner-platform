@@ -1,4 +1,4 @@
-import { Eye, ExternalLink, FileText, Package, Workflow } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, ExternalLink, FileText, Package, Workflow } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { buildArtifactPermalink } from '../../components/artifact-preview-support.js';
@@ -31,6 +31,14 @@ export function ProjectArtifactExplorerSummary(props: {
 export function ProjectArtifactExplorerList(props: {
   artifacts: ProjectArtifactEntry[];
   isLoading: boolean;
+  pagination: {
+    page: number;
+    totalPages: number;
+    totalArtifacts: number;
+    pageSize: number;
+    onPrevious(): void;
+    onNext(): void;
+  };
   selectedArtifactId: string;
   selectedArtifactIds: string[];
   onSelectArtifact(artifactId: string): void;
@@ -121,6 +129,14 @@ export function ProjectArtifactExplorerList(props: {
             );
           })
         )}
+        <ProjectArtifactPagination
+          page={props.pagination.page}
+          totalPages={props.pagination.totalPages}
+          totalArtifacts={props.pagination.totalArtifacts}
+          pageSize={props.pagination.pageSize}
+          onPrevious={props.pagination.onPrevious}
+          onNext={props.pagination.onNext}
+        />
       </CardContent>
     </Card>
   );
@@ -288,6 +304,48 @@ function BinaryNotice(): JSX.Element {
   return (
     <div className="rounded-2xl border border-border/70 bg-background/80 p-4 text-sm text-muted">
       This artifact is better reviewed through download or the standalone preview page. Inline rendering is intentionally limited to text-like formats and safe sizes.
+    </div>
+  );
+}
+
+function ProjectArtifactPagination(props: {
+  page: number;
+  totalPages: number;
+  totalArtifacts: number;
+  pageSize: number;
+  onPrevious(): void;
+  onNext(): void;
+}): JSX.Element | null {
+  if (props.totalArtifacts <= props.pageSize) {
+    return null;
+  }
+
+  const start = props.page * props.pageSize - props.pageSize + 1;
+  const end = Math.min(props.page * props.pageSize, props.totalArtifacts);
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-border/70 pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-muted">
+        Showing {start}-{end} of {props.totalArtifacts} matched artifacts.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-muted">
+          Page {props.page} of {props.totalPages}
+        </span>
+        <Button variant="outline" size="sm" disabled={props.page <= 1} onClick={props.onPrevious}>
+          <ChevronLeft className="h-4 w-4" />
+          Previous
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={props.page >= props.totalPages}
+          onClick={props.onNext}
+        >
+          Next
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }

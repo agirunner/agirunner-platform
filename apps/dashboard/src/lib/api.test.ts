@@ -1023,6 +1023,60 @@ describe('dashboard api auth/session behavior', () => {
         new Response(JSON.stringify({ data: [{ workflow_id: 'pipe-1', kind: 'run_summary' }] }), {
           status: 200,
         }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: 'artifact-1',
+                workflow_id: 'pipe-1',
+                task_id: 'task-1',
+                logical_path: 'artifact:pipe-1/release-notes.md',
+                content_type: 'text/markdown',
+                size_bytes: 2048,
+                created_at: '2026-03-12T08:00:00.000Z',
+                download_url: '/api/v1/tasks/task-1/artifacts/artifact-1',
+                metadata: {},
+                workflow_name: 'Ship release',
+                workflow_state: 'active',
+                work_item_id: 'wi-1',
+                work_item_title: 'Package release',
+                stage_name: 'delivery',
+                role: 'writer',
+                task_title: 'Build release notes',
+                task_state: 'completed',
+                preview_eligible: true,
+                preview_mode: 'text',
+              },
+            ],
+            meta: {
+              page: 1,
+              per_page: 50,
+              total: 1,
+              total_pages: 1,
+              has_more: false,
+              summary: {
+                total_artifacts: 1,
+                previewable_artifacts: 1,
+                total_bytes: 2048,
+                workflow_count: 1,
+                work_item_count: 1,
+                task_count: 1,
+                role_count: 1,
+              },
+              filters: {
+                workflows: [{ id: 'pipe-1', name: 'Ship release' }],
+                work_items: [{ id: 'wi-1', title: 'Package release', workflow_id: 'pipe-1', stage_name: 'delivery' }],
+                tasks: [{ id: 'task-1', title: 'Build release notes', workflow_id: 'pipe-1', work_item_id: 'wi-1', stage_name: 'delivery' }],
+                stages: ['delivery'],
+                roles: ['writer'],
+                content_types: ['text/markdown'],
+              },
+            },
+          }),
+          { status: 200 },
+        ),
       ) as unknown as typeof fetch;
     const client = {
       refreshSession: vi.fn(),
@@ -1046,9 +1100,17 @@ describe('dashboard api auth/session behavior', () => {
     await api.actOnStageGate('pipe-1', 'build', { action: 'approve' });
     const config = await api.getResolvedWorkflowConfig('pipe-1', true);
     const timeline = await api.getProjectTimeline('project-1');
+    const artifacts = await api.listProjectArtifacts('project-1', {
+      q: 'release',
+      preview_mode: 'inline',
+      page: '1',
+      per_page: '50',
+    });
 
     expect(config.resolved_config).toEqual({ retries: 2 });
     expect(timeline[0].kind).toBe('run_summary');
+    expect(artifacts.data[0]?.id).toBe('artifact-1');
+    expect(artifacts.meta.summary.total_artifacts).toBe(1);
     expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
       'http://localhost:8080/api/v1/workflows/pipe-1/stages/build/gate',
     );
@@ -1057,6 +1119,9 @@ describe('dashboard api auth/session behavior', () => {
     );
     expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
       'http://localhost:8080/api/v1/projects/project-1/timeline',
+    );
+    expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
+      'http://localhost:8080/api/v1/projects/project-1/artifacts?q=release&preview_mode=inline&page=1&per_page=50',
     );
   });
 

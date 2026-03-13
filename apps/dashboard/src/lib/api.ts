@@ -717,6 +717,78 @@ export interface DashboardTaskArtifactRecord {
   storage_backend?: string;
 }
 
+export interface DashboardProjectArtifactRecord {
+  id: string;
+  workflow_id: string | null;
+  task_id: string;
+  logical_path: string;
+  content_type: string;
+  size_bytes: number;
+  created_at: string;
+  download_url: string;
+  metadata: Record<string, unknown>;
+  workflow_name: string;
+  workflow_state: string | null;
+  work_item_id: string | null;
+  work_item_title: string | null;
+  stage_name: string | null;
+  role: string | null;
+  task_title: string;
+  task_state: string;
+  preview_eligible: boolean;
+  preview_mode: 'text' | 'image' | 'pdf' | 'unsupported';
+}
+
+export interface DashboardProjectArtifactSummary {
+  total_artifacts: number;
+  previewable_artifacts: number;
+  total_bytes: number;
+  workflow_count: number;
+  work_item_count: number;
+  task_count: number;
+  role_count: number;
+}
+
+export interface DashboardProjectArtifactWorkflowOption {
+  id: string;
+  name: string;
+}
+
+export interface DashboardProjectArtifactWorkItemOption {
+  id: string;
+  title: string;
+  workflow_id: string | null;
+  stage_name: string | null;
+}
+
+export interface DashboardProjectArtifactTaskOption {
+  id: string;
+  title: string;
+  workflow_id: string | null;
+  work_item_id: string | null;
+  stage_name: string | null;
+}
+
+export interface DashboardProjectArtifactResponse {
+  data: DashboardProjectArtifactRecord[];
+  meta: {
+    page: number;
+    per_page: number;
+    total: number;
+    total_pages: number;
+    has_more: boolean;
+    summary: DashboardProjectArtifactSummary;
+    filters: {
+      workflows: DashboardProjectArtifactWorkflowOption[];
+      work_items: DashboardProjectArtifactWorkItemOption[];
+      tasks: DashboardProjectArtifactTaskOption[];
+      stages: string[];
+      roles: string[];
+      content_types: string[];
+    };
+  };
+}
+
 export interface DashboardTaskArtifactContent {
   content_type: string;
   content_text: string;
@@ -1159,6 +1231,10 @@ export interface DashboardApi {
     version: number,
   ): Promise<DashboardPlatformInstructionVersionRecord>;
   getProjectSpec(projectId: string): Promise<DashboardProjectSpecRecord>;
+  listProjectArtifacts(
+    projectId: string,
+    filters?: Record<string, string>,
+  ): Promise<DashboardProjectArtifactResponse>;
   updateProjectSpec(
     projectId: string,
     payload: Record<string, unknown>,
@@ -2247,6 +2323,15 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         requestData<DashboardProjectTimelineEntry[]>(`/api/v1/projects/${projectId}/timeline`, {
           method: 'GET',
         }),
+      ),
+    listProjectArtifacts: (projectId, filters) =>
+      withRefresh(() =>
+        requestJson<DashboardProjectArtifactResponse>(
+          `/api/v1/projects/${projectId}/artifacts${buildQueryString(filters)}`,
+          {
+            method: 'GET',
+          },
+        ),
       ),
     createPlanningWorkflow: (projectId, payload) =>
       withRefresh(() =>

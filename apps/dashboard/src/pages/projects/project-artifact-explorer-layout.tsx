@@ -23,6 +23,14 @@ export function ProjectArtifactExplorerAdaptiveLayout(props: {
   previewState: { isLoading: boolean; error: string | null };
   artifacts: ProjectArtifactEntry[];
   isLoading: boolean;
+  pagination: {
+    page: number;
+    totalPages: number;
+    totalArtifacts: number;
+    pageSize: number;
+    onPrevious(): void;
+    onNext(): void;
+  };
   listSelection: {
     selectedArtifactId: string;
     selectedArtifactIds: string[];
@@ -69,6 +77,7 @@ export function ProjectArtifactExplorerAdaptiveLayout(props: {
             <ArtifactListPane
               artifacts={props.artifacts}
               isLoading={props.isLoading}
+              pagination={props.pagination}
               selection={props.listSelection}
             />
           </TabsContent>
@@ -87,6 +96,7 @@ export function ProjectArtifactExplorerAdaptiveLayout(props: {
         <ArtifactListPane
           artifacts={props.artifacts}
           isLoading={props.isLoading}
+          pagination={props.pagination}
           selection={props.listSelection}
         />
         <ArtifactInspectorPane
@@ -103,6 +113,14 @@ export function ProjectArtifactExplorerAdaptiveLayout(props: {
 function ArtifactListPane(props: {
   artifacts: ProjectArtifactEntry[];
   isLoading: boolean;
+  pagination: {
+    page: number;
+    totalPages: number;
+    totalArtifacts: number;
+    pageSize: number;
+    onPrevious(): void;
+    onNext(): void;
+  };
   selection: {
     selectedArtifactId: string;
     selectedArtifactIds: string[];
@@ -114,6 +132,7 @@ function ArtifactListPane(props: {
     <ProjectArtifactExplorerList
       artifacts={props.artifacts}
       isLoading={props.isLoading}
+      pagination={props.pagination}
       selectedArtifactId={props.selection.selectedArtifactId}
       selectedArtifactIds={props.selection.selectedArtifactIds}
       onSelectArtifact={props.selection.onSelectArtifact}

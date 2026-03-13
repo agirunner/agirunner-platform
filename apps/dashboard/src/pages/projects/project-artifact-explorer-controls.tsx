@@ -5,6 +5,11 @@ import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { Input } from '../../components/ui/input.js';
+import type {
+  DashboardProjectArtifactTaskOption,
+  DashboardProjectArtifactWorkflowOption,
+  DashboardProjectArtifactWorkItemOption,
+} from '../../lib/api.js';
 import {
   Select,
   SelectContent,
@@ -12,16 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select.js';
-import type {
-  ProjectTaskOption,
-  ProjectWorkflowOption,
-  ProjectWorkItemOption,
-} from './project-content-browser-support.js';
 import type { ProjectArtifactScopeChip } from './project-artifact-explorer-adaptive-support.js';
 import type { ProjectArtifactSort } from './project-artifact-explorer-support.js';
 
 export function ProjectArtifactFilterCard(props: {
-  visibleArtifactCount: number;
+  loadedArtifactCount: number;
+  totalArtifactCount: number;
   selectedArtifactCount: number;
   previewableArtifactCount: number;
   roleCount: number;
@@ -38,10 +39,10 @@ export function ProjectArtifactFilterCard(props: {
   createdFrom: string;
   createdTo: string;
   sort: ProjectArtifactSort;
-  workflows: ProjectWorkflowOption[];
+  workflows: DashboardProjectArtifactWorkflowOption[];
   stageOptions: string[];
-  workItems: ProjectWorkItemOption[];
-  tasks: ProjectTaskOption[];
+  workItems: DashboardProjectArtifactWorkItemOption[];
+  tasks: DashboardProjectArtifactTaskOption[];
   roleOptions: string[];
   contentTypeOptions: string[];
   onQueryChange(value: string): void;
@@ -82,7 +83,8 @@ export function ProjectArtifactFilterCard(props: {
             </div>
           </div>
           <div className="flex flex-wrap gap-2 lg:justify-end">
-            <Badge variant="secondary">{props.visibleArtifactCount} visible</Badge>
+            <Badge variant="secondary">{props.loadedArtifactCount} loaded</Badge>
+            <Badge variant="outline">{props.totalArtifactCount} matched</Badge>
             <Badge variant="outline">{props.previewableArtifactCount} preview-ready</Badge>
             <Badge variant="outline">{props.roleCount} roles</Badge>
             {props.selectedArtifactCount > 0 ? (

@@ -2,28 +2,14 @@ import { Link } from 'react-router-dom';
 
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
-import type {
-  ProjectArtifactScopeChip,
-} from './project-artifact-explorer-adaptive-support.js';
-import type {
-  ProjectArtifactEntry,
-  ProjectArtifactSummary,
-} from './project-artifact-explorer-support.js';
+import type { ProjectArtifactSummary } from './project-artifact-explorer-support.js';
 import { ProjectArtifactExplorerSummary } from './project-artifact-explorer-presentation.js';
 
 export function ProjectArtifactExplorerShell(props: {
   projectId: string;
   showHeader: boolean;
   summary: ProjectArtifactSummary;
-  filteredArtifacts: ProjectArtifactEntry[];
-  selectedArtifact: ProjectArtifactEntry | null;
-  selectedArtifactId: string;
-  selectedArtifactIds: string[];
-  isBulkDownloading: boolean;
-  isLoading: boolean;
-  timelineError: unknown;
-  scopeChips: ProjectArtifactScopeChip[];
-  nextAction: string;
+  loadError: unknown;
   filterCard: JSX.Element;
   bulkActionBar: JSX.Element | null;
   adaptiveLayout: JSX.Element;
@@ -50,7 +36,7 @@ export function ProjectArtifactExplorerShell(props: {
       {props.filterCard}
       {props.bulkActionBar}
 
-      {props.timelineError ? (
+      {props.loadError ? (
         <Card>
           <CardContent className="pt-6 text-sm text-red-600">
             Failed to load project artifact scope.

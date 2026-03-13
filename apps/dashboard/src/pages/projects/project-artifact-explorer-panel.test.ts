@@ -7,13 +7,13 @@ function readSource() {
 }
 
 describe('project artifact explorer panel source', () => {
-  it('builds the explorer from project timeline, workflow tasks, and task artifacts', () => {
+  it('builds the explorer from the bounded project artifact query instead of per-task fan-out', () => {
     const source = readSource();
-    expect(source).toContain("dashboardApi.getProjectTimeline(props.projectId)");
-    expect(source).toContain("dashboardApi.listTasks({ workflow_id: workflowId, per_page: '100' })");
-    expect(source).toContain('dashboardApi.listTaskArtifacts(taskId)');
-    expect(source).toContain('buildProjectArtifactEntries');
-    expect(source).toContain('filterProjectArtifactEntries');
+    expect(source).toContain('dashboardApi.listProjectArtifacts(props.projectId');
+    expect(source).toContain("per_page: String(PROJECT_ARTIFACT_PAGE_SIZE)");
+    expect(source).toContain('placeholderData: keepPreviousData');
+    expect(source).not.toContain('dashboardApi.getProjectTimeline(props.projectId)');
+    expect(source).not.toContain('dashboardApi.listTaskArtifacts(taskId)');
   });
 
   it('uses the dedicated filter card and bulk action bar instead of raw dumps', () => {
@@ -26,18 +26,21 @@ describe('project artifact explorer panel source', () => {
     expect(source).toContain('selectedRole');
     expect(source).toContain('selectedContentType');
     expect(source).toContain('previewMode');
-    expect(source).toContain('buildArtifactRoleOptions');
     expect(source).toContain('createdFrom');
     expect(source).toContain('createdTo');
+    expect(source).toContain('loadedArtifactCount={artifacts.length}');
+    expect(source).toContain('totalArtifactCount={summary.totalArtifacts}');
     expect(source).toContain("setSort('newest')");
   });
 
-  it('supports quick inspection with inline preview and bulk download', () => {
+  it('supports quick inspection, bulk download, and explicit page navigation', () => {
     const source = readSource();
     expect(source).toContain('ProjectArtifactExplorerAdaptiveLayout');
     expect(source).toContain('ProjectArtifactExplorerShell');
     expect(source).toContain('dashboardApi.readTaskArtifactContent');
     expect(source).toContain('dashboardApi.downloadTaskArtifact');
+    expect(source).toContain('pagination={{');
+    expect(source).toContain('setPageAndReset(Math.max(page - 1, 1))');
     expect(source).toContain('Downloaded ${artifactsToDownload.length} artifacts');
   });
 });

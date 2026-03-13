@@ -5,6 +5,7 @@ import { authenticateApiKey, withAllowedScopes, withScope } from '../../auth/fas
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { ProjectPlanningService } from '../../services/project-planning-service.js';
+import { ProjectArtifactExplorerService } from '../../services/project-artifact-explorer-service.js';
 import { ProjectSpecService } from '../../services/project-spec-service.js';
 
 const projectCreateSchema = z.object({
@@ -61,6 +62,22 @@ const projectSpecSchema = z.object({
   instructions: z.record(z.unknown()).optional(),
 });
 
+const projectArtifactListQuerySchema = z.object({
+  q: z.string().max(200).optional(),
+  workflow_id: z.string().min(1).max(255).optional(),
+  work_item_id: z.string().min(1).max(255).optional(),
+  task_id: z.string().min(1).max(255).optional(),
+  stage_name: z.string().min(1).max(255).optional(),
+  role: z.string().min(1).max(255).optional(),
+  content_type: z.string().min(1).max(255).optional(),
+  preview_mode: z.enum(['inline', 'download']).optional(),
+  created_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  created_to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  sort: z.enum(['newest', 'oldest', 'largest', 'smallest', 'name']).optional(),
+  page: z.coerce.number().int().min(1).max(10000).default(DEFAULT_PAGE),
+  per_page: z.coerce.number().int().min(1).max(MAX_PER_PAGE).default(DEFAULT_PER_PAGE),
+});
+
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
     return result.data;
@@ -72,6 +89,10 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 export const projectRoutes: FastifyPluginAsync = async (app) => {
   const projectService = app.projectService;
   const projectSpecService = new ProjectSpecService(app.pgPool, app.eventService);
+  const projectArtifactExplorerService = new ProjectArtifactExplorerService(
+    app.pgPool,
+    app.config.ARTIFACT_PREVIEW_MAX_BYTES,
+  );
   const workflowService = app.workflowService;
   const projectPlanningService = new ProjectPlanningService(app.pgPool, workflowService);
 
@@ -154,6 +175,21 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
     const timeline = await workflowService.getProjectTimeline(request.auth!.tenantId, params.id);
     return { data: timeline };
   });
+
+  app.get(
+    '/api/v1/projects/:id/artifacts',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const query = parseOrThrow(projectArtifactListQuerySchema.safeParse(request.query ?? {}));
+      await projectService.getProject(request.auth!.tenantId, params.id);
+      return projectArtifactExplorerService.listProjectArtifacts(
+        request.auth!.tenantId,
+        params.id,
+        query,
+      );
+    },
+  );
 
   app.get('/api/v1/projects/:id/spec', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
     const params = request.params as { id: string };

@@ -2,7 +2,11 @@ import {
   describeArtifactPreview,
   type ArtifactPreviewKind,
 } from '../../components/artifact-preview-support.js';
-import type { DashboardTaskArtifactRecord } from '../../lib/api.js';
+import type {
+  DashboardProjectArtifactRecord,
+  DashboardProjectArtifactSummary,
+  DashboardTaskArtifactRecord,
+} from '../../lib/api.js';
 import type {
   ProjectTaskOption,
   ProjectWorkflowOption,
@@ -114,6 +118,67 @@ export function buildProjectArtifactEntries(
   }
 
   return entries;
+}
+
+export function normalizeProjectArtifactEntries(
+  records: DashboardProjectArtifactRecord[] | undefined,
+): ProjectArtifactEntry[] {
+  if (!Array.isArray(records)) {
+    return [];
+  }
+
+  return records.map((artifact) => {
+    const preview = describeArtifactPreview(artifact.content_type, artifact.logical_path);
+    return {
+      id: `${artifact.task_id}:${artifact.id}`,
+      artifactId: artifact.id,
+      taskId: artifact.task_id,
+      taskTitle: artifact.task_title,
+      taskState: artifact.task_state,
+      workflowId: artifact.workflow_id,
+      workflowName: artifact.workflow_name,
+      workflowState: artifact.workflow_state,
+      workItemId: artifact.work_item_id,
+      workItemTitle: artifact.work_item_title,
+      stageName: artifact.stage_name,
+      role: artifact.role,
+      logicalPath: artifact.logical_path,
+      fileName: extractArtifactFileName(artifact.logical_path),
+      contentType: artifact.content_type,
+      sizeBytes: artifact.size_bytes,
+      createdAt: artifact.created_at,
+      downloadUrl: artifact.download_url,
+      metadata: artifact.metadata ?? {},
+      previewKind: preview.kind,
+      canPreview: preview.canPreview,
+    };
+  });
+}
+
+export function normalizeProjectArtifactSummary(
+  summary: DashboardProjectArtifactSummary | undefined,
+): ProjectArtifactSummary {
+  if (!summary) {
+    return {
+      totalArtifacts: 0,
+      previewableArtifacts: 0,
+      totalBytes: 0,
+      workflowCount: 0,
+      workItemCount: 0,
+      taskCount: 0,
+      roleCount: 0,
+    };
+  }
+
+  return {
+    totalArtifacts: summary.total_artifacts,
+    previewableArtifacts: summary.previewable_artifacts,
+    totalBytes: summary.total_bytes,
+    workflowCount: summary.workflow_count,
+    workItemCount: summary.work_item_count,
+    taskCount: summary.task_count,
+    roleCount: summary.role_count,
+  };
 }
 
 export function filterProjectArtifactEntries(
