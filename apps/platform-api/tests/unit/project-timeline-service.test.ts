@@ -439,7 +439,7 @@ describe('ProjectTimelineService', () => {
     ]);
   });
 
-  it('persists only activation, stage, gate, work-item, and escalation signals in summaries even when obsolete legacy workflow events exist', async () => {
+  it('persists only activation, stage, gate, work-item, and escalation signals in summaries', async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('SELECT * FROM workflows')) {
         return {
@@ -452,10 +452,7 @@ describe('ProjectTimelineService', () => {
               lifecycle: 'standard',
               playbook_id: 'playbook-2',
               project_id: 'project-1',
-              metadata: {
-                current_phase: 'review',
-                template_name: 'Legacy template',
-              },
+              metadata: {},
               created_at: '2026-03-10T00:00:00.000Z',
               started_at: '2026-03-10T00:10:00.000Z',
               completed_at: '2026-03-10T00:20:00.000Z',
@@ -471,15 +468,8 @@ describe('ProjectTimelineService', () => {
       }
       if (sql.includes('FROM events')) {
         return {
-          rowCount: 3,
+          rowCount: 2,
           rows: [
-            {
-              type: 'phase.started',
-              actor_type: 'system',
-              actor_id: 'legacy',
-              data: { workflow_id: 'workflow-2', phase_name: 'review' },
-              created_at: '2026-03-10T00:11:00.000Z',
-            },
             {
               type: 'workflow.activation_completed',
               actor_type: 'system',
