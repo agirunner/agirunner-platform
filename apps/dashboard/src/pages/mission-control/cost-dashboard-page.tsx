@@ -218,7 +218,7 @@ export function CostDashboardPage(): JSX.Element {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => navigate('/mission-control/logs')}
+            onClick={() => navigate('/logs')}
             className="gap-2"
           >
             Open logs
@@ -226,7 +226,7 @@ export function CostDashboardPage(): JSX.Element {
           </Button>
           <Button
             size="sm"
-            onClick={() => navigate('/mission-control/live')}
+            onClick={() => navigate('/mission-control')}
             className="gap-2"
           >
             Open live board

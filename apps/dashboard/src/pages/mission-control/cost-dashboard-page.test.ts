@@ -38,6 +38,8 @@ describe('cost dashboard page source', () => {
     expect(source).toContain('Best next step:');
     expect(source).toContain('Open live board');
     expect(source).toContain('Open logs');
+    expect(source).toContain("navigate('/logs')");
+    expect(source).toContain("navigate('/mission-control')");
     expect(source).toContain('Immediate spend');
     expect(source).toContain('Budget posture');
     expect(source).toContain('Top board driver');
