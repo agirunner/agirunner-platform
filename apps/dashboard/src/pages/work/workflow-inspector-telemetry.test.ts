@@ -1,0 +1,183 @@
+import { describe, expect, it } from 'vitest';
+
+import { buildWorkflowInspectorTelemetryModel } from './workflow-inspector-telemetry.js';
+
+describe('workflow inspector telemetry', () => {
+  it('builds spend packets and memory evolution summaries for the focused workflow trace', () => {
+    const model = buildWorkflowInspectorTelemetryModel({
+      workflowId: 'workflow-1',
+      workflow: {
+        id: 'workflow-1',
+        name: 'Release board',
+        state: 'active',
+        created_at: '2026-03-10T00:00:00Z',
+        metadata: {
+          run_summary: {
+            orchestrator_analytics: {
+              activation_count: 3,
+              total_cost_usd: 6.75,
+              cost_by_stage: [
+                { stage_name: 'review', total_cost_usd: 4.5, task_count: 3 },
+                { stage_name: 'qa', total_cost_usd: 2.25, task_count: 2 },
+              ],
+            },
+          },
+        },
+      },
+      taskCostStats: {
+        data: {
+          totals: { count: 12, error_count: 0, total_duration_ms: 2_000 },
+          groups: [
+            {
+              group: 'task-123456789',
+              count: 6,
+              error_count: 0,
+              total_duration_ms: 1_200,
+              avg_duration_ms: 200,
+              agg: { total_cost_usd: 1.75 },
+            },
+          ],
+        },
+      },
+      activationCostStats: {
+        data: {
+          totals: { count: 5, error_count: 0, total_duration_ms: 900 },
+          groups: [
+            {
+              group: 'activation-123456789',
+              count: 5,
+              error_count: 0,
+              total_duration_ms: 900,
+              avg_duration_ms: 180,
+              agg: { total_cost_usd: 2.25 },
+            },
+          ],
+        },
+      },
+      focusWorkItem: {
+        id: 'work-item-1',
+        title: 'Review release notes',
+        stageName: 'review',
+      },
+      memoryHistory: [
+        {
+          key: 'release_risk',
+          value: { level: 'high' },
+          event_id: 11,
+          event_type: 'updated',
+          updated_at: '2026-03-10T05:00:00Z',
+          actor_type: 'agent',
+          actor_id: 'agent-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: 'task-123456789',
+          stage_name: 'review',
+        },
+        {
+          key: 'release_risk',
+          value: { level: 'medium' },
+          event_id: 10,
+          event_type: 'updated',
+          updated_at: '2026-03-10T04:00:00Z',
+          actor_type: 'agent',
+          actor_id: 'agent-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: 'task-123456789',
+          stage_name: 'review',
+        },
+        {
+          key: 'release_notes',
+          value: 'Ready for QA',
+          event_id: 9,
+          event_type: 'deleted',
+          updated_at: '2026-03-10T03:00:00Z',
+          actor_type: 'system',
+          actor_id: null,
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: null,
+          stage_name: 'review',
+        },
+      ],
+      now: Date.parse('2026-03-10T05:30:00Z'),
+    });
+
+    expect(model.spendPackets).toEqual([
+      {
+        label: 'Stage cost leader',
+        value: '$4.5000',
+        detail: 'review is leading reported stage spend across 3 steps.',
+        href: '/work/workflows/workflow-1/inspector?view=detailed&stage=review',
+      },
+      {
+        label: 'Task cost leader',
+        value: '$1.7500',
+        detail:
+          'Step task-123 leads the current log slice across 6 trace entries • 200 ms average recorded duration.',
+        href: '/work/workflows/workflow-1/inspector?view=detailed&task=task-123456789',
+      },
+      {
+        label: 'Activation cost leader',
+        value: '$2.2500',
+        detail:
+          'Activation activati is carrying the highest orchestrator batch spend across 5 trace entries.',
+        href:
+          '/work/workflows/workflow-1/inspector?view=detailed&activation=activation-123456789',
+      },
+    ]);
+    expect(model.memoryPacket.title).toBe('Memory evolution · Review release notes');
+    expect(model.memoryPacket.changes).toEqual([
+      {
+        key: 'release_risk',
+        status: 'Updated',
+        summary: 'Changed from level: medium to level: high.',
+        detail: 'agent agent-1 updated this key in stage review.',
+        occurredAtLabel: '30m ago',
+        occurredAtTitle: new Date('2026-03-10T05:00:00Z').toLocaleString(),
+      },
+      {
+        key: 'release_risk',
+        status: 'Created',
+        summary: 'Recorded level: medium for the first time.',
+        detail: 'agent agent-1 updated this key in stage review.',
+        occurredAtLabel: '1h ago',
+        occurredAtTitle: new Date('2026-03-10T04:00:00Z').toLocaleString(),
+      },
+      {
+        key: 'release_notes',
+        status: 'Deleted',
+        summary: 'Removed from the work-item memory packet.',
+        detail: 'system updated this key in stage review.',
+        occurredAtLabel: '2h ago',
+        occurredAtTitle: new Date('2026-03-10T03:00:00Z').toLocaleString(),
+      },
+    ]);
+  });
+
+  it('falls back gracefully when telemetry packets are still sparse', () => {
+    const model = buildWorkflowInspectorTelemetryModel({
+      workflowId: 'workflow-2',
+      workflow: {
+        id: 'workflow-2',
+        name: 'Empty board',
+        state: 'pending',
+        created_at: '2026-03-10T00:00:00Z',
+      },
+      now: Date.parse('2026-03-10T05:30:00Z'),
+    });
+
+    expect(model.spendPackets[0]).toEqual({
+      label: 'Stage cost leader',
+      value: 'Not recorded',
+      detail: 'No stage-level cost packet is available in the current run summary yet.',
+      href: null,
+    });
+    expect(model.memoryPacket).toEqual({
+      title: 'Memory evolution',
+      detail: 'No active work item is available to anchor a memory evolution packet.',
+      emptyMessage: 'As work items start recording memory, the latest key changes will appear here.',
+      changes: [],
+    });
+  });
+});

@@ -147,6 +147,11 @@ describe('workflow inspector support', () => {
         detail: 'Review delivered artifacts and workflow output packets.',
       },
     ]);
+    expect(model.focusWorkItem).toEqual({
+      id: 'work-item-1',
+      title: 'Review release notes',
+      stageName: 'review',
+    });
   });
 
   it('falls back gracefully when trace packets are sparse', () => {
@@ -178,5 +183,6 @@ describe('workflow inspector support', () => {
         detail: 'Open activations, work items, gates, and specialist steps in one board view.',
       },
     ]);
+    expect(model.focusWorkItem).toBeNull();
   });
 });

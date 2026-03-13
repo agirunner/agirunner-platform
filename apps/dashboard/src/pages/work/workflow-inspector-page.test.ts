@@ -12,10 +12,14 @@ describe('workflow inspector page source', () => {
     expect(source).toContain('useParams');
     expect(source).toContain('dashboardApi.getWorkflow');
     expect(source).toContain('dashboardApi.getProject');
+    expect(source).toContain('dashboardApi.getLogStats');
+    expect(source).toContain('dashboardApi.getWorkflowWorkItemMemoryHistory');
     expect(source).toContain('Workflow Inspector');
     expect(source).toContain('Workflow Board');
     expect(source).toContain('Current operator scope');
     expect(source).toContain('Trace coverage');
+    expect(source).toContain('WorkflowInspectorTelemetryPanel');
+    expect(source).toContain('telemetry={telemetryModel}');
     expect(source).toContain('Project Memory');
     expect(source).toContain('Project Artifacts');
     expect(source).toContain('Highest reported stage spend');
@@ -23,6 +27,7 @@ describe('workflow inspector page source', () => {
     expect(source).toContain('gate lanes');
     expect(source).toContain('InspectorMetric');
     expect(source).toContain('buildWorkflowInspectorTraceModel');
+    expect(source).toContain('buildWorkflowInspectorTelemetryModel');
     expect(source).toContain('TraceCoverageNote');
     expect(source).toContain('workflowId');
     expect(source).toContain('LogsSurface');

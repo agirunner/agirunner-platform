@@ -3,9 +3,12 @@ import type {
   DashboardWorkflowActivationRecord,
   DashboardWorkflowRecord,
   DashboardWorkflowStageRecord,
-  DashboardWorkflowWorkItemRecord,
 } from '../../lib/api.js';
 import { readWorkflowRunSummary } from '../workflow-detail-support.js';
+import {
+  buildWorkflowInspectorTraceLinks,
+  readHighlightedWorkItem,
+} from './workflow-inspector-trace-links.js';
 
 const PROJECT_MEMORY_TRACE_KEYS = new Set(['project_timeline', 'last_run_summary']);
 
@@ -21,11 +24,18 @@ export interface WorkflowInspectorTraceLink {
   detail: string;
 }
 
+export interface WorkflowInspectorFocusWorkItem {
+  id: string;
+  title: string;
+  stageName: string;
+}
+
 export interface WorkflowInspectorTraceModel {
   metrics: WorkflowInspectorTraceMetric[];
   topStageSpend: string | null;
   latestActivationSummary: string | null;
   links: WorkflowInspectorTraceLink[];
+  focusWorkItem: WorkflowInspectorFocusWorkItem | null;
 }
 
 export function buildWorkflowInspectorTraceModel(input: {
@@ -34,14 +44,16 @@ export function buildWorkflowInspectorTraceModel(input: {
 }): WorkflowInspectorTraceModel {
   const workflow = input.workflow;
   const runSummary = readWorkflowRunSummary(workflow);
-  const workflowId = workflow?.id ?? '';
-  const projectId = workflow?.project_id ?? input.project?.id ?? null;
   const activations = Array.isArray(workflow?.activations) ? workflow.activations : [];
   const stages = Array.isArray(workflow?.workflow_stages) ? workflow.workflow_stages : [];
   const workItemSummary = workflow?.work_item_summary ?? null;
   const producedArtifacts = asArray(asRecord(runSummary).produced_artifacts);
   const analytics = asRecord(asRecord(runSummary).orchestrator_analytics);
+  const projectId = workflow?.project_id ?? input.project?.id ?? null;
   const traceMemory = readProjectMemoryTraceSummary(input.project);
+  const focusWorkItem = readHighlightedWorkItem(
+    Array.isArray(workflow?.work_items) ? workflow.work_items : [],
+  );
 
   return {
     metrics: [
@@ -76,7 +88,14 @@ export function buildWorkflowInspectorTraceModel(input: {
     ],
     topStageSpend: describeTopStageSpend(analytics),
     latestActivationSummary: describeLatestActivationSummary(activations),
-    links: buildTraceLinks(workflow, projectId),
+    links: buildWorkflowInspectorTraceLinks(workflow, projectId, readLatestActivation),
+    focusWorkItem: focusWorkItem
+      ? {
+          id: focusWorkItem.id,
+          title: focusWorkItem.title,
+          stageName: focusWorkItem.stage_name,
+        }
+      : null,
   };
 }
 
@@ -92,9 +111,7 @@ function describeActivationMetric(activations: DashboardWorkflowActivationRecord
   return `${humanizeToken(latest.reason)} • ${humanizeToken(latest.state)} • ${eventCount} queued event${eventCount === 1 ? '' : 's'}`;
 }
 
-function describeWorkItemMetric(
-  summary: DashboardWorkflowRecord['work_item_summary'],
-): string {
+function describeWorkItemMetric(summary: DashboardWorkflowRecord['work_item_summary']): string {
   if (!summary || summary.total_work_items === 0) {
     return 'No work items are attached to this workflow yet.';
   }
@@ -116,20 +133,20 @@ function describeGateMetric(
 }
 
 function describeTopStageSpend(analytics: Record<string, unknown>): string | null {
-  const costByStage = asArray(analytics.cost_by_stage)
+  const topStage = asArray(analytics.cost_by_stage)
     .map((entry) => ({
       stageName: readNonEmptyString(asRecord(entry).group_key) ?? 'unknown stage',
       totalCostUsd: Number(asRecord(entry).total_cost_usd ?? 0),
       taskCount: Number(asRecord(entry).task_count ?? 0),
     }))
     .filter((entry) => Number.isFinite(entry.totalCostUsd) && entry.totalCostUsd > 0)
-    .sort((left, right) => right.totalCostUsd - left.totalCostUsd);
+    .sort((left, right) => right.totalCostUsd - left.totalCostUsd)[0];
 
-  const top = costByStage[0];
-  if (!top) {
+  if (!topStage) {
     return null;
   }
-  return `${top.stageName} leads reported spend at $${top.totalCostUsd.toFixed(2)} across ${top.taskCount} step${top.taskCount === 1 ? '' : 's'}.`;
+
+  return `${topStage.stageName} leads reported spend at $${topStage.totalCostUsd.toFixed(2)} across ${topStage.taskCount} step${topStage.taskCount === 1 ? '' : 's'}.`;
 }
 
 function describeLatestActivationSummary(
@@ -139,15 +156,16 @@ function describeLatestActivationSummary(
   if (!latest) {
     return null;
   }
-  const parts = [
+  return [
     `Latest activation: ${humanizeToken(latest.reason)}`,
     humanizeToken(latest.state),
     latest.summary ?? null,
-  ].filter((part): part is string => Boolean(part));
-  return parts.join(' • ');
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(' • ');
 }
 
-function readLatestActivation(
+export function readLatestActivation(
   activations: DashboardWorkflowActivationRecord[],
 ): DashboardWorkflowActivationRecord | null {
   return activations
@@ -156,11 +174,7 @@ function readLatestActivation(
 }
 
 function readActivationTimestamp(entry: DashboardWorkflowActivationRecord): number {
-  const candidate =
-    entry.latest_event_at
-    ?? entry.completed_at
-    ?? entry.started_at
-    ?? entry.queued_at;
+  const candidate = entry.latest_event_at ?? entry.completed_at ?? entry.started_at ?? entry.queued_at;
   const parsed = Date.parse(candidate ?? '');
   return Number.isFinite(parsed) ? parsed : 0;
 }
@@ -204,111 +218,6 @@ function readProjectMemoryTraceSummary(project?: DashboardProjectRecord): {
   };
 }
 
-function buildTraceLinks(
-  workflow: DashboardWorkflowRecord | undefined,
-  projectId: string | null,
-): WorkflowInspectorTraceLink[] {
-  const workflowId = workflow?.id ?? '';
-  const activations = Array.isArray(workflow?.activations) ? workflow.activations : [];
-  const stages = Array.isArray(workflow?.workflow_stages) ? workflow.workflow_stages : [];
-  const workItems = Array.isArray(workflow?.work_items) ? workflow.work_items : [];
-  const links: WorkflowInspectorTraceLink[] = [
-    {
-      label: 'Board trace',
-      href: `/work/workflows/${workflowId}`,
-      detail: 'Open activations, work items, gates, and specialist steps in one board view.',
-    },
-  ];
-  const latestActivation = readLatestActivation(activations);
-  if (latestActivation) {
-    links.push({
-      label: 'Activation drill-in',
-      href: buildWorkflowInspectorLogLink(workflowId, {
-        view: 'detailed',
-        activation: latestActivation.activation_id ?? latestActivation.id,
-      }),
-      detail:
-        latestActivation.summary
-        ?? `${humanizeToken(latestActivation.reason)} is the latest activation packet on this workflow.`,
-    });
-  }
-  const highlightedWorkItem = readHighlightedWorkItem(workItems);
-  if (highlightedWorkItem) {
-    links.push({
-      label: 'Open work item',
-      href: buildWorkflowBoardLink(workflowId, { work_item: highlightedWorkItem.id }),
-      detail: `${highlightedWorkItem.title} is still open in ${highlightedWorkItem.stage_name}.`,
-    });
-  }
-  const highlightedGateStage = readHighlightedGateStage(stages);
-  if (highlightedGateStage) {
-    links.push({
-      label: 'Gate review lane',
-      href: buildWorkflowBoardLink(workflowId, { stage: highlightedGateStage.name }),
-      detail: `${highlightedGateStage.name} is carrying the current gate posture for this workflow.`,
-    });
-  }
-  if (projectId) {
-    links.push(
-      {
-        label: 'Project memory',
-        href: `/projects/${projectId}/memory`,
-        detail: 'Inspect memory versions, diffs, and run handoff packets.',
-      },
-      {
-        label: 'Project artifacts',
-        href: `/projects/${projectId}/artifacts`,
-        detail: 'Review delivered artifacts and workflow output packets.',
-      },
-    );
-  }
-  return links;
-}
-
-function readHighlightedWorkItem(
-  workItems: DashboardWorkflowWorkItemRecord[],
-): DashboardWorkflowWorkItemRecord | null {
-  return workItems.find((item) => !item.completed_at)
-    ?? workItems
-      .slice()
-      .sort((left, right) => Date.parse(right.updated_at ?? '') - Date.parse(left.updated_at ?? ''))[0]
-    ?? null;
-}
-
-function readHighlightedGateStage(
-  stages: DashboardWorkflowStageRecord[],
-): DashboardWorkflowStageRecord | null {
-  const activeGate = stages.find((stage) =>
-    ['awaiting_approval', 'changes_requested', 'rejected'].includes(stage.gate_status),
-  );
-  if (activeGate) {
-    return activeGate;
-  }
-  return stages.find((stage) => stage.human_gate) ?? null;
-}
-
-function buildWorkflowBoardLink(
-  workflowId: string,
-  params: Record<string, string>,
-): string {
-  const searchParams = new URLSearchParams(params);
-  const query = searchParams.toString();
-  return query
-    ? `/work/workflows/${workflowId}?${query}`
-    : `/work/workflows/${workflowId}`;
-}
-
-function buildWorkflowInspectorLogLink(
-  workflowId: string,
-  params: { view: 'summary' | 'detailed' | 'debug'; activation?: string },
-): string {
-  const searchParams = new URLSearchParams({ view: params.view });
-  if (params.activation) {
-    searchParams.set('activation', params.activation);
-  }
-  return `/work/workflows/${workflowId}/inspector?${searchParams.toString()}`;
-}
-
 function formatCount(value: number): string {
   return new Intl.NumberFormat().format(value);
 }
@@ -326,13 +235,13 @@ function asArray(value: unknown): Record<string, unknown>[] {
     : [];
 }
 
+function readNonEmptyString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
 function humanizeToken(value: string | null | undefined): string {
   if (!value) {
     return 'Unknown';
   }
   return value.replace(/[_-]+/g, ' ').trim();
-}
-
-function readNonEmptyString(value: unknown): string | null {
-  return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }

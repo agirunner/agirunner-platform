@@ -15,6 +15,8 @@ import {
 } from '../../components/ui/card.js';
 import { Skeleton } from '../../components/ui/skeleton.js';
 import { buildWorkflowInspectorTraceModel } from './workflow-inspector-support.js';
+import { WorkflowInspectorTelemetryPanel } from './workflow-inspector-telemetry-panel.js';
+import { buildWorkflowInspectorTelemetryModel } from './workflow-inspector-telemetry.js';
 
 function InspectorMetric({
   label,
@@ -55,6 +57,42 @@ export function WorkflowInspectorPage(): JSX.Element {
   const traceModel = buildWorkflowInspectorTraceModel({
     workflow,
     project: projectQuery.data,
+  });
+  const taskCostQuery = useQuery({
+    queryKey: ['workflow', workflowId, 'inspector-task-cost'],
+    queryFn: () => dashboardApi.getLogStats({ workflow_id: workflowId, group_by: 'task_id' }),
+    enabled: workflowId.length > 0,
+    staleTime: 30_000,
+  });
+  const activationCostQuery = useQuery({
+    queryKey: ['workflow', workflowId, 'inspector-activation-cost'],
+    queryFn: () =>
+      dashboardApi.getLogStats({
+        workflow_id: workflowId,
+        group_by: 'activation_id',
+        is_orchestrator_task: 'true',
+      }),
+    enabled: workflowId.length > 0,
+    staleTime: 30_000,
+  });
+  const memoryHistoryQuery = useQuery({
+    queryKey: ['workflow', workflowId, 'inspector-memory-history', traceModel.focusWorkItem?.id],
+    queryFn: () =>
+      dashboardApi.getWorkflowWorkItemMemoryHistory(
+        workflowId,
+        traceModel.focusWorkItem?.id ?? '',
+        8,
+      ),
+    enabled: workflowId.length > 0 && Boolean(traceModel.focusWorkItem?.id),
+    staleTime: 30_000,
+  });
+  const telemetryModel = buildWorkflowInspectorTelemetryModel({
+    workflowId,
+    workflow,
+    taskCostStats: taskCostQuery.data,
+    activationCostStats: activationCostQuery.data,
+    focusWorkItem: traceModel.focusWorkItem,
+    memoryHistory: memoryHistoryQuery.data?.history,
   });
 
   return (
@@ -176,6 +214,10 @@ export function WorkflowInspectorPage(): JSX.Element {
                     }
                   />
                 </div>
+                <WorkflowInspectorTelemetryPanel
+                  telemetry={telemetryModel}
+                  isMemoryLoading={memoryHistoryQuery.isLoading}
+                />
                 <div className="grid gap-3 md:grid-cols-3">
                   {traceModel.links.map((link) => (
                     <Card key={link.label} className="border-border/70 bg-card/70 shadow-none">
