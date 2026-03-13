@@ -188,7 +188,7 @@ export function PlaybookRevisionHistoryCard(
               value={props.comparedRevisionId}
               onValueChange={props.onComparedRevisionChange}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Choose a revision" />
               </SelectTrigger>
               <SelectContent>
@@ -201,7 +201,7 @@ export function PlaybookRevisionHistoryCard(
             </Select>
           </label>
 
-          <div className="space-y-2">
+          <div className="max-h-[26rem] space-y-2 overflow-y-auto pr-1">
             {props.revisions.map((revision) => (
               <div
                 key={revision.id}
@@ -227,11 +227,11 @@ export function PlaybookRevisionHistoryCard(
           </div>
         </div>
 
-        <Tabs defaultValue="summary" className="space-y-3">
-          <TabsList>
-            <TabsTrigger value="summary">Structured Diff</TabsTrigger>
-            <TabsTrigger value="rendered">Rendered Snapshot Diff</TabsTrigger>
-          </TabsList>
+          <Tabs defaultValue="summary" className="space-y-3">
+            <TabsList className="grid h-auto w-full gap-2 rounded-xl bg-border/20 p-2 sm:grid-cols-2">
+              <TabsTrigger value="summary">Structured Diff</TabsTrigger>
+              <TabsTrigger value="rendered">Rendered Snapshot Diff</TabsTrigger>
+            </TabsList>
           <TabsContent value="summary" className="space-y-3">
             {comparedPlaybook ? (
               <div className="space-y-2">
