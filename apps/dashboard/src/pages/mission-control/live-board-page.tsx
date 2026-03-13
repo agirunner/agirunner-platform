@@ -52,6 +52,7 @@ import { buildAttentionTaskActions } from './live-board-attention-actions.js';
 import {
   countActiveSpecialistSteps,
   countBlockedBoardItems,
+  countFleetAttentionSignals,
   countEscalatedSteps,
   countOpenBoardItems,
   countWorkItemReworks,
@@ -59,6 +60,7 @@ import {
   describeBoardProgress,
   describeBoardSpend,
   describeBoardTokens,
+  describeFleetAttention,
   describeWorkItemOperatorSummary,
   describeFleetHeadline,
   describeOrchestratorPool,
@@ -188,13 +190,17 @@ function statusBadgeVariant(status: string): 'default' | 'success' | 'warning' |
   switch (status) {
     case 'in_progress':
     case 'online':
+    case 'busy':
       return 'success';
+    case 'draining':
     case 'awaiting gate':
     case 'awaiting_approval':
     case 'pending':
       return 'warning';
     case 'failed':
     case 'error':
+    case 'degraded':
+    case 'disconnected':
     case 'offline':
       return 'destructive';
     case 'completed':
@@ -561,12 +567,15 @@ export function LiveBoardPage(): JSX.Element {
       ),
     [pagedPlaybookWorkflows],
   );
+  const fleetSummary = useMemo(() => summarizeWorkerFleet(workers), [workers]);
+  const fleetAttentionCount = countFleetAttentionSignals(fleetSummary);
   const visibleNeedsAttention =
     visibleBlockedWorkItems +
     visibleGateReviews +
     visibleFailedSteps +
     visibleSpecialistSummary.escalations +
-    visibleActivationSummary.needsAttention;
+    visibleActivationSummary.needsAttention +
+    fleetAttentionCount;
   const filteredBlockedItems = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
     if (!normalizedQuery) {
@@ -644,7 +653,6 @@ export function LiveBoardPage(): JSX.Element {
   const latestActivityDescriptor = latestActivity
     ? describeTimelineEvent(latestActivity, liveTimelineContext)
     : null;
-  const fleetSummary = useMemo(() => summarizeWorkerFleet(workers), [workers]);
 
   const isLoading = workflowsQuery.isLoading || tasksQuery.isLoading || workersQuery.isLoading;
 
@@ -775,6 +783,7 @@ export function LiveBoardPage(): JSX.Element {
         spentBoards={visibleSpentBoards}
         tokenPosture={visibleTokenPosture}
         fleetSummary={fleetSummary}
+        fleetAttentionCount={fleetAttentionCount}
         latestActivityLabel={latestActivityDescriptor?.emphasisLabel ?? 'No recent activity'}
         latestActivityDetail={
           latestActivityDescriptor
@@ -792,6 +801,8 @@ export function LiveBoardPage(): JSX.Element {
         visibleBlockedWorkItems={visibleBlockedWorkItems}
         visibleGateReviews={visibleGateReviews}
         visibleFailedSteps={visibleFailedSteps}
+        fleetSummary={fleetSummary}
+        visibleFleetAttention={fleetAttentionCount}
         visibleNeedsAttention={visibleNeedsAttention}
       />
 
@@ -800,6 +811,7 @@ export function LiveBoardPage(): JSX.Element {
         failedTasks={filteredFailedTasks}
         blockedItems={filteredBlockedItems}
         stageGates={filteredStageGates}
+        fleetSummary={fleetSummary}
       />
 
       <BoardPaginationCard
@@ -890,6 +902,7 @@ interface KpiCardsProps {
   spentBoards: number;
   tokenPosture: string;
   fleetSummary: ReturnType<typeof summarizeWorkerFleet>;
+  fleetAttentionCount: number;
   latestActivityLabel: string;
   latestActivityDetail: string;
 }
@@ -901,6 +914,7 @@ function KpiCards(props: KpiCardsProps): JSX.Element {
     props.failedSteps > 0 ? `${props.failedSteps} failed` : null,
     props.escalatedSteps > 0 ? `${props.escalatedSteps} escalated` : null,
     props.staleActivations > 0 ? `${props.staleActivations} stale` : null,
+    props.fleetAttentionCount > 0 ? `${props.fleetAttentionCount} fleet` : null,
   ].filter((part): part is string => part !== null);
   const cards = [
     {
@@ -923,7 +937,7 @@ function KpiCards(props: KpiCardsProps): JSX.Element {
       detail:
         attentionDetailParts.length > 0
           ? attentionDetailParts.join(' • ')
-          : 'No gates, blocked work, failed steps, or stale turns on this page',
+          : 'No gates, blocked work, failed steps, stale turns, or fleet issues on this page',
       icon: AlertTriangle,
       color: props.needsAction > 0 ? 'text-amber-600' : 'text-muted',
     },
@@ -980,6 +994,8 @@ interface TriagePostureSectionProps {
   visibleBlockedWorkItems: number;
   visibleGateReviews: number;
   visibleFailedSteps: number;
+  fleetSummary: ReturnType<typeof summarizeWorkerFleet>;
+  visibleFleetAttention: number;
   visibleNeedsAttention: number;
 }
 
@@ -995,6 +1011,7 @@ function TriagePostureSection(props: TriagePostureSectionProps): JSX.Element {
     escalated: props.visibleSpecialistSummary.escalations,
     reworkHeavy: props.visibleSpecialistSummary.reworkHeavy,
     staleActivations: props.visibleActivationSummary.stale,
+    fleetIssues: props.visibleFleetAttention,
   });
   const hasLoadingBoards = props.entries.some((entry) => entry.isLoading);
   const hasBoardErrors = props.entries.some((entry) => entry.hasError);
@@ -1072,13 +1089,14 @@ function TriagePostureSection(props: TriagePostureSectionProps): JSX.Element {
           <TriagePacket
             title="Escalation and stale attention"
             headline={riskPosture}
-            detail={`${props.visibleGateReviews} gates, ${props.visibleBlockedWorkItems} blocked items, ${props.visibleFailedSteps} failed specialist steps, and ${props.visibleActivationSummary.stale} stale orchestrator turns in scope.`}
+            detail={`${props.visibleGateReviews} gates, ${props.visibleBlockedWorkItems} blocked items, ${props.visibleFailedSteps} failed specialist steps, ${props.visibleActivationSummary.stale} stale orchestrator turns, and ${describeFleetAttention(props.fleetSummary).toLowerCase()} in scope.`}
             chips={[
               `${props.visibleGateReviews} gates`,
               `${props.visibleBlockedWorkItems} blocked`,
               `${props.visibleFailedSteps} failed`,
               `${props.visibleSpecialistSummary.escalations} escalated`,
               `${props.visibleActivationSummary.stale} stale`,
+              props.visibleFleetAttention > 0 ? `${props.visibleFleetAttention} fleet` : 'Fleet stable',
             ]}
             emphasis={props.visibleNeedsAttention > 0 ? 'destructive' : 'neutral'}
           />
@@ -1146,6 +1164,7 @@ interface NeedsAttentionProps {
     columnId: string;
   }>;
   stageGates: DashboardApprovalQueueResponse['stage_gates'];
+  fleetSummary: ReturnType<typeof summarizeWorkerFleet>;
 }
 
 function NeedsAttentionSection({
@@ -1153,9 +1172,12 @@ function NeedsAttentionSection({
   failedTasks,
   blockedItems,
   stageGates,
+  fleetSummary,
 }: NeedsAttentionProps): JSX.Element {
   const totalItems =
     approvalTasks.length + failedTasks.length + blockedItems.length + stageGates.length;
+  const fleetAttentionCount = countFleetAttentionSignals(fleetSummary);
+  const fleetAttentionLabel = describeFleetAttention(fleetSummary);
   const defaultTab = useMemo(() => {
     if (stageGates.length > 0) {
       return 'gates';
@@ -1179,13 +1201,13 @@ function NeedsAttentionSection({
     setActiveTab(defaultTab as 'gates' | 'blocked' | 'approvals' | 'failed');
   }, [defaultTab]);
 
-  if (totalItems === 0) {
+  if (totalItems === 0 && fleetAttentionCount === 0) {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-green-600" />
-            All Clear
+            Operator queue clear
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -1193,6 +1215,25 @@ function NeedsAttentionSection({
             No stage gates, blocked work items, or specialist-step interventions require
             attention right now.
           </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (totalItems === 0) {
+    return (
+      <Card className="border-amber-300 shadow-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-600" />
+            Fleet attention required
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-muted">
+            The operator queue is clear, but worker recovery still needs attention.
+          </p>
+          <Badge variant="warning">{fleetAttentionLabel}</Badge>
         </CardContent>
       </Card>
     );
@@ -1221,6 +1262,11 @@ function NeedsAttentionSection({
                   ? `${approvalTasks.length} approval${approvalTasks.length === 1 ? '' : 's'}`
                   : `${failedTasks.length} failed step${failedTasks.length === 1 ? '' : 's'}`}
           </Badge>
+          {fleetAttentionCount > 0 ? (
+            <Badge variant="destructive" className="w-fit">
+              {fleetAttentionLabel}
+            </Badge>
+          ) : null}
         </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <SnapshotMetric label="Stage gates" value={String(stageGates.length)} />

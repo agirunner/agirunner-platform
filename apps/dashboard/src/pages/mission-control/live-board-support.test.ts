@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   countActiveSpecialistSteps,
   countBlockedBoardItems,
+  countFleetAttentionSignals,
   countEscalatedSteps,
   countOpenBoardItems,
   countReworkHeavySteps,
@@ -12,6 +13,7 @@ import {
   describeBoardProgress,
   describeBoardSpend,
   describeBoardTokens,
+  describeFleetAttention,
   describeFleetHeadline,
   describeOrchestratorPool,
   describeRiskPosture,
@@ -268,8 +270,9 @@ describe('live board support', () => {
         escalated: 1,
         reworkHeavy: 1,
         staleActivations: 1,
+        fleetIssues: 2,
       }),
-    ).toBe('2 blocked • 1 gates • 1 failed • 1 escalated • 1 rework-heavy • 1 stale');
+    ).toBe('2 blocked • 1 gates • 1 failed • 1 escalated • 1 rework-heavy • 1 stale • 2 fleet');
     expect(
       summarizeVisibleTokenUsage([
         { metrics: { total_tokens: 1_200 } },
@@ -281,20 +284,30 @@ describe('live board support', () => {
   it('turns raw worker telemetry into operator-capacity summaries', () => {
     const summary = summarizeWorkerFleet([
       { status: 'online', current_tasks: 2 },
+      { status: 'busy', current_tasks: 1 },
       { status: 'active', current_tasks: 0 },
+      { status: 'draining', current_tasks: 0 },
+      { status: 'disconnected', current_tasks: 0 },
       { status: 'offline', current_tasks: 3 },
     ]);
 
     expect(summary).toEqual({
-      online: 2,
-      busy: 1,
+      online: 4,
+      busy: 2,
       available: 1,
-      offline: 1,
-      assignedSteps: 2,
+      offline: 2,
+      assignedSteps: 3,
+      draining: 1,
+      heartbeatFailures: 2,
     });
     expect(describeWorkerCapacity({ status: 'online', current_tasks: 2 })).toBe('2 steps active');
+    expect(describeWorkerCapacity({ status: 'busy', current_tasks: 1 })).toBe('1 step active');
     expect(describeWorkerCapacity({ status: 'active', current_tasks: 0 })).toBe('Available for new steps');
-    expect(describeFleetHeadline(summary)).toBe('1 worker actively executing');
+    expect(describeWorkerCapacity({ status: 'draining', current_tasks: 0 })).toBe('Draining');
+    expect(describeWorkerCapacity({ status: 'disconnected', current_tasks: 0 })).toBe('Heartbeat missing');
+    expect(countFleetAttentionSignals(summary)).toBe(3);
+    expect(describeFleetAttention(summary)).toBe('2 heartbeat issues • 1 draining');
+    expect(describeFleetHeadline(summary)).toBe('2 worker heartbeat issues');
   });
 
   it('surfaces work-item rework counts and operator summary packets from linked specialist steps', () => {

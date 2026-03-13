@@ -50,6 +50,8 @@ export interface LiveBoardFleetSummary {
   available: number;
   offline: number;
   assignedSteps: number;
+  draining: number;
+  heartbeatFailures: number;
 }
 
 type BoardStageSummary = DashboardWorkflowBoardResponse['stage_summary'][number];
@@ -270,8 +272,8 @@ export function summarizeWorkerFleet(workers: LiveBoardWorkerRecord[]): LiveBoar
   return workers.reduce<LiveBoardFleetSummary>(
     (summary, worker) => {
       const currentTasks = Math.max(0, Number(worker.current_tasks ?? 0));
-      const isOnline = worker.status === 'online' || worker.status === 'active';
-      if (isOnline) {
+      const status = readWorkerStatus(worker.status);
+      if (status === 'online' || status === 'active') {
         summary.online += 1;
         summary.assignedSteps += currentTasks;
         if (currentTasks > 0) {
@@ -279,18 +281,50 @@ export function summarizeWorkerFleet(workers: LiveBoardWorkerRecord[]): LiveBoar
         } else {
           summary.available += 1;
         }
-      } else {
-        summary.offline += 1;
+        return summary;
       }
+      if (status === 'busy') {
+        summary.online += 1;
+        summary.busy += 1;
+        summary.assignedSteps += currentTasks > 0 ? currentTasks : 1;
+        return summary;
+      }
+      if (status === 'draining') {
+        summary.online += 1;
+        summary.draining += 1;
+        summary.assignedSteps += currentTasks;
+        if (currentTasks > 0) {
+          summary.busy += 1;
+        }
+        return summary;
+      }
+      if (isHeartbeatFailureStatus(status)) {
+        summary.offline += 1;
+        summary.heartbeatFailures += 1;
+        return summary;
+      }
+      summary.offline += 1;
       return summary;
     },
-    { online: 0, busy: 0, available: 0, offline: 0, assignedSteps: 0 },
+    { online: 0, busy: 0, available: 0, offline: 0, assignedSteps: 0, draining: 0, heartbeatFailures: 0 },
   );
 }
 
 export function describeWorkerCapacity(worker: LiveBoardWorkerRecord): string {
   const currentTasks = Math.max(0, Number(worker.current_tasks ?? 0));
-  if (worker.status !== 'online' && worker.status !== 'active') {
+  const status = readWorkerStatus(worker.status);
+  if (status === 'busy') {
+    return `${Math.max(1, currentTasks)} step${Math.max(1, currentTasks) === 1 ? '' : 's'} active`;
+  }
+  if (status === 'draining') {
+    return currentTasks > 0
+      ? `Draining after ${currentTasks} active step${currentTasks === 1 ? '' : 's'}`
+      : 'Draining';
+  }
+  if (isHeartbeatFailureStatus(status)) {
+    return 'Heartbeat missing';
+  }
+  if (status !== 'online' && status !== 'active') {
     return 'Offline';
   }
   if (currentTasks > 0) {
@@ -300,6 +334,12 @@ export function describeWorkerCapacity(worker: LiveBoardWorkerRecord): string {
 }
 
 export function describeFleetHeadline(summary: LiveBoardFleetSummary): string {
+  if (summary.heartbeatFailures > 0) {
+    return `${summary.heartbeatFailures} worker heartbeat issue${summary.heartbeatFailures === 1 ? '' : 's'}`;
+  }
+  if (summary.draining > 0) {
+    return `${summary.draining} worker${summary.draining === 1 ? '' : 's'} draining`;
+  }
   if (summary.online === 0) {
     return 'No connected workers';
   }
@@ -307,6 +347,23 @@ export function describeFleetHeadline(summary: LiveBoardFleetSummary): string {
     return `${summary.busy} worker${summary.busy === 1 ? '' : 's'} actively executing`;
   }
   return `${summary.available} worker${summary.available === 1 ? '' : 's'} ready for new steps`;
+}
+
+export function countFleetAttentionSignals(summary: Pick<LiveBoardFleetSummary, 'draining' | 'heartbeatFailures'>): number {
+  return summary.draining + summary.heartbeatFailures;
+}
+
+export function describeFleetAttention(summary: LiveBoardFleetSummary): string {
+  const parts: string[] = [];
+  if (summary.heartbeatFailures > 0) {
+    parts.push(
+      `${summary.heartbeatFailures} heartbeat issue${summary.heartbeatFailures === 1 ? '' : 's'}`,
+    );
+  }
+  if (summary.draining > 0) {
+    parts.push(`${summary.draining} draining`);
+  }
+  return parts.length > 0 ? parts.join(' • ') : 'Fleet stable';
 }
 
 export function countEscalatedSteps(tasks: LiveBoardTaskRecord[]): number {
@@ -483,6 +540,7 @@ export function describeRiskPosture(summary: {
   escalated: number;
   reworkHeavy: number;
   staleActivations: number;
+  fleetIssues?: number;
 }): string {
   const parts: string[] = [];
   if (summary.blocked > 0) {
@@ -502,6 +560,9 @@ export function describeRiskPosture(summary: {
   }
   if (summary.staleActivations > 0) {
     parts.push(`${summary.staleActivations} stale`);
+  }
+  if ((summary.fleetIssues ?? 0) > 0) {
+    parts.push(`${summary.fleetIssues} fleet`);
   }
   return parts.length > 0 ? parts.join(' • ') : 'Stable';
 }
@@ -524,6 +585,14 @@ function readWorkflowTokenCount(workflow: LiveBoardWorkflowRecord): number {
 
 function readTaskState(task: LiveBoardTaskRecord): string {
   return String(task.state ?? task.status ?? 'unknown').toLowerCase();
+}
+
+function readWorkerStatus(status: string | null | undefined): string {
+  return String(status ?? 'unknown').toLowerCase();
+}
+
+function isHeartbeatFailureStatus(status: string): boolean {
+  return status === 'offline' || status === 'disconnected' || status === 'degraded';
 }
 
 function formatCompactCount(value: number): string {

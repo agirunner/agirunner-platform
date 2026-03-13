@@ -80,10 +80,15 @@ describe('live board page source', () => {
     const source = readSource();
     expect(source).toContain('summarizeWorkerFleet');
     expect(source).toContain('describeFleetHeadline');
+    expect(source).toContain('describeFleetAttention');
+    expect(source).toContain('countFleetAttentionSignals');
     expect(source).toContain('describeWorkerCapacity');
+    expect(source).toContain('Fleet attention required');
+    expect(source).toContain('Operator queue clear');
     expect(source).toContain('Assigned steps');
     expect(source).toContain('Use this to spot capacity gaps before work starts queueing.');
     expect(source).toContain('assigned');
+    expect(source).not.toContain('All Clear');
   });
 
   it('uses human-readable progress, spend, and relative timing in board summaries', () => {
