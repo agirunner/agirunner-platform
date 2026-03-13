@@ -215,18 +215,17 @@ export class WorkflowStateService {
     workflowId: string,
     db: DatabaseClient | DatabasePool,
   ): Promise<WorkflowPosture> {
-    const [workflowResult, stageResult, orchestratorResult, workItemResult] = await Promise.all([
-      db.query<{ lifecycle: string | null; current_stage: string | null }>(
-        `SELECT lifecycle,
-                CASE
-                  WHEN lifecycle = 'standard' THEN current_stage
-                  ELSE NULL
-                END AS current_stage
-           FROM workflows
-          WHERE tenant_id = $1
-            AND id = $2`,
-        [tenantId, workflowId],
-      ),
+    const workflowResult = await db.query<{ lifecycle: string | null }>(
+      `SELECT lifecycle
+         FROM workflows
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [tenantId, workflowId],
+    );
+
+    const normalizedLifecycle: WorkflowPosture['lifecycle'] =
+      workflowResult.rows[0]?.lifecycle === 'continuous' ? 'continuous' : 'standard';
+    const [stageResult, orchestratorResult, workItemResult, currentStageResult] = await Promise.all([
       db.query<{ status: string; gate_status: string }>(
         'SELECT status, gate_status FROM workflow_stages WHERE tenant_id = $1 AND workflow_id = $2',
         [tenantId, workflowId],
@@ -246,11 +245,20 @@ export class WorkflowStateService {
            FROM workflow_work_items WHERE tenant_id = $1 AND workflow_id = $2`,
         [tenantId, workflowId],
       ),
+      normalizedLifecycle === 'standard'
+        ? db.query<{ current_stage: string | null }>(
+            `SELECT current_stage
+               FROM workflows
+              WHERE tenant_id = $1
+                AND id = $2`,
+            [tenantId, workflowId],
+          )
+        : Promise.resolve({ rows: [{ current_stage: null }] }),
     ]);
 
     return buildWorkflowPosture(
-      workflowResult.rows[0]?.lifecycle ?? 'standard',
-      workflowResult.rows[0]?.current_stage ?? null,
+      normalizedLifecycle,
+      currentStageResult.rows[0]?.current_stage ?? null,
       stageResult.rows,
       (orchestratorResult.rowCount ?? 0) > 0,
       workItemResult.rows[0]?.open_work_item_count ?? 0,
