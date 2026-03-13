@@ -11,7 +11,9 @@ describe('execution inspector secondary surfaces', () => {
     const source = readSource('execution-inspector-debug-view.tsx');
 
     expect(source).toContain('diagnostic handles behind the operator summary');
-    expect(source).toContain('Recorded detail');
+    expect(source).toContain('Select an activity packet');
+    expect(source).toContain('Operator packet');
+    expect(source).toContain('Diagnostic payload');
     expect(source).toContain('Diagnostic handles');
     expect(source).toContain('Trace handle');
     expect(source).toContain('Span handle');
@@ -21,9 +23,11 @@ describe('execution inspector secondary surfaces', () => {
   it('keeps the delivery view focused on activity summaries instead of raw trace rows', () => {
     const source = readSource('execution-inspector-detail-view.tsx');
 
-    expect(source).toContain('Loaded {props.loadedCount} activity summaries');
-    expect(source).toContain('Selected entry is pinned outside the current segment.');
-    expect(source).toContain('activity span {shortId(entry.span_id)}');
+    expect(source).toContain('Loaded {props.loadedCount} operator activity packets');
+    expect(source).toContain('Selected packet is pinned outside the current segment.');
+    expect(source).toContain('describeExecutionHeadline(entry)');
+    expect(source).toContain('describeExecutionNextAction(entry)');
+    expect(source).toContain('diagnostic span {shortId(entry.span_id)}');
   });
 
   it('keeps the summary view focused on operator attention instead of database telemetry labels', () => {

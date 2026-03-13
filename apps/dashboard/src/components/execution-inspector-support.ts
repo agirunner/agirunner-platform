@@ -156,6 +156,71 @@ export function summarizeLogContext(entry: LogEntry): string[] {
   return items;
 }
 
+export function describeExecutionHeadline(entry: LogEntry): string {
+  const subject = readExecutionSubject(entry);
+  const action = humanizeOperation(entry.operation);
+
+  if (entry.error?.message || entry.status === 'failed') {
+    return `${subject} failed during ${action}`;
+  }
+  if (entry.status === 'started') {
+    return `${subject} started ${action}`;
+  }
+  if (entry.status === 'completed') {
+    return `${subject} completed ${action}`;
+  }
+  if (entry.status === 'skipped') {
+    return `${subject} skipped ${action}`;
+  }
+  return `${subject} recorded ${action}`;
+}
+
+export function describeExecutionSummary(entry: LogEntry): string {
+  const scope = summarizeLogContext(entry)
+    .filter((item) => !item.startsWith('step ') || !entry.task_title)
+    .join(' • ');
+  const actor = entry.actor_name ?? `${entry.actor_type}:${entry.actor_id}`;
+  const origin = [
+    humanizeToken(entry.source),
+    humanizeToken(entry.category),
+    entry.role ? `role ${entry.role}` : null,
+  ]
+    .filter((item): item is string => Boolean(item))
+    .join(' • ');
+
+  return [scope || null, `Recorded by ${actor}`, origin ? `via ${origin}` : null]
+    .filter((item): item is string => Boolean(item))
+    .join(' • ');
+}
+
+export function describeExecutionNextAction(entry: LogEntry): string {
+  if (entry.error?.message || entry.status === 'failed') {
+    return 'Review the failure packet, then decide whether to retry, rework, or escalate the affected step.';
+  }
+  if (entry.level === 'warn') {
+    return 'Review this warning before it turns into a gate or board blocker.';
+  }
+  if (entry.status === 'started') {
+    return 'Track the live activity and confirm the follow-on board movement once it settles.';
+  }
+  if (entry.status === 'skipped') {
+    return 'Confirm the skip was intentional before treating the lane as clear.';
+  }
+  return 'Use diagnostics only if the operator packet leaves unresolved questions.';
+}
+
+export function readExecutionSignals(entry: LogEntry): string[] {
+  const signals = new Set<string>();
+  if (entry.is_orchestrator_task) signals.add('Orchestrator');
+  if (entry.activation_id) signals.add('Activation');
+  if (entry.work_item_id) signals.add('Work item');
+  if (entry.stage_name) signals.add('Stage');
+  if (containsSignalKeyword(entry, 'gate')) signals.add('Gate');
+  if (containsSignalKeyword(entry, 'escalat')) signals.add('Escalation');
+  if (entry.error?.message || entry.status === 'failed') signals.add('Recovery');
+  return Array.from(signals).slice(0, 4);
+}
+
 export function shortId(value?: string | null): string {
   if (!value) {
     return '-';
@@ -241,4 +306,45 @@ function setFilterParam(searchParams: URLSearchParams, key: string, value: strin
     return;
   }
   searchParams.set(key, normalized);
+}
+
+function readExecutionSubject(entry: LogEntry): string {
+  if (entry.is_orchestrator_task) {
+    return 'Orchestrator activity';
+  }
+  if (entry.task_title) {
+    return `Step ${entry.task_title}`;
+  }
+  if (entry.work_item_id) {
+    return `Work item ${shortId(entry.work_item_id)}`;
+  }
+  if (entry.activation_id) {
+    return `Activation ${shortId(entry.activation_id)}`;
+  }
+  if (entry.workflow_name) {
+    return `Board ${entry.workflow_name}`;
+  }
+  return 'Execution activity';
+}
+
+function humanizeOperation(value: string): string {
+  const parts = value
+    .split('.')
+    .map((part) => humanizeToken(part))
+    .filter((part) => part.length > 0);
+  const visible = parts.length > 2 ? parts.slice(-2) : parts;
+  const sentence = visible.join(' ').trim();
+  return sentence.length > 0
+    ? sentence.charAt(0).toUpperCase() + sentence.slice(1)
+    : 'activity';
+}
+
+function humanizeToken(value: string): string {
+  return value.replace(/[_-]+/g, ' ').trim();
+}
+
+function containsSignalKeyword(entry: LogEntry, needle: string): boolean {
+  const haystacks = [entry.operation, entry.category, entry.resource_type]
+    .filter((value): value is string => typeof value === 'string');
+  return haystacks.some((value) => value.toLowerCase().includes(needle));
 }

@@ -2,7 +2,14 @@ import type { LogEntry } from '../lib/api.js';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card.js';
 import { Badge } from './ui/badge.js';
 import { StructuredRecordView } from './structured-data.js';
-import { shortId, summarizeLogContext } from './execution-inspector-support.js';
+import {
+  describeExecutionHeadline,
+  describeExecutionNextAction,
+  describeExecutionSummary,
+  readExecutionSignals,
+  shortId,
+  summarizeLogContext,
+} from './execution-inspector-support.js';
 
 interface ExecutionInspectorDebugViewProps {
   entry: LogEntry | null;
@@ -15,13 +22,14 @@ export function ExecutionInspectorDebugView(
     return (
       <Card>
         <CardContent className="p-5 text-sm text-muted">
-          Select an execution entry to inspect the recorded payload, failure detail, and diagnostic handles behind the operator summary.
+          Select an activity packet to inspect the recorded payload, failure detail, and diagnostic handles behind the operator summary.
         </CardContent>
       </Card>
     );
   }
 
   const context = summarizeLogContext(props.entry);
+  const signals = readExecutionSignals(props.entry);
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
@@ -29,7 +37,7 @@ export function ExecutionInspectorDebugView(
         <Card className="border-0 bg-transparent shadow-none">
           <CardHeader>
             <CardTitle className="flex items-center justify-between gap-3">
-              <span>{props.entry.operation}</span>
+              <span>{describeExecutionHeadline(props.entry)}</span>
               <Badge variant="secondary">{props.entry.status}</Badge>
             </CardTitle>
           </CardHeader>
@@ -41,20 +49,40 @@ export function ExecutionInspectorDebugView(
               <InspectorMeta label="Origin">
                 {props.entry.source} / {props.entry.category}
               </InspectorMeta>
+              <InspectorMeta label="Recorded operation">{props.entry.operation}</InspectorMeta>
               {props.entry.resource_type || props.entry.resource_id ? (
                 <InspectorMeta label="Resource">
                   {props.entry.resource_type ?? 'resource'} {shortId(props.entry.resource_id)}
                 </InspectorMeta>
               ) : null}
-              <InspectorMeta label="Activity span">
+              <InspectorMeta label="Diagnostic span">
                 {shortId(props.entry.span_id)}
               </InspectorMeta>
+            </div>
+
+            <div className="space-y-2 rounded-2xl border border-border/70 bg-border/5 p-4">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted">
+                Operator packet
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm text-foreground">{describeExecutionSummary(props.entry)}</p>
+                <p className="text-xs text-muted">{describeExecutionNextAction(props.entry)}</p>
+                {signals.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {signals.map((signal) => (
+                      <Badge key={signal} variant="outline">
+                        {signal}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             </div>
 
             {context.length > 0 ? (
               <div className="space-y-2">
                 <div className="text-xs font-medium uppercase tracking-wide text-muted">
-                  Execution context
+                  Board context
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {context.map((item) => (
@@ -99,7 +127,7 @@ export function ExecutionInspectorDebugView(
       <section className="rounded-3xl border border-border/70 bg-card shadow-sm">
         <Card className="border-0 bg-transparent shadow-none">
           <CardHeader>
-            <CardTitle>Recorded detail</CardTitle>
+            <CardTitle>Diagnostic payload</CardTitle>
           </CardHeader>
           <CardContent>
             <StructuredRecordView

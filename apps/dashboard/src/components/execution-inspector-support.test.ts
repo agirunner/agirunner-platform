@@ -3,9 +3,13 @@ import { describe, expect, it } from 'vitest';
 import {
   buildLogFilters,
   DEFAULT_INSPECTOR_FILTERS,
+  describeExecutionHeadline,
+  describeExecutionNextAction,
+  describeExecutionSummary,
   readInspectorFilters,
   readInspectorView,
   readSelectedInspectorLogId,
+  readExecutionSignals,
   summarizeLogContext,
   writeInspectorFilters,
 } from './execution-inspector-support.js';
@@ -57,6 +61,46 @@ describe('execution inspector support', () => {
       'stage build',
       'work item work-ite',
       'activation activati',
+    ]);
+  });
+
+  it('builds operator-readable inspector packet copy from execution entries', () => {
+    const entry = {
+      id: 1,
+      trace_id: 'trace-1',
+      span_id: 'span-1',
+      source: 'platform',
+      category: 'task_lifecycle',
+      level: 'error',
+      operation: 'task_lifecycle.workflow.activation_failed',
+      status: 'failed',
+      workflow_name: 'Delivery',
+      task_title: 'Implement billing',
+      stage_name: 'build',
+      work_item_id: 'work-item-12345678',
+      activation_id: 'activation-12345678',
+      is_orchestrator_task: true,
+      actor_type: 'agent',
+      actor_id: 'agent-1',
+      actor_name: 'Coordinator',
+      created_at: '2026-03-11T00:00:00Z',
+      error: { message: 'container timed out' },
+    } as const;
+
+    expect(describeExecutionHeadline(entry)).toBe(
+      'Orchestrator activity failed during Workflow activation failed',
+    );
+    expect(describeExecutionSummary(entry)).toBe(
+      'board Delivery • stage build • work item work-ite • activation activati • Recorded by Coordinator • via platform • task lifecycle',
+    );
+    expect(describeExecutionNextAction(entry)).toBe(
+      'Review the failure packet, then decide whether to retry, rework, or escalate the affected step.',
+    );
+    expect(readExecutionSignals(entry)).toEqual([
+      'Orchestrator',
+      'Activation',
+      'Work item',
+      'Stage',
     ]);
   });
 

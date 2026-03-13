@@ -3,11 +3,15 @@ import { Badge } from './ui/badge.js';
 import { Card, CardContent } from './ui/card.js';
 import { Button } from './ui/button.js';
 import {
+  describeExecutionHeadline,
+  describeExecutionNextAction,
+  describeExecutionSummary,
   formatDuration,
-  shortId,
-  statusVariant,
+  readExecutionSignals,
   summarizeLogContext,
   levelVariant,
+  shortId,
+  statusVariant,
 } from './execution-inspector-support.js';
 
 interface ExecutionInspectorDetailViewProps {
@@ -35,12 +39,12 @@ export function ExecutionInspectorDetailView(
         {!props.isLoading && props.entries.length > 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/20 px-5 py-3 text-xs text-muted">
             <span>
-              Loaded {props.loadedCount} activity summaries
+              Loaded {props.loadedCount} operator activity packets
               {props.hasMore ? ' in the current segment' : ''}
             </span>
             {props.isSelectedOutsideSegment ? (
               <div className="flex items-center gap-3">
-                <span>Selected entry is pinned outside the current segment.</span>
+                <span>Selected packet is pinned outside the current segment.</span>
                 {props.onClearSelection ? (
                   <Button variant="ghost" size="sm" onClick={props.onClearSelection}>
                     Return to segment
@@ -54,10 +58,12 @@ export function ExecutionInspectorDetailView(
           {props.entries.map((entry) => {
             const context = summarizeLogContext(entry);
             const isSelected = props.selectedLogId === entry.id;
+            const signals = readExecutionSignals(entry);
             return (
               <button
                 key={entry.id}
                 type="button"
+                aria-pressed={isSelected}
                 className={`w-full px-5 py-4 text-left transition-colors hover:bg-border/20 ${
                   isSelected ? 'bg-border/20' : ''
                 }`}
@@ -74,13 +80,14 @@ export function ExecutionInspectorDetailView(
                       {entry.is_orchestrator_task ? (
                         <Badge variant="outline">orchestrator</Badge>
                       ) : null}
+                      {signals.map((signal) => (
+                        <Badge key={signal} variant="outline">
+                          {signal}
+                        </Badge>
+                      ))}
                     </div>
-                    <div className="font-medium">{entry.operation}</div>
-                    <div className="text-sm text-muted">
-                      {entry.source} • {entry.category}
-                      {entry.role ? ` • ${entry.role}` : ''}
-                      {entry.actor_name ? ` • ${entry.actor_name}` : ''}
-                    </div>
+                    <div className="font-medium">{describeExecutionHeadline(entry)}</div>
+                    <div className="text-sm text-muted">{describeExecutionSummary(entry)}</div>
                     {context.length > 0 ? (
                       <div className="flex flex-wrap gap-2 text-xs text-muted">
                         {context.map((item) => (
@@ -88,6 +95,7 @@ export function ExecutionInspectorDetailView(
                         ))}
                       </div>
                     ) : null}
+                    <div className="text-xs text-muted">{describeExecutionNextAction(entry)}</div>
                     {entry.error?.message ? (
                       <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700">
                         {entry.error.message}
@@ -96,8 +104,8 @@ export function ExecutionInspectorDetailView(
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2 text-xs text-muted">
                     <span>{formatDuration(entry.duration_ms)}</span>
-                    <span>trace {shortId(entry.trace_id)}</span>
-                    <span>activity span {shortId(entry.span_id)}</span>
+                    <span>diagnostic trace {shortId(entry.trace_id)}</span>
+                    <span>diagnostic span {shortId(entry.span_id)}</span>
                   </div>
                 </div>
               </button>
@@ -107,7 +115,7 @@ export function ExecutionInspectorDetailView(
         {props.hasMore ? (
           <div className="border-t border-border p-4">
             <Button variant="outline" onClick={props.onLoadMore}>
-              Load Older Segment
+              Load Older Activity
             </Button>
           </div>
         ) : null}
