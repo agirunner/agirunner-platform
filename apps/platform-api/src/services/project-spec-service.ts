@@ -109,7 +109,7 @@ export class ProjectSpecService {
     return {
       project_id: projectId,
       version: row.version,
-      spec: sanitizeProjectSpec(row.spec),
+      spec: sanitizeProjectSpecForRead(row.spec),
       created_at: row.created_at.toISOString(),
       created_by_type: row.created_by_type,
       created_by_id: row.created_by_id,
@@ -343,12 +343,19 @@ export class ProjectSpecService {
   }
 }
 
-function sanitizeProjectSpec(value: unknown): Record<string, unknown> {
+function sanitizeProjectSpecForRead(value: unknown): Record<string, unknown> {
+  return sanitizeSecretLikeRecord(value, {
+    redactionValue: PROJECT_SPEC_SECRET_REDACTION,
+    allowSecretReferences: false,
+  });
+}
+
+function sanitizeProjectSpecForValidation(value: unknown): Record<string, unknown> {
   return sanitizeSecretLikeRecord(value, { redactionValue: PROJECT_SPEC_SECRET_REDACTION });
 }
 
 function assertNoPlaintextSecretsInSpec(spec: Record<string, unknown>): void {
-  const sanitized = sanitizeProjectSpec(spec);
+  const sanitized = sanitizeProjectSpecForValidation(spec);
   if (JSON.stringify(sanitized) === JSON.stringify(spec)) {
     return;
   }
