@@ -33,11 +33,20 @@ export interface LlmProviderRecord {
   name: string;
 }
 
+export interface ReasoningConfigSchema {
+  type: 'reasoning_effort' | 'effort' | 'thinking_level' | 'thinking_budget';
+  options?: string[];
+  min?: number;
+  max?: number;
+  default: string | number;
+}
+
 export interface LlmModelRecord {
   id: string;
   model_id: string;
   provider_id?: string | null;
   provider_name?: string | null;
+  reasoning_config?: ReasoningConfigSchema | null;
   is_enabled?: boolean;
 }
 

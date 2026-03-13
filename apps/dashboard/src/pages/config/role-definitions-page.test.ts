@@ -9,6 +9,8 @@ function readSource() {
 function readCombinedSource() {
   return [
     readSource(),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-page.api.ts'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-page.orchestrator.ts'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.tsx'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.basics.tsx'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.catalog.tsx'), 'utf8'),
@@ -17,6 +19,11 @@ function readCombinedSource() {
     readFileSync(resolve(import.meta.dirname, './role-definitions-delete-dialog.tsx'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-lifecycle.ts'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-orchestrator.tsx'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-orchestrator.sections.tsx'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-orchestrator.dialogs.tsx'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-orchestrator.dialog-shared.tsx'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-orchestrator.pool-dialog.tsx'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-orchestrator.form.ts'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-orchestrator.support.ts'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-list.tsx'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-page.support.ts'), 'utf8'),
@@ -25,9 +32,9 @@ function readCombinedSource() {
 
 describe('role definitions page source', () => {
   it('exposes a first-class create role flow instead of edit-only administration', () => {
-    const source = readSource();
+    const source = readCombinedSource();
     expect(source).toContain('Create Role');
-    expect(source).toContain('function saveRole');
+    expect(source).toContain('saveRole');
     expect(source).toContain("method: roleId ? 'PUT' : 'POST'");
   });
 
@@ -71,28 +78,29 @@ describe('role definitions page source', () => {
     expect(source).not.toContain("method: 'PATCH'");
   });
 
-  it('adds a first-class orchestrator control plane with prompt, model, and pool links', () => {
+  it('adds a first-class orchestrator control plane with direct prompt, model, and pool editing', () => {
     const source = readCombinedSource();
     expect(source).toContain('OrchestratorControlPlane');
-    expect(source).toContain('summarizeOrchestratorControlSurfaces');
-    expect(source).toContain('summarizeOrchestratorReadiness');
     expect(source).toContain('Roles &amp; Orchestrator');
-    expect(source).toContain('Configuration map');
-    expect(source).toContain('Every supported orchestrator setting has a clear home.');
-    expect(source).toContain('Open prompt settings');
-    expect(source).toContain('Open model routing');
-    expect(source).toContain('Open runtime defaults');
-    expect(source).toContain('Jump to role catalog');
-    expect(source).toContain('specialist-role-catalog');
-    expect(source).toContain('Needs attention');
-    expect(source).toContain('Control plane ready');
-    expect(source).toContain('Resolve these orchestrator setup blockers before relying on this control plane for live workflows.');
-    expect(source).toContain('Fix prompt baseline');
-    expect(source).toContain('Fix model routing');
-    expect(source).toContain('Fix worker pool');
+    expect(source).toContain('Keep the workflow orchestrator fully manageable from this page');
+    expect(source).toContain('Edit prompt here');
+    expect(source).toContain('Edit model here');
+    expect(source).toContain('Edit pool here');
+    expect(source).toContain('Edit orchestrator prompt baseline');
+    expect(source).toContain('Edit orchestrator model routing');
+    expect(source).toContain('Edit orchestrator pool posture');
+    expect(source).toContain('Save prompt baseline');
+    expect(source).toContain('Save model routing');
+    expect(source).toContain('Save pool posture');
+    expect(source).toContain('max-h-[85vh] max-w-3xl overflow-y-auto');
+    expect(source).toContain('max-h-[85vh] max-w-2xl overflow-y-auto');
     expect(source).toContain('dashboardApi.getPlatformInstructions()');
     expect(source).toContain('dashboardApi.fetchFleetStatus()');
     expect(source).toContain('dashboardApi.fetchFleetWorkers()');
+    expect(source).toContain('dashboardApi.updatePlatformInstructions');
+    expect(source).toContain('dashboardApi.updateFleetWorker');
+    expect(source).toContain('dashboardApi.createFleetWorker');
+    expect(source).toContain("updateAssignment('orchestrator'");
     expect(source).toContain('/config/instructions');
     expect(source).toContain('/config/llm');
     expect(source).toContain('/fleet/workers');

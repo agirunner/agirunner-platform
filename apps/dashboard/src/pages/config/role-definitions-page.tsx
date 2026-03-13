@@ -17,66 +17,23 @@ import {
   TableHeader,
   TableRow,
 } from '../../components/ui/table.js';
-import { dashboardApi } from '../../lib/api.js';
-import { readSession } from '../../lib/session.js';
 import { toast } from '../../lib/toast.js';
 import { DeleteRoleDialog } from './role-definitions-delete-dialog.js';
 import {
   OrchestratorControlPlane,
 } from './role-definitions-orchestrator.js';
 import {
-  summarizeOrchestratorReadiness,
-  summarizeOrchestratorControlSurfaces,
-  summarizeOrchestratorModel,
-  summarizeOrchestratorPool,
-  summarizeOrchestratorPrompt,
-  type RoleAssignmentRecord,
-  type SystemDefaultRecord,
-} from './role-definitions-orchestrator.support.js';
+  fetchRoles,
+  deleteRole,
+  saveRole,
+} from './role-definitions-page.api.js';
+import { useRolePageOrchestratorState } from './role-definitions-page.orchestrator.js';
 import {
-  buildRolePayload,
   countRoleStateSummary,
-  type LlmModelRecord,
-  type LlmProviderRecord,
   type RoleDefinition,
-  type RoleFormState,
 } from './role-definitions-page.support.js';
 import { RoleDialog } from './role-definitions-dialog.js';
 import { MetricCard, RoleRow } from './role-definitions-list.js';
-
-const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
-
-function getAuthHeaders(): Record<string, string> {
-  const session = readSession();
-  return {
-    'Content-Type': 'application/json',
-    ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
-  };
-}
-
-async function requestData<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    credentials: 'include',
-    headers: getAuthHeaders(),
-    ...init,
-  });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body = await response.json();
-  return (body.data ?? body) as T;
-}
-
-const fetchRoles = () => requestData<RoleDefinition[]>('/api/v1/config/roles');
-const fetchProviders = () => requestData<LlmProviderRecord[]>('/api/v1/config/llm/providers');
-const fetchModels = () => requestData<LlmModelRecord[]>('/api/v1/config/llm/models');
-const fetchSystemDefault = () => requestData<SystemDefaultRecord>('/api/v1/config/llm/system-default');
-const fetchAssignments = () => requestData<RoleAssignmentRecord[]>('/api/v1/config/llm/assignments');
-
-function saveRole(roleId: string | null, form: RoleFormState) {
-  return requestData<RoleDefinition>(roleId ? `/api/v1/config/roles/${roleId}` : '/api/v1/config/roles', {
-    method: roleId ? 'PUT' : 'POST',
-    body: JSON.stringify(buildRolePayload(form)),
-  });
-}
 
 export function RoleDefinitionsPage(): JSX.Element {
   const queryClient = useQueryClient();
@@ -84,41 +41,13 @@ export function RoleDefinitionsPage(): JSX.Element {
   const [isCreating, setIsCreating] = useState(false);
   const [deletingRole, setDeletingRole] = useState<RoleDefinition | null>(null);
   const rolesQuery = useQuery({ queryKey: ['roles'], queryFn: fetchRoles });
-  const providersQuery = useQuery({ queryKey: ['llm-providers'], queryFn: fetchProviders });
-  const modelsQuery = useQuery({ queryKey: ['llm-models'], queryFn: fetchModels });
-  const instructionsQuery = useQuery({
-    queryKey: ['platform-instructions', 'roles-page'],
-    queryFn: () => dashboardApi.getPlatformInstructions(),
-  });
-  const systemDefaultQuery = useQuery({
-    queryKey: ['llm-system-default', 'roles-page'],
-    queryFn: fetchSystemDefault,
-  });
-  const assignmentsQuery = useQuery({
-    queryKey: ['llm-assignments', 'roles-page'],
-    queryFn: fetchAssignments,
-  });
-  const fleetStatusQuery = useQuery({
-    queryKey: ['fleet-status', 'roles-page'],
-    queryFn: () => dashboardApi.fetchFleetStatus(),
-  });
-  const fleetWorkersQuery = useQuery({
-    queryKey: ['fleet-workers', 'roles-page'],
-    queryFn: () => dashboardApi.fetchFleetWorkers(),
-  });
+  const orchestratorState = useRolePageOrchestratorState();
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!deletingRole) {
         throw new Error('Choose a role to delete.');
       }
-      const response = await fetch(`${API_BASE_URL}/api/v1/config/roles/${deletingRole.id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: getAuthHeaders(),
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+      await deleteRole(deletingRole.id);
     },
     onSuccess: async () => {
       const deletedRoleName = deletingRole?.name ?? 'Role';
@@ -144,40 +73,9 @@ export function RoleDefinitionsPage(): JSX.Element {
 
   const roles = rolesQuery.data ?? [];
   const summary = countRoleStateSummary(roles);
-  const modelCatalogError = modelsQuery.error || providersQuery.error ? String(modelsQuery.error ?? providersQuery.error) : null;
-  const orchestratorPromptSummary = summarizeOrchestratorPrompt(instructionsQuery.data);
-  const orchestratorModelSummary = summarizeOrchestratorModel(
-    assignmentsQuery.data,
-    systemDefaultQuery.data,
-    modelsQuery.data ?? [],
-  );
-  const orchestratorPoolSummary = summarizeOrchestratorPool(
-    fleetStatusQuery.data,
-    fleetWorkersQuery.data,
-  );
-  const orchestratorReadiness = summarizeOrchestratorReadiness(
-    orchestratorPromptSummary,
-    orchestratorModelSummary,
-    orchestratorPoolSummary,
-  );
-  const orchestratorControlSurfaces = summarizeOrchestratorControlSurfaces(
-    orchestratorPromptSummary,
-    orchestratorModelSummary,
-    orchestratorPoolSummary,
-  );
-  const orchestratorQueries = [
-    instructionsQuery,
-    systemDefaultQuery,
-    assignmentsQuery,
-    fleetStatusQuery,
-    fleetWorkersQuery,
-  ];
   const dialogProps = {
     roles,
-    providers: providersQuery.data ?? [],
-    models: modelsQuery.data ?? [],
-    isModelCatalogLoading: providersQuery.isLoading || modelsQuery.isLoading,
-    modelCatalogError,
+    ...orchestratorState.roleDialogCatalog,
     onSave: saveRole,
   };
 
@@ -197,15 +95,7 @@ export function RoleDefinitionsPage(): JSX.Element {
         <Button onClick={() => setIsCreating(true)}><Plus className="h-4 w-4" />Create Role</Button>
       </div>
 
-      <OrchestratorControlPlane
-        promptSummary={orchestratorPromptSummary}
-        modelSummary={orchestratorModelSummary}
-        poolSummary={orchestratorPoolSummary}
-        readiness={orchestratorReadiness}
-        controlSurfaces={orchestratorControlSurfaces}
-        isLoading={orchestratorQueries.some((query) => query.isLoading)}
-        hasError={orchestratorQueries.some((query) => query.isError)}
-      />
+      <OrchestratorControlPlane {...orchestratorState.controlPlaneProps} />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Total roles" value={summary.total} />
