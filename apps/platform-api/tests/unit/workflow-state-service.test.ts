@@ -81,7 +81,7 @@ describe('WorkflowStateService', () => {
   it('returns pending for continuous workflows when no active work-item or gate posture remains', async () => {
     const pool = createPool([
       workflowRow({ state: 'active' }),
-      rowSet([{ lifecycle: 'continuous', current_stage: null }]),
+      rowSet([{ lifecycle: 'continuous', current_stage: 'legacy-stage' }]),
       rowSet([{ status: 'completed', gate_status: 'approved' }]),
       rowSet([]),
       rowSet([{ open_work_item_count: 0 }]),
@@ -97,6 +97,9 @@ describe('WorkflowStateService', () => {
         data: { from_state: 'active', to_state: 'pending' },
       }),
       undefined,
+    );
+    expect(String(pool.query.mock.calls[1]?.[0] ?? '').replace(/\s+/g, ' ')).toContain(
+      "CASE WHEN lifecycle = 'standard' THEN current_stage ELSE NULL END AS current_stage",
     );
   });
 

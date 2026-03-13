@@ -1,14 +1,25 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ConflictError } from '../errors/domain-errors.js';
+import { loadWorkflowSummarySnapshots } from './project-timeline-summary-loader.js';
 import {
   buildWorkflowSummary,
-  loadWorkflowSummarySnapshots,
   type WorkflowSummarySnapshot,
-} from './project-timeline-summary-loader.js';
-import { buildWorkflowReadColumns } from './workflow-read-columns.js';
+} from './project-timeline-summary-support.js';
 
 const PROJECT_TIMELINE_KEY = 'project_timeline';
 const PROJECT_LAST_RUN_SUMMARY_KEY = 'last_run_summary';
+const WORKFLOW_TIMELINE_COLUMNS = [
+  'id',
+  'project_id',
+  'playbook_id',
+  'name',
+  'state',
+  'lifecycle',
+  'metadata',
+  'created_at',
+  'started_at',
+  'completed_at',
+].join(', ');
 
 export class ProjectTimelineService {
   constructor(private readonly pool: DatabasePool) {}
@@ -16,7 +27,10 @@ export class ProjectTimelineService {
   async recordWorkflowTerminalState(tenantId: string, workflowId: string, client?: DatabaseClient) {
     const db = client ?? this.pool;
     const workflowResult = await db.query(
-      `SELECT ${buildWorkflowReadColumns()} FROM workflows WHERE tenant_id = $1 AND id = $2`,
+      `SELECT ${WORKFLOW_TIMELINE_COLUMNS}
+         FROM workflows
+        WHERE tenant_id = $1
+          AND id = $2`,
       [tenantId, workflowId],
     );
     if (!workflowResult.rowCount) {

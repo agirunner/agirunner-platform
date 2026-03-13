@@ -217,7 +217,14 @@ export class WorkflowStateService {
   ): Promise<WorkflowPosture> {
     const [workflowResult, stageResult, orchestratorResult, workItemResult] = await Promise.all([
       db.query<{ lifecycle: string | null; current_stage: string | null }>(
-        'SELECT lifecycle, current_stage FROM workflows WHERE tenant_id = $1 AND id = $2',
+        `SELECT lifecycle,
+                CASE
+                  WHEN lifecycle = 'standard' THEN current_stage
+                  ELSE NULL
+                END AS current_stage
+           FROM workflows
+          WHERE tenant_id = $1
+            AND id = $2`,
         [tenantId, workflowId],
       ),
       db.query<{ status: string; gate_status: string }>(
@@ -241,13 +248,13 @@ export class WorkflowStateService {
       ),
     ]);
 
-    return {
-      lifecycle: workflowResult.rows[0]?.lifecycle ?? 'standard',
-      currentStage: workflowResult.rows[0]?.current_stage ?? null,
-      stages: stageResult.rows,
-      hasActiveOrchestratorTask: (orchestratorResult.rowCount ?? 0) > 0,
-      openWorkItemCount: workItemResult.rows[0]?.open_work_item_count ?? 0,
-    };
+    return buildWorkflowPosture(
+      workflowResult.rows[0]?.lifecycle ?? 'standard',
+      workflowResult.rows[0]?.current_stage ?? null,
+      stageResult.rows,
+      (orchestratorResult.rowCount ?? 0) > 0,
+      workItemResult.rows[0]?.open_work_item_count ?? 0,
+    );
   }
 
   private async loadTerminalTaskCounts(db: DatabaseClient | DatabasePool, tenantId: string, workflowId: string) {
@@ -261,12 +268,51 @@ export class WorkflowStateService {
   }
 }
 
-interface WorkflowPosture {
+interface WorkflowPostureBase {
   lifecycle: string;
-  currentStage: string | null;
   stages: Array<{ status: string; gate_status: string }>;
   hasActiveOrchestratorTask: boolean;
   openWorkItemCount: number;
+}
+
+type WorkflowPostureShape = Omit<WorkflowPostureBase, 'lifecycle'>;
+
+interface StandardWorkflowPosture extends WorkflowPostureBase {
+  lifecycle: 'standard';
+  currentStage: string | null;
+}
+
+interface ContinuousWorkflowPosture extends WorkflowPostureBase {
+  lifecycle: 'continuous';
+}
+
+type WorkflowPosture = StandardWorkflowPosture | ContinuousWorkflowPosture;
+
+function buildWorkflowPosture(
+  lifecycle: string,
+  currentStage: string | null,
+  stages: Array<{ status: string; gate_status: string }>,
+  hasActiveOrchestratorTask: boolean,
+  openWorkItemCount: number,
+): WorkflowPosture {
+  const normalizedLifecycle: WorkflowPosture['lifecycle'] =
+    lifecycle === 'continuous' ? 'continuous' : 'standard';
+  const base: WorkflowPostureShape = {
+    stages,
+    hasActiveOrchestratorTask,
+    openWorkItemCount,
+  };
+  if (normalizedLifecycle === 'continuous') {
+    return {
+      ...base,
+      lifecycle: normalizedLifecycle,
+    };
+  }
+  return {
+    ...base,
+    lifecycle: normalizedLifecycle,
+    currentStage,
+  };
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -278,18 +324,18 @@ function readOptionalString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
-function deriveContinuousWorkflowState(posture: WorkflowPosture) {
+function deriveContinuousWorkflowState(posture: ContinuousWorkflowPosture) {
   return hasContinuousWorkflowPosture(posture) ? 'active' : 'pending';
 }
 
-function hasActiveWorkflowPosture(posture: WorkflowPosture) {
+function hasActiveWorkflowPosture(posture: StandardWorkflowPosture) {
   if (posture.hasActiveOrchestratorTask || posture.openWorkItemCount > 0) return true;
   if (posture.stages.some((stage) => isAttentionGateStatus(stage.gate_status))) return true;
   if (posture.stages.some((stage) => isActiveStageStatus(stage.status))) return true;
   return Boolean(posture.currentStage && posture.stages.some((stage) => stage.status !== 'completed'));
 }
 
-function hasContinuousWorkflowPosture(posture: WorkflowPosture) {
+function hasContinuousWorkflowPosture(posture: ContinuousWorkflowPosture) {
   if (posture.hasActiveOrchestratorTask || posture.openWorkItemCount > 0) return true;
   if (posture.stages.some((stage) => isAttentionGateStatus(stage.gate_status))) return true;
   return posture.stages.some((stage) => isActiveStageStatus(stage.status));

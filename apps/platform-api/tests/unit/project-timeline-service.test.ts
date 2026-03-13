@@ -22,8 +22,12 @@ describe('ProjectTimelineService', () => {
     await expect(service.recordWorkflowTerminalState('tenant-1', 'workflow-1')).rejects.toThrow(
       'only support playbook workflows',
     );
-    expect(String(pool.query.mock.calls[0]?.[0] ?? '')).not.toContain('SELECT * FROM workflows');
-    expect(String(pool.query.mock.calls[0]?.[0] ?? '')).not.toContain('template_id');
+    const workflowReadSql = String(pool.query.mock.calls[0]?.[0] ?? '').replace(/\s+/g, ' ');
+    expect(workflowReadSql).toContain(
+      'SELECT id, project_id, playbook_id, name, state, lifecycle, metadata, created_at, started_at, completed_at FROM workflows',
+    );
+    expect(workflowReadSql).not.toContain('SELECT * FROM workflows');
+    expect(workflowReadSql).not.toContain('current_stage');
   });
 
   it('hydrates playbook project timelines from live activation, work-item, and gate rows', async () => {
@@ -620,6 +624,203 @@ describe('ProjectTimelineService', () => {
       ],
       ['work_item.created', 'work_item.updated'],
     ]);
+  });
+
+  it('redacts secret-bearing values before persisting workflow run summaries', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('FROM workflows')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: 'workflow-secret',
+              name: 'Secret Workflow',
+              state: 'completed',
+              lifecycle: 'standard',
+              playbook_id: 'playbook-1',
+              project_id: 'project-1',
+              metadata: {},
+              created_at: '2026-03-10T00:00:00.000Z',
+              started_at: '2026-03-10T00:05:00.000Z',
+              completed_at: '2026-03-10T00:25:00.000Z',
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM tasks')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: 'task-secret',
+              workflow_id: 'workflow-secret',
+              state: 'completed',
+              stage_name: 'review',
+              work_item_id: 'wi-secret',
+              rework_count: 0,
+              metrics: { total_cost_usd: 1.25 },
+              git_info: {
+                linked_prs: [
+                  {
+                    url: 'https://github.com/agisnap/agirunner-test-fixtures/pull/2',
+                    token: 'secret:PR_SECRET',
+                  },
+                ],
+              },
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM workflow_artifacts')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('FROM events')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              workflow_id: 'workflow-secret',
+              type: 'child_workflow.completed',
+              actor_type: 'system',
+              actor_id: 'dispatcher',
+              data: {
+                parent_workflow_id: 'workflow-secret',
+                child_workflow_id: 'workflow-child',
+                child_workflow_state: 'completed',
+                outcome: {
+                  authorization: 'Bearer child-secret',
+                },
+              },
+              created_at: '2026-03-10T00:15:00.000Z',
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM workflow_stages')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              workflow_id: 'workflow-secret',
+              name: 'review',
+              goal: 'Review work',
+              human_gate: true,
+              status: 'completed',
+              gate_status: 'approved',
+              iteration_count: 0,
+              summary: 'secret:STAGE_SECRET',
+              started_at: '2026-03-10T00:05:00.000Z',
+              completed_at: '2026-03-10T00:25:00.000Z',
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM workflow_work_items')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              workflow_id: 'workflow-secret',
+              id: 'wi-secret',
+              stage_name: 'review',
+              column_id: 'done',
+              title: 'Review work item',
+              completed_at: '2026-03-10T00:24:00.000Z',
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM workflow_activations')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('FROM workflow_stage_gates')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              workflow_id: 'workflow-secret',
+              id: 'gate-secret',
+              stage_name: 'review',
+              status: 'approved',
+              request_summary: 'secret:GATE_SECRET',
+              recommendation: 'approve',
+              concerns: [{ access_token: 'secret:CONCERN_SECRET' }],
+              key_artifacts: [{ note: 'secret:ARTIFACT_SECRET' }],
+              requested_by_type: 'agent',
+              requested_by_id: 'orchestrator',
+              requested_at: '2026-03-10T00:10:00.000Z',
+              decision_feedback: 'Bearer decision-secret',
+              decided_by_type: 'admin',
+              decided_by_id: 'admin-1',
+              decided_at: '2026-03-10T00:18:00.000Z',
+            },
+          ],
+        };
+      }
+      if (sql.includes('SELECT memory FROM projects')) {
+        return {
+          rowCount: 1,
+          rows: [{ memory: {} }],
+        };
+      }
+      if (sql.includes('UPDATE workflows')) {
+        return { rowCount: 1, rows: [] };
+      }
+      if (sql.includes('UPDATE projects')) {
+        return { rowCount: 1, rows: [] };
+      }
+      return { rowCount: 0, rows: [] };
+    });
+    const service = new ProjectTimelineService({ query } as never);
+
+    const result = await service.recordWorkflowTerminalState('tenant-1', 'workflow-secret');
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        workflow_id: 'workflow-secret',
+      }),
+    );
+    expect((result as Record<string, any>).stage_metrics[0].summary).toBe(
+      'redacted://workflow-summary-secret',
+    );
+    expect((result as Record<string, any>).stage_metrics[0].gate_history[0].feedback).toBe(
+      'redacted://workflow-summary-secret',
+    );
+    expect((result as Record<string, any>).stage_metrics[0].gate_history[1].feedback).toBe(
+      'redacted://workflow-summary-secret',
+    );
+    expect((result as Record<string, any>).child_workflow_activity.transitions[0].outcome.authorization).toBe(
+      'redacted://workflow-summary-secret',
+    );
+    expect((result as Record<string, any>).produced_artifacts[0].reference.token).toBe(
+      'redacted://workflow-summary-secret',
+    );
+
+    const workflowUpdateCall = query.mock.calls.find((call) =>
+      String(call[0]).includes('UPDATE workflows'),
+    ) as [string, unknown[]] | undefined;
+    const persistedSummary = (workflowUpdateCall?.[1]?.[2] as Record<string, any>).run_summary;
+    expect(persistedSummary.stage_metrics[0].summary).toBe('redacted://workflow-summary-secret');
+    expect(persistedSummary.stage_metrics[0].gate_history[0].feedback).toBe(
+      'redacted://workflow-summary-secret',
+    );
+    expect(persistedSummary.child_workflow_activity.transitions[0].outcome.authorization).toBe(
+      'redacted://workflow-summary-secret',
+    );
+    expect(persistedSummary.produced_artifacts[0].reference.token).toBe(
+      'redacted://workflow-summary-secret',
+    );
+
+    const projectUpdateCall = query.mock.calls.find((call) =>
+      String(call[0]).includes('UPDATE projects'),
+    ) as [string, unknown[]] | undefined;
+    const persistedProjectMemory = projectUpdateCall?.[1]?.[2] as Record<string, any>;
+    expect(persistedProjectMemory.last_run_summary.stage_metrics[0].summary).toBe(
+      'redacted://workflow-summary-secret',
+    );
+    expect(persistedProjectMemory.project_timeline[0].child_workflow_activity.transitions[0].outcome.authorization).toBe(
+      'redacted://workflow-summary-secret',
+    );
   });
 
   it('persists only activation, stage, gate, work-item, and escalation signals in summaries', async () => {
