@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { canMoveDraftItem, moveDraftItem } from './playbook-authoring-reorder.js';
+import { canMoveDraftItem, moveDraftItem, spliceDraftItem } from './playbook-authoring-reorder.js';
 
 describe('playbook authoring reorder helpers', () => {
   it('moves a draft item earlier without mutating the original list', () => {
@@ -34,5 +34,23 @@ describe('playbook authoring reorder helpers', () => {
     expect(canMoveDraftItem(2, 3, 'later')).toBe(false);
     expect(canMoveDraftItem(2, 3, 'earlier')).toBe(true);
     expect(canMoveDraftItem(-1, 3, 'later')).toBe(false);
+  });
+
+  it('splices a draft item from one index to another for drag-and-drop reorder', () => {
+    const items = ['inbox', 'doing', 'review', 'done'];
+
+    expect(spliceDraftItem(items, 0, 3)).toEqual(['doing', 'review', 'done', 'inbox']);
+    expect(spliceDraftItem(items, 3, 0)).toEqual(['done', 'inbox', 'doing', 'review']);
+    expect(spliceDraftItem(items, 1, 2)).toEqual(['inbox', 'review', 'doing', 'done']);
+    expect(items).toEqual(['inbox', 'doing', 'review', 'done']);
+  });
+
+  it('returns a copied list when splice indices are equal or out of bounds', () => {
+    const items = ['a', 'b', 'c'];
+
+    expect(spliceDraftItem(items, 1, 1)).toEqual(items);
+    expect(spliceDraftItem(items, 1, 1)).not.toBe(items);
+    expect(spliceDraftItem(items, -1, 1)).toEqual(items);
+    expect(spliceDraftItem(items, 0, 5)).toEqual(items);
   });
 });

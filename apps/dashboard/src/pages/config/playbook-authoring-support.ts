@@ -31,6 +31,10 @@ export interface ParameterDraft {
   maps_to: string;
   description: string;
   default_value: string;
+  label: string;
+  help_text: string;
+  allowed_values: string;
+  input_style: string;
 }
 
 export interface RuntimePoolDraft {
@@ -183,6 +187,10 @@ export function createEmptyParameterDraft(): ParameterDraft {
     maps_to: '',
     description: '',
     default_value: '',
+    label: '',
+    help_text: '',
+    allowed_values: '',
+    input_style: '',
   };
 }
 
@@ -267,6 +275,10 @@ export function buildPlaybookDefinition(
       maps_to: parameter.maps_to.trim(),
       description: parameter.description.trim(),
       default: parameter.default_value.trim(),
+      label: parameter.label.trim(),
+      help_text: parameter.help_text.trim(),
+      allowed_values: parameter.allowed_values.trim(),
+      input_style: parameter.input_style.trim(),
     }))
     .filter((parameter) =>
       parameter.name ||
@@ -274,6 +286,10 @@ export function buildPlaybookDefinition(
       parameter.maps_to ||
       parameter.description ||
       parameter.default ||
+      parameter.label ||
+      parameter.help_text ||
+      parameter.allowed_values ||
+      parameter.input_style ||
       parameter.required ||
       parameter.secret,
     );
@@ -503,6 +519,10 @@ function readParameterDraftErrors(parameter: ParameterDraft): {
     mapsTo.length > 0 ||
     parameter.description.trim().length > 0 ||
     parameter.default_value.trim().length > 0 ||
+    parameter.label.trim().length > 0 ||
+    parameter.help_text.trim().length > 0 ||
+    parameter.allowed_values.trim().length > 0 ||
+    parameter.input_style.trim().length > 0 ||
     parameter.required ||
     parameter.secret;
 
@@ -624,6 +644,10 @@ function readParameters(value: unknown): ParameterDraft[] {
             default_value: stringifyDefaultValue(
               record.default ?? record.default_value ?? record.value,
             ),
+            label: readString(record.label),
+            help_text: readString(record.help_text),
+            allowed_values: readString(record.allowed_values),
+            input_style: readString(record.input_style),
           };
         })
         .filter(
@@ -683,6 +707,10 @@ export function summarizePlaybookAuthoringDraft(
       parameter.maps_to.trim().length > 0 ||
       parameter.description.trim().length > 0 ||
       parameter.default_value.trim().length > 0 ||
+      parameter.label.trim().length > 0 ||
+      parameter.help_text.trim().length > 0 ||
+      parameter.allowed_values.trim().length > 0 ||
+      parameter.input_style.trim().length > 0 ||
       parameter.required ||
       parameter.secret,
   );

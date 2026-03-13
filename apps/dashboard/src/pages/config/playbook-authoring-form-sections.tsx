@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ChevronDown, ChevronUp, GripVertical, Minus, Plus } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
@@ -24,6 +24,7 @@ import {
 import {
   canMoveDraftItem,
   moveDraftItem,
+  spliceDraftItem,
   type DraftReorderDirection,
 } from './playbook-authoring-reorder.js';
 import {
@@ -152,6 +153,9 @@ export function TeamRolesSection(
 export function BoardColumnsSection(props: SectionProps): JSX.Element {
   const columnCount = props.draft.columns.length;
   const boardColumnValidation = validateBoardColumnsDraft(props.draft.columns);
+  const columnDrag = useDraftDragReorder(props.draft.columns, (next) =>
+    props.onChange((current) => ({ ...current, columns: next })),
+  );
 
   return (
     <SectionCard
@@ -165,8 +169,23 @@ export function BoardColumnsSection(props: SectionProps): JSX.Element {
             Resolve board-column blockers before save.
           </div>
         ) : null}
-        {props.draft.columns.map((column, index) => (
-          <div key={`column-${index}`} className="rounded-md border border-border p-4">
+        {props.draft.columns.map((column, index) => {
+          const dropTargetProps = columnDrag.getDropTargetProps(index);
+          return (
+          <div
+            key={`column-${index}`}
+            className={`rounded-md border p-4 transition-colors duration-150${
+              dropTargetProps['data-drag-over']
+                ? ' border-primary/50 bg-primary/5'
+                : columnDrag.dragState.dragIndex === index
+                  ? ' border-border opacity-50'
+                  : ' border-border'
+            }`}
+            onDragOver={dropTargetProps.onDragOver}
+            onDragLeave={dropTargetProps.onDragLeave}
+            onDrop={dropTargetProps.onDrop}
+            onDragEnd={dropTargetProps.onDragEnd}
+          >
             <ReorderableCardHeader
               positionLabel={`Column ${index + 1} of ${columnCount}`}
               title={resolveBoardColumnTitle(column, index)}
@@ -175,6 +194,7 @@ export function BoardColumnsSection(props: SectionProps): JSX.Element {
               total={columnCount}
               removeLabel="Remove Column"
               disableRemove={columnCount === 1}
+              dragHandleProps={columnDrag.getDragHandleProps(index)}
               onMove={(direction) => moveColumn(props.onChange, index, direction)}
               onRemove={() => removeColumn(props.onChange, index)}
             />
@@ -258,7 +278,8 @@ export function BoardColumnsSection(props: SectionProps): JSX.Element {
               />
             </div>
           </div>
-        ))}
+          );
+        })}
         <Button
           type="button"
           variant="outline"
@@ -280,6 +301,9 @@ export function BoardColumnsSection(props: SectionProps): JSX.Element {
 export function WorkflowStagesSection(props: SectionProps): JSX.Element {
   const availableRoleOptions = normalizedRoleOptions(props.draft.roles.map((role) => role.value));
   const stageCount = props.draft.stages.length;
+  const stageDrag = useDraftDragReorder(props.draft.stages, (next) =>
+    props.onChange((current) => ({ ...current, stages: next })),
+  );
 
   return (
     <SectionCard
@@ -288,8 +312,23 @@ export function WorkflowStagesSection(props: SectionProps): JSX.Element {
       description="Ordered stages the orchestrator uses to progress a standard workflow or classify active work in a continuous workflow."
     >
       <div className="space-y-4">
-        {props.draft.stages.map((stage, index) => (
-          <div key={`stage-${index}`} className="rounded-md border border-border p-4">
+        {props.draft.stages.map((stage, index) => {
+          const dropTargetProps = stageDrag.getDropTargetProps(index);
+          return (
+          <div
+            key={`stage-${index}`}
+            className={`rounded-md border p-4 transition-colors duration-150${
+              dropTargetProps['data-drag-over']
+                ? ' border-primary/50 bg-primary/5'
+                : stageDrag.dragState.dragIndex === index
+                  ? ' border-border opacity-50'
+                  : ' border-border'
+            }`}
+            onDragOver={dropTargetProps.onDragOver}
+            onDragLeave={dropTargetProps.onDragLeave}
+            onDrop={dropTargetProps.onDrop}
+            onDragEnd={dropTargetProps.onDragEnd}
+          >
             <ReorderableCardHeader
               positionLabel={`Stage ${index + 1} of ${stageCount}`}
               title={resolveStageTitle(stage, index)}
@@ -298,6 +337,7 @@ export function WorkflowStagesSection(props: SectionProps): JSX.Element {
               total={stageCount}
               removeLabel="Remove Stage"
               disableRemove={stageCount === 1}
+              dragHandleProps={stageDrag.getDragHandleProps(index)}
               onMove={(direction) => moveStagePosition(props.onChange, index, direction)}
               onRemove={() => removeStage(props.onChange, index)}
             />
@@ -347,7 +387,8 @@ export function WorkflowStagesSection(props: SectionProps): JSX.Element {
               />
             </div>
           </div>
-        ))}
+          );
+        })}
         <Button
           type="button"
           variant="outline"
@@ -374,6 +415,7 @@ interface ReorderableCardHeaderProps {
   total: number;
   removeLabel: string;
   disableRemove?: boolean;
+  dragHandleProps?: DragHandleProps;
   onMove(direction: DraftReorderDirection): void;
   onRemove(): void;
 }
@@ -384,11 +426,34 @@ function ReorderableCardHeader(props: ReorderableCardHeaderProps): JSX.Element {
 
   return (
     <div className="mb-4 flex flex-col gap-3 rounded-md bg-muted/15 p-3 md:flex-row md:items-start md:justify-between">
-      <div className="min-w-0 space-y-1">
-        <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">
-          {props.positionLabel}
-        </p>
-        <h3 className="truncate text-sm font-semibold text-foreground">{props.title}</h3>
+      <div className="flex min-w-0 items-start gap-2">
+        {props.dragHandleProps ? (
+          <button
+            type="button"
+            className="mt-1 cursor-grab rounded p-1 text-muted hover:bg-muted/30 hover:text-foreground active:cursor-grabbing"
+            draggable
+            aria-label={`Drag to reorder ${props.itemLabel}`}
+            aria-roledescription="drag handle"
+            onDragStart={props.dragHandleProps.onDragStart}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                if (canMoveEarlier) props.onMove('earlier');
+              } else if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                if (canMoveLater) props.onMove('later');
+              }
+            }}
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        ) : null}
+        <div className="min-w-0 space-y-1">
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">
+            {props.positionLabel}
+          </p>
+          <h3 className="truncate text-sm font-semibold text-foreground">{props.title}</h3>
+        </div>
       </div>
       <div
         role="group"
@@ -430,6 +495,77 @@ function ReorderableCardHeader(props: ReorderableCardHeaderProps): JSX.Element {
       </div>
     </div>
   );
+}
+
+interface DragHandleProps {
+  onDragStart(event: React.DragEvent): void;
+}
+
+interface DragState {
+  dragIndex: number | null;
+  overIndex: number | null;
+}
+
+function useDraftDragReorder<T>(
+  items: readonly T[],
+  onReorder: (next: T[]) => void,
+): {
+  dragState: DragState;
+  getDragHandleProps(index: number): DragHandleProps;
+  getDropTargetProps(index: number): {
+    onDragOver(event: React.DragEvent): void;
+    onDragLeave(): void;
+    onDrop(event: React.DragEvent): void;
+    onDragEnd(): void;
+    'data-drag-over': boolean;
+  };
+} {
+  const [dragState, setDragState] = useState<DragState>({ dragIndex: null, overIndex: null });
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+
+  const getDragHandleProps = useCallback(
+    (index: number): DragHandleProps => ({
+      onDragStart(event: React.DragEvent) {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', String(index));
+        setDragState({ dragIndex: index, overIndex: null });
+      },
+    }),
+    [],
+  );
+
+  const getDropTargetProps = useCallback(
+    (index: number) => ({
+      onDragOver(event: React.DragEvent) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        setDragState((current) =>
+          current.dragIndex !== null ? { ...current, overIndex: index } : current,
+        );
+      },
+      onDragLeave() {
+        setDragState((current) =>
+          current.overIndex === index ? { ...current, overIndex: null } : current,
+        );
+      },
+      onDrop(event: React.DragEvent) {
+        event.preventDefault();
+        const fromIndex = Number(event.dataTransfer.getData('text/plain'));
+        if (Number.isFinite(fromIndex) && fromIndex !== index) {
+          onReorder(spliceDraftItem(itemsRef.current, fromIndex, index));
+        }
+        setDragState({ dragIndex: null, overIndex: null });
+      },
+      onDragEnd() {
+        setDragState({ dragIndex: null, overIndex: null });
+      },
+      'data-drag-over': dragState.overIndex === index && dragState.dragIndex !== index,
+    }),
+    [dragState.dragIndex, dragState.overIndex, onReorder],
+  );
+
+  return { dragState, getDragHandleProps, getDropTargetProps };
 }
 
 export function OrchestratorSection(
@@ -737,6 +873,82 @@ export function RuntimeAndParametersSection(
                     className="min-h-[72px]"
                   />
                 </LabeledField>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <LabeledField label="Display label">
+                    <div className="space-y-1">
+                      <Input
+                        value={parameter.label}
+                        onChange={(event) =>
+                          updateParameter(props.onChange, index, 'label', event.target.value)
+                        }
+                        placeholder="Workflow goal"
+                      />
+                      <p className="text-xs text-muted">
+                        Human-readable label shown to operators at launch time.
+                      </p>
+                    </div>
+                  </LabeledField>
+                  <LabeledField label="Input style">
+                    <div className="space-y-1">
+                      <Select
+                        value={parameter.input_style || PARAMETER_INPUT_STYLE_UNSET}
+                        onValueChange={(value) =>
+                          updateParameter(
+                            props.onChange,
+                            index,
+                            'input_style',
+                            value === PARAMETER_INPUT_STYLE_UNSET ? '' : value,
+                          )
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Auto-detect from type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={PARAMETER_INPUT_STYLE_UNSET}>
+                            Auto-detect from type
+                          </SelectItem>
+                          {PARAMETER_INPUT_STYLE_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted">
+                        Controls how operators interact with this parameter at launch.
+                      </p>
+                    </div>
+                  </LabeledField>
+                </div>
+                <LabeledField label="Help text" className="mt-3">
+                  <div className="space-y-1">
+                    <Input
+                      value={parameter.help_text}
+                      onChange={(event) =>
+                        updateParameter(props.onChange, index, 'help_text', event.target.value)
+                      }
+                      placeholder="Brief guidance shown below the input at launch time"
+                    />
+                    <p className="text-xs text-muted">
+                      Contextual guidance displayed below the input field for operators.
+                    </p>
+                  </div>
+                </LabeledField>
+                <LabeledField label="Allowed values" className="mt-3">
+                  <div className="space-y-1">
+                    <Input
+                      value={parameter.allowed_values}
+                      onChange={(event) =>
+                        updateParameter(props.onChange, index, 'allowed_values', event.target.value)
+                      }
+                      placeholder="main, develop, staging"
+                    />
+                    <p className="text-xs text-muted">
+                      Comma-separated list of accepted values. Leave empty for free-form input.
+                    </p>
+                  </div>
+                </LabeledField>
                 <LabeledField label="Default value" className="mt-3">
                   <TypedParameterValueControl
                     valueType={parameter.type}
@@ -954,6 +1166,16 @@ function resolveStageTitle(
 ): string {
   return stage.name.trim() || stage.goal.trim() || `Stage ${index + 1}`;
 }
+
+const PARAMETER_INPUT_STYLE_UNSET = '__unset__';
+
+const PARAMETER_INPUT_STYLE_OPTIONS: StructuredChoiceOption[] = [
+  { value: 'text', label: 'Text field', description: 'Single-line text input.' },
+  { value: 'textarea', label: 'Text area', description: 'Multi-line text input for longer content.' },
+  { value: 'select', label: 'Dropdown', description: 'Dropdown selection from allowed values.' },
+  { value: 'radio', label: 'Radio group', description: 'Inline radio buttons for a small set of choices.' },
+  { value: 'toggle', label: 'Toggle', description: 'On/off toggle for boolean parameters.' },
+];
 
 const ORCHESTRATOR_CHECK_INTERVAL_OPTIONS: StructuredChoiceOption[] = [
   { value: '1m', label: 'Every 1 minute' },

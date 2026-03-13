@@ -25,6 +25,10 @@ describe('playbook authoring support', () => {
       maps_to: '',
       description: 'What to build',
       default_value: '',
+      label: 'Workflow Goal',
+      help_text: 'Describe what the workflow should accomplish',
+      allowed_values: '',
+      input_style: 'textarea',
     }];
     draft.runtime.shared.pool_mode = 'warm';
     draft.runtime.shared.max_runtimes = '3';
@@ -83,6 +87,9 @@ describe('playbook authoring support', () => {
               required: true,
               category: 'input',
               description: 'What to build',
+              label: 'Workflow Goal',
+              help_text: 'Describe what the workflow should accomplish',
+              input_style: 'textarea',
             }),
           ]),
         }),
@@ -119,6 +126,10 @@ describe('playbook authoring support', () => {
         maps_to: '',
         description: '',
         default_value: '[1,2,3]',
+        label: '',
+        help_text: '',
+        allowed_values: '',
+        input_style: '',
       },
     ];
 
@@ -138,6 +149,10 @@ describe('playbook authoring support', () => {
         maps_to: '',
         description: '',
         default_value: '{"branch":"main"}',
+        label: '',
+        help_text: '',
+        allowed_values: '',
+        input_style: '',
       },
     ];
 
@@ -178,6 +193,10 @@ describe('playbook authoring support', () => {
           maps_to: 'project.credentials.git_token',
           description: '',
           default_value: '',
+          label: '',
+          help_text: '',
+          allowed_values: '',
+          input_style: '',
         },
         {
           name: 'default_branch',
@@ -188,6 +207,10 @@ describe('playbook authoring support', () => {
           maps_to: 'project.settings.default_branch',
           description: '',
           default_value: '',
+          label: '',
+          help_text: '',
+          allowed_values: '',
+          input_style: '',
         },
       ]),
     ).toEqual({
@@ -223,6 +246,10 @@ describe('playbook authoring support', () => {
           maps_to: 'project.repository_url',
           description: '',
           default_value: '',
+          label: '',
+          help_text: '',
+          allowed_values: '',
+          input_style: '',
         },
         {
           name: 'git_token',
@@ -233,6 +260,10 @@ describe('playbook authoring support', () => {
           maps_to: 'project.credentials.git_token',
           description: '',
           default_value: '',
+          label: '',
+          help_text: '',
+          allowed_values: '',
+          input_style: '',
         },
       ]),
     ).toEqual({
@@ -291,6 +322,10 @@ describe('playbook authoring support', () => {
         name: 'context',
         type: 'object',
         default_value: '{\n  "branch": "main"\n}',
+        label: '',
+        help_text: '',
+        allowed_values: '',
+        input_style: '',
       }),
     );
     expect(draft.orchestrator.max_active_tasks).toBe('6');
@@ -316,6 +351,10 @@ describe('playbook authoring support', () => {
         maps_to: '',
         description: '',
         default_value: '',
+        label: '',
+        help_text: '',
+        allowed_values: '',
+        input_style: '',
       },
       {
         name: 'api_token',
@@ -326,6 +365,10 @@ describe('playbook authoring support', () => {
         maps_to: '',
         description: '',
         default_value: '',
+        label: '',
+        help_text: '',
+        allowed_values: '',
+        input_style: '',
       },
     ];
 
