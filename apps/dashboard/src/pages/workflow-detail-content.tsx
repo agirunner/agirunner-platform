@@ -1,9 +1,11 @@
 import { useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 
 import type {
   DashboardProjectRecord,
   DashboardResolvedDocumentReference,
 } from '../lib/api.js';
+import { buildArtifactPermalink } from '../components/artifact-preview-support.js';
 import { ChainStructuredEntryEditor } from '../components/chain-workflow-parameters.js';
 import { StructuredRecordView } from '../components/structured-data.js';
 import { Badge } from '../components/ui/badge.js';
@@ -21,6 +23,10 @@ import {
   describeDocumentReference,
   describeProjectMemoryEntry,
 } from './workflow-detail-content-support.js';
+import {
+  readPacketNestedKeys,
+  readPacketScalarFacts,
+} from './workflow-detail-support.js';
 import {
   describeReviewPacket,
   formatAbsoluteTimestamp,
@@ -187,6 +193,8 @@ function ProjectMemoryEntryCard(props: {
 }): JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
   const packet = describeProjectMemoryEntry(props.entry.value);
+  const scalarFacts = readPacketScalarFacts(props.entry.value, 4);
+  const nestedKeys = readPacketNestedKeys(props.entry.value, 4);
 
   return (
     <Card className="border-border/70 bg-border/10 shadow-none">
@@ -218,6 +226,25 @@ function ProjectMemoryEntryCard(props: {
             </div>
           ) : null}
         </div>
+        {scalarFacts.length > 0 ? (
+          <FactGrid
+            title="Operator-ready facts"
+            description="Quick memory signals surfaced from this key before opening the full packet."
+            facts={scalarFacts}
+          />
+        ) : null}
+        {nestedKeys.length > 0 ? (
+          <div className="grid gap-2 rounded-xl border border-border/70 bg-background/80 p-4">
+            <div className="text-sm font-medium text-foreground">Nested sections</div>
+            <div className="flex flex-wrap gap-2">
+              {nestedKeys.map((key) => (
+                <Badge key={`${props.entry.key}:${key}`} variant="outline">
+                  {key}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        ) : null}
         {packet.hasStructuredDetail ? (
           <div className="grid gap-3">
             <div className="flex justify-start">
@@ -227,7 +254,7 @@ function ProjectMemoryEntryCard(props: {
                 size="sm"
                 onClick={() => setIsExpanded((current) => !current)}
               >
-                {isExpanded ? 'Hide structured detail' : 'Show structured detail'}
+                {isExpanded ? 'Hide full memory packet' : 'Open full memory packet'}
               </Button>
             </div>
             {isExpanded ? (
@@ -246,6 +273,12 @@ function DocumentCard(props: {
   const { document } = props;
   const packet = describeDocumentReference(document);
   const metadataPacket = describeReviewPacket(document.metadata, 'document metadata');
+  const referenceFacts = buildDocumentFacts(document);
+  const metadataFacts = readPacketScalarFacts(document.metadata, 4);
+  const metadataNestedKeys = readPacketNestedKeys(document.metadata, 4);
+  const artifactPreviewLink = document.artifact
+    ? buildArtifactPermalink(document.artifact.task_id, document.artifact.id)
+    : null;
 
   return (
     <Card className="border-border/70 bg-border/10 shadow-none">
@@ -277,16 +310,27 @@ function DocumentCard(props: {
             ) : null}
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="secondary">Source: {document.source}</Badge>
-          {document.task_id ? <Badge variant="secondary">Task: {document.task_id}</Badge> : null}
-        </div>
+        <FactGrid
+          title="Reference packet facts"
+          description="Source, linkage, and operator access details for this workflow document."
+          facts={referenceFacts}
+        />
         {packet.locationLabel ? (
           <p className="rounded-lg border border-border/60 bg-background/70 px-3 py-2 text-sm text-muted">
             {packet.locationLabel}
           </p>
         ) : null}
         <div className="flex flex-wrap gap-2">
+          {artifactPreviewLink ? (
+            <Button asChild variant="outline" size="sm">
+              <Link to={artifactPreviewLink}>Preview Artifact Packet</Link>
+            </Button>
+          ) : null}
+          {document.task_id ? (
+            <Button asChild variant="outline" size="sm">
+              <Link to={`/work/tasks/${document.task_id}`}>Open Linked Step</Link>
+            </Button>
+          ) : null}
           {document.url ? (
             <Button asChild variant="outline" size="sm">
               <a href={document.url} target="_blank" rel="noreferrer">
@@ -319,6 +363,25 @@ function DocumentCard(props: {
                 </div>
                 <p className="text-sm leading-6 text-muted">{metadataPacket.detail}</p>
               </div>
+              {metadataFacts.length > 0 ? (
+                <FactGrid
+                  title="Metadata facts"
+                  description="Top-level metadata values surfaced for operator review."
+                  facts={metadataFacts}
+                />
+              ) : null}
+              {metadataNestedKeys.length > 0 ? (
+                <div className="grid gap-2 rounded-xl border border-border/70 bg-surface/80 p-4">
+                  <div className="text-sm font-medium text-foreground">Metadata sections</div>
+                  <div className="flex flex-wrap gap-2">
+                    {metadataNestedKeys.map((key) => (
+                      <Badge key={`${document.logical_name}:${key}`} variant="outline">
+                        {key}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <StructuredRecordView
                 data={toStructuredDetailViewData(document.metadata)}
                 emptyMessage="No document metadata."
@@ -391,4 +454,51 @@ function SummaryPanel(props: {
       <div className="text-sm leading-6 text-muted">{props.detail}</div>
     </div>
   );
+}
+
+function FactGrid(props: {
+  title: string;
+  description: string;
+  facts: Array<{ label: string; value: string }>;
+}): JSX.Element {
+  return (
+    <div className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-4">
+      <div className="grid gap-1">
+        <div className="text-sm font-medium text-foreground">{props.title}</div>
+        <p className="text-sm leading-6 text-muted">{props.description}</p>
+      </div>
+      <dl className="grid gap-2 sm:grid-cols-2">
+        {props.facts.map((fact) => (
+          <div
+            key={`${props.title}:${fact.label}`}
+            className="grid gap-1 rounded-lg border border-border/70 bg-surface px-3 py-2"
+          >
+            <dt className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+              {fact.label}
+            </dt>
+            <dd className="text-sm text-foreground">{fact.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function buildDocumentFacts(
+  document: DashboardResolvedDocumentReference,
+): Array<{ label: string; value: string }> {
+  const facts: Array<{ label: string; value: string }> = [
+    { label: 'Source', value: document.source },
+    { label: 'Scope', value: document.scope },
+  ];
+  if (document.task_id) {
+    facts.push({ label: 'Linked step', value: document.task_id });
+  }
+  if (document.artifact?.content_type) {
+    facts.push({ label: 'Content type', value: document.artifact.content_type });
+  }
+  if (document.created_at) {
+    facts.push({ label: 'Added', value: `Added ${formatRelativeTimestamp(document.created_at)}` });
+  }
+  return facts;
 }

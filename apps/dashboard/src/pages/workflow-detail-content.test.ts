@@ -27,8 +27,13 @@ describe('workflow detail content source', () => {
     expect(source).toContain('MemoryDraftPreview');
     expect(source).toContain('Structured preview');
     expect(source).toContain('Add memory field');
-    expect(source).toContain('Show structured detail');
-    expect(source).toContain('Hide structured detail');
+    expect(source).toContain('Operator-ready facts');
+    expect(source).toContain('Open full memory packet');
+    expect(source).toContain('Reference packet facts');
+    expect(source).toContain('Metadata facts');
+    expect(source).toContain('Preview Artifact Packet');
+    expect(source).toContain('Open Linked Step');
+    expect(source).toContain('FactGrid');
     expect(source).not.toContain('Enter an object-shaped JSON payload.');
   });
 
