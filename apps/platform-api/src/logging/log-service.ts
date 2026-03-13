@@ -782,10 +782,11 @@ function partitionDateFor(createdAt: string | null | undefined): string {
 }
 
 function isMissingExecutionLogPartitionError(error: unknown): boolean {
-  if (!(error instanceof Error)) {
+  const databaseError = getDatabaseErrorDetails(error);
+  if (!databaseError) {
     return false;
   }
-  return error.message.includes('no partition of relation "execution_logs" found for row');
+  return databaseError.message.includes('no partition of relation "execution_logs" found for row');
 }
 
 function isDuplicateExecutionLogPartitionError(error: unknown): boolean {
@@ -793,7 +794,11 @@ function isDuplicateExecutionLogPartitionError(error: unknown): boolean {
   if (!databaseError) {
     return false;
   }
-  return databaseError.code === '42P07' || databaseError.message.includes('already exists');
+  return (
+    databaseError.code === '42P07' ||
+    databaseError.code === '42710' ||
+    databaseError.message.includes('already exists')
+  );
 }
 
 function getDatabaseErrorDetails(error: unknown): { message: string; code?: string } | null {

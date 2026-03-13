@@ -223,6 +223,32 @@ describe('LogService', () => {
       expect(getInsertCall(pool)).toBeDefined();
     });
 
+    it('treats duplicate_object partition creation races as success', async () => {
+      const pool = createMockPool();
+      pool.query
+        .mockRejectedValueOnce({
+          code: '42710',
+          message: 'relation "execution_logs_2026_03_13" already exists',
+        })
+        .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+      const service = new LogService(pool as never);
+
+      await service.insert({
+        tenantId: 'tenant-1',
+        traceId: 'trace-1',
+        spanId: 'span-1',
+        source: 'platform',
+        category: 'api',
+        level: 'info',
+        operation: 'api.partition-race-duplicate-object',
+        status: 'completed',
+        createdAt: '2026-03-13T11:28:01.888699Z',
+      });
+
+      expect(getPartitionCalls(pool)).toHaveLength(1);
+      expect(getInsertCall(pool)).toBeDefined();
+    });
+
     it('treats plain database error objects for duplicate partition creation as success', async () => {
       const pool = createMockPool();
       pool.query
@@ -316,6 +342,36 @@ describe('LogService', () => {
         category: 'api',
         level: 'info',
         operation: 'api.retry',
+        status: 'completed',
+        createdAt: '2026-03-12T11:28:01.888699Z',
+      });
+
+      expect(getPartitionCalls(pool)).toHaveLength(2);
+      const insertCalls = pool.query.mock.calls.filter(([sql]) =>
+        String(sql).includes('INSERT INTO execution_logs'),
+      );
+      expect(insertCalls).toHaveLength(2);
+    });
+
+    it('retries missing-partition inserts when the driver error is not an Error instance', async () => {
+      const pool = createMockPool();
+      pool.query
+        .mockResolvedValueOnce({ rowCount: 1, rows: [] })
+        .mockRejectedValueOnce({
+          message: 'no partition of relation "execution_logs" found for row',
+        })
+        .mockResolvedValueOnce({ rowCount: 1, rows: [] })
+        .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+      const service = new LogService(pool as never);
+
+      await service.insert({
+        tenantId: 'tenant-1',
+        traceId: 'trace-1',
+        spanId: 'span-1',
+        source: 'platform',
+        category: 'api',
+        level: 'info',
+        operation: 'api.retry-plain-object',
         status: 'completed',
         createdAt: '2026-03-12T11:28:01.888699Z',
       });
