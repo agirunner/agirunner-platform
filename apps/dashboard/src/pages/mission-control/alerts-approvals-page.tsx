@@ -29,6 +29,11 @@ import { Button } from '../../components/ui/button.js';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs.js';
 import { GateDetailCard } from '../work/gate-detail-card.js';
 import {
+  listFeedbackRecoveryHints,
+  type FeedbackActionKind,
+  validateFeedbackDraft,
+} from './alerts-approvals-feedback.js';
+import {
   buildApprovalQueueSummary,
   buildTaskContextPacket,
 } from './alerts-approvals-page.support.js';
@@ -198,6 +203,7 @@ function LaneSection({
 
 function FeedbackAction({
   label,
+  kind,
   icon,
   variant = 'outline',
   placeholder,
@@ -205,6 +211,7 @@ function FeedbackAction({
   disabled,
 }: {
   label: string;
+  kind: FeedbackActionKind;
   icon: React.ReactNode;
   variant?: 'outline' | 'destructive';
   placeholder: string;
@@ -213,6 +220,8 @@ function FeedbackAction({
 }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
+  const validationError = validateFeedbackDraft(kind, text);
+  const recoveryHints = listFeedbackRecoveryHints(kind);
 
   if (!open) {
     return (
@@ -233,11 +242,19 @@ function FeedbackAction({
         onChange={(e) => setText(e.target.value)}
         autoFocus
       />
+      {validationError ? (
+        <p className="text-xs leading-5 text-red-600">{validationError}</p>
+      ) : null}
+      <ul className="space-y-1 text-xs leading-5 text-muted">
+        {recoveryHints.map((hint) => (
+          <li key={hint}>{hint}</li>
+        ))}
+      </ul>
       <div className="flex gap-2">
         <Button
           size="sm"
           variant={variant}
-          disabled={disabled || text.trim().length === 0}
+          disabled={disabled || Boolean(validationError)}
           onClick={() => { onSubmit(text.trim()); setOpen(false); setText(''); }}
         >
           {label}
@@ -780,6 +797,7 @@ function ApprovalCard({ task, onApprove, onRequestChanges, onSkip, onReject, isL
             </Button>
             <FeedbackAction
               label="Request Rework"
+              kind="request_rework"
               icon={<MessageSquare className="mr-1 h-3.5 w-3.5" />}
               placeholder="Describe what needs to change before this specialist step should continue..."
               onSubmit={onRequestChanges}
@@ -787,6 +805,7 @@ function ApprovalCard({ task, onApprove, onRequestChanges, onSkip, onReject, isL
             />
             <FeedbackAction
               label="Bypass Step"
+              kind="bypass_step"
               icon={<SkipForward className="mr-1 h-3.5 w-3.5" />}
               placeholder="Reason for bypassing this specialist step..."
               onSubmit={onSkip}
@@ -794,6 +813,7 @@ function ApprovalCard({ task, onApprove, onRequestChanges, onSkip, onReject, isL
             />
             <FeedbackAction
               label="Reject Step"
+              kind="reject_step"
               icon={<XCircle className="mr-1 h-3.5 w-3.5" />}
               variant="destructive"
               placeholder="Reason for rejecting this specialist step..."
@@ -915,6 +935,7 @@ function OutputReviewCard({ task, onApproveOutput, onRequestChanges, onSkip, onR
             </Button>
             <FeedbackAction
               label="Request Rework"
+              kind="request_rework"
               icon={<MessageSquare className="mr-1 h-3.5 w-3.5" />}
               placeholder="Describe what needs to change — this operator feedback will be passed to the specialist on the next iteration..."
               onSubmit={onRequestChanges}
@@ -922,6 +943,7 @@ function OutputReviewCard({ task, onApproveOutput, onRequestChanges, onSkip, onR
             />
             <FeedbackAction
               label="Bypass Review"
+              kind="bypass_review"
               icon={<SkipForward className="mr-1 h-3.5 w-3.5" />}
               placeholder="Reason for bypassing this output gate..."
               onSubmit={onSkip}
@@ -929,6 +951,7 @@ function OutputReviewCard({ task, onApproveOutput, onRequestChanges, onSkip, onR
             />
             <FeedbackAction
               label="Reject Output"
+              kind="reject_output"
               icon={<XCircle className="mr-1 h-3.5 w-3.5" />}
               variant="destructive"
               placeholder="Reason for rejection — the specialist step will be marked as failed..."
@@ -1001,6 +1024,7 @@ function FailedCard({ task, onRetry, onRetryDifferentWorker, onSkip, onCancel, i
             </Button>
             <FeedbackAction
               label="Bypass Step"
+              kind="bypass_step"
               icon={<SkipForward className="mr-1 h-3.5 w-3.5" />}
               placeholder="Reason for bypassing this failed step..."
               onSubmit={onSkip}
@@ -1100,6 +1124,7 @@ function EscalationCard({ task, onResolve, onSkip, onCancel, isLoading }: Escala
           <div className="flex flex-wrap gap-2 pt-1">
             <FeedbackAction
               label="Resume with Guidance"
+              kind="resume_guidance"
               icon={<CheckCircle2 className="mr-1 h-3.5 w-3.5" />}
               placeholder="Provide operator guidance to help the specialist continue..."
               onSubmit={onResolve}
@@ -1107,6 +1132,7 @@ function EscalationCard({ task, onResolve, onSkip, onCancel, isLoading }: Escala
             />
             <FeedbackAction
               label="Bypass Step"
+              kind="bypass_step"
               icon={<SkipForward className="mr-1 h-3.5 w-3.5" />}
               placeholder="Reason for bypassing this escalated step..."
               onSubmit={onSkip}

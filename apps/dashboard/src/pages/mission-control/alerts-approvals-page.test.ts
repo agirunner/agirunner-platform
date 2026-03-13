@@ -79,4 +79,14 @@ describe('alerts approvals page source', () => {
     expect(source).toContain('Stage gates');
     expect(source).toContain('Execution failures');
   });
+
+  it('uses shared feedback validation and recovery guidance for high-risk operator decisions', () => {
+    const source = readSource();
+    expect(source).toContain('validateFeedbackDraft');
+    expect(source).toContain('listFeedbackRecoveryHints');
+    expect(source).toContain('kind="request_rework"');
+    expect(source).toContain('kind="reject_output"');
+    expect(source).toContain('kind="resume_guidance"');
+    expect(source).toContain('text-red-600');
+  });
 });
