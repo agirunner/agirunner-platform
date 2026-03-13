@@ -21,6 +21,12 @@ export interface AddProviderValidationContext {
   existingNames?: string[];
 }
 
+export interface AssignmentSetupValidation {
+  missingRoleNames: string[];
+  blockingIssues: string[];
+  isValid: boolean;
+}
+
 export function describeProviderTypeSetup(providerType: ProviderType): {
   title: string;
   detail: string;
@@ -92,6 +98,39 @@ export function validateAddProviderDraft(
     fieldErrors,
     issues,
     isValid: issues.length === 0,
+  };
+}
+
+export function validateAssignmentSetup(input: {
+  defaultModelId: string;
+  roleAssignments: Array<{ roleName: string; modelId: string }>;
+}): AssignmentSetupValidation {
+  if (input.defaultModelId !== '__none__') {
+    return {
+      missingRoleNames: [],
+      blockingIssues: [],
+      isValid: true,
+    };
+  }
+
+  const missingRoleNames = input.roleAssignments
+    .filter((assignment) => assignment.modelId === '__none__')
+    .map((assignment) => assignment.roleName);
+
+  if (missingRoleNames.length === 0) {
+    return {
+      missingRoleNames: [],
+      blockingIssues: [],
+      isValid: true,
+    };
+  }
+
+  return {
+    missingRoleNames,
+    blockingIssues: [
+      `Choose a system default model or assign explicit models for: ${missingRoleNames.join(', ')}.`,
+    ],
+    isValid: false,
   };
 }
 

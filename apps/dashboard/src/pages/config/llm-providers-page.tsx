@@ -50,6 +50,7 @@ import {
 import { Switch } from '../../components/ui/switch.js';
 import {
   describeProviderTypeSetup,
+  validateAssignmentSetup,
   validateAddProviderDraft,
   type AddProviderDraft,
   type ProviderType,
@@ -1120,12 +1121,14 @@ function ModelReasoningSelect({
   modelId,
   reasoningConfig,
   enabledModels,
+  modelError,
   onModelChange,
   onReasoningChange,
 }: {
   modelId: string;
   reasoningConfig: Record<string, unknown> | null;
   enabledModels: LlmModel[];
+  modelError?: string;
   onModelChange: (modelId: string) => void;
   onReasoningChange: (config: Record<string, unknown> | null) => void;
 }): JSX.Element {
@@ -1135,25 +1138,28 @@ function ModelReasoningSelect({
   return (
     <>
       <TableCell>
-        <Select
-          value={modelId}
-          onValueChange={(v) => {
-            onModelChange(v);
-            onReasoningChange(null);
-          }}
-        >
-          <SelectTrigger className="w-[380px]">
-            <SelectValue placeholder="Select model" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">None (use system default)</SelectItem>
-            {enabledModels.map((m) => (
-              <SelectItem key={m.id} value={m.id}>
-                {m.model_id}{m.provider_name ? ` (${m.provider_name})` : ''}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="space-y-1">
+          <Select
+            value={modelId}
+            onValueChange={(v) => {
+              onModelChange(v);
+              onReasoningChange(null);
+            }}
+          >
+            <SelectTrigger className={modelError ? 'w-[380px] border-red-300 focus-visible:ring-red-500' : 'w-[380px]'}>
+              <SelectValue placeholder="Select model" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">None (use system default)</SelectItem>
+              {enabledModels.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.model_id}{m.provider_name ? ` (${m.provider_name})` : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {modelError ? <p className="text-xs text-red-600">{modelError}</p> : null}
+        </div>
       </TableCell>
       <TableCell>
         <ReasoningControl
@@ -1258,6 +1264,13 @@ function RoleAssignmentsSection({
 
   const defaultModel = enabledModels.find((m) => m.id === defaultModelId);
   const defaultReasoningSchema = defaultModel?.reasoning_config ?? null;
+  const assignmentValidation = validateAssignmentSetup({
+    defaultModelId,
+    roleAssignments: roleRows.map((role) => ({
+      roleName: role.name,
+      modelId: roleStates[role.name]?.modelId ?? '__none__',
+    })),
+  });
 
   return (
     <div className="space-y-6">
@@ -1273,7 +1286,13 @@ function RoleAssignmentsSection({
         </div>
         <div className="flex items-center gap-4">
           <Select value={defaultModelId} onValueChange={(v) => { setDefaultModelId(v); setDefaultReasoning(null); }}>
-            <SelectTrigger className="w-[380px]">
+            <SelectTrigger
+              className={
+                assignmentValidation.blockingIssues.length > 0
+                  ? 'w-[380px] border-red-300 focus-visible:ring-red-500'
+                  : 'w-[380px]'
+              }
+            >
               <SelectValue placeholder="Select default model" />
             </SelectTrigger>
             <SelectContent>
@@ -1291,6 +1310,15 @@ function RoleAssignmentsSection({
             onChange={setDefaultReasoning}
           />
         </div>
+        {assignmentValidation.blockingIssues.length > 0 ? (
+          <p className="text-xs text-red-600">
+            No system default is configured. Assign explicit models below or restore a default model before saving.
+          </p>
+        ) : (
+          <p className="text-xs text-muted">
+            Roles may inherit this model when they do not need an explicit override.
+          </p>
+        )}
       </div>
 
       {/* ── Role Overrides ────────────────────────────────────────────── */}
@@ -1310,6 +1338,13 @@ function RoleAssignmentsSection({
             <Badge variant="warning">{staleRoleCount} inactive or missing assignments</Badge>
           )}
         </div>
+        {assignmentValidation.blockingIssues.length > 0 ? (
+          <div className="mb-4 rounded-md border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+            {assignmentValidation.blockingIssues.map((issue) => (
+              <p key={issue}>{issue}</p>
+            ))}
+          </div>
+        ) : null}
         <Table>
           <TableHeader>
             <TableRow>
@@ -1352,6 +1387,11 @@ function RoleAssignmentsSection({
                     modelId={s.modelId}
                     reasoningConfig={s.reasoningConfig}
                     enabledModels={enabledModels}
+                    modelError={
+                      assignmentValidation.missingRoleNames.includes(role.name)
+                        ? 'Select a model for this role or restore a system default.'
+                        : undefined
+                    }
                     onModelChange={(id) => updateRole(role.name, { modelId: id, reasoningConfig: null })}
                     onReasoningChange={(cfg) => updateRole(role.name, { reasoningConfig: cfg })}
                   />
@@ -1364,7 +1404,10 @@ function RoleAssignmentsSection({
 
       {/* ── Save ──────────────────────────────────────────────────────── */}
       <div className="flex justify-end">
-        <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+        <Button
+          onClick={() => saveMutation.mutate()}
+          disabled={saveMutation.isPending || !assignmentValidation.isValid}
+        >
           {saveMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />}
           Save All
         </Button>

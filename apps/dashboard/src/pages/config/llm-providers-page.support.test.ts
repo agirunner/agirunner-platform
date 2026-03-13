@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   describeProviderTypeSetup,
+  validateAssignmentSetup,
   validateAddProviderDraft,
 } from './llm-providers-page.support.js';
 
@@ -73,6 +74,41 @@ describe('llm providers page support', () => {
       title: 'Compatible endpoint',
       detail: 'Best for Ollama, vLLM, or another OpenAI-style gateway that you control.',
       authLabel: 'API key optional',
+    });
+  });
+
+  it('blocks saves when no effective model remains for inherited roles', () => {
+    expect(
+      validateAssignmentSetup({
+        defaultModelId: '__none__',
+        roleAssignments: [
+          { roleName: 'orchestrator', modelId: '__none__' },
+          { roleName: 'developer', modelId: 'model-1' },
+          { roleName: 'reviewer', modelId: '__none__' },
+        ],
+      }),
+    ).toEqual({
+      missingRoleNames: ['orchestrator', 'reviewer'],
+      blockingIssues: [
+        'Choose a system default model or assign explicit models for: orchestrator, reviewer.',
+      ],
+      isValid: false,
+    });
+  });
+
+  it('allows assignment saves when every role keeps an effective model', () => {
+    expect(
+      validateAssignmentSetup({
+        defaultModelId: 'model-default',
+        roleAssignments: [
+          { roleName: 'orchestrator', modelId: '__none__' },
+          { roleName: 'developer', modelId: '__none__' },
+        ],
+      }),
+    ).toEqual({
+      missingRoleNames: [],
+      blockingIssues: [],
+      isValid: true,
     });
   });
 });

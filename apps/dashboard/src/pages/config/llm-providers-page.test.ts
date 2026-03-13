@@ -75,8 +75,11 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('RoleAssignmentsSection');
     expect(source).toContain('fetchRoleDefinitions');
     expect(source).toContain('buildAssignmentRoleRows');
+    expect(source).toContain('validateAssignmentSetup');
     expect(source).toContain('Orchestrator and Role Overrides');
     expect(source).toContain('1 orchestrator row');
+    expect(source).toContain('No system default is configured. Assign explicit models below or restore a default model before saving.');
+    expect(source).toContain('Select a model for this role or restore a system default.');
     expect(source).not.toContain('const ROLE_NAMES');
   });
 
