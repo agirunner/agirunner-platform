@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Eye, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -20,6 +20,8 @@ import {
 } from '../../lib/api.js';
 import { readSession } from '../../lib/session.js';
 import {
+  buildRuntimeHistorySummaryCards,
+  buildRuntimeRecoveryBrief,
   buildHistoryFromStatus,
   describeRuntimeNextAction,
   describeRuntimePosture,
@@ -96,6 +98,7 @@ export function ActiveRuntimeImageCard(): JSX.Element {
   }
 
   const derivedStatus = deriveStatusFromState(status);
+  const recoveryBrief = buildRuntimeRecoveryBrief(status);
 
   return (
     <Card className="border-border/70 shadow-sm">
@@ -114,15 +117,18 @@ export function ActiveRuntimeImageCard(): JSX.Element {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <RuntimePacket label="Image" value={formatDigestAsImage(status.active_digest) ?? 'No active image'} mono />
-          <RuntimePacket label="Active digest" value={formatDigestLabel(status.active_digest)} mono />
-          <RuntimePacket label="Configured digest" value={formatDigestLabel(status.configured_digest)} mono />
-          <RuntimePacket
-            label="Next action"
-            value={describeRuntimeNextAction(status)}
-            accent={derivedStatus === 'failed' ? 'destructive' : 'neutral'}
-          />
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <RuntimePacket label="Image" value={formatDigestAsImage(status.active_digest) ?? 'No active image'} mono />
+            <RuntimePacket label="Active digest" value={formatDigestLabel(status.active_digest)} mono />
+            <RuntimePacket label="Configured digest" value={formatDigestLabel(status.configured_digest)} mono />
+            <RuntimePacket
+              label="Next action"
+              value={describeRuntimeNextAction(status)}
+              accent={derivedStatus === 'failed' ? 'destructive' : 'neutral'}
+            />
+          </div>
+          <RuntimeBriefCard brief={recoveryBrief} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={statusBadgeVariant(derivedStatus)}>{derivedStatus}</Badge>
@@ -151,6 +157,7 @@ export function BuildHistoryCard(): JSX.Element {
     queryFn: fetchRuntimeStatus,
   });
   const entries = buildHistoryFromStatus(status);
+  const summaryCards = buildRuntimeHistorySummaryCards(status, entries);
 
   if (isLoading) {
     return <RuntimeLoadingCard title="Build History" />;
@@ -174,6 +181,18 @@ export function BuildHistoryCard(): JSX.Element {
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {summaryCards.map((summary) => (
+            <RuntimePacket
+              key={summary.label}
+              label={summary.label}
+              value={summary.value}
+              accent={summary.label === 'Recovery path' && summary.value !== 'No recovery needed.' ? 'destructive' : 'neutral'}
+            >
+              {summary.detail}
+            </RuntimePacket>
+          ))}
+        </div>
         {entries.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm text-muted">
             No runtime builds recorded yet. Build or link a runtime image before rollout work begins.
@@ -233,11 +252,46 @@ function RuntimePacket(props: {
   value: string;
   mono?: boolean;
   accent?: 'neutral' | 'destructive';
+  children?: ReactNode;
 }): JSX.Element {
   return (
     <div className={`rounded-xl border p-4 ${props.accent === 'destructive' ? 'border-rose-300/70 bg-rose-500/5' : 'border-border/70 bg-muted/10'}`}>
       <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">{props.label}</p>
       <p className={`mt-2 text-sm leading-6 ${props.mono ? 'font-mono text-xs' : 'font-medium'}`}>{props.value}</p>
+      {props.children ? (
+        <div className="mt-2 text-xs leading-5 text-muted">{props.children}</div>
+      ) : null}
+    </div>
+  );
+}
+
+function RuntimeBriefCard(props: { brief: ReturnType<typeof buildRuntimeRecoveryBrief> }): JSX.Element {
+  const toneClasses =
+    props.brief.tone === 'failed'
+      ? 'border-rose-300/70 bg-rose-500/5'
+      : props.brief.tone === 'valid'
+        ? 'border-amber-300/70 bg-amber-500/5'
+        : 'border-emerald-300/70 bg-emerald-500/5';
+
+  return (
+    <div className={`rounded-xl border p-4 ${toneClasses}`}>
+      <div className="space-y-1">
+        <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
+          Operator recovery brief
+        </p>
+        <p className="text-sm font-medium text-foreground">{props.brief.headline}</p>
+        <p className="text-xs leading-5 text-muted">{props.brief.detail}</p>
+      </div>
+      <ol className="mt-3 grid gap-2 text-sm text-foreground">
+        {props.brief.steps.map((step, index) => (
+          <li key={step} className="flex items-start gap-2">
+            <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-current/20 text-[11px] font-semibold">
+              {index + 1}
+            </span>
+            <span className="leading-6">{step}</span>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

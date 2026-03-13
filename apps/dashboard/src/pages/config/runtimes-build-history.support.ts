@@ -8,6 +8,19 @@ export interface BuildHistoryEntry {
   recoveryPath: string;
 }
 
+export interface RuntimeRecoveryBrief {
+  headline: string;
+  detail: string;
+  steps: string[];
+  tone: 'linked' | 'valid' | 'failed';
+}
+
+export interface RuntimeHistorySummaryCard {
+  label: string;
+  value: string;
+  detail: string;
+}
+
 export function formatDigestAsImage(digest: string | undefined): string | null {
   if (!digest) {
     return null;
@@ -102,4 +115,75 @@ export function describeBuildRecoveryPath(status: 'linked' | 'valid' | 'failed')
     return 'Link the configured digest before rollout or rollback.';
   }
   return 'Inspect the manifest and rebuild or relink the runtime image.';
+}
+
+export function buildRuntimeRecoveryBrief(
+  status: DashboardCustomizationStatusResponse,
+): RuntimeRecoveryBrief {
+  const derived = deriveStatusFromState(status);
+  if (derived === 'linked') {
+    return {
+      headline: 'Runtime image is linked and ready for inspection.',
+      detail: 'Confirm the manifest packet before making the next runtime change so rollout context stays intact.',
+      steps: [
+        'Inspect the manifest packet and confirm the base image and customization inputs.',
+        'Compare the active digest with the next runtime change before rollout.',
+        'Use build history to confirm no recovery work is pending.',
+      ],
+      tone: 'linked',
+    };
+  }
+  if (derived === 'valid') {
+    return {
+      headline: 'Runtime is reachable, but linkage still needs confirmation.',
+      detail: 'Treat this as a pre-rollout checkpoint. Finish digest linkage before trusting rollback or rollout decisions.',
+      steps: [
+        'Inspect the manifest packet to verify the runtime inputs that produced the current image.',
+        'Link the configured digest before rollout or rollback decisions.',
+        'Delay further runtime-default changes until the digest mismatch is resolved.',
+      ],
+      tone: 'valid',
+    };
+  }
+  return {
+    headline: 'Runtime needs recovery before further configuration changes.',
+    detail: 'Do recovery work first so operators do not compound a broken runtime state with new defaults.',
+    steps: [
+      'Inspect the manifest packet and build history together to confirm what failed.',
+      'Rebuild or relink the runtime image before rollout work continues.',
+      'Do not change runtime defaults again until recovery completes.',
+    ],
+    tone: 'failed',
+  };
+}
+
+export function buildRuntimeHistorySummaryCards(
+  status: DashboardCustomizationStatusResponse | undefined,
+  entries: BuildHistoryEntry[],
+): RuntimeHistorySummaryCard[] {
+  const derivedStatus = status ? deriveStatusFromState(status) : undefined;
+  return [
+    {
+      label: 'Recorded builds',
+      value: String(entries.length),
+      detail:
+        entries.length === 0
+          ? 'No linked or reconstructed builds recorded yet.'
+          : entries.length === 1
+            ? 'One runtime build packet is available for inspection.'
+            : `${entries.length} runtime build packets are available for inspection.`,
+    },
+    {
+      label: 'Current posture',
+      value: derivedStatus ?? 'unknown',
+      detail: status ? describeRuntimePosture(status) : 'Runtime status is not available right now.',
+    },
+    {
+      label: 'Recovery path',
+      value: derivedStatus ? describeBuildRecoveryPath(derivedStatus) : 'Inspect runtime service health',
+      detail: status
+        ? describeRuntimeNextAction(status)
+        : 'Reconnect runtime status before trusting rollout or rollback posture.',
+    },
+  ];
 }

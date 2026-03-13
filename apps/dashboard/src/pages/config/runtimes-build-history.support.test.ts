@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildRuntimeHistorySummaryCards,
+  buildRuntimeRecoveryBrief,
   buildHistoryFromStatus,
   describeBuildRecoveryPath,
   describeRuntimeNextAction,
@@ -57,5 +59,43 @@ describe('runtimes build history support', () => {
       status: 'linked',
       recoveryPath: 'No recovery needed.',
     });
+  });
+
+  it('builds a recovery brief and history summary cards for operator decision making', () => {
+    const status = {
+      state: 'failed',
+      active_digest: null,
+      configured_digest: 'sha256:ddddeeeeffff',
+    };
+
+    expect(buildRuntimeRecoveryBrief(status as never)).toEqual({
+      headline: 'Runtime needs recovery before further configuration changes.',
+      detail:
+        'Do recovery work first so operators do not compound a broken runtime state with new defaults.',
+      steps: [
+        'Inspect the manifest packet and build history together to confirm what failed.',
+        'Rebuild or relink the runtime image before rollout work continues.',
+        'Do not change runtime defaults again until recovery completes.',
+      ],
+      tone: 'failed',
+    });
+
+    expect(buildRuntimeHistorySummaryCards(status as never, [])).toEqual([
+      {
+        label: 'Recorded builds',
+        value: '0',
+        detail: 'No linked or reconstructed builds recorded yet.',
+      },
+      {
+        label: 'Current posture',
+        value: 'failed',
+        detail: 'Runtime image needs recovery before operators can trust rollout state.',
+      },
+      {
+        label: 'Recovery path',
+        value: 'Inspect the manifest and rebuild or relink the runtime image.',
+        detail: 'Inspect the manifest and rebuild or relink the runtime image before rollout.',
+      },
+    ]);
   });
 });

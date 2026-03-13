@@ -6,6 +6,7 @@ function readSource() {
   return [
     './runtimes-build-history.tsx',
     './runtimes-build-history.packet.tsx',
+    './runtimes-build-history.support.ts',
   ]
     .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
     .join('\n');
@@ -16,8 +17,13 @@ describe('runtimes build history source', () => {
     const source = readSource();
     expect(source).toContain('Active Runtime Image');
     expect(source).toContain('Build History');
+    expect(source).toContain('Operator recovery brief');
+    expect(source).toContain('Recorded builds');
+    expect(source).toContain('Current posture');
     expect(source).toContain('describeRuntimePosture');
     expect(source).toContain('describeRuntimeNextAction');
+    expect(source).toContain('buildRuntimeRecoveryBrief');
+    expect(source).toContain('buildRuntimeHistorySummaryCards');
     expect(source).toContain('Inspect manifest packet');
     expect(source).toContain('ActiveRuntimeManifestPacket');
     expect(source).toContain('Manifest packet');
@@ -32,6 +38,7 @@ describe('runtimes build history source', () => {
     expect(source).toContain('hidden overflow-x-auto lg:block');
     expect(source).toContain('RuntimePacket');
     expect(source).toContain('sm:grid-cols-2 xl:grid-cols-3');
+    expect(source).toContain('xl:grid-cols-[minmax(0,1fr)_320px]');
     expect(source).toContain('Recovery path');
   });
 });
