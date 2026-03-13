@@ -16,12 +16,14 @@ import { WorkflowBudgetCard } from '../../components/workflow-budget-card.js';
 import {
   buildLogFilters,
   DEFAULT_INSPECTOR_FILTERS,
+  type InspectorView,
   readInspectorFilters,
   readInspectorView,
   readSelectedInspectorLogId,
   writeInspectorFilters,
   type InspectorFilters,
 } from '../../components/execution-inspector-support.js';
+import { LogViewer } from '../../components/log-viewer/log-viewer.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
@@ -174,11 +176,11 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
     );
   }
 
-  function updateView(view: 'summary' | 'detailed' | 'debug'): void {
+  function updateView(view: InspectorView): void {
     setSearchParams(
       (current) => {
         const next = new URLSearchParams(current);
-        if (view === 'summary') {
+        if (view === 'raw') {
           next.delete('view');
         } else {
           next.set('view', view);
@@ -238,10 +240,12 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={() => void handleExport()}>
-            <Download className="h-4 w-4" />
-            Export
-          </Button>
+          {selectedView !== 'raw' ? (
+            <Button variant="outline" onClick={() => void handleExport()}>
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
+          ) : null}
           {workflowContextLink ? (
             <Button variant="outline" asChild>
               <Link to={workflowContextLink}>Board context</Link>
@@ -284,38 +288,53 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
         ))}
       </section>
 
-      <section className="rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
-        <ExecutionInspectorFilterBar
-          filters={filters}
-          operationOptions={(operationsQuery.data?.data ?? []).map((item) => ({
-            value: item.operation,
-            label: item.operation,
-          }))}
-          roleOptions={(rolesQuery.data?.data ?? []).map((item) => ({
-            value: item.role,
-            label: item.role,
-          }))}
-          actorOptions={(actorsQuery.data?.data ?? []).map((item) => ({
-            value: item.actor_id,
-            label: item.actor_name || `${item.actor_type}:${item.actor_id}`,
-          }))}
-          onChange={(next) => {
-            updateFilters(next);
-            updateSelection(null);
-          }}
-          onReset={() => {
-            updateFilters(DEFAULT_INSPECTOR_FILTERS);
-            updateSelection(null);
-          }}
-        />
-      </section>
+      {selectedView !== 'raw' ? (
+        <section className="rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
+          <ExecutionInspectorFilterBar
+            filters={filters}
+            operationOptions={(operationsQuery.data?.data ?? []).map((item) => ({
+              value: item.operation,
+              label: item.operation,
+            }))}
+            roleOptions={(rolesQuery.data?.data ?? []).map((item) => ({
+              value: item.role,
+              label: item.role,
+            }))}
+            actorOptions={(actorsQuery.data?.data ?? []).map((item) => ({
+              value: item.actor_id,
+              label: item.actor_name || `${item.actor_type}:${item.actor_id}`,
+            }))}
+            onChange={(next) => {
+              updateFilters(next);
+              updateSelection(null);
+            }}
+            onReset={() => {
+              updateFilters(DEFAULT_INSPECTOR_FILTERS);
+              updateSelection(null);
+            }}
+          />
+        </section>
+      ) : null}
 
-      <Tabs value={selectedView} onValueChange={(value) => updateView(value as 'summary' | 'detailed' | 'debug')} className="space-y-4">
+      <Tabs value={selectedView} onValueChange={(value) => updateView(value as InspectorView)} className="space-y-4">
         <TabsList>
+          <TabsTrigger value="raw">Raw Logs</TabsTrigger>
           <TabsTrigger value="summary">Summary</TabsTrigger>
           <TabsTrigger value="detailed">Delivery</TabsTrigger>
           <TabsTrigger value="debug">Debug</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="raw">
+          <div className="space-y-4">
+            <Card>
+              <CardContent className="p-5 text-sm text-muted">
+                Raw event and log rows are available here with the full log viewer, including flat row browsing,
+                grouped views, scoped filtering, export, and expandable record detail.
+              </CardContent>
+            </Card>
+            <LogViewer compact scope={scopedWorkflowId ? { workflowId: scopedWorkflowId } : undefined} />
+          </div>
+        </TabsContent>
 
         <TabsContent value="summary">
           <ExecutionInspectorSummaryView
@@ -371,11 +390,11 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
 function buildInspectorPermalink(
   searchParams: URLSearchParams,
   logId: number,
-  view: 'summary' | 'detailed' | 'debug',
+  view: InspectorView,
 ): string {
   const next = new URLSearchParams(searchParams);
   next.set('log', String(logId));
-  if (view === 'summary') {
+  if (view === 'raw' || view === 'summary') {
     next.set('view', 'detailed');
   } else {
     next.set('view', view);

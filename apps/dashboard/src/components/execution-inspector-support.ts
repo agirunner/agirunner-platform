@@ -1,5 +1,7 @@
 import type { LogEntry } from '../lib/api.js';
 
+export type InspectorView = 'raw' | 'summary' | 'detailed' | 'debug';
+
 export interface InspectorFilters {
   search: string;
   workflowId: string;
@@ -129,9 +131,9 @@ export function readSelectedInspectorLogId(searchParams: URLSearchParams): numbe
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-export function readInspectorView(searchParams: URLSearchParams): 'summary' | 'detailed' | 'debug' {
+export function readInspectorView(searchParams: URLSearchParams): InspectorView {
   const view = searchParams.get('view');
-  return view === 'detailed' || view === 'debug' ? view : 'summary';
+  return view === 'summary' || view === 'detailed' || view === 'debug' ? view : 'raw';
 }
 
 export function summarizeLogContext(entry: LogEntry): string[] {

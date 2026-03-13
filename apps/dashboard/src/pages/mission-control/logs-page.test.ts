@@ -7,19 +7,21 @@ function readPage() {
 }
 
 describe('execution inspector page source', () => {
-  it('exposes summary, delivery, and debug views with v2 operator copy', () => {
+  it('exposes raw, summary, delivery, and debug views with v2 operator copy', () => {
     const source = readPage();
     expect(source).toContain('Execution Inspector');
     expect(source).toContain(
       'Summary, delivery, and debug views over work-item, stage, gate, runtime, and platform execution traces.',
     );
+    expect(source).toContain('TabsTrigger value="raw">Raw Logs</TabsTrigger>');
     expect(source).toContain('TabsTrigger value="summary"');
     expect(source).toContain('TabsTrigger value="detailed">Delivery</TabsTrigger>');
     expect(source).toContain('TabsTrigger value="debug"');
     expect(source).toContain('Failed to load delivery entries. Please refine filters and try again.');
+    expect(source).toContain('Raw event and log rows are available here with the full log viewer');
   });
 
-  it('uses the active log surfaces instead of the shared log viewer', () => {
+  it('keeps the inspector surfaces and restores an explicit raw log viewer tab', () => {
     const source = readPage();
     expect(source).toContain('dashboardApi.queryLogs');
     expect(source).toContain("detail: SUMMARY_DETAIL_MODE");
@@ -29,7 +31,8 @@ describe('execution inspector page source', () => {
     expect(source).toContain('buildInspectorOverviewCards');
     expect(source).toContain('WorkflowBudgetCard');
     expect(source).toContain('context="inspector"');
-    expect(source).not.toContain('LogViewer');
+    expect(source).toContain('selectedView !== \'raw\'');
+    expect(source).toContain('LogViewer compact');
   });
 
   it('drives inspector filters and selected entries from url search params', () => {

@@ -91,6 +91,7 @@ describe('execution inspector support', () => {
 
     expect(readSelectedInspectorLogId(params)).toBe(42);
     expect(readInspectorView(params)).toBe('debug');
-    expect(readInspectorView(new URLSearchParams())).toBe('summary');
+    expect(readInspectorView(new URLSearchParams())).toBe('raw');
+    expect(readInspectorView(new URLSearchParams('view=summary'))).toBe('summary');
   });
 });
