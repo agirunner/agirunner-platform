@@ -741,7 +741,7 @@ export class WorkflowActivationDispatchService {
               w.name,
               w.project_id,
               w.lifecycle,
-              w.current_stage,
+              current_stage_summary.current_stage,
               COALESCE(active_work_items.active_stages, '{}'::text[]) AS active_stages,
               w.playbook_id,
               p.name AS playbook_name,
@@ -768,11 +768,20 @@ export class WorkflowActivationDispatchService {
                UNION
                SELECT ws.name AS active_stage_name
                  FROM workflow_stages ws
-                WHERE ws.tenant_id = w.tenant_id
+               WHERE ws.tenant_id = w.tenant_id
                   AND ws.workflow_id = w.id
                   AND ws.gate_status IN ('awaiting_approval', 'changes_requested', 'rejected')
              ) AS active_stage_names
          ) AS active_work_items ON true
+         LEFT JOIN LATERAL (
+           SELECT ws_current.name AS current_stage
+             FROM workflow_stages ws_current
+            WHERE ws_current.tenant_id = w.tenant_id
+              AND ws_current.workflow_id = w.id
+              AND ws_current.status IN ('active', 'awaiting_gate', 'blocked')
+            ORDER BY ws_current.position ASC
+            LIMIT 1
+         ) AS current_stage_summary ON true
         WHERE w.tenant_id = $1
           AND w.id = $2
           AND w.state IN ('pending', 'active')`,

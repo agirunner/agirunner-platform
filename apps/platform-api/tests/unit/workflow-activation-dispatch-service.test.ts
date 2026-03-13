@@ -151,6 +151,8 @@ describe('WorkflowActivationDispatchService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          expect(sql).not.toContain('w.current_stage');
+          expect(sql).toContain('current_stage_summary.current_stage');
           return {
             rowCount: 1,
             rows: [{
