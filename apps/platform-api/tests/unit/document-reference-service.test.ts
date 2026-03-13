@@ -71,7 +71,7 @@ describe('document reference service', () => {
         logical_name: 'plan',
         metadata: {
           deploy_token: 'redacted://document-secret',
-          secret_ref: 'secret:PROJECT_DOC_TOKEN',
+          secret_ref: 'redacted://document-secret',
         },
       }),
       expect.objectContaining({
@@ -79,7 +79,7 @@ describe('document reference service', () => {
         metadata: {
           api_key: 'redacted://document-secret',
           repository: 'origin',
-          secret_ref: 'secret:WORKFLOW_DOC_TOKEN',
+          secret_ref: 'redacted://document-secret',
         },
       }),
     ]);

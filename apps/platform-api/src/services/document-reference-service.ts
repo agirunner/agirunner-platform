@@ -428,6 +428,7 @@ function buildProjectDocumentReference(
     ...(normalized.description ? { description: normalized.description } : {}),
     metadata: sanitizeSecretLikeRecord(normalized.metadata, {
       redactionValue: 'redacted://document-secret',
+      allowSecretReferences: false,
     }),
     ...(normalized.repository ? { repository: normalized.repository } : {}),
     ...(normalized.path ? { path: normalized.path } : {}),
@@ -440,6 +441,7 @@ function buildWorkflowDocumentReference(
 ): ResolvedDocumentReference {
   const metadata = sanitizeSecretLikeRecord(row.metadata, {
     redactionValue: 'redacted://document-secret',
+    allowSecretReferences: false,
   });
   const base: ResolvedDocumentReference = {
     logical_name: row.logical_name,
