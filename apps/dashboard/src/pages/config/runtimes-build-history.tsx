@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Eye, Loader2, RotateCcw } from 'lucide-react';
+import { Eye, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { Badge } from '../../components/ui/badge.js';
@@ -15,6 +15,7 @@ import {
 } from '../../components/ui/table.js';
 import {
   dashboardApi,
+  type DashboardCustomizationManifest,
   type DashboardCustomizationStatusResponse,
 } from '../../lib/api.js';
 import { readSession } from '../../lib/session.js';
@@ -27,6 +28,7 @@ import {
   statusBadgeVariant,
   deriveStatusFromState,
 } from './runtimes-build-history.support.js';
+import { ActiveRuntimeManifestPacket } from './runtimes-build-history.packet.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 
@@ -57,7 +59,8 @@ export function ActiveRuntimeImageCard(): JSX.Element {
     queryFn: fetchRuntimeStatus,
   });
   const [manifestVisible, setManifestVisible] = useState(false);
-  const [manifest, setManifest] = useState<string | null>(null);
+  const [manifest, setManifest] = useState<DashboardCustomizationManifest | null>(null);
+  const [manifestError, setManifestError] = useState<string | null>(null);
   const [isLoadingManifest, setIsLoadingManifest] = useState(false);
 
   async function handleViewManifest(): Promise<void> {
@@ -68,10 +71,12 @@ export function ActiveRuntimeImageCard(): JSX.Element {
     try {
       setIsLoadingManifest(true);
       const result = await dashboardApi.reconstructCustomization();
-      setManifest(JSON.stringify(result.manifest, null, 2));
+      setManifest(result.manifest);
+      setManifestError(null);
       setManifestVisible(true);
     } catch {
-      setManifest('Failed to load manifest.');
+      setManifest(null);
+      setManifestError('Failed to load manifest.');
       setManifestVisible(true);
     } finally {
       setIsLoadingManifest(false);
@@ -103,11 +108,7 @@ export function ActiveRuntimeImageCard(): JSX.Element {
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => void handleViewManifest()} disabled={isLoadingManifest}>
               {isLoadingManifest ? <Loader2 className="h-3 w-3 animate-spin" /> : <Eye className="h-3 w-3" />}
-              {manifestVisible ? 'Hide manifest packet' : 'Open manifest packet'}
-            </Button>
-            <Button variant="outline" size="sm" disabled>
-              <RotateCcw className="h-3 w-3" />
-              Rollback unavailable
+              {manifestVisible ? 'Hide manifest packet' : 'Inspect manifest packet'}
             </Button>
           </div>
         </div>
@@ -127,13 +128,17 @@ export function ActiveRuntimeImageCard(): JSX.Element {
           <Badge variant={statusBadgeVariant(derivedStatus)}>{derivedStatus}</Badge>
           <Badge variant="outline">{status.state}</Badge>
           <span className="text-xs text-muted">
-            Rollback remains disabled because the platform only exposes the currently active digest.
+            Recovery is rebuild-or-relink only on this surface. Direct rollback is not exposed until versioned runtime history exists.
           </span>
         </div>
-        {manifestVisible && manifest ? (
-          <pre className="max-h-72 overflow-auto rounded-xl border border-border/70 bg-muted/10 p-4 text-xs font-mono">
-            {manifest}
-          </pre>
+        {manifestVisible ? (
+          manifest ? (
+            <ActiveRuntimeManifestPacket manifest={manifest} />
+          ) : (
+            <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm text-muted">
+              {manifestError ?? 'Manifest data is unavailable right now.'}
+            </div>
+          )
         ) : null}
       </CardContent>
     </Card>

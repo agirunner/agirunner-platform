@@ -3,7 +3,12 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './runtimes-build-history.tsx'), 'utf8');
+  return [
+    './runtimes-build-history.tsx',
+    './runtimes-build-history.packet.tsx',
+  ]
+    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
+    .join('\n');
 }
 
 describe('runtimes build history source', () => {
@@ -13,8 +18,11 @@ describe('runtimes build history source', () => {
     expect(source).toContain('Build History');
     expect(source).toContain('describeRuntimePosture');
     expect(source).toContain('describeRuntimeNextAction');
-    expect(source).toContain('Open manifest packet');
-    expect(source).toContain('Rollback unavailable');
+    expect(source).toContain('Inspect manifest packet');
+    expect(source).toContain('ActiveRuntimeManifestPacket');
+    expect(source).toContain('Manifest packet');
+    expect(source).toContain('Open raw manifest JSON');
+    expect(source).not.toContain('Rollback unavailable');
     expect(source).toContain('Recent runtime build linkage and recovery posture');
   });
 
@@ -23,6 +31,7 @@ describe('runtimes build history source', () => {
     expect(source).toContain('lg:hidden');
     expect(source).toContain('hidden overflow-x-auto lg:block');
     expect(source).toContain('RuntimePacket');
+    expect(source).toContain('sm:grid-cols-2 xl:grid-cols-3');
     expect(source).toContain('Recovery path');
   });
 });
