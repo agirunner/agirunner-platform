@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  describeCollectionAttention,
+  describeCollectionProgress,
+  describeCollectionSpend,
   describeGateSummary,
   describeWorkflowCost,
   describeWorkflowProgress,
@@ -263,9 +266,29 @@ describe('workflow list support', () => {
       blocked: 0,
       done: 0,
       openWorkItems: 4,
+      completedWorkItems: 5,
       awaitingGates: 1,
       reportedSpend: 4.75,
       spentBoards: 2,
     });
+  });
+
+  it('describes collection-level progress, attention, and spend coverage for operators', () => {
+    const summary = {
+      total: 4,
+      active: 1,
+      gated: 2,
+      blocked: 1,
+      done: 0,
+      openWorkItems: 6,
+      completedWorkItems: 9,
+      awaitingGates: 2,
+      reportedSpend: 12.5,
+      spentBoards: 3,
+    };
+
+    expect(describeCollectionProgress(summary)).toBe('6 open • 9 complete');
+    expect(describeCollectionAttention(summary)).toBe('2 gated • 1 blocked');
+    expect(describeCollectionSpend(summary)).toBe('3 of 4 boards reporting spend');
   });
 });

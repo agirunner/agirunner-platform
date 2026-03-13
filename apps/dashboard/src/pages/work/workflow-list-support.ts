@@ -239,6 +239,7 @@ export function summarizeWorkflowCollection(workflows: WorkflowListRecord[]) {
         summary.done += 1;
       }
       summary.openWorkItems += workflow.work_item_summary?.open_work_item_count ?? 0;
+      summary.completedWorkItems += workflow.work_item_summary?.completed_work_item_count ?? 0;
       summary.awaitingGates += workflow.work_item_summary?.awaiting_gate_count ?? 0;
       if (typeof workflow.cost === 'number') {
         summary.reportedSpend += workflow.cost;
@@ -253,9 +254,39 @@ export function summarizeWorkflowCollection(workflows: WorkflowListRecord[]) {
       blocked: 0,
       done: 0,
       openWorkItems: 0,
+      completedWorkItems: 0,
       awaitingGates: 0,
       reportedSpend: 0,
       spentBoards: 0,
     },
   );
+}
+
+export function describeCollectionProgress(summary: ReturnType<typeof summarizeWorkflowCollection>): string {
+  if (summary.openWorkItems === 0 && summary.completedWorkItems === 0) {
+    return 'No work items in scope';
+  }
+  return `${summary.openWorkItems} open • ${summary.completedWorkItems} complete`;
+}
+
+export function describeCollectionAttention(summary: ReturnType<typeof summarizeWorkflowCollection>): string {
+  const attentionBoards = summary.gated + summary.blocked;
+  if (attentionBoards === 0) {
+    return 'No boards need intervention';
+  }
+  const parts: string[] = [];
+  if (summary.gated > 0) {
+    parts.push(`${summary.gated} gated`);
+  }
+  if (summary.blocked > 0) {
+    parts.push(`${summary.blocked} blocked`);
+  }
+  return parts.join(' • ');
+}
+
+export function describeCollectionSpend(summary: ReturnType<typeof summarizeWorkflowCollection>): string {
+  if (summary.spentBoards === 0) {
+    return 'No boards reporting spend';
+  }
+  return `${summary.spentBoards} of ${summary.total} boards reporting spend`;
 }

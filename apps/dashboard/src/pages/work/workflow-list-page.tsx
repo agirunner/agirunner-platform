@@ -3,13 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
   Activity,
-  DollarSign,
   GitBranch,
   LayoutGrid,
   List,
   Plus,
   Search,
-  ShieldAlert,
 } from 'lucide-react';
 
 import { dashboardApi } from '../../lib/api.js';
@@ -57,6 +55,7 @@ import {
   type ViewMode,
   type WorkflowListRecord,
 } from './workflow-list-support.js';
+import { WorkflowSummaryCards } from './workflow-list-summary-cards.js';
 
 export function WorkflowListPage(): JSX.Element {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -110,6 +109,8 @@ export function WorkflowListPage(): JSX.Element {
       <WorkflowFilterCard
         allCount={allWorkflows.length}
         filteredCount={filteredWorkflows.length}
+        attentionCount={collectionSummary.gated + collectionSummary.blocked}
+        spentBoards={collectionSummary.spentBoards}
         searchQuery={searchQuery}
         statusFilter={statusFilter}
         typeFilter={typeFilter}
@@ -162,61 +163,11 @@ function WorkflowListHeader(): JSX.Element {
   );
 }
 
-function WorkflowSummaryCards(props: {
-  summary: ReturnType<typeof summarizeWorkflowCollection>;
-}): JSX.Element {
-  const cards = [
-    {
-      title: 'Visible Boards',
-      value: String(props.summary.total),
-      detail: `${props.summary.active} active, ${props.summary.gated} gated, ${props.summary.blocked} blocked`,
-      icon: GitBranch,
-    },
-    {
-      title: 'Open Work Items',
-      value: String(props.summary.openWorkItems),
-      detail: 'Across the current filter set',
-      icon: Activity,
-    },
-    {
-      title: 'Gate Pressure',
-      value: String(props.summary.awaitingGates),
-      detail:
-        props.summary.awaitingGates > 0 ? 'Human reviews are waiting' : 'No gates waiting',
-      icon: ShieldAlert,
-    },
-    {
-      title: 'Reported Spend',
-      value: props.summary.spentBoards > 0 ? `$${props.summary.reportedSpend.toFixed(2)}` : '-',
-      detail:
-        props.summary.spentBoards > 0
-          ? `Across ${props.summary.spentBoards} board runs`
-          : 'No spend reported',
-      icon: DollarSign,
-    },
-  ];
-
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {cards.map((card) => (
-        <Card key={card.title} className="border-border/70 shadow-sm">
-          <CardContent className="grid gap-3 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-medium text-muted">{card.title}</p>
-              <card.icon className="h-4 w-4 text-muted" />
-            </div>
-            <p className="text-2xl font-semibold tracking-tight">{card.value}</p>
-            <p className="text-xs leading-5 text-muted">{card.detail}</p>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-}
-
 function WorkflowFilterCard(props: {
   allCount: number;
   filteredCount: number;
+  attentionCount: number;
+  spentBoards: number;
   searchQuery: string;
   statusFilter: StatusFilter;
   typeFilter: TypeFilter;
@@ -233,7 +184,9 @@ function WorkflowFilterCard(props: {
           <div className="space-y-1">
             <p className="text-sm font-medium text-foreground">Filter the visible board set</p>
             <p className="text-xs text-muted">
-              Showing {props.filteredCount} of {props.allCount} board runs in the current view.
+              Showing {props.filteredCount} of {props.allCount} board runs, with{' '}
+              {props.attentionCount} needing attention and {props.spentBoards} reporting spend in
+              the current view.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">

@@ -13,8 +13,8 @@ describe('workflow board page source', () => {
     expect(source).toContain('Board operations');
     expect(source).toContain('Review posture, progress, live stages, gate pressure, and reported spend');
     expect(source).toContain('WorkflowSummaryCards');
-    expect(source).toContain('Visible Boards');
-    expect(source).toContain('Reported Spend');
+    expect(source).toContain('attentionCount={collectionSummary.gated + collectionSummary.blocked}');
+    expect(source).toContain('spentBoards={collectionSummary.spentBoards}');
     expect(source).toContain('All Postures');
     expect(source).toContain('Search runs, stages, gates, or projects...');
     expect(source).toContain('Failed to load delivery boards. Please try again later.');
