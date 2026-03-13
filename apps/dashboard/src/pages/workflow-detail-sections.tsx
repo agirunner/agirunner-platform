@@ -24,6 +24,10 @@ import {
   isWorkflowDetailTargetHighlighted,
 } from './workflow-detail-permalinks.js';
 import {
+  buildWorkflowProjectTimelineOverview,
+  buildWorkflowProjectTimelinePacket,
+} from './workflow-project-timeline-support.js';
+import {
   describeReviewPacket,
   formatAbsoluteTimestamp,
   formatRelativeTimestamp,
@@ -1200,6 +1204,7 @@ export function ProjectTimelineCard(props: {
   onSelectChildWorkflow?(workflowId: string): void;
 }) {
   const location = useLocation();
+  const overview = buildWorkflowProjectTimelineOverview(props.entries);
 
   return (
     <Card>
@@ -1212,8 +1217,32 @@ export function ProjectTimelineCard(props: {
       <CardContent className="grid gap-4">
         {props.isLoading ? <p className="text-sm text-muted">Loading timeline...</p> : null}
         {props.hasError ? <p className="text-sm text-red-600">Failed to load project timeline.</p> : null}
+        {props.entries.length > 0 ? (
+          <div className="grid gap-4 rounded-xl border border-border/70 bg-background/70 p-4">
+            <div className="grid gap-1">
+              <div className="text-sm font-medium text-foreground">Run continuity</div>
+              <p className="text-sm leading-6 text-muted">{overview.summary}</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              {overview.metrics.map((metric) => (
+                <div
+                  key={metric.label}
+                  className="grid gap-1 rounded-xl border border-border/70 bg-card/70 p-4"
+                >
+                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+                    {metric.label}
+                  </div>
+                  <div className="text-sm font-semibold text-foreground">{metric.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <div className="grid gap-4">
-        {props.entries.map((entry) => (
+        {props.entries.map((entry) => {
+          const packet = buildWorkflowProjectTimelinePacket(entry);
+          const isCurrentWorkflow = entry.workflow_id === props.currentWorkflowId;
+          return (
           <article
             key={entry.workflow_id}
             id={`child-workflow-${entry.workflow_id}`}
@@ -1231,17 +1260,39 @@ export function ProjectTimelineCard(props: {
             }
           >
             <div className="flex items-start justify-between gap-3">
-              <strong>{entry.name}</strong>
-              <Badge variant={badgeVariantForState(entry.state)}>{entry.state}</Badge>
+              <div className="grid gap-1">
+                <strong>{packet.workflowName}</strong>
+                <p className="text-sm text-muted">{packet.summary}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {isCurrentWorkflow ? <Badge variant="secondary">Current board</Badge> : null}
+                <Badge variant={badgeVariantForState(entry.state)}>{packet.stateLabel}</Badge>
+              </div>
             </div>
-            <p className="text-sm text-muted">
-              {entry.completed_at ? new Date(entry.completed_at).toLocaleString() : 'In progress'}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">Duration: {entry.duration_seconds ?? 0}s</Badge>
-              <Badge variant="secondary">
-                Artifacts: {entry.produced_artifacts?.length ?? 0}
-              </Badge>
+            <div className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-4">
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline" title={packet.createdTitle}>
+                  Created {packet.createdLabel}
+                </Badge>
+                <Badge variant="outline">{packet.completedLabel}</Badge>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {packet.metrics.map((metric) => (
+                  <div
+                    key={`${entry.workflow_id}:${metric.label}`}
+                    className="grid gap-1 rounded-xl border border-border/70 bg-card/70 p-3"
+                  >
+                    <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+                      {metric.label}
+                    </div>
+                    <div className="text-sm font-semibold text-foreground">{metric.value}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-xl border border-border/70 bg-card/70 p-3 text-sm leading-6 text-muted">
+                <span className="font-medium text-foreground">Best next step:</span>{' '}
+                {packet.nextAction}
+              </div>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <Button
@@ -1253,9 +1304,10 @@ export function ProjectTimelineCard(props: {
                 Highlight lineage
               </Button>
               <div className="flex flex-wrap items-center gap-3">
-                {entry.workflow_id !== props.currentWorkflowId ? (
-                  <Link to={`/work/workflows/${entry.workflow_id}`}>Open workflow</Link>
+                {!isCurrentWorkflow ? (
+                  <Link to={packet.workflowHref}>Open board</Link>
                 ) : null}
+                <Link to={packet.inspectorHref}>Open inspector</Link>
                 <Link
                   to={buildWorkflowDetailPermalink(props.currentWorkflowId, {
                     childWorkflowId: entry.workflow_id,
@@ -1267,7 +1319,8 @@ export function ProjectTimelineCard(props: {
               </div>
             </div>
           </article>
-        ))}
+          );
+        })}
         </div>
       </CardContent>
     </Card>

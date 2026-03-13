@@ -80,6 +80,18 @@ describe('workflow detail sections source', () => {
     expect(source).toContain('Highlight lineage');
   });
 
+  it('turns the workflow-detail project timeline into a continuity packet surface', () => {
+    const source = readSource();
+    expect(source).toContain('buildWorkflowProjectTimelineOverview');
+    expect(source).toContain('buildWorkflowProjectTimelinePacket');
+    expect(source).toContain('Run continuity');
+    expect(source).toContain('Current board');
+    expect(source).toContain('Best next step:');
+    expect(source).toContain('Open board');
+    expect(source).toContain('Open inspector');
+    expect(source).toContain('Created {packet.createdLabel}');
+  });
+
   it('shows stale recovery context on workflow activations', () => {
     const source = readSource();
     expect(source).toContain('Orchestrator Activations');
