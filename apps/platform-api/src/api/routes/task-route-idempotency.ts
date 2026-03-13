@@ -79,6 +79,28 @@ export async function runIdempotentPublicTaskOperatorAction<T extends Record<str
   requestId: string | undefined,
   run: (client: DatabaseClient | undefined) => Promise<T>,
 ): Promise<T> {
+  return runIdempotentWorkflowBackedTaskRouteAction(
+    app,
+    toolResultService,
+    loadTask,
+    tenantId,
+    taskId,
+    toolName,
+    requestId,
+    run,
+  );
+}
+
+export async function runIdempotentWorkflowBackedTaskRouteAction<T extends Record<string, unknown>>(
+  app: FastifyInstance,
+  toolResultService: WorkflowToolResultService,
+  loadTask: (tenantId: string, taskId: string) => Promise<unknown>,
+  tenantId: string,
+  taskId: string,
+  toolName: string,
+  requestId: string | undefined,
+  run: (client: DatabaseClient | undefined) => Promise<T>,
+): Promise<T> {
   const workflowId = requestId
     ? await loadTaskWorkflowId(loadTask, tenantId, taskId)
     : null;

@@ -6,7 +6,10 @@ import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import type { PublicTaskState } from '../../services/task-service.types.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
-import { runIdempotentPublicTaskOperatorAction } from './task-route-idempotency.js';
+import {
+  runIdempotentPublicTaskOperatorAction,
+  runIdempotentWorkflowBackedTaskRouteAction,
+} from './task-route-idempotency.js';
 
 
 const taskCreateSchema = z.object({
@@ -76,7 +79,11 @@ const taskControlSchema = z.object({
   started_at: z.string().datetime().optional(),
 });
 
-const completeSchema = z.object({
+const taskOperatorMutationSchema = z.object({
+  request_id: z.string().min(1).max(255).optional(),
+});
+
+const completeSchema = taskOperatorMutationSchema.extend({
   output: z.any(),
   metrics: z.record(z.unknown()).optional(),
   git_info: z.record(z.unknown()).optional(),
@@ -84,15 +91,12 @@ const completeSchema = z.object({
   agent_id: z.string().uuid().optional(),
   worker_id: z.string().uuid().optional(),
 });
-const failSchema = z.object({
+const failSchema = taskOperatorMutationSchema.extend({
   error: z.record(z.unknown()),
   metrics: z.record(z.unknown()).optional(),
   git_info: z.record(z.unknown()).optional(),
   agent_id: z.string().uuid().optional(),
   worker_id: z.string().uuid().optional(),
-});
-const taskOperatorMutationSchema = z.object({
-  request_id: z.string().min(1).max(255).optional(),
 });
 
 const retrySchema = taskOperatorMutationSchema.extend({
@@ -188,6 +192,23 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     run: (client: import('../../db/database.js').DatabaseClient | undefined) => Promise<T>,
   ) =>
     runIdempotentPublicTaskOperatorAction(
+      app,
+      toolResultService,
+      taskService.getTask.bind(taskService),
+      tenantId,
+      taskId,
+      toolName,
+      requestId,
+      run,
+    );
+  const runWorkflowBackedTaskRouteAction = <T extends Record<string, unknown>>(
+    tenantId: string,
+    taskId: string,
+    toolName: string,
+    requestId: string | undefined,
+    run: (client: import('../../db/database.js').DatabaseClient | undefined) => Promise<T>,
+  ) =>
+    runIdempotentWorkflowBackedTaskRouteAction(
       app,
       toolResultService,
       taskService.getTask.bind(taskService),
@@ -333,14 +354,22 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(completeSchema.safeParse(request.body));
-      const task = await taskService.completeTask(request.auth!, params.id, {
-        output: body.output,
-        metrics: body.metrics,
-        git_info: body.git_info,
-        verification: body.verification,
-        agent_id: body.agent_id,
-        worker_id: body.worker_id,
-      });
+      const requestId = body.request_id;
+      const task = await runWorkflowBackedTaskRouteAction(
+        request.auth!.tenantId,
+        params.id,
+        'task_complete',
+        requestId,
+        () =>
+          taskService.completeTask(request.auth!, params.id, {
+            output: body.output,
+            metrics: body.metrics,
+            git_info: body.git_info,
+            verification: body.verification,
+            agent_id: body.agent_id,
+            worker_id: body.worker_id,
+          }),
+      );
       return { data: task };
     },
   );
@@ -351,7 +380,21 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(failSchema.safeParse(request.body));
-      const task = await taskService.failTask(request.auth!, params.id, body);
+      const requestId = body.request_id;
+      const task = await runWorkflowBackedTaskRouteAction(
+        request.auth!.tenantId,
+        params.id,
+        'task_fail',
+        requestId,
+        () =>
+          taskService.failTask(request.auth!, params.id, {
+            error: body.error,
+            metrics: body.metrics,
+            git_info: body.git_info,
+            agent_id: body.agent_id,
+            worker_id: body.worker_id,
+          }),
+      );
       return { data: task };
     },
   );

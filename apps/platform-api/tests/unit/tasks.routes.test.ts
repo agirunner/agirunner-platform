@@ -390,6 +390,95 @@ describe('tasks routes', () => {
     expect(cancelTask).toHaveBeenCalledTimes(1);
     expect(second.json()).toEqual(first.json());
   });
+
+  it('deduplicates repeated complete requests by request_id for workflow-backed tasks', async () => {
+    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const completeTask = vi.fn(async () => ({
+      id: 'task-4',
+      workflow_id: 'workflow-4',
+      state: 'completed',
+      output: { summary: 'Completed once' },
+    }));
+
+    app = buildTaskRouteApp(
+      {
+        getTask: vi.fn(async () => ({ id: 'task-4', workflow_id: 'workflow-4' })),
+        completeTask,
+      },
+      createWorkflowReplayPool('workflow-4', 'task_complete'),
+    );
+    await app.register(taskRoutes);
+
+    const payload = {
+      request_id: 'complete-1',
+      output: { summary: 'Completed once' },
+      metrics: { tokens: 123 },
+      verification: { checks_passed: true },
+      agent_id: '11111111-1111-1111-1111-111111111111',
+    };
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-4/complete',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-4/complete',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(completeTask).toHaveBeenCalledTimes(1);
+    expect(second.json()).toEqual(first.json());
+  });
+
+  it('deduplicates repeated fail requests by request_id for workflow-backed tasks', async () => {
+    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const failTask = vi.fn(async () => ({
+      id: 'task-5',
+      workflow_id: 'workflow-5',
+      state: 'failed',
+      error: { message: 'Execution failed once' },
+    }));
+
+    app = buildTaskRouteApp(
+      {
+        getTask: vi.fn(async () => ({ id: 'task-5', workflow_id: 'workflow-5' })),
+        failTask,
+      },
+      createWorkflowReplayPool('workflow-5', 'task_fail'),
+    );
+    await app.register(taskRoutes);
+
+    const payload = {
+      request_id: 'fail-1',
+      error: { message: 'Execution failed once' },
+      metrics: { tokens: 456 },
+      worker_id: '22222222-2222-2222-2222-222222222222',
+    };
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-5/fail',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-5/fail',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(failTask).toHaveBeenCalledTimes(1);
+    expect(second.json()).toEqual(first.json());
+  });
 });
 
 function buildTaskRouteApp(
