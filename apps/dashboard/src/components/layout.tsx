@@ -4,7 +4,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Bell,
-  Box,
   ChevronRight,
   Clipboard,
   Cog,
@@ -42,7 +41,13 @@ import { readSession, clearSession } from '../lib/session.js';
 import { cn } from '../lib/utils.js';
 import { readTheme } from '../app/theme.js';
 import {
-  buildCommandPaletteSearchItems,
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from './ui/dialog.js';
+import {
   buildCommandPaletteSections,
   clearRecentCommandPaletteItems,
   COMMAND_PALETTE_DEBOUNCE_MS,
@@ -158,6 +163,26 @@ const COMMAND_PALETTE_QUICK_LINKS: CommandPaletteItem[] = NAV_SECTIONS.flatMap((
   })),
 );
 
+const FOCUS_RING_CLASSES =
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface';
+
+const ICON_BUTTON_CLASSES = cn(
+  'rounded-md p-1.5 text-muted transition-colors hover:bg-border/50 hover:text-foreground',
+  FOCUS_RING_CLASSES,
+);
+
+function readActiveElement(): HTMLElement | null {
+  return document.activeElement instanceof HTMLElement ? document.activeElement : null;
+}
+
+function restoreFocusToElement(element: HTMLElement | null): boolean {
+  if (!element || !element.isConnected || element.getClientRects().length === 0) {
+    return false;
+  }
+  element.focus();
+  return document.activeElement === element;
+}
+
 export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
@@ -174,8 +199,15 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
     () => readRecentCommandPaletteItems(),
   );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const desktopSearchButtonRef = useRef<HTMLButtonElement | null>(null);
+  const mobileMenuTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const mobileSearchButtonRef = useRef<HTMLButtonElement | null>(null);
+  const mobileMenuCloseButtonRef = useRef<HTMLButtonElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const paletteItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const searchRestoreFocusRef = useRef<HTMLElement | null>(null);
+  const mobileMenuRestoreFocusRef = useRef<HTMLElement | null>(null);
+  const skipMobileMenuRestoreRef = useRef(false);
   const searchRequestRef = useRef(0);
   const isDark = readTheme() === 'dark';
 
@@ -194,10 +226,6 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
   }, [location.pathname]);
 
   const shouldSearchWorkspace = shouldRunCommandPaletteSearch(searchQuery);
-  const searchItems = useMemo(
-    () => buildCommandPaletteSearchItems(searchResults),
-    [searchResults],
-  );
   const quickLinks = useMemo(
     () => filterCommandPaletteQuickLinks(COMMAND_PALETTE_QUICK_LINKS, searchQuery),
     [searchQuery],
@@ -273,6 +301,10 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
   );
 
   function openSearchPalette(): void {
+    searchRestoreFocusRef.current = readActiveElement();
+    if (isMobileMenuOpen) {
+      skipMobileMenuRestoreRef.current = true;
+    }
     setSearchOpen(true);
     setIsMobileMenuOpen(false);
   }
@@ -285,6 +317,23 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
     setSearchStatus('idle');
     setSearchError(null);
     setActivePaletteIndex(-1);
+  }
+
+  function openMobileMenu(): void {
+    mobileMenuRestoreFocusRef.current = readActiveElement();
+    setIsMobileMenuOpen(true);
+  }
+
+  function closeMobileMenu(): void {
+    setIsMobileMenuOpen(false);
+  }
+
+  function logout(): void {
+    void dashboardApi.logout().finally(() => {
+      clearSession();
+      queryClient.clear();
+      navigate('/login');
+    });
   }
 
   useEffect(() => {
@@ -310,12 +359,8 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
       closeSearchPalette();
       return;
     }
-    void dashboardApi.logout().finally(() => {
-      clearSession();
-      queryClient.clear();
-      navigate('/login');
-      closeSearchPalette();
-    });
+    logout();
+    closeSearchPalette();
   }
 
   function navigateToPaletteItem(item: CommandPaletteItem): void {
@@ -333,25 +378,15 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         openSearchPalette();
-      }
-      if (event.key === 'Escape' && searchOpen) {
-        closeSearchPalette();
       }
     };
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [searchOpen]);
-
-  useEffect(() => {
-    if (!searchOpen) {
-      return;
-    }
-    searchInputRef.current?.focus();
-  }, [searchOpen]);
+  }, [isMobileMenuOpen]);
 
   useEffect(() => {
     paletteItemRefs.current = [];
@@ -461,115 +496,140 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
     }
   }
 
-  const sidebarContent = (
-    <>
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <span className="text-lg font-semibold">Agirunner</span>
-        <div className="flex items-center gap-1">
+  function renderSidebarContent(isMobile: boolean): JSX.Element {
+    return (
+      <>
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <span className="text-lg font-semibold">Agirunner</span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={onToggleTheme}
+              className={ICON_BUTTON_CLASSES}
+              aria-label="Toggle theme"
+            >
+              {isDark ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+            {isMobile ? (
+              <button
+                ref={mobileMenuCloseButtonRef}
+                type="button"
+                onClick={closeMobileMenu}
+                className={ICON_BUTTON_CLASSES}
+                aria-label="Close navigation menu"
+              >
+                <X size={16} />
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="px-3 py-2">
           <button
+            ref={isMobile ? undefined : desktopSearchButtonRef}
             type="button"
-            onClick={onToggleTheme}
-            className="rounded-md p-1.5 text-muted hover:bg-border/50"
-            aria-label="Toggle theme"
+            onClick={openSearchPalette}
+            className={cn(
+              'flex w-full items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm text-muted transition-colors hover:bg-border/30 hover:text-foreground',
+              FOCUS_RING_CLASSES,
+            )}
+            aria-haspopup="dialog"
+            aria-expanded={searchOpen}
           >
-            {isDark ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="rounded-md p-1.5 text-muted hover:bg-border/50 lg:hidden"
-            aria-label="Close menu"
-          >
-            <X size={16} />
+            <Search size={14} />
+            <span>Search...</span>
+            <kbd className="ml-auto hidden rounded border border-border px-1.5 py-0.5 text-xs sm:inline">
+              {'\u2318'}K
+            </kbd>
           </button>
         </div>
-      </div>
 
-      <div className="px-3 py-2">
-        <button
-          type="button"
-          onClick={openSearchPalette}
-          className="flex w-full items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm text-muted hover:bg-border/30"
-        >
-          <Search size={14} />
-          <span>Search...</span>
-          <kbd className="ml-auto hidden rounded border border-border px-1.5 py-0.5 text-xs sm:inline">
-            {'\u2318'}K
-          </kbd>
-        </button>
-      </div>
+        <nav className="flex-1 overflow-y-auto px-2 py-1">
+          {NAV_SECTIONS.map((section) => (
+            <NavSectionGroup
+              key={section.label}
+              section={section}
+              isActive={currentSection === section.label}
+            />
+          ))}
+        </nav>
 
-      <nav className="flex-1 overflow-y-auto px-2 py-1">
-        {NAV_SECTIONS.map((section) => (
-          <NavSectionGroup
-            key={section.label}
-            section={section}
-            isActive={currentSection === section.label}
-          />
-        ))}
-      </nav>
-
-      <div className="border-t border-border p-3">
-        <div className="mb-2 text-xs text-muted">
-          {session?.tenantId ? `Tenant ${session.tenantId.slice(0, 8)}...` : ''}
+        <div className="border-t border-border p-3">
+          <div className="mb-2 text-xs text-muted">
+            {session?.tenantId ? `Tenant ${session.tenantId.slice(0, 8)}...` : ''}
+          </div>
+          <button
+            type="button"
+            className={cn(
+              'flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm text-muted transition-colors hover:bg-border/30 hover:text-foreground',
+              FOCUS_RING_CLASSES,
+            )}
+            onClick={logout}
+          >
+            <LogOut size={14} />
+            Logout
+          </button>
         </div>
-        <button
-          type="button"
-          className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm text-muted hover:bg-border/30"
-          onClick={() => {
-            void dashboardApi.logout().finally(() => {
-              clearSession();
-              queryClient.clear();
-              navigate('/login');
-            });
-          }}
-        >
-          <LogOut size={14} />
-          Logout
-        </button>
-      </div>
-    </>
-  );
+      </>
+    );
+  }
 
   return (
     <div className="flex min-h-screen">
-      {/* Mobile header bar */}
       <div className="fixed left-0 right-0 top-0 z-30 flex items-center justify-between border-b border-border bg-surface px-4 py-2 lg:hidden">
         <button
+          ref={mobileMenuTriggerRef}
           type="button"
-          onClick={() => setIsMobileMenuOpen(true)}
-          className="rounded-md p-1.5 text-muted hover:bg-border/50"
+          onClick={openMobileMenu}
+          className={ICON_BUTTON_CLASSES}
           aria-label="Open menu"
+          aria-haspopup="dialog"
+          aria-expanded={isMobileMenuOpen}
         >
           <Menu size={20} />
         </button>
         <span className="text-sm font-semibold">Agirunner</span>
         <button
+          ref={mobileSearchButtonRef}
           type="button"
           onClick={openSearchPalette}
-          className="rounded-md p-1.5 text-muted hover:bg-border/50"
-          aria-label="Search"
+          className={ICON_BUTTON_CLASSES}
+          aria-label="Open command palette"
+          aria-haspopup="dialog"
+          aria-expanded={searchOpen}
         >
           <Search size={18} />
         </button>
       </div>
 
-      {/* Mobile sidebar overlay */}
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
+      <Dialog open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+        <DialogContent
+          showCloseButton={false}
+          className="left-0 top-0 h-dvh w-60 max-w-none translate-x-0 translate-y-0 gap-0 rounded-none border-r border-border bg-surface p-0 shadow-xl lg:hidden"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            mobileMenuCloseButtonRef.current?.focus();
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            if (skipMobileMenuRestoreRef.current) {
+              skipMobileMenuRestoreRef.current = false;
+              return;
+            }
+            restoreFocusToElement(mobileMenuRestoreFocusRef.current)
+              || restoreFocusToElement(mobileMenuTriggerRef.current);
+          }}
+        >
+          <DialogTitle className="sr-only">Navigation menu</DialogTitle>
+          <DialogDescription className="sr-only">
+            Browse workspace sections and account actions.
+          </DialogDescription>
+          {renderSidebarContent(true)}
+        </DialogContent>
+      </Dialog>
 
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-60 flex-col border-r border-border bg-surface transition-transform duration-200 lg:static lg:translate-x-0',
-          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full',
-        )}
-      >
-        {sidebarContent}
+      <aside className="hidden w-60 flex-col border-r border-border bg-surface lg:flex">
+        {renderSidebarContent(false)}
       </aside>
 
       <main className="flex-1 overflow-y-auto bg-background pt-12 lg:pt-0">
@@ -578,136 +638,166 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
         </div>
       </main>
 
-      {searchOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-16 sm:pt-24"
-          onClick={closeSearchPalette}
+      <Dialog
+        open={searchOpen}
+        onOpenChange={(nextOpen) => {
+          if (nextOpen) {
+            setSearchOpen(true);
+            return;
+          }
+          closeSearchPalette();
+        }}
+      >
+        <DialogContent
+          showCloseButton={false}
+          closeLabel="Close command palette"
+          className="max-w-2xl gap-3 rounded-2xl border-border/80 bg-surface/95 p-4 backdrop-blur"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            searchInputRef.current?.focus();
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            restoreFocusToElement(searchRestoreFocusRef.current)
+              || restoreFocusToElement(mobileSearchButtonRef.current)
+              || restoreFocusToElement(desktopSearchButtonRef.current);
+          }}
         >
-          <div
-            className="w-full max-w-2xl rounded-2xl border border-border/80 bg-surface/95 p-4 shadow-xl backdrop-blur"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">
-                      Search the workspace
-                    </p>
-                    <p className="text-xs text-muted">
-                      Workflow boards, tasks, projects, playbooks, workers, and agents.
-                    </p>
-                  </div>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <DialogTitle className="text-sm font-semibold text-foreground">
+                    Search the workspace
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-muted">
+                    Workflow boards, tasks, projects, playbooks, workers, and agents.
+                  </DialogDescription>
+                </div>
+                <div className="flex items-center gap-2">
                   <kbd className="rounded border border-border px-1.5 py-0.5 text-xs text-muted">
                     Esc
                   </kbd>
+                  <DialogClose asChild>
+                    <button
+                      type="button"
+                      className={ICON_BUTTON_CLASSES}
+                      aria-label="Close command palette"
+                    >
+                      <X size={16} />
+                    </button>
+                  </DialogClose>
                 </div>
               </div>
-
-              <div className="rounded-xl border border-border/80 bg-background/70 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <Search size={16} className="text-muted" />
-                  <input
-                    ref={searchInputRef}
-                    className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted"
-                    placeholder="Type to search or jump to a quick link"
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    onKeyDown={handlePaletteInputKeyDown}
-                    role="combobox"
-                    aria-expanded={searchOpen}
-                    aria-controls="dashboard-command-palette-results"
-                    aria-activedescendant={
-                      activePaletteIndex >= 0
-                        ? `dashboard-command-palette-item-${activePaletteIndex}`
-                        : undefined
-                    }
-                    aria-label="Search the workspace"
-                  />
-                  {searchStatus === 'loading' ? (
-                    <span className="text-xs text-muted">Searching…</span>
-                  ) : null}
-                </div>
-              </div>
-
-              <div
-                className={cn(
-                  'rounded-xl border px-3 py-3 text-sm',
-                  searchStatus === 'error'
-                    ? 'border-red-300/80 bg-red-50/80 text-red-900 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-100'
-                    : 'border-border/70 bg-muted/10 text-muted',
-                )}
-              >
-                <p className="font-medium text-foreground">{paletteState.title}</p>
-                <p className="mt-1 text-xs leading-5">{paletteState.detail}</p>
-              </div>
-
-              {visiblePaletteRows.length > 0 ? (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-3 px-1">
-                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted">
-                      {shouldSearchWorkspace ? 'Commands and results' : 'Actions and shortcuts'}
-                    </p>
-                    <p className="text-xs text-muted">
-                      {`${visiblePaletteItems.length} items`}
-                    </p>
-                  </div>
-                  <div
-                    id="dashboard-command-palette-results"
-                    role="listbox"
-                    className="max-h-72 space-y-3 overflow-y-auto"
-                  >
-                    {visiblePaletteRows.map((section) => (
-                      <div key={section.id} className="space-y-1">
-                        <div className="px-1 text-[11px] font-medium uppercase tracking-[0.2em] text-muted">
-                          {section.title}
-                        </div>
-                        <ul className="space-y-1">
-                          {section.rows.map(({ item, index }) => (
-                            <li key={item.id}>
-                              <button
-                                id={`dashboard-command-palette-item-${index}`}
-                                ref={(element) => {
-                                  paletteItemRefs.current[index] = element;
-                                }}
-                                type="button"
-                                role="option"
-                                aria-selected={index === activePaletteIndex}
-                                className={cn(
-                                  'flex w-full items-start justify-between gap-3 rounded-xl px-3 py-3 text-left text-sm transition-colors',
-                                  index === activePaletteIndex
-                                    ? 'bg-accent/10 text-foreground'
-                                    : 'hover:bg-border/30',
-                                )}
-                                onMouseEnter={() => setActivePaletteIndex(index)}
-                                onClick={() => navigateToPaletteItem(item)}
-                              >
-                                <div className="min-w-0">
-                                  <p className="font-medium text-foreground">{item.label}</p>
-                                  <p className="truncate text-xs text-muted">{item.meta}</p>
-                                </div>
-                                <span className="rounded-full border border-border/70 px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted">
-                                  {item.kind}
-                                </span>
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {!shouldSearchWorkspace && visiblePaletteItems.length === 0 ? (
-                <p className="px-1 text-xs text-muted">
-                  No quick links match that text yet. Keep typing to search the full workspace.
-                </p>
-              ) : null}
             </div>
+
+            <div className="rounded-xl border border-border/80 bg-background/70 px-3 py-2">
+              <div className="flex items-center gap-2">
+                <Search size={16} className="text-muted" />
+                <input
+                  ref={searchInputRef}
+                  className={cn(
+                    'flex-1 bg-transparent text-sm placeholder:text-muted',
+                    FOCUS_RING_CLASSES,
+                  )}
+                  placeholder="Type to search or jump to a quick link"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  onKeyDown={handlePaletteInputKeyDown}
+                  role="combobox"
+                  aria-expanded={searchOpen}
+                  aria-controls="dashboard-command-palette-results"
+                  aria-activedescendant={
+                    activePaletteIndex >= 0
+                      ? `dashboard-command-palette-item-${activePaletteIndex}`
+                      : undefined
+                  }
+                  aria-label="Search the workspace"
+                />
+                {searchStatus === 'loading' ? (
+                  <span className="text-xs text-muted">Searching…</span>
+                ) : null}
+              </div>
+            </div>
+
+            <div
+              className={cn(
+                'rounded-xl border px-3 py-3 text-sm',
+                searchStatus === 'error'
+                  ? 'border-red-300/80 bg-red-50/80 text-red-900 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-100'
+                  : 'border-border/70 bg-muted/10 text-muted',
+              )}
+            >
+              <p className="font-medium text-foreground">{paletteState.title}</p>
+              <p className="mt-1 text-xs leading-5">{paletteState.detail}</p>
+            </div>
+
+            {visiblePaletteRows.length > 0 ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3 px-1">
+                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted">
+                    {shouldSearchWorkspace ? 'Commands and results' : 'Actions and shortcuts'}
+                  </p>
+                  <p className="text-xs text-muted">
+                    {`${visiblePaletteItems.length} items`}
+                  </p>
+                </div>
+                <div
+                  id="dashboard-command-palette-results"
+                  role="listbox"
+                  className="max-h-72 space-y-3 overflow-y-auto"
+                >
+                  {visiblePaletteRows.map((section) => (
+                    <div key={section.id} className="space-y-1">
+                      <div className="px-1 text-[11px] font-medium uppercase tracking-[0.2em] text-muted">
+                        {section.title}
+                      </div>
+                      <ul className="space-y-1">
+                        {section.rows.map(({ item, index }) => (
+                          <li key={item.id}>
+                            <button
+                              id={`dashboard-command-palette-item-${index}`}
+                              ref={(element) => {
+                                paletteItemRefs.current[index] = element;
+                              }}
+                              type="button"
+                              role="option"
+                              aria-selected={index === activePaletteIndex}
+                              className={cn(
+                                'flex w-full items-start justify-between gap-3 rounded-xl px-3 py-3 text-left text-sm transition-colors',
+                                FOCUS_RING_CLASSES,
+                                index === activePaletteIndex
+                                  ? 'bg-accent/10 text-foreground'
+                                  : 'hover:bg-border/30',
+                              )}
+                              onMouseEnter={() => setActivePaletteIndex(index)}
+                              onClick={() => navigateToPaletteItem(item)}
+                            >
+                              <div className="min-w-0">
+                                <p className="font-medium text-foreground">{item.label}</p>
+                                <p className="truncate text-xs text-muted">{item.meta}</p>
+                              </div>
+                              <span className="rounded-full border border-border/70 px-2 py-0.5 text-[11px] uppercase tracking-wide text-muted">
+                                {item.kind}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {!shouldSearchWorkspace && visiblePaletteItems.length === 0 ? (
+              <p className="px-1 text-xs text-muted">
+                No quick links match that text yet. Keep typing to search the full workspace.
+              </p>
+            ) : null}
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -735,6 +825,7 @@ function NavSectionGroup({
         onClick={() => setExpanded(!expanded)}
         className={cn(
           'flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium',
+          FOCUS_RING_CLASSES,
           isActive ? 'text-accent' : 'text-foreground hover:bg-border/30',
         )}
       >
@@ -755,6 +846,7 @@ function NavSectionGroup({
               className={({ isActive: active }) =>
                 cn(
                   'flex items-center gap-2 rounded-md px-3 py-1 text-sm',
+                  FOCUS_RING_CLASSES,
                   active
                     ? 'bg-accent/10 font-medium text-accent'
                     : 'text-muted-foreground hover:bg-border/30 hover:text-foreground',
