@@ -10,7 +10,10 @@ function readApiSource() {
 }
 
 function readInterfaceBlock(source: string, interfaceName: string) {
-  const start = source.indexOf(`export interface ${interfaceName} {`);
+  const start =
+    source.indexOf(`export interface ${interfaceName} {`) >= 0
+      ? source.indexOf(`export interface ${interfaceName} {`)
+      : source.indexOf(`interface ${interfaceName} {`);
   if (start < 0) {
     throw new Error(`Interface ${interfaceName} not found`);
   }
@@ -19,6 +22,39 @@ function readInterfaceBlock(source: string, interfaceName: string) {
     throw new Error(`Interface ${interfaceName} end not found`);
   }
   return source.slice(start, end);
+}
+
+function readExportBlock(source: string, name: string) {
+  const interfaceStart = source.indexOf(`export interface ${name} {`);
+  if (interfaceStart >= 0) {
+    const end = source.indexOf('\n}\n', interfaceStart);
+    if (end < 0) {
+      throw new Error(`Interface ${name} end not found`);
+    }
+    return source.slice(interfaceStart, end);
+  }
+
+  const typeStart = source.indexOf(`export type ${name} =`);
+  if (typeStart < 0) {
+    throw new Error(`Export ${name} not found`);
+  }
+  let depth = 0;
+  let seenEquals = false;
+  for (let index = typeStart; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === '=') {
+      seenEquals = true;
+    }
+    if (!seenEquals) {
+      continue;
+    }
+    if (char === '{') depth += 1;
+    if (char === '}') depth -= 1;
+    if (char === ';' && depth === 0) {
+      return source.slice(typeStart, index);
+    }
+  }
+  throw new Error(`Type ${name} end not found`);
 }
 
 function mockBrowserStorage() {
@@ -49,7 +85,7 @@ describe('dashboard api auth/session behavior', () => {
   });
 
   it('keeps live workflow contracts free of template and phase-era fields', () => {
-    const workflowBlock = readInterfaceBlock(readApiSource(), 'DashboardWorkflowRecord');
+    const workflowBlock = readExportBlock(readApiSource(), 'DashboardWorkflowRecord');
 
     expect(workflowBlock).not.toContain('template_id');
     expect(workflowBlock).not.toContain('template_name');
@@ -61,12 +97,17 @@ describe('dashboard api auth/session behavior', () => {
 
   it('keeps dashboard workflow and task records on canonical state aliases', () => {
     const source = readApiSource();
-    const workflowBlock = readInterfaceBlock(source, 'DashboardWorkflowRecord');
+    const workflowBaseBlock = readInterfaceBlock(source, 'DashboardWorkflowRecordBase');
+    const workflowBlock = readExportBlock(source, 'DashboardWorkflowRecord');
     const approvalTaskBlock = readInterfaceBlock(source, 'DashboardApprovalTaskRecord');
 
     expect(source).toContain('export type DashboardTaskState = TaskState;');
     expect(source).toContain('export type DashboardWorkflowState = WorkflowState;');
-    expect(workflowBlock).toContain('state: DashboardWorkflowState;');
+    expect(workflowBaseBlock).toContain('state: DashboardWorkflowState;');
+    expect(workflowBlock).toContain("lifecycle: 'continuous';");
+    expect(workflowBlock).toContain('current_stage?: never;');
+    expect(workflowBlock).toContain("lifecycle?: 'standard' | null;");
+    expect(workflowBlock).toContain('current_stage?: string | null;');
     expect(approvalTaskBlock).toContain('state: DashboardTaskState;');
   });
 
@@ -910,7 +951,7 @@ describe('dashboard api auth/session behavior', () => {
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: { id: 'pipe-1', current_stage: 'build' } }), {
+        new Response(JSON.stringify({ data: { id: 'pipe-1', lifecycle: 'standard', current_stage: 'build' } }), {
           status: 200,
         }),
       )

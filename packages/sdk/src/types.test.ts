@@ -7,7 +7,10 @@ function readTypesSource() {
 }
 
 function readInterfaceBlock(source: string, interfaceName: string) {
-  const start = source.indexOf(`export interface ${interfaceName} {`);
+  const start =
+    source.indexOf(`export interface ${interfaceName} {`) >= 0
+      ? source.indexOf(`export interface ${interfaceName} {`)
+      : source.indexOf(`interface ${interfaceName} {`);
   if (start < 0) {
     throw new Error(`Interface ${interfaceName} not found`);
   }
@@ -18,15 +21,53 @@ function readInterfaceBlock(source: string, interfaceName: string) {
   return source.slice(start, end);
 }
 
+function readExportBlock(source: string, name: string) {
+  const interfaceStart = source.indexOf(`export interface ${name} {`);
+  if (interfaceStart >= 0) {
+    const end = source.indexOf('\n}\n', interfaceStart);
+    if (end < 0) {
+      throw new Error(`Interface ${name} end not found`);
+    }
+    return source.slice(interfaceStart, end);
+  }
+
+  const typeStart = source.indexOf(`export type ${name} =`);
+  if (typeStart < 0) {
+    throw new Error(`Export ${name} not found`);
+  }
+  let depth = 0;
+  let seenEquals = false;
+  for (let index = typeStart; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === '=') {
+      seenEquals = true;
+    }
+    if (!seenEquals) {
+      continue;
+    }
+    if (char === '{') depth += 1;
+    if (char === '}') depth -= 1;
+    if (char === ';' && depth === 0) {
+      return source.slice(typeStart, index);
+    }
+  }
+  throw new Error(`Type ${name} end not found`);
+}
+
 describe('sdk shared state contracts', () => {
   it('keeps workflow-facing DTOs on the canonical workflow state union', () => {
     const source = readTypesSource();
-    const workflowBlock = readInterfaceBlock(source, 'Workflow');
+    const workflowBaseBlock = readInterfaceBlock(source, 'WorkflowBase');
+    const workflowBlock = readExportBlock(source, 'Workflow');
     const relationBlock = readInterfaceBlock(source, 'WorkflowRelationRef');
     const timelineBlock = readInterfaceBlock(source, 'ProjectTimelineEntry');
 
     expect(source).toContain('export type WorkflowState =');
-    expect(workflowBlock).toContain('state: WorkflowState;');
+    expect(workflowBaseBlock).toContain('state: WorkflowState;');
+    expect(workflowBlock).toContain("lifecycle: 'continuous';");
+    expect(workflowBlock).toContain('current_stage?: never;');
+    expect(workflowBlock).toContain("lifecycle?: 'standard' | null;");
+    expect(workflowBlock).toContain('current_stage?: string | null;');
     expect(relationBlock).toContain('state: WorkflowState;');
     expect(timelineBlock).toContain('state: WorkflowState;');
   });

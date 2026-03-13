@@ -457,7 +457,7 @@ describe('sdk full client coverage', () => {
         ),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: { id: 'wf-1', current_stage: 'review' } }), {
+        new Response(JSON.stringify({ data: { id: 'wf-1', lifecycle: 'standard', current_stage: 'review' } }), {
           status: 200,
         }),
       )

@@ -354,7 +354,7 @@ export interface DashboardWorkflowRelations {
   };
 }
 
-export interface DashboardWorkflowRecord {
+interface DashboardWorkflowRecordBase {
   id: string;
   name: string;
   state: DashboardWorkflowState;
@@ -364,7 +364,6 @@ export interface DashboardWorkflowRecord {
   playbook_id?: string | null;
   playbook_name?: string | null;
   lifecycle?: 'standard' | 'continuous' | null;
-  current_stage?: string | null;
   active_stages?: string[];
   work_item_summary?: {
     total_work_items: number;
@@ -382,6 +381,16 @@ export interface DashboardWorkflowRecord {
   work_items?: DashboardWorkflowWorkItemRecord[];
   activations?: DashboardWorkflowActivationRecord[];
 }
+
+export type DashboardWorkflowRecord =
+  | (DashboardWorkflowRecordBase & {
+      lifecycle: 'continuous';
+      current_stage?: never;
+    })
+  | (DashboardWorkflowRecordBase & {
+      lifecycle?: 'standard' | null;
+      current_stage?: string | null;
+    });
 
 export interface DashboardApprovalTaskRecord {
   id: string;

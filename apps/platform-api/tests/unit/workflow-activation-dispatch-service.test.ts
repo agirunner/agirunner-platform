@@ -225,6 +225,7 @@ describe('WorkflowActivationDispatchService', () => {
         }
         if (sql.includes('INSERT INTO tasks')) {
           expect(params?.[5]).toBe('implementation');
+          expect(params?.[6]).not.toHaveProperty('current_stage');
           expect(params?.[6]).toEqual(
             expect.objectContaining({
               activation_id: 'activation-1',
@@ -494,6 +495,7 @@ describe('WorkflowActivationDispatchService', () => {
           ]);
           expect(params?.[6]).toEqual(
             expect.objectContaining({
+              current_stage: 'requirements',
               repository: {
                 repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
                 base_branch: 'main',

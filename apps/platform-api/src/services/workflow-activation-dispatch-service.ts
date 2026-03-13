@@ -34,12 +34,11 @@ interface QueuedActivationRow {
   error: Record<string, unknown> | null;
 }
 
-interface WorkflowDispatchRow {
+interface WorkflowDispatchRowBase {
   id: string;
   name: string;
   project_id: string | null;
   lifecycle: string | null;
-  current_stage: string | null;
   active_stages: string[];
   playbook_id: string;
   playbook_name: string;
@@ -49,6 +48,16 @@ interface WorkflowDispatchRow {
   workflow_git_branch: string | null;
   workflow_parameters: Record<string, unknown> | null;
 }
+
+type WorkflowDispatchRow =
+  | (WorkflowDispatchRowBase & {
+      lifecycle: 'continuous';
+      current_stage?: never;
+    })
+  | (WorkflowDispatchRowBase & {
+      lifecycle?: string | null;
+      current_stage: string | null;
+    });
 
 interface ActivationTaskRow {
   id: string;
@@ -1265,7 +1274,7 @@ function activationTaskStageName(
   activationBatch: QueuedActivationRow[],
 ): string | null {
   if (workflow.lifecycle !== 'continuous') {
-    return workflow.current_stage;
+    return workflow.current_stage ?? null;
   }
   const eventStages = uniqueStageNames(activationBatch);
   if (eventStages.length === 1) {

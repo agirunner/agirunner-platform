@@ -218,7 +218,7 @@ export interface TaskArtifact {
   storage_backend?: string;
 }
 
-export interface Workflow {
+interface WorkflowBase {
   id: string;
   tenant_id: string;
   project_id: string | null;
@@ -230,7 +230,6 @@ export interface Workflow {
   parameters?: Record<string, unknown>;
   context: Record<string, unknown>;
   metadata: Record<string, unknown>;
-  current_stage?: string | null;
   active_stages?: string[];
   work_item_summary?: {
     total_work_items: number;
@@ -249,6 +248,16 @@ export interface Workflow {
   updated_at: string;
   completed_at: string | null;
 }
+
+export type Workflow =
+  | (WorkflowBase & {
+      lifecycle: 'continuous';
+      current_stage?: never;
+    })
+  | (WorkflowBase & {
+      lifecycle?: 'standard' | null;
+      current_stage?: string | null;
+    });
 
 export interface WorkflowStage {
   id: string;
