@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   STATUS_FILTERS,
   TASK_LIST_PAGE_SIZE,
+  buildTaskPrimaryOperatorAction,
   buildTaskSearchText,
   describeTaskKind,
   describeTaskNextAction,
@@ -21,6 +22,7 @@ describe('task list page support', () => {
     const approvalTask = {
       id: 'task-1',
       status: 'awaiting_approval',
+      workflow_id: 'workflow-1',
       stage_name: 'review',
       work_item_id: 'work-item-12345678',
       activation_id: 'activation-12345678',
@@ -33,8 +35,43 @@ describe('task list page support', () => {
       'Stage review • Work item work-ite…5678 • Activation activati…5678',
     );
     expect(describeTaskNextAction(approvalTask)).toBe(
-      'Review and approve the step output.',
+      'Review and approve this step from the grouped work-item flow.',
     );
+    expect(buildTaskPrimaryOperatorAction(approvalTask)).toEqual({
+      href: '/work/workflows/workflow-1?work_item=work-item-12345678&activation=activation-12345678#work-item-work-item-12345678',
+      label: 'Open work-item flow',
+      helper: 'Review this step from the grouped work-item flow so board context stays aligned.',
+      showsSeparateStepRecord: true,
+    });
+  });
+
+  it('falls back to the stage flow or direct step record when grouped work-item context is unavailable', () => {
+    expect(
+      buildTaskPrimaryOperatorAction({
+        id: 'task-stage',
+        status: 'failed',
+        workflow_id: 'workflow-1',
+        stage_name: 'review',
+        created_at: '2026-03-12T12:00:00.000Z',
+      }),
+    ).toEqual({
+      href: '/work/workflows/workflow-1?gate=review#gate-review',
+      label: 'Open board stage flow',
+      helper: 'Review this step from the board stage flow so the stage gate stays aligned.',
+      showsSeparateStepRecord: true,
+    });
+    expect(
+      buildTaskPrimaryOperatorAction({
+        id: 'task-direct',
+        status: 'failed',
+        created_at: '2026-03-12T12:00:00.000Z',
+      }),
+    ).toEqual({
+      href: '/work/tasks/task-direct',
+      label: 'Open step record',
+      helper: 'Open the step record for full context and recent activity.',
+      showsSeparateStepRecord: false,
+    });
   });
 
   it('formats timing and status labels for operator scanning', () => {

@@ -45,7 +45,9 @@ describe('task list page source', () => {
     expect(source).toContain('Board context');
     expect(source).toContain('Next action');
     expect(source).toContain('Open board');
-    expect(source).toContain('Open step');
-    expect(source).toContain('Every row or card leads with current posture, board context, and recovery path');
+    expect(source).toContain('Open work-item flow');
+    expect(source).toContain('Open board stage flow');
+    expect(source).toContain('Open step record');
+    expect(source).toContain('Every row or card leads with current posture, board context, and the correct operator');
   });
 });

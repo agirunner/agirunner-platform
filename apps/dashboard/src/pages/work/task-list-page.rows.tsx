@@ -11,6 +11,7 @@ import {
   TableRow,
 } from '../../components/ui/table.js';
 import {
+  buildTaskPrimaryOperatorAction,
   describeTaskKind,
   describeTaskNextAction,
   describeTaskScope,
@@ -23,11 +24,12 @@ import {
 
 export function TaskMobileCard(props: { task: TaskListRecord }): JSX.Element {
   const status = resolveTaskStatus(props.task);
+  const primaryAction = buildTaskPrimaryOperatorAction(props.task);
   return (
     <div className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <Link to={`/work/tasks/${props.task.id}`} className="block truncate text-sm font-semibold text-accent hover:underline">
+          <Link to={primaryAction.href} className="block truncate text-sm font-semibold text-accent hover:underline">
             {props.task.title ?? props.task.name ?? props.task.id}
           </Link>
           <p className="text-xs text-muted">{describeTaskNextAction(props.task)}</p>
@@ -60,8 +62,13 @@ export function TaskMobileCard(props: { task: TaskListRecord }): JSX.Element {
       </div>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" asChild>
-          <Link to={`/work/tasks/${props.task.id}`}>Open step</Link>
+          <Link to={primaryAction.href}>{primaryAction.label}</Link>
         </Button>
+        {primaryAction.showsSeparateStepRecord ? (
+          <Button size="sm" variant="outline" asChild>
+            <Link to={`/work/tasks/${props.task.id}`}>Open step record</Link>
+          </Button>
+        ) : null}
         {props.task.workflow_id ? (
           <Button size="sm" variant="outline" asChild>
             <Link to={`/work/workflows/${props.task.workflow_id}`}>Open board</Link>
@@ -97,13 +104,15 @@ export function TaskTableRows(props: { tasks: TaskListRecord[] }): JSX.Element {
 
 function TaskTableRow(props: { task: TaskListRecord }): JSX.Element {
   const status = resolveTaskStatus(props.task);
+  const primaryAction = buildTaskPrimaryOperatorAction(props.task);
   return (
     <TableRow>
       <TableCell className="align-top">
         <div className="space-y-2">
-          <Link to={`/work/tasks/${props.task.id}`} className="text-sm font-semibold text-accent hover:underline">
+          <Link to={primaryAction.href} className="text-sm font-semibold text-accent hover:underline">
             {props.task.title ?? props.task.name ?? props.task.id}
           </Link>
+          <p className="text-xs leading-5 text-muted">{primaryAction.helper}</p>
           <div className="flex flex-wrap gap-2">
             <Badge variant={statusBadgeVariant(status)} className="capitalize">
               {status.replace(/_/g, ' ')}
@@ -132,11 +141,16 @@ function TaskTableRow(props: { task: TaskListRecord }): JSX.Element {
         {props.task.agent_name ?? props.task.agent_id ?? props.task.assigned_worker ?? 'Unassigned'}
       </TableCell>
       <TableCell className="align-top">
-        <div className="space-y-1 text-sm">
+        <div className="space-y-2 text-sm">
           <p title={new Date(props.task.created_at).toLocaleString()}>
             {formatRelativeTime(props.task.created_at)}
           </p>
           <p className="text-muted">{formatTaskDuration(props.task)}</p>
+          {primaryAction.showsSeparateStepRecord ? (
+            <Link to={`/work/tasks/${props.task.id}`} className="text-xs font-medium text-accent hover:underline">
+              Open step record
+            </Link>
+          ) : null}
         </div>
       </TableCell>
     </TableRow>

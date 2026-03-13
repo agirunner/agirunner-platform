@@ -142,8 +142,8 @@ export function TaskListContent(props: {
       <CardHeader className="space-y-2">
         <CardTitle>Visible execution steps</CardTitle>
         <p className="text-sm text-muted">
-          Every row or card leads with current posture, board context, and recovery path instead
-          of a raw task dump.
+          Every row or card leads with current posture, board context, and the correct operator
+          flow instead of a raw step dump.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">

@@ -1,3 +1,9 @@
+import {
+  buildWorkflowOperatorPermalink,
+  usesWorkItemOperatorFlow,
+  usesWorkflowOperatorFlow,
+} from './task-operator-flow.js';
+
 export interface TaskListRecord {
   id: string;
   name?: string;
@@ -116,17 +122,26 @@ export function describeTaskScope(task: TaskListRecord): string {
 
 export function describeTaskNextAction(task: TaskListRecord): string {
   const status = resolveTaskStatus(task);
+  const operatorFlow = readTaskOperatorFlow(task);
   if (status === 'awaiting_approval') {
-    return 'Review and approve the step output.';
+    return operatorFlow
+      ? `Review and approve this step from the ${operatorFlow}.`
+      : 'Review and approve the step output.';
   }
   if (status === 'output_pending_review') {
-    return 'Inspect the output packet and decide on changes.';
+    return operatorFlow
+      ? `Inspect the output packet from the ${operatorFlow} and decide on changes.`
+      : 'Inspect the output packet and decide on changes.';
   }
   if (status === 'escalated') {
-    return 'Resolve the escalation or re-scope the work item.';
+    return operatorFlow
+      ? `Resolve the escalation from the ${operatorFlow} so guidance stays attached to the board context.`
+      : 'Resolve the escalation or re-scope the work item.';
   }
   if (status === 'failed') {
-    return 'Inspect the failure and choose retry, rework, or escalation.';
+    return operatorFlow
+      ? `Inspect the failure from the ${operatorFlow} and choose retry, rework, or escalation.`
+      : 'Inspect the failure and choose retry, rework, or escalation.';
   }
   if (status === 'ready') {
     return 'Waiting for worker capacity to claim the step.';
@@ -140,7 +155,9 @@ export function describeTaskNextAction(task: TaskListRecord): string {
   if (task.is_orchestrator_task) {
     return 'Track the orchestration turn and resulting work-item updates.';
   }
-  return 'Open the step for full context and recent activity.';
+  return operatorFlow
+    ? `Open the ${operatorFlow} for full board context and recent activity.`
+    : 'Open the step for full context and recent activity.';
 }
 
 export function formatTaskDuration(task: TaskListRecord, now = Date.now()): string {
@@ -227,6 +244,51 @@ export function buildTaskSearchText(task: TaskListRecord): string {
   ]
     .join(' ')
     .toLowerCase();
+}
+
+export interface TaskPrimaryOperatorAction {
+  href: string;
+  label: string;
+  helper: string;
+  showsSeparateStepRecord: boolean;
+}
+
+export function buildTaskPrimaryOperatorAction(
+  task: TaskListRecord,
+): TaskPrimaryOperatorAction {
+  const workflowPermalink = buildWorkflowOperatorPermalink(task);
+  if (workflowPermalink && usesWorkItemOperatorFlow(task)) {
+    return {
+      href: workflowPermalink,
+      label: 'Open work-item flow',
+      helper: 'Review this step from the grouped work-item flow so board context stays aligned.',
+      showsSeparateStepRecord: true,
+    };
+  }
+  if (workflowPermalink && usesWorkflowOperatorFlow(task)) {
+    return {
+      href: workflowPermalink,
+      label: 'Open board stage flow',
+      helper: 'Review this step from the board stage flow so the stage gate stays aligned.',
+      showsSeparateStepRecord: true,
+    };
+  }
+  return {
+    href: `/work/tasks/${task.id}`,
+    label: 'Open step record',
+    helper: 'Open the step record for full context and recent activity.',
+    showsSeparateStepRecord: false,
+  };
+}
+
+function readTaskOperatorFlow(task: TaskListRecord): string | null {
+  if (usesWorkItemOperatorFlow(task)) {
+    return 'grouped work-item flow';
+  }
+  if (usesWorkflowOperatorFlow(task)) {
+    return 'board stage flow';
+  }
+  return null;
 }
 
 function compactIdentifier(value: string): string {
