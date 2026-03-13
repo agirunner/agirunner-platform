@@ -11,6 +11,11 @@ import {
   type DashboardWorkflowWorkItemRecord,
 } from '../lib/api.js';
 import { buildArtifactPermalink } from '../components/artifact-preview-support.js';
+import {
+  CopyableIdBadge,
+  OperatorStatusBadge,
+  RelativeTimestamp,
+} from '../components/operator-display.js';
 import { StructuredRecordView } from '../components/structured-data.js';
 import { Badge } from '../components/ui/badge.js';
 import { Button } from '../components/ui/button.js';
@@ -22,7 +27,6 @@ import {
   CardTitle,
 } from '../components/ui/card.js';
 import { Input } from '../components/ui/input.js';
-import { Textarea } from '../components/ui/textarea.js';
 import {
   Table,
   TableBody,
@@ -40,9 +44,12 @@ import {
 } from '../components/ui/select.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs.js';
 import { cn } from '../lib/utils.js';
-import { formatRelativeTimestamp } from './workflow-detail-presentation.js';
 import { WorkItemEventHistorySection } from './workflow-work-item-history-section.js';
 import { buildWorkItemTaskLinkActions } from './workflow-work-item-task-actions.js';
+import {
+  StepChangesDialog,
+  StepEscalationDialog,
+} from './workflow-work-item-task-review-dialogs.js';
 import {
   buildWorkItemBreadcrumbs,
   describeTaskOperatorPosture,
@@ -277,14 +284,15 @@ export function WorkflowWorkItemDetailPanel(
 
   return (
     <Card
-      className="overflow-hidden border-border/80 bg-surface/95 shadow-md"
+      className="overflow-hidden border-accent/30 bg-surface/95 shadow-lg ring-1 ring-accent/10"
       data-testid="work-item-detail-shell"
+      data-selected-panel="true"
     >
       <CardHeader className="gap-4 border-b border-border/70 bg-gradient-to-br from-surface via-surface to-border/10">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="grid gap-3">
             <div className={metaRowClass}>
-              <Badge variant="outline">Selected operator surface</Badge>
+              <Badge variant="secondary">Selected work item</Badge>
               <Badge variant="outline">{props.tasks.length} linked steps</Badge>
               {artifactQuery.data ? (
                 <Badge variant="outline">{artifactQuery.data.length} artifacts</Badge>
@@ -658,14 +666,8 @@ function WorkItemMemorySection(props: {
               </div>
               <div className={metaRowClass}>
                 <Badge variant="outline">{entry.actor_type}</Badge>
-                {entry.task_id ? <Badge variant="outline">step {entry.task_id}</Badge> : null}
-                <time
-                  className="text-xs text-muted"
-                  dateTime={entry.updated_at}
-                  title={formatTimestamp(entry.updated_at)}
-                >
-                  Updated {formatRelativeTimestamp(entry.updated_at)}
-                </time>
+                {entry.task_id ? <CopyableIdBadge value={entry.task_id} label="Step" /> : null}
+                <RelativeTimestamp value={entry.updated_at} prefix="Updated" />
               </div>
               <StructuredValueReview
                 label="Memory packet"
@@ -705,14 +707,8 @@ function WorkItemMemorySection(props: {
                 <div className={metaRowClass}>
                   <Badge variant="outline">{entry.actor_type}</Badge>
                   {entry.stage_name ? <Badge variant="outline">{entry.stage_name}</Badge> : null}
-                  {entry.task_id ? <Badge variant="outline">step {entry.task_id}</Badge> : null}
-                  <time
-                    className="text-xs text-muted"
-                    dateTime={entry.updated_at}
-                    title={formatTimestamp(entry.updated_at)}
-                  >
-                    Updated {formatRelativeTimestamp(entry.updated_at)}
-                  </time>
+                  {entry.task_id ? <CopyableIdBadge value={entry.task_id} label="Step" /> : null}
+                  <RelativeTimestamp value={entry.updated_at} prefix="Updated" />
                 </div>
                 <StructuredValueReview
                   label="Memory change packet"
@@ -743,6 +739,7 @@ function WorkItemHeader(props: {
     <section className="grid gap-4 rounded-xl border border-border/70 bg-gradient-to-br from-border/10 via-surface to-surface p-4 shadow-sm">
       <div className={metaRowClass}>
         <Badge variant="outline">Operator breadcrumb</Badge>
+        <CopyableIdBadge value={workItem.id} label="Work item" />
         <span className="text-sm text-muted">
           {(props.breadcrumbs.length > 0 ? props.breadcrumbs : [workItem.title]).join(' / ')}
           {workItem.stage_name ? ` / ${workItem.stage_name}` : ''}
@@ -763,7 +760,7 @@ function WorkItemHeader(props: {
               {completedChildren}/{props.childCount} children complete
             </Badge>
           ) : null}
-          {workItem.completed_at ? <Badge variant="secondary">completed</Badge> : null}
+          <OperatorStatusBadge status={workItem.completed_at ? 'completed' : 'active'} />
         </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -995,12 +992,13 @@ function WorkItemTasksSection(props: {
                   className="grid gap-2 rounded-xl border border-border/70 bg-background/90 p-4 shadow-sm"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <Link to={`/work/tasks/${task.id}`} className="font-medium text-foreground">
-                      {task.title}
-                    </Link>
-                    <Badge variant={taskStateBadgeVariant(task.state)}>
-                      {formatTaskStateLabel(task.state)}
-                    </Badge>
+                    <div className="grid gap-2">
+                      <Link to={`/work/tasks/${task.id}`} className="font-medium text-foreground">
+                        {task.title}
+                      </Link>
+                      <CopyableIdBadge value={task.id} label="Step" />
+                    </div>
+                    <OperatorStatusBadge status={task.state} />
                   </div>
                   <p className="text-sm leading-6 text-muted">{posture.detail}</p>
                   <div className="flex flex-wrap gap-2">
@@ -1055,12 +1053,13 @@ function WorkItemTasksSection(props: {
             {orderedTasks.map((task) => (
               <TableRow key={task.id}>
                 <TableCell>
-                  <Link to={`/work/tasks/${task.id}`}>{task.title}</Link>
+                  <div className="grid gap-2">
+                    <Link to={`/work/tasks/${task.id}`}>{task.title}</Link>
+                    <CopyableIdBadge value={task.id} label="Step" />
+                  </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={taskStateBadgeVariant(task.state)}>
-                    {formatTaskStateLabel(task.state)}
-                  </Badge>
+                  <OperatorStatusBadge status={task.state} />
                 </TableCell>
                 <TableCell>{task.role ?? 'Unassigned'}</TableCell>
                 <TableCell>{task.stage_name ?? 'unassigned'}</TableCell>
@@ -1090,13 +1089,14 @@ function TaskExecutionCard(props: {
     <article className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="grid gap-2">
-          <Link to={`/work/tasks/${props.task.id}`} className="text-base font-semibold text-foreground">
-            {props.task.title}
-          </Link>
+          <div className="grid gap-2">
+            <Link to={`/work/tasks/${props.task.id}`} className="text-base font-semibold text-foreground">
+              {props.task.title}
+            </Link>
+            <CopyableIdBadge value={props.task.id} label="Step" />
+          </div>
           <div className={metaRowClass}>
-            <Badge variant={taskStateBadgeVariant(props.task.state)}>
-              {formatTaskStateLabel(props.task.state)}
-            </Badge>
+            <OperatorStatusBadge status={props.task.state} />
             <Badge variant="outline">{props.task.role ?? 'Unassigned'}</Badge>
             <Badge variant="outline">{props.task.stage_name ?? 'unassigned'}</Badge>
           </div>
@@ -1256,8 +1256,8 @@ function WorkItemTaskActionCell(props: {
     cancelMutation.isPending;
 
   return (
-    <div className="grid gap-3">
-      <TaskOperatorPosturePanel task={props.task} />
+      <div className="grid gap-3">
+        <TaskOperatorPosturePanel task={props.task} />
       <div className={metaRowClass}>
         {taskLinks.map((action) => (
           <Link key={`${props.task.id}:${action.label}`} to={action.href}>
@@ -1312,78 +1312,26 @@ function WorkItemTaskActionCell(props: {
         ) : null}
       </div>
       {error ? <p className={errorTextClass}>{error}</p> : null}
-      {isChangesDialogOpen ? (
-        <div className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-3">
-          <Textarea
-            value={feedback}
-            onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) =>
-              setFeedback(event.target.value)
-            }
-            placeholder="Describe the operator changes needed..."
-            rows={3}
-          />
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsChangesDialogOpen(false)} disabled={isAnyMutationPending}>
-              Cancel
-            </Button>
-            {state === 'failed' ? (
-              <Button
-                onClick={() => requestChangesMutation.mutate()}
-                disabled={!feedback.trim() || isAnyMutationPending}
-              >
-                Rework Step
-              </Button>
-            ) : (
-              <>
-                <Button
-                  variant="destructive"
-                  onClick={() => rejectMutation.mutate()}
-                  disabled={!feedback.trim() || isAnyMutationPending}
-                >
-                  Reject Step
-                </Button>
-                <Button
-                  onClick={() => requestChangesMutation.mutate()}
-                  disabled={!feedback.trim() || isAnyMutationPending}
-                >
-                  Request Changes
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      ) : null}
-      {isEscalationDialogOpen ? (
-        <div className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-3">
-          <Textarea
-            value={instructions}
-            onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) =>
-              setInstructions(event.target.value)
-            }
-            placeholder="Describe the operator guidance needed to resume this step..."
-            rows={3}
-          />
-          <p className="text-xs leading-5 text-muted">
-            Resume the escalated step from this work-item flow so the guidance stays attached to
-            the selected work item and board context.
-          </p>
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setIsEscalationDialogOpen(false)}
-              disabled={isAnyMutationPending}
-            >
-              Close
-            </Button>
-            <Button
-              onClick={() => resolveEscalationMutation.mutate()}
-              disabled={!instructions.trim() || isAnyMutationPending}
-            >
-              Provide Operator Guidance
-            </Button>
-          </div>
-        </div>
-      ) : null}
+      <StepChangesDialog
+        isOpen={isChangesDialogOpen}
+        state={state}
+        taskTitle={props.task.title}
+        feedback={feedback}
+        isPending={isAnyMutationPending}
+        onOpenChange={setIsChangesDialogOpen}
+        onFeedbackChange={setFeedback}
+        onReject={() => rejectMutation.mutate()}
+        onRequestChanges={() => requestChangesMutation.mutate()}
+      />
+      <StepEscalationDialog
+        isOpen={isEscalationDialogOpen}
+        taskTitle={props.task.title}
+        instructions={instructions}
+        isPending={isAnyMutationPending}
+        onOpenChange={setIsEscalationDialogOpen}
+        onInstructionsChange={setInstructions}
+        onSubmit={() => resolveEscalationMutation.mutate()}
+      />
     </div>
   );
 }
@@ -1504,43 +1452,13 @@ function WorkItemArtifactsSection(props: {
             <Badge variant="outline">{artifact.size_bytes} bytes</Badge>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <time
-              className="text-xs text-muted"
-              dateTime={artifact.created_at}
-              title={formatTimestamp(artifact.created_at)}
-            >
-              Created {formatRelativeTimestamp(artifact.created_at)}
-            </time>
+            <RelativeTimestamp value={artifact.created_at} prefix="Created" />
             <Link to={buildArtifactPermalink(artifact.task_id, artifact.id)}>Preview artifact</Link>
           </div>
         </article>
       ))}
     </section>
   );
-}
-
-function taskStateBadgeVariant(
-  state: DashboardWorkItemTaskRecord['state'],
-): 'destructive' | 'outline' | 'secondary' | 'success' | 'warning' {
-  switch (state) {
-    case 'completed':
-      return 'success';
-    case 'failed':
-    case 'cancelled':
-      return 'destructive';
-    case 'awaiting_approval':
-    case 'output_pending_review':
-    case 'blocked':
-      return 'warning';
-    case 'in_progress':
-      return 'secondary';
-    default:
-      return 'outline';
-  }
-}
-
-function formatTaskStateLabel(state: DashboardWorkItemTaskRecord['state']): string {
-  return state.replaceAll('_', ' ');
 }
 
 function formatMemoryHistoryEventType(eventType: string): string {
@@ -1551,11 +1469,6 @@ function formatMemoryHistoryEventType(eventType: string): string {
     return 'Created value';
   }
   return 'Updated value';
-}
-
-function formatTimestamp(value: string): string {
-  const timestamp = Date.parse(value);
-  return Number.isNaN(timestamp) ? value : new Date(timestamp).toLocaleString();
 }
 
 function StructuredValueReview(props: {

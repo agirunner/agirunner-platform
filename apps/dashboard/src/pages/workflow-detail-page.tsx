@@ -63,6 +63,11 @@ import { invalidateWorkflowQueries } from './workflow-detail-query.js';
 import { deriveWorkflowStageDisplay } from './workflow-detail-stage-presentation.js';
 import { buildWorkflowDetailHash } from './workflow-detail-permalinks.js';
 import { ChainWorkflowDialog } from '../components/chain-workflow-dialog.js';
+import {
+  CopyableIdBadge,
+  OperatorStatusBadge,
+  RelativeTimestamp,
+} from '../components/operator-display.js';
 import { StructuredRecordView } from '../components/structured-data.js';
 import { WorkflowBudgetCard } from '../components/workflow-budget-card.js';
 import { Badge } from '../components/ui/badge.js';
@@ -508,9 +513,7 @@ export function WorkflowDetailPage(): JSX.Element {
                 </div>
                 {workflowQuery.data ? (
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant={workflowQuery.data.state === 'completed' ? 'success' : 'outline'}>
-                      {workflowQuery.data.state}
-                    </Badge>
+                    <OperatorStatusBadge status={workflowQuery.data.state} />
                     {isPlaybookWorkflow && stageDisplay.badgeValue ? (
                       <Badge variant="secondary">
                         {stageDisplay.label}: {stageDisplay.badgeValue}
@@ -596,14 +599,20 @@ export function WorkflowDetailPage(): JSX.Element {
                         <dt className="text-xs font-medium uppercase tracking-wide text-muted">
                           Workflow ID
                         </dt>
-                        <dd className="font-mono text-xs text-foreground">{workflowQuery.data.id}</dd>
+                        <dd>
+                          <CopyableIdBadge value={workflowQuery.data.id} label="Board" />
+                        </dd>
                       </div>
                       <div className="grid gap-1">
                         <dt className="text-xs font-medium uppercase tracking-wide text-muted">
                           Created
                         </dt>
-                        <dd className="text-foreground">
-                          {new Date(workflowQuery.data.created_at).toLocaleString()}
+                        <dd>
+                          <RelativeTimestamp
+                            value={workflowQuery.data.created_at}
+                            prefix="Created"
+                            className="text-sm text-foreground"
+                          />
                         </dd>
                       </div>
                       <div className="grid gap-1">
@@ -771,39 +780,51 @@ export function WorkflowDetailPage(): JSX.Element {
           </section>
         ) : null}
 
-        <section className="rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
-          <PlaybookBoardCard
-            workflowId={workflowId}
-            board={boardQuery.data}
-            stages={stagesQuery.data ?? []}
-            isLoading={boardQuery.isLoading}
-            hasError={Boolean(boardQuery.error)}
-            selectedWorkItemId={selectedWorkItemId}
-            onSelectWorkItem={(workItemId) => updateWorkflowSelection('work_item', workItemId)}
-            onBoardChanged={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}
-          />
-        </section>
-
-        {selectedWorkItemId ? (
-          <section
-            id={buildWorkflowDetailHash({ workItemId: selectedWorkItemId }).slice(1)}
-            className="rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm"
-          >
-            <WorkflowWorkItemDetailPanel
+        <div className={selectedWorkItemId ? 'grid gap-6 2xl:grid-cols-[minmax(0,1.6fr)_minmax(22rem,0.95fr)]' : 'grid gap-6'}>
+          <section className="rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
+            <PlaybookBoardCard
               workflowId={workflowId}
-              workItemId={selectedWorkItemId}
-              workItems={groupedWorkItems}
-              selectedWorkItem={selectedBoardWorkItem}
-              columns={boardQuery.data?.columns ?? []}
+              board={boardQuery.data}
               stages={stagesQuery.data ?? []}
-              ownerRoleOptions={ownerRoleOptions}
-              tasks={selectedWorkItemTasks}
+              isLoading={boardQuery.isLoading}
+              hasError={Boolean(boardQuery.error)}
+              selectedWorkItemId={selectedWorkItemId}
               onSelectWorkItem={(workItemId) => updateWorkflowSelection('work_item', workItemId)}
-              onWorkItemChanged={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}
-              onClearSelection={() => clearWorkflowSelection('work_item')}
+              onBoardChanged={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}
             />
           </section>
-        ) : null}
+
+          {selectedWorkItemId ? (
+            <aside
+              id={buildWorkflowDetailHash({ workItemId: selectedWorkItemId }).slice(1)}
+              className="grid content-start gap-3 rounded-3xl border border-accent/20 bg-accent/5 p-4 shadow-sm 2xl:sticky 2xl:top-6"
+              data-testid="selected-work-item-rail"
+            >
+              <div className="grid gap-1 rounded-2xl border border-accent/20 bg-background/80 px-4 py-3">
+                <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted">
+                  Selected work-item focus
+                </div>
+                <div className="text-sm text-muted">
+                  Keep board triage on the left and operator review for the selected work item in
+                  this dedicated side panel.
+                </div>
+              </div>
+              <WorkflowWorkItemDetailPanel
+                workflowId={workflowId}
+                workItemId={selectedWorkItemId}
+                workItems={groupedWorkItems}
+                selectedWorkItem={selectedBoardWorkItem}
+                columns={boardQuery.data?.columns ?? []}
+                stages={stagesQuery.data ?? []}
+                ownerRoleOptions={ownerRoleOptions}
+                tasks={selectedWorkItemTasks}
+                onSelectWorkItem={(workItemId) => updateWorkflowSelection('work_item', workItemId)}
+                onWorkItemChanged={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}
+                onClearSelection={() => clearWorkflowSelection('work_item')}
+              />
+            </aside>
+          ) : null}
+        </div>
 
         <div className="grid gap-6 xl:grid-cols-2">
           <WorkflowStagesCard

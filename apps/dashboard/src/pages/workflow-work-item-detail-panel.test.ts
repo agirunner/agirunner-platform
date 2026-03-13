@@ -6,6 +6,7 @@ function readSource() {
   return [
     './workflow-work-item-detail-panel.tsx',
     './workflow-work-item-task-actions.ts',
+    './workflow-work-item-task-review-dialogs.tsx',
   ]
     .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
     .join('\n');
@@ -22,6 +23,10 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('CardContent');
     expect(source).toContain('TableHeader');
     expect(source).toContain('TableBody');
+    expect(source).toContain('CopyableIdBadge');
+    expect(source).toContain('RelativeTimestamp');
+    expect(source).toContain('OperatorStatusBadge');
+    expect(source).toContain('data-selected-panel="true"');
     expect(source).not.toContain('className="card"');
     expect(source).not.toContain('className="row"');
     expect(source).not.toContain('className="button"');
@@ -50,13 +55,13 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Memory history');
     expect(source).toContain('Memory packet');
     expect(source).toContain('Memory change packet');
-    expect(source).toContain('Updated {formatRelativeTimestamp(entry.updated_at)}');
+    expect(source).toContain('<RelativeTimestamp value={entry.updated_at} prefix="Updated" />');
     expect(source).toContain('Open full memory packet');
     expect(source).toContain('Open full change packet');
     expect(source).toContain('formatMemoryHistoryEventType');
     expect(source).toContain('Deleted value');
-    expect(source).toContain('Created {formatRelativeTimestamp(artifact.created_at)}');
-    expect(source).toContain('step {entry.task_id}');
+    expect(source).toContain('<RelativeTimestamp value={artifact.created_at} prefix="Created" />');
+    expect(source).toContain('<CopyableIdBadge value={entry.task_id} label="Step" />');
   });
 
   it('surfaces milestone operator context with parent-child navigation and grouped task messaging', () => {
@@ -93,6 +98,9 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Retry Step');
     expect(source).toContain('Resume with Guidance');
     expect(source).toContain('Cancel Step');
+    expect(source).toContain('StepChangesDialog');
+    expect(source).toContain('StepEscalationDialog');
+    expect(source).toContain('DialogContent className="max-h-[75vh] overflow-y-auto sm:max-w-lg"');
     expect(source).toContain('buildWorkItemTaskLinkActions');
     expect(source).toContain('Open work-item flow');
     expect(source).toContain('Open step diagnostics');

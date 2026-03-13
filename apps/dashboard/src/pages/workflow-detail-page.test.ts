@@ -123,6 +123,11 @@ describe('workflow detail model override display', () => {
     expect(source).toContain('context="workflow-detail"');
     expect(source).toContain('workItemSummary={workflowQuery.data?.work_item_summary}');
     expect(source).toContain('latestActivitySummary={latestActivitySummary ?? undefined}');
+    expect(source).toContain('CopyableIdBadge');
+    expect(source).toContain('RelativeTimestamp');
+    expect(source).toContain('OperatorStatusBadge');
+    expect(source).toContain('data-testid="selected-work-item-rail"');
+    expect(source).toContain('Selected work-item focus');
   });
 });
 

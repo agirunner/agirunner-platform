@@ -28,10 +28,13 @@ import {
   buildWorkflowProjectTimelinePacket,
 } from './workflow-project-timeline-support.js';
 import {
+  CopyableIdBadge,
+  OperatorStatusBadge,
+  RelativeTimestamp,
+} from '../components/operator-display.js';
+import {
   describeReviewPacket,
-  formatAbsoluteTimestamp,
   formatRelativeTimestamp,
-  summarizeIdentifier,
   toStructuredDetailViewData,
 } from './workflow-detail-presentation.js';
 import { describeTimelineEvent } from './workflow-history-card.js';
@@ -773,8 +776,8 @@ export function WorkflowStagesCard(props: {
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Badge variant={badgeVariantForState(stage.status)}>{stage.status}</Badge>
-                <Badge variant="outline">Gate: {stage.gate_status}</Badge>
+                <OperatorStatusBadge status={stage.status} />
+                <OperatorStatusBadge status={stage.gate_status} variant="outline" />
               </div>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
@@ -791,9 +794,11 @@ export function WorkflowStagesCard(props: {
               <Badge variant="secondary">Iterations: {stage.iteration_count}</Badge>
               {stage.human_gate ? <Badge variant="outline">Human Gate</Badge> : null}
               {stage.started_at ? (
-                <Badge variant="outline">
-                  Started {new Date(stage.started_at).toLocaleDateString()}
-                </Badge>
+                <RelativeTimestamp
+                  value={stage.started_at}
+                  prefix="Started"
+                  className="rounded-full border border-border/70 bg-background/80 px-2.5 py-1"
+                />
               ) : null}
               <Button type="button" variant="outline" size="sm" onClick={() => props.onSelectGate?.(stage.name)}>
                 Gate focus
@@ -899,7 +904,7 @@ export function WorkflowActivationsCard(props: {
                   </p>
                 </div>
                 <div className="flex flex-wrap justify-end gap-2">
-                  <Badge variant={badgeVariantForState(activation.state)}>{activation.state}</Badge>
+                  <OperatorStatusBadge status={activation.state} />
                   <Badge variant="outline">{payloadPacket.typeLabel}</Badge>
                 </div>
               </div>
@@ -908,11 +913,13 @@ export function WorkflowActivationsCard(props: {
                 <Badge variant="secondary">
                   {activation.event_count ?? activation.events?.length ?? 1} events
                 </Badge>
-                <Badge variant="outline" title={formatAbsoluteTimestamp(activation.queued_at)}>
-                  Queued {formatRelativeTimestamp(activation.queued_at)}
-                </Badge>
+                <RelativeTimestamp
+                  value={activation.queued_at}
+                  prefix="Queued"
+                  className="rounded-full border border-border/70 bg-background/80 px-2.5 py-1"
+                />
                 {activation.recovery_status ? (
-                  <Badge variant="outline">{activation.recovery_status}</Badge>
+                  <OperatorStatusBadge status={activation.recovery_status} variant="outline" />
                 ) : null}
                 {recoveredCount > 0 && activation.recovery_status ? (
                   <Badge variant="secondary">Recovered flow</Badge>
@@ -966,9 +973,7 @@ export function WorkflowActivationsCard(props: {
                 >
                   Highlight activation
                 </Button>
-                <Badge variant="outline">
-                  {summarizeIdentifier(activation.activation_id ?? activation.id)}
-                </Badge>
+                <CopyableIdBadge value={activation.activation_id ?? activation.id} label="Activation" />
                 <Link
                   to={`/logs?workflow=${activation.workflow_id}&activation=${activation.activation_id ?? activation.id}&view=debug`}
                   className="text-sm text-muted underline-offset-4 hover:underline"
@@ -1021,16 +1026,18 @@ export function WorkflowActivationsCard(props: {
                               </p>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                              <Badge variant={badgeVariantForState(event.state)}>{event.state}</Badge>
+                              <OperatorStatusBadge status={event.state} />
                               <Badge variant="outline">{eventPayloadPacket.typeLabel}</Badge>
                             </div>
                           </div>
                           {eventDescriptor.scope ? <p className="text-sm text-muted">{eventDescriptor.scope}</p> : null}
                           <div className="flex flex-wrap gap-2">
-                            <Badge variant="secondary">Event {summarizeIdentifier(event.id)}</Badge>
-                            <Badge variant="outline" title={formatAbsoluteTimestamp(event.queued_at)}>
-                              Queued {formatRelativeTimestamp(event.queued_at)}
-                            </Badge>
+                            <CopyableIdBadge value={event.id} label="Event" />
+                            <RelativeTimestamp
+                              value={event.queued_at}
+                              prefix="Queued"
+                              className="rounded-full border border-border/70 bg-background/80 px-2.5 py-1"
+                            />
                           </div>
                           <div className="grid gap-2 rounded-lg border border-border/70 bg-background/80 p-3">
                             <div className="text-sm font-medium text-foreground">

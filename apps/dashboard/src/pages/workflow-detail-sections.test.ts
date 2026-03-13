@@ -104,6 +104,9 @@ describe('workflow detail sections source', () => {
     expect(source).toContain('Recovery signal');
     expect(source).toContain('Highlight activation');
     expect(source).toContain('Open event batch');
+    expect(source).toContain('OperatorStatusBadge');
+    expect(source).toContain('CopyableIdBadge');
+    expect(source).toContain('RelativeTimestamp');
     expect(source).toContain('recovery_status');
     expect(source).toContain('stale_started_at');
     expect(source).toContain('redispatched_task_id');
