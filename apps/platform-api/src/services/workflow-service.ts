@@ -190,7 +190,7 @@ export class WorkflowService {
         )
         .then((result) => Number(result.rows[0]?.total ?? '0')),
       this.pool.query<Record<string, unknown> & { tenant_id: string }>(
-        `SELECT ${buildWorkflowReadColumns('w')},
+        `SELECT ${buildWorkflowReadColumns('w', { includeCurrentStage: false })},
                 p.name AS project_name,
                 pb.name AS playbook_name,
                 pb.definition AS playbook_definition,

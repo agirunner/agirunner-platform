@@ -30,7 +30,18 @@ const WORKFLOW_READ_COLUMNS = [
   'updated_at',
 ] as const;
 
-export function buildWorkflowReadColumns(alias?: string) {
+interface BuildWorkflowReadColumnsOptions {
+  includeCurrentStage?: boolean;
+}
+
+export function buildWorkflowReadColumns(
+  alias?: string,
+  options: BuildWorkflowReadColumnsOptions = {},
+) {
   const prefix = alias ? `${alias}.` : '';
-  return WORKFLOW_READ_COLUMNS.map((column) => `${prefix}${column}`).join(', ');
+  const includeCurrentStage = options.includeCurrentStage ?? true;
+  return WORKFLOW_READ_COLUMNS
+    .filter((column) => includeCurrentStage || column !== 'current_stage')
+    .map((column) => `${prefix}${column}`)
+    .join(', ');
 }
