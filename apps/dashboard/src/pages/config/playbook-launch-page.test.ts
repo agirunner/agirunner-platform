@@ -5,10 +5,18 @@ import { describe, expect, it } from 'vitest';
 function readSource() {
   return [
     './playbook-launch-page.tsx',
+    './playbook-launch-page.effects.ts',
+    './playbook-launch-page.mutation.ts',
     './playbook-launch-budget.tsx',
     './playbook-launch-page.sections.tsx',
+    './playbook-launch-form.tsx',
     './playbook-launch-parameters.tsx',
     './playbook-launch-support.ts',
+    './playbook-launch-readiness.tsx',
+    './playbook-launch-entries.tsx',
+    './playbook-launch-overrides.tsx',
+    './playbook-launch-summary.tsx',
+    './playbook-launch-identity.tsx',
   ]
     .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
     .join('\n');
@@ -74,13 +82,13 @@ describe('playbook launch model override source', () => {
     const source = readSource();
     expect(source).toContain('buildParametersFromDrafts');
     expect(source).toContain('readMappedProjectParameterDraft');
-    expect(source).toContain("buildStructuredObject(metadataDrafts, 'Metadata')");
-    expect(source).toContain('buildModelOverrides(modelOverrideDrafts)');
+    expect(source).toContain("buildStructuredObject(input.metadataDrafts, 'Metadata')");
+    expect(source).toContain('buildModelOverrides(input.modelOverrideDrafts)');
     expect(source).toContain('buildWorkflowBudgetInput(workflowBudgetDraft)');
     expect(source).toContain('props.validation.blockingIssues');
     expect(source).toContain('dashboardApi.createWorkflow({');
-    expect(source).toContain('model_overrides: modelOverrides');
-    expect(source).toContain('budget: workflowBudget');
+    expect(source).toContain('model_overrides: buildModelOverrides(input.modelOverrideDrafts)');
+    expect(source).toContain('budget: input.workflowBudget');
     expect(source).toContain('Resolved Effective Models');
     expect(source).toContain('scroll-mt-24');
   });
