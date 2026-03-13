@@ -98,7 +98,7 @@ export function buildWorkflowOptions(
     seen.add(entry.workflow_id);
     workflows.push({
       id: entry.workflow_id,
-      name: entry.name || entry.workflow_id,
+      name: readContentString(entry.name, entry.workflow_id),
       state: normalizeWorkflowState(entry.state),
       createdAt: entry.created_at,
     });
@@ -156,10 +156,10 @@ export function normalizeWorkItemOptions(
     .map((item) => ({
       id: item.id,
       workflowId: item.workflow_id ?? null,
-      title: item.title,
-      stageName: item.stage_name,
-      columnId: item.column_id,
-      priority: item.priority,
+      title: readContentString(item.title, item.id),
+      stageName: readContentString(item.stage_name, 'No stage'),
+      columnId: readContentString(item.column_id, 'planned'),
+      priority: readContentString(item.priority, 'normal'),
       completedAt: item.completed_at ?? null,
     }));
 }
@@ -388,8 +388,8 @@ export function formatContentFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function normalizeWorkflowState(state: string | null | undefined): string {
-  const normalized = (state ?? 'unknown').toLowerCase();
+function normalizeWorkflowState(state: unknown): string {
+  const normalized = readContentString(state, 'unknown').toLowerCase();
   if (normalized === 'running') {
     return 'active';
   }
@@ -401,4 +401,8 @@ function normalizeWorkflowState(state: string | null | undefined): string {
 
 function normalizeTaskState(state: string | null | undefined): string {
   return normalizeCanonicalTaskState(state ?? 'unknown');
+}
+
+function readContentString(value: unknown, fallback: string): string {
+  return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
 }

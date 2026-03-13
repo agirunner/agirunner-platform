@@ -59,6 +59,26 @@ describe('project content browser support', () => {
     ]);
   });
 
+  it('falls back to string-safe workflow fields when timeline payloads contain objects', () => {
+    expect(
+      buildWorkflowOptions([
+        {
+          workflow_id: 'workflow-3',
+          name: {} as never,
+          state: {} as never,
+          created_at: '2026-03-12T09:00:00.000Z',
+        },
+      ]),
+    ).toEqual([
+      {
+        id: 'workflow-3',
+        name: 'workflow-3',
+        state: 'unknown',
+        createdAt: '2026-03-12T09:00:00.000Z',
+      },
+    ]);
+  });
+
   it('normalizes task records from paginated task responses', () => {
     expect(
       normalizeTaskOptions({
@@ -112,6 +132,29 @@ describe('project content browser support', () => {
         stageName: 'implementation',
         columnId: 'active',
         priority: 'high',
+        completedAt: null,
+      },
+    ]);
+
+    expect(
+      normalizeWorkItemOptions([
+        {
+          id: 'wi-2',
+          workflow_id: 'wf-2',
+          stage_name: {} as never,
+          title: {} as never,
+          column_id: {} as never,
+          priority: {} as never,
+        } as never,
+      ]),
+    ).toEqual([
+      {
+        id: 'wi-2',
+        workflowId: 'wf-2',
+        title: 'wi-2',
+        stageName: 'No stage',
+        columnId: 'planned',
+        priority: 'normal',
         completedAt: null,
       },
     ]);
