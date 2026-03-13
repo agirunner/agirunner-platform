@@ -8,8 +8,8 @@ import {
   type DashboardProjectResourceRecord,
   type DashboardProjectSpecRecord,
   type DashboardProjectToolCatalog,
-  type DashboardProjectTimelineEntry,
 } from '../lib/api.js';
+import { ProjectDeliveryHistory } from './projects/project-delivery-history.js';
 
 export function ProjectsPage(): JSX.Element {
   const queryClient = useQueryClient();
@@ -48,12 +48,6 @@ export function ProjectsPage(): JSX.Element {
     queryFn: () => dashboardApi.listProjectTools(activeProjectId) as Promise<{ data: DashboardProjectToolCatalog }>,
     enabled: activeProjectId.length > 0,
   });
-  const timelineQuery = useQuery({
-    queryKey: ['project-timeline', activeProjectId],
-    queryFn: () => dashboardApi.getProjectTimeline(activeProjectId) as Promise<DashboardProjectTimelineEntry[]>,
-    enabled: activeProjectId.length > 0,
-  });
-
   const selectedProject = projectQuery.data;
   const runSummary = useMemo(
     () => asRecord(selectedProject?.memory).last_run_summary,
@@ -160,22 +154,7 @@ export function ProjectsPage(): JSX.Element {
 
             <div className="card">
               <h3>Project Timeline</h3>
-              {timelineQuery.isLoading ? <p>Loading project timeline...</p> : null}
-              {timelineQuery.error ? <p style={{ color: '#dc2626' }}>Failed to load project timeline.</p> : null}
-              <div className="grid">
-                {(timelineQuery.data ?? []).map((entry) => (
-                  <article key={entry.workflow_id} className="card timeline-entry">
-                    <strong>{entry.name}</strong>
-                    <div className="row">
-                      <span className={`status-badge status-${entry.state}`}>{entry.state}</span>
-                      <span className="muted">{entry.completed_at ? new Date(entry.completed_at).toLocaleString() : 'In progress'}</span>
-                    </div>
-                  </article>
-                ))}
-                {(timelineQuery.data ?? []).length === 0 && !timelineQuery.isLoading ? (
-                  <p className="muted">No project timeline entries yet.</p>
-                ) : null}
-              </div>
+              <ProjectDeliveryHistory projectId={activeProjectId} />
             </div>
           </div>
 
