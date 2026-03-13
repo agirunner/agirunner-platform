@@ -35,10 +35,11 @@ const SUMMARY_DETAIL_MODE = 'summary';
 
 interface LogsPageProps {
   scopedWorkflowId?: string;
+  mode?: 'logs' | 'inspector';
 }
 
 export function LogsPage(): JSX.Element {
-  return <LogsSurface />;
+  return <LogsSurface mode="logs" />;
 }
 
 export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
@@ -46,6 +47,8 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
   const [cursor, setCursor] = useState<string | null>(null);
   const [pagedEntries, setPagedEntries] = useState<LogEntry[]>([]);
   const scopedWorkflowId = props.scopedWorkflowId?.trim() ?? '';
+  const surfaceMode = props.mode ?? (scopedWorkflowId ? 'inspector' : 'logs');
+  const rawFirstSurface = surfaceMode === 'logs';
   const filters = useMemo(() => {
     const nextFilters = readInspectorFilters(searchParams);
     if (scopedWorkflowId) {
@@ -228,9 +231,13 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
     <div data-testid="execution-inspector-surface" className="flex flex-col gap-6 p-6">
       <section className="flex flex-col gap-3 rounded-3xl border border-border/70 bg-card/80 p-6 shadow-sm lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">Execution Inspector</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {rawFirstSurface ? 'Logs' : 'Execution Inspector'}
+          </h1>
           <p className="text-sm text-muted">
-            Summary, delivery, and debug views over work-item, stage, gate, runtime, and platform execution traces.
+            {rawFirstSurface
+              ? 'Browse raw log and event rows first. Use the summary, delivery, and trace tabs only when you need curated inspector packets or deeper drill-in.'
+              : 'Summary, delivery, and debug views over work-item, stage, gate, runtime, and platform execution traces.'}
           </p>
           {scopedWorkflowId ? (
             <div className="text-sm">
@@ -241,7 +248,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {selectedView !== 'raw' ? (
+          {rawFirstSurface || selectedView !== 'raw' ? (
             <Button variant="outline" onClick={() => void handleExport()}>
               <Download className="h-4 w-4" />
               Export
@@ -275,19 +282,21 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
         />
       ) : null}
 
-      <section className="grid gap-4 md:grid-cols-3">
-        {overviewCards.map((card) => (
-          <Card key={card.title} className="border-border/70 bg-card/75 shadow-sm">
-            <CardContent className="space-y-2 p-5">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted">
-                {card.title}
-              </p>
-              <p className="text-xl font-semibold tracking-tight">{card.value}</p>
-              <p className="text-sm leading-6 text-muted">{card.detail}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </section>
+      {surfaceMode === 'inspector' || selectedView !== 'raw' ? (
+        <section className="grid gap-4 md:grid-cols-3">
+          {overviewCards.map((card) => (
+            <Card key={card.title} className="border-border/70 bg-card/75 shadow-sm">
+              <CardContent className="space-y-2 p-5">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                  {card.title}
+                </p>
+                <p className="text-xl font-semibold tracking-tight">{card.value}</p>
+                <p className="text-sm leading-6 text-muted">{card.detail}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+      ) : null}
 
       {selectedView !== 'raw' ? (
         <section className="rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
@@ -319,18 +328,19 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
 
       <Tabs value={selectedView} onValueChange={(value) => updateView(value as InspectorView)} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="raw">Raw Logs</TabsTrigger>
-          <TabsTrigger value="summary">Summary</TabsTrigger>
-          <TabsTrigger value="detailed">Delivery</TabsTrigger>
-          <TabsTrigger value="debug">Debug</TabsTrigger>
+          <TabsTrigger value="raw">{rawFirstSurface ? 'Log Stream' : 'Raw Logs'}</TabsTrigger>
+          <TabsTrigger value="summary">{rawFirstSurface ? 'Activity Summary' : 'Summary'}</TabsTrigger>
+          <TabsTrigger value="detailed">{rawFirstSurface ? 'Delivery Packets' : 'Delivery'}</TabsTrigger>
+          <TabsTrigger value="debug">{rawFirstSurface ? 'Trace Detail' : 'Debug'}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="raw">
           <div className="space-y-4">
             <Card>
               <CardContent className="p-5 text-sm text-muted">
-                Raw event and log rows are available here with the full log viewer, including flat row browsing,
-                grouped views, scoped filtering, export, and expandable record detail.
+                {rawFirstSurface
+                  ? 'Raw event and log rows stay first-class here, with the full log viewer for flat browsing, grouped views, scoped filtering, export, and expandable record detail.'
+                  : 'Raw event and log rows are available here with the full log viewer, including flat row browsing, grouped views, scoped filtering, export, and expandable record detail.'}
               </CardContent>
             </Card>
             <LogViewer compact scope={scopedWorkflowId ? { workflowId: scopedWorkflowId } : undefined} />

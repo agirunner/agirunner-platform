@@ -6,22 +6,24 @@ function readPage() {
   return readFileSync(resolve(import.meta.dirname, './logs-page.tsx'), 'utf8');
 }
 
-describe('execution inspector page source', () => {
-  it('exposes raw, summary, delivery, and debug views with v2 operator copy', () => {
+describe('logs page source', () => {
+  it('keeps the mission-control logs route raw-log-first while preserving inspector tabs', () => {
     const source = readPage();
-    expect(source).toContain('Execution Inspector');
+    expect(source).toContain('return <LogsSurface mode="logs" />;');
+    expect(source).toContain("const surfaceMode = props.mode ?? (scopedWorkflowId ? 'inspector' : 'logs');");
+    expect(source).toContain("{rawFirstSurface ? 'Logs' : 'Execution Inspector'}");
     expect(source).toContain(
-      'Summary, delivery, and debug views over work-item, stage, gate, runtime, and platform execution traces.',
+      "Browse raw log and event rows first. Use the summary, delivery, and trace tabs only when you need curated inspector packets or deeper drill-in.",
     );
-    expect(source).toContain('TabsTrigger value="raw">Raw Logs</TabsTrigger>');
-    expect(source).toContain('TabsTrigger value="summary"');
-    expect(source).toContain('TabsTrigger value="detailed">Delivery</TabsTrigger>');
-    expect(source).toContain('TabsTrigger value="debug"');
+    expect(source).toContain("{rawFirstSurface ? 'Log Stream' : 'Raw Logs'}");
+    expect(source).toContain("{rawFirstSurface ? 'Activity Summary' : 'Summary'}");
+    expect(source).toContain("{rawFirstSurface ? 'Delivery Packets' : 'Delivery'}");
+    expect(source).toContain("{rawFirstSurface ? 'Trace Detail' : 'Debug'}");
     expect(source).toContain('Failed to load delivery entries. Please refine filters and try again.');
-    expect(source).toContain('Raw event and log rows are available here with the full log viewer');
+    expect(source).toContain('Raw event and log rows stay first-class here');
   });
 
-  it('keeps the inspector surfaces and restores an explicit raw log viewer tab', () => {
+  it('keeps the inspector surfaces available without forcing inspector summary cards onto raw logs', () => {
     const source = readPage();
     expect(source).toContain('dashboardApi.queryLogs');
     expect(source).toContain("detail: SUMMARY_DETAIL_MODE");
@@ -32,7 +34,7 @@ describe('execution inspector page source', () => {
     expect(source).toContain('WorkflowBudgetCard');
     expect(source).toContain('describeExecutionOperationOption');
     expect(source).toContain('context="inspector"');
-    expect(source).toContain('selectedView !== \'raw\'');
+    expect(source).toContain("surfaceMode === 'inspector' || selectedView !== 'raw'");
     expect(source).toContain('LogViewer compact');
   });
 

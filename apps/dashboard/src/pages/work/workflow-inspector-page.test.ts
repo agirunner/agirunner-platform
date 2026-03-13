@@ -42,6 +42,7 @@ describe('workflow inspector page source', () => {
     expect(source).toContain('workflowId');
     expect(source).toContain('LogsSurface');
     expect(source).toContain('scopedWorkflowId={workflowId}');
+    expect(source).toContain('mode="inspector"');
   });
 
   it('keeps continuous workflows on live stage sets instead of falling back to current_stage', () => {

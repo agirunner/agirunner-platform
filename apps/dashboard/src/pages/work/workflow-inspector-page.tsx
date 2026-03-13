@@ -247,7 +247,7 @@ export function WorkflowInspectorPage(): JSX.Element {
         </CardContent>
       </Card>
 
-      <LogsSurface scopedWorkflowId={workflowId} />
+      <LogsSurface scopedWorkflowId={workflowId} mode="inspector" />
     </div>
   );
 }
