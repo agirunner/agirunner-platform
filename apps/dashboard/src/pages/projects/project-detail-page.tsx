@@ -6,7 +6,6 @@ import {
   Plus,
   Trash2,
   Save,
-  Calendar,
   Webhook,
   Zap,
 } from 'lucide-react';
@@ -18,7 +17,6 @@ import type {
   DashboardProjectSpecRecord,
   DashboardProjectResourceRecord,
   DashboardProjectToolCatalog,
-  DashboardProjectTimelineEntry,
 } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
 import { StructuredRecordView } from '../../components/structured-data.js';
@@ -61,6 +59,7 @@ import {
   type StructuredValueType,
 } from './project-detail-support.js';
 import { ProjectArtifactExplorerPanel } from './project-artifact-explorer-panel.js';
+import { ProjectDeliveryHistory } from './project-delivery-history.js';
 import { ProjectDetailMemoryTab } from './project-detail-memory-tab.js';
 import { ScheduledTriggersCard } from './project-scheduled-triggers-card.js';
 
@@ -395,68 +394,7 @@ function ToolsTab({ projectId }: { projectId: string }): JSX.Element {
 /* ------------------------------------------------------------------ */
 
 function TimelineTab({ projectId }: { projectId: string }): JSX.Element {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['project-timeline', projectId],
-    queryFn: () => dashboardApi.getProjectTimeline(projectId),
-  });
-
-  if (isLoading) return <LoadingCard />;
-  if (error) return <ErrorCard message="Failed to load delivery history." />;
-
-  const entries = (data ?? []) as DashboardProjectTimelineEntry[];
-
-  if (entries.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-8 text-center text-sm text-muted">
-          No delivery history for this project yet.
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="relative space-y-0">
-          {entries.map((entry, idx) => {
-            const stateVariant = statusBadgeVariant(entry.state);
-            return (
-              <div key={entry.workflow_id} className="flex gap-4">
-                <div className="flex flex-col items-center">
-                  <div className="h-3 w-3 rounded-full border-2 border-accent bg-surface" />
-                  {idx < entries.length - 1 && <div className="w-0.5 flex-1 bg-border" />}
-                </div>
-                <div className="pb-6 flex-1">
-                  <div className="flex items-center gap-2">
-                    <Link
-                      to={`/work/workflows/${entry.workflow_id}`}
-                      className="text-sm font-medium text-accent hover:underline"
-                    >
-                      {entry.name}
-                    </Link>
-                    <Badge variant={stateVariant} className="capitalize text-[10px]">
-                      {entry.state}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted">
-                    <Calendar className="mr-1 inline h-3 w-3" />
-                    {new Date(entry.created_at).toLocaleString()}
-                    {entry.duration_seconds !== undefined && entry.duration_seconds !== null && (
-                      <span className="ml-2">
-                        Duration: {formatDuration(entry.duration_seconds)}
-                      </span>
-                    )}
-                  </p>
-                  <p className="mt-1 text-xs text-muted">{describeDeliveryEntry(entry)}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
-  );
+  return <ProjectDeliveryHistory projectId={projectId} />;
 }
 
 function ArtifactsTab({ projectId }: { projectId: string }): JSX.Element {
@@ -1033,14 +971,6 @@ function ResolvedModelCards(props: {
   );
 }
 
-function formatDuration(seconds?: number | null): string {
-  if (seconds === undefined || seconds === null) return '-';
-  if (seconds < 60) return `${Math.round(seconds)}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remaining = Math.round(seconds % 60);
-  return `${minutes}m ${remaining}s`;
-}
-
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -1061,128 +991,6 @@ function updateRoleDraft(
   patch: Partial<RoleOverrideDraft>,
 ): RoleOverrideDraft[] {
   return drafts.map((draft) => (draft.id === draftId ? { ...draft, ...patch } : draft));
-}
-
-function statusBadgeVariant(status: string) {
-  const map: Record<string, 'success' | 'default' | 'destructive' | 'warning' | 'secondary'> = {
-    completed: 'success',
-    running: 'default',
-    in_progress: 'default',
-    failed: 'destructive',
-    paused: 'warning',
-    pending: 'secondary',
-  };
-  return map[status] ?? 'secondary';
-}
-
-function describeDeliveryEntry(entry: DashboardProjectTimelineEntry): string {
-  const parts = [
-    summarizeStageProgress(entry.stage_progression),
-    summarizeWorkItemProgress(entry.stage_metrics),
-    summarizeGateAttention(entry.stage_metrics),
-    summarizeOrchestratorAnalytics(entry.orchestrator_analytics),
-    summarizeArtifactCount(entry.produced_artifacts),
-  ].filter(Boolean);
-
-  return parts.length > 0
-    ? parts.join(' • ')
-    : 'Run summary available. Open the run for stage and gate detail.';
-}
-
-function summarizeStageProgress(
-  progression: DashboardProjectTimelineEntry['stage_progression'],
-): string | null {
-  if (!Array.isArray(progression) || progression.length === 0) {
-    return null;
-  }
-  const completed = progression.filter(
-    (stage) =>
-      stage &&
-      typeof stage === 'object' &&
-      'status' in stage &&
-      (stage as Record<string, unknown>).status === 'completed',
-  ).length;
-  return `Stages ${completed}/${progression.length}`;
-}
-
-function summarizeWorkItemProgress(
-  metrics: DashboardProjectTimelineEntry['stage_metrics'],
-): string | null {
-  if (!Array.isArray(metrics) || metrics.length === 0) {
-    return null;
-  }
-
-  let total = 0;
-  let open = 0;
-  for (const metric of metrics) {
-    const counts =
-      metric &&
-      typeof metric === 'object' &&
-      'work_item_counts' in metric &&
-      typeof (metric as { work_item_counts?: unknown }).work_item_counts === 'object' &&
-      (metric as { work_item_counts?: Record<string, unknown> }).work_item_counts !== null
-        ? (metric as { work_item_counts: Record<string, unknown> }).work_item_counts
-        : null;
-    total += Number(counts?.total ?? 0);
-    open += Number(counts?.open ?? 0);
-  }
-
-  if (total === 0) {
-    return null;
-  }
-  return `Work items ${total - open}/${total}`;
-}
-
-function summarizeGateAttention(
-  metrics: DashboardProjectTimelineEntry['stage_metrics'],
-): string | null {
-  if (!Array.isArray(metrics) || metrics.length === 0) {
-    return null;
-  }
-  const waiting = metrics.filter(
-    (metric) =>
-      metric &&
-      typeof metric === 'object' &&
-      'gate_status' in metric &&
-      (metric as Record<string, unknown>).gate_status === 'awaiting_approval',
-  ).length;
-  return waiting > 0 ? `Gates waiting ${waiting}` : null;
-}
-
-function summarizeArtifactCount(
-  artifacts: DashboardProjectTimelineEntry['produced_artifacts'],
-): string | null {
-  const count = Array.isArray(artifacts) ? artifacts.length : 0;
-  return count > 0 ? `Artifacts ${count}` : null;
-}
-
-function summarizeOrchestratorAnalytics(
-  analytics: DashboardProjectTimelineEntry['orchestrator_analytics'],
-): string | null {
-  const record = analytics && typeof analytics === 'object' ? (analytics as Record<string, unknown>) : null;
-  if (!record) {
-    return null;
-  }
-
-  const parts: string[] = [];
-  const activationCount = Number(record.activation_count ?? 0);
-  const reworkedTaskCount = Number(record.reworked_task_count ?? 0);
-  const staleDetections = Number(record.stale_detection_count ?? 0);
-  const totalCostUsd = Number(record.total_cost_usd ?? 0);
-
-  if (activationCount > 0) {
-    parts.push(`Activations ${activationCount}`);
-  }
-  if (reworkedTaskCount > 0) {
-    parts.push(`Reworked tasks ${reworkedTaskCount}`);
-  }
-  if (staleDetections > 0) {
-    parts.push(`Stale recoveries ${staleDetections}`);
-  }
-  if (totalCostUsd > 0) {
-    parts.push(`Cost $${totalCostUsd.toFixed(2)}`);
-  }
-  return parts.length > 0 ? parts.join(' • ') : null;
 }
 
 /* ------------------------------------------------------------------ */

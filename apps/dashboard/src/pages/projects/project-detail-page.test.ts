@@ -9,20 +9,14 @@ function readSource(filename: string) {
 describe('project detail automation tab source', () => {
   it('uses delivery-oriented operator copy for project run history', () => {
     const source = readSource('./project-detail-page.tsx');
+    const deliverySource = readSource('./project-delivery-history.tsx');
     expect(source).toContain('TabsTrigger value="timeline">Delivery</TabsTrigger>');
-    expect(source).toContain('No delivery history for this project yet.');
-    expect(source).toContain('Failed to load delivery history.');
-    expect(source).toContain('describeDeliveryEntry(entry)');
-    expect(source).toContain('Run summary available. Open the run for stage and gate detail.');
-    expect(source).toContain('Stages ${completed}/${progression.length}');
-    expect(source).toContain('Work items ${total - open}/${total}');
-    expect(source).toContain('Gates waiting ${waiting}');
-    expect(source).toContain('summarizeOrchestratorAnalytics(entry.orchestrator_analytics)');
-    expect(source).toContain('Activations ${activationCount}');
-    expect(source).toContain('Reworked tasks ${reworkedTaskCount}');
-    expect(source).toContain('Stale recoveries ${staleDetections}');
-    expect(source).toContain('Cost $${totalCostUsd.toFixed(2)}');
-    expect(source).toContain('Artifacts ${count}');
+    expect(source).toContain('<ProjectDeliveryHistory projectId={projectId} />');
+    expect(deliverySource).toContain('Delivery overview');
+    expect(deliverySource).toContain('Failed to load delivery history.');
+    expect(deliverySource).toContain('No delivery history for this project yet.');
+    expect(deliverySource).toContain('Open board');
+    expect(deliverySource).toContain('Open inspector');
   });
 
   it('adds an automation tab for scheduled work-item triggers', () => {
