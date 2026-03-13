@@ -619,8 +619,19 @@ export class TaskLifecycleService {
     identity: ApiKeyIdentity,
     taskId: string,
     payload: { agent_id?: string; worker_id?: string; started_at?: string },
+    existingClient?: DatabaseClient,
   ) {
     const assignment = this.requireLifecycleIdentity(identity, payload);
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId, existingClient));
+
+    if (
+      task.state === 'in_progress' &&
+      (!assignment.agentId || task.assigned_agent_id === assignment.agentId) &&
+      (!assignment.workerId || task.assigned_worker_id === assignment.workerId)
+    ) {
+      return this.deps.toTaskResponse(task);
+    }
+
     const startedAt = payload.started_at ? new Date(payload.started_at) : undefined;
 
     return this.applyStateTransition(identity, taskId, 'in_progress', {
@@ -628,7 +639,7 @@ export class TaskLifecycleService {
       requireAssignment: assignment,
       reason: 'task_started',
       startedAt: startedAt && Number.isFinite(startedAt.getTime()) ? startedAt : undefined,
-    });
+    }, existingClient);
   }
 
   async completeTask(
@@ -642,9 +653,18 @@ export class TaskLifecycleService {
       agent_id?: string;
       worker_id?: string;
     },
+    existingClient?: DatabaseClient,
   ) {
     const assignment = this.requireLifecycleIdentity(identity, payload);
-    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId, existingClient));
+
+    if (
+      (task.state === 'completed' || task.state === 'output_pending_review') &&
+      isJsonEquivalent(task.output, payload.output)
+    ) {
+      return this.deps.toTaskResponse(task);
+    }
+
     const outputValidation = validateOutputSchema(payload.output, this.extractOutputSchema(task));
     const verificationPassed = this.readVerificationPassed(payload.verification, payload.metrics);
     const persisted = this.deps.artifactService
@@ -681,7 +701,7 @@ export class TaskLifecycleService {
               : !outputValidation.valid
                 ? 'output_schema_review_required'
                 : 'verification_review_required',
-          })
+          }, existingClient)
         : await this.applyStateTransition(identity, taskId, 'completed', {
             expectedStates: ['in_progress'],
             requireAssignment: assignment,
@@ -697,7 +717,7 @@ export class TaskLifecycleService {
               await this.maybeResolveEscalationSource(identity, updatedTask, client);
             },
             reason: 'task_completed',
-          });
+          }, existingClient);
     } catch (error) {
       if (this.deps.artifactService) {
         for (const artifactId of persisted.cleanupArtifactIds) {
@@ -720,12 +740,18 @@ export class TaskLifecycleService {
       agent_id?: string;
       worker_id?: string;
     },
+    existingClient?: DatabaseClient,
   ) {
     // Workers/admins (container-manager) can fail any task via hung detection — skip assignment enforcement.
     const assignment = identity.scope === 'agent'
       ? this.requireLifecycleIdentity(identity, payload)
       : undefined;
-    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId, existingClient));
+
+    if (isFailTaskReplay(task, payload.error)) {
+      return this.deps.toTaskResponse(task);
+    }
+
     const lifecyclePolicy = readPersistedLifecyclePolicy(task.metadata);
     const failure = classifyFailure(payload.error);
     const retryPlan = buildRetryPlan(task, lifecyclePolicy, failure);
@@ -769,7 +795,7 @@ export class TaskLifecycleService {
             client,
           );
         },
-      });
+      }, existingClient);
     }
 
     return this.applyStateTransition(identity, taskId, 'failed', {
@@ -787,7 +813,7 @@ export class TaskLifecycleService {
         await this.maybeCreateEscalationTask(identity, updatedTask, lifecyclePolicy, failure, client);
       },
       reason: 'task_failed',
-    });
+    }, existingClient);
   }
 
   async approveTask(identity: ApiKeyIdentity, taskId: string, client?: DatabaseClient) {
@@ -2056,6 +2082,20 @@ function buildEscalationTaskInput(
       ? { system_prompt: escalation.instructions }
       : undefined,
   };
+}
+
+function isFailTaskReplay(task: Record<string, unknown>, error: Record<string, unknown>): boolean {
+  if (task.state === 'failed' && isJsonEquivalent(task.error, error)) {
+    return true;
+  }
+  const metadata = asRecord(task.metadata);
+  if (
+    (task.state === 'pending' || task.state === 'ready') &&
+    isJsonEquivalent(metadata.retry_last_error, error)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 function releasesParallelismSlot(previousState: TaskState, nextState: TaskState) {

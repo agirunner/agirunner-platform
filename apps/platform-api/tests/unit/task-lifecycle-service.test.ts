@@ -26,7 +26,15 @@ describe('TaskLifecycleService concurrent state guard (maintenance-sad cancellat
 
     const loadTaskOrThrow = vi
       .fn()
-      // First read inside transition sees claimed state.
+      // Guard read in startTask sees claimed state (not in_progress, so continues).
+      .mockResolvedValueOnce({
+        id: 'task-1',
+        state: 'claimed',
+        workflow_id: null,
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+      })
+      // First read inside applyStateTransition sees claimed state.
       .mockResolvedValueOnce({
         id: 'task-1',
         state: 'claimed',
@@ -2206,5 +2214,233 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
 
     expect(result).toEqual(existingTask);
     expect(client.query).not.toHaveBeenCalled();
+  });
+});
+
+describe('TaskLifecycleService replay-safe idempotent guards', () => {
+  const agentIdentity = {
+    id: 'agent-key',
+    tenantId: 'tenant-1',
+    scope: 'agent' as const,
+    ownerType: 'agent',
+    ownerId: 'agent-1',
+    keyPrefix: 'ak',
+  };
+
+  function buildService(overrides: Record<string, unknown>) {
+    const client = {
+      query: vi.fn(async () => ({ rows: [], rowCount: 0 })),
+      release: vi.fn(),
+    };
+    return {
+      client,
+      service: new TaskLifecycleService({
+        pool: { connect: vi.fn(async () => client) } as never,
+        eventService: { emit: vi.fn() } as never,
+        workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+        defaultTaskTimeoutMinutes: 30,
+        toTaskResponse: (task: Record<string, unknown>) => task,
+        ...overrides,
+      }),
+    };
+  }
+
+  it('returns the existing task when startTask replays for an already in-progress task with matching agent', async () => {
+    const existingTask = {
+      id: 'task-start-replay',
+      state: 'in_progress',
+      workflow_id: null,
+      assigned_agent_id: 'agent-1',
+      assigned_worker_id: null,
+    };
+    const { service, client } = buildService({
+      loadTaskOrThrow: vi.fn().mockResolvedValue(existingTask),
+    });
+
+    const result = await service.startTask(agentIdentity, 'task-start-replay', {
+      agent_id: 'agent-1',
+    });
+
+    expect(result).toEqual(existingTask);
+    expect(client.query).not.toHaveBeenCalled();
+  });
+
+  it('does not short-circuit startTask when the in-progress task belongs to a different agent', async () => {
+    const existingTask = {
+      id: 'task-start-different-agent',
+      state: 'in_progress',
+      workflow_id: null,
+      assigned_agent_id: 'agent-other',
+      assigned_worker_id: null,
+    };
+    const loadTaskOrThrow = vi
+      .fn()
+      .mockResolvedValueOnce(existingTask)
+      .mockResolvedValueOnce(existingTask);
+    const { service } = buildService({ loadTaskOrThrow });
+
+    await expect(
+      service.startTask(agentIdentity, 'task-start-different-agent', { agent_id: 'agent-1' }),
+    ).rejects.toThrow();
+  });
+
+  it('returns the existing task when completeTask replays for an already completed task with matching output', async () => {
+    const existingTask = {
+      id: 'task-complete-replay',
+      state: 'completed',
+      workflow_id: null,
+      assigned_agent_id: 'agent-1',
+      assigned_worker_id: null,
+      output: { summary: 'done' },
+      role_config: {},
+    };
+    const { service, client } = buildService({
+      loadTaskOrThrow: vi.fn().mockResolvedValue(existingTask),
+    });
+
+    const result = await service.completeTask(agentIdentity, 'task-complete-replay', {
+      output: { summary: 'done' },
+    });
+
+    expect(result).toEqual(existingTask);
+    expect(client.query).not.toHaveBeenCalled();
+  });
+
+  it('returns the existing task when completeTask replays for an output_pending_review task with matching output', async () => {
+    const existingTask = {
+      id: 'task-review-replay',
+      state: 'output_pending_review',
+      workflow_id: null,
+      assigned_agent_id: 'agent-1',
+      assigned_worker_id: null,
+      output: { result: 42 },
+      role_config: {},
+    };
+    const { service, client } = buildService({
+      loadTaskOrThrow: vi.fn().mockResolvedValue(existingTask),
+    });
+
+    const result = await service.completeTask(agentIdentity, 'task-review-replay', {
+      output: { result: 42 },
+    });
+
+    expect(result).toEqual(existingTask);
+    expect(client.query).not.toHaveBeenCalled();
+  });
+
+  it('does not short-circuit completeTask when the stored output differs from the payload', async () => {
+    const existingTask = {
+      id: 'task-complete-diff-output',
+      state: 'completed',
+      workflow_id: null,
+      assigned_agent_id: 'agent-1',
+      assigned_worker_id: null,
+      output: { summary: 'done' },
+      role_config: {},
+    };
+    const loadTaskOrThrow = vi
+      .fn()
+      .mockResolvedValueOnce(existingTask)
+      .mockResolvedValueOnce(existingTask);
+    const { service } = buildService({ loadTaskOrThrow });
+
+    await expect(
+      service.completeTask(agentIdentity, 'task-complete-diff-output', {
+        output: { summary: 'different' },
+      }),
+    ).rejects.toThrow();
+  });
+
+  it('returns the existing task when failTask replays for an already failed task with matching error', async () => {
+    const existingTask = {
+      id: 'task-fail-replay',
+      state: 'failed',
+      workflow_id: null,
+      assigned_agent_id: 'agent-1',
+      assigned_worker_id: null,
+      error: { category: 'timeout', message: 'too slow' },
+      metadata: {},
+    };
+    const { service, client } = buildService({
+      loadTaskOrThrow: vi.fn().mockResolvedValue(existingTask),
+    });
+
+    const result = await service.failTask(agentIdentity, 'task-fail-replay', {
+      error: { category: 'timeout', message: 'too slow' },
+    });
+
+    expect(result).toEqual(existingTask);
+    expect(client.query).not.toHaveBeenCalled();
+  });
+
+  it('returns the existing task when failTask replays and the task has already retried to pending with matching retry_last_error', async () => {
+    const existingTask = {
+      id: 'task-fail-retried',
+      state: 'pending',
+      workflow_id: null,
+      assigned_agent_id: null,
+      assigned_worker_id: null,
+      error: null,
+      metadata: {
+        retry_last_error: { category: 'timeout', message: 'too slow' },
+      },
+    };
+    const { service, client } = buildService({
+      loadTaskOrThrow: vi.fn().mockResolvedValue(existingTask),
+    });
+
+    const result = await service.failTask(agentIdentity, 'task-fail-retried', {
+      error: { category: 'timeout', message: 'too slow' },
+    });
+
+    expect(result).toEqual(existingTask);
+    expect(client.query).not.toHaveBeenCalled();
+  });
+
+  it('returns the existing task when failTask replays and the task has already retried to ready with matching retry_last_error', async () => {
+    const existingTask = {
+      id: 'task-fail-retried-ready',
+      state: 'ready',
+      workflow_id: null,
+      assigned_agent_id: null,
+      assigned_worker_id: null,
+      error: null,
+      metadata: {
+        retry_last_error: { category: 'timeout', message: 'too slow' },
+      },
+    };
+    const { service, client } = buildService({
+      loadTaskOrThrow: vi.fn().mockResolvedValue(existingTask),
+    });
+
+    const result = await service.failTask(agentIdentity, 'task-fail-retried-ready', {
+      error: { category: 'timeout', message: 'too slow' },
+    });
+
+    expect(result).toEqual(existingTask);
+    expect(client.query).not.toHaveBeenCalled();
+  });
+
+  it('does not short-circuit failTask when the stored error differs from the payload', async () => {
+    const existingTask = {
+      id: 'task-fail-diff-error',
+      state: 'failed',
+      workflow_id: null,
+      assigned_agent_id: 'agent-1',
+      assigned_worker_id: null,
+      error: { category: 'timeout', message: 'too slow' },
+      metadata: {},
+    };
+    const loadTaskOrThrow = vi
+      .fn()
+      .mockResolvedValueOnce(existingTask)
+      .mockResolvedValueOnce(existingTask);
+    const { service } = buildService({ loadTaskOrThrow });
+
+    await expect(
+      service.failTask(agentIdentity, 'task-fail-diff-error', {
+        error: { category: 'validation_error', message: 'bad input' },
+      }),
+    ).rejects.toThrow();
   });
 });
