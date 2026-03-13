@@ -165,6 +165,50 @@ function hasMatchingManualEscalation(
     && (metadata.escalation_urgency ?? null) === (payload.urgency ?? null);
 }
 
+function hasMatchingAgentEscalation(
+  task: Record<string, unknown>,
+  resolvedTarget: string,
+  payload: {
+    reason: string;
+    context_summary?: string;
+    work_so_far?: string;
+  },
+): boolean {
+  const metadata = asRecord(task.metadata);
+  if (task.state !== 'escalated') {
+    return false;
+  }
+  if ((metadata.escalation_target ?? null) !== resolvedTarget) {
+    return false;
+  }
+  if ((metadata.escalation_reason ?? null) !== payload.reason) {
+    return false;
+  }
+  if ((metadata.escalation_context ?? null) !== (payload.context_summary ?? null)) {
+    return false;
+  }
+  if ((metadata.escalation_work_so_far ?? null) !== (payload.work_so_far ?? null)) {
+    return false;
+  }
+  if (resolvedTarget === 'human') {
+    return metadata.escalation_awaiting_human === true;
+  }
+  return typeof metadata.escalation_task_id === 'string' && metadata.escalation_task_id.length > 0;
+}
+
+function hasMatchingAgentEscalationDepthFailure(
+  task: Record<string, unknown>,
+  currentDepth: number,
+  maxDepth: number,
+): boolean {
+  const metadata = asRecord(task.metadata);
+  const error = asRecord(task.error);
+  return task.state === 'failed'
+    && error.category === 'escalation_depth_exceeded'
+    && (metadata.escalation_depth ?? null) === currentDepth
+    && (metadata.escalation_max_depth ?? null) === maxDepth;
+}
+
 function hasMatchingReviewRejection(
   task: Record<string, unknown>,
   feedback: string,
@@ -1337,10 +1381,16 @@ export class TaskLifecycleService {
     if (!escalationTarget) {
       throw new ConflictError(`Escalation not configured for role '${roleName}'`);
     }
+    if (hasMatchingAgentEscalation(task, escalationTarget, payload)) {
+      return this.deps.toTaskResponse(task);
+    }
 
     const metadata = asRecord(task.metadata);
     const currentDepth = typeof metadata.escalation_depth === 'number' ? metadata.escalation_depth : 0;
     const maxDepth = roleDef?.max_escalation_depth ?? DEFAULT_ORCHESTRATOR_MAX_ESCALATION_DEPTH;
+    if (hasMatchingAgentEscalationDepthFailure(task, currentDepth, maxDepth)) {
+      return this.deps.toTaskResponse(task);
+    }
 
     if (currentDepth >= maxDepth) {
       return this.applyStateTransition(identity, taskId, 'failed', {

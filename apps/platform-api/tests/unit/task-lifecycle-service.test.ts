@@ -1708,6 +1708,117 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(client.query).not.toHaveBeenCalled();
   });
 
+  it('treats a repeated agent escalation to another role as idempotent once the task already reflects it', async () => {
+    const client = {
+      query: vi.fn(async () => ({ rows: [], rowCount: 0 })),
+      release: vi.fn(),
+    };
+    const existingTask = {
+      id: 'task-agent-escalate-existing',
+      state: 'escalated',
+      role: 'developer',
+      metadata: {
+        escalation_reason: 'Need reviewer help',
+        escalation_context: 'Waiting on a reviewer decision',
+        escalation_work_so_far: 'Collected failing traces and current implementation notes.',
+        escalation_target: 'reviewer',
+        escalation_task_id: 'task-escalation-reviewer-1',
+        escalation_depth: 1,
+      },
+      error: null,
+    };
+    const eventService = { emit: vi.fn() };
+    const pool = { connect: vi.fn(async () => client) };
+    const service = new TaskLifecycleService({
+      pool: pool as never,
+      eventService: eventService as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue(existingTask),
+      toTaskResponse: (task) => task,
+      getRoleByName: vi.fn(async () => ({
+        escalation_target: 'reviewer',
+        max_escalation_depth: 3,
+      })),
+    });
+
+    const result = await service.agentEscalate(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'ak',
+      },
+      'task-agent-escalate-existing',
+      {
+        reason: 'Need reviewer help',
+        context_summary: 'Waiting on a reviewer decision',
+        work_so_far: 'Collected failing traces and current implementation notes.',
+      },
+    );
+
+    expect(result).toEqual(existingTask);
+    expect(pool.connect).not.toHaveBeenCalled();
+    expect(eventService.emit).not.toHaveBeenCalled();
+  });
+
+  it('treats a repeated depth-exceeded agent escalation as idempotent once the task already failed', async () => {
+    const client = {
+      query: vi.fn(async () => ({ rows: [], rowCount: 0 })),
+      release: vi.fn(),
+    };
+    const existingTask = {
+      id: 'task-agent-escalate-depth',
+      state: 'failed',
+      role: 'developer',
+      metadata: {
+        escalation_depth: 2,
+        escalation_max_depth: 2,
+      },
+      error: {
+        category: 'escalation_depth_exceeded',
+        message: 'Escalation depth 2 exceeds maximum 2',
+        recoverable: false,
+      },
+    };
+    const eventService = { emit: vi.fn() };
+    const pool = { connect: vi.fn(async () => client) };
+    const service = new TaskLifecycleService({
+      pool: pool as never,
+      eventService: eventService as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue(existingTask),
+      toTaskResponse: (task) => task,
+      getRoleByName: vi.fn(async () => ({
+        escalation_target: 'reviewer',
+        max_escalation_depth: 2,
+      })),
+    });
+
+    const result = await service.agentEscalate(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'ak',
+      },
+      'task-agent-escalate-depth',
+      {
+        reason: 'Need reviewer help',
+        context_summary: 'Blocked on escalation policy.',
+      },
+    );
+
+    expect(result).toEqual(existingTask);
+    expect(pool.connect).not.toHaveBeenCalled();
+    expect(eventService.emit).not.toHaveBeenCalled();
+  });
+
   it('records structured human escalation input onto the escalation task', async () => {
     const loadTaskOrThrow = vi
       .fn()
