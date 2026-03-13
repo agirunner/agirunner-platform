@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   describeProviderTypeSetup,
+  summarizeAssignmentSurface,
   validateAssignmentSetup,
   validateAddProviderDraft,
 } from './llm-providers-page.support.js';
@@ -109,6 +110,82 @@ describe('llm providers page support', () => {
       missingRoleNames: [],
       blockingIssues: [],
       isValid: true,
+    });
+  });
+
+  it('summarizes assignment blockers when no enabled models remain', () => {
+    expect(
+      summarizeAssignmentSurface({
+        enabledModelCount: 0,
+        defaultModelConfigured: false,
+        roleCount: 3,
+        explicitOverrideCount: 1,
+        staleRoleCount: 1,
+        blockingIssues: [
+          'Choose a system default model or assign explicit models for: orchestrator, reviewer.',
+        ],
+      }),
+    ).toEqual({
+      cards: [
+        {
+          label: 'Default route',
+          value: 'No system default',
+          detail: 'Pick a shared default or assign every role explicitly.',
+        },
+        {
+          label: 'Explicit overrides',
+          value: '1/3',
+          detail: '2 roles inherit the shared default.',
+        },
+        {
+          label: 'Catalog posture',
+          value: 'No enabled models',
+          detail: '1 stale assignment still need cleanup.',
+        },
+      ],
+      guidance: {
+        tone: 'danger',
+        headline: 'Assignments are blocked',
+        detail:
+          'Add or enable at least one model before configuring the system default or per-role overrides.',
+      },
+    });
+  });
+
+  it('summarizes ready assignment coverage when defaults and overrides are configured', () => {
+    expect(
+      summarizeAssignmentSurface({
+        enabledModelCount: 5,
+        defaultModelConfigured: true,
+        roleCount: 4,
+        explicitOverrideCount: 2,
+        staleRoleCount: 0,
+        blockingIssues: [],
+      }),
+    ).toEqual({
+      cards: [
+        {
+          label: 'Default route',
+          value: 'System default set',
+          detail: 'Roles without overrides inherit the shared model route.',
+        },
+        {
+          label: 'Explicit overrides',
+          value: '2/4',
+          detail: '2 roles inherit the shared default.',
+        },
+        {
+          label: 'Catalog posture',
+          value: '5 enabled models',
+          detail: 'No stale assignment rows remain.',
+        },
+      ],
+      guidance: {
+        tone: 'success',
+        headline: 'Assignments are ready to save',
+        detail:
+          'System default coverage and role overrides are aligned for the current model catalog.',
+      },
     });
   });
 });

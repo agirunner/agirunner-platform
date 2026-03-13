@@ -31,10 +31,19 @@ function readComponent(relPath: string): string {
   return fs.readFileSync(path.join(dashboardSrc, relPath), 'utf-8');
 }
 
+function readLlmProvidersSource(): string {
+  return [
+    'pages/config/llm-providers-page.tsx',
+    'pages/config/llm-providers-page.support.ts',
+  ]
+    .map((pathName) => readComponent(pathName))
+    .join('\n');
+}
+
 /* ─── Structural: three sections ────────────────────────────────────────── */
 
 describe('LlmProvidersPage renders three sections', () => {
-  const source = readComponent('pages/config/llm-providers-page.tsx');
+  const source = readLlmProvidersSource();
 
   it('renders the Providers section with heading and Add Provider button', () => {
     expect(source).toContain('LLM Providers');
@@ -76,10 +85,24 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('fetchRoleDefinitions');
     expect(source).toContain('buildAssignmentRoleRows');
     expect(source).toContain('validateAssignmentSetup');
+    expect(source).toContain('summarizeAssignmentSurface');
     expect(source).toContain('Orchestrator and Role Overrides');
     expect(source).toContain('1 orchestrator row');
     expect(source).toContain('No system default is configured. Assign explicit models below or restore a default model before saving.');
     expect(source).toContain('Select a model for this role or restore a system default.');
+    expect(source).toContain('Assignment coverage needs attention');
+    expect(source).toContain('Assignments are blocked');
+    expect(source).toContain('Assignments are ready to save');
+    expect(source).toContain('Review providers');
+    expect(source).toContain('Review model catalog');
+    expect(source).toContain('Default route');
+    expect(source).toContain('Explicit overrides');
+    expect(source).toContain('Catalog posture');
+    expect(source).toContain('id="llm-model-assignments"');
+    expect(source).toContain('id="llm-providers-library"');
+    expect(source).toContain('id="llm-model-catalog"');
+    expect(source).toContain('md:hidden');
+    expect(source).toContain('hidden md:block');
     expect(source).not.toContain('const ROLE_NAMES');
   });
 

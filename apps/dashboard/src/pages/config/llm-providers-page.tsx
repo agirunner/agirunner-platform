@@ -50,6 +50,7 @@ import {
 import { Switch } from '../../components/ui/switch.js';
 import {
   describeProviderTypeSetup,
+  summarizeAssignmentSurface,
   validateAssignmentSetup,
   validateAddProviderDraft,
   type AddProviderDraft,
@@ -1122,6 +1123,7 @@ function ModelReasoningSelect({
   reasoningConfig,
   enabledModels,
   modelError,
+  layout = 'table',
   onModelChange,
   onReasoningChange,
 }: {
@@ -1129,45 +1131,70 @@ function ModelReasoningSelect({
   reasoningConfig: Record<string, unknown> | null;
   enabledModels: LlmModel[];
   modelError?: string;
+  layout?: 'table' | 'stack';
   onModelChange: (modelId: string) => void;
   onReasoningChange: (config: Record<string, unknown> | null) => void;
 }): JSX.Element {
   const selectedModel = enabledModels.find((m) => m.id === modelId);
   const modelReasoningSchema = selectedModel?.reasoning_config ?? null;
+  const modelTriggerClassName = modelError
+    ? layout === 'table'
+      ? 'w-[380px] border-red-300 focus-visible:ring-red-500'
+      : 'w-full border-red-300 focus-visible:ring-red-500'
+    : layout === 'table'
+      ? 'w-[380px]'
+      : 'w-full';
+  const modelField = (
+    <div className="space-y-1">
+      <Select
+        value={modelId}
+        onValueChange={(v) => {
+          onModelChange(v);
+          onReasoningChange(null);
+        }}
+      >
+        <SelectTrigger className={modelTriggerClassName}>
+          <SelectValue placeholder="Select model" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none__">None (use system default)</SelectItem>
+          {enabledModels.map((m) => (
+            <SelectItem key={m.id} value={m.id}>
+              {m.model_id}{m.provider_name ? ` (${m.provider_name})` : ''}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {modelError ? <p className="text-xs text-red-600">{modelError}</p> : null}
+    </div>
+  );
+  const reasoningField = (
+    <ReasoningControl
+      schema={modelReasoningSchema}
+      value={extractReasoningValue(modelReasoningSchema, reasoningConfig)}
+      onChange={onReasoningChange}
+    />
+  );
+
+  if (layout === 'stack') {
+    return (
+      <div className="grid gap-3">
+        <div className="grid gap-1 text-sm">
+          <span className="font-medium">Model</span>
+          {modelField}
+        </div>
+        <div className="grid gap-1 text-sm">
+          <span className="font-medium">Reasoning</span>
+          {reasoningField}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
-      <TableCell>
-        <div className="space-y-1">
-          <Select
-            value={modelId}
-            onValueChange={(v) => {
-              onModelChange(v);
-              onReasoningChange(null);
-            }}
-          >
-            <SelectTrigger className={modelError ? 'w-[380px] border-red-300 focus-visible:ring-red-500' : 'w-[380px]'}>
-              <SelectValue placeholder="Select model" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">None (use system default)</SelectItem>
-              {enabledModels.map((m) => (
-                <SelectItem key={m.id} value={m.id}>
-                  {m.model_id}{m.provider_name ? ` (${m.provider_name})` : ''}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {modelError ? <p className="text-xs text-red-600">{modelError}</p> : null}
-        </div>
-      </TableCell>
-      <TableCell>
-        <ReasoningControl
-          schema={modelReasoningSchema}
-          value={extractReasoningValue(modelReasoningSchema, reasoningConfig)}
-          onChange={onReasoningChange}
-        />
-      </TableCell>
+      <TableCell>{modelField}</TableCell>
+      <TableCell>{reasoningField}</TableCell>
     </>
   );
 }
@@ -1271,10 +1298,53 @@ function RoleAssignmentsSection({
       modelId: roleStates[role.name]?.modelId ?? '__none__',
     })),
   });
+  const assignmentSurface = summarizeAssignmentSurface({
+    enabledModelCount: enabledModels.length,
+    defaultModelConfigured: defaultModelId !== '__none__',
+    roleCount: roleRows.length,
+    explicitOverrideCount: roleRows.filter(
+      (role) => (roleStates[role.name]?.modelId ?? '__none__') !== '__none__',
+    ).length,
+    staleRoleCount,
+    blockingIssues: assignmentValidation.blockingIssues,
+  });
 
   return (
-    <div className="space-y-6">
+    <div id="llm-model-assignments" className="space-y-6">
       <h2 className="text-lg font-semibold">Model Assignments</h2>
+      <div className="grid gap-3 md:grid-cols-3">
+        {assignmentSurface.cards.map((card) => (
+          <Card key={card.label} className="border-border/70 shadow-sm">
+            <CardHeader className="space-y-1 pb-3">
+              <p className="text-sm font-medium text-muted">{card.label}</p>
+              <CardTitle className="text-xl">{card.value}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm leading-6 text-muted">{card.detail}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <div
+        className={
+          assignmentSurface.guidance.tone === 'danger'
+            ? 'rounded-xl border border-red-300 bg-red-50/80 px-4 py-3 text-sm text-red-800'
+            : assignmentSurface.guidance.tone === 'warning'
+              ? 'rounded-xl border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950'
+              : 'rounded-xl border border-emerald-300 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-800'
+        }
+      >
+        <div className="font-medium">{assignmentSurface.guidance.headline}</div>
+        <p className="mt-1">{assignmentSurface.guidance.detail}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="outline">
+            <a href="#llm-providers-library">Review providers</a>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <a href="#llm-model-catalog">Review model catalog</a>
+          </Button>
+        </div>
+      </div>
 
       {/* ── System Default ────────────────────────────────────────────── */}
       <div className="space-y-3">
@@ -1345,45 +1415,37 @@ function RoleAssignmentsSection({
             ))}
           </div>
         ) : null}
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[160px]">Role</TableHead>
-              <TableHead>Model</TableHead>
-              <TableHead>Reasoning</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {roleRows.map((role) => {
-              const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
-              return (
-                <TableRow key={role.name}>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium">{role.name}</span>
-                        {role.source === 'system' ? (
-                          <Badge variant="secondary">System</Badge>
-                        ) : role.isActive ? (
-                          <Badge variant="outline">Active</Badge>
-                        ) : role.source === 'catalog' ? (
-                          <Badge variant="warning">Inactive</Badge>
-                        ) : (
-                          <Badge variant="warning">Assignment only</Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted">
-                        {role.description?.trim()
-                          ? role.description
-                          : role.source === 'assignment'
-                            ? 'This assignment references a role that is no longer in the active catalog.'
-                            : role.source === 'system'
-                              ? 'Configure the dedicated orchestrator model and reasoning policy here.'
-                            : 'This configured role is currently inactive.'}
-                      </p>
-                    </div>
-                  </TableCell>
+        <div className="grid gap-3 md:hidden">
+          {roleRows.map((role) => {
+            const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
+            return (
+              <Card key={role.name} className="border-border/70 shadow-sm">
+                <CardHeader className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <CardTitle className="text-base">{role.name}</CardTitle>
+                    {role.source === 'system' ? (
+                      <Badge variant="secondary">System</Badge>
+                    ) : role.isActive ? (
+                      <Badge variant="outline">Active</Badge>
+                    ) : role.source === 'catalog' ? (
+                      <Badge variant="warning">Inactive</Badge>
+                    ) : (
+                      <Badge variant="warning">Assignment only</Badge>
+                    )}
+                  </div>
+                  <p className="text-sm leading-6 text-muted">
+                    {role.description?.trim()
+                      ? role.description
+                      : role.source === 'assignment'
+                        ? 'This assignment references a role that is no longer in the active catalog.'
+                        : role.source === 'system'
+                          ? 'Configure the dedicated orchestrator model and reasoning policy here.'
+                          : 'This configured role is currently inactive.'}
+                  </p>
+                </CardHeader>
+                <CardContent>
                   <ModelReasoningSelect
+                    layout="stack"
                     modelId={s.modelId}
                     reasoningConfig={s.reasoningConfig}
                     enabledModels={enabledModels}
@@ -1395,11 +1457,68 @@ function RoleAssignmentsSection({
                     onModelChange={(id) => updateRole(role.name, { modelId: id, reasoningConfig: null })}
                     onReasoningChange={(cfg) => updateRole(role.name, { reasoningConfig: cfg })}
                   />
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+        <div className="hidden md:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[160px]">Role</TableHead>
+                <TableHead>Model</TableHead>
+                <TableHead>Reasoning</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {roleRows.map((role) => {
+                const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
+                return (
+                  <TableRow key={role.name}>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium">{role.name}</span>
+                          {role.source === 'system' ? (
+                            <Badge variant="secondary">System</Badge>
+                          ) : role.isActive ? (
+                            <Badge variant="outline">Active</Badge>
+                          ) : role.source === 'catalog' ? (
+                            <Badge variant="warning">Inactive</Badge>
+                          ) : (
+                            <Badge variant="warning">Assignment only</Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted">
+                          {role.description?.trim()
+                            ? role.description
+                            : role.source === 'assignment'
+                              ? 'This assignment references a role that is no longer in the active catalog.'
+                              : role.source === 'system'
+                                ? 'Configure the dedicated orchestrator model and reasoning policy here.'
+                                : 'This configured role is currently inactive.'}
+                        </p>
+                      </div>
+                    </TableCell>
+                    <ModelReasoningSelect
+                      modelId={s.modelId}
+                      reasoningConfig={s.reasoningConfig}
+                      enabledModels={enabledModels}
+                      modelError={
+                        assignmentValidation.missingRoleNames.includes(role.name)
+                          ? 'Select a model for this role or restore a system default.'
+                          : undefined
+                      }
+                      onModelChange={(id) => updateRole(role.name, { modelId: id, reasoningConfig: null })}
+                      onReasoningChange={(cfg) => updateRole(role.name, { reasoningConfig: cfg })}
+                    />
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       {/* ── Save ──────────────────────────────────────────────────────── */}
@@ -1720,61 +1839,65 @@ export function LlmProvidersPage(): JSX.Element {
   return (
     <div className="p-6 space-y-8">
       {/* ── Providers Section ──────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">LLM Providers</h1>
-          <p className="text-sm text-muted">
-            Manage language model providers, the model catalog, and role assignments.
-          </p>
+      <section id="llm-providers-library" className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold">LLM Providers</h1>
+            <p className="text-sm text-muted">
+              Manage language model providers, the model catalog, and role assignments.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <ConnectOAuthDialog />
+            <AddProviderDialog existingNames={providers.map((provider) => provider.name)} />
+          </div>
         </div>
-        <div className="flex gap-2">
-          <ConnectOAuthDialog />
-          <AddProviderDialog existingNames={providers.map((provider) => provider.name)} />
-        </div>
-      </div>
 
-      {providers.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-muted">
-          <BrainCog className="h-12 w-12 mb-4" />
-          <p className="font-medium">No providers configured</p>
-          <p className="text-sm mt-1">
-            Add an LLM provider to get started.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {providers.map((provider) =>
-            provider.auth_mode === 'oauth' ? (
-              <OAuthProviderCard
-                key={provider.id}
-                provider={provider}
-                modelCount={models.filter((m) => m.provider_id === provider.id).length}
-                onDelete={requestProviderDelete}
-                onDiscover={handleDiscover}
-                isDiscovering={discoveringId === provider.id}
-              />
-            ) : (
-              <ProviderCard
-                key={provider.id}
-                provider={provider}
-                modelCount={models.filter((m) => m.provider_id === provider.id).length}
-                onDelete={requestProviderDelete}
-                onDiscover={handleDiscover}
-                isDiscovering={discoveringId === provider.id}
-              />
-            ),
-          )}
-        </div>
-      )}
+        {providers.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-muted">
+            <BrainCog className="mb-4 h-12 w-12" />
+            <p className="font-medium">No providers configured</p>
+            <p className="mt-1 text-sm">
+              Add an LLM provider to get started.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {providers.map((provider) =>
+              provider.auth_mode === 'oauth' ? (
+                <OAuthProviderCard
+                  key={provider.id}
+                  provider={provider}
+                  modelCount={models.filter((m) => m.provider_id === provider.id).length}
+                  onDelete={requestProviderDelete}
+                  onDiscover={handleDiscover}
+                  isDiscovering={discoveringId === provider.id}
+                />
+              ) : (
+                <ProviderCard
+                  key={provider.id}
+                  provider={provider}
+                  modelCount={models.filter((m) => m.provider_id === provider.id).length}
+                  onDelete={requestProviderDelete}
+                  onDiscover={handleDiscover}
+                  isDiscovering={discoveringId === provider.id}
+                />
+              ),
+            )}
+          </div>
+        )}
+      </section>
 
       {/* ── Model Catalog Section ──────────────────────────────────────── */}
-      <ModelCatalog
-        models={models}
-        providers={providers}
-        onToggleEnabled={(modelId, isEnabled) =>
-          toggleModelEnabled.mutate({ modelId, isEnabled })
-        }
-      />
+      <section id="llm-model-catalog">
+        <ModelCatalog
+          models={models}
+          providers={providers}
+          onToggleEnabled={(modelId, isEnabled) =>
+            toggleModelEnabled.mutate({ modelId, isEnabled })
+          }
+        />
+      </section>
 
       {/* ── Model Assignments Section ──────────────────────────────────── */}
       <RoleAssignmentsSection

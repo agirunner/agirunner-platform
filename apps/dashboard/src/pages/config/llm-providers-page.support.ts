@@ -27,6 +27,18 @@ export interface AssignmentSetupValidation {
   isValid: boolean;
 }
 
+export interface AssignmentSurfaceSummaryCard {
+  label: string;
+  value: string;
+  detail: string;
+}
+
+export interface AssignmentSurfaceGuidance {
+  tone: 'success' | 'warning' | 'danger';
+  headline: string;
+  detail: string;
+}
+
 export function describeProviderTypeSetup(providerType: ProviderType): {
   title: string;
   detail: string;
@@ -131,6 +143,81 @@ export function validateAssignmentSetup(input: {
       `Choose a system default model or assign explicit models for: ${missingRoleNames.join(', ')}.`,
     ],
     isValid: false,
+  };
+}
+
+export function summarizeAssignmentSurface(input: {
+  enabledModelCount: number;
+  defaultModelConfigured: boolean;
+  roleCount: number;
+  explicitOverrideCount: number;
+  staleRoleCount: number;
+  blockingIssues: string[];
+}): {
+  cards: AssignmentSurfaceSummaryCard[];
+  guidance: AssignmentSurfaceGuidance;
+} {
+  const inheritedRoleCount = Math.max(0, input.roleCount - input.explicitOverrideCount);
+  const cards: AssignmentSurfaceSummaryCard[] = [
+    {
+      label: 'Default route',
+      value: input.defaultModelConfigured ? 'System default set' : 'No system default',
+      detail: input.defaultModelConfigured
+        ? 'Roles without overrides inherit the shared model route.'
+        : 'Pick a shared default or assign every role explicitly.',
+    },
+    {
+      label: 'Explicit overrides',
+      value: `${input.explicitOverrideCount}/${input.roleCount}`,
+      detail:
+        inheritedRoleCount > 0
+          ? `${inheritedRoleCount} role${inheritedRoleCount === 1 ? '' : 's'} inherit the shared default.`
+          : 'Every role has an explicit model assignment.',
+    },
+    {
+      label: 'Catalog posture',
+      value:
+        input.enabledModelCount > 0
+          ? `${input.enabledModelCount} enabled models`
+          : 'No enabled models',
+      detail:
+        input.staleRoleCount > 0
+          ? `${input.staleRoleCount} stale assignment${input.staleRoleCount === 1 ? '' : 's'} still need cleanup.`
+          : 'No stale assignment rows remain.',
+    },
+  ];
+
+  if (input.enabledModelCount === 0) {
+    return {
+      cards,
+      guidance: {
+        tone: 'danger',
+        headline: 'Assignments are blocked',
+        detail:
+          'Add or enable at least one model before configuring the system default or per-role overrides.',
+      },
+    };
+  }
+
+  if (input.blockingIssues.length > 0) {
+    return {
+      cards,
+      guidance: {
+        tone: 'warning',
+        headline: 'Assignment coverage needs attention',
+        detail: input.blockingIssues[0],
+      },
+    };
+  }
+
+  return {
+    cards,
+    guidance: {
+      tone: 'success',
+      headline: 'Assignments are ready to save',
+      detail:
+        'System default coverage and role overrides are aligned for the current model catalog.',
+    },
   };
 }
 
