@@ -23,6 +23,8 @@ export function PlaybookSummaryCard(props: {
   previewError: unknown;
   previewLoading: boolean;
   workflowOverrides: Record<string, DashboardRoleModelOverride>;
+  workflowConfigOverrideCount: number;
+  instructionConfigSummary: string;
   launchDefinition: ReturnType<typeof readLaunchDefinition>;
   isLoading: boolean;
 }): JSX.Element {
@@ -35,9 +37,7 @@ export function PlaybookSummaryCard(props: {
         <CardTitle>Launch Summary</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {props.isLoading ? (
-          <p className="text-sm text-muted">Loading playbook details...</p>
-        ) : null}
+        {props.isLoading ? <p className="text-sm text-muted">Loading playbook details...</p> : null}
         {!props.isLoading && !props.playbook ? (
           <p className="text-sm text-muted">
             Select a playbook to review its lifecycle and board shape.
@@ -53,6 +53,8 @@ export function PlaybookSummaryCard(props: {
             previewData={props.previewData}
             previewError={props.previewError}
             previewLoading={props.previewLoading}
+            workflowConfigOverrideCount={props.workflowConfigOverrideCount}
+            instructionConfigSummary={props.instructionConfigSummary}
           />
         ) : null}
       </CardContent>
@@ -71,6 +73,8 @@ function PlaybookSummaryBody(props: {
   };
   previewError: unknown;
   previewLoading: boolean;
+  workflowConfigOverrideCount: number;
+  instructionConfigSummary: string;
 }): JSX.Element {
   return (
     <>
@@ -85,9 +89,7 @@ function PlaybookSummaryBody(props: {
         <Badge variant="outline">{props.launchDefinition.boardColumns.length} columns</Badge>
         <Badge variant="outline">{props.launchDefinition.stageNames.length} stages</Badge>
         <Badge variant="outline">{props.launchDefinition.roles.length} roles</Badge>
-        {props.playbook.is_active === false ? (
-          <Badge variant="destructive">Archived</Badge>
-        ) : null}
+        {props.playbook.is_active === false ? <Badge variant="destructive">Archived</Badge> : null}
       </div>
       {props.playbook.is_active === false ? (
         <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950">
@@ -110,10 +112,7 @@ function PlaybookSummaryBody(props: {
         />
       ) : null}
       <SummaryDetail label="Outcome" value={props.playbook.outcome} />
-      <SummaryDetail
-        label="Project"
-        value={props.selectedProject?.name ?? 'Standalone workflow'}
-      />
+      <SummaryDetail label="Project" value={props.selectedProject?.name ?? 'Standalone workflow'} />
       <SummaryDetail
         label="Workflow override roles"
         value={
@@ -122,6 +121,17 @@ function PlaybookSummaryBody(props: {
             : 'No workflow-specific overrides configured.'
         }
       />
+      <SummaryDetail
+        label="Workflow config overrides"
+        value={
+          props.workflowConfigOverrideCount > 0
+            ? `${props.workflowConfigOverrideCount} workflow config override${
+                props.workflowConfigOverrideCount === 1 ? '' : 's'
+              } configured.`
+            : 'No workflow config overrides configured.'
+        }
+      />
+      <SummaryDetail label="Instruction layer policy" value={props.instructionConfigSummary} />
       <EffectiveModelPreview
         previewLoading={props.previewLoading}
         previewError={props.previewError}
@@ -145,8 +155,7 @@ function EffectiveModelPreview(props: {
         <p className="text-muted">Resolving effective models...</p>
       ) : props.previewError ? (
         <p className="text-red-600">Failed to resolve effective models.</p>
-      ) : props.previewData &&
-        Object.keys(props.previewData.effective_models).length > 0 ? (
+      ) : props.previewData && Object.keys(props.previewData.effective_models).length > 0 ? (
         <ResolvedModelList effectiveModels={props.previewData.effective_models} />
       ) : props.projectResolvedModels &&
         Object.keys(props.projectResolvedModels.effective_models).length > 0 ? (
@@ -179,9 +188,7 @@ function ResolvedModelList(props: {
                 {resolution.resolved.provider.name} / {resolution.resolved.model.modelId}
               </div>
               {resolution.resolved.model.endpointType ? (
-                <div className="text-muted">
-                  Endpoint: {resolution.resolved.model.endpointType}
-                </div>
+                <div className="text-muted">Endpoint: {resolution.resolved.model.endpointType}</div>
               ) : null}
             </div>
           ) : (

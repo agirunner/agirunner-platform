@@ -21,6 +21,9 @@ interface UsePlaybookLaunchPageEffectsInput {
   projectId: string;
   extraParameterDrafts: StructuredEntryDraft[];
   metadataDrafts: StructuredEntryDraft[];
+  workflowConfigDrafts: Record<string, string>;
+  extraWorkflowConfigDrafts: StructuredEntryDraft[];
+  suppressedInstructionLayers: string[];
   modelOverrideDrafts: RoleOverrideDraft[];
   workflowBudgetDraft: WorkflowBudgetDraft;
   autoFilledParameterDraftsRef: MutableRefObject<Record<string, string>>;
@@ -31,9 +34,7 @@ interface UsePlaybookLaunchPageEffectsInput {
   setError: Dispatch<SetStateAction<string | null>>;
 }
 
-export function usePlaybookLaunchPageEffects(
-  input: UsePlaybookLaunchPageEffectsInput,
-): void {
+export function usePlaybookLaunchPageEffects(input: UsePlaybookLaunchPageEffectsInput): void {
   useEffect(() => {
     if (!input.workflowName.trim() && input.selectedPlaybook) {
       input.setWorkflowName(`${input.selectedPlaybook.name} Run`);
@@ -90,7 +91,10 @@ export function usePlaybookLaunchPageEffects(
     input.setError(null);
   }, [
     input.extraParameterDrafts,
+    input.extraWorkflowConfigDrafts,
+    input.suppressedInstructionLayers,
     input.metadataDrafts,
+    input.workflowConfigDrafts,
     input.modelOverrideDrafts,
     input.projectId,
     input.selectedPlaybookId,

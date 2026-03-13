@@ -90,9 +90,27 @@ describe('playbook launch support', () => {
     const parameters = buildParametersFromDrafts(
       [
         { key: 'ticket_id', label: 'Ticket', description: '', inputType: 'string', options: [] },
-        { key: 'retry_count', label: 'Retry Count', description: '', inputType: 'number', options: [] },
-        { key: 'run_checks', label: 'Run Checks', description: '', inputType: 'boolean', options: [] },
-        { key: 'mode', label: 'Mode', description: '', inputType: 'select', options: ['plan', 'ship'] },
+        {
+          key: 'retry_count',
+          label: 'Retry Count',
+          description: '',
+          inputType: 'number',
+          options: [],
+        },
+        {
+          key: 'run_checks',
+          label: 'Run Checks',
+          description: '',
+          inputType: 'boolean',
+          options: [],
+        },
+        {
+          key: 'mode',
+          label: 'Mode',
+          description: '',
+          inputType: 'select',
+          options: ['plan', 'ship'],
+        },
         { key: 'context', label: 'Context', description: '', inputType: 'json', options: [] },
       ],
       {
@@ -143,7 +161,13 @@ describe('playbook launch support', () => {
       ['architect', 'developer'],
       [
         { id: '1', role: 'architect', provider: 'openai', model: 'gpt-5', reasoningEntries: [] },
-        { id: '2', role: 'qa', provider: 'anthropic', model: 'claude-sonnet', reasoningEntries: [] },
+        {
+          id: '2',
+          role: 'qa',
+          provider: 'anthropic',
+          model: 'claude-sonnet',
+          reasoningEntries: [],
+        },
       ],
     );
 
@@ -244,8 +268,7 @@ describe('playbook launch support', () => {
       }),
     ).toEqual({
       badgeLabel: 'Custom launch override',
-      detail:
-        'Project value from Demo → repository url is available if you want to restore it.',
+      detail: 'Project value from Demo → repository url is available if you want to restore it.',
       mappedValue: 'https://github.com/agisnap/agirunner-test-fixtures',
       canRestoreMappedValue: true,
     });
@@ -293,10 +316,7 @@ describe('playbook launch support', () => {
             { id: 'doing', label: 'Doing' },
           ],
         },
-        stages: [
-          { name: 'triage' },
-          { name: 'delivery' },
-        ],
+        stages: [{ name: 'triage' }, { name: 'delivery' }],
         parameters: [{ name: 'ticket_id', label: 'Ticket', type: 'string' }],
       },
     });
@@ -322,6 +342,9 @@ describe('playbook launch support', () => {
         extraParameterCount: 2,
         metadataCount: 1,
         overrideCount: 1,
+        configOverrideCount: 2,
+        instructionPolicySummary: 'Workflow launch will suppress platform, task.',
+        hasInstructionConfigOverride: true,
         workflowBudgetDraft: {
           tokenBudget: '120000',
           costCapUsd: '',
@@ -341,8 +364,9 @@ describe('playbook launch support', () => {
       },
       {
         label: 'Workflow policy',
-        value: '1 override',
-        detail: 'Workflow guardrails set for 120000 tokens.',
+        value: 'Custom policy',
+        detail:
+          'Workflow guardrails set for 120000 tokens. 2 runtime config overrides. Workflow launch will suppress platform, task.',
       },
     ]);
 
@@ -352,6 +376,8 @@ describe('playbook launch support', () => {
         extraParameterCount: 2,
         metadataCount: 1,
         overrideCount: 1,
+        configOverrideCount: 2,
+        instructionPolicySummary: 'Workflow launch will suppress platform, task.',
       }),
     ).toContainEqual({
       id: 'playbook-parameters',

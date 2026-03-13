@@ -68,6 +68,7 @@ export interface LaunchValidationResult {
     maxDurationMinutes?: string;
     additionalParameters?: string;
     metadata?: string;
+    workflowConfigOverrides?: string;
     workflowOverrides?: string;
   };
   blockingIssues: string[];
@@ -83,7 +84,9 @@ export interface LaunchParameterMappingState {
 
 let draftCounter = 0;
 
-export function readLaunchDefinition(playbook: DashboardPlaybookRecord | null): LaunchDefinitionSummary {
+export function readLaunchDefinition(
+  playbook: DashboardPlaybookRecord | null,
+): LaunchDefinitionSummary {
   const definition = asRecord(playbook?.definition);
   return {
     roles: readStringArray(definition.roles),
@@ -99,7 +102,8 @@ export function buildParametersFromDrafts(
 ): Record<string, unknown> | undefined {
   const parameters: Record<string, unknown> = {};
   for (const spec of specs) {
-    const rawValue = drafts[spec.key] ?? defaultParameterDraftValue(spec.defaultValue, spec.inputType);
+    const rawValue =
+      drafts[spec.key] ?? defaultParameterDraftValue(spec.defaultValue, spec.inputType);
     const normalized = parseDraftValue(rawValue, spec.inputType, `Parameter '${spec.label}'`);
     if (normalized !== undefined) {
       parameters[spec.key] = normalized;
@@ -180,10 +184,7 @@ export function buildModelOverrides(
     }
     const reasoningConfig =
       reasoningEntries.length > 0
-        ? buildStructuredObject(
-            reasoningEntries,
-            `Workflow model override '${role}' reasoning`,
-          )
+        ? buildStructuredObject(reasoningEntries, `Workflow model override '${role}' reasoning`)
         : undefined;
     overrides[role] = {
       provider,
@@ -334,10 +335,7 @@ export function buildWorkflowBudgetInput(
 ): DashboardWorkflowBudgetInput | undefined {
   const tokenBudget = parsePositiveInteger(draft.tokenBudget, 'Token budget');
   const costCapUsd = parsePositiveNumber(draft.costCapUsd, 'Cost cap');
-  const maxDurationMinutes = parsePositiveInteger(
-    draft.maxDurationMinutes,
-    'Maximum duration',
-  );
+  const maxDurationMinutes = parsePositiveInteger(draft.maxDurationMinutes, 'Maximum duration');
 
   const value: DashboardWorkflowBudgetInput = {};
   if (tokenBudget !== undefined) {
@@ -358,6 +356,7 @@ export function validateLaunchDraft(input: {
   workflowBudgetDraft: WorkflowBudgetDraft;
   additionalParametersError?: string;
   metadataError?: string;
+  workflowConfigOverridesError?: string;
   workflowOverrideError?: string;
 }): LaunchValidationResult {
   const fieldErrors: LaunchValidationResult['fieldErrors'] = {
@@ -382,12 +381,16 @@ export function validateLaunchDraft(input: {
     fieldErrors.metadata = input.metadataError;
   }
 
+  if (input.workflowConfigOverridesError) {
+    fieldErrors.workflowConfigOverrides = input.workflowConfigOverridesError;
+  }
+
   if (input.workflowOverrideError) {
     fieldErrors.workflowOverrides = input.workflowOverrideError;
   }
 
-  const blockingIssues = Object.values(fieldErrors).filter(
-    (issue): issue is string => Boolean(issue),
+  const blockingIssues = Object.values(fieldErrors).filter((issue): issue is string =>
+    Boolean(issue),
   );
 
   return {
@@ -420,8 +423,23 @@ export function summarizeLaunchOverviewCards(input: {
   extraParameterCount: number;
   metadataCount: number;
   overrideCount: number;
+  configOverrideCount: number;
+  instructionPolicySummary: string;
+  hasInstructionConfigOverride: boolean;
   workflowBudgetDraft: WorkflowBudgetDraft;
 }): LaunchOverviewCard[] {
+  const policyDetails: string[] = [];
+  if (input.configOverrideCount > 0) {
+    policyDetails.push(
+      `${input.configOverrideCount} runtime config override${
+        input.configOverrideCount === 1 ? '' : 's'
+      }.`,
+    );
+  }
+  if (input.hasInstructionConfigOverride) {
+    policyDetails.push(input.instructionPolicySummary);
+  }
+
   return [
     {
       label: 'Run identity',
@@ -441,10 +459,14 @@ export function summarizeLaunchOverviewCards(input: {
     {
       label: 'Workflow policy',
       value:
-        input.overrideCount > 0
-          ? `${input.overrideCount} override${input.overrideCount === 1 ? '' : 's'}`
+        input.overrideCount > 0 ||
+        input.configOverrideCount > 0 ||
+        input.hasInstructionConfigOverride
+          ? 'Custom policy'
           : 'Defaults only',
-      detail: summarizeWorkflowBudgetDraft(input.workflowBudgetDraft),
+      detail: `${summarizeWorkflowBudgetDraft(input.workflowBudgetDraft)}${
+        policyDetails.length > 0 ? ` ${policyDetails.join(' ')}` : ''
+      }`,
     },
   ];
 }
@@ -454,6 +476,8 @@ export function buildLaunchSectionLinks(input: {
   extraParameterCount: number;
   metadataCount: number;
   overrideCount: number;
+  configOverrideCount: number;
+  instructionPolicySummary: string;
 }): LaunchSectionLink[] {
   return [
     {
@@ -478,6 +502,21 @@ export function buildLaunchSectionLinks(input: {
         input.metadataCount > 0
           ? `${input.metadataCount} metadata entr${input.metadataCount === 1 ? 'y' : 'ies'}`
           : 'No extra metadata',
+    },
+    {
+      id: 'workflow-config-overrides',
+      label: 'Workflow config overrides',
+      detail:
+        input.configOverrideCount > 0
+          ? `${input.configOverrideCount} config override${
+              input.configOverrideCount === 1 ? '' : 's'
+            } configured`
+          : 'Using resolved playbook and project config',
+    },
+    {
+      id: 'instruction-layer-policy',
+      label: 'Instruction layer policy',
+      detail: input.instructionPolicySummary,
     },
     {
       id: 'workflow-budget-policy',
@@ -506,7 +545,10 @@ function readParameterSpecs(value: unknown): LaunchParameterSpec[] {
 
 function readParameterSpec(value: unknown): LaunchParameterSpec | null {
   const record = asRecord(value);
-  const key = readNonEmptyString(record.name) ?? readNonEmptyString(record.key) ?? readNonEmptyString(record.id);
+  const key =
+    readNonEmptyString(record.name) ??
+    readNonEmptyString(record.key) ??
+    readNonEmptyString(record.id);
   if (!key) {
     return null;
   }
@@ -597,7 +639,12 @@ function readOptions(value: unknown): string[] {
         return entry.trim();
       }
       const record = asRecord(entry);
-      return readNonEmptyString(record.value) ?? readNonEmptyString(record.id) ?? readNonEmptyString(record.label) ?? '';
+      return (
+        readNonEmptyString(record.value) ??
+        readNonEmptyString(record.id) ??
+        readNonEmptyString(record.label) ??
+        ''
+      );
     })
     .filter((entry) => entry.length > 0);
 }
@@ -634,7 +681,9 @@ function parseJsonValue(value: string, label: string): unknown {
   try {
     return JSON.parse(value);
   } catch (error) {
-    throw new Error(`${label} must be valid JSON: ${error instanceof Error ? error.message : 'parse error'}`);
+    throw new Error(
+      `${label} must be valid JSON: ${error instanceof Error ? error.message : 'parse error'}`,
+    );
   }
 }
 

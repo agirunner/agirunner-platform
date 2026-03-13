@@ -36,6 +36,12 @@ import {
 import { PlaybookSummaryCard } from './playbook-launch-summary.js';
 import { WorkflowBudgetEditor } from './playbook-launch-budget.js';
 import { RoleOverrideEditor } from './playbook-launch-overrides.js';
+import { WorkflowLaunchPolicySections } from './playbook-launch-workflow-policy.js';
+import type {
+  InstructionLayerName,
+  WorkflowConfigOverrideValidationResult,
+  WorkflowPolicyDefinition,
+} from './playbook-launch-workflow-policy.support.js';
 
 export function PlaybookLaunchForm(props: {
   selectedPlaybookId: string;
@@ -53,6 +59,15 @@ export function PlaybookLaunchForm(props: {
   extraParametersValidation: StructuredEntryValidationResult;
   metadataDrafts: StructuredEntryDraft[];
   metadataValidation: StructuredEntryValidationResult;
+  workflowPolicyDefinition: WorkflowPolicyDefinition;
+  workflowConfigDrafts: Record<string, string>;
+  workflowConfigValidation: WorkflowConfigOverrideValidationResult;
+  extraWorkflowConfigDrafts: StructuredEntryDraft[];
+  extraWorkflowConfigValidation: StructuredEntryValidationResult;
+  suppressedInstructionLayers: InstructionLayerName[];
+  hasInstructionConfigOverride: boolean;
+  configuredWorkflowConfigOverrideCount: number;
+  instructionConfigSummary: string;
   workflowBudgetDraft: WorkflowBudgetDraft;
   modelOverrideDrafts: RoleOverrideDraft[];
   roleOverrideValidation: RoleOverrideValidationResult;
@@ -61,6 +76,7 @@ export function PlaybookLaunchForm(props: {
   llmModels: DashboardLlmModelRecord[];
   hasLlmLoadError: boolean;
   workflowOverrides: Record<string, DashboardRoleModelOverride>;
+  workflowConfigBlockingError?: string;
   workflowOverrideBlockingError?: string;
   sectionLinks: LaunchSectionLink[];
   projectResolvedModels?: DashboardProjectResolvedModelsResponse;
@@ -82,6 +98,9 @@ export function PlaybookLaunchForm(props: {
   onParameterChange(key: string, value: string): void;
   onExtraParameterDraftsChange(drafts: StructuredEntryDraft[]): void;
   onMetadataDraftsChange(drafts: StructuredEntryDraft[]): void;
+  onWorkflowConfigChange(path: string, value: string): void;
+  onExtraWorkflowConfigDraftsChange(drafts: StructuredEntryDraft[]): void;
+  onSuppressedInstructionLayersChange(layers: InstructionLayerName[]): void;
   onWorkflowBudgetChange(draft: WorkflowBudgetDraft): void;
   onModelOverrideDraftsChange(drafts: RoleOverrideDraft[]): void;
   onLaunch(): void;
@@ -126,6 +145,10 @@ export function PlaybookLaunchForm(props: {
                   props.launchDefinition.parameterSpecs.length > 0 || hasAdditionalParameters
                 }
                 hasMetadataEntries={hasMetadataEntries}
+                hasWorkflowConfigOverrides={
+                  props.configuredWorkflowConfigOverrideCount > 0 ||
+                  props.hasInstructionConfigOverride
+                }
                 hasWorkflowOverrides={hasWorkflowOverrides}
                 budgetDraft={props.workflowBudgetDraft}
                 validation={props.launchValidation}
@@ -191,6 +214,18 @@ export function PlaybookLaunchForm(props: {
               />
             </StructuredSection>
 
+            <WorkflowLaunchPolicySections
+              workflowPolicyDefinition={props.workflowPolicyDefinition}
+              workflowConfigDrafts={props.workflowConfigDrafts}
+              workflowConfigValidation={props.workflowConfigValidation}
+              extraWorkflowConfigDrafts={props.extraWorkflowConfigDrafts}
+              extraWorkflowConfigValidation={props.extraWorkflowConfigValidation}
+              suppressedInstructionLayers={props.suppressedInstructionLayers}
+              onWorkflowConfigChange={props.onWorkflowConfigChange}
+              onExtraWorkflowConfigDraftsChange={props.onExtraWorkflowConfigDraftsChange}
+              onSuppressedInstructionLayersChange={props.onSuppressedInstructionLayersChange}
+            />
+
             <StructuredSection
               id="workflow-budget-policy"
               title="Workflow Budget Policy"
@@ -237,6 +272,9 @@ export function PlaybookLaunchForm(props: {
               ) : null}
             </StructuredSection>
 
+            {props.workflowConfigBlockingError ? (
+              <p className="text-sm text-red-600">{props.workflowConfigBlockingError}</p>
+            ) : null}
             {props.workflowOverrideBlockingError ? (
               <p className="text-sm text-red-600">{props.workflowOverrideBlockingError}</p>
             ) : null}
@@ -268,6 +306,8 @@ export function PlaybookLaunchForm(props: {
             previewError={props.previewError}
             previewLoading={props.previewLoading}
             workflowOverrides={props.workflowOverrides}
+            workflowConfigOverrideCount={props.configuredWorkflowConfigOverrideCount}
+            instructionConfigSummary={props.instructionConfigSummary}
             launchDefinition={props.launchDefinition}
             isLoading={props.isLoadingSummary}
           />
@@ -279,8 +319,8 @@ export function PlaybookLaunchForm(props: {
           <div className="space-y-1">
             <div className="text-sm font-medium">Launch stays within reach while you scroll</div>
             <p className="text-sm text-muted">
-              The launch bar remains pinned so long parameter, metadata, and override sections
-              stay usable on desktop and phone-sized layouts.
+              The launch bar remains pinned so long parameter, metadata, and override sections stay
+              usable on desktop and phone-sized layouts.
             </p>
           </div>
           <Button onClick={props.onLaunch} disabled={!props.canLaunch}>

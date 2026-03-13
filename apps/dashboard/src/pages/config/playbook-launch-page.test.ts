@@ -15,6 +15,8 @@ function readSource() {
     './playbook-launch-readiness.tsx',
     './playbook-launch-entries.tsx',
     './playbook-launch-overrides.tsx',
+    './playbook-launch-workflow-policy.tsx',
+    './playbook-launch-workflow-policy.support.ts',
     './playbook-launch-summary.tsx',
     './playbook-launch-identity.tsx',
   ]
@@ -25,7 +27,9 @@ function readSource() {
 describe('playbook launch model override source', () => {
   it('describes playbook launch in v2 workflow terms', () => {
     const source = readSource();
-    expect(source).toContain('Create a new workflow run from a playbook with structured run inputs, board-aware context,');
+    expect(source).toContain(
+      'Create a new workflow run from a playbook with structured run inputs, board-aware context,',
+    );
   });
 
   it('builds structured launch controls instead of raw JSON textareas', () => {
@@ -43,18 +47,31 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('LaunchOutlineCard');
     expect(source).toContain('launchablePlaybooks');
     expect(source).toContain('Archived revision selected - restore first');
-    expect(source).toContain('This playbook revision is archived. Restore it from the playbook detail page');
+    expect(source).toContain(
+      'This playbook revision is archived. Restore it from the playbook detail page',
+    );
     expect(source).toContain('Playbook Parameters');
     expect(source).toContain('Project autofill available');
     expect(source).toContain('Using project value');
     expect(source).toContain('Custom launch override');
     expect(source).toContain('Use project value');
     expect(source).toContain('Metadata Entries');
+    expect(source).toContain('Workflow Config Overrides');
+    expect(source).toContain('Additional Config Override Paths');
+    expect(source).toContain('Clear override');
+    expect(source).toContain('tools.web_search_provider');
+    expect(source).toContain('Instruction Layer Policy');
+    expect(source).toContain('Platform instructions');
+    expect(source).toContain('Project instructions');
+    expect(source).toContain('Restore playbook defaults');
+    expect(source).toContain('ToggleCard');
     expect(source).toContain('Workflow Budget Policy');
     expect(source).toContain('WorkflowBudgetEditor');
     expect(source).toContain('Open-ended workflow');
     expect(source).toContain('Guarded workflow');
-    expect(source).toContain('No workflow budget guardrails. The workflow will launch with open-ended defaults');
+    expect(source).toContain(
+      'No workflow budget guardrails. The workflow will launch with open-ended defaults',
+    );
     expect(source).toContain('Guardrail inputs');
     expect(source).toContain('Clear guardrails');
     expect(source).toContain('Token Budget');
@@ -83,10 +100,14 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('buildParametersFromDrafts');
     expect(source).toContain('readMappedProjectParameterDraft');
     expect(source).toContain("buildStructuredObject(input.metadataDrafts, 'Metadata')");
+    expect(source).toContain('buildWorkflowConfigOverrides({');
+    expect(source).toContain('buildInstructionConfig({');
     expect(source).toContain('buildModelOverrides(input.modelOverrideDrafts)');
     expect(source).toContain('buildWorkflowBudgetInput(workflowBudgetDraft)');
     expect(source).toContain('props.validation.blockingIssues');
     expect(source).toContain('dashboardApi.createWorkflow({');
+    expect(source).toContain('config_overrides: buildWorkflowConfigOverrides({');
+    expect(source).toContain('instruction_config: buildInstructionConfig({');
     expect(source).toContain('model_overrides: buildModelOverrides(input.modelOverrideDrafts)');
     expect(source).toContain('budget: input.workflowBudget');
     expect(source).toContain('Resolved Effective Models');

@@ -1,11 +1,7 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Rocket } from 'lucide-react';
 import { dashboardApi } from '../../lib/api.js';
-import { Badge } from '../../components/ui/badge.js';
-import { Button } from '../../components/ui/button.js';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import {
   buildLaunchSectionLinks,
   buildWorkflowBudgetInput,
@@ -25,7 +21,19 @@ import { LaunchOverviewCards } from './playbook-launch-page.sections.js';
 import { usePlaybookLaunchPageEffects } from './playbook-launch-page.effects.js';
 import { usePlaybookLaunchMutation } from './playbook-launch-page.mutation.js';
 import { PlaybookLaunchForm } from './playbook-launch-form.js';
-import { countConfiguredWorkflowOverrides, readWorkflowOverrides } from './playbook-launch-overrides.js';
+import {
+  countConfiguredWorkflowOverrides,
+  readWorkflowOverrides,
+} from './playbook-launch-overrides.js';
+import {
+  countConfiguredWorkflowConfigOverrides,
+  haveSameInstructionLayers,
+  readWorkflowPolicyDefinition,
+  summarizeInstructionLayerSelection,
+  validateWorkflowConfigEntryDrafts,
+  validateWorkflowConfigOverrideDrafts,
+  type InstructionLayerName,
+} from './playbook-launch-workflow-policy.support.js';
 export function PlaybookLaunchPage(): JSX.Element {
   const navigate = useNavigate();
   const params = useParams<{ id: string }>();
@@ -35,9 +43,16 @@ export function PlaybookLaunchPage(): JSX.Element {
   const [parameterDrafts, setParameterDrafts] = useState<Record<string, string>>({});
   const [extraParameterDrafts, setExtraParameterDrafts] = useState<StructuredEntryDraft[]>([]);
   const [metadataDrafts, setMetadataDrafts] = useState<StructuredEntryDraft[]>([]);
+  const [workflowConfigDrafts, setWorkflowConfigDrafts] = useState<Record<string, string>>({});
+  const [extraWorkflowConfigDrafts, setExtraWorkflowConfigDrafts] = useState<
+    StructuredEntryDraft[]
+  >([]);
+  const [suppressedInstructionLayers, setSuppressedInstructionLayers] = useState<
+    InstructionLayerName[]
+  >([]);
   const [modelOverrideDrafts, setModelOverrideDrafts] = useState<RoleOverrideDraft[]>([]);
-  const [workflowBudgetDraft, setWorkflowBudgetDraft] = useState<WorkflowBudgetDraft>(
-    () => createWorkflowBudgetDraft(),
+  const [workflowBudgetDraft, setWorkflowBudgetDraft] = useState<WorkflowBudgetDraft>(() =>
+    createWorkflowBudgetDraft(),
   );
   const [error, setError] = useState<string | null>(null);
   const autoFilledParameterDraftsRef = useRef<Record<string, string>>({});
@@ -71,9 +86,54 @@ export function PlaybookLaunchPage(): JSX.Element {
     () => readLaunchDefinition(selectedPlaybook),
     [selectedPlaybook],
   );
+  const workflowPolicyDefinition = useMemo(
+    () => readWorkflowPolicyDefinition(selectedPlaybook),
+    [selectedPlaybook],
+  );
   const configuredWorkflowOverrideCount = useMemo(
     () => countConfiguredWorkflowOverrides(modelOverrideDrafts),
     [modelOverrideDrafts],
+  );
+  const workflowConfigValidation = useMemo(
+    () =>
+      validateWorkflowConfigOverrideDrafts(
+        workflowPolicyDefinition.configOverrideSpecs,
+        workflowConfigDrafts,
+      ),
+    [workflowConfigDrafts, workflowPolicyDefinition.configOverrideSpecs],
+  );
+  const extraWorkflowConfigValidation = useMemo(
+    () =>
+      validateWorkflowConfigEntryDrafts(
+        extraWorkflowConfigDrafts,
+        workflowPolicyDefinition.configOverrideSpecs,
+      ),
+    [extraWorkflowConfigDrafts, workflowPolicyDefinition.configOverrideSpecs],
+  );
+  const configuredWorkflowConfigOverrideCount = useMemo(
+    () =>
+      countConfiguredWorkflowConfigOverrides({
+        specs: workflowPolicyDefinition.configOverrideSpecs,
+        draftValues: workflowConfigDrafts,
+        extraDrafts: extraWorkflowConfigDrafts,
+      }),
+    [extraWorkflowConfigDrafts, workflowConfigDrafts, workflowPolicyDefinition.configOverrideSpecs],
+  );
+  const hasInstructionConfigOverride = useMemo(
+    () =>
+      !haveSameInstructionLayers(
+        suppressedInstructionLayers,
+        workflowPolicyDefinition.defaultSuppressedLayers,
+      ),
+    [suppressedInstructionLayers, workflowPolicyDefinition.defaultSuppressedLayers],
+  );
+  const instructionConfigSummary = useMemo(
+    () =>
+      summarizeInstructionLayerSelection({
+        suppressedLayers: suppressedInstructionLayers,
+        defaultSuppressedLayers: workflowPolicyDefinition.defaultSuppressedLayers,
+      }),
+    [suppressedInstructionLayers, workflowPolicyDefinition.defaultSuppressedLayers],
   );
   const extraParametersValidation = useMemo(
     () => validateStructuredEntries(extraParameterDrafts),
@@ -93,6 +153,8 @@ export function PlaybookLaunchPage(): JSX.Element {
   );
   const workflowOverrideBlockingError =
     roleOverrideValidation.blockingIssues[0] ?? workflowOverrides.error;
+  const workflowConfigBlockingError =
+    workflowConfigValidation.blockingIssues[0] ?? extraWorkflowConfigValidation.blockingIssues[0];
   const projectResolvedModelsQuery = useQuery({
     queryKey: ['project-models', projectId],
     queryFn: () => dashboardApi.getResolvedProjectModels(projectId),
@@ -126,6 +188,7 @@ export function PlaybookLaunchPage(): JSX.Element {
         workflowBudgetDraft,
         additionalParametersError: extraParametersValidation.blockingIssues[0],
         metadataError: metadataValidation.blockingIssues[0],
+        workflowConfigOverridesError: workflowConfigBlockingError,
         workflowOverrideError: workflowOverrideBlockingError,
       }),
     [
@@ -134,6 +197,7 @@ export function PlaybookLaunchPage(): JSX.Element {
       workflowBudgetDraft,
       extraParametersValidation.blockingIssues,
       metadataValidation.blockingIssues,
+      workflowConfigBlockingError,
       workflowOverrideBlockingError,
     ],
   );
@@ -156,6 +220,9 @@ export function PlaybookLaunchPage(): JSX.Element {
         extraParameterCount: extraParameterDrafts.length,
         metadataCount: metadataDrafts.length,
         overrideCount: configuredWorkflowOverrideCount,
+        configOverrideCount: configuredWorkflowConfigOverrideCount,
+        instructionPolicySummary: instructionConfigSummary,
+        hasInstructionConfigOverride,
         workflowBudgetDraft,
       }),
     [
@@ -165,6 +232,9 @@ export function PlaybookLaunchPage(): JSX.Element {
       extraParameterDrafts.length,
       metadataDrafts.length,
       configuredWorkflowOverrideCount,
+      configuredWorkflowConfigOverrideCount,
+      instructionConfigSummary,
+      hasInstructionConfigOverride,
       workflowBudgetDraft,
     ],
   );
@@ -175,14 +245,21 @@ export function PlaybookLaunchPage(): JSX.Element {
         extraParameterCount: extraParameterDrafts.length,
         metadataCount: metadataDrafts.length,
         overrideCount: configuredWorkflowOverrideCount,
+        configOverrideCount: configuredWorkflowConfigOverrideCount,
+        instructionPolicySummary: instructionConfigSummary,
       }),
     [
       launchDefinition,
       extraParameterDrafts.length,
       metadataDrafts.length,
       configuredWorkflowOverrideCount,
+      configuredWorkflowConfigOverrideCount,
+      instructionConfigSummary,
     ],
   );
+  useEffect(() => {
+    setSuppressedInstructionLayers(workflowPolicyDefinition.defaultSuppressedLayers);
+  }, [selectedPlaybookId, workflowPolicyDefinition.defaultSuppressedLayers.join(',')]);
   usePlaybookLaunchPageEffects({
     paramsId: params.id,
     selectedPlaybookId,
@@ -193,6 +270,9 @@ export function PlaybookLaunchPage(): JSX.Element {
     projectId,
     extraParameterDrafts,
     metadataDrafts,
+    workflowConfigDrafts,
+    extraWorkflowConfigDrafts,
+    suppressedInstructionLayers,
     modelOverrideDrafts,
     workflowBudgetDraft,
     autoFilledParameterDraftsRef,
@@ -211,6 +291,10 @@ export function PlaybookLaunchPage(): JSX.Element {
     parameterDrafts,
     extraParameterDrafts,
     metadataDrafts,
+    workflowPolicyDefinition,
+    workflowConfigDrafts,
+    extraWorkflowConfigDrafts,
+    suppressedInstructionLayers,
     modelOverrideDrafts,
     workflowBudget,
     setError,
@@ -242,6 +326,15 @@ export function PlaybookLaunchPage(): JSX.Element {
         extraParametersValidation={extraParametersValidation}
         metadataDrafts={metadataDrafts}
         metadataValidation={metadataValidation}
+        workflowPolicyDefinition={workflowPolicyDefinition}
+        workflowConfigDrafts={workflowConfigDrafts}
+        workflowConfigValidation={workflowConfigValidation}
+        extraWorkflowConfigDrafts={extraWorkflowConfigDrafts}
+        extraWorkflowConfigValidation={extraWorkflowConfigValidation}
+        suppressedInstructionLayers={suppressedInstructionLayers}
+        hasInstructionConfigOverride={hasInstructionConfigOverride}
+        configuredWorkflowConfigOverrideCount={configuredWorkflowConfigOverrideCount}
+        instructionConfigSummary={instructionConfigSummary}
         workflowBudgetDraft={workflowBudgetDraft}
         modelOverrideDrafts={modelOverrideDrafts}
         roleOverrideValidation={roleOverrideValidation}
@@ -250,6 +343,7 @@ export function PlaybookLaunchPage(): JSX.Element {
         llmModels={llmModelsQuery.data ?? []}
         hasLlmLoadError={Boolean(llmProvidersQuery.error || llmModelsQuery.error)}
         workflowOverrides={workflowOverrides.value ?? {}}
+        workflowConfigBlockingError={workflowConfigBlockingError}
         workflowOverrideBlockingError={workflowOverrideBlockingError}
         sectionLinks={sectionLinks}
         projectResolvedModels={projectResolvedModelsQuery.data}
@@ -280,6 +374,18 @@ export function PlaybookLaunchPage(): JSX.Element {
         onMetadataDraftsChange={(drafts) => {
           setError(null);
           setMetadataDrafts(drafts);
+        }}
+        onWorkflowConfigChange={(path, value) => {
+          setError(null);
+          setWorkflowConfigDrafts((current) => ({ ...current, [path]: value }));
+        }}
+        onExtraWorkflowConfigDraftsChange={(drafts) => {
+          setError(null);
+          setExtraWorkflowConfigDrafts(drafts);
+        }}
+        onSuppressedInstructionLayersChange={(layers) => {
+          setError(null);
+          setSuppressedInstructionLayers(layers);
         }}
         onWorkflowBudgetChange={(draft) => {
           setError(null);

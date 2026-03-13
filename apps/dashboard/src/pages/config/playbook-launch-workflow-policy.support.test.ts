@@ -1,0 +1,250 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  buildInstructionConfig,
+  buildWorkflowConfigOverrides,
+  countConfiguredWorkflowConfigOverrides,
+  haveSameInstructionLayers,
+  readWorkflowPolicyDefinition,
+  summarizeInstructionLayerSelection,
+  toggleInstructionLayer,
+  validateWorkflowConfigEntryDrafts,
+  validateWorkflowConfigOverrideDrafts,
+} from './playbook-launch-workflow-policy.support.js';
+
+describe('playbook launch workflow policy support', () => {
+  it('reads structured workflow policy defaults and config override specs from the playbook', () => {
+    const definition = readWorkflowPolicyDefinition({
+      id: 'pb-1',
+      name: 'Ship',
+      slug: 'ship',
+      outcome: 'Ship software',
+      lifecycle: 'standard',
+      version: 2,
+      definition: {
+        config: {
+          tools: {
+            web_search_provider: 'duckduckgo',
+          },
+          runtime: {
+            timeout_seconds: 45,
+          },
+        },
+        config_policy: {
+          constraints: {
+            'tools.web_search_provider': {
+              enum: ['duckduckgo', 'serper', 'tavily'],
+            },
+            'runtime.timeout_seconds': {
+              min: 10,
+              max: 300,
+            },
+          },
+        },
+        default_instruction_config: {
+          suppress_layers: ['project', 'task'],
+        },
+      },
+    });
+
+    expect(definition.configOverrideSpecs).toEqual([
+      {
+        path: 'runtime.timeout_seconds',
+        label: 'Timeout Seconds',
+        description:
+          'Override runtime.timeout_seconds for this workflow without changing the playbook revision. Playbook default: 45. Constraint: minimum 10, maximum 300.',
+        valueType: 'number',
+        options: [],
+        defaultValue: 45,
+        min: 10,
+        max: 300,
+      },
+      {
+        path: 'tools.web_search_provider',
+        label: 'Web Search Provider',
+        description:
+          'Override tools.web_search_provider for this workflow without changing the playbook revision. Playbook default: duckduckgo. Allowed values: duckduckgo, serper, tavily.',
+        valueType: 'string',
+        options: ['duckduckgo', 'serper', 'tavily'],
+        defaultValue: 'duckduckgo',
+      },
+    ]);
+    expect(definition.defaultSuppressedLayers).toEqual(['project', 'task']);
+  });
+
+  it('builds nested config overrides from structured fields and dotted-path entries', () => {
+    const overrides = buildWorkflowConfigOverrides({
+      specs: [
+        {
+          path: 'tools.web_search_provider',
+          label: 'Web Search Provider',
+          description: '',
+          valueType: 'string',
+          options: ['duckduckgo', 'serper'],
+        },
+      ],
+      draftValues: {
+        'tools.web_search_provider': 'serper',
+      },
+      extraDrafts: [
+        {
+          id: 'entry-1',
+          key: 'runtime.timeout_seconds',
+          valueType: 'number',
+          value: '120',
+        },
+        {
+          id: 'entry-2',
+          key: 'model_override.reasoning_config',
+          valueType: 'json',
+          value: '{"effort":"high"}',
+        },
+      ],
+    });
+
+    expect(overrides).toEqual({
+      tools: {
+        web_search_provider: 'serper',
+      },
+      runtime: {
+        timeout_seconds: 120,
+      },
+      model_override: {
+        reasoning_config: {
+          effort: 'high',
+        },
+      },
+    });
+  });
+
+  it('validates structured config override fields against allowed values and bounds', () => {
+    const validation = validateWorkflowConfigOverrideDrafts(
+      [
+        {
+          path: 'tools.web_search_provider',
+          label: 'Web Search Provider',
+          description: '',
+          valueType: 'string',
+          options: ['duckduckgo', 'serper'],
+        },
+        {
+          path: 'runtime.timeout_seconds',
+          label: 'Timeout Seconds',
+          description: '',
+          valueType: 'number',
+          options: [],
+          min: 10,
+          max: 300,
+        },
+      ],
+      {
+        'tools.web_search_provider': 'bing',
+        'runtime.timeout_seconds': '5',
+      },
+    );
+
+    expect(validation.fieldErrors).toEqual({
+      'tools.web_search_provider': 'Choose one of the allowed values for Web Search Provider.',
+      'runtime.timeout_seconds': 'Timeout Seconds must be at least 10.',
+    });
+    expect(validation.isValid).toBe(false);
+  });
+
+  it('validates additional config entries and reserves known config paths for dedicated controls', () => {
+    const validation = validateWorkflowConfigEntryDrafts(
+      [
+        {
+          id: 'entry-1',
+          key: 'tools.web_search_provider',
+          valueType: 'string',
+          value: 'serper',
+        },
+        {
+          id: 'entry-2',
+          key: 'bad path',
+          valueType: 'json',
+          value: '{',
+        },
+      ],
+      [
+        {
+          path: 'tools.web_search_provider',
+          label: 'Web Search Provider',
+          description: '',
+          valueType: 'string',
+          options: ['duckduckgo', 'serper'],
+        },
+      ],
+    );
+
+    expect(validation.entryErrors).toEqual([
+      {
+        key: 'Use the dedicated structured field for this config path.',
+      },
+      {
+        key: 'Use dot-separated path segments with letters, numbers, or underscores.',
+        value: 'Enter valid JSON before launch.',
+      },
+    ]);
+    expect(validation.isValid).toBe(false);
+  });
+
+  it('tracks custom instruction suppression and omits payloads when the selection matches defaults', () => {
+    expect(
+      buildInstructionConfig({
+        suppressedLayers: ['project', 'task'],
+        defaultSuppressedLayers: ['project', 'task'],
+      }),
+    ).toBeUndefined();
+    expect(
+      buildInstructionConfig({
+        suppressedLayers: ['platform', 'task'],
+        defaultSuppressedLayers: ['project', 'task'],
+      }),
+    ).toEqual({
+      suppress_layers: ['platform', 'task'],
+    });
+    expect(
+      summarizeInstructionLayerSelection({
+        suppressedLayers: ['platform', 'task'],
+        defaultSuppressedLayers: ['project', 'task'],
+      }),
+    ).toBe('Workflow launch will suppress platform, task.');
+    expect(haveSameInstructionLayers(['project', 'task'], ['project', 'task'])).toBe(true);
+  });
+
+  it('counts configured overrides and toggles instruction layers with stable ordering', () => {
+    expect(
+      countConfiguredWorkflowConfigOverrides({
+        specs: [
+          {
+            path: 'runtime.timeout_seconds',
+            label: 'Timeout Seconds',
+            description: '',
+            valueType: 'number',
+            options: [],
+          },
+        ],
+        draftValues: {
+          'runtime.timeout_seconds': '120',
+        },
+        extraDrafts: [
+          {
+            id: 'entry-1',
+            key: 'tools.web_search_provider',
+            valueType: 'string',
+            value: 'serper',
+          },
+          {
+            id: 'entry-2',
+            key: '',
+            valueType: 'string',
+            value: '',
+          },
+        ],
+      }),
+    ).toBe(2);
+    expect(toggleInstructionLayer(['task'], 'platform', true)).toEqual(['platform', 'task']);
+    expect(toggleInstructionLayer(['platform', 'task'], 'platform', false)).toEqual(['task']);
+  });
+});

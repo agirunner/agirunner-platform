@@ -1147,7 +1147,9 @@ export interface DashboardApi {
   }): Promise<DashboardPlatformInstructionRecord>;
   clearPlatformInstructions(): Promise<DashboardPlatformInstructionRecord>;
   listPlatformInstructionVersions(): Promise<DashboardPlatformInstructionVersionRecord[]>;
-  getPlatformInstructionVersion(version: number): Promise<DashboardPlatformInstructionVersionRecord>;
+  getPlatformInstructionVersion(
+    version: number,
+  ): Promise<DashboardPlatformInstructionVersionRecord>;
   getProjectSpec(projectId: string): Promise<DashboardProjectSpecRecord>;
   updateProjectSpec(
     projectId: string,
@@ -1302,6 +1304,8 @@ export interface DashboardApi {
     project_id?: string;
     parameters?: Record<string, unknown>;
     metadata?: Record<string, unknown>;
+    config_overrides?: Record<string, unknown>;
+    instruction_config?: Record<string, unknown>;
     model_overrides?: Record<string, DashboardRoleModelOverride>;
     budget?: DashboardWorkflowBudgetInput;
   }): Promise<DashboardWorkflowRecord>;
@@ -1363,7 +1367,10 @@ export interface DashboardApi {
     taskId: string,
     payload: DashboardTaskArtifactUploadInput,
   ): Promise<DashboardTaskArtifactRecord>;
-  readTaskArtifactContent(taskId: string, artifactId: string): Promise<DashboardTaskArtifactContent>;
+  readTaskArtifactContent(
+    taskId: string,
+    artifactId: string,
+  ): Promise<DashboardTaskArtifactContent>;
   downloadTaskArtifact(taskId: string, artifactId: string): Promise<DashboardTaskArtifactDownload>;
   deleteTaskArtifact(taskId: string, artifactId: string): Promise<void>;
   listWorkers(): Promise<unknown>;
@@ -1852,10 +1859,13 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       ),
     updateWebhookWorkItemTrigger: (triggerId, payload) =>
       withRefresh(() =>
-        requestData<DashboardWebhookWorkItemTriggerRecord>(`/api/v1/work-item-triggers/${triggerId}`, {
-          method: 'PATCH',
-          body: payload as Record<string, unknown>,
-        }),
+        requestData<DashboardWebhookWorkItemTriggerRecord>(
+          `/api/v1/work-item-triggers/${triggerId}`,
+          {
+            method: 'PATCH',
+            body: payload as Record<string, unknown>,
+          },
+        ),
       ),
     deleteWebhookWorkItemTrigger: (triggerId) =>
       withRefresh(() =>
@@ -2016,7 +2026,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           `/api/v1/workflows/${workflowId}/documents`,
           {
             method: 'POST',
-            body: payload as unknown as Record<string, unknown>,
+            body: buildRequestBodyWithRequestId(payload as unknown as Record<string, unknown>),
           },
         ),
       ),
@@ -2026,14 +2036,14 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           `/api/v1/workflows/${workflowId}/documents/${encodeURIComponent(logicalName)}`,
           {
             method: 'PATCH',
-            body: payload as Record<string, unknown>,
+            body: buildRequestBodyWithRequestId(payload as Record<string, unknown>),
           },
         ),
       ),
     deleteWorkflowDocument: (workflowId, logicalName) =>
       withRefresh(() =>
         requestJson<Record<string, never>>(
-          `/api/v1/workflows/${workflowId}/documents/${encodeURIComponent(logicalName)}`,
+          `/api/v1/workflows/${workflowId}/documents/${encodeURIComponent(logicalName)}${buildQueryString({ request_id: createRequestId() })}`,
           {
             method: 'DELETE',
           },
@@ -2312,15 +2322,14 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           return [];
         }
 
-        const [workflows, tasks, workers, agents, projects, playbooks] =
-          await Promise.allSettled([
-            client.listWorkflows({ per_page: 50 }),
-            client.listTasks({ per_page: 50 }),
-            client.listWorkers(),
-            client.listAgents(),
-            client.listProjects({ per_page: 50 }),
-            client.listPlaybooks(),
-          ]);
+        const [workflows, tasks, workers, agents, projects, playbooks] = await Promise.allSettled([
+          client.listWorkflows({ per_page: 50 }),
+          client.listTasks({ per_page: 50 }),
+          client.listWorkers(),
+          client.listAgents(),
+          client.listProjects({ per_page: 50 }),
+          client.listPlaybooks(),
+        ]);
 
         return buildSearchResults(normalizedQuery, {
           workflows: extractListResult(workflows),
@@ -2554,6 +2563,24 @@ function buildQueryString(filters?: Record<string, string>): string {
 
   const rendered = params.toString();
   return rendered.length > 0 ? `?${rendered}` : '';
+}
+
+function buildRequestBodyWithRequestId(body: Record<string, unknown>): Record<string, unknown> {
+  const requestId =
+    typeof body.request_id === 'string' && body.request_id.trim().length > 0
+      ? body.request_id
+      : createRequestId();
+  return {
+    ...body,
+    request_id: requestId,
+  };
+}
+
+function createRequestId(): string {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+  return `req-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 export function buildSearchResults(

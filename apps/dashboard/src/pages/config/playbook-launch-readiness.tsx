@@ -1,8 +1,5 @@
 import { Badge } from '../../components/ui/badge.js';
-import type {
-  DashboardPlaybookRecord,
-  DashboardProjectRecord,
-} from '../../lib/api.js';
+import type { DashboardPlaybookRecord, DashboardProjectRecord } from '../../lib/api.js';
 import {
   summarizeWorkflowBudgetDraft,
   type LaunchValidationResult,
@@ -15,6 +12,7 @@ export function LaunchReadinessPanel(props: {
   workflowName: string;
   hasStructuredParameters: boolean;
   hasMetadataEntries: boolean;
+  hasWorkflowConfigOverrides: boolean;
   hasWorkflowOverrides: boolean;
   budgetDraft: WorkflowBudgetDraft;
   validation: LaunchValidationResult;
@@ -25,10 +23,7 @@ export function LaunchReadinessPanel(props: {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {checks.map((check) => (
-        <div
-          key={check.label}
-          className="rounded-md border border-border bg-muted/20 p-3 text-sm"
-        >
+        <div key={check.label} className="rounded-md border border-border bg-muted/20 p-3 text-sm">
           <div className="flex items-center justify-between gap-2">
             <div className="font-medium">{check.label}</div>
             <Badge variant={check.isReady ? 'secondary' : 'destructive'}>
@@ -67,6 +62,7 @@ function buildReadinessChecks(
     workflowName: string;
     hasStructuredParameters: boolean;
     hasMetadataEntries: boolean;
+    hasWorkflowConfigOverrides: boolean;
     hasWorkflowOverrides: boolean;
     validation: LaunchValidationResult;
   },
@@ -78,7 +74,7 @@ function buildReadinessChecks(
       detail:
         props.selectedPlaybook?.is_active === false
           ? `${props.selectedPlaybook.name} is archived and must be restored before launch.`
-          : props.selectedPlaybook?.name ?? 'Choose the playbook to launch.',
+          : (props.selectedPlaybook?.name ?? 'Choose the playbook to launch.'),
       isReady: Boolean(props.selectedPlaybook) && props.selectedPlaybook?.is_active !== false,
     },
     {
@@ -101,16 +97,21 @@ function buildReadinessChecks(
       isReady: !props.validation.fieldErrors.additionalParameters,
     },
     {
-      label: 'Metadata and model policy',
+      label: 'Metadata and workflow policy',
       detail: props.validation.fieldErrors.metadata
         ? props.validation.fieldErrors.metadata
-        : props.validation.fieldErrors.workflowOverrides
-          ? props.validation.fieldErrors.workflowOverrides
-          : props.hasMetadataEntries || props.hasWorkflowOverrides
-            ? 'Metadata or workflow model policy is configured.'
-            : 'Using existing defaults and no workflow-specific overrides.',
+        : props.validation.fieldErrors.workflowConfigOverrides
+          ? props.validation.fieldErrors.workflowConfigOverrides
+          : props.validation.fieldErrors.workflowOverrides
+            ? props.validation.fieldErrors.workflowOverrides
+            : props.hasMetadataEntries ||
+                props.hasWorkflowConfigOverrides ||
+                props.hasWorkflowOverrides
+              ? 'Metadata, workflow config, instruction policy, or model overrides are configured.'
+              : 'Using existing metadata, config, instruction, and model defaults.',
       isReady:
         !props.validation.fieldErrors.metadata &&
+        !props.validation.fieldErrors.workflowConfigOverrides &&
         !props.validation.fieldErrors.workflowOverrides,
     },
     {
