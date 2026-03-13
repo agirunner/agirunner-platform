@@ -1,15 +1,12 @@
 import type { DashboardWorkflowRecord, LogStatsResponse } from '../../lib/api.js';
-import {
-  formatCost,
-  formatDuration,
-  shortId,
-} from '../../components/execution-inspector-support.js';
+import { formatCost, formatDuration, shortId } from '../../components/execution-inspector-support.js';
 import { readWorkflowRunSummary } from '../workflow-detail-support.js';
 import type { WorkflowInspectorFocusWorkItem } from './workflow-inspector-support.js';
 import {
   buildWorkflowInspectorMemoryPacket,
   type WorkflowInspectorMemoryPacket,
 } from './workflow-inspector-memory-packet.js';
+import { buildWorkItemBreakdownEntries } from './workflow-inspector-work-item-breakdown.js';
 
 export interface WorkflowInspectorSpendPacket {
   label: string;
@@ -59,11 +56,7 @@ function buildSpendPackets(input: {
   return [
     buildStageSpendPacket(input.workflowId, input.workflow),
     buildTaskSpendPacket(input.workflowId, input.taskCostStats),
-    buildActivationSpendPacket(
-      input.workflowId,
-      input.workflow,
-      input.activationCostStats,
-    ),
+    buildActivationSpendPacket(input.workflowId, input.workflow, input.activationCostStats),
   ];
 }
 
@@ -88,6 +81,11 @@ function buildSpendBreakdowns(input: {
       title: 'Activation breakdown',
       description: 'Top orchestrator activation spend from the current inspector slice.',
       entries: buildActivationBreakdownEntries(input.workflowId, input.activationCostStats),
+    },
+    {
+      title: 'Work item breakdown',
+      description: 'Top workflow work-item spend from the current run summary.',
+      entries: buildWorkItemBreakdownEntries(input.workflowId, input.workflow),
     },
   ];
 }

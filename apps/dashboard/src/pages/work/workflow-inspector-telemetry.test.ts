@@ -11,6 +11,24 @@ describe('workflow inspector telemetry', () => {
         name: 'Release board',
         state: 'active',
         created_at: '2026-03-10T00:00:00Z',
+        work_items: [
+          {
+            id: 'work-item-1',
+            workflow_id: 'workflow-1',
+            stage_name: 'review',
+            title: 'Review release notes',
+            column_id: 'review',
+            priority: 'high',
+          },
+          {
+            id: 'work-item-2',
+            workflow_id: 'workflow-1',
+            stage_name: 'qa',
+            title: 'QA verification',
+            column_id: 'qa',
+            priority: 'medium',
+          },
+        ],
         metadata: {
           run_summary: {
             orchestrator_analytics: {
@@ -19,6 +37,10 @@ describe('workflow inspector telemetry', () => {
               cost_by_stage: [
                 { stage_name: 'review', total_cost_usd: 4.5, task_count: 3 },
                 { stage_name: 'qa', total_cost_usd: 2.25, task_count: 2 },
+              ],
+              cost_by_work_item: [
+                { work_item_id: 'work-item-1', total_cost_usd: 4.5, task_count: 3 },
+                { work_item_id: 'work-item-2', total_cost_usd: 2.25, task_count: 2 },
               ],
             },
           },
@@ -170,6 +192,24 @@ describe('workflow inspector telemetry', () => {
           },
         ],
       },
+      {
+        title: 'Work item breakdown',
+        description: 'Top workflow work-item spend from the current run summary.',
+        entries: [
+          {
+            label: 'Review release notes',
+            value: '$4.5000',
+            detail: 'review • 3 steps contributed to this work item.',
+            href: '/work/workflows/workflow-1/inspector?view=detailed&work_item=work-item-1',
+          },
+          {
+            label: 'QA verification',
+            value: '$2.2500',
+            detail: 'qa • 2 steps contributed to this work item.',
+            href: '/work/workflows/workflow-1/inspector?view=detailed&work_item=work-item-2',
+          },
+        ],
+      },
     ]);
     expect(model.memoryPacket.title).toBe('Memory evolution · Review release notes');
     expect(model.memoryPacket.changes).toEqual([
@@ -238,6 +278,11 @@ describe('workflow inspector telemetry', () => {
       {
         title: 'Activation breakdown',
         description: 'Top orchestrator activation spend from the current inspector slice.',
+        entries: [],
+      },
+      {
+        title: 'Work item breakdown',
+        description: 'Top workflow work-item spend from the current run summary.',
         entries: [],
       },
     ]);
