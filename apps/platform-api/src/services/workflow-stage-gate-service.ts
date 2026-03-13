@@ -1,3 +1,7 @@
+import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
+
+const GATE_SECRET_REDACTION = 'redacted://gate-secret';
+
 export interface WorkflowStageGateRecord {
   id: string;
   workflow_id: string;
@@ -39,6 +43,9 @@ export interface WorkflowStageGateRecord {
 export function toGateResponse(row: WorkflowStageGateRecord) {
   const resumeHistory = normalizeResumeHistory(row);
   const latestResume = resumeHistory[resumeHistory.length - 1] ?? null;
+  const requestSummary = sanitizeGateString(row.request_summary);
+  const recommendation = sanitizeGateString(row.recommendation);
+  const decisionFeedback = sanitizeGateString(row.decision_feedback);
   return {
     id: row.id,
     gate_id: row.id,
@@ -49,31 +56,31 @@ export function toGateResponse(row: WorkflowStageGateRecord) {
     stage_goal: row.stage_goal ?? null,
     status: row.status,
     gate_status: row.status,
-    request_summary: row.request_summary ?? null,
-    summary: row.request_summary ?? null,
-    recommendation: row.recommendation,
-    concerns: normalizeStringArray(row.concerns),
-    key_artifacts: normalizeRecordArray(row.key_artifacts),
+    request_summary: requestSummary,
+    summary: requestSummary,
+    recommendation,
+    concerns: normalizeStringArray(sanitizeGateValue(row.concerns)),
+    key_artifacts: normalizeRecordArray(sanitizeGateValue(row.key_artifacts)),
     requested_by_type: row.requested_by_type ?? null,
     requested_by_id: row.requested_by_id ?? null,
     decided_by_type: row.decided_by_type ?? null,
     decided_by_id: row.decided_by_id ?? null,
-    decision_feedback: row.decision_feedback ?? null,
+    decision_feedback: decisionFeedback,
     human_decision: {
       action: decisionActionForStatus(row.status),
       decided_by_type: row.decided_by_type ?? null,
       decided_by_id: row.decided_by_id ?? null,
-      feedback: row.decision_feedback ?? null,
+      feedback: decisionFeedback,
       decided_at: row.decided_at?.toISOString() ?? null,
     },
     decision_history: normalizeDecisionHistory(row.decision_history),
     requested_by_task: row.requested_by_task_id
       ? {
           id: row.requested_by_task_id,
-          title: row.requested_by_task_title ?? null,
+          title: sanitizeGateString(row.requested_by_task_title),
           role: row.requested_by_task_role ?? null,
           work_item_id: row.requested_by_work_item_id ?? null,
-          work_item_title: row.requested_by_work_item_title ?? null,
+          work_item_title: sanitizeGateString(row.requested_by_work_item_title),
         }
       : null,
     orchestrator_resume: latestResume,
@@ -140,7 +147,7 @@ function normalizeDecisionHistory(value: unknown) {
       action: typeof entry.action === 'string' ? entry.action : 'unknown',
       actor_type: typeof entry.actor_type === 'string' ? entry.actor_type : null,
       actor_id: typeof entry.actor_id === 'string' ? entry.actor_id : null,
-      feedback: typeof entry.feedback === 'string' ? entry.feedback : null,
+      feedback: sanitizeGateString(entry.feedback),
       created_at: typeof entry.created_at === 'string' ? entry.created_at : null,
     }));
 }
@@ -181,8 +188,8 @@ function normalizeResumeHistory(row: WorkflowStageGateRecord) {
       queued_at: row.resume_activation_queued_at?.toISOString() ?? null,
       started_at: row.resume_activation_started_at?.toISOString() ?? null,
       completed_at: row.resume_activation_completed_at?.toISOString() ?? null,
-      summary: row.resume_activation_summary ?? null,
-      error: row.resume_activation_error ?? null,
+      summary: sanitizeGateString(row.resume_activation_summary),
+      error: sanitizeGateRecord(row.resume_activation_error),
       latest_event_at:
         row.resume_activation_completed_at?.toISOString()
         ?? row.resume_activation_started_at?.toISOString()
@@ -252,11 +259,8 @@ function normalizeResumeHistoryArray(value: unknown) {
       queued_at: typeof entry.queued_at === 'string' ? entry.queued_at : null,
       started_at: typeof entry.started_at === 'string' ? entry.started_at : null,
       completed_at: typeof entry.completed_at === 'string' ? entry.completed_at : null,
-      summary: typeof entry.summary === 'string' ? entry.summary : null,
-      error:
-        entry.error && typeof entry.error === 'object' && !Array.isArray(entry.error)
-          ? (entry.error as Record<string, unknown>)
-          : null,
+      summary: sanitizeGateString(entry.summary),
+      error: sanitizeGateRecord(entry.error),
       latest_event_at: typeof entry.latest_event_at === 'string' ? entry.latest_event_at : null,
       event_count:
         typeof entry.event_count === 'number' && Number.isFinite(entry.event_count)
@@ -268,7 +272,7 @@ function normalizeResumeHistoryArray(value: unknown) {
           && typeof entry.task.id === 'string'
           ? {
               id: entry.task.id,
-              title: typeof entry.task.title === 'string' ? entry.task.title : null,
+              title: sanitizeGateString(entry.task.title),
               state: typeof entry.task.state === 'string' ? entry.task.state : null,
               started_at:
                 typeof entry.task.started_at === 'string' ? entry.task.started_at : null,
@@ -277,4 +281,22 @@ function normalizeResumeHistoryArray(value: unknown) {
             }
           : null,
     }));
+}
+
+function sanitizeGateString(value: unknown): string | null {
+  const sanitized = sanitizeSecretLikeValue(value, {
+    redactionValue: GATE_SECRET_REDACTION,
+  });
+  return typeof sanitized === 'string' ? sanitized : null;
+}
+
+function sanitizeGateRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return sanitizeSecretLikeRecord(value, { redactionValue: GATE_SECRET_REDACTION });
+}
+
+function sanitizeGateValue(value: unknown): unknown {
+  return sanitizeSecretLikeValue(value, { redactionValue: GATE_SECRET_REDACTION });
 }
