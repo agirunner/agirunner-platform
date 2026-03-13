@@ -70,6 +70,23 @@ export function countPendingOrchestratorFollowUp(
   }).length;
 }
 
+export function gateQueuePriorityVariant(index: number): 'destructive' | 'warning' | 'outline' {
+  if (index === 0) {
+    return 'destructive';
+  }
+  if (index < 3) {
+    return 'warning';
+  }
+  return 'outline';
+}
+
+export function renderQueuePriorityLabel(index: number): string {
+  if (index === 0) {
+    return 'Queue priority 1';
+  }
+  return `Queue priority ${index + 1}`;
+}
+
 export function matchesApprovalSearch(
   query: string,
   gate: DashboardApprovalStageGateRecord | DashboardApprovalTaskRecord,

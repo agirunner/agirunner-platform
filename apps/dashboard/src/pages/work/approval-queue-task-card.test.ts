@@ -1,0 +1,30 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+function readSource() {
+  return readFileSync(resolve(import.meta.dirname, './approval-queue-task-card.tsx'), 'utf8');
+}
+
+describe('approval queue task card source', () => {
+  it('keeps task approvals work-item centric and scroll-safe', () => {
+    const source = readSource();
+    expect(source).toContain('buildTaskApprovalBreadcrumbs');
+    expect(source).toContain('readTaskOperatorFlowLabel');
+    expect(source).toContain('Open board context');
+    expect(source).toContain('QueueInfoTile');
+    expect(source).toContain('Rework round');
+    expect(source).toContain('Step approval');
+    expect(source).toContain('Output gate');
+    expect(source).toContain('usesWorkflowOperatorFlow');
+    expect(source).toContain('Open Work Item Flow');
+    expect(source).toContain('Open Board Stage Flow');
+    expect(source).toContain('Open Step Record');
+    expect(source).toContain('usesWorkItemOperatorFlow');
+    expect(source).toContain('DialogContent className="sm:max-w-lg"');
+    expect(source).toContain('max-h-[75vh]');
+    expect(source).toContain('overflow-y-auto');
+    expect(source).toContain('className="min-h-[140px]"');
+    expect(source).toContain('flex-wrap items-center justify-end gap-2');
+  });
+});

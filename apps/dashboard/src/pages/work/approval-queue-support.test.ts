@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   buildTaskApprovalBreadcrumbs,
   countPendingOrchestratorFollowUp,
+  gateQueuePriorityVariant,
   readTaskOperatorFlowLabel,
+  renderQueuePriorityLabel,
   summarizeFirstGate,
 } from './approval-queue-support.js';
 
@@ -120,5 +122,13 @@ describe('approval queue support', () => {
         },
       ]),
     ).toBe(1);
+  });
+
+  it('maps gate queue priority labels and badge variants by oldest-first order', () => {
+    expect(gateQueuePriorityVariant(0)).toBe('destructive');
+    expect(gateQueuePriorityVariant(1)).toBe('warning');
+    expect(gateQueuePriorityVariant(4)).toBe('outline');
+    expect(renderQueuePriorityLabel(0)).toBe('Queue priority 1');
+    expect(renderQueuePriorityLabel(3)).toBe('Queue priority 4');
   });
 });
