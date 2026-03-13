@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
-import { Archive, ArrowLeft, Plus, Rocket, RotateCcw, Search, Settings2, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Plus } from 'lucide-react';
 
 import { dashboardApi, type DashboardPlaybookRecord } from '../../lib/api.js';
 import { Button } from '../../components/ui/button.js';
@@ -23,6 +23,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select.js';
+import {
+  filterPlaybooks,
+  summarizePlaybookLibrary,
+  type PlaybookLifecycleFilter,
+  type PlaybookStatusFilter,
+} from './playbook-list-page.support.js';
+import {
+  PlaybookCard,
+  PlaybookLibraryFilters,
+  PlaybookLibrarySummaryCards,
+} from './playbook-list-page.library.js';
 
 const DEFAULT_LIFECYCLE = 'continuous';
 
@@ -36,6 +47,8 @@ export function PlaybookListPage(): JSX.Element {
   const [description, setDescription] = useState('');
   const [outcome, setOutcome] = useState('');
   const [lifecycle, setLifecycle] = useState<'standard' | 'continuous'>(DEFAULT_LIFECYCLE);
+  const [statusFilter, setStatusFilter] = useState<PlaybookStatusFilter>('all');
+  const [lifecycleFilter, setLifecycleFilter] = useState<PlaybookLifecycleFilter>('all');
   const [draft, setDraft] = useState<PlaybookAuthoringDraft>(() =>
     createDefaultAuthoringDraft(DEFAULT_LIFECYCLE),
   );
@@ -92,19 +105,12 @@ export function PlaybookListPage(): JSX.Element {
     },
   });
 
-  const filtered = useMemo(() => {
-    const all = playbooksQuery.data?.data ?? [];
-    const normalized = search.trim().toLowerCase();
-    if (!normalized) {
-      return all;
-    }
-    return all.filter((playbook) =>
-      [playbook.name, playbook.slug, playbook.description ?? '', playbook.outcome]
-        .join(' ')
-        .toLowerCase()
-        .includes(normalized),
-    );
-  }, [playbooksQuery.data?.data, search]);
+  const allPlaybooks = playbooksQuery.data?.data ?? [];
+  const filtered = useMemo(
+    () => filterPlaybooks(allPlaybooks, search, statusFilter, lifecycleFilter),
+    [allPlaybooks, search, statusFilter, lifecycleFilter],
+  );
+  const summaryCards = useMemo(() => summarizePlaybookLibrary(allPlaybooks), [allPlaybooks]);
 
   function resetForm() {
     setName('');
@@ -333,15 +339,15 @@ export function PlaybookListPage(): JSX.Element {
         </Button>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search playbooks..."
-          className="pl-9"
-        />
-      </div>
+      <PlaybookLibrarySummaryCards cards={summaryCards} />
+      <PlaybookLibraryFilters
+        search={search}
+        statusFilter={statusFilter}
+        lifecycleFilter={lifecycleFilter}
+        onSearchChange={setSearch}
+        onStatusFilterChange={setStatusFilter}
+        onLifecycleFilterChange={setLifecycleFilter}
+      />
 
       {playbooksQuery.isLoading ? <p className="text-sm text-muted">Loading playbooks...</p> : null}
       {playbooksQuery.error ? (
@@ -376,124 +382,6 @@ export function PlaybookListPage(): JSX.Element {
         ) : null}
       </div>
     </div>
-  );
-}
-
-function PlaybookCard(props: {
-  playbook: DashboardPlaybookRecord;
-  confirmDelete: boolean;
-  isArchiving: boolean;
-  isDeleting: boolean;
-  onArchiveChange(archived: boolean): void;
-  onDelete(): void;
-  onRequestDelete(): void;
-}) {
-  const { playbook } = props;
-  const boardColumns = Array.isArray(
-    (playbook.definition as { board?: { columns?: unknown[] } }).board?.columns,
-  )
-    ? ((playbook.definition as { board?: { columns?: unknown[] } }).board?.columns?.length ?? 0)
-    : 0;
-  const stages = Array.isArray((playbook.definition as { stages?: unknown[] }).stages)
-    ? ((playbook.definition as { stages?: unknown[] }).stages?.length ?? 0)
-    : 0;
-
-  return (
-    <Card>
-      <CardHeader className="space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle className="text-lg">{playbook.name}</CardTitle>
-            <p className="text-sm text-muted">{playbook.slug}</p>
-          </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <Badge variant="outline">v{playbook.version}</Badge>
-            {!playbook.is_active ? <Badge variant="destructive">Archived</Badge> : null}
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="secondary">{playbook.lifecycle}</Badge>
-          <Badge variant="outline">{boardColumns} columns</Badge>
-          <Badge variant="outline">{stages} stages</Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {playbook.description ? <p className="text-sm text-muted">{playbook.description}</p> : null}
-        <div className="rounded-md border border-border bg-muted/20 p-3 text-sm">
-          <div className="font-medium">Outcome</div>
-          <div className="text-muted">{playbook.outcome}</div>
-        </div>
-        {!playbook.is_active ? (
-          <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950">
-            Archived playbooks stay available for review and revision history, but launch is
-            disabled until this revision is restored or a new active revision is created.
-          </div>
-        ) : null}
-        {props.confirmDelete ? (
-          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
-            <div className="font-medium">Delete this playbook revision?</div>
-            <p className="mt-1">
-              This permanently removes version {playbook.version}. Existing workflows that already
-              reference it will block deletion.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={props.onRequestDelete}>
-                Keep revision
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={props.onDelete}
-                disabled={props.isDeleting}
-              >
-                Delete revision
-              </Button>
-            </div>
-          </div>
-        ) : null}
-        <div className="flex justify-end">
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline">
-              <Link to={`/config/playbooks/${playbook.id}`}>
-                <Settings2 className="h-4 w-4" />
-                Manage
-              </Link>
-            </Button>
-            {playbook.is_active ? (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => props.onArchiveChange(true)}
-                  disabled={props.isArchiving}
-                >
-                  <Archive className="h-4 w-4" />
-                  Archive
-                </Button>
-                <Button asChild>
-                  <Link to={`/config/playbooks/${playbook.id}/launch`}>
-                    <Rocket className="h-4 w-4" />
-                    Launch
-                  </Link>
-                </Button>
-              </>
-            ) : (
-              <Button
-                variant="outline"
-                onClick={() => props.onArchiveChange(false)}
-                disabled={props.isArchiving}
-              >
-                <RotateCcw className="h-4 w-4" />
-                Restore
-              </Button>
-            )}
-            <Button variant="outline" onClick={props.onRequestDelete} disabled={props.isDeleting}>
-              <Trash2 className="h-4 w-4" />
-              Delete
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 

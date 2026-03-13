@@ -3,7 +3,13 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './playbook-list-page.tsx'), 'utf8');
+  return [
+    './playbook-list-page.tsx',
+    './playbook-list-page.library.tsx',
+    './playbook-list-page.support.ts',
+  ]
+    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
+    .join('\n');
 }
 
 describe('playbook list page source', () => {
@@ -27,5 +33,10 @@ describe('playbook list page source', () => {
     expect(source).toContain('Delete revision');
     expect(source).toContain('Restore');
     expect(source).toContain('Back to playbook library');
+    expect(source).toContain('Library filters');
+    expect(source).toContain('Active revisions');
+    expect(source).toContain('Lifecycle mix');
+    expect(source).toContain('statusFilter');
+    expect(source).toContain('lifecycleFilter');
   });
 });
