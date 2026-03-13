@@ -351,6 +351,7 @@ describe('task query service git activity (FR-055)', () => {
     expect((git.raw as Record<string, any>).nested.token_ref).toBe('redacted://task-secret');
     expect((context.project as Record<string, any>).memory.deployment_token).toBe('redacted://task-context-secret');
     expect((context.workflow as Record<string, any>).resolved_config.provider_token).toBe('redacted://task-context-secret');
+    expect((context.workflow as Record<string, any>).variables.secret_ref).toBe('redacted://task-context-secret');
     expect((context.task as Record<string, any>).input.credentials.api_key).toBe('redacted://task-context-secret');
     expect((context.task as Record<string, any>).input.credentials.secret_ref).toBe('redacted://task-context-secret');
     expect((context.task as Record<string, any>).context.oauth.access_token).toBe('redacted://task-context-secret');
