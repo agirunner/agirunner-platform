@@ -128,6 +128,13 @@ describe('workflow detail model override display', () => {
     expect(source).toContain('OperatorStatusBadge');
     expect(source).toContain('data-testid="selected-work-item-rail"');
     expect(source).toContain('Selected work-item focus');
+    expect(source).toContain('data-testid="workflow-secondary-tabs"');
+    expect(source).toContain('Operator deep dives');
+    expect(source).toContain('TabsTrigger value="context"');
+    expect(source).toContain('TabsTrigger value="knowledge"');
+    expect(source).toContain('TabsTrigger value="activity"');
+    expect(source).toContain('setSecondarySurface(\'activity\')');
+    expect(source).toContain('<CardTitle>Operator Context</CardTitle>');
   });
 });
 

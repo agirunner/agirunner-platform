@@ -81,6 +81,7 @@ import {
 } from '../components/ui/card.js';
 import { Input } from '../components/ui/input.js';
 import { Textarea } from '../components/ui/textarea.js';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs.js';
 import {
   Select,
   SelectContent,
@@ -111,6 +112,9 @@ export function WorkflowDetailPage(): JSX.Element {
   const [workItemStage, setWorkItemStage] = useState('');
   const [workItemError, setWorkItemError] = useState<string | null>(null);
   const [isChainDialogOpen, setIsChainDialogOpen] = useState(false);
+  const [secondarySurface, setSecondarySurface] = useState<
+    'context' | 'knowledge' | 'activity'
+  >('context');
   const selectedWorkItemId = searchParams.get('work_item');
   const selectedActivationId = searchParams.get('activation');
   const selectedChildWorkflowId = searchParams.get('child');
@@ -276,6 +280,17 @@ export function WorkflowDetailPage(): JSX.Element {
     selectedWorkItemId,
     stagesQuery.data?.length,
   ]);
+
+  useEffect(() => {
+    if (selectedChildWorkflowId) {
+      setSecondarySurface('activity');
+      return;
+    }
+    const targetId = location.hash.startsWith('#') ? location.hash.slice(1) : location.hash;
+    if (targetId.startsWith('child-')) {
+      setSecondarySurface('activity');
+    }
+  }, [location.hash, selectedChildWorkflowId]);
 
   const summary = useMemo(() => summarizeTasks(taskQuery.data?.data ?? []), [taskQuery.data?.data]);
   const historyEvents = useMemo(
@@ -631,15 +646,6 @@ export function WorkflowDetailPage(): JSX.Element {
                       </div>
                     </dl>
                   </div>
-                  <div className="grid gap-3 rounded-2xl border border-border/70 bg-surface/80 p-5">
-                    <div className="space-y-1">
-                      <div className="text-sm font-medium text-foreground">Operator Context</div>
-                      <p className="text-sm text-muted">
-                        Shared context, run parameters, and orchestration metadata attached to this board run.
-                      </p>
-                    </div>
-                    <WorkflowContextPacket context={workflowQuery.data.context} />
-                  </div>
                 </>
               ) : null}
             </CardContent>
@@ -846,156 +852,232 @@ export function WorkflowDetailPage(): JSX.Element {
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <Card className="border-border/70 bg-card/80 shadow-sm">
-          <CardHeader>
-            <CardTitle>Model Overrides</CardTitle>
-            <CardDescription>
-              Board-run overrides take precedence over project-level model settings.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            {workflowModelOverridesQuery.isLoading ? (
-              <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
-                Loading model overrides...
+      <section
+        className="grid gap-5 rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm"
+        data-testid="workflow-secondary-tabs"
+      >
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div className="space-y-2">
+            <Badge variant="outline" className="w-fit">
+              Operator deep dives
+            </Badge>
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold text-foreground">
+                Context, knowledge, and activity
+              </h2>
+              <p className="max-w-3xl text-sm leading-6 text-muted">
+                Keep the live board and selected work-item flow above. Use these tabs when you
+                need the run packet, shared knowledge, or execution trail without turning the
+                primary surface into a long text dump.
               </p>
-            ) : null}
-            {workflowModelOverridesQuery.error ? (
-              <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
-                Failed to load board-run model overrides.
-              </p>
-            ) : null}
-            {workflowModelOverridesQuery.data ? (
-              <WorkflowModelOverridesPacket
-                overrides={workflowModelOverridesQuery.data.model_overrides}
-                effectiveModels={resolvedModelsQuery.data?.effective_models ?? {}}
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[38rem]">
+            <WorkflowSignalTile
+              label="Run packets"
+              value="4 views"
+              detail="Context, models, config, and final run summary"
+            />
+            <WorkflowSignalTile
+              label="Knowledge base"
+              value={`${documentQuery.data?.length ?? 0} docs`}
+              detail={`${memoryEntries.length} memory entries ready for operator review`}
+            />
+            <WorkflowSignalTile
+              label="Execution trail"
+              value={`${historyEvents.length} events`}
+              detail={`${taskQuery.data?.data?.length ?? 0} steps and project lineage on demand`}
+            />
+          </div>
+        </div>
+
+        <Tabs
+          value={secondarySurface}
+          onValueChange={(value) =>
+            setSecondarySurface(value as 'context' | 'knowledge' | 'activity')
+          }
+          className="grid gap-4"
+        >
+          <TabsList className="grid h-auto w-full grid-cols-1 gap-2 rounded-xl border border-border/70 bg-border/10 p-1 md:grid-cols-3">
+            <TabsTrigger value="context">Run packets</TabsTrigger>
+            <TabsTrigger value="knowledge">Knowledge base</TabsTrigger>
+            <TabsTrigger value="activity">Execution &amp; activity</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="context" className="mt-0 grid gap-6">
+            <div className="grid gap-6 xl:grid-cols-2">
+              <Card className="border-border/70 bg-card/80 shadow-sm">
+                <CardHeader>
+                  <CardTitle>Operator Context</CardTitle>
+                  <CardDescription>
+                    Shared context, run parameters, and orchestration metadata attached to this
+                    board run.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4">
+                  <WorkflowContextPacket context={workflowQuery.data?.context} />
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/70 bg-card/80 shadow-sm">
+                <CardHeader>
+                  <CardTitle>Model Overrides</CardTitle>
+                  <CardDescription>
+                    Board-run overrides take precedence over project-level model settings.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4">
+                  {workflowModelOverridesQuery.isLoading ? (
+                    <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
+                      Loading model overrides...
+                    </p>
+                  ) : null}
+                  {workflowModelOverridesQuery.error ? (
+                    <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                      Failed to load board-run model overrides.
+                    </p>
+                  ) : null}
+                  {workflowModelOverridesQuery.data ? (
+                    <WorkflowModelOverridesPacket
+                      overrides={workflowModelOverridesQuery.data.model_overrides}
+                      effectiveModels={resolvedModelsQuery.data?.effective_models ?? {}}
+                    />
+                  ) : null}
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-6 xl:grid-cols-2">
+              <Card className="border-border/70 bg-card/80 shadow-sm">
+                <CardHeader>
+                  <CardTitle>Effective Models</CardTitle>
+                  <CardDescription>
+                    Resolved models after applying defaults, project overrides, and workflow
+                    launch overrides.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4">
+                  {resolvedModelsQuery.isLoading ? (
+                    <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
+                      Resolving effective models...
+                    </p>
+                  ) : null}
+                  {resolvedModelsQuery.error ? (
+                    <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                      Failed to load effective models.
+                    </p>
+                  ) : null}
+                  {resolvedModelsQuery.data ? (
+                    <ResolvedModelResolutionList
+                      effectiveModels={resolvedModelsQuery.data.effective_models}
+                    />
+                  ) : null}
+                </CardContent>
+              </Card>
+
+              <Card className="border-border/70 bg-card/80 shadow-sm">
+                <CardHeader>
+                  <CardTitle>Resolved Config</CardTitle>
+                  <CardDescription>
+                    Merged playbook, project, and board-run configuration for this operator
+                    surface.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4">
+                  {configQuery.isLoading ? (
+                    <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
+                      Loading config...
+                    </p>
+                  ) : null}
+                  {configQuery.error ? (
+                    <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                      Failed to load resolved config.
+                    </p>
+                  ) : null}
+                  {configQuery.data ? (
+                    <WorkflowConfigReviewPacket config={configQuery.data} />
+                  ) : null}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="border-border/70 bg-card/80 shadow-sm">
+              <CardHeader>
+                <CardTitle>Board Summary</CardTitle>
+                <CardDescription>
+                  Continuity summary written into project memory when the board run reaches a
+                  terminal state.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                {runSummary ? (
+                  <WorkflowRunSummaryPacket summary={runSummary} />
+                ) : (
+                  <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
+                    Run summary becomes available after the workflow reaches terminal state.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="knowledge" className="mt-0 grid gap-6 xl:grid-cols-2">
+            <WorkflowDocumentsCard
+              isLoading={documentQuery.isLoading}
+              hasError={Boolean(documentQuery.error)}
+              documents={documentQuery.data ?? []}
+            />
+
+            <ProjectMemoryCard
+              project={projectQuery.data}
+              entries={memoryEntries}
+              isLoading={projectQuery.isLoading}
+              hasError={Boolean(projectQuery.error)}
+              memoryKey={memoryKey}
+              memoryDrafts={memoryDrafts}
+              memoryError={memoryError}
+              memoryMessage={memoryMessage}
+              onMemoryKeyChange={setMemoryKey}
+              onMemoryDraftsChange={setMemoryDrafts}
+              onSave={() => void handleMemorySave()}
+            />
+          </TabsContent>
+
+          <TabsContent value="activity" className="mt-0 grid gap-6">
+            <div className="grid gap-6 xl:grid-cols-2">
+              <TaskGraphCard
+                tasks={taskQuery.data?.data ?? []}
+                stageGroups={stageGroups}
+                isLoading={taskQuery.isLoading}
+                hasError={Boolean(taskQuery.error)}
+              />
+
+              <WorkflowInteractionTimelineCard
+                workflowId={workflowId}
+                isLoading={historyQuery.isLoading}
+                hasError={Boolean(historyQuery.error)}
+                isLoadingMore={historyQuery.isFetchingNextPage}
+                hasMore={historyQuery.hasNextPage}
+                onLoadMore={() => void historyQuery.fetchNextPage()}
+                events={historyEvents}
+              />
+            </div>
+
+            {projectId ? (
+              <ProjectTimelineCard
+                isLoading={timelineQuery.isLoading}
+                hasError={Boolean(timelineQuery.error)}
+                entries={projectTimelineEntries}
+                currentWorkflowId={workflowId}
+                selectedChildWorkflowId={selectedChildWorkflowId}
+                onSelectChildWorkflow={(childWorkflowId) =>
+                  updateWorkflowSelection('child', childWorkflowId)
+                }
               />
             ) : null}
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/70 bg-card/80 shadow-sm">
-          <CardHeader>
-            <CardTitle>Effective Models</CardTitle>
-            <CardDescription>
-              Resolved models after applying defaults, project overrides, and workflow launch overrides.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            {resolvedModelsQuery.isLoading ? (
-              <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
-                Resolving effective models...
-              </p>
-            ) : null}
-            {resolvedModelsQuery.error ? (
-              <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
-                Failed to load effective models.
-              </p>
-            ) : null}
-            {resolvedModelsQuery.data ? (
-              <ResolvedModelResolutionList effectiveModels={resolvedModelsQuery.data.effective_models} />
-            ) : null}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-2">
-        <Card className="border-border/70 bg-card/80 shadow-sm">
-          <CardHeader>
-            <CardTitle>Resolved Config</CardTitle>
-            <CardDescription>
-              Merged playbook, project, and board-run configuration for this operator surface.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            {configQuery.isLoading ? (
-              <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
-                Loading config...
-              </p>
-            ) : null}
-            {configQuery.error ? (
-              <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
-                Failed to load resolved config.
-              </p>
-            ) : null}
-            {configQuery.data ? (
-              <WorkflowConfigReviewPacket config={configQuery.data} />
-            ) : null}
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/70 bg-card/80 shadow-sm">
-          <CardHeader>
-            <CardTitle>Board Summary</CardTitle>
-            <CardDescription>
-              Continuity summary written into project memory when the board run reaches a terminal state.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            {runSummary ? (
-              <WorkflowRunSummaryPacket summary={runSummary} />
-            ) : (
-              <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
-                Run summary becomes available after the workflow reaches terminal state.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-2">
-        <WorkflowDocumentsCard
-          isLoading={documentQuery.isLoading}
-          hasError={Boolean(documentQuery.error)}
-          documents={documentQuery.data ?? []}
-        />
-
-        <ProjectMemoryCard
-          project={projectQuery.data}
-          entries={memoryEntries}
-          isLoading={projectQuery.isLoading}
-          hasError={Boolean(projectQuery.error)}
-          memoryKey={memoryKey}
-          memoryDrafts={memoryDrafts}
-          memoryError={memoryError}
-          memoryMessage={memoryMessage}
-          onMemoryKeyChange={setMemoryKey}
-          onMemoryDraftsChange={setMemoryDrafts}
-          onSave={() => void handleMemorySave()}
-        />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-2">
-        <TaskGraphCard
-          tasks={taskQuery.data?.data ?? []}
-          stageGroups={stageGroups}
-          isLoading={taskQuery.isLoading}
-          hasError={Boolean(taskQuery.error)}
-        />
-
-        <WorkflowInteractionTimelineCard
-          workflowId={workflowId}
-          isLoading={historyQuery.isLoading}
-          hasError={Boolean(historyQuery.error)}
-          isLoadingMore={historyQuery.isFetchingNextPage}
-          hasMore={historyQuery.hasNextPage}
-          onLoadMore={() => void historyQuery.fetchNextPage()}
-          events={historyEvents}
-        />
-      </div>
-
-      {projectId ? (
-        <ProjectTimelineCard
-          isLoading={timelineQuery.isLoading}
-          hasError={Boolean(timelineQuery.error)}
-          entries={projectTimelineEntries}
-          currentWorkflowId={workflowId}
-          selectedChildWorkflowId={selectedChildWorkflowId}
-          onSelectChildWorkflow={(childWorkflowId) =>
-            updateWorkflowSelection('child', childWorkflowId)
-          }
-        />
-      ) : null}
+          </TabsContent>
+        </Tabs>
+      </section>
 
       <ChainWorkflowDialog
         isOpen={isChainDialogOpen}

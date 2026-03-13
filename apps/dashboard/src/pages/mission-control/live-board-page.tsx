@@ -35,6 +35,7 @@ import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
 import { SavedViews, type SavedViewFilters } from '../../components/saved-views.js';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import {
   Table,
   TableHeader,
@@ -1067,10 +1068,38 @@ interface NeedsAttentionProps {
   stageGates: DashboardApprovalQueueResponse['stage_gates'];
 }
 
-function NeedsAttentionSection({ approvalTasks, failedTasks, blockedItems, stageGates }: NeedsAttentionProps): JSX.Element {
-  const items = [...approvalTasks, ...failedTasks];
+function NeedsAttentionSection({
+  approvalTasks,
+  failedTasks,
+  blockedItems,
+  stageGates,
+}: NeedsAttentionProps): JSX.Element {
+  const totalItems =
+    approvalTasks.length + failedTasks.length + blockedItems.length + stageGates.length;
+  const defaultTab = useMemo(() => {
+    if (stageGates.length > 0) {
+      return 'gates';
+    }
+    if (blockedItems.length > 0) {
+      return 'blocked';
+    }
+    if (approvalTasks.length > 0) {
+      return 'approvals';
+    }
+    if (failedTasks.length > 0) {
+      return 'failed';
+    }
+    return 'gates';
+  }, [approvalTasks.length, blockedItems.length, failedTasks.length, stageGates.length]);
+  const [activeTab, setActiveTab] = useState<'gates' | 'blocked' | 'approvals' | 'failed'>(
+    defaultTab as 'gates' | 'blocked' | 'approvals' | 'failed',
+  );
 
-  if (items.length === 0 && stageGates.length === 0 && blockedItems.length === 0) {
+  useEffect(() => {
+    setActiveTab(defaultTab as 'gates' | 'blocked' | 'approvals' | 'failed');
+  }, [defaultTab]);
+
+  if (totalItems === 0) {
     return (
       <Card>
         <CardHeader>
@@ -1080,142 +1109,255 @@ function NeedsAttentionSection({ approvalTasks, failedTasks, blockedItems, stage
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted">No stage gates, blocked work items, or specialist-step interventions require attention right now.</p>
+          <p className="text-sm text-muted">
+            No stage gates, blocked work items, or specialist-step interventions require
+            attention right now.
+          </p>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="border-amber-300">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5 text-amber-600" />
-          Operator Queue ({items.length + stageGates.length + blockedItems.length})
-        </CardTitle>
-        <p className="text-sm text-muted">
-          Use this board to triage what needs attention, then step into the approval queue or board
-          detail flow for the actual decision and recovery work.
-        </p>
+    <Card className="border-amber-300 shadow-sm">
+      <CardHeader className="gap-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              Operator Queue ({totalItems})
+            </CardTitle>
+            <p className="max-w-3xl text-sm leading-6 text-muted">
+              Triage by queue type first, then step into the approval queue or board detail view
+              for the actual decision and recovery work.
+            </p>
+          </div>
+          <Badge variant="warning" className="w-fit">
+            {activeTab === 'gates'
+              ? `${stageGates.length} stage gate${stageGates.length === 1 ? '' : 's'}`
+              : activeTab === 'blocked'
+                ? `${blockedItems.length} blocked work item${blockedItems.length === 1 ? '' : 's'}`
+                : activeTab === 'approvals'
+                  ? `${approvalTasks.length} approval${approvalTasks.length === 1 ? '' : 's'}`
+                  : `${failedTasks.length} failed step${failedTasks.length === 1 ? '' : 's'}`}
+          </Badge>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <SnapshotMetric label="Stage gates" value={String(stageGates.length)} />
+          <SnapshotMetric label="Blocked work" value={String(blockedItems.length)} />
+          <SnapshotMetric label="Approval queue" value={String(approvalTasks.length)} />
+          <SnapshotMetric label="Failed steps" value={String(failedTasks.length)} />
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3">
-          {stageGates.map((gate) => (
-            <div key={`${gate.workflow_id}:${gate.stage_name}`} className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0 flex-1">
-                <Link
-                  to={buildWorkflowDetailPermalink(gate.workflow_id, {
-                    gateStageName: gate.stage_name,
-                  })}
-                  className="truncate text-sm font-medium text-accent hover:underline"
-                >
-                  {gate.workflow_name}
-                </Link>
-                <div className="mt-1 flex items-center gap-2">
-                  <Badge variant="warning">stage gate</Badge>
-                  <span className="text-xs text-muted">{gate.stage_name}</span>
-                </div>
-                <p className="mt-1 text-xs text-muted">{gate.stage_goal}</p>
-              </div>
-              <div className="flex shrink-0 gap-2 sm:ml-4">
-                <Button size="sm" asChild>
-                  <Link to="/work/approvals?view=gates">Open approvals</Link>
-                </Button>
-                <Button size="sm" variant="outline" asChild>
-                  <Link
-                    to={buildWorkflowDetailPermalink(gate.workflow_id, {
-                      gateStageName: gate.stage_name,
-                    })}
-                  >
-                    Open board gate
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          ))}
-          {blockedItems.map((item) => (
-            <div key={`${item.workflowId}:${item.title}:${item.stageName}`} className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0 flex-1">
-                <Link
-                  to={buildWorkflowDetailPermalink(item.workflowId, {
-                    workItemId: item.workItemId,
-                  })}
-                  className="truncate text-sm font-medium text-accent hover:underline"
-                >
-                  {item.workflowName}
-                </Link>
-                <div className="mt-1 flex items-center gap-2">
-                  <Badge variant="destructive">blocked work item</Badge>
-                  <span className="text-xs text-muted">{item.stageName}</span>
-                </div>
-                <p className="mt-1 truncate text-xs text-muted">{item.title}</p>
-              </div>
-              <div className="flex shrink-0 gap-2 sm:ml-4">
-                <Button size="sm" variant="outline" asChild>
-                  <Link
-                    to={buildWorkflowDetailPermalink(item.workflowId, {
-                      workItemId: item.workItemId,
-                    })}
-                  >
-                    Open work item
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          ))}
-          {items.map((task) => {
-            const taskActions = buildAttentionTaskActions({
-              taskId: task.id,
-              workflowId: task.workflow_id,
-              workItemId: task.work_item_id,
-              activationId: task.activation_id,
-              state: task.state,
-              status: task.status,
-            });
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) =>
+            setActiveTab(value as 'gates' | 'blocked' | 'approvals' | 'failed')
+          }
+          className="grid gap-4"
+        >
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-xl border border-border/70 bg-border/10 p-1 xl:grid-cols-4">
+            <TabsTrigger value="gates">Stage gates</TabsTrigger>
+            <TabsTrigger value="blocked">Blocked work</TabsTrigger>
+            <TabsTrigger value="approvals">Approval queue</TabsTrigger>
+            <TabsTrigger value="failed">Failed steps</TabsTrigger>
+          </TabsList>
 
-            return (
-              <div key={task.id} className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-sm">{task.title ?? task.name ?? task.id}</p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <Badge variant={resolveTaskOperatorState(task) === 'failed' ? 'destructive' : 'warning'}>
-                      {describeAttentionStep(task)}
-                    </Badge>
-                    {task.stage_name ? <span className="text-xs text-muted">Stage: {task.stage_name}</span> : null}
-                    {task.work_item_id ? <span className="text-xs text-muted">Board work linked</span> : null}
-                    {task.role ? <span className="text-xs text-muted">Role: {task.role}</span> : null}
-                    {task.assigned_worker ? (
-                      <span className="text-xs text-muted">Worker: {task.assigned_worker}</span>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-wrap gap-2 sm:ml-4">
-                  {taskActions
-                    .filter((action) => action.isPrimary)
-                    .map((action) => (
-                      <Button key={`${task.id}:${action.label}`} size="sm" asChild>
-                        <Link to={action.href}>{action.label}</Link>
-                      </Button>
-                    ))}
-                  {resolveTaskOperatorState(task) === 'awaiting_approval' ? (
-                    <Button size="sm" variant="outline" asChild>
-                      <Link to="/work/approvals?view=tasks">Open approvals</Link>
-                    </Button>
-                  ) : null}
-                  {taskActions
-                    .filter((action) => !action.isPrimary)
-                    .map((action) => (
-                      <Button key={`${task.id}:${action.label}`} size="sm" variant="outline" asChild>
-                        <Link to={action.href}>{action.label}</Link>
-                      </Button>
-                    ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+          <TabsContent value="gates" className="mt-0 grid gap-3">
+            {stageGates.length === 0 ? (
+              <AttentionEmptyState message="No stage gates are waiting for review." />
+            ) : (
+              stageGates.map((gate) => (
+                <StageGateQueueCard key={`${gate.workflow_id}:${gate.stage_name}`} gate={gate} />
+              ))
+            )}
+          </TabsContent>
+
+          <TabsContent value="blocked" className="mt-0 grid gap-3">
+            {blockedItems.length === 0 ? (
+              <AttentionEmptyState message="No blocked work items are visible on this page." />
+            ) : (
+              blockedItems.map((item) => (
+                <BlockedWorkQueueCard
+                  key={`${item.workflowId}:${item.workItemId}`}
+                  item={item}
+                />
+              ))
+            )}
+          </TabsContent>
+
+          <TabsContent value="approvals" className="mt-0 grid gap-3">
+            {approvalTasks.length === 0 ? (
+              <AttentionEmptyState message="No specialist approvals are waiting right now." />
+            ) : (
+              approvalTasks.map((task) => (
+                <SpecialistQueueCard key={task.id} task={task} />
+              ))
+            )}
+          </TabsContent>
+
+          <TabsContent value="failed" className="mt-0 grid gap-3">
+            {failedTasks.length === 0 ? (
+              <AttentionEmptyState message="No failed specialist steps are waiting for recovery." />
+            ) : (
+              failedTasks.map((task) => (
+                <SpecialistQueueCard key={task.id} task={task} />
+              ))
+            )}
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
+  );
+}
+
+function AttentionEmptyState(props: { message: string }): JSX.Element {
+  return (
+    <div className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted">
+      {props.message}
+    </div>
+  );
+}
+
+function StageGateQueueCard(props: {
+  gate: DashboardApprovalQueueResponse['stage_gates'][number];
+}): JSX.Element {
+  const { gate } = props;
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0 flex-1 space-y-2">
+        <Link
+          to={buildWorkflowDetailPermalink(gate.workflow_id, {
+            gateStageName: gate.stage_name,
+          })}
+          className="block truncate text-sm font-medium text-accent hover:underline"
+        >
+          {gate.workflow_name}
+        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="warning">stage gate</Badge>
+          <Badge variant="outline">{gate.stage_name}</Badge>
+        </div>
+        <p className="text-sm leading-6 text-muted">{gate.stage_goal}</p>
+      </div>
+      <div className="flex shrink-0 flex-wrap gap-2 sm:ml-4">
+        <Button size="sm" asChild>
+          <Link to="/work/approvals?view=gates">Open approvals</Link>
+        </Button>
+        <Button size="sm" variant="outline" asChild>
+          <Link
+            to={buildWorkflowDetailPermalink(gate.workflow_id, {
+              gateStageName: gate.stage_name,
+            })}
+          >
+            Open board gate
+          </Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function BlockedWorkQueueCard(props: {
+  item: {
+    workflowId: string;
+    workflowName: string;
+    workItemId: string;
+    title: string;
+    stageName: string;
+    columnId: string;
+  };
+}): JSX.Element {
+  const { item } = props;
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0 flex-1 space-y-2">
+        <Link
+          to={buildWorkflowDetailPermalink(item.workflowId, {
+            workItemId: item.workItemId,
+          })}
+          className="block truncate text-sm font-medium text-accent hover:underline"
+        >
+          {item.workflowName}
+        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="destructive">blocked work item</Badge>
+          <Badge variant="outline">{item.stageName}</Badge>
+          <Badge variant="outline">{item.columnId}</Badge>
+        </div>
+        <p className="truncate text-sm text-muted">{item.title}</p>
+      </div>
+      <div className="flex shrink-0 gap-2 sm:ml-4">
+        <Button size="sm" variant="outline" asChild>
+          <Link
+            to={buildWorkflowDetailPermalink(item.workflowId, {
+              workItemId: item.workItemId,
+            })}
+          >
+            Open work item
+          </Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function SpecialistQueueCard(props: { task: TaskRecord }): JSX.Element {
+  const { task } = props;
+  const taskActions = buildAttentionTaskActions({
+    taskId: task.id,
+    workflowId: task.workflow_id,
+    workItemId: task.work_item_id,
+    activationId: task.activation_id,
+    state: task.state,
+    status: task.status,
+  });
+
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0 flex-1 space-y-2">
+        <p className="truncate text-sm font-medium text-foreground">
+          {task.title ?? task.name ?? task.id}
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge
+            variant={
+              resolveTaskOperatorState(task) === 'failed' ? 'destructive' : 'warning'
+            }
+          >
+            {describeAttentionStep(task)}
+          </Badge>
+          {task.stage_name ? <Badge variant="outline">Stage: {task.stage_name}</Badge> : null}
+          {task.work_item_id ? <Badge variant="outline">Board work linked</Badge> : null}
+          {task.role ? <Badge variant="outline">Role: {task.role}</Badge> : null}
+          {task.assigned_worker ? (
+            <Badge variant="outline">Worker: {task.assigned_worker}</Badge>
+          ) : null}
+        </div>
+      </div>
+      <div className="flex shrink-0 flex-wrap gap-2 sm:ml-4">
+        {taskActions
+          .filter((action) => action.isPrimary)
+          .map((action) => (
+            <Button key={`${task.id}:${action.label}`} size="sm" asChild>
+              <Link to={action.href}>{action.label}</Link>
+            </Button>
+          ))}
+        {resolveTaskOperatorState(task) === 'awaiting_approval' ? (
+          <Button size="sm" variant="outline" asChild>
+            <Link to="/work/approvals?view=tasks">Open approvals</Link>
+          </Button>
+        ) : null}
+        {taskActions
+          .filter((action) => !action.isPrimary)
+          .map((action) => (
+            <Button key={`${task.id}:${action.label}`} size="sm" variant="outline" asChild>
+              <Link to={action.href}>{action.label}</Link>
+            </Button>
+          ))}
+      </div>
+    </div>
   );
 }
 
@@ -1402,7 +1544,8 @@ function ActivePlaybookBoards(props: {
       <CardHeader>
         <CardTitle>Live Boards</CardTitle>
         <p className="text-sm text-muted">
-          Each card highlights board posture first, then pool posture, progress, spend, and risk.
+          Each card keeps posture, progress, and recovery signals above the fold, then reveals
+          active work only when you need it.
         </p>
       </CardHeader>
       <CardContent>
@@ -1425,17 +1568,36 @@ function ActivePlaybookBoards(props: {
               reworkHeavy: specialistSummary.reworkHeavy,
               staleActivations: activationSummary.stale,
             });
+            const visibleActiveItems = activeItems.slice(0, 3);
+            const remainingActiveItems = activeItems.slice(3);
             return (
-              <div key={workflow.id} className="grid gap-4 rounded-xl border border-border/70 bg-muted/10 p-4 shadow-sm">
+              <div
+                key={workflow.id}
+                className="grid gap-4 rounded-xl border border-border/70 bg-muted/10 p-4 shadow-sm"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <Link to={`/work/workflows/${workflow.id}`} className="block truncate font-medium text-accent hover:underline">
+                    <Link
+                      to={`/work/workflows/${workflow.id}`}
+                      className="block truncate font-medium text-accent hover:underline"
+                    >
                       {workflow.name}
                     </Link>
                     <p className="text-xs text-muted">{describeBoardHeadline(workflow, board)}</p>
                   </div>
                   <Badge variant={statusBadgeVariant(resolveBoardPosture(workflow, board))}>
                     {resolveBoardPosture(workflow, board)}
+                  </Badge>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline">
+                    {activeItems.length} active work item{activeItems.length === 1 ? '' : 's'}
+                  </Badge>
+                  <Badge variant="outline">
+                    {gateCount} gate review{gateCount === 1 ? '' : 's'}
+                  </Badge>
+                  <Badge variant="outline">
+                    {specialistSummary.failed} failed step{specialistSummary.failed === 1 ? '' : 's'}
                   </Badge>
                 </div>
                 <div className="grid gap-3 rounded-lg border border-border/60 bg-background/80 p-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -1468,9 +1630,18 @@ function ActivePlaybookBoards(props: {
                 {isLoading ? <p className="mt-3 text-sm text-muted">Loading board...</p> : null}
                 {hasError ? <p className="mt-3 text-sm text-red-600">Failed to load board.</p> : null}
                 {!isLoading && !hasError ? (
-                  <div className="mt-3 space-y-2">
-                    {activeItems.slice(0, 6).map((item) => (
-                      <div key={item.id} className="rounded-md border border-border/60 bg-background/80 p-3">
+                  <div className="mt-3 grid gap-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-foreground">Most active work</p>
+                      <Button size="sm" variant="outline" asChild>
+                        <Link to={`/work/workflows/${workflow.id}`}>Open board</Link>
+                      </Button>
+                    </div>
+                    {visibleActiveItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className="rounded-md border border-border/60 bg-background/80 p-3"
+                      >
                         <div className="flex items-center justify-between gap-2">
                           <Link
                             to={buildWorkflowDetailPermalink(workflow.id, { workItemId: item.id })}
@@ -1487,8 +1658,44 @@ function ActivePlaybookBoards(props: {
                         </div>
                       </div>
                     ))}
+                    {remainingActiveItems.length > 0 ? (
+                      <details className="rounded-xl border border-border/70 bg-background/70 p-3">
+                        <summary className="cursor-pointer text-sm font-medium text-foreground">
+                          Show remaining active work items ({remainingActiveItems.length})
+                        </summary>
+                        <div className="mt-3 grid gap-2">
+                          {remainingActiveItems.map((item) => (
+                            <div
+                              key={`remaining:${item.id}`}
+                              className="rounded-md border border-border/60 bg-background/80 p-3"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <Link
+                                  to={buildWorkflowDetailPermalink(workflow.id, {
+                                    workItemId: item.id,
+                                  })}
+                                  className="truncate text-sm font-medium text-accent hover:underline"
+                                >
+                                  {item.title}
+                                </Link>
+                                <Badge variant="outline">{item.column_id}</Badge>
+                              </div>
+                              <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted">
+                                <span>{item.stage_name}</span>
+                                {item.task_count !== undefined ? (
+                                  <span>{item.task_count} specialist steps</span>
+                                ) : null}
+                                <span>{item.priority}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    ) : null}
                     {activeItems.length === 0 ? (
-                      <p className="text-sm text-muted">No active work items outside terminal columns.</p>
+                      <p className="text-sm text-muted">
+                        No active work items outside terminal columns.
+                      </p>
                     ) : null}
                   </div>
                 ) : null}

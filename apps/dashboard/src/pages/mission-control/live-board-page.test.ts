@@ -98,7 +98,9 @@ describe('live board page source', () => {
     expect(source).toContain('describeWorkflowStageSummary(workflow)');
     expect(source).toContain('formatRelativeTimestamp');
     expect(source).toContain('Compare board posture, pool pressure, progress, spend and tokens, and risk');
-    expect(source).toContain('Each card highlights board posture first, then pool posture, progress, spend, and risk.');
+    expect(source).toContain('Each card keeps posture, progress, and recovery signals above the fold');
+    expect(source).toContain('Most active work');
+    expect(source).toContain('Show remaining active work items');
   });
 
   it('renders human-readable live activity instead of raw event type rows', () => {
@@ -111,5 +113,18 @@ describe('live board page source', () => {
     expect(source).toContain('Recent operator activity recorded.');
     expect(source).toContain('Latest human-readable operator activity across the visible live scope.');
     expect(source).not.toContain('Badge variant="secondary">{evt.type}');
+  });
+
+  it('turns the operator queue into bounded triage tabs instead of one mixed list', () => {
+    const source = readSource();
+    expect(source).toContain('TabsTrigger value="gates"');
+    expect(source).toContain('TabsTrigger value="blocked"');
+    expect(source).toContain('TabsTrigger value="approvals"');
+    expect(source).toContain('TabsTrigger value="failed"');
+    expect(source).toContain('Triage by queue type first');
+    expect(source).toContain('AttentionEmptyState');
+    expect(source).toContain('StageGateQueueCard');
+    expect(source).toContain('BlockedWorkQueueCard');
+    expect(source).toContain('SpecialistQueueCard');
   });
 });
