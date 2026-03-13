@@ -54,7 +54,7 @@ describe('logs page source', () => {
     expect(packetsSource).toContain('Recent activity packets');
     expect(packetsSource).toContain('Open trace detail');
     expect(packetsSource).toContain('Board context');
-    expect(packetsSource).toContain('Step record');
+    expect(packetsSource).toContain("packet.workflowContextHref ? 'Step diagnostics' : 'Step record'");
     expect(packetsSource).toContain('dateTime={packet.createdAtIso}');
     expect(packetsSource).toContain('title={packet.createdAtDetail}');
     expect(packetsSource).toContain('Use these human-readable summaries to decide whether to stay in the raw stream');
@@ -75,7 +75,6 @@ describe('logs page source', () => {
     expect(source).toContain('Loading selected trace detail…');
     expect(source).toContain('isSelectedOutsideSegment');
     expect(source).toContain('loadedCount={entries.length}');
-    expect(source).toContain('Step record');
     expect(source).toContain('md:grid-cols-3');
   });
 });

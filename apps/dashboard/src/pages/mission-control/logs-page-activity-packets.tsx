@@ -75,7 +75,9 @@ export function LogsPageActivityPackets(props: {
               ) : null}
               {packet.taskRecordHref ? (
                 <Button size="sm" variant="outline" asChild>
-                  <Link to={packet.taskRecordHref}>Step record</Link>
+                  <Link to={packet.taskRecordHref}>
+                    {packet.workflowContextHref ? 'Step diagnostics' : 'Step record'}
+                  </Link>
                 </Button>
               ) : null}
             </div>
