@@ -14,18 +14,22 @@ import {
   CardTitle,
 } from '../../components/ui/card.js';
 import { Skeleton } from '../../components/ui/skeleton.js';
+import { buildWorkflowInspectorTraceModel } from './workflow-inspector-support.js';
 
 function InspectorMetric({
   label,
   value,
+  detail,
 }: {
   label: string;
   value: string | number;
+  detail?: string;
 }): JSX.Element {
   return (
     <div className="rounded-xl border border-border/70 bg-background/70 p-3">
       <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted">{label}</p>
       <p className="mt-1 text-lg font-semibold text-foreground">{value}</p>
+      {detail ? <p className="mt-2 text-sm leading-6 text-muted">{detail}</p> : null}
     </div>
   );
 }
@@ -41,7 +45,17 @@ export function WorkflowInspectorPage(): JSX.Element {
   });
 
   const workflow = workflowQuery.data;
+  const projectQuery = useQuery({
+    queryKey: ['project', workflow?.project_id, 'inspector-trace'],
+    queryFn: () => dashboardApi.getProject(workflow?.project_id ?? ''),
+    enabled: Boolean(workflow?.project_id),
+    staleTime: 30_000,
+  });
   const liveStageLabel = describeLiveStageLabel(workflow);
+  const traceModel = buildWorkflowInspectorTraceModel({
+    workflow,
+    project: projectQuery.data,
+  });
 
   return (
     <div className="space-y-6">
@@ -69,6 +83,22 @@ export function WorkflowInspectorPage(): JSX.Element {
                 <Button asChild variant="outline">
                   <Link to={`/projects/${workflow.project_id}`}>
                     Project
+                    <ExternalLink className="h-4 w-4" />
+                  </Link>
+                </Button>
+              ) : null}
+              {workflow?.project_id ? (
+                <Button asChild variant="outline">
+                  <Link to={`/projects/${workflow.project_id}/memory`}>
+                    Project Memory
+                    <ExternalLink className="h-4 w-4" />
+                  </Link>
+                </Button>
+              ) : null}
+              {workflow?.project_id ? (
+                <Button asChild variant="outline">
+                  <Link to={`/projects/${workflow.project_id}/artifacts`}>
+                    Project Artifacts
                     <ExternalLink className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -113,6 +143,56 @@ export function WorkflowInspectorPage(): JSX.Element {
                   </div>
                 </div>
               </div>
+              <div className="grid gap-4 rounded-xl border border-border/70 bg-background/70 p-4">
+                <div className="grid gap-1">
+                  <div className="text-sm font-medium text-foreground">Trace coverage</div>
+                  <p className="text-sm leading-6 text-muted">
+                    Follow activations, work items, gates, artifacts, and memory handoff without leaving the workflow inspector shell.
+                  </p>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                  {traceModel.metrics.map((metric) => (
+                    <InspectorMetric
+                      key={metric.label}
+                      label={metric.label}
+                      value={metric.value}
+                      detail={metric.detail}
+                    />
+                  ))}
+                </div>
+                <div className="grid gap-3 xl:grid-cols-2">
+                  <TraceCoverageNote
+                    title="Highest reported stage spend"
+                    value={
+                      traceModel.topStageSpend
+                      ?? 'No per-stage spend packet is available in the current run summary.'
+                    }
+                  />
+                  <TraceCoverageNote
+                    title="Latest activation packet"
+                    value={
+                      traceModel.latestActivationSummary
+                      ?? 'No activation batch has been recorded for this workflow yet.'
+                    }
+                  />
+                </div>
+                <div className="grid gap-3 md:grid-cols-3">
+                  {traceModel.links.map((link) => (
+                    <Card key={link.label} className="border-border/70 bg-card/70 shadow-none">
+                      <CardContent className="grid gap-2 p-4">
+                        <div className="text-sm font-medium text-foreground">{link.label}</div>
+                        <div className="text-sm leading-6 text-muted">{link.detail}</div>
+                        <Button asChild variant="outline" className="justify-between">
+                          <Link to={link.href}>
+                            Open
+                            <ExternalLink className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
             </>
           ) : (
             <div className="rounded-xl border border-border/70 bg-border/5 p-4 text-sm text-muted">
@@ -147,4 +227,15 @@ function describeLiveStageLabel(
     return 'No live stages';
   }
   return workflow?.current_stage ?? 'No live stage';
+}
+
+function TraceCoverageNote(props: { title: string; value: string }): JSX.Element {
+  return (
+    <div className="rounded-xl border border-border/70 bg-border/5 p-4">
+      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+        {props.title}
+      </div>
+      <p className="mt-2 text-sm leading-6 text-foreground">{props.value}</p>
+    </div>
+  );
 }

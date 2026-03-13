@@ -11,10 +11,18 @@ describe('workflow inspector page source', () => {
     const source = readSource();
     expect(source).toContain('useParams');
     expect(source).toContain('dashboardApi.getWorkflow');
+    expect(source).toContain('dashboardApi.getProject');
     expect(source).toContain('Workflow Inspector');
     expect(source).toContain('Workflow Board');
     expect(source).toContain('Current operator scope');
+    expect(source).toContain('Trace coverage');
+    expect(source).toContain('Project Memory');
+    expect(source).toContain('Project Artifacts');
+    expect(source).toContain('Highest reported stage spend');
+    expect(source).toContain('Latest activation packet');
     expect(source).toContain('InspectorMetric');
+    expect(source).toContain('buildWorkflowInspectorTraceModel');
+    expect(source).toContain('TraceCoverageNote');
     expect(source).toContain('workflowId');
     expect(source).toContain('LogsSurface');
     expect(source).toContain('scopedWorkflowId={workflowId}');
