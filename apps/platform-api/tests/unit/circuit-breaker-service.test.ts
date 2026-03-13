@@ -72,6 +72,36 @@ describe('CircuitBreakerService', () => {
       expect(result.circuitState).toBe('open');
     });
 
+    it('redacts secret-bearing reason and metadata before persisting breaker events', async () => {
+      pool.query
+        .mockResolvedValueOnce({
+          rows: [{ id: workerId, quality_score: 0.35, circuit_breaker_state: 'closed', circuit_breaker_tripped_at: null }],
+        })
+        .mockResolvedValueOnce({ rows: [] }) // INSERT circuit_breaker_events
+        .mockResolvedValueOnce({ rows: [] }); // UPDATE workers
+
+      await service.reportOutcome(tenantId, {
+        workerId,
+        outcome: 'failure',
+        reason: 'secret:WORKER_FAILURE_REASON',
+        metadata: {
+          api_key: 'sk-live-secret',
+          token_ref: 'secret:CIRCUIT_BREAKER_TOKEN',
+          safe: 'visible',
+        },
+      });
+
+      const [, params] = pool.query.mock.calls[1] as [string, unknown[]];
+      expect(params[3]).toBe('redacted://circuit-breaker-secret');
+      expect(params[6]).toBe(
+        JSON.stringify({
+          api_key: 'redacted://circuit-breaker-secret',
+          token_ref: 'redacted://circuit-breaker-secret',
+          safe: 'visible',
+        }),
+      );
+    });
+
     it('recoversFromHalfOpenOnSuccess', async () => {
       pool.query
         .mockResolvedValueOnce({
@@ -164,7 +194,19 @@ describe('CircuitBreakerService', () => {
 
   describe('listEvents', () => {
     it('returnsEventsForWorker', async () => {
-      const events = [{ id: 'ev1', worker_id: workerId, trigger_type: 'failure' }];
+      const events = [
+        {
+          id: 'ev1',
+          tenant_id: tenantId,
+          worker_id: workerId,
+          trigger_type: 'failure',
+          reason: 'worker timed out',
+          previous_state: 'closed',
+          new_state: 'open',
+          metadata: {},
+          created_at: new Date('2026-03-13T12:00:00.000Z'),
+        },
+      ];
       pool.query.mockResolvedValue({ rows: events });
 
       const result = await service.listEvents(tenantId, workerId);
@@ -172,6 +214,41 @@ describe('CircuitBreakerService', () => {
       expect(result).toEqual(events);
       const sql = pool.query.mock.calls[0][0] as string;
       expect(sql).toContain('circuit_breaker_events');
+    });
+
+    it('redacts secret-bearing reason and metadata on readback', async () => {
+      pool.query.mockResolvedValue({
+        rows: [
+          {
+            id: 'ev1',
+            tenant_id: tenantId,
+            worker_id: workerId,
+            trigger_type: 'failure',
+            reason: 'Bearer super-secret-token',
+            previous_state: 'closed',
+            new_state: 'open',
+            metadata: {
+              authorization: 'Bearer top-secret-token',
+              secret_ref: 'secret:CIRCUIT_BREAKER_TOKEN',
+              safe: 'visible',
+            },
+            created_at: new Date('2026-03-13T12:00:00.000Z'),
+          },
+        ],
+      });
+
+      const result = await service.listEvents(tenantId, workerId);
+
+      expect(result).toEqual([
+        expect.objectContaining({
+          reason: 'redacted://circuit-breaker-secret',
+          metadata: {
+            authorization: 'redacted://circuit-breaker-secret',
+            secret_ref: 'redacted://circuit-breaker-secret',
+            safe: 'visible',
+          },
+        }),
+      ]);
     });
   });
 

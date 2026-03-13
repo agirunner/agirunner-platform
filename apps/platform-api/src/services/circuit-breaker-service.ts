@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import type { DatabasePool } from '../db/database.js';
+import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
 
 const QUALITY_DECAY = 0.05;
 const QUALITY_FLOOR = 0.0;
@@ -39,6 +40,8 @@ interface WorkerQualityRow {
   circuit_breaker_state: string;
   circuit_breaker_tripped_at: Date | null;
 }
+
+const CIRCUIT_BREAKER_SECRET_REDACTION = 'redacted://circuit-breaker-secret';
 
 export class CircuitBreakerService {
   constructor(private readonly pool: DatabasePool) {}
@@ -111,7 +114,7 @@ export class CircuitBreakerService {
       'SELECT * FROM circuit_breaker_events WHERE tenant_id = $1 AND worker_id = $2 ORDER BY created_at DESC LIMIT $3',
       [tenantId, workerId, limit],
     );
-    return result.rows;
+    return result.rows.map((row) => sanitizeCircuitBreakerEventRow(row));
   }
 
   async resetCircuitBreaker(tenantId: string, workerId: string): Promise<void> {
@@ -141,10 +144,44 @@ export class CircuitBreakerService {
     newState: string,
     metadata: Record<string, unknown>,
   ): Promise<void> {
+    const sanitizedReason = sanitizeCircuitBreakerReason(reason);
+    const sanitizedMetadata = sanitizeCircuitBreakerMetadata(metadata);
     await this.pool.query(
       `INSERT INTO circuit_breaker_events (tenant_id, worker_id, trigger_type, reason, previous_state, new_state, metadata)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [tenantId, workerId, triggerType, reason, previousState, newState, JSON.stringify(metadata)],
+      [
+        tenantId,
+        workerId,
+        triggerType,
+        sanitizedReason,
+        previousState,
+        newState,
+        JSON.stringify(sanitizedMetadata),
+      ],
     );
   }
+}
+
+function sanitizeCircuitBreakerEventRow(row: CircuitBreakerEventRow): CircuitBreakerEventRow {
+  return {
+    ...row,
+    reason: sanitizeCircuitBreakerReason(row.reason),
+    metadata: sanitizeCircuitBreakerMetadata(row.metadata),
+  };
+}
+
+function sanitizeCircuitBreakerReason(reason: string): string {
+  return String(
+    sanitizeSecretLikeValue(reason, {
+      redactionValue: CIRCUIT_BREAKER_SECRET_REDACTION,
+      allowSecretReferences: false,
+    }),
+  );
+}
+
+function sanitizeCircuitBreakerMetadata(metadata: Record<string, unknown>): Record<string, unknown> {
+  return sanitizeSecretLikeRecord(metadata, {
+    redactionValue: CIRCUIT_BREAKER_SECRET_REDACTION,
+    allowSecretReferences: false,
+  });
 }
