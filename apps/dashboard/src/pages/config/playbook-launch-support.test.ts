@@ -13,6 +13,7 @@ import {
   summarizeLaunchOverviewCards,
   summarizeWorkflowBudgetDraft,
   syncRoleOverrideDrafts,
+  validateLaunchDraft,
 } from './playbook-launch-support.js';
 
 describe('playbook launch support', () => {
@@ -306,5 +307,51 @@ describe('playbook launch support', () => {
         maxDurationMinutes: '90',
       }),
     ).toBe('Workflow guardrails set for $12.5 cost cap, 90 minutes.');
+  });
+
+  it('validates launch identity and budget fields with concrete recovery guidance', () => {
+    expect(
+      validateLaunchDraft({
+        selectedPlaybook: null,
+        workflowName: '',
+        workflowBudgetDraft: {
+          tokenBudget: '1.5',
+          costCapUsd: '-2',
+          maxDurationMinutes: '0',
+        },
+      }),
+    ).toMatchObject({
+      fieldErrors: {
+        playbook: 'Select a playbook before launching a run.',
+        workflowName: 'Workflow name is required before launch.',
+        tokenBudget: 'Token budget must be a positive whole number.',
+        costCapUsd: 'Cost cap must be greater than zero.',
+        maxDurationMinutes: 'Maximum duration must be a positive whole number.',
+      },
+      isValid: false,
+    });
+
+    expect(
+      validateLaunchDraft({
+        selectedPlaybook: {
+          id: 'pb-1',
+          name: 'Ship',
+          slug: 'ship',
+          outcome: 'Ship software',
+          lifecycle: 'continuous',
+          version: 1,
+          is_active: true,
+          definition: {},
+        },
+        workflowName: 'Ship Run',
+        workflowBudgetDraft: createWorkflowBudgetDraft(),
+        workflowOverrideError: 'Workflow model override roles are required.',
+      }),
+    ).toMatchObject({
+      fieldErrors: {
+        workflowOverrides: 'Workflow model override roles are required.',
+      },
+      isValid: false,
+    });
   });
 });

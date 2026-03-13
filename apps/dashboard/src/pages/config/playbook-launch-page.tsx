@@ -41,7 +41,9 @@ import {
   readMappedProjectParameterDraft,
   summarizeWorkflowBudgetDraft,
   syncRoleOverrideDrafts,
+  validateLaunchDraft,
   type LaunchParameterSpec,
+  type LaunchValidationResult,
   type RoleOverrideDraft,
   type StructuredEntryDraft,
   type StructuredValueType,
@@ -111,22 +113,6 @@ export function PlaybookLaunchPage(): JSX.Element {
     () => readWorkflowOverrides(modelOverrideDrafts),
     [modelOverrideDrafts],
   );
-  const workflowBudget = useMemo(() => {
-    try {
-      return {
-        value: buildWorkflowBudgetInput(workflowBudgetDraft),
-        error: null,
-      };
-    } catch (budgetError) {
-      return {
-        value: undefined,
-        error:
-          budgetError instanceof Error
-            ? budgetError.message
-            : 'Workflow budget inputs are invalid.',
-      };
-    }
-  }, [workflowBudgetDraft]);
   const projectResolvedModelsQuery = useQuery({
     queryKey: ['project-models', projectId],
     queryFn: () => dashboardApi.getResolvedProjectModels(projectId),
@@ -150,13 +136,28 @@ export function PlaybookLaunchPage(): JSX.Element {
       !workflowOverrides.error &&
       (Object.keys(workflowOverrides.value ?? {}).length > 0 || projectId.length > 0),
   });
-  const validationError = readLaunchValidationError(
-    selectedPlaybook,
-    workflowName,
-    workflowOverrides.error,
-  ) ?? workflowBudget.error;
   const projects = projectsQuery.data?.data ?? [];
   const selectedProject = projects.find((project) => project.id === projectId) ?? null;
+  const launchValidation = useMemo(
+    () =>
+      validateLaunchDraft({
+        selectedPlaybook,
+        workflowName,
+        workflowBudgetDraft,
+        workflowOverrideError: workflowOverrides.error,
+      }),
+    [selectedPlaybook, workflowName, workflowBudgetDraft, workflowOverrides.error],
+  );
+  const workflowBudget = useMemo(() => {
+    if (
+      launchValidation.fieldErrors.tokenBudget ||
+      launchValidation.fieldErrors.costCapUsd ||
+      launchValidation.fieldErrors.maxDurationMinutes
+    ) {
+      return undefined;
+    }
+    return buildWorkflowBudgetInput(workflowBudgetDraft);
+  }, [launchValidation.fieldErrors, workflowBudgetDraft]);
   const overviewCards = useMemo(
     () =>
       summarizeLaunchOverviewCards({
@@ -267,7 +268,7 @@ export function PlaybookLaunchPage(): JSX.Element {
         parameters,
         metadata,
         model_overrides: modelOverrides,
-        budget: workflowBudget.value,
+        budget: workflowBudget,
       });
     },
     onSuccess: (workflow) => {
@@ -278,7 +279,7 @@ export function PlaybookLaunchPage(): JSX.Element {
     },
   });
 
-  const canLaunch = !validationError && !launchMutation.isPending;
+  const canLaunch = launchValidation.isValid && !launchMutation.isPending;
 
   return (
     <div
@@ -354,6 +355,9 @@ export function PlaybookLaunchPage(): JSX.Element {
                     ))}
                   </SelectContent>
                 </Select>
+                {launchValidation.fieldErrors.playbook && !isSelectedPlaybookArchived ? (
+                  <p className="text-xs text-red-600">{launchValidation.fieldErrors.playbook}</p>
+                ) : null}
               </label>
               {isSelectedPlaybookArchived ? (
                 <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950">
@@ -366,9 +370,21 @@ export function PlaybookLaunchPage(): JSX.Element {
                 <span className="font-medium">Workflow Name</span>
                 <Input
                   value={workflowName}
-                  onChange={(event) => setWorkflowName(event.target.value)}
+                  onChange={(event) => {
+                    setWorkflowName(event.target.value);
+                    setError(null);
+                  }}
                   placeholder="e.g. Customer onboarding board run"
                 />
+                {launchValidation.fieldErrors.workflowName ? (
+                  <p className="text-xs text-red-600">
+                    {launchValidation.fieldErrors.workflowName}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted">
+                    Use the run name operators will search for in the workflow board and audit trail.
+                  </p>
+                )}
               </label>
 
               <label className="grid gap-2 text-sm">
@@ -402,7 +418,7 @@ export function PlaybookLaunchPage(): JSX.Element {
                 hasMetadataEntries={hasMetadataEntries}
                 hasWorkflowOverrides={hasWorkflowOverrides}
                 budgetDraft={workflowBudgetDraft}
-                validationError={validationError}
+                validation={launchValidation}
               />
             </StructuredSection>
 
@@ -474,6 +490,7 @@ export function PlaybookLaunchPage(): JSX.Element {
             >
               <WorkflowBudgetEditor
                 draft={workflowBudgetDraft}
+                fieldErrors={launchValidation.fieldErrors}
                 onChange={(draft) => {
                   setError(null);
                   setWorkflowBudgetDraft(draft);
@@ -519,7 +536,6 @@ export function PlaybookLaunchPage(): JSX.Element {
             {workflowOverrides.error ? (
               <p className="text-sm text-red-600">{workflowOverrides.error}</p>
             ) : null}
-            {validationError ? <p className="text-sm text-red-600">{validationError}</p> : null}
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
             <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/10 p-4">
@@ -605,7 +621,7 @@ function LaunchReadinessPanel(props: {
   hasMetadataEntries: boolean;
   hasWorkflowOverrides: boolean;
   budgetDraft: WorkflowBudgetDraft;
-  validationError: string | null;
+  validation: LaunchValidationResult;
 }): JSX.Element {
   const budgetSummary = summarizeWorkflowBudgetDraft(props.budgetDraft);
   const checks = [
@@ -620,7 +636,7 @@ function LaunchReadinessPanel(props: {
     {
       label: 'Workflow named',
       detail: props.workflowName.trim() || 'Enter a descriptive run name.',
-      isReady: props.workflowName.trim().length > 0,
+      isReady: !props.validation.fieldErrors.workflowName,
     },
     {
       label: 'Project context',
@@ -643,8 +659,15 @@ function LaunchReadinessPanel(props: {
     },
     {
       label: 'Workflow budget policy',
-      detail: budgetSummary,
-      isReady: true,
+      detail:
+        props.validation.fieldErrors.tokenBudget ||
+        props.validation.fieldErrors.costCapUsd ||
+        props.validation.fieldErrors.maxDurationMinutes ||
+        budgetSummary,
+      isReady:
+        !props.validation.fieldErrors.tokenBudget &&
+        !props.validation.fieldErrors.costCapUsd &&
+        !props.validation.fieldErrors.maxDurationMinutes,
     },
   ];
 
@@ -663,9 +686,15 @@ function LaunchReadinessPanel(props: {
       ))}
       <div className="md:col-span-2 rounded-md border border-border bg-surface p-3 text-sm">
         <div className="font-medium">Launch status</div>
-        <p className="mt-2 text-muted">
-          {props.validationError ?? 'All required launch inputs are present.'}
-        </p>
+        {props.validation.blockingIssues.length > 0 ? (
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-muted">
+            {props.validation.blockingIssues.map((issue) => (
+              <li key={issue}>{issue}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-muted">All required launch inputs are present.</p>
+        )}
       </div>
     </div>
   );
@@ -673,6 +702,7 @@ function LaunchReadinessPanel(props: {
 
 function WorkflowBudgetEditor(props: {
   draft: WorkflowBudgetDraft;
+  fieldErrors: LaunchValidationResult['fieldErrors'];
   onChange(draft: WorkflowBudgetDraft): void;
 }): JSX.Element {
   return (
@@ -693,6 +723,9 @@ function WorkflowBudgetEditor(props: {
         <span className="text-xs text-muted">
           Integer cap for total tokens across the workflow.
         </span>
+        {props.fieldErrors.tokenBudget ? (
+          <span className="text-xs text-red-600">{props.fieldErrors.tokenBudget}</span>
+        ) : null}
       </label>
       <label className="grid gap-2 text-sm">
         <span className="font-medium">Cost Cap (USD)</span>
@@ -710,6 +743,9 @@ function WorkflowBudgetEditor(props: {
         <span className="text-xs text-muted">
           Stop treating spend as open-ended when the workflow has a dollar ceiling.
         </span>
+        {props.fieldErrors.costCapUsd ? (
+          <span className="text-xs text-red-600">{props.fieldErrors.costCapUsd}</span>
+        ) : null}
       </label>
       <label className="grid gap-2 text-sm">
         <span className="font-medium">Max Duration (Minutes)</span>
@@ -727,6 +763,9 @@ function WorkflowBudgetEditor(props: {
         <span className="text-xs text-muted">
           Guard against workflows running longer than the intended operator window.
         </span>
+        {props.fieldErrors.maxDurationMinutes ? (
+          <span className="text-xs text-red-600">{props.fieldErrors.maxDurationMinutes}</span>
+        ) : null}
       </label>
     </div>
   );
@@ -1327,24 +1366,4 @@ function readWorkflowOverrides(
       error: error instanceof Error ? error.message : 'Workflow model overrides are invalid.',
     };
   }
-}
-
-function readLaunchValidationError(
-  selectedPlaybook: DashboardPlaybookRecord | null,
-  workflowName: string,
-  workflowOverrideError?: string,
-): string | null {
-  if (!selectedPlaybook) {
-    return 'Select a playbook before launching a run.';
-  }
-  if (selectedPlaybook.is_active === false) {
-    return 'Archived playbooks must be restored before launch.';
-  }
-  if (!workflowName.trim()) {
-    return 'Workflow Name is required before launch.';
-  }
-  if (workflowOverrideError) {
-    return workflowOverrideError;
-  }
-  return null;
 }

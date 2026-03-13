@@ -32,7 +32,6 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('LaunchOutlineCard');
     expect(source).toContain('launchablePlaybooks');
     expect(source).toContain('Archived revision selected - restore first');
-    expect(source).toContain('Archived playbooks must be restored before launch.');
     expect(source).toContain('This playbook revision is archived. Restore it from the playbook detail page');
     expect(source).toContain('Playbook Parameters');
     expect(source).toContain('Metadata Entries');
@@ -48,6 +47,9 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('Remove Override');
     expect(source).toContain('StructuredEntryEditor');
     expect(source).toContain('Reasoning Config Entries');
+    expect(source).toContain('validateLaunchDraft');
+    expect(source).toContain('launchValidation.fieldErrors.workflowName');
+    expect(source).toContain('All required launch inputs are present.');
     expect(source).not.toContain('Reasoning Config JSON');
   });
 
@@ -58,10 +60,10 @@ describe('playbook launch model override source', () => {
     expect(source).toContain("buildStructuredObject(metadataDrafts, 'Metadata')");
     expect(source).toContain('buildModelOverrides(modelOverrideDrafts)');
     expect(source).toContain('buildWorkflowBudgetInput(workflowBudgetDraft)');
-    expect(source).toContain('readLaunchValidationError');
+    expect(source).toContain('props.validation.blockingIssues');
     expect(source).toContain('dashboardApi.createWorkflow({');
     expect(source).toContain('model_overrides: modelOverrides');
-    expect(source).toContain('budget: workflowBudget.value');
+    expect(source).toContain('budget: workflowBudget');
     expect(source).toContain('Resolved Effective Models');
     expect(source).toContain('scroll-mt-24');
   });

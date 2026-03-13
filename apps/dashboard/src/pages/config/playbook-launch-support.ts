@@ -57,6 +57,19 @@ export interface LaunchSectionLink {
   detail: string;
 }
 
+export interface LaunchValidationResult {
+  fieldErrors: {
+    playbook?: string;
+    workflowName?: string;
+    tokenBudget?: string;
+    costCapUsd?: string;
+    maxDurationMinutes?: string;
+    workflowOverrides?: string;
+  };
+  blockingIssues: string[];
+  isValid: boolean;
+}
+
 let draftCounter = 0;
 
 export function readLaunchDefinition(playbook: DashboardPlaybookRecord | null): LaunchDefinitionSummary {
@@ -258,6 +271,41 @@ export function buildWorkflowBudgetInput(
     value.max_duration_minutes = maxDurationMinutes;
   }
   return Object.keys(value).length > 0 ? value : undefined;
+}
+
+export function validateLaunchDraft(input: {
+  selectedPlaybook: DashboardPlaybookRecord | null;
+  workflowName: string;
+  workflowBudgetDraft: WorkflowBudgetDraft;
+  workflowOverrideError?: string;
+}): LaunchValidationResult {
+  const fieldErrors: LaunchValidationResult['fieldErrors'] = {
+    ...validateWorkflowBudgetDraft(input.workflowBudgetDraft),
+  };
+
+  if (!input.selectedPlaybook) {
+    fieldErrors.playbook = 'Select a playbook before launching a run.';
+  } else if (input.selectedPlaybook.is_active === false) {
+    fieldErrors.playbook = 'Archived playbooks must be restored before launch.';
+  }
+
+  if (!input.workflowName.trim()) {
+    fieldErrors.workflowName = 'Workflow name is required before launch.';
+  }
+
+  if (input.workflowOverrideError) {
+    fieldErrors.workflowOverrides = input.workflowOverrideError;
+  }
+
+  const blockingIssues = Object.values(fieldErrors).filter(
+    (issue): issue is string => Boolean(issue),
+  );
+
+  return {
+    fieldErrors,
+    blockingIssues,
+    isValid: blockingIssues.length === 0,
+  };
 }
 
 export function summarizeWorkflowBudgetDraft(draft: WorkflowBudgetDraft): string {
@@ -531,6 +579,36 @@ function parsePositiveNumber(value: string, label: string): number | undefined {
     throw new Error(`${label} must be greater than zero.`);
   }
   return parsed;
+}
+
+function validateWorkflowBudgetDraft(
+  draft: WorkflowBudgetDraft,
+): Pick<
+  LaunchValidationResult['fieldErrors'],
+  'tokenBudget' | 'costCapUsd' | 'maxDurationMinutes'
+> {
+  return {
+    tokenBudget: readBudgetFieldError(draft.tokenBudget, 'Token budget', parsePositiveInteger),
+    costCapUsd: readBudgetFieldError(draft.costCapUsd, 'Cost cap', parsePositiveNumber),
+    maxDurationMinutes: readBudgetFieldError(
+      draft.maxDurationMinutes,
+      'Maximum duration',
+      parsePositiveInteger,
+    ),
+  };
+}
+
+function readBudgetFieldError(
+  value: string,
+  label: string,
+  parser: (raw: string, fieldLabel: string) => number | undefined,
+): string | undefined {
+  try {
+    parser(value, label);
+    return undefined;
+  } catch (error) {
+    return error instanceof Error ? error.message : `${label} is invalid.`;
+  }
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
