@@ -55,6 +55,10 @@ describe('role definitions page source', () => {
     expect(source).toContain('Fallback model');
     expect(source).toContain('Active role');
     expect(source).toContain('Add custom capability');
+    expect(source).toContain('Enter a custom capability before adding it.');
+    expect(source).toContain('Use an ID-style capability without spaces');
+    expect(source).toContain('Enter a custom tool grant before adding it.');
+    expect(source).toContain('Use a single tool ID without spaces');
     expect(source).toContain('Save readiness');
     expect(source).toContain('Resolve these role setup issues before saving.');
     expect(source).toContain('Choose a unique role name.');

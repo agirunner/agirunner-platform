@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildEscalationTargetOptions,
+  readCustomCapabilityError,
+  readCustomToolError,
   summarizeRoleSetup,
   validateRoleDialog,
 } from './role-definitions-dialog.support.js';
@@ -68,5 +70,22 @@ describe('role dialog support', () => {
       reviewSummary: 'Peer review required',
       escalationSummary: 'Escalates to a human operator after 2 handoffs',
     });
+  });
+
+  it('explains blank, duplicate, and malformed custom additions before they silently fail', () => {
+    expect(readCustomCapabilityError('', [])).toBe('Enter a custom capability before adding it.');
+    expect(readCustomCapabilityError('role:architect', ['role:architect'])).toBe(
+      'This capability is already added.',
+    );
+    expect(readCustomCapabilityError('role data scientist', [])).toBe(
+      'Use an ID-style capability without spaces, for example role:data-scientist.',
+    );
+    expect(readCustomToolError('', [])).toBe('Enter a custom tool grant before adding it.');
+    expect(readCustomToolError('artifact_read', ['artifact_read'])).toBe(
+      'This tool grant is already added.',
+    );
+    expect(readCustomToolError('artifact read', [])).toBe(
+      'Use a single tool ID without spaces, for example artifact_read.',
+    );
   });
 });

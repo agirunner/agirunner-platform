@@ -4,6 +4,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog.js';
 import {
   buildEscalationTargetOptions,
+  readCustomCapabilityError,
+  readCustomToolError,
   summarizeRoleSetup,
   validateRoleDialog,
 } from './role-definitions-dialog.support.js';
@@ -44,6 +46,8 @@ export function RoleDialog(props: {
   const [form, setForm] = useState<RoleFormState>(createRoleForm(props.role));
   const [customCapability, setCustomCapability] = useState('');
   const [customTool, setCustomTool] = useState('');
+  const [customCapabilityError, setCustomCapabilityError] = useState<string>();
+  const [customToolError, setCustomToolError] = useState<string>();
   const mutation = useMutation({
     mutationFn: () => props.onSave(props.role?.id ?? null, form),
     onSuccess: () => {
@@ -72,15 +76,20 @@ export function RoleDialog(props: {
     field: 'allowedTools' | 'capabilities',
     value: string,
     reset: () => void,
+    readError: (draft: string) => string | undefined,
+    setError: (message: string | undefined) => void,
   ) {
-    const trimmed = value.trim();
-    if (!trimmed) {
+    const error = readError(value);
+    if (error) {
+      setError(error);
       return;
     }
+    const trimmed = value.trim();
     setForm((current) => ({
       ...current,
       [field]: current[field].includes(trimmed) ? current[field] : [...current[field], trimmed],
     }));
+    setError(undefined);
     reset();
   }
 
@@ -127,10 +136,29 @@ export function RoleDialog(props: {
                     form={form}
                     capabilities={capabilities}
                     customCapability={customCapability}
-                    setCustomCapability={setCustomCapability}
+                    customCapabilityError={customCapabilityError}
+                    setCustomCapability={(value) => {
+                      setCustomCapability(value);
+                      if (customCapabilityError) {
+                        setCustomCapabilityError(
+                          readCustomCapabilityError(value, form.capabilities),
+                        );
+                      }
+                    }}
+                    onCustomCapabilityBlur={() =>
+                      setCustomCapabilityError(
+                        readCustomCapabilityError(customCapability, form.capabilities),
+                      )
+                    }
                     toggleCapability={(value) => toggleListValue('capabilities', value)}
                     addCustomCapability={() =>
-                      addListValue('capabilities', customCapability, () => setCustomCapability(''))
+                      addListValue(
+                        'capabilities',
+                        customCapability,
+                        () => setCustomCapability(''),
+                        (draft) => readCustomCapabilityError(draft, form.capabilities),
+                        setCustomCapabilityError,
+                      )
                     }
                   />
                 </div>
@@ -138,10 +166,25 @@ export function RoleDialog(props: {
                   form={form}
                   tools={tools}
                   customTool={customTool}
-                  setCustomTool={setCustomTool}
+                  customToolError={customToolError}
+                  setCustomTool={(value) => {
+                    setCustomTool(value);
+                    if (customToolError) {
+                      setCustomToolError(readCustomToolError(value, form.allowedTools));
+                    }
+                  }}
+                  onCustomToolBlur={() =>
+                    setCustomToolError(readCustomToolError(customTool, form.allowedTools))
+                  }
                   toggleTool={(value) => toggleListValue('allowedTools', value)}
                   addCustomTool={() =>
-                    addListValue('allowedTools', customTool, () => setCustomTool(''))
+                    addListValue(
+                      'allowedTools',
+                      customTool,
+                      () => setCustomTool(''),
+                      (draft) => readCustomToolError(draft, form.allowedTools),
+                      setCustomToolError,
+                    )
                   }
                 />
               </div>

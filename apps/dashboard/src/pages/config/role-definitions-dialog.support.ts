@@ -27,6 +27,32 @@ export interface RoleSetupSummary {
   escalationSummary: string;
 }
 
+export function readCustomCapabilityError(
+  draft: string,
+  existingCapabilities: string[],
+): string | undefined {
+  return readCustomRoleListError(
+    draft,
+    existingCapabilities,
+    'Enter a custom capability before adding it.',
+    'This capability is already added.',
+    'Use an ID-style capability without spaces, for example role:data-scientist.',
+  );
+}
+
+export function readCustomToolError(
+  draft: string,
+  existingTools: string[],
+): string | undefined {
+  return readCustomRoleListError(
+    draft,
+    existingTools,
+    'Enter a custom tool grant before adding it.',
+    'This tool grant is already added.',
+    'Use a single tool ID without spaces, for example artifact_read.',
+  );
+}
+
 export function buildEscalationTargetOptions(
   roles: RoleDefinition[],
   currentRole?: RoleDefinition | null,
@@ -179,4 +205,27 @@ function describeVerificationStrategy(strategy: string): string {
     return 'Structured review required';
   }
   return 'No verification requirement';
+}
+
+function readCustomRoleListError(
+  draft: string,
+  existingValues: string[],
+  missingMessage: string,
+  duplicateMessage: string,
+  formatMessage: string,
+): string | undefined {
+  const trimmedDraft = draft.trim();
+  if (!trimmedDraft) {
+    return missingMessage;
+  }
+  if (/\s/.test(trimmedDraft)) {
+    return formatMessage;
+  }
+  const normalizedDraft = trimmedDraft.toLowerCase();
+  if (
+    existingValues.some((value) => value.trim().toLowerCase() === normalizedDraft)
+  ) {
+    return duplicateMessage;
+  }
+  return undefined;
 }

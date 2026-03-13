@@ -1,5 +1,3 @@
-import type { Dispatch, SetStateAction } from 'react';
-
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import {
@@ -21,7 +19,9 @@ export function RoleCapabilitiesSection(props: {
   form: RoleFormState;
   capabilities: CapabilityOption[];
   customCapability: string;
-  setCustomCapability: Dispatch<SetStateAction<string>>;
+  customCapabilityError?: string;
+  setCustomCapability(value: string): void;
+  onCustomCapabilityBlur(): void;
   toggleCapability(value: string): void;
   addCustomCapability(): void;
 }) {
@@ -71,13 +71,25 @@ export function RoleCapabilitiesSection(props: {
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
             value={props.customCapability}
+            aria-invalid={props.customCapabilityError ? true : undefined}
+            className={
+              props.customCapabilityError ? 'border-red-300 focus-visible:ring-red-500' : undefined
+            }
             onChange={(event) => props.setCustomCapability(event.target.value)}
+            onBlur={props.onCustomCapabilityBlur}
             placeholder="Add a custom capability, for example role:data-scientist"
           />
           <Button type="button" variant="outline" onClick={props.addCustomCapability}>
             Add custom capability
           </Button>
         </div>
+        {props.customCapabilityError ? (
+          <p className="text-xs text-red-600">{props.customCapabilityError}</p>
+        ) : (
+          <p className="text-xs text-muted">
+            Use stable ID-style capability labels so routing and staffing logic stay readable.
+          </p>
+        )}
       </CardContent>
     </Card>
   );
@@ -87,7 +99,9 @@ export function RoleToolGrantsSection(props: {
   form: RoleFormState;
   tools: string[];
   customTool: string;
-  setCustomTool: Dispatch<SetStateAction<string>>;
+  customToolError?: string;
+  setCustomTool(value: string): void;
+  onCustomToolBlur(): void;
   toggleTool(value: string): void;
   addCustomTool(): void;
 }) {
@@ -130,13 +144,23 @@ export function RoleToolGrantsSection(props: {
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
             value={props.customTool}
+            aria-invalid={props.customToolError ? true : undefined}
+            className={props.customToolError ? 'border-red-300 focus-visible:ring-red-500' : undefined}
             onChange={(event) => props.setCustomTool(event.target.value)}
+            onBlur={props.onCustomToolBlur}
             placeholder="Add a custom tool grant"
           />
           <Button type="button" variant="outline" onClick={props.addCustomTool}>
             Add custom tool
           </Button>
         </div>
+        {props.customToolError ? (
+          <p className="text-xs text-red-600">{props.customToolError}</p>
+        ) : (
+          <p className="text-xs text-muted">
+            Use the exact tool ID when you add a non-catalog grant.
+          </p>
+        )}
       </CardContent>
     </Card>
   );
