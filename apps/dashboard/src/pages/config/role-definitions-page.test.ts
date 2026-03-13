@@ -74,8 +74,16 @@ describe('role definitions page source', () => {
   it('adds a first-class orchestrator control plane with prompt, model, and pool links', () => {
     const source = readCombinedSource();
     expect(source).toContain('OrchestratorControlPlane');
+    expect(source).toContain('summarizeOrchestratorControlSurfaces');
     expect(source).toContain('summarizeOrchestratorReadiness');
     expect(source).toContain('Roles &amp; Orchestrator');
+    expect(source).toContain('Configuration map');
+    expect(source).toContain('Every supported orchestrator setting has a clear home.');
+    expect(source).toContain('Open prompt settings');
+    expect(source).toContain('Open model routing');
+    expect(source).toContain('Open runtime defaults');
+    expect(source).toContain('Jump to role catalog');
+    expect(source).toContain('specialist-role-catalog');
     expect(source).toContain('Needs attention');
     expect(source).toContain('Control plane ready');
     expect(source).toContain('Resolve these orchestrator setup blockers before relying on this control plane for live workflows.');

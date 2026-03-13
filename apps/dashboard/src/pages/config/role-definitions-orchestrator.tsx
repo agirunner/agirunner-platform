@@ -13,6 +13,7 @@ import {
 } from '../../components/ui/card.js';
 import type {
   OrchestratorControlReadiness,
+  OrchestratorControlSurface,
   OrchestratorModelSummary,
   OrchestratorPoolSummary,
   OrchestratorPromptSummary,
@@ -23,6 +24,7 @@ export function OrchestratorControlPlane(props: {
   modelSummary: OrchestratorModelSummary;
   poolSummary: OrchestratorPoolSummary;
   readiness: OrchestratorControlReadiness;
+  controlSurfaces: OrchestratorControlSurface[];
   isLoading: boolean;
   hasError: boolean;
 }): JSX.Element {
@@ -130,6 +132,20 @@ export function OrchestratorControlPlane(props: {
             </div>
           ) : null}
         </div>
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-foreground">Configuration map</p>
+            <p className="max-w-3xl text-sm text-muted">
+              Every supported orchestrator setting has a clear home. Use this map to jump straight
+              to the right surface instead of hunting through unrelated config pages.
+            </p>
+          </div>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {props.controlSurfaces.map((surface) => (
+              <ConfigurationMapCard key={surface.id} surface={surface} />
+            ))}
+          </div>
+        </div>
         <div className="grid gap-4 xl:grid-cols-3">
         <ControlPacket
           icon={FilePenLine}
@@ -166,6 +182,36 @@ export function OrchestratorControlPlane(props: {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function ConfigurationMapCard(props: {
+  surface: OrchestratorControlSurface;
+}): JSX.Element {
+  return (
+    <div className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-4">
+      <div className="space-y-1">
+        <p className="text-sm font-medium text-foreground">{props.surface.title}</p>
+        <p className="text-sm font-semibold text-foreground">{props.surface.summary}</p>
+        <p className="text-sm leading-6 text-muted">{props.surface.detail}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button asChild variant="ghost" size="sm">
+          <Link to={props.surface.href}>
+            <ExternalLink className="h-4 w-4" />
+            {props.surface.label}
+          </Link>
+        </Button>
+        {props.surface.secondaryHref && props.surface.secondaryLabel ? (
+          <Button asChild variant="ghost" size="sm">
+            <Link to={props.surface.secondaryHref}>
+              <ExternalLink className="h-4 w-4" />
+              {props.surface.secondaryLabel}
+            </Link>
+          </Button>
+        ) : null}
+      </div>
+    </div>
   );
 }
 

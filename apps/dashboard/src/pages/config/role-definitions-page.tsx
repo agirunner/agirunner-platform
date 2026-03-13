@@ -26,6 +26,7 @@ import {
 } from './role-definitions-orchestrator.js';
 import {
   summarizeOrchestratorReadiness,
+  summarizeOrchestratorControlSurfaces,
   summarizeOrchestratorModel,
   summarizeOrchestratorPool,
   summarizeOrchestratorPrompt,
@@ -159,6 +160,11 @@ export function RoleDefinitionsPage(): JSX.Element {
     orchestratorModelSummary,
     orchestratorPoolSummary,
   );
+  const orchestratorControlSurfaces = summarizeOrchestratorControlSurfaces(
+    orchestratorPromptSummary,
+    orchestratorModelSummary,
+    orchestratorPoolSummary,
+  );
   const orchestratorQueries = [
     instructionsQuery,
     systemDefaultQuery,
@@ -196,6 +202,7 @@ export function RoleDefinitionsPage(): JSX.Element {
         modelSummary={orchestratorModelSummary}
         poolSummary={orchestratorPoolSummary}
         readiness={orchestratorReadiness}
+        controlSurfaces={orchestratorControlSurfaces}
         isLoading={orchestratorQueries.some((query) => query.isLoading)}
         hasError={orchestratorQueries.some((query) => query.isError)}
       />
@@ -216,7 +223,7 @@ export function RoleDefinitionsPage(): JSX.Element {
           </div>
         </div>
       ) : (
-        <Card>
+        <Card id="specialist-role-catalog">
           <CardHeader>
             <CardTitle>Specialist role catalog</CardTitle>
             <CardDescription>Review current specialist role posture at a glance, then expand any row for the full prompt, grants, and escalation details.</CardDescription>

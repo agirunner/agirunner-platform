@@ -50,6 +50,17 @@ export interface OrchestratorControlReadiness {
   isReady: boolean;
 }
 
+export interface OrchestratorControlSurface {
+  id: 'prompt' | 'model' | 'pool' | 'specialists';
+  title: string;
+  summary: string;
+  detail: string;
+  href: string;
+  label: string;
+  secondaryHref?: string;
+  secondaryLabel?: string;
+}
+
 const EMPTY_MODEL_SUMMARY: OrchestratorModelSummary = {
   modelLabel: 'Use system default',
   reasoningLabel: 'No explicit reasoning profile',
@@ -182,6 +193,53 @@ export function summarizeOrchestratorReadiness(
     issues,
     isReady: false,
   };
+}
+
+export function summarizeOrchestratorControlSurfaces(
+  prompt: OrchestratorPromptSummary,
+  model: OrchestratorModelSummary,
+  pool: OrchestratorPoolSummary,
+): OrchestratorControlSurface[] {
+  return [
+    {
+      id: 'prompt',
+      title: 'Prompt baseline',
+      summary: prompt.versionLabel,
+      detail:
+        prompt.statusLabel === 'No active prompt'
+          ? 'Platform instructions define orchestrator tone, review posture, and stall recovery before any run starts.'
+          : 'Platform instructions own the orchestrator baseline for delegation, recovery, and review language.',
+      href: '/config/instructions',
+      label: 'Open prompt settings',
+    },
+    {
+      id: 'model',
+      title: 'Model routing',
+      summary: model.modelLabel,
+      detail: `${model.sourceLabel} · ${model.reasoningLabel}`,
+      href: '/config/llm',
+      label: 'Open model routing',
+    },
+    {
+      id: 'pool',
+      title: 'Pool and runtime',
+      summary: `${pool.enabledWorkers} enabled / ${pool.desiredReplicas} desired replicas`,
+      detail: `Worker desired state controls pool capacity. Runtime defaults control the shared execution envelope and safeguards.`,
+      href: '/fleet/workers',
+      label: 'Open worker pool',
+      secondaryHref: '/config/runtimes',
+      secondaryLabel: 'Open runtime defaults',
+    },
+    {
+      id: 'specialists',
+      title: 'Specialist prompts and escalation',
+      summary: 'Managed in the role catalog below',
+      detail:
+        'Role prompts, tool grants, verification strategy, fallback routing, and escalation targets are edited on this page in the specialist role editor.',
+      href: '#specialist-role-catalog',
+      label: 'Jump to role catalog',
+    },
+  ];
 }
 
 export function summarizeReasoningConfig(

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  summarizeOrchestratorControlSurfaces,
   summarizeOrchestratorReadiness,
   summarizeOrchestratorModel,
   summarizeOrchestratorPool,
@@ -187,5 +188,68 @@ describe('role definitions orchestrator support', () => {
       issues: [],
       isReady: true,
     });
+  });
+
+  it('maps each orchestrator setting family to a discoverable dashboard surface', () => {
+    expect(
+      summarizeOrchestratorControlSurfaces(
+        {
+          statusLabel: 'Prompt configured',
+          versionLabel: 'v3',
+          excerpt: 'Coordinate work and request review when a stage gate requires it.',
+        },
+        {
+          modelLabel: 'gpt-5.4 (OpenAI)',
+          reasoningLabel: 'effort: medium',
+          sourceLabel: 'System default',
+        },
+        {
+          desiredWorkers: 1,
+          desiredReplicas: 2,
+          enabledWorkers: 1,
+          runningContainers: 1,
+          runtimeLabel: 'ghcr.io/agirunner/runtime:latest',
+          modelLabel: 'gpt-5.4',
+        },
+      ),
+    ).toEqual([
+      {
+        id: 'prompt',
+        title: 'Prompt baseline',
+        summary: 'v3',
+        detail:
+          'Platform instructions own the orchestrator baseline for delegation, recovery, and review language.',
+        href: '/config/instructions',
+        label: 'Open prompt settings',
+      },
+      {
+        id: 'model',
+        title: 'Model routing',
+        summary: 'gpt-5.4 (OpenAI)',
+        detail: 'System default · effort: medium',
+        href: '/config/llm',
+        label: 'Open model routing',
+      },
+      {
+        id: 'pool',
+        title: 'Pool and runtime',
+        summary: '1 enabled / 2 desired replicas',
+        detail:
+          'Worker desired state controls pool capacity. Runtime defaults control the shared execution envelope and safeguards.',
+        href: '/fleet/workers',
+        label: 'Open worker pool',
+        secondaryHref: '/config/runtimes',
+        secondaryLabel: 'Open runtime defaults',
+      },
+      {
+        id: 'specialists',
+        title: 'Specialist prompts and escalation',
+        summary: 'Managed in the role catalog below',
+        detail:
+          'Role prompts, tool grants, verification strategy, fallback routing, and escalation targets are edited on this page in the specialist role editor.',
+        href: '#specialist-role-catalog',
+        label: 'Jump to role catalog',
+      },
+    ]);
   });
 });
