@@ -10,6 +10,10 @@ function readCombinedSource() {
   return [
     readSource(),
     readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.tsx'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.basics.tsx'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.catalog.tsx'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.summary.tsx'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.support.ts'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-delete-dialog.tsx'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-lifecycle.ts'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-orchestrator.tsx'), 'utf8'),
@@ -31,7 +35,9 @@ describe('role definitions page source', () => {
     const source = readSource();
     expect(source).toContain("import { RoleDialog } from './role-definitions-dialog.js'");
     const dialogSource = readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.tsx'), 'utf8');
-    expect(dialogSource).toContain('max-h-[85vh] max-w-5xl overflow-y-auto');
+    expect(dialogSource).toContain('max-h-[90vh] max-w-6xl overflow-hidden p-0');
+    expect(dialogSource).toContain('RoleDialogFooter');
+    expect(dialogSource).toContain('overflow-y-auto px-6 py-5');
   });
 
   it('keeps unknown existing allowed tools editable alongside the standard catalog', () => {
@@ -46,6 +52,9 @@ describe('role definitions page source', () => {
     expect(source).toContain('Fallback model');
     expect(source).toContain('Active role');
     expect(source).toContain('Add custom capability');
+    expect(source).toContain('Save readiness');
+    expect(source).toContain('Resolve these role setup issues before saving.');
+    expect(source).toContain('Choose a unique role name.');
   });
 
   it('supports a first-class create role flow and uses the live create and replace routes', () => {
