@@ -6,10 +6,12 @@ import {
   buildParametersFromDrafts,
   buildStructuredObject,
   buildWorkflowBudgetInput,
+  clearWorkflowBudgetDraft,
   createWorkflowBudgetDraft,
   describeLaunchParameterMapping,
   describeMappedProjectPath,
   defaultParameterDraftValue,
+  readWorkflowBudgetMode,
   readMappedProjectParameterDraft,
   readLaunchDefinition,
   summarizeLaunchOverviewCards,
@@ -259,6 +261,19 @@ describe('playbook launch support', () => {
       token_budget: 120000,
       cost_cap_usd: 18.5,
       max_duration_minutes: 90,
+    });
+  });
+
+  it('treats workflow budget posture as an explicit open-ended or guarded state', () => {
+    const draft = createWorkflowBudgetDraft();
+    expect(readWorkflowBudgetMode(draft)).toBe('open-ended');
+
+    draft.tokenBudget = '120000';
+    expect(readWorkflowBudgetMode(draft)).toBe('guarded');
+    expect(clearWorkflowBudgetDraft()).toEqual({
+      tokenBudget: '',
+      costCapUsd: '',
+      maxDurationMinutes: '',
     });
   });
 

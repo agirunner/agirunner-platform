@@ -63,6 +63,7 @@ import {
   LaunchOutlineCard,
   LaunchOverviewCards,
 } from './playbook-launch-page.sections.js';
+import { WorkflowBudgetEditor } from './playbook-launch-budget.js';
 import { ParameterField, ValueInput } from './playbook-launch-parameters.js';
 
 export function PlaybookLaunchPage(): JSX.Element {
@@ -740,77 +741,6 @@ function LaunchReadinessPanel(props: {
           <p className="mt-2 text-muted">All required launch inputs are present.</p>
         )}
       </div>
-    </div>
-  );
-}
-
-function WorkflowBudgetEditor(props: {
-  draft: WorkflowBudgetDraft;
-  fieldErrors: LaunchValidationResult['fieldErrors'];
-  onChange(draft: WorkflowBudgetDraft): void;
-}): JSX.Element {
-  return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <label className="grid gap-2 text-sm">
-        <span className="font-medium">Token Budget</span>
-        <Input
-          type="number"
-          min={1}
-          step={1}
-          inputMode="numeric"
-          value={props.draft.tokenBudget}
-          onChange={(event) =>
-            props.onChange({ ...props.draft, tokenBudget: event.target.value })
-          }
-          placeholder="Optional cap"
-        />
-        <span className="text-xs text-muted">
-          Integer cap for total tokens across the workflow.
-        </span>
-        {props.fieldErrors.tokenBudget ? (
-          <span className="text-xs text-red-600">{props.fieldErrors.tokenBudget}</span>
-        ) : null}
-      </label>
-      <label className="grid gap-2 text-sm">
-        <span className="font-medium">Cost Cap (USD)</span>
-        <Input
-          type="number"
-          min={0.0001}
-          step={0.01}
-          inputMode="decimal"
-          value={props.draft.costCapUsd}
-          onChange={(event) =>
-            props.onChange({ ...props.draft, costCapUsd: event.target.value })
-          }
-          placeholder="Optional cap"
-        />
-        <span className="text-xs text-muted">
-          Stop treating spend as open-ended when the workflow has a dollar ceiling.
-        </span>
-        {props.fieldErrors.costCapUsd ? (
-          <span className="text-xs text-red-600">{props.fieldErrors.costCapUsd}</span>
-        ) : null}
-      </label>
-      <label className="grid gap-2 text-sm">
-        <span className="font-medium">Max Duration (Minutes)</span>
-        <Input
-          type="number"
-          min={1}
-          step={1}
-          inputMode="numeric"
-          value={props.draft.maxDurationMinutes}
-          onChange={(event) =>
-            props.onChange({ ...props.draft, maxDurationMinutes: event.target.value })
-          }
-          placeholder="Optional cap"
-        />
-        <span className="text-xs text-muted">
-          Guard against workflows running longer than the intended operator window.
-        </span>
-        {props.fieldErrors.maxDurationMinutes ? (
-          <span className="text-xs text-red-600">{props.fieldErrors.maxDurationMinutes}</span>
-        ) : null}
-      </label>
     </div>
   );
 }

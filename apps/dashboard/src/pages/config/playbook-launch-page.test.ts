@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 function readSource() {
   return [
     './playbook-launch-page.tsx',
+    './playbook-launch-budget.tsx',
     './playbook-launch-page.sections.tsx',
     './playbook-launch-parameters.tsx',
     './playbook-launch-support.ts',
@@ -43,6 +44,11 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('Metadata Entries');
     expect(source).toContain('Workflow Budget Policy');
     expect(source).toContain('WorkflowBudgetEditor');
+    expect(source).toContain('Open-ended workflow');
+    expect(source).toContain('Guarded workflow');
+    expect(source).toContain('No workflow budget guardrails. The workflow will launch with open-ended defaults');
+    expect(source).toContain('Guardrail inputs');
+    expect(source).toContain('Clear guardrails');
     expect(source).toContain('Token Budget');
     expect(source).toContain('Cost Cap (USD)');
     expect(source).toContain('Max Duration (Minutes)');

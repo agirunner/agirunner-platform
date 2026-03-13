@@ -45,6 +45,8 @@ export interface WorkflowBudgetDraft {
   maxDurationMinutes: string;
 }
 
+export type WorkflowBudgetMode = 'open-ended' | 'guarded';
+
 export interface LaunchOverviewCard {
   label: string;
   value: string;
@@ -317,6 +319,14 @@ export function createWorkflowBudgetDraft(): WorkflowBudgetDraft {
     costCapUsd: '',
     maxDurationMinutes: '',
   };
+}
+
+export function clearWorkflowBudgetDraft(): WorkflowBudgetDraft {
+  return createWorkflowBudgetDraft();
+}
+
+export function readWorkflowBudgetMode(draft: WorkflowBudgetDraft): WorkflowBudgetMode {
+  return hasWorkflowBudgetGuardrails(draft) ? 'guarded' : 'open-ended';
 }
 
 export function buildWorkflowBudgetInput(
@@ -658,6 +668,14 @@ function parsePositiveNumber(value: string, label: string): number | undefined {
     throw new Error(`${label} must be greater than zero.`);
   }
   return parsed;
+}
+
+function hasWorkflowBudgetGuardrails(draft: WorkflowBudgetDraft): boolean {
+  return (
+    draft.tokenBudget.trim().length > 0 ||
+    draft.costCapUsd.trim().length > 0 ||
+    draft.maxDurationMinutes.trim().length > 0
+  );
 }
 
 function validateWorkflowBudgetDraft(
