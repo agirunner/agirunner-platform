@@ -35,8 +35,10 @@ import {
 } from '../../components/ui/table.js';
 import {
   describeWebhookCoverage,
+  summarizeWebhookSelection,
   summarizeWebhookCollection,
   validateWebhookForm,
+  WEBHOOK_EVENT_GROUPS,
   type CreateWebhookFormState,
 } from './webhooks-page.support.js';
 
@@ -54,21 +56,6 @@ interface WebhookDeleteTarget {
   event_types: string[];
   is_active: boolean;
 }
-
-const WEBHOOK_EVENT_OPTIONS = [
-  'workflow.created',
-  'workflow.completed',
-  'workflow.failed',
-  'workflow.cancelled',
-  'workflow.gate_requested',
-  'work_item.created',
-  'work_item.updated',
-  'task.created',
-  'task.completed',
-  'task.failed',
-  'task.escalated',
-  'task.awaiting_approval',
-] as const;
 
 const API_BASE_URL =
   import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
@@ -150,6 +137,7 @@ function CreateWebhookDialog(): JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
   const [form, setForm] = useState<CreateWebhookFormState>(INITIAL_FORM);
   const validation = validateWebhookForm(form);
+  const selectionSummary = summarizeWebhookSelection(form.event_types);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -175,6 +163,15 @@ function CreateWebhookDialog(): JSX.Element {
       event_types: prev.event_types.includes(eventType)
         ? prev.event_types.filter((value) => value !== eventType)
         : [...prev.event_types, eventType],
+    }));
+  }
+
+  function setEventGroupSelection(groupEvents: string[], shouldSelect: boolean): void {
+    setForm((prev) => ({
+      ...prev,
+      event_types: shouldSelect
+        ? Array.from(new Set([...prev.event_types, ...groupEvents]))
+        : prev.event_types.filter((value) => !groupEvents.includes(value)),
     }));
   }
 
@@ -256,19 +253,76 @@ function CreateWebhookDialog(): JSX.Element {
             <p className="text-sm text-muted">
               Choose the events this endpoint should receive. Leave everything unchecked to receive all supported events.
             </p>
-            <div className="flex flex-wrap gap-2" data-testid="webhook-events-input">
-              {WEBHOOK_EVENT_OPTIONS.map((eventType) => {
-                const selected = form.event_types.includes(eventType);
+            <div className="grid gap-3 sm:grid-cols-3" data-testid="webhook-events-summary">
+              {selectionSummary.map((summary) => (
+                <div key={summary.label} className="rounded-xl border border-border/70 bg-muted/10 p-4">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
+                    {summary.label}
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-foreground">{summary.value}</p>
+                  <p className="mt-2 text-xs leading-5 text-muted">{summary.detail}</p>
+                </div>
+              ))}
+            </div>
+            <div className="grid gap-3" data-testid="webhook-events-input">
+              {WEBHOOK_EVENT_GROUPS.map((group) => {
+                const selectedCount = group.eventTypes.filter((eventType) =>
+                  form.event_types.includes(eventType),
+                ).length;
+                const allSelected = selectedCount === group.eventTypes.length;
                 return (
-                  <Button
-                    key={eventType}
-                    type="button"
-                    variant={selected ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => toggleEventType(eventType)}
+                  <div
+                    key={group.key}
+                    className="rounded-xl border border-border/70 bg-muted/10 p-4"
                   >
-                    {eventType}
-                  </Button>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-foreground">{group.label}</p>
+                          <Badge variant="outline">
+                            {selectedCount === 0
+                              ? 'All included by default'
+                              : `${selectedCount}/${group.eventTypes.length} selected`}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted">{group.description}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant={allSelected ? 'secondary' : 'outline'}
+                          size="sm"
+                          onClick={() => setEventGroupSelection(group.eventTypes, true)}
+                        >
+                          Select group
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEventGroupSelection(group.eventTypes, false)}
+                        >
+                          Clear group
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {group.eventTypes.map((eventType) => {
+                        const selected = form.event_types.includes(eventType);
+                        return (
+                          <Button
+                            key={eventType}
+                            type="button"
+                            variant={selected ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => toggleEventType(eventType)}
+                          >
+                            {eventType}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
               })}
             </div>

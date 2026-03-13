@@ -3,14 +3,26 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './webhooks-page.tsx'), 'utf8');
+  return [
+    './webhooks-page.tsx',
+    './webhooks-page.support.ts',
+  ]
+    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
+    .join('\n');
 }
 
 describe('webhooks page source', () => {
   it('uses structured event selection instead of comma-separated entry', () => {
     const source = readSource();
-    expect(source).toContain('WEBHOOK_EVENT_OPTIONS');
+    expect(source).toContain('WEBHOOK_EVENT_GROUPS');
     expect(source).toContain('Choose the events this endpoint should receive.');
+    expect(source).toContain('Coverage mode');
+    expect(source).toContain('Selected families');
+    expect(source).toContain('Select group');
+    expect(source).toContain('Clear group');
+    expect(source).toContain('Workflow lifecycle');
+    expect(source).toContain('Work-item changes');
+    expect(source).toContain('Task execution');
     expect(source).toContain('Save readiness');
     expect(source).toContain('validateWebhookForm');
     expect(source).not.toContain('Event Types (comma-separated, leave blank for all)');
@@ -21,6 +33,7 @@ describe('webhooks page source', () => {
     const source = readSource();
     expect(source).toContain('max-h-[80vh] max-w-3xl overflow-y-auto');
     expect(source).toContain('max-h-[70vh] max-w-lg overflow-y-auto');
+    expect(source).toContain('sm:grid-cols-3');
     expect(source).toContain('space-y-4 lg:hidden');
     expect(source).toContain('hidden overflow-x-auto lg:block');
   });

@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   describeWebhookCoverage,
+  summarizeWebhookSelection,
   summarizeWebhookCollection,
   validateWebhookForm,
+  WEBHOOK_EVENT_GROUPS,
 } from './webhooks-page.support.js';
 
 describe('webhooks page support', () => {
@@ -37,6 +39,11 @@ describe('webhooks page support', () => {
     ).toBe(true);
     expect(describeWebhookCoverage([])).toBe('All supported events');
     expect(describeWebhookCoverage(['workflow.failed', 'task.failed'])).toBe('2 event filters');
+    expect(WEBHOOK_EVENT_GROUPS.map((group) => group.key)).toEqual([
+      'workflow',
+      'work_item',
+      'task',
+    ]);
   });
 
   it('builds operator summary packets for configured webhooks', () => {
@@ -60,6 +67,26 @@ describe('webhooks page support', () => {
         label: 'Coverage',
         value: '1 filtered',
         detail: '1 endpoint receives all supported events',
+      },
+    ]);
+  });
+
+  it('summarizes webhook selection posture for the create dialog', () => {
+    expect(summarizeWebhookSelection([])).toEqual([
+      {
+        label: 'Coverage mode',
+        value: 'All events',
+        detail: 'Leaving every event clear sends all supported webhook events.',
+      },
+      {
+        label: 'Selected families',
+        value: '0',
+        detail: 'All event families are currently included.',
+      },
+      {
+        label: 'Selected events',
+        value: 'All supported',
+        detail: 'All supported events',
       },
     ]);
   });

@@ -18,6 +18,52 @@ export interface WebhookValidationResult {
   isValid: boolean;
 }
 
+export interface WebhookEventGroup {
+  key: string;
+  label: string;
+  description: string;
+  eventTypes: string[];
+}
+
+export interface WebhookSelectionSummaryCard {
+  label: string;
+  value: string;
+  detail: string;
+}
+
+export const WEBHOOK_EVENT_GROUPS: WebhookEventGroup[] = [
+  {
+    key: 'workflow',
+    label: 'Workflow lifecycle',
+    description: 'Launch, completion, failure, cancellation, and gate-request notifications.',
+    eventTypes: [
+      'workflow.created',
+      'workflow.completed',
+      'workflow.failed',
+      'workflow.cancelled',
+      'workflow.gate_requested',
+    ],
+  },
+  {
+    key: 'work_item',
+    label: 'Work-item changes',
+    description: 'Creation and update events for orchestrated work items.',
+    eventTypes: ['work_item.created', 'work_item.updated'],
+  },
+  {
+    key: 'task',
+    label: 'Task execution',
+    description: 'Task creation, completion, failure, escalation, and approval wait states.',
+    eventTypes: [
+      'task.created',
+      'task.completed',
+      'task.failed',
+      'task.escalated',
+      'task.awaiting_approval',
+    ],
+  },
+];
+
 export function validateWebhookForm(
   form: CreateWebhookFormState,
 ): WebhookValidationResult {
@@ -77,6 +123,38 @@ export function summarizeWebhookCollection(
         defaultCoverage > 0
           ? `${defaultCoverage} endpoint${defaultCoverage === 1 ? ' receives' : 's receive'} all supported events`
           : 'Every endpoint uses explicit event filters',
+    },
+  ];
+}
+
+export function summarizeWebhookSelection(
+  eventTypes: string[],
+): WebhookSelectionSummaryCard[] {
+  const selectedGroups = WEBHOOK_EVENT_GROUPS.filter((group) =>
+    group.eventTypes.some((eventType) => eventTypes.includes(eventType)),
+  );
+
+  return [
+    {
+      label: 'Coverage mode',
+      value: eventTypes.length === 0 ? 'All events' : 'Filtered delivery',
+      detail:
+        eventTypes.length === 0
+          ? 'Leaving every event clear sends all supported webhook events.'
+          : 'Only the selected event families and events will be delivered.',
+    },
+    {
+      label: 'Selected families',
+      value: String(selectedGroups.length),
+      detail:
+        selectedGroups.length === 0
+          ? 'All event families are currently included.'
+          : `${selectedGroups.map((group) => group.label).join(', ')}.`,
+    },
+    {
+      label: 'Selected events',
+      value: eventTypes.length === 0 ? 'All supported' : String(eventTypes.length),
+      detail: describeWebhookCoverage(eventTypes),
     },
   ];
 }
