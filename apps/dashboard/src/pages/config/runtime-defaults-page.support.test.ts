@@ -48,6 +48,25 @@ describe('runtime defaults page support', () => {
     expect(errors['agent.loop_detection_repeat']).toContain('at least 1');
   });
 
+  it('validates provider-specific web search requirements before save', () => {
+    const errors = buildValidationErrors({
+      'tools.web_search_provider': 'serper',
+      'tools.web_search_base_url': 'ftp://bad.example.test',
+      'tools.web_search_api_key_secret_ref': 'SERPER_API_KEY',
+    });
+
+    expect(errors['tools.web_search_base_url']).toContain('valid http or https URL');
+    expect(errors['tools.web_search_api_key_secret_ref']).toContain('secret:NAME');
+
+    const missingKeyErrors = buildValidationErrors({
+      'tools.web_search_provider': 'tavily',
+    });
+
+    expect(missingKeyErrors['tools.web_search_api_key_secret_ref']).toContain(
+      'requires a secret reference',
+    );
+  });
+
   it('summarizes configured overrides, blockers, and search posture', () => {
     expect(
       summarizeRuntimeDefaults(

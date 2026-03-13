@@ -1,3 +1,4 @@
+import { getWebSearchProviderDetails, resolveWebSearchProvider } from './runtime-defaults-search.support.js';
 import { FIELD_DEFINITIONS } from './runtime-defaults.schema.js';
 import type { FormValues } from './runtime-defaults.types.js';
 
@@ -31,6 +32,7 @@ export function buildValidationErrors(values: FormValues): Record<string, string
   }
 
   validateHistoryRelationships(values, errors);
+  validateWebSearchFields(values, errors);
   return errors;
 }
 
@@ -67,4 +69,37 @@ function readNumber(value: string | undefined): number | null {
   }
   const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function validateWebSearchFields(
+  values: FormValues,
+  errors: Record<string, string>,
+): void {
+  const provider = resolveWebSearchProvider(values);
+  const providerDetails = getWebSearchProviderDetails(provider);
+  const baseUrl = values['tools.web_search_base_url']?.trim();
+  const apiKeyRef = values['tools.web_search_api_key_secret_ref']?.trim();
+
+  if (baseUrl) {
+    try {
+      const parsed = new URL(baseUrl);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        errors['tools.web_search_base_url'] =
+          'Provider base URL must be a valid http or https URL. Clear the field to use the provider default endpoint.';
+      }
+    } catch {
+      errors['tools.web_search_base_url'] =
+        'Provider base URL must be a valid http or https URL. Clear the field to use the provider default endpoint.';
+    }
+  }
+
+  if (apiKeyRef && !apiKeyRef.startsWith('secret:')) {
+    errors['tools.web_search_api_key_secret_ref'] =
+      'Provider API key secret ref must use a secret:NAME reference.';
+  }
+
+  if (providerDetails.requiresApiKey && !apiKeyRef) {
+    errors['tools.web_search_api_key_secret_ref'] =
+      `${providerDetails.label} requires a secret reference. Add one or switch the provider back to DuckDuckGo.`;
+  }
 }

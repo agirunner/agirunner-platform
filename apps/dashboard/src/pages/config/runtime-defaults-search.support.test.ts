@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildWebSearchRecoveryGuidance,
   getWebSearchProviderDetails,
   listWebSearchProviderDetails,
   resolveWebSearchProvider,
@@ -85,5 +86,34 @@ describe('runtime defaults search support', () => {
       },
     ]);
     expect(getWebSearchProviderDetails('serper').requiresApiKey).toBe(true);
+  });
+
+  it('builds provider-specific recovery guidance from the current posture and validation state', () => {
+    expect(
+      buildWebSearchRecoveryGuidance(
+        {
+          'tools.web_search_provider': 'serper',
+        },
+        {
+          'tools.web_search_api_key_secret_ref':
+            'Serper requires a secret reference. Add one or switch the provider back to DuckDuckGo.',
+        },
+      ),
+    ).toEqual([
+      'Use a secret:NAME reference for the provider API key.',
+      'Add a Serper secret reference or switch the provider back to DuckDuckGo.',
+    ]);
+
+    expect(
+      buildWebSearchRecoveryGuidance(
+        {
+          'tools.web_search_provider': 'duckduckgo',
+          'tools.web_search_api_key_secret_ref': 'secret:LEGACY_KEY',
+        },
+        {},
+      ),
+    ).toEqual([
+      'Clear the stale secret reference because DuckDuckGo does not use an API key.',
+    ]);
   });
 });

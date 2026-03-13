@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '../../components/ui/select.js';
 import {
+  buildWebSearchRecoveryGuidance,
   getWebSearchProviderDetails,
   listWebSearchProviderDetails,
   resolveWebSearchProvider,
@@ -38,6 +39,7 @@ export function RuntimeDefaultsSearchSection({
   const provider = resolveWebSearchProvider(values);
   const providerDetails = getWebSearchProviderDetails(provider);
   const posture = summarizeWebSearchPosture(values);
+  const recoveryGuidance = buildWebSearchRecoveryGuidance(values, errors);
   const showApiKey = shouldShowWebSearchApiKey(values);
 
   return (
@@ -158,6 +160,16 @@ export function RuntimeDefaultsSearchSection({
         <div className="space-y-2 text-sm leading-6 text-muted">
           <p>{posture.endpointStatus}</p>
           <p>{posture.apiKeyStatus}</p>
+        </div>
+        <div className="space-y-2 rounded-lg border border-border/70 bg-background/70 p-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted">
+            Recovery guidance
+          </p>
+          <ul className="space-y-2 text-sm leading-6 text-muted">
+            {recoveryGuidance.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
         </div>
       </aside>
     </div>

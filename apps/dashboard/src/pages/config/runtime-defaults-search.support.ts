@@ -42,6 +42,39 @@ export interface WebSearchPostureSummary {
   apiKeyStatus: string;
 }
 
+export function buildWebSearchRecoveryGuidance(
+  values: FormValues,
+  errors: Record<string, string>,
+): string[] {
+  const provider = resolveWebSearchProvider(values);
+  const details = PROVIDER_DETAILS[provider];
+  const guidance = new Set<string>();
+
+  if (errors['tools.web_search_base_url']) {
+    guidance.add('Clear the endpoint override or enter a full http or https URL.');
+  }
+  if (errors['tools.web_search_api_key_secret_ref']) {
+    guidance.add('Use a secret:NAME reference for the provider API key.');
+  }
+  if (
+    details.requiresApiKey &&
+    errors['tools.web_search_api_key_secret_ref']?.includes('requires a secret reference')
+  ) {
+    guidance.add(`Add a ${details.label} secret reference or switch the provider back to DuckDuckGo.`);
+  }
+  if (
+    !details.requiresApiKey &&
+    values['tools.web_search_api_key_secret_ref']?.trim()
+  ) {
+    guidance.add('Clear the stale secret reference because DuckDuckGo does not use an API key.');
+  }
+  if (!guidance.size) {
+    guidance.add('Provider posture is ready to save.');
+  }
+
+  return [...guidance];
+}
+
 export function resolveWebSearchProvider(values: FormValues): WebSearchProvider {
   const raw = values['tools.web_search_provider']?.trim().toLowerCase();
   if (!raw) {
