@@ -29,6 +29,7 @@ export interface LiveBoardWorkerRecord {
 
 export interface LiveBoardTaskRecord {
   workflow_id?: string | null;
+  work_item_id?: string | null;
   status?: string | null;
   state?: string | null;
   retry_count?: number | null;
@@ -167,6 +168,18 @@ export function describeBoardProgress(workflow: LiveBoardWorkflowRecord): string
   return `${completedCount} of ${summary.total_work_items} work items complete`;
 }
 
+export function readBoardProgressPercent(workflow: LiveBoardWorkflowRecord): number | null {
+  if (workflow.lifecycle === 'continuous') {
+    return null;
+  }
+  const summary = workflow.work_item_summary;
+  if (!summary || summary.total_work_items <= 0) {
+    return null;
+  }
+  const completedCount = Math.max(0, Number(summary.completed_work_item_count ?? 0));
+  return Math.min(100, Math.max(0, Math.round((completedCount / summary.total_work_items) * 100)));
+}
+
 export function describeBoardSpend(workflow: LiveBoardWorkflowRecord): string {
   const totalCostUsd = workflow.metrics?.total_cost_usd;
   if (typeof totalCostUsd !== 'number') {
@@ -259,6 +272,69 @@ export function countReworkHeavySteps(tasks: LiveBoardTaskRecord[], threshold = 
       !task.is_orchestrator_task &&
       Number(task.retry_count ?? 0) >= threshold,
   ).length;
+}
+
+export function countWorkItemReworks(tasks: LiveBoardTaskRecord[], workItemId: string): number {
+  let highestRetryCount = 0;
+  for (const task of tasks) {
+    if (task.is_orchestrator_task || task.work_item_id !== workItemId) {
+      continue;
+    }
+    highestRetryCount = Math.max(highestRetryCount, Math.max(0, Number(task.retry_count ?? 0)));
+  }
+  return highestRetryCount;
+}
+
+export function describeWorkItemOperatorSummary(
+  tasks: LiveBoardTaskRecord[],
+  workItemId: string,
+): string {
+  const relevantTasks = tasks.filter(
+    (task) => !task.is_orchestrator_task && task.work_item_id === workItemId,
+  );
+  if (relevantTasks.length === 0) {
+    return 'No specialist steps linked yet';
+  }
+
+  let active = 0;
+  let reviews = 0;
+  let blocked = 0;
+  let escalated = 0;
+  let completed = 0;
+  for (const task of relevantTasks) {
+    const state = readTaskState(task);
+    if (state === 'awaiting_approval' || state === 'output_pending_review') {
+      reviews += 1;
+      continue;
+    }
+    if (state === 'escalated' || state === 'failed') {
+      escalated += 1;
+      continue;
+    }
+    if (state === 'blocked') {
+      blocked += 1;
+      continue;
+    }
+    if (state === 'ready' || state === 'in_progress') {
+      active += 1;
+      continue;
+    }
+    if (state === 'completed') {
+      completed += 1;
+    }
+  }
+
+  const parts = [
+    reviews > 0 ? `${reviews} review` : null,
+    escalated > 0 ? `${escalated} escalated` : null,
+    blocked > 0 ? `${blocked} blocked` : null,
+    active > 0 ? `${active} active` : null,
+    completed > 0 ? `${completed} completed` : null,
+  ].filter((part): part is string => part !== null);
+
+  return parts.length > 0
+    ? parts.join(' • ')
+    : `${relevantTasks.length} tracked step${relevantTasks.length === 1 ? '' : 's'}`;
 }
 
 export function countActiveSpecialistSteps(tasks: LiveBoardTaskRecord[]): number {

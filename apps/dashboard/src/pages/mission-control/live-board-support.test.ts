@@ -7,6 +7,7 @@ import {
   countOpenBoardItems,
   countReworkHeavySteps,
   countSpecialistReviewQueue,
+  countWorkItemReworks,
   describeBoardHeadline,
   describeBoardProgress,
   describeBoardSpend,
@@ -15,10 +16,12 @@ import {
   describeOrchestratorPool,
   describeRiskPosture,
   describeSpecialistPool,
+  describeWorkItemOperatorSummary,
   describeWorkflowStage,
   describeWorkerCapacity,
   formatRelativeTimestamp,
   isLiveWorkflow,
+  readBoardProgressPercent,
   resolveBoardPosture,
   summarizeActivationHealth,
   summarizeWorkerFleet,
@@ -122,6 +125,27 @@ describe('live board support', () => {
       }),
     ).toBe('4 of 6 work items complete');
     expect(
+      readBoardProgressPercent({
+        work_item_summary: {
+          total_work_items: 6,
+          completed_work_item_count: 4,
+          open_work_item_count: 2,
+          awaiting_gate_count: 0,
+        },
+      }),
+    ).toBe(67);
+    expect(
+      readBoardProgressPercent({
+        lifecycle: 'continuous',
+        work_item_summary: {
+          total_work_items: 6,
+          completed_work_item_count: 4,
+          open_work_item_count: 2,
+          awaiting_gate_count: 0,
+        },
+      }),
+    ).toBeNull();
+    expect(
       describeBoardSpend({
         metrics: {
           total_cost_usd: 12.345,
@@ -218,5 +242,46 @@ describe('live board support', () => {
     expect(describeWorkerCapacity({ status: 'online', current_tasks: 2 })).toBe('2 steps active');
     expect(describeWorkerCapacity({ status: 'active', current_tasks: 0 })).toBe('Available for new steps');
     expect(describeFleetHeadline(summary)).toBe('1 worker actively executing');
+  });
+
+  it('surfaces work-item rework counts and operator summary packets from linked specialist steps', () => {
+    const tasks = [
+      {
+        workflow_id: 'wf-1',
+        work_item_id: 'wi-1',
+        status: 'in_progress',
+        is_orchestrator_task: false,
+        retry_count: 2,
+      },
+      {
+        workflow_id: 'wf-1',
+        work_item_id: 'wi-1',
+        status: 'awaiting_approval',
+        is_orchestrator_task: false,
+        retry_count: 0,
+      },
+      {
+        workflow_id: 'wf-1',
+        work_item_id: 'wi-1',
+        status: 'failed',
+        is_orchestrator_task: false,
+        retry_count: 1,
+      },
+      {
+        workflow_id: 'wf-1',
+        work_item_id: 'wi-2',
+        status: 'completed',
+        is_orchestrator_task: false,
+        retry_count: 0,
+      },
+    ];
+
+    expect(countWorkItemReworks(tasks, 'wi-1')).toBe(2);
+    expect(describeWorkItemOperatorSummary(tasks, 'wi-1')).toBe(
+      '1 review • 1 escalated • 1 active',
+    );
+    expect(describeWorkItemOperatorSummary(tasks, 'wi-3')).toBe(
+      'No specialist steps linked yet',
+    );
   });
 });

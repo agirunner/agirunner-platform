@@ -54,15 +54,18 @@ import {
   countBlockedBoardItems,
   countEscalatedSteps,
   countOpenBoardItems,
+  countWorkItemReworks,
   describeBoardHeadline,
   describeBoardProgress,
   describeBoardSpend,
   describeBoardTokens,
+  describeWorkItemOperatorSummary,
   describeFleetHeadline,
   describeOrchestratorPool,
   describeRiskPosture,
   describeSpecialistPool,
   describeWorkflowStage,
+  readBoardProgressPercent,
   describeWorkerCapacity,
   formatRelativeTimestamp,
   isLiveWorkflow,
@@ -74,7 +77,9 @@ import {
   countSpecialistReviewQueue,
 } from './live-board-support.js';
 import {
+  buildWorkflowStageProgressSteps,
   describeWorkflowStageLabel,
+  describeWorkflowStageProgressSummary,
   describeWorkflowStageSummary,
 } from './live-board-stage-presentation.js';
 
@@ -689,6 +694,23 @@ export function LiveBoardPage(): JSX.Element {
             </p>
           </div>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={visibleSpecialistSummary.escalations > 0 ? 'destructive' : 'outline'}>
+            {visibleSpecialistSummary.escalations > 0
+              ? `${visibleSpecialistSummary.escalations} escalations`
+              : 'No escalations'}
+          </Badge>
+          <Badge variant={visibleActivationSummary.stale > 0 ? 'warning' : 'outline'}>
+            {visibleActivationSummary.stale > 0
+              ? `${visibleActivationSummary.stale} stale turns`
+              : 'No stale turns'}
+          </Badge>
+          <Badge variant={visibleGateReviews > 0 ? 'warning' : 'outline'}>
+            {visibleGateReviews > 0
+              ? `${visibleGateReviews} gate reviews`
+              : 'No gate reviews'}
+          </Badge>
+        </div>
       </div>
 
       <Card className="border-border/70 shadow-sm">
@@ -1012,6 +1034,16 @@ function TriagePostureSection(props: TriagePostureSectionProps): JSX.Element {
             title="Orchestrator pool posture"
             headline={describeOrchestratorPool(props.visibleActivationSummary)}
             detail={`${props.visibleActivationSummary.queuedEvents} queued event batches, ${props.visibleActivationSummary.stale} stale turns, and ${props.visibleActivationSummary.recovered} recovered turns across visible boards.`}
+            chips={[
+              `${props.visibleActivationSummary.inFlight} active turns`,
+              `${props.visibleActivationSummary.queuedEvents} queued batches`,
+              props.visibleActivationSummary.stale > 0
+                ? `${props.visibleActivationSummary.stale} stale`
+                : 'No stale turns',
+              props.visibleActivationSummary.recovered > 0
+                ? `${props.visibleActivationSummary.recovered} recovered`
+                : 'No recoveries',
+            ]}
             emphasis={
               props.visibleActivationSummary.needsAttention > 0 ? 'destructive' : 'neutral'
             }
@@ -1020,6 +1052,16 @@ function TriagePostureSection(props: TriagePostureSectionProps): JSX.Element {
             title="Specialist pool posture"
             headline={describeSpecialistPool(props.visibleSpecialistSummary)}
             detail={`${props.visibleSpecialistSummary.active} active specialist steps and ${props.visibleSpecialistSummary.reviews} review packets currently visible.`}
+            chips={[
+              `${props.visibleSpecialistSummary.active} active`,
+              `${props.visibleSpecialistSummary.reviews} reviews`,
+              props.visibleSpecialistSummary.escalations > 0
+                ? `${props.visibleSpecialistSummary.escalations} escalated`
+                : 'No escalations',
+              props.visibleSpecialistSummary.reworkHeavy > 0
+                ? `${props.visibleSpecialistSummary.reworkHeavy} rework-heavy`
+                : 'No rework hotspots',
+            ]}
             emphasis={
               props.visibleSpecialistSummary.escalations > 0 ||
               props.visibleSpecialistSummary.reworkHeavy > 0
@@ -1031,12 +1073,24 @@ function TriagePostureSection(props: TriagePostureSectionProps): JSX.Element {
             title="Escalation and stale attention"
             headline={riskPosture}
             detail={`${props.visibleGateReviews} gates, ${props.visibleBlockedWorkItems} blocked items, ${props.visibleFailedSteps} failed specialist steps, and ${props.visibleActivationSummary.stale} stale orchestrator turns in scope.`}
+            chips={[
+              `${props.visibleGateReviews} gates`,
+              `${props.visibleBlockedWorkItems} blocked`,
+              `${props.visibleFailedSteps} failed`,
+              `${props.visibleSpecialistSummary.escalations} escalated`,
+              `${props.visibleActivationSummary.stale} stale`,
+            ]}
             emphasis={props.visibleNeedsAttention > 0 ? 'destructive' : 'neutral'}
           />
           <TriagePacket
             title="Spend and token posture"
             headline={props.visibleSpend > 0 ? `$${props.visibleSpend.toFixed(2)} reported` : 'No spend reported'}
             detail={props.visibleTokenPosture}
+            chips={[
+              `${props.entries.length} visible boards`,
+              props.visibleSpend > 0 ? 'Spend telemetry live' : 'No spend telemetry',
+              props.visibleTokenPosture,
+            ]}
             emphasis={props.visibleSpend > 0 || props.visibleTokenPosture !== 'No token telemetry' ? 'success' : 'neutral'}
           />
         </div>
@@ -1049,6 +1103,7 @@ function TriagePacket(props: {
   title: string;
   headline: string;
   detail: string;
+  chips?: string[];
   emphasis: 'neutral' | 'success' | 'warning' | 'destructive';
 }): JSX.Element {
   const accentClass =
@@ -1066,6 +1121,15 @@ function TriagePacket(props: {
       </p>
       <p className="text-sm font-semibold leading-6 text-foreground">{props.headline}</p>
       <p className="text-xs leading-5 text-muted">{props.detail}</p>
+      {props.chips && props.chips.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {props.chips.map((chip) => (
+            <Badge key={`${props.title}:${chip}`} variant="outline">
+              {chip}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1433,12 +1497,12 @@ function BoardSnapshotTable(props: {
                   </div>
                   <Badge variant={statusBadgeVariant(posture)}>{posture}</Badge>
                 </div>
+                <WorkflowProgressPanel workflow={workflow} board={board} />
                 <div className="grid gap-3 rounded-lg border border-border/60 bg-background/70 p-3 sm:grid-cols-2 xl:grid-cols-3">
                   <SnapshotMetric
                     label={describeWorkflowStageLabel(workflow)}
                     value={describeWorkflowStage(workflow)}
                   />
-                  <SnapshotMetric label="Progress" value={describeBoardProgress(workflow)} />
                   <SnapshotMetric
                     label="Orchestrator pool"
                     value={isLoading ? 'Loading…' : hasError ? 'Unavailable' : describeOrchestratorPool(activationSummary)}
@@ -1514,7 +1578,7 @@ function BoardSnapshotTable(props: {
                       </div>
                     </TableCell>
                     <TableCell className="align-top text-sm">
-                      {describeBoardProgress(workflow)}
+                      <WorkflowProgressPanel workflow={workflow} board={board} compact />
                     </TableCell>
                     <TableCell className="align-top">
                       <div className="space-y-1 text-sm">
@@ -1616,12 +1680,12 @@ function ActivePlaybookBoards(props: {
                     {specialistSummary.failed} failed step{specialistSummary.failed === 1 ? '' : 's'}
                   </Badge>
                 </div>
+                <WorkflowProgressPanel workflow={workflow} board={board} />
                 <div className="grid gap-3 rounded-lg border border-border/60 bg-background/80 p-3 sm:grid-cols-2 xl:grid-cols-3">
                   <SnapshotMetric
                     label={describeWorkflowStageLabel(workflow)}
                     value={describeWorkflowStage(workflow)}
                   />
-                  <SnapshotMetric label="Progress" value={describeBoardProgress(workflow)} />
                   <SnapshotMetric
                     label="Spend & tokens"
                     value={`${describeBoardSpend(workflow)} • ${describeBoardTokens(workflow)}`}
@@ -1654,25 +1718,12 @@ function ActivePlaybookBoards(props: {
                       </Button>
                     </div>
                     {visibleActiveItems.map((item) => (
-                      <div
+                      <BoardWorkItemCard
                         key={item.id}
-                        className="rounded-md border border-border/60 bg-background/80 p-3"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <Link
-                            to={buildWorkflowDetailPermalink(workflow.id, { workItemId: item.id })}
-                            className="truncate text-sm font-medium text-accent hover:underline"
-                          >
-                            {item.title}
-                          </Link>
-                          <Badge variant="outline">{item.column_id}</Badge>
-                        </div>
-                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted">
-                          <span>{item.stage_name}</span>
-                          {item.task_count !== undefined ? <span>{item.task_count} specialist steps</span> : null}
-                          <span>{item.priority}</span>
-                        </div>
-                      </div>
+                        workflowId={workflow.id}
+                        item={item}
+                        tasks={tasks}
+                      />
                     ))}
                     {remainingActiveItems.length > 0 ? (
                       <details className="rounded-xl border border-border/70 bg-background/70 p-3">
@@ -1681,29 +1732,12 @@ function ActivePlaybookBoards(props: {
                         </summary>
                         <div className="mt-3 grid gap-2">
                           {remainingActiveItems.map((item) => (
-                            <div
+                            <BoardWorkItemCard
                               key={`remaining:${item.id}`}
-                              className="rounded-md border border-border/60 bg-background/80 p-3"
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <Link
-                                  to={buildWorkflowDetailPermalink(workflow.id, {
-                                    workItemId: item.id,
-                                  })}
-                                  className="truncate text-sm font-medium text-accent hover:underline"
-                                >
-                                  {item.title}
-                                </Link>
-                                <Badge variant="outline">{item.column_id}</Badge>
-                              </div>
-                              <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted">
-                                <span>{item.stage_name}</span>
-                                {item.task_count !== undefined ? (
-                                  <span>{item.task_count} specialist steps</span>
-                                ) : null}
-                                <span>{item.priority}</span>
-                              </div>
-                            </div>
+                              workflowId={workflow.id}
+                              item={item}
+                              tasks={tasks}
+                            />
                           ))}
                         </div>
                       </details>
@@ -1721,6 +1755,130 @@ function ActivePlaybookBoards(props: {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function WorkflowProgressPanel(props: {
+  workflow: WorkflowRecord;
+  board?: DashboardWorkflowBoardResponse;
+  compact?: boolean;
+}): JSX.Element {
+  const percent = readBoardProgressPercent(props.workflow);
+  const stageSteps = buildWorkflowStageProgressSteps(props.workflow, props.board);
+  const progressSummary = describeWorkflowStageProgressSummary(props.workflow, props.board);
+  const detailClass = props.compact
+    ? 'grid gap-2'
+    : 'grid gap-3 rounded-lg border border-border/60 bg-background/80 p-3';
+
+  return (
+    <div className={detailClass}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="space-y-1">
+          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
+            Stage progress
+          </p>
+          <p className="text-sm font-medium text-foreground">{progressSummary}</p>
+        </div>
+        <Badge variant="outline">
+          {props.workflow.lifecycle === 'continuous'
+            ? '∞ continuous'
+            : percent === null
+              ? 'No percent yet'
+              : `${percent}% complete`}
+        </Badge>
+      </div>
+      <div className="grid gap-2">
+        <div className="h-2 overflow-hidden rounded-full bg-border/60">
+          <div
+            className={cn(
+              'h-2 rounded-full transition-[width]',
+              props.workflow.lifecycle === 'continuous'
+                ? 'bg-[linear-gradient(90deg,hsl(var(--accent))_0%,hsl(var(--accent))_55%,rgba(245,158,11,0.85)_100%)]'
+                : 'bg-accent',
+            )}
+            style={{
+              width: `${readProgressWidth(
+                props.workflow.lifecycle === 'continuous' ? 100 : percent,
+              )}%`,
+            }}
+          />
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs leading-5 text-muted">
+          <span>{describeBoardProgress(props.workflow)}</span>
+          <span>
+            {props.workflow.lifecycle === 'continuous'
+              ? 'Continuous intake'
+              : percent === null
+                ? 'Awaiting completed work'
+                : `${percent}% delivered`}
+          </span>
+        </div>
+      </div>
+      {stageSteps.length > 0 ? (
+        <div className="grid gap-2">
+          <div className="flex gap-1" aria-label="Stage progress">
+            {stageSteps.map((step) => (
+              <span
+                key={`${props.workflow.id}:${step.name}`}
+                className={cn('h-2 min-w-0 flex-1 rounded-full', stageProgressToneClass(step.tone))}
+                title={`${step.name}: ${step.detail}`}
+              />
+            ))}
+          </div>
+          {!props.compact ? (
+            <div className="flex flex-wrap gap-2">
+              {stageSteps.map((step) => (
+                <Badge
+                  key={`badge:${props.workflow.id}:${step.name}`}
+                  variant={stageProgressToneVariant(step.tone)}
+                >
+                  {step.name}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function BoardWorkItemCard(props: {
+  workflowId: string;
+  item: DashboardWorkflowBoardResponse['work_items'][number];
+  tasks: TaskRecord[];
+}): JSX.Element {
+  const reworkCount = countWorkItemReworks(props.tasks, props.item.id);
+  const operatorSummary = describeWorkItemOperatorSummary(props.tasks, props.item.id);
+
+  return (
+    <div className="rounded-md border border-border/60 bg-background/80 p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 space-y-1">
+          <Link
+            to={buildWorkflowDetailPermalink(props.workflowId, { workItemId: props.item.id })}
+            className="block truncate text-sm font-medium text-accent hover:underline"
+          >
+            {props.item.title}
+          </Link>
+          <p className="text-xs leading-5 text-muted">{operatorSummary}</p>
+        </div>
+        <Badge variant="outline">{props.item.column_id}</Badge>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted">
+        <Badge variant="outline">{props.item.stage_name}</Badge>
+        {props.item.owner_role ? <Badge variant="outline">{props.item.owner_role}</Badge> : null}
+        {props.item.task_count !== undefined ? (
+          <Badge variant="outline">{props.item.task_count} specialist steps</Badge>
+        ) : null}
+        {reworkCount > 0 ? (
+          <Badge variant="warning">
+            {reworkCount} rework{reworkCount === 1 ? '' : 's'}
+          </Badge>
+        ) : null}
+        <Badge variant="outline">{props.item.priority}</Badge>
+      </div>
+    </div>
   );
 }
 
@@ -1928,6 +2086,46 @@ function SnapshotMetric(props: { label: string; value: string }): JSX.Element {
       <p className="text-sm text-foreground">{props.value}</p>
     </div>
   );
+}
+
+function readProgressWidth(percent: number | null): number {
+  if (percent === null) {
+    return 0;
+  }
+  if (percent === 0) {
+    return 4;
+  }
+  return percent;
+}
+
+function stageProgressToneClass(
+  tone: ReturnType<typeof buildWorkflowStageProgressSteps>[number]['tone'],
+): string {
+  switch (tone) {
+    case 'done':
+      return 'bg-emerald-500';
+    case 'active':
+      return 'bg-accent';
+    case 'attention':
+      return 'bg-amber-500';
+    default:
+      return 'bg-border';
+  }
+}
+
+function stageProgressToneVariant(
+  tone: ReturnType<typeof buildWorkflowStageProgressSteps>[number]['tone'],
+): 'success' | 'default' | 'warning' | 'outline' {
+  switch (tone) {
+    case 'done':
+      return 'success';
+    case 'active':
+      return 'default';
+    case 'attention':
+      return 'warning';
+    default:
+      return 'outline';
+  }
 }
 
 interface LiveEventWorkflowMaps {

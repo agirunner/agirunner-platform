@@ -326,6 +326,7 @@ export function WorkflowWorkItemDetailPanel(
             childCount={milestoneChildren.length}
             linkedTaskCount={props.tasks.length}
             artifactCount={artifactQuery.data?.length ?? 0}
+            stages={props.stages}
             onSelectWorkItem={props.onSelectWorkItem}
           />
         ) : null}
@@ -732,11 +733,13 @@ function WorkItemHeader(props: {
   childCount: number;
   linkedTaskCount: number;
   artifactCount: number;
+  stages: DashboardWorkflowStageRecord[];
   onSelectWorkItem(workItemId: string): void;
 }): JSX.Element {
   const { workItem } = props;
   const milestone = isMilestoneWorkItem(workItem);
   const completedChildren = workItem.children_completed ?? workItem.children?.filter((child) => child.completed_at).length ?? 0;
+  const stageRecord = props.stages.find((stage) => stage.name === workItem.stage_name) ?? null;
   return (
     <section className="grid gap-4 rounded-xl border border-border/70 bg-gradient-to-br from-border/10 via-surface to-surface p-4 shadow-sm">
       <div className={metaRowClass}>
@@ -756,6 +759,12 @@ function WorkItemHeader(props: {
           <Badge variant="outline">{workItem.stage_name ?? 'Unassigned stage'}</Badge>
           <Badge variant="outline">{workItem.priority ?? 'normal'}</Badge>
           <Badge variant="outline">{workItem.column_id ?? 'Unassigned column'}</Badge>
+          {stageRecord && stageRecord.iteration_count > 0 ? (
+            <Badge variant="warning">
+              {stageRecord.iteration_count} stage iteration
+              {stageRecord.iteration_count === 1 ? '' : 's'}
+            </Badge>
+          ) : null}
           {milestone ? <Badge variant="outline">Milestone</Badge> : null}
           {milestone ? (
             <Badge variant="outline">
@@ -787,6 +796,7 @@ function WorkItemHeader(props: {
           detail="Previewable outputs"
         />
       </div>
+      {stageRecord ? <WorkItemStageProgressCard stage={stageRecord} /> : null}
       <div className={metaRowClass}>
         {workItem.owner_role ? <Badge variant="outline">{workItem.owner_role}</Badge> : null}
         {workItem.task_count !== undefined ? (
@@ -816,6 +826,63 @@ function WorkItemHeader(props: {
         </div>
       ) : null}
     </section>
+  );
+}
+
+function WorkItemStageProgressCard(props: {
+  stage: DashboardWorkflowStageRecord;
+}): JSX.Element {
+  const progressPercent = readStageProgressPercent(props.stage);
+  const completedCount = Math.max(
+    0,
+    props.stage.total_work_item_count - props.stage.open_work_item_count,
+  );
+
+  return (
+    <div className="grid gap-3 rounded-xl border border-border/70 bg-background/70 p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="space-y-1">
+          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
+            Stage progress
+          </p>
+          <p className="text-sm font-medium text-foreground">
+            {completedCount} of {props.stage.total_work_item_count} work items complete in{' '}
+            {props.stage.name}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline">
+            {progressPercent === null ? 'No percent yet' : `${progressPercent}% complete`}
+          </Badge>
+          {props.stage.human_gate ? (
+            <Badge
+              variant={
+                props.stage.gate_status === 'approved'
+                  ? 'success'
+                  : props.stage.gate_status === 'requested' ||
+                      props.stage.gate_status === 'awaiting_approval'
+                    ? 'warning'
+                    : 'outline'
+              }
+            >
+              Gate {props.stage.gate_status}
+            </Badge>
+          ) : null}
+        </div>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-border/60">
+        <div
+          className="h-2 rounded-full bg-accent transition-[width]"
+          style={{ width: `${readStageProgressWidth(progressPercent)}%` }}
+        />
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs leading-5 text-muted">
+        <span>{props.stage.open_work_item_count} open work items still routed here</span>
+        <span>
+          Iteration {Math.max(1, props.stage.iteration_count)} • {props.stage.status}
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -873,6 +940,24 @@ function MilestoneOperatorSummarySection(props: {
       </article>
     </section>
   );
+}
+
+function readStageProgressPercent(stage: DashboardWorkflowStageRecord): number | null {
+  if (stage.total_work_item_count <= 0) {
+    return null;
+  }
+  const completedCount = Math.max(0, stage.total_work_item_count - stage.open_work_item_count);
+  return Math.min(100, Math.max(0, Math.round((completedCount / stage.total_work_item_count) * 100)));
+}
+
+function readStageProgressWidth(percent: number | null): number {
+  if (percent === null) {
+    return 0;
+  }
+  if (percent === 0) {
+    return 4;
+  }
+  return percent;
 }
 
 function WorkItemTasksSection(props: {

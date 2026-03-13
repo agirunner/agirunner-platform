@@ -77,6 +77,9 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Milestone group summary');
     expect(source).toContain('Operator attention');
     expect(source).toContain('Active footprint');
+    expect(source).toContain('WorkItemStageProgressCard');
+    expect(source).toContain('Stage progress');
+    expect(source).toContain('stage iteration');
     expect(source).toContain('Milestone children');
     expect(source).toContain('Open parent milestone');
     expect(source).toContain('children complete');

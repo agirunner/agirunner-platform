@@ -91,6 +91,11 @@ describe('live board page source', () => {
     expect(source).toContain('describeBoardProgress');
     expect(source).toContain('describeBoardSpend');
     expect(source).toContain('describeBoardTokens');
+    expect(source).toContain('readBoardProgressPercent');
+    expect(source).toContain('WorkflowProgressPanel');
+    expect(source).toContain('buildWorkflowStageProgressSteps');
+    expect(source).toContain('describeWorkflowStageProgressSummary');
+    expect(source).toContain('Stage progress');
     expect(source).toContain('describeOrchestratorPool');
     expect(source).toContain('describeSpecialistPool');
     expect(source).toContain('describeRiskPosture');
@@ -101,6 +106,18 @@ describe('live board page source', () => {
     expect(source).toContain('Each card keeps posture, progress, and recovery signals above the fold');
     expect(source).toContain('Most active work');
     expect(source).toContain('Show remaining active work items');
+  });
+
+  it('shows rework-aware work-item cards and richer attention packets on the operations board', () => {
+    const source = readSource();
+    expect(source).toContain('BoardWorkItemCard');
+    expect(source).toContain('countWorkItemReworks');
+    expect(source).toContain('describeWorkItemOperatorSummary');
+    expect(source).toContain('rework');
+    expect(source).toContain('chips={[');
+    expect(source).toContain('stale turns');
+    expect(source).toContain('No stale turns');
+    expect(source).toContain('No escalations');
   });
 
   it('renders human-readable live activity instead of raw event type rows', () => {
