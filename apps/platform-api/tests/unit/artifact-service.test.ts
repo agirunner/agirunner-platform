@@ -80,7 +80,7 @@ describe('ArtifactService', () => {
     expect(artifacts[0]?.metadata).toEqual({
       source: 'agent',
       api_key: 'redacted://artifact-metadata-secret',
-      token_ref: 'secret:ARTIFACT_TOKEN',
+      token_ref: 'redacted://artifact-metadata-secret',
     });
     expect(artifacts[0]).not.toHaveProperty('access_url');
     expect(artifacts[0]).not.toHaveProperty('access_url_expires_at');
@@ -157,7 +157,7 @@ describe('ArtifactService', () => {
     expect(preview.artifact.metadata).toEqual({
       credentials: {
         password: 'redacted://artifact-metadata-secret',
-        secret_ref: 'secret:ARTIFACT_PASSWORD',
+        secret_ref: 'redacted://artifact-metadata-secret',
       },
     });
     expect(preview.artifact).not.toHaveProperty('access_url');

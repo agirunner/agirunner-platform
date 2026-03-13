@@ -67,7 +67,7 @@ describe('ArtifactCatalogService', () => {
     });
     expect(artifacts[0]?.metadata).toEqual({
       api_key: 'redacted://artifact-metadata-secret',
-      token_ref: 'secret:CATALOG_TOKEN',
+      token_ref: 'redacted://artifact-metadata-secret',
     });
     expect(artifacts[0]).not.toHaveProperty('access_url');
     expect(artifacts[0]).not.toHaveProperty('access_url_expires_at');
@@ -156,7 +156,7 @@ describe('ArtifactCatalogService', () => {
     expect(preview.artifact.metadata).toEqual({
       credentials: {
         password: 'redacted://artifact-metadata-secret',
-        secret_ref: 'secret:CATALOG_PASSWORD',
+        secret_ref: 'redacted://artifact-metadata-secret',
       },
     });
     expect(preview.artifact).not.toHaveProperty('access_url');

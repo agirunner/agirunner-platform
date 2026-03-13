@@ -279,5 +279,6 @@ function normalizeLimit(value?: number): number {
 function sanitizeArtifactMetadata(metadata: Record<string, unknown>): Record<string, unknown> {
   return sanitizeSecretLikeRecord(metadata, {
     redactionValue: ARTIFACT_METADATA_SECRET_REDACTION,
+    allowSecretReferences: false,
   });
 }
