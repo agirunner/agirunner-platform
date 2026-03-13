@@ -142,7 +142,7 @@ describe('WorkflowService workflow relations', () => {
     });
   });
 
-  it('redacts secret-bearing resolved config views while preserving secret references', async () => {
+  it('redacts secret-bearing resolved config views without preserving secret references', async () => {
     const pool = {
       query: vi.fn(),
     };
@@ -186,7 +186,7 @@ describe('WorkflowService workflow relations', () => {
             source: 'playbook',
           },
           api_key_secret_ref: {
-            value: 'secret:OPENAI_API_KEY',
+            value: 'redacted://workflow-config-secret',
             source: 'playbook',
           },
         },

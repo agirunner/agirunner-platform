@@ -367,7 +367,7 @@ describe('WorkflowService continuous workflow reads', () => {
     expect(workflow.resolved_config).toEqual({
       provider: {
         api_key: 'redacted://workflow-config-secret',
-        api_key_secret_ref: 'secret:OPENAI_API_KEY',
+        api_key_secret_ref: 'redacted://workflow-config-secret',
       },
     });
     expect(workflow.config_layers).toEqual({

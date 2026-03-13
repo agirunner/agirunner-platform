@@ -867,23 +867,38 @@ function sanitizeTaskReadModel(task: Record<string, unknown>) {
 }
 
 function sanitizeWorkflowMetadata(value: unknown) {
-  return sanitizeSecretLikeRecord(value, { redactionValue: 'redacted://workflow-metadata-secret' });
+  return sanitizeSecretLikeRecord(value, {
+    redactionValue: 'redacted://workflow-metadata-secret',
+    allowSecretReferences: false,
+  });
 }
 
 function sanitizeWorkflowContext(value: unknown) {
-  return sanitizeSecretLikeRecord(value, { redactionValue: 'redacted://workflow-context-secret' });
+  return sanitizeSecretLikeRecord(value, {
+    redactionValue: 'redacted://workflow-context-secret',
+    allowSecretReferences: false,
+  });
 }
 
 function sanitizeWorkflowParameters(value: unknown) {
-  return sanitizeSecretLikeRecord(value, { redactionValue: 'redacted://workflow-parameters-secret' });
+  return sanitizeSecretLikeRecord(value, {
+    redactionValue: 'redacted://workflow-parameters-secret',
+    allowSecretReferences: false,
+  });
 }
 
 function sanitizeWorkflowConfigView(value: unknown) {
-  return sanitizeSecretLikeRecord(value, { redactionValue: 'redacted://workflow-config-secret' });
+  return sanitizeSecretLikeRecord(value, {
+    redactionValue: 'redacted://workflow-config-secret',
+    allowSecretReferences: false,
+  });
 }
 
 function sanitizeWorkflowConfigLayers(value: unknown) {
-  return sanitizeSecretLikeRecord(value, { redactionValue: 'redacted://workflow-config-secret' });
+  return sanitizeSecretLikeRecord(value, {
+    redactionValue: 'redacted://workflow-config-secret',
+    allowSecretReferences: false,
+  });
 }
 
 function sanitizeTaskPayload(value: unknown) {
