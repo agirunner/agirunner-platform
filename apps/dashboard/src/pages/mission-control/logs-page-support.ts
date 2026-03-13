@@ -1,17 +1,38 @@
-import type { LogOperationRecord, LogStatsResponse } from '../../lib/api.js';
+import type {
+  LogEntry,
+  LogOperationRecord,
+  LogStatsResponse,
+} from '../../lib/api.js';
 import type { InspectorFilters } from '../../components/execution-inspector-support.js';
 import {
+  describeExecutionHeadline,
+  describeExecutionNextAction,
   describeExecutionOperationLabel,
+  describeExecutionSummary,
   formatCost,
   formatDuration,
   formatNumber,
+  readExecutionSignals,
   shortId,
+  summarizeLogContext,
 } from '../../components/execution-inspector-support.js';
 
 export interface InspectorOverviewCard {
   title: string;
   value: string;
   detail: string;
+}
+
+export interface RecentLogActivityPacket {
+  id: number;
+  headline: string;
+  summary: string;
+  nextAction: string;
+  context: string[];
+  signals: string[];
+  createdAtLabel: string;
+  workflowContextHref: string | null;
+  taskRecordHref: string | null;
 }
 
 export function buildInspectorOverviewCards(
@@ -39,6 +60,49 @@ export function buildInspectorOverviewCards(
       detail: `${formatDuration(totals?.total_duration_ms ?? 0)} recorded runtime`,
     },
   ];
+}
+
+export function buildRecentLogActivityPackets(
+  entries: LogEntry[],
+  limit = 3,
+): RecentLogActivityPacket[] {
+  return entries.slice(0, limit).map((entry) => ({
+    id: entry.id,
+    headline: describeExecutionHeadline(entry),
+    summary: describeExecutionSummary(entry),
+    nextAction: describeExecutionNextAction(entry),
+    context: summarizeLogContext(entry),
+    signals: readExecutionSignals(entry),
+    createdAtLabel: new Date(entry.created_at).toLocaleString(),
+    workflowContextHref: buildLogWorkflowContextLink(entry),
+    taskRecordHref: entry.task_id ? `/work/tasks/${entry.task_id}` : null,
+  }));
+}
+
+export function buildLogWorkflowContextLink(
+  entry: Pick<
+    LogEntry,
+    'workflow_id' | 'work_item_id' | 'activation_id' | 'stage_name'
+  >,
+): string | null {
+  if (!entry.workflow_id) {
+    return null;
+  }
+
+  const next = new URLSearchParams();
+  if (entry.work_item_id) {
+    next.set('work_item', entry.work_item_id);
+  }
+  if (entry.activation_id) {
+    next.set('activation', entry.activation_id);
+  }
+  if (entry.stage_name && !entry.work_item_id && !entry.activation_id) {
+    next.set('stage', entry.stage_name);
+  }
+  const query = next.toString();
+  return query
+    ? `/work/workflows/${entry.workflow_id}?${query}`
+    : `/work/workflows/${entry.workflow_id}`;
 }
 
 function describeInspectorFocus(filters: InspectorFilters, scopedWorkflowId: string): string {

@@ -6,6 +6,10 @@ function readPage() {
   return readFileSync(resolve(import.meta.dirname, './logs-page.tsx'), 'utf8');
 }
 
+function readActivityPackets() {
+  return readFileSync(resolve(import.meta.dirname, './logs-page-activity-packets.tsx'), 'utf8');
+}
+
 describe('logs page source', () => {
   it('keeps the mission-control logs route raw-log-first while preserving inspector tabs', () => {
     const source = readPage();
@@ -36,6 +40,19 @@ describe('logs page source', () => {
     expect(source).toContain('context="inspector"');
     expect(source).toContain("surfaceMode === 'inspector' || selectedView !== 'raw'");
     expect(source).toContain('LogViewer compact');
+  });
+
+  it('adds recent activity packets ahead of the raw log stream for faster interaction comprehension', () => {
+    const source = readPage();
+    const packetsSource = readActivityPackets();
+    expect(source).toContain('LogsPageActivityPackets');
+    expect(source).toContain('buildRecentLogActivityPackets(entries)');
+    expect(source).toContain("updateView('detailed')");
+    expect(packetsSource).toContain('Recent activity packets');
+    expect(packetsSource).toContain('Open trace detail');
+    expect(packetsSource).toContain('Board context');
+    expect(packetsSource).toContain('Step record');
+    expect(packetsSource).toContain('Use these human-readable summaries to decide whether to stay in the raw stream');
   });
 
   it('drives inspector filters and selected entries from url search params', () => {

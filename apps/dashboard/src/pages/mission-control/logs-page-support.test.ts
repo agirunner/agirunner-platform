@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_INSPECTOR_FILTERS } from '../../components/execution-inspector-support.js';
-import { buildInspectorOverviewCards } from './logs-page-support.js';
+import {
+  buildInspectorOverviewCards,
+  buildRecentLogActivityPackets,
+} from './logs-page-support.js';
 
 describe('logs page support', () => {
   it('builds operator-first inspector overview cards', () => {
@@ -80,6 +83,46 @@ describe('logs page support', () => {
       title: 'Attention',
       value: 'Healthy slice',
       detail: 'LLM chat leads with 9 entries',
+    });
+  });
+
+  it('builds human-readable recent activity packets for the raw logs surface', () => {
+    const packets = buildRecentLogActivityPackets([
+      {
+        id: 44,
+        trace_id: 'trace-12345678',
+        span_id: 'span-87654321',
+        source: 'runtime',
+        category: 'task_lifecycle',
+        level: 'warn',
+        operation: 'task.awaiting_approval',
+        status: 'completed',
+        duration_ms: 1500,
+        workflow_id: 'workflow-12345678',
+        workflow_name: 'Board Alpha',
+        task_id: 'task-abcdef12',
+        task_title: 'Review smoke result',
+        work_item_id: 'workitem-88888888',
+        stage_name: 'qa',
+        activation_id: 'activation-9999',
+        actor_type: 'agent',
+        actor_id: 'agent-7',
+        actor_name: 'QA Agent',
+        created_at: '2026-03-12T22:00:00.000Z',
+      },
+    ]);
+
+    expect(packets).toHaveLength(1);
+    expect(packets[0]).toMatchObject({
+      id: 44,
+      headline: 'Step Review smoke result completed Task awaiting approval',
+      summary: 'board Board Alpha • stage qa • work item workitem • activation activati • Recorded by QA Agent • via runtime • task lifecycle',
+      nextAction: 'Review this warning before it turns into a gate or board blocker.',
+      context: ['board Board Alpha', 'step Review smoke result', 'stage qa', 'work item workitem', 'activation activati'],
+      signals: ['Activation', 'Work item', 'Stage'],
+      workflowContextHref:
+        '/work/workflows/workflow-12345678?work_item=workitem-88888888&activation=activation-9999',
+      taskRecordHref: '/work/tasks/task-abcdef12',
     });
   });
 });

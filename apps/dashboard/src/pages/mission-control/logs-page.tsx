@@ -28,7 +28,12 @@ import { LogViewer } from '../../components/log-viewer/log-viewer.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
-import { buildInspectorOverviewCards } from './logs-page-support.js';
+import { LogsPageActivityPackets } from './logs-page-activity-packets.js';
+import {
+  buildLogWorkflowContextLink,
+  buildInspectorOverviewCards,
+  buildRecentLogActivityPackets,
+} from './logs-page-support.js';
 
 const PAGE_SIZE = '50';
 const SUMMARY_DETAIL_MODE = 'summary';
@@ -214,6 +219,10 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
       ),
     [filters, scopedWorkflowId, statsQuery.data, operationsQuery.data],
   );
+  const recentActivityPackets = useMemo(
+    () => buildRecentLogActivityPackets(entries),
+    [entries],
+  );
 
   async function handleExport(): Promise<void> {
     const blob = await dashboardApi.exportLogs(baseFilters);
@@ -336,6 +345,13 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
 
         <TabsContent value="raw">
           <div className="space-y-4">
+            <LogsPageActivityPackets
+              packets={recentActivityPackets}
+              onOpenTrace={(logId) => {
+                updateSelection(logId);
+                updateView('detailed');
+              }}
+            />
             <Card>
               <CardContent className="p-5 text-sm text-muted">
                 {rawFirstSurface
@@ -414,18 +430,5 @@ function buildInspectorPermalink(
 }
 
 function buildWorkflowContextLink(entry: LogEntry): string {
-  const next = new URLSearchParams();
-  if (entry.work_item_id) {
-    next.set('work_item', entry.work_item_id);
-  }
-  if (entry.activation_id) {
-    next.set('activation', entry.activation_id);
-  }
-  if (entry.stage_name && !entry.work_item_id && !entry.activation_id) {
-    next.set('stage', entry.stage_name);
-  }
-  const query = next.toString();
-  return query
-    ? `/work/workflows/${entry.workflow_id}?${query}`
-    : `/work/workflows/${entry.workflow_id}`;
+  return buildLogWorkflowContextLink(entry) ?? `/work/workflows/${entry.workflow_id}`;
 }
