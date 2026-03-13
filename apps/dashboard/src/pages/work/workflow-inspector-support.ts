@@ -38,6 +38,8 @@ export interface WorkflowInspectorTraceModel {
   focusWorkItem: WorkflowInspectorFocusWorkItem | null;
 }
 
+export interface WorkflowInspectorFocusSummary { title: string; detail: string; nextAction: string; actionLabel: string; actionHref: string; }
+
 export function buildWorkflowInspectorTraceModel(input: {
   workflow?: DashboardWorkflowRecord;
   project?: DashboardProjectRecord;
@@ -96,6 +98,56 @@ export function buildWorkflowInspectorTraceModel(input: {
           stageName: focusWorkItem.stage_name,
         }
       : null,
+  };
+}
+
+export function buildWorkflowInspectorFocusSummary(input: {
+  workflowId: string;
+  workflow?: DashboardWorkflowRecord;
+  liveStageLabel: string;
+  traceModel: WorkflowInspectorTraceModel;
+}): WorkflowInspectorFocusSummary {
+  const awaitingGateCount = input.workflow?.work_item_summary?.awaiting_gate_count ?? 0;
+  if (awaitingGateCount > 0) {
+    return {
+      title: 'Gate review needs attention first',
+      detail: `${awaitingGateCount} gate checkpoint${awaitingGateCount === 1 ? ' is' : 's are'} waiting across ${input.liveStageLabel}.`,
+      nextAction:
+        'Start with the board stage that is waiting for approval, then use the trace packets below to confirm spend, artifacts, and memory context before deciding.',
+      actionLabel: 'Open board stage',
+      actionHref: `/work/workflows/${input.workflowId}`,
+    };
+  }
+
+  if (input.traceModel.focusWorkItem) {
+    return {
+      title: `Focus on ${input.traceModel.focusWorkItem.title}`,
+      detail: `${input.traceModel.focusWorkItem.stageName} is the most relevant live work-item context in this trace.`,
+      nextAction:
+        'Inspect the focus work item first, then use telemetry and memory history to decide whether follow-up belongs in rework, stage advancement, or another orchestrator turn.',
+      actionLabel: 'Open focus work item',
+      actionHref: `/work/workflows/${input.workflowId}?work_item=${encodeURIComponent(input.traceModel.focusWorkItem.id)}`,
+    };
+  }
+
+  if (input.traceModel.latestActivationSummary) {
+    return {
+      title: 'Latest activation is the best starting point',
+      detail: input.traceModel.latestActivationSummary,
+      nextAction:
+        'Review the latest orchestrator batch first, then move into board or project drill-ins only if the activation packet does not explain the current workflow posture.',
+      actionLabel: 'Open board trace',
+      actionHref: `/work/workflows/${input.workflowId}`,
+    };
+  }
+
+  return {
+    title: 'Trace coverage is still warming up',
+    detail: 'This workflow does not yet have a strong focus work item or activation packet.',
+    nextAction:
+      'Open the board trace first, confirm whether the run has started producing work items, and return here after the first activation and memory packets land.',
+    actionLabel: 'Open board trace',
+    actionHref: `/work/workflows/${input.workflowId}`,
   };
 }
 

@@ -14,27 +14,17 @@ import {
   CardTitle,
 } from '../../components/ui/card.js';
 import { Skeleton } from '../../components/ui/skeleton.js';
-import { buildWorkflowInspectorTraceModel } from './workflow-inspector-support.js';
+import {
+  buildWorkflowInspectorFocusSummary,
+  buildWorkflowInspectorTraceModel,
+} from './workflow-inspector-support.js';
 import { WorkflowInspectorTelemetryPanel } from './workflow-inspector-telemetry-panel.js';
 import { buildWorkflowInspectorTelemetryModel } from './workflow-inspector-telemetry.js';
-
-function InspectorMetric({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string | number;
-  detail?: string;
-}): JSX.Element {
-  return (
-    <div className="rounded-xl border border-border/70 bg-background/70 p-3">
-      <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-foreground">{value}</p>
-      {detail ? <p className="mt-2 text-sm leading-6 text-muted">{detail}</p> : null}
-    </div>
-  );
-}
+import {
+  InspectorFocusCard,
+  InspectorMetric,
+  TraceCoverageNote,
+} from './workflow-inspector-page.sections.js';
 
 export function WorkflowInspectorPage(): JSX.Element {
   const params = useParams<{ id: string }>();
@@ -93,6 +83,12 @@ export function WorkflowInspectorPage(): JSX.Element {
     activationCostStats: activationCostQuery.data,
     focusWorkItem: traceModel.focusWorkItem,
     memoryHistory: memoryHistoryQuery.data?.history,
+  });
+  const focusSummary = buildWorkflowInspectorFocusSummary({
+    workflowId,
+    workflow,
+    liveStageLabel,
+    traceModel,
   });
 
   return (
@@ -181,6 +177,13 @@ export function WorkflowInspectorPage(): JSX.Element {
                   </div>
                 </div>
               </div>
+              <InspectorFocusCard
+                title={focusSummary.title}
+                detail={focusSummary.detail}
+                nextAction={focusSummary.nextAction}
+                actionLabel={focusSummary.actionLabel}
+                actionHref={focusSummary.actionHref}
+              />
               <div className="grid gap-4 rounded-xl border border-border/70 bg-background/70 p-4">
                 <div className="grid gap-1">
                   <div className="text-sm font-medium text-foreground">Trace coverage</div>
@@ -269,15 +272,4 @@ function describeLiveStageLabel(
     return 'No live stages';
   }
   return workflow?.current_stage ?? 'No live stage';
-}
-
-function TraceCoverageNote(props: { title: string; value: string }): JSX.Element {
-  return (
-    <div className="rounded-xl border border-border/70 bg-border/5 p-4">
-      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
-        {props.title}
-      </div>
-      <p className="mt-2 text-sm leading-6 text-foreground">{props.value}</p>
-    </div>
-  );
 }

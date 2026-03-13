@@ -3,7 +3,13 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './workflow-inspector-page.tsx'), 'utf8');
+  return [
+    './workflow-inspector-page.tsx',
+    './workflow-inspector-page.sections.tsx',
+    './workflow-inspector-support.ts',
+  ]
+    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
+    .join('\n');
 }
 
 describe('workflow inspector page source', () => {
@@ -17,6 +23,8 @@ describe('workflow inspector page source', () => {
     expect(source).toContain('Workflow Inspector');
     expect(source).toContain('Workflow Board');
     expect(source).toContain('Current operator scope');
+    expect(source).toContain('Operator focus');
+    expect(source).toContain('Best next step:');
     expect(source).toContain('Trace coverage');
     expect(source).toContain('WorkflowInspectorTelemetryPanel');
     expect(source).toContain('telemetry={telemetryModel}');
@@ -27,6 +35,8 @@ describe('workflow inspector page source', () => {
     expect(source).toContain('gate lanes');
     expect(source).toContain('InspectorMetric');
     expect(source).toContain('buildWorkflowInspectorTraceModel');
+    expect(source).toContain('buildWorkflowInspectorFocusSummary');
+    expect(source).toContain('InspectorFocusCard');
     expect(source).toContain('buildWorkflowInspectorTelemetryModel');
     expect(source).toContain('TraceCoverageNote');
     expect(source).toContain('workflowId');

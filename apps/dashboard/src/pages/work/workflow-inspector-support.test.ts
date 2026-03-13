@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildWorkflowInspectorTraceModel } from './workflow-inspector-support.js';
+import {
+  buildWorkflowInspectorFocusSummary,
+  buildWorkflowInspectorTraceModel,
+} from './workflow-inspector-support.js';
 
 describe('workflow inspector support', () => {
   it('builds trace coverage metrics, links, and stage spend context from workflow and project records', () => {
@@ -184,5 +187,63 @@ describe('workflow inspector support', () => {
       },
     ]);
     expect(model.focusWorkItem).toBeNull();
+  });
+
+  it('builds an operator focus summary from gate and work-item posture', () => {
+    const traceModel = buildWorkflowInspectorTraceModel({
+      workflow: {
+        id: 'workflow-3',
+        name: 'Release board',
+        state: 'active',
+        created_at: '2026-03-10T00:00:00Z',
+        work_item_summary: {
+          total_work_items: 2,
+          open_work_item_count: 1,
+          completed_work_item_count: 1,
+          active_stage_count: 1,
+          awaiting_gate_count: 1,
+          active_stage_names: ['review'],
+        },
+        work_items: [
+          {
+            id: 'work-item-9',
+            workflow_id: 'workflow-3',
+            stage_name: 'review',
+            title: 'Review release candidate',
+            column_id: 'review',
+            priority: 'high',
+          },
+        ],
+      },
+    });
+
+    expect(
+      buildWorkflowInspectorFocusSummary({
+        workflowId: 'workflow-3',
+        workflow: {
+          id: 'workflow-3',
+          name: 'Release board',
+          state: 'active',
+          created_at: '2026-03-10T00:00:00Z',
+          work_item_summary: {
+            total_work_items: 2,
+            open_work_item_count: 1,
+            completed_work_item_count: 1,
+            active_stage_count: 1,
+            awaiting_gate_count: 1,
+            active_stage_names: ['review'],
+          },
+        },
+        liveStageLabel: 'review',
+        traceModel,
+      }),
+    ).toEqual({
+      title: 'Gate review needs attention first',
+      detail: '1 gate checkpoint is waiting across review.',
+      nextAction:
+        'Start with the board stage that is waiting for approval, then use the trace packets below to confirm spend, artifacts, and memory context before deciding.',
+      actionLabel: 'Open board stage',
+      actionHref: '/work/workflows/workflow-3',
+    });
   });
 });
