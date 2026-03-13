@@ -5,6 +5,11 @@ import { authenticateApiKey, withAllowedScopes, withScope } from '../../auth/fas
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import type { PublicTaskState } from '../../services/task-service.types.js';
+import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
+import {
+  loadTaskWorkflowId,
+  runIdempotentWorkflowBackedTaskAction,
+} from './task-route-idempotency.js';
 
 
 const taskCreateSchema = z.object({
@@ -88,6 +93,9 @@ const failSchema = z.object({
   git_info: z.record(z.unknown()).optional(),
   agent_id: z.string().uuid().optional(),
   worker_id: z.string().uuid().optional(),
+});
+const taskOperatorMutationSchema = z.object({
+  request_id: z.string().min(1).max(255).optional(),
 });
 
 const retrySchema = z.object({
@@ -174,6 +182,7 @@ function parseTaskStateFilter(value: string | undefined) {
 
 export const taskRoutes: FastifyPluginAsync = async (app) => {
   const taskService = app.taskService;
+  const toolResultService = new WorkflowToolResultService(app.pgPool);
 
   app.post(
     '/api/v1/tasks',
@@ -338,7 +347,19 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'worker'])] },
     async (request) => {
       const params = request.params as { id: string };
-      const task = await taskService.approveTask(request.auth!, params.id);
+      const body = parseOrThrow(taskOperatorMutationSchema.safeParse(request.body ?? {}));
+      const workflowId = body.request_id
+        ? await loadTaskWorkflowId(taskService.getTask.bind(taskService), request.auth!.tenantId, params.id)
+        : null;
+      const task = await runIdempotentWorkflowBackedTaskAction(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        workflowId,
+        'public_task_approve',
+        body.request_id,
+        (client) => taskService.approveTask(request.auth!, params.id, client),
+      );
       return { data: task };
     },
   );
@@ -348,7 +369,19 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'worker'])] },
     async (request) => {
       const params = request.params as { id: string };
-      const task = await taskService.approveTaskOutput(request.auth!, params.id);
+      const body = parseOrThrow(taskOperatorMutationSchema.safeParse(request.body ?? {}));
+      const workflowId = body.request_id
+        ? await loadTaskWorkflowId(taskService.getTask.bind(taskService), request.auth!.tenantId, params.id)
+        : null;
+      const task = await runIdempotentWorkflowBackedTaskAction(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        workflowId,
+        'public_task_approve_output',
+        body.request_id,
+        (client) => taskService.approveTaskOutput(request.auth!, params.id, client),
+      );
       return { data: task };
     },
   );
@@ -369,7 +402,19 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'worker'])] },
     async (request) => {
       const params = request.params as { id: string };
-      const task = await taskService.cancelTask(request.auth!, params.id);
+      const body = parseOrThrow(taskOperatorMutationSchema.safeParse(request.body ?? {}));
+      const workflowId = body.request_id
+        ? await loadTaskWorkflowId(taskService.getTask.bind(taskService), request.auth!.tenantId, params.id)
+        : null;
+      const task = await runIdempotentWorkflowBackedTaskAction(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        workflowId,
+        'public_task_cancel',
+        body.request_id,
+        (client) => taskService.cancelTask(request.auth!, params.id, client),
+      );
       return { data: task };
     },
   );
