@@ -1,5 +1,5 @@
 import type { ComboboxItem } from '../../components/log-viewer/ui/searchable-combobox.js';
-import type { DashboardAgentRecord } from '../../lib/api.js';
+import type { DashboardAgentRecord, DashboardWorkflowRecord } from '../../lib/api.js';
 import { readSession } from '../../lib/session.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
@@ -29,6 +29,11 @@ export interface GrantSummary {
   elevatedCount: number;
 }
 
+export interface GrantFilters {
+  workflowId: string | null;
+  agentId: string | null;
+}
+
 export function sortAgents(agents: DashboardAgentRecord[]): DashboardAgentRecord[] {
   return [...agents].sort((left, right) => {
     const leftLabel = agentDisplayName(left);
@@ -50,8 +55,32 @@ export function findAgent(agents: DashboardAgentRecord[], agentId: string): Dash
   return agents.find((agent) => agent.id === agentId) ?? null;
 }
 
+export function sortWorkflows(workflows: DashboardWorkflowRecord[]): DashboardWorkflowRecord[] {
+  return [...workflows].sort((left, right) => workflowDisplayName(left).localeCompare(workflowDisplayName(right)));
+}
+
+export function buildWorkflowItems(workflows: DashboardWorkflowRecord[]): ComboboxItem[] {
+  return workflows.map((workflow) => ({
+    id: workflow.id,
+    label: workflowDisplayName(workflow),
+    subtitle: describeWorkflowOption(workflow),
+    status: toWorkflowStatus(workflow.state),
+  }));
+}
+
+export function findWorkflow(
+  workflows: DashboardWorkflowRecord[],
+  workflowId: string,
+): DashboardWorkflowRecord | null {
+  return workflows.find((workflow) => workflow.id === workflowId) ?? null;
+}
+
 export function agentDisplayName(agent: DashboardAgentRecord): string {
   return agent.name?.trim() || agent.id;
+}
+
+export function workflowDisplayName(workflow: DashboardWorkflowRecord): string {
+  return workflow.name.trim() || workflow.id;
 }
 
 export function describeAgentOption(agent: DashboardAgentRecord): string {
@@ -64,6 +93,17 @@ export function describeAgentOption(agent: DashboardAgentRecord): string {
   }
   if (agent.capabilities && agent.capabilities.length > 0) {
     parts.push(agent.capabilities.join(', '));
+  }
+  return parts.join(' • ');
+}
+
+export function describeWorkflowOption(workflow: DashboardWorkflowRecord): string {
+  const parts: string[] = [workflow.state];
+  if (workflow.project_name) {
+    parts.push(workflow.project_name);
+  }
+  if (workflow.playbook_name) {
+    parts.push(workflow.playbook_name);
   }
   return parts.join(' • ');
 }
@@ -86,9 +126,47 @@ export function describeSelectedAgent(agent: DashboardAgentRecord | null): Array
   return details;
 }
 
-export function fetchGrants(): Promise<OrchestratorGrant[]> {
+export function normalizeGrantFilters(filters: Partial<GrantFilters>): GrantFilters {
+  return {
+    workflowId: normalizeFilterValue(filters.workflowId),
+    agentId: normalizeFilterValue(filters.agentId),
+  };
+}
+
+export function readGrantFilters(searchParams: URLSearchParams): GrantFilters {
+  return normalizeGrantFilters({
+    workflowId: searchParams.get('workflow_id'),
+    agentId: searchParams.get('agent_id'),
+  });
+}
+
+export function writeGrantFilters(
+  searchParams: URLSearchParams,
+  filters: Partial<GrantFilters>,
+): URLSearchParams {
+  const next = new URLSearchParams(searchParams);
+  const normalized = normalizeGrantFilters(filters);
+  setFilterParam(next, 'workflow_id', normalized.workflowId);
+  setFilterParam(next, 'agent_id', normalized.agentId);
+  return next;
+}
+
+export function hasGrantFilters(filters: GrantFilters): boolean {
+  return Boolean(filters.workflowId || filters.agentId);
+}
+
+export function fetchGrants(filters: Partial<GrantFilters> = {}): Promise<OrchestratorGrant[]> {
   const session = readSession();
-  return fetchJson<OrchestratorGrant[]>(`${API_BASE_URL}/api/v1/orchestrator-grants`, {
+  const normalizedFilters = normalizeGrantFilters(filters);
+  const params = new URLSearchParams();
+  if (normalizedFilters.workflowId) {
+    params.set('workflow_id', normalizedFilters.workflowId);
+  }
+  if (normalizedFilters.agentId) {
+    params.set('agent_id', normalizedFilters.agentId);
+  }
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  return fetchJson<OrchestratorGrant[]>(`${API_BASE_URL}/api/v1/orchestrator-grants${suffix}`, {
     headers: session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : undefined,
     missingStatus: 404,
   });
@@ -144,6 +222,11 @@ function normalizeAgentStatus(status: string | null | undefined): string {
   return status?.trim() || 'unknown';
 }
 
+function normalizeFilterValue(value: string | null | undefined): string | null {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
 function toComboboxStatus(
   status: string | null | undefined,
 ): ComboboxItem['status'] | undefined {
@@ -159,6 +242,29 @@ function toComboboxStatus(
     default:
       return undefined;
   }
+}
+
+function toWorkflowStatus(state: string | null | undefined): ComboboxItem['status'] | undefined {
+  switch (state?.trim()) {
+    case 'completed':
+      return 'completed';
+    case 'failed':
+    case 'cancelled':
+      return 'failed';
+    case 'active':
+    case 'pending':
+      return 'pending';
+    default:
+      return undefined;
+  }
+}
+
+function setFilterParam(searchParams: URLSearchParams, key: string, value: string | null): void {
+  if (value) {
+    searchParams.set(key, value);
+    return;
+  }
+  searchParams.delete(key);
 }
 
 function authHeaders(): Record<string, string> {

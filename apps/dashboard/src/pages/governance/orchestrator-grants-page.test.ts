@@ -15,12 +15,18 @@ function readSource() {
 }
 
 describe('orchestrator grants page source', () => {
-  it('uses live workflow and agent inventory data with shared accessible selectors', () => {
+  it('uses URL-backed workflow and agent filters with shared accessible selectors', () => {
     const source = readSource();
+    expect(source).toContain('useSearchParams');
+    expect(source).toContain('readGrantFilters(searchParams)');
+    expect(source).toContain('writeGrantFilters');
     expect(source).toContain('dashboardApi.listWorkflows()');
     expect(source).toContain('dashboardApi.listAgents()');
     expect(source).toContain('GRANT_PERMISSION_OPTIONS');
     expect(source).toContain('Workflow scope');
+    expect(source).toContain('All workflows');
+    expect(source).toContain('All agents');
+    expect(source).toContain('Clear filters');
     expect(source).toContain('SearchableCombobox');
     expect(source).toContain('SelectTrigger');
     expect(source).toContain('SelectItem');
@@ -35,6 +41,8 @@ describe('orchestrator grants page source', () => {
     expect(source).toContain('Grant coverage');
     expect(source).toContain('grid gap-3 lg:hidden');
     expect(source).toContain('hidden lg:block');
+    expect(source).toContain('Filter visible grants');
+    expect(source).toContain('No grants match the current filters');
     expect(source).toContain('max-h-[80vh] max-w-3xl overflow-y-auto');
     expect(source).toContain('Revoke grant');
     expect(source).toContain('Loading agents from the live inventory');

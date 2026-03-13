@@ -1,9 +1,14 @@
 import type { ReactNode } from 'react';
-import { Bot, Lock, Plus, ShieldAlert, ShieldCheck, Workflow } from 'lucide-react';
+import { Bot, Lock, Plus, RotateCcw, ShieldAlert, ShieldCheck, Workflow } from 'lucide-react';
 
+import { SearchableCombobox, type ComboboxItem } from '../../components/log-viewer/ui/searchable-combobox.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card.js';
-import { type GrantSummary } from './orchestrator-grants-page.support.js';
+import {
+  hasGrantFilters,
+  type GrantFilters,
+  type GrantSummary,
+} from './orchestrator-grants-page.support.js';
 
 export function GrantsHeader(props: { onCreate?(): void }): JSX.Element {
   return (
@@ -148,6 +153,111 @@ export function GrantsEmptyState(props: { onCreate(): void }): JSX.Element {
   );
 }
 
+export function GrantsFilterBar(props: {
+  filters: GrantFilters;
+  workflowItems: ComboboxItem[];
+  agentItems: ComboboxItem[];
+  workflowsLoading: boolean;
+  agentsLoading: boolean;
+  workflowsError: boolean;
+  agentsError: boolean;
+  onWorkflowChange(value: string | null): void;
+  onAgentChange(value: string | null): void;
+  onReset(): void;
+}): JSX.Element {
+  const hasFiltersApplied = hasGrantFilters(props.filters);
+
+  return (
+    <Card className="border-border/70 bg-card/80 shadow-sm">
+      <CardHeader className="gap-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-1">
+            <CardTitle>Filter visible grants</CardTitle>
+            <CardDescription>
+              Narrow the registry by workflow scope or agent before the table renders.
+            </CardDescription>
+          </div>
+          <Button variant="outline" size="sm" disabled={!hasFiltersApplied} onClick={props.onReset}>
+            <RotateCcw className="h-3.5 w-3.5" />
+            Clear filters
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-4 md:grid-cols-2">
+        <FilterField
+          label="Workflow scope"
+          description="Search by workflow name, state, project, or playbook."
+          isLoading={props.workflowsLoading}
+          hasError={props.workflowsError}
+          isEmpty={props.workflowItems.length === 0}
+          emptyMessage="No workflows are available for filtering yet."
+        >
+          <SearchableCombobox
+            items={props.workflowItems}
+            value={props.filters.workflowId}
+            onChange={props.onWorkflowChange}
+            placeholder="All workflows"
+            searchPlaceholder="Search workflows by name, state, project, or playbook"
+            allGroupLabel="Workflow scopes"
+            isLoading={props.workflowsLoading}
+            disabled={props.workflowsLoading || props.workflowsError || props.workflowItems.length === 0}
+          />
+        </FilterField>
+        <FilterField
+          label="Agent"
+          description="Search by agent name, status, worker, or capability."
+          isLoading={props.agentsLoading}
+          hasError={props.agentsError}
+          isEmpty={props.agentItems.length === 0}
+          emptyMessage="No agents are available for filtering yet."
+        >
+          <SearchableCombobox
+            items={props.agentItems}
+            value={props.filters.agentId}
+            onChange={props.onAgentChange}
+            placeholder="All agents"
+            searchPlaceholder="Search agents by name, status, worker, or capability"
+            allGroupLabel="Agents"
+            isLoading={props.agentsLoading}
+            disabled={props.agentsLoading || props.agentsError || props.agentItems.length === 0}
+          />
+        </FilterField>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function GrantsFilteredEmptyState(props: {
+  onClearFilters(): void;
+  onCreate(): void;
+}): JSX.Element {
+  return (
+    <Card className="border-dashed border-border/70 shadow-sm">
+      <CardHeader>
+        <CardTitle>No grants match the current filters</CardTitle>
+        <CardDescription>
+          Clear the workflow or agent filter to inspect the wider grant registry again.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="max-w-2xl text-sm leading-6 text-muted">
+          This scope is currently empty. Try a different workflow or agent, or create a new grant
+          if this pairing should exist.
+        </p>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <Button variant="outline" onClick={props.onClearFilters} className="w-full sm:w-auto">
+            Clear filters
+          </Button>
+          <Button onClick={props.onCreate} className="w-full sm:w-auto">
+            <Plus className="h-4 w-4" />
+            Create grant
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function StatusCard(props: {
   title: string;
   description: string;
@@ -167,6 +277,35 @@ function StatusCard(props: {
           <p className={`text-sm leading-6 ${props.bodyClassName ?? 'text-muted'}`}>{props.body}</p>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function FilterField(props: {
+  label: string;
+  description: string;
+  isLoading: boolean;
+  hasError: boolean;
+  isEmpty: boolean;
+  emptyMessage: string;
+  children: ReactNode;
+}): JSX.Element {
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium">{props.label}</p>
+      {props.children}
+      {props.isLoading ? <p className="text-xs leading-5 text-muted">Loading options…</p> : null}
+      {props.hasError ? (
+        <p className="text-xs leading-5 text-red-700 dark:text-red-200">
+          Inventory is unavailable right now. Retry after the page refreshes.
+        </p>
+      ) : null}
+      {!props.isLoading && !props.hasError && props.isEmpty ? (
+        <p className="text-xs leading-5 text-muted">{props.emptyMessage}</p>
+      ) : null}
+      {!props.isLoading && !props.hasError && !props.isEmpty ? (
+        <p className="text-xs leading-5 text-muted">{props.description}</p>
+      ) : null}
     </div>
   );
 }

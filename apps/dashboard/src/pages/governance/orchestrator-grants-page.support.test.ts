@@ -3,16 +3,25 @@ import { describe, expect, it } from 'vitest';
 import {
   agentDisplayName,
   buildAgentItems,
+  buildWorkflowItems,
   describeAgentOption,
   describeSelectedAgent,
+  describeWorkflowOption,
   findAgent,
+  findWorkflow,
   formatCompactId,
+  hasGrantFilters,
+  normalizeGrantFilters,
   permissionVariant,
+  readGrantFilters,
+  sortWorkflows,
   sortAgents,
   summarizeGrants,
+  workflowDisplayName,
+  writeGrantFilters,
   type OrchestratorGrant,
 } from './orchestrator-grants-page.support.js';
-import type { DashboardAgentRecord } from '../../lib/api.js';
+import type { DashboardAgentRecord, DashboardWorkflowRecord } from '../../lib/api.js';
 
 describe('orchestrator grants support', () => {
   it('summarizes grant coverage and elevated permissions', () => {
@@ -105,5 +114,71 @@ describe('orchestrator grants support', () => {
       { label: 'Current task', value: 'task-9' },
       { label: 'Capabilities', value: 'orchestrator, review' },
     ]);
+  });
+
+  it('builds sorted workflow options from live inventory records', () => {
+    const workflows: DashboardWorkflowRecord[] = [
+      {
+        id: 'workflow-2',
+        name: 'Zulu Run',
+        state: 'active',
+        created_at: '2026-03-12T00:00:00.000Z',
+        project_name: 'Project Z',
+        playbook_name: 'Incident',
+        lifecycle: 'continuous',
+      },
+      {
+        id: 'workflow-1',
+        name: 'Alpha Run',
+        state: 'completed',
+        created_at: '2026-03-12T00:00:00.000Z',
+        project_name: 'Project A',
+        playbook_name: 'Deploy',
+      },
+    ];
+
+    const sorted = sortWorkflows(workflows);
+    expect(sorted.map((workflow) => workflow.id)).toEqual(['workflow-1', 'workflow-2']);
+    expect(workflowDisplayName(sorted[0])).toBe('Alpha Run');
+    expect(describeWorkflowOption(sorted[0])).toBe('completed • Project A • Deploy');
+    expect(buildWorkflowItems(sorted)).toEqual([
+      {
+        id: 'workflow-1',
+        label: 'Alpha Run',
+        subtitle: 'completed • Project A • Deploy',
+        status: 'completed',
+      },
+      {
+        id: 'workflow-2',
+        label: 'Zulu Run',
+        subtitle: 'active • Project Z • Incident',
+        status: 'pending',
+      },
+    ]);
+    expect(findWorkflow(sorted, 'workflow-2')?.name).toBe('Zulu Run');
+    expect(findWorkflow(sorted, 'missing')).toBeNull();
+  });
+
+  it('reads and writes grant filters through URL search params', () => {
+    const initial = new URLSearchParams('workflow_id=workflow-7&agent_id=agent-9');
+    expect(readGrantFilters(initial)).toEqual({
+      workflowId: 'workflow-7',
+      agentId: 'agent-9',
+    });
+
+    const next = writeGrantFilters(initial, {
+      workflowId: 'workflow-8',
+      agentId: null,
+    });
+    expect(next.toString()).toBe('workflow_id=workflow-8');
+  });
+
+  it('normalizes empty filter values and reports when filters are active', () => {
+    expect(normalizeGrantFilters({ workflowId: '  ', agentId: ' agent-2 ' })).toEqual({
+      workflowId: null,
+      agentId: 'agent-2',
+    });
+    expect(hasGrantFilters({ workflowId: null, agentId: 'agent-2' })).toBe(true);
+    expect(hasGrantFilters({ workflowId: null, agentId: null })).toBe(false);
   });
 });
