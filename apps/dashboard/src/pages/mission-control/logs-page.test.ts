@@ -18,16 +18,15 @@ describe('logs page source', () => {
     expect(source).toContain('const [logsSurfaceView, setLogsSurfaceView] = useState<InspectorView>(() =>');
     expect(source).toContain('readLogsSurfaceView(searchParams)');
     expect(source).toContain("const selectedView = rawFirstSurface");
-    expect(source).toContain("{rawFirstSurface ? 'Logs' : 'Execution Inspector'}");
+    expect(source).toContain('Operator Log</h1>');
     expect(source).toContain(
-      "Browse raw log and event rows first. Use the summary, delivery, and trace tabs only when you need curated inspector packets or deeper drill-in.",
+      "Raw logs and events are always visible. Use the summary, delivery, and trace tabs for curated views when you need them.",
     );
     expect(source).toContain("rawFirstSurface ? 'Log Stream' : 'Raw Logs'");
     expect(source).toContain("rawFirstSurface ? 'Activity Summary' : 'Summary'");
     expect(source).toContain("rawFirstSurface ? 'Delivery Packets' : 'Delivery'");
     expect(source).toContain("rawFirstSurface ? 'Trace Detail' : 'Debug'");
     expect(source).toContain('Failed to load delivery entries. Please refine filters and try again.');
-    expect(source).toContain('Raw event and log rows stay first-class here');
   });
 
   it('MCL-004: uses shorter mobile tab labels to prevent truncation', () => {
@@ -51,14 +50,24 @@ describe('logs page source', () => {
     expect(source).toContain('context="inspector"');
     expect(source).toContain("surfaceMode === 'inspector' || selectedView !== 'raw'");
     expect(source).toContain('LogViewer compact');
+    expect(source).toContain('data-testid="operator-log-surface"');
+    expect(source).toContain("aria-label=\"Log view\"");
   });
 
-  it('adds recent activity packets ahead of the raw log stream for faster interaction comprehension', () => {
+  it('shows raw logs first with activity packets additive below', () => {
     const source = readPage();
     const packetsSource = readActivityPackets();
     expect(source).toContain('LogsPageActivityPackets');
     expect(source).toContain('buildRecentLogActivityPackets(entries)');
     expect(source).toContain("updateView('detailed')");
+
+    // LogViewer must render before activity packets so raw events are immediately visible
+    const rawTabContent = source.slice(source.indexOf("TabsContent value=\"raw\""));
+    const logViewerPos = rawTabContent.indexOf('<LogViewer');
+    const activityPacketsPos = rawTabContent.indexOf('<LogsPageActivityPackets');
+    expect(logViewerPos).toBeGreaterThan(-1);
+    expect(activityPacketsPos).toBeGreaterThan(logViewerPos);
+
     expect(packetsSource).toContain('Recent activity packets');
     expect(packetsSource).toContain('packet.actorLabel');
     expect(packetsSource).toContain('packet.emphasisLabel');

@@ -85,12 +85,12 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
   );
 
   const logsQuery = useQuery<LogQueryResponse>({
-    queryKey: ['execution-inspector', 'logs', queryFilters],
+    queryKey: ['operator-log', 'logs', queryFilters],
     queryFn: () => dashboardApi.queryLogs(queryFilters),
     refetchInterval: 5_000,
   });
   const statsQuery = useQuery({
-    queryKey: ['execution-inspector', 'stats', baseFilters],
+    queryKey: ['operator-log', 'stats', baseFilters],
     queryFn: () => dashboardApi.getLogStats({ ...baseFilters, group_by: 'category' }),
     refetchInterval: 10_000,
   });
@@ -101,7 +101,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
     refetchInterval: 10_000,
   });
   const operationsQuery = useQuery({
-    queryKey: ['execution-inspector', 'operations', baseFilters.since, baseFilters.until],
+    queryKey: ['operator-log', 'operations', baseFilters.since, baseFilters.until],
     queryFn: () =>
       dashboardApi.getLogOperations({
         since: baseFilters.since,
@@ -109,11 +109,11 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
       }),
   });
   const rolesQuery = useQuery({
-    queryKey: ['execution-inspector', 'roles', baseFilters],
+    queryKey: ['operator-log', 'roles', baseFilters],
     queryFn: () => dashboardApi.getLogRoles(baseFilters),
   });
   const actorsQuery = useQuery({
-    queryKey: ['execution-inspector', 'actors', baseFilters],
+    queryKey: ['operator-log', 'actors', baseFilters],
     queryFn: () => dashboardApi.getLogActors(baseFilters),
   });
 
@@ -147,7 +147,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
   const selectedEntrySummary =
     entries.find((entry) => entry.id === effectiveSelectedLogId) ?? null;
   const selectedEntryQuery = useQuery({
-    queryKey: ['execution-inspector', 'log', effectiveSelectedLogId],
+    queryKey: ['operator-log', 'log', effectiveSelectedLogId],
     queryFn: () => dashboardApi.getLog(effectiveSelectedLogId ?? ''),
     enabled: effectiveSelectedLogId !== null,
     staleTime: 30_000,
@@ -237,7 +237,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'execution-inspector.jsonl';
+    link.download = 'operator-log.jsonl';
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -245,16 +245,14 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
   }
 
   return (
-    <div data-testid="execution-inspector-surface" className="flex flex-col gap-6 p-6">
+    <div data-testid="operator-log-surface" className="flex flex-col gap-6 p-6">
       <section className="flex flex-col gap-3 rounded-3xl border border-border/70 bg-card/80 p-6 shadow-sm lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">
-            {rawFirstSurface ? 'Logs' : 'Execution Inspector'}
-          </h1>
+          <h1 className="text-2xl font-bold tracking-tight">Operator Log</h1>
           <p className="text-sm text-muted">
             {rawFirstSurface
-              ? 'Browse raw log and event rows first. Use the summary, delivery, and trace tabs only when you need curated inspector packets or deeper drill-in.'
-              : 'Summary, delivery, and debug views over work-item, stage, gate, runtime, and platform execution traces.'}
+              ? 'Raw logs and events are always visible. Use the summary, delivery, and trace tabs for curated views when you need them.'
+              : 'Browse execution traces with summary, delivery, and debug views. Raw logs stay accessible in the first tab.'}
           </p>
           {scopedWorkflowId ? (
             <div className="text-sm">
@@ -343,7 +341,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
         </section>
       ) : null}
 
-      <Tabs value={selectedView} onValueChange={(value) => updateView(value as InspectorView)} className="space-y-4">
+      <Tabs value={selectedView} onValueChange={(value) => updateView(value as InspectorView)} className="space-y-4" aria-label="Log view">
         <div className="overflow-x-auto -mx-1 px-1">
           <TabsList>
             <TabsTrigger value="raw">
@@ -367,6 +365,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
 
         <TabsContent value="raw">
           <div className="space-y-4">
+            <LogViewer compact scope={scopedWorkflowId ? { workflowId: scopedWorkflowId } : undefined} />
             <LogsPageActivityPackets
               packets={recentActivityPackets}
               onOpenTrace={(logId) => {
@@ -374,14 +373,6 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
                 updateView('detailed');
               }}
             />
-            <Card>
-              <CardContent className="p-5 text-sm text-muted">
-                {rawFirstSurface
-                  ? 'Raw event and log rows stay first-class here, with the full log viewer for flat browsing, grouped views, scoped filtering, export, and expandable record detail.'
-                  : 'Raw event and log rows are available here with the full log viewer, including flat row browsing, grouped views, scoped filtering, export, and expandable record detail.'}
-              </CardContent>
-            </Card>
-            <LogViewer compact scope={scopedWorkflowId ? { workflowId: scopedWorkflowId } : undefined} />
           </div>
         </TabsContent>
 
