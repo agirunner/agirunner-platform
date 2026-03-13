@@ -29,6 +29,15 @@ export function ContentBrowserOverview(props: ContentBrowserOverviewProps): JSX.
   return (
     <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
       <PacketCard
+        className="md:col-span-2 2xl:col-span-4"
+        icon={<Rows3 className="h-4 w-4" />}
+        label="Operator focus"
+        title={buildOperatorFocusTitle(props)}
+        helper={buildOperatorFocusHelper(props)}
+        detail={buildOperatorFocusDetail(props)}
+        actions={renderPacketAction(buildOperatorFocusAction(props))}
+      />
+      <PacketCard
         icon={<Workflow className="h-4 w-4" />}
         label="Workflow context"
         title={props.selectedWorkflow?.name ?? 'Workflow not selected'}
@@ -43,14 +52,14 @@ export function ContentBrowserOverview(props: ContentBrowserOverviewProps): JSX.
           ) : null
         }
         actions={
-          props.selectedWorkflow ? (
-            <Link
-              className="text-sm text-accent hover:underline"
-              to={`/work/workflows/${props.workflowId}`}
-            >
-              Open workflow
-            </Link>
-          ) : null
+          renderPacketAction(
+            props.selectedWorkflow
+              ? {
+                  label: 'Open workflow',
+                  href: `/work/workflows/${props.workflowId}`,
+                }
+              : null,
+          )
         }
       />
       <PacketCard
@@ -67,6 +76,7 @@ export function ContentBrowserOverview(props: ContentBrowserOverviewProps): JSX.
             ? `Latest update ${formatContentRelativeTimestamp(props.documentSummary.latestCreatedAt)} • ${props.documentSummary.metadataBackedDocuments} with structured metadata`
             : 'Create the first operator-facing document from the controls below.'
         }
+        actions={renderPacketAction(buildDocumentAction(props))}
       />
       <PacketCard
         icon={<Package className="h-4 w-4" />}
@@ -89,22 +99,20 @@ export function ContentBrowserOverview(props: ContentBrowserOverviewProps): JSX.
               : 'Artifact uploads, previews, and deletes stay anchored to the selected task.'
         }
         actions={
-          props.selectedTask ? (
-            <Link
-              className="text-sm text-accent hover:underline"
-              to={`/work/tasks/${props.selectedTask.id}`}
-            >
-              Open task
-            </Link>
-          ) : null
+          renderPacketAction(
+            props.selectedTask
+              ? {
+                  label: 'Open task',
+                  href: `/work/tasks/${props.selectedTask.id}`,
+                }
+              : props.selectedWorkItem && props.workflowId
+                ? {
+                    label: 'Open work item flow',
+                    href: `/work/workflows/${props.workflowId}?work_item=${encodeURIComponent(props.selectedWorkItem.id)}#work-item-${encodeURIComponent(props.selectedWorkItem.id)}`,
+                  }
+                : null,
+          )
         }
-      />
-      <PacketCard
-        icon={<Rows3 className="h-4 w-4" />}
-        label="Operator focus"
-        title={buildOperatorFocusTitle(props)}
-        helper={buildOperatorFocusHelper(props)}
-        detail={buildOperatorFocusDetail(props)}
       />
     </div>
   );
@@ -141,12 +149,12 @@ function buildOperatorFocusHelper(props: ContentBrowserOverviewProps): string {
 function buildOperatorFocusDetail(props: ContentBrowserOverviewProps): string {
   if (props.activeTab === 'documents') {
     return props.documentSummary.describedDocuments > 0
-      ? `${props.documentSummary.describedDocuments} documents already include operator-facing descriptions.`
+      ? `${props.documentSummary.describedDocuments} documents already include operator-facing descriptions. Review the latest workflow reference first, then update stale handoff docs from this page.`
       : 'Add titles and descriptions so operators can scan intent without opening every record.';
   }
   if (props.selectedTask) {
     return props.artifactSummary.metadataBackedArtifacts > 0
-      ? `${props.artifactSummary.metadataBackedArtifacts} artifacts include structured metadata for downstream review.`
+      ? `${props.artifactSummary.metadataBackedArtifacts} artifacts include structured metadata for downstream review. Inspect the selected task output first, then verify the artifact packet is complete.`
       : 'Publish artifact metadata when operators need retention, provenance, or review signals at a glance.';
   }
   if (props.selectedWorkItem) {
@@ -157,6 +165,56 @@ function buildOperatorFocusDetail(props: ContentBrowserOverviewProps): string {
   return 'Pick a work item or task to move from browsing into execution-aware artifact management.';
 }
 
+function buildOperatorFocusAction(props: ContentBrowserOverviewProps): PacketAction | null {
+  if (props.activeTab === 'documents') {
+    return props.selectedWorkflow
+      ? {
+          label: 'Open workflow documents',
+          href: `/work/workflows/${props.workflowId}`,
+        }
+      : null;
+  }
+  if (props.selectedTask) {
+    return {
+      label: 'Open task artifacts',
+      href: `/work/tasks/${props.selectedTask.id}`,
+    };
+  }
+  if (props.selectedWorkItem && props.workflowId) {
+    return {
+      label: 'Open work item flow',
+      href: `/work/workflows/${props.workflowId}?work_item=${encodeURIComponent(props.selectedWorkItem.id)}#work-item-${encodeURIComponent(props.selectedWorkItem.id)}`,
+    };
+  }
+  return null;
+}
+
+function buildDocumentAction(props: ContentBrowserOverviewProps): PacketAction | null {
+  if (!props.selectedWorkflow) {
+    return null;
+  }
+  return {
+    label: 'Open workflow',
+    href: `/work/workflows/${props.workflowId}`,
+  };
+}
+
+interface PacketAction {
+  label: string;
+  href: string;
+}
+
+function renderPacketAction(action: PacketAction | null): JSX.Element | null {
+  if (!action) {
+    return null;
+  }
+  return (
+    <Link className="text-sm text-accent hover:underline" to={action.href}>
+      {action.label}
+    </Link>
+  );
+}
+
 function PacketCard(props: {
   icon: JSX.Element;
   label: string;
@@ -165,9 +223,10 @@ function PacketCard(props: {
   detail?: string;
   meta?: JSX.Element | null;
   actions?: JSX.Element | null;
+  className?: string;
 }): JSX.Element {
   return (
-    <Card className="border-border/70 bg-card/70">
+    <Card className={`border-border/70 bg-card/70 ${props.className ?? ''}`.trim()}>
       <CardContent className="space-y-4 pt-6">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-2">
