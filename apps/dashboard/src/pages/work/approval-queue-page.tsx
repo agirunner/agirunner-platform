@@ -1,6 +1,6 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { Clock3, FileText, GitBranch, Inbox, Loader2, Search, Workflow } from 'lucide-react';
 
 import { dashboardApi, type DashboardApprovalQueueResponse } from '../../lib/api.js';
@@ -11,6 +11,7 @@ import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
 import { Input } from '../../components/ui/input.js';
 import {
+  ApprovalQueueWindowControls,
   ApprovalQueueSectionJumpStrip,
   QueueMetricCard,
   QueueSectionHeader,
@@ -23,7 +24,12 @@ import {
   summarizeOldestWaiting,
 } from './approval-queue-support.js';
 import {
+  APPROVAL_QUEUE_INITIAL_VISIBLE_COUNT,
+  findApprovalQueueGateIndex,
   invalidateApprovalWorkflowQueries,
+  limitApprovalQueueItems,
+  nextApprovalQueueVisibleCount,
+  readApprovalQueueTargetGateId,
   updateApprovalQueueSearchParams,
 } from './approval-queue-page.support.js';
 import { StageGateQueueCard } from './approval-queue-stage-gate-card.js';
@@ -31,13 +37,21 @@ import { TaskApprovalCard } from './approval-queue-task-card.js';
 
 export function ApprovalQueuePage(): JSX.Element {
   const queryClient = useQueryClient();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [visibleStageGateCount, setVisibleStageGateCount] = useState(
+    APPROVAL_QUEUE_INITIAL_VISIBLE_COUNT,
+  );
+  const [visibleTaskApprovalCount, setVisibleTaskApprovalCount] = useState(
+    APPROVAL_QUEUE_INITIAL_VISIBLE_COUNT,
+  );
   const { data, isLoading, error } = useQuery<DashboardApprovalQueueResponse>({
     queryKey: ['approval-queue'],
     queryFn: () => dashboardApi.getApprovalQueue(),
   });
   const searchQuery = searchParams.get('q') ?? '';
   const queueFilter = searchParams.get('view') ?? 'all';
+  const targetGateId = readApprovalQueueTargetGateId(searchParams, location.hash);
 
   useEffect(() => {
     return subscribeToEvents((eventType, payload) => {
@@ -83,6 +97,14 @@ export function ApprovalQueuePage(): JSX.Element {
       return matchesApprovalSearch(searchQuery, gate);
     });
   }, [data?.stage_gates, queueFilter, searchQuery]);
+  const visibleStageGates = useMemo(
+    () => limitApprovalQueueItems(stageGates, visibleStageGateCount),
+    [stageGates, visibleStageGateCount],
+  );
+  const visibleTaskApprovals = useMemo(
+    () => limitApprovalQueueItems(taskApprovals, visibleTaskApprovalCount),
+    [taskApprovals, visibleTaskApprovalCount],
+  );
 
   const totalApprovals = taskApprovals.length + stageGates.length;
   const oldestWaiting = summarizeOldestWaiting(stageGates, taskApprovals);
@@ -95,6 +117,19 @@ export function ApprovalQueuePage(): JSX.Element {
     }),
     [queueFilter, searchQuery],
   );
+
+  useEffect(() => {
+    setVisibleStageGateCount(APPROVAL_QUEUE_INITIAL_VISIBLE_COUNT);
+    setVisibleTaskApprovalCount(APPROVAL_QUEUE_INITIAL_VISIBLE_COUNT);
+  }, [queueFilter, searchQuery]);
+
+  useEffect(() => {
+    const targetIndex = findApprovalQueueGateIndex(stageGates, targetGateId);
+    if (targetIndex < 0) {
+      return;
+    }
+    setVisibleStageGateCount((current) => Math.max(current, targetIndex + 1));
+  }, [stageGates, targetGateId]);
 
   if (isLoading) {
     return (
@@ -252,13 +287,24 @@ export function ApprovalQueuePage(): JSX.Element {
                 count={stageGates.length}
                 description="Review packets are ordered by oldest wait first so operators can clear stale gates before newer requests."
               />
-              {stageGates.map((gate, index) => (
+              {visibleStageGates.map((gate, index) => (
                 <StageGateQueueCard
                   key={`${gate.workflow_id}:${gate.stage_name}:${gate.gate_id ?? gate.id ?? 'pending'}`}
                   gate={gate}
                   index={index}
                 />
               ))}
+              <ApprovalQueueWindowControls
+                visibleCount={visibleStageGates.length}
+                totalCount={stageGates.length}
+                noun="stage gates"
+                actionLabel="gates"
+                onShowMore={() =>
+                  setVisibleStageGateCount((current) =>
+                    nextApprovalQueueVisibleCount(current, stageGates.length),
+                  )
+                }
+              />
             </section>
           ) : null}
 
@@ -273,9 +319,20 @@ export function ApprovalQueuePage(): JSX.Element {
                 count={taskApprovals.length}
                 description="These operator decisions apply to specialist steps blocked on approval, output review, or rework guidance."
               />
-              {taskApprovals.map((task) => (
+              {visibleTaskApprovals.map((task) => (
                 <TaskApprovalCard key={task.id} task={task} />
               ))}
+              <ApprovalQueueWindowControls
+                visibleCount={visibleTaskApprovals.length}
+                totalCount={taskApprovals.length}
+                noun="step approvals"
+                actionLabel="reviews"
+                onShowMore={() =>
+                  setVisibleTaskApprovalCount((current) =>
+                    nextApprovalQueueVisibleCount(current, taskApprovals.length),
+                  )
+                }
+              />
             </section>
           ) : null}
         </div>

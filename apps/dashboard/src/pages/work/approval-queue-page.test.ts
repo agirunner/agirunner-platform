@@ -28,7 +28,11 @@ describe('approval queue page source', () => {
     const source = readSource();
     expect(source).toContain('StageGateQueueCard');
     expect(source).toContain('TaskApprovalCard');
+    expect(source).toContain('ApprovalQueueWindowControls');
     expect(source).toContain('countPendingOrchestratorFollowUp');
+    expect(source).toContain('findApprovalQueueGateIndex');
+    expect(source).toContain('visibleStageGates.map');
+    expect(source).toContain('visibleTaskApprovals.map');
   });
 
   it('adds url-driven search, saved views, and workflow gate deep links', () => {

@@ -1,5 +1,10 @@
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
+import {
+  APPROVAL_QUEUE_VISIBLE_INCREMENT,
+  countHiddenApprovalQueueItems,
+  readApprovalQueueWindowSummary,
+} from './approval-queue-page.support.js';
 
 export function QueueInfoTile(props: {
   label: string;
@@ -119,5 +124,32 @@ export function ApprovalQueueSectionJumpStrip(props: {
         </article>
       ))}
     </nav>
+  );
+}
+
+export function ApprovalQueueWindowControls(props: {
+  visibleCount: number;
+  totalCount: number;
+  noun: string;
+  actionLabel: string;
+  onShowMore(): void;
+}): JSX.Element | null {
+  const hiddenCount = countHiddenApprovalQueueItems(props.totalCount, props.visibleCount);
+  if (hiddenCount === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-border/70 pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="space-y-1">
+        <p className="text-sm text-muted">
+          {readApprovalQueueWindowSummary(props.visibleCount, props.totalCount, props.noun)}
+        </p>
+        <p className="text-xs text-muted">{hiddenCount} hidden for queue performance.</p>
+      </div>
+      <Button variant="outline" size="sm" onClick={props.onShowMore}>
+        Show {Math.min(APPROVAL_QUEUE_VISIBLE_INCREMENT, hiddenCount)} more {props.actionLabel}
+      </Button>
+    </div>
   );
 }
