@@ -59,6 +59,7 @@ export function ExecutionInspectorDetailView(
             const context = summarizeLogContext(entry);
             const isSelected = props.selectedLogId === entry.id;
             const signals = readExecutionSignals(entry);
+            const recordedAt = describeRecordedAt(entry.created_at);
             return (
               <button
                 key={entry.id}
@@ -74,9 +75,13 @@ export function ExecutionInspectorDetailView(
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant={levelVariant(entry.level)}>{entry.level}</Badge>
                       <Badge variant={statusVariant(entry.status)}>{entry.status}</Badge>
-                      <span className="text-xs text-muted">
-                        {new Date(entry.created_at).toLocaleString()}
-                      </span>
+                      <time
+                        className="text-xs text-muted"
+                        dateTime={entry.created_at}
+                        title={recordedAt.absolute}
+                      >
+                        {recordedAt.relative}
+                      </time>
                       {entry.is_orchestrator_task ? (
                         <Badge variant="outline">orchestrator</Badge>
                       ) : null}
@@ -122,4 +127,31 @@ export function ExecutionInspectorDetailView(
       </CardContent>
     </Card>
   );
+}
+
+function describeRecordedAt(createdAt: string): {
+  relative: string;
+  absolute: string;
+} {
+  const timestamp = new Date(createdAt).getTime();
+  const absolute = new Date(createdAt).toLocaleString();
+  if (!Number.isFinite(timestamp)) {
+    return { relative: 'Unknown time', absolute };
+  }
+
+  const elapsedMinutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
+  if (elapsedMinutes < 1) {
+    return { relative: 'Just now', absolute };
+  }
+  if (elapsedMinutes < 60) {
+    return { relative: `${elapsedMinutes}m ago`, absolute };
+  }
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) {
+    return { relative: `${elapsedHours}h ago`, absolute };
+  }
+
+  const elapsedDays = Math.floor(elapsedHours / 24);
+  return { relative: `${elapsedDays}d ago`, absolute };
 }

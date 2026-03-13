@@ -29,6 +29,9 @@ describe('execution inspector secondary surfaces', () => {
     expect(source).toContain('Selected packet is pinned outside the current segment.');
     expect(source).toContain('describeExecutionHeadline(entry)');
     expect(source).toContain('describeExecutionNextAction(entry)');
+    expect(source).toContain('dateTime={entry.created_at}');
+    expect(source).toContain('title={recordedAt.absolute}');
+    expect(source).toContain('recordedAt.relative');
     expect(source).toContain('diagnostic span {shortId(entry.span_id)}');
   });
 
