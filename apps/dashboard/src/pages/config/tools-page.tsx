@@ -262,22 +262,24 @@ export function ToolsPage(): JSX.Element {
                         <div className="flex items-center gap-2">
                           <Badge variant={category.badgeVariant}>{category.label}</Badge>
                           {isCustom ? (
-                            <div className="flex gap-1">
+                            <div className="flex flex-wrap gap-2">
                               <Button
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
                                 onClick={() => openEditDialog(tool)}
                                 aria-label={`Edit ${tool.name}`}
                               >
                                 <Pencil className="h-3.5 w-3.5" />
+                                Edit tool
                               </Button>
                               <Button
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
                                 onClick={() => setDeletingTool(tool)}
                                 aria-label={`Delete ${tool.name}`}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
+                                Delete tool
                               </Button>
                             </div>
                           ) : null}
@@ -302,7 +304,7 @@ export function ToolsPage(): JSX.Element {
                     <TableHead>Name</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Description</TableHead>
-                    <TableHead className="w-24">Actions</TableHead>
+                    <TableHead className="w-[200px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -321,9 +323,9 @@ export function ToolsPage(): JSX.Element {
                         </TableCell>
                         <TableCell>
                           {isCustom ? (
-                            <div className="flex gap-1">
+                            <div className="flex flex-wrap gap-2">
                               <Button
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
                                 onClick={(event) => {
                                   event.stopPropagation();
@@ -333,9 +335,10 @@ export function ToolsPage(): JSX.Element {
                                 data-testid={`edit-tool-${tool.id}`}
                               >
                                 <Pencil className="h-3.5 w-3.5" />
+                                Edit
                               </Button>
                               <Button
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
                                 onClick={(event) => {
                                   event.stopPropagation();
@@ -345,6 +348,7 @@ export function ToolsPage(): JSX.Element {
                                 data-testid={`delete-tool-${tool.id}`}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
+                                Delete
                               </Button>
                             </div>
                           ) : null}

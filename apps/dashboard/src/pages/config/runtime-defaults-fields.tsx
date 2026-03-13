@@ -1,5 +1,3 @@
-import { AlertCircle } from 'lucide-react';
-
 import {
   Card,
   CardContent,
@@ -15,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select.js';
+import { ConfigField } from './config-form-controls.js';
 import {
   PLATFORM_DEFAULT_SELECT_VALUE,
   PULL_POLICY_OPTIONS,
@@ -78,27 +77,17 @@ function RuntimeField({
   error?: string;
   onChange: (value: string) => void;
 }) {
-  const descriptionId = `${field.key}-description`;
-  const errorId = `${field.key}-error`;
-
   return (
-    <div className="space-y-2">
-      <div className="space-y-1">
-        <label className="text-sm font-medium" htmlFor={field.key}>
-          {field.label}
-        </label>
-        <p id={descriptionId} className="text-xs leading-5 text-muted">
-          {field.description}
-        </p>
-      </div>
-      {renderFieldControl(field, value, onChange, Boolean(error), descriptionId, errorId)}
-      {error ? (
-        <p id={errorId} className="flex items-start gap-2 text-xs leading-5 text-red-600">
-          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <span>{error}</span>
-        </p>
-      ) : null}
-    </div>
+    <ConfigField
+      fieldId={field.key}
+      label={field.label}
+      description={field.description}
+      error={error}
+    >
+      {({ describedBy, isInvalid }) =>
+        renderFieldControl(field, value, onChange, isInvalid, describedBy)
+      }
+    </ConfigField>
   );
 }
 
@@ -107,10 +96,8 @@ function renderFieldControl(
   value: string,
   onChange: (value: string) => void,
   hasError: boolean,
-  descriptionId: string,
-  errorId: string,
+  describedBy?: string,
 ) {
-  const describedBy = hasError ? `${descriptionId} ${errorId}` : descriptionId;
   if (field.key === 'default_pull_policy') {
     return renderSelectField(field, value, onChange, PULL_POLICY_OPTIONS, hasError, describedBy);
   }
@@ -139,7 +126,7 @@ function renderSelectField(
   onChange: (value: string) => void,
   options: readonly string[],
   hasError: boolean,
-  describedBy: string,
+  describedBy?: string,
 ) {
   return (
     <Select

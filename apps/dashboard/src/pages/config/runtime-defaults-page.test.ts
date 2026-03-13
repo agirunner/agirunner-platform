@@ -51,6 +51,7 @@ describe('runtime defaults page source', () => {
     const source = readSource('./runtime-defaults-fields.tsx');
     expect(source).toContain('RuntimeDefaultsSearchSection');
     expect(source).toContain("fields[0]?.section === 'search'");
+    expect(source).toContain('ConfigField');
   });
 
   it('uses the supported runtime-defaults API routes, including delete for clearing values', () => {

@@ -23,6 +23,8 @@ describe('tools page source', () => {
     expect(source).toContain('Save readiness');
     expect(source).toContain('Resolve these issues before saving.');
     expect(source).toContain('Selected category');
+    expect(source).toContain('ConfigField');
+    expect(source).toContain('Use the operator-facing tool name shown when access is granted.');
   });
 
   it('validates ids and encourages descriptions before tool creation', () => {
@@ -57,5 +59,9 @@ describe('tools page source', () => {
     expect(source).toContain('Trash2');
     expect(source).toContain('openEditDialog');
     expect(source).toContain('setDeletingTool');
+    expect(source).toContain('w-[200px]');
+    expect(source).toContain('Edit tool');
+    expect(source).toContain('Delete tool');
+    expect(source).toContain('variant="outline"');
   });
 });

@@ -1,5 +1,3 @@
-import type { ReactNode } from 'react';
-
 import { Loader2 } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
@@ -32,6 +30,7 @@ import {
   type EditToolForm,
   type ToolValidation,
 } from './tools-page.support.js';
+import { ConfigField } from './config-form-controls.js';
 
 interface CreateToolDialogProps {
   mode: 'create';
@@ -95,63 +94,106 @@ export function ToolDialog(props: ToolDialogProps) {
                 <CardTitle>Tool details</CardTitle>
               </CardHeader>
               <CardContent className="grid gap-4">
-                <Field label="Name" error={props.validation.fieldErrors.name}>
-                  <Input
-                    value={props.form.name}
-                    onChange={(event) => props.onNameChange(event.target.value)}
-                    placeholder="Code formatter"
-                    aria-invalid={Boolean(props.validation.fieldErrors.name)}
-                    data-testid="tool-name-input"
-                  />
-                </Field>
+                <ConfigField
+                  fieldId="tool-name"
+                  label="Name"
+                  description="Use the operator-facing tool name shown when access is granted."
+                  error={props.validation.fieldErrors.name}
+                >
+                  {({ describedBy, isInvalid }) => (
+                    <Input
+                      id="tool-name"
+                      value={props.form.name}
+                      onChange={(event) => props.onNameChange(event.target.value)}
+                      placeholder="Code formatter"
+                      aria-invalid={isInvalid}
+                      aria-describedby={describedBy}
+                      data-testid="tool-name-input"
+                    />
+                  )}
+                </ConfigField>
                 {isEdit ? (
-                  <Field label="ID">
-                    <Input
-                      value={props.toolId}
-                      disabled
-                      className="bg-muted/30"
-                      data-testid="tool-id-input"
-                    />
-                  </Field>
-                ) : (
-                  <Field label="ID" error={props.validation.fieldErrors.id}>
-                    <Input
-                      value={props.form.id}
-                      onChange={(event) => props.onIdChange(event.target.value)}
-                      placeholder="code_formatter"
-                      aria-invalid={Boolean(props.validation.fieldErrors.id)}
-                      data-testid="tool-id-input"
-                    />
-                  </Field>
-                )}
-                <Field label="Category">
-                  <Select
-                    value={props.form.category}
-                    onValueChange={(value) =>
-                      props.onCategoryChange(value as CreateToolForm['category'])
-                    }
+                  <ConfigField
+                    fieldId="tool-id"
+                    label="ID"
+                    description="Tool IDs are fixed after creation so grants and audit trails stay stable."
                   >
-                    <SelectTrigger data-testid="tool-category-select">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TOOL_CATEGORIES.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {describeToolCategory(category).label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted">{categoryDescriptor.detail}</p>
-                </Field>
-                <Field label="Description">
-                  <Input
-                    value={props.form.description}
-                    onChange={(event) => props.onDescriptionChange(event.target.value)}
-                    placeholder="Explain when this tool should be granted"
-                    data-testid="tool-description-input"
-                  />
-                </Field>
+                    {({ describedBy }) => (
+                      <Input
+                        id="tool-id"
+                        value={props.toolId}
+                        disabled
+                        aria-describedby={describedBy}
+                        className="bg-muted/30"
+                        data-testid="tool-id-input"
+                      />
+                    )}
+                  </ConfigField>
+                ) : (
+                  <ConfigField
+                    fieldId="tool-id"
+                    label="ID"
+                    description="Use lowercase letters, numbers, and underscores so the ID remains safe in policy and runtime surfaces."
+                    error={props.validation.fieldErrors.id}
+                  >
+                    {({ describedBy, isInvalid }) => (
+                      <Input
+                        id="tool-id"
+                        value={props.form.id}
+                        onChange={(event) => props.onIdChange(event.target.value)}
+                        placeholder="code_formatter"
+                        aria-invalid={isInvalid}
+                        aria-describedby={describedBy}
+                        data-testid="tool-id-input"
+                      />
+                    )}
+                  </ConfigField>
+                )}
+                <ConfigField
+                  fieldId="tool-category"
+                  label="Category"
+                  description={categoryDescriptor.detail}
+                >
+                  {({ describedBy }) => (
+                    <Select
+                      value={props.form.category}
+                      onValueChange={(value) =>
+                        props.onCategoryChange(value as CreateToolForm['category'])
+                      }
+                    >
+                      <SelectTrigger
+                        id="tool-category"
+                        aria-describedby={describedBy}
+                        data-testid="tool-category-select"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TOOL_CATEGORIES.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {describeToolCategory(category).label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </ConfigField>
+                <ConfigField
+                  fieldId="tool-description"
+                  label="Description"
+                  description="Explain when this tool should be granted and what an operator can expect it to do."
+                >
+                  {({ describedBy }) => (
+                    <Input
+                      id="tool-description"
+                      value={props.form.description}
+                      onChange={(event) => props.onDescriptionChange(event.target.value)}
+                      placeholder="Explain when this tool should be granted"
+                      aria-describedby={describedBy}
+                      data-testid="tool-description-input"
+                    />
+                  )}
+                </ConfigField>
               </CardContent>
             </Card>
 
@@ -233,13 +275,3 @@ export function ToolDialog(props: ToolDialogProps) {
 
 /** @deprecated Use ToolDialog with mode='create' instead */
 export const CreateToolDialog = ToolDialog;
-
-function Field(props: { label: string; children: ReactNode; error?: string }) {
-  return (
-    <label className="grid gap-2 text-sm">
-      <span className="font-medium">{props.label}</span>
-      {props.children}
-      {props.error ? <span className="text-xs text-red-600">{props.error}</span> : null}
-    </label>
-  );
-}
