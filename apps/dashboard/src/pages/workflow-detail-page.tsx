@@ -1041,9 +1041,13 @@ export function WorkflowDetailPage(): JSX.Element {
 
           <TabsContent value="knowledge" className="mt-0 grid gap-6 xl:grid-cols-2">
             <WorkflowDocumentsCard
+              workflowId={workflowId}
               isLoading={documentQuery.isLoading}
               hasError={Boolean(documentQuery.error)}
               documents={documentQuery.data ?? []}
+              tasks={taskQuery.data?.data ?? []}
+              areTasksLoading={taskQuery.isLoading}
+              hasTasksError={Boolean(taskQuery.error)}
             />
 
             <ProjectMemoryCard

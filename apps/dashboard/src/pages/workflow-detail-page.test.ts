@@ -281,4 +281,17 @@ describe('workflow detail deep links', () => {
     expect(source).toContain('PacketFactGrid');
     expect(source).toContain('PacketBadgePanel');
   });
+
+  it('passes workflow document operator context into the knowledge tab surface', () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, './workflow-detail-page.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('<WorkflowDocumentsCard');
+    expect(source).toContain('workflowId={workflowId}');
+    expect(source).toContain('tasks={taskQuery.data?.data ?? []}');
+    expect(source).toContain('areTasksLoading={taskQuery.isLoading}');
+    expect(source).toContain('hasTasksError={Boolean(taskQuery.error)}');
+  });
 });

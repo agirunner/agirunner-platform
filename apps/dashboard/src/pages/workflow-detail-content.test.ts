@@ -19,14 +19,26 @@ describe('workflow detail content source', () => {
     expect(source).toContain('Badge');
     expect(source).toContain('Button');
     expect(source).toContain('Input');
+    expect(source).toContain('Textarea');
+    expect(source).toContain('SelectTrigger');
     expect(source).toContain('ChainStructuredEntryEditor');
     expect(source).toContain('DocumentCard');
+    expect(source).toContain('DocumentMetadataEntryEditor');
     expect(source).toContain('ProjectMemoryEntryCard');
     expect(source).toContain('describeProjectMemoryEntry');
+    expect(source).toContain('dashboardApi.createWorkflowDocument');
+    expect(source).toContain('dashboardApi.updateWorkflowDocument');
+    expect(source).toContain('dashboardApi.deleteWorkflowDocument');
     expect(source).toContain('SurfaceMessage');
     expect(source).toContain('MemoryDraftPreview');
     expect(source).toContain('Structured preview');
     expect(source).toContain('Add memory field');
+    expect(source).toContain('Document Operator Controls');
+    expect(source).toContain('Create Workflow Document');
+    expect(source).toContain('Save Document Changes');
+    expect(source).toContain('Delete Reference');
+    expect(source).toContain('Confirm Delete');
+    expect(source).toContain('Task linkage');
     expect(source).toContain('Operator-ready facts');
     expect(source).toContain('Open full memory packet');
     expect(source).toContain('Reference packet facts');
@@ -34,6 +46,11 @@ describe('workflow detail content source', () => {
     expect(source).toContain('Preview Artifact Packet');
     expect(source).toContain('Open Linked Step');
     expect(source).toContain('FactGrid');
+    expect(source).toContain("from './workflow-detail-document-support.js'");
+    expect(source).toContain('validateWorkflowDocumentDraft');
+    expect(source).toContain('buildWorkflowDocumentCreatePayload');
+    expect(source).toContain('buildWorkflowDocumentUpdatePayload');
+    expect(source).toContain('This removes the workflow reference packet. Artifact files stay intact.');
     expect(source).not.toContain('Enter an object-shaped JSON payload.');
   });
 
