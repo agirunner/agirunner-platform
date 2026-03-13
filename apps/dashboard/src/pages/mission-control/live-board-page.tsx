@@ -45,7 +45,9 @@ import {
   TableCell,
 } from '../../components/ui/table.js';
 import { buildWorkflowDetailPermalink } from '../workflow-detail-permalinks.js';
-import { describeTimelineEvent } from '../workflow-history-card.js';
+import { buildTimelineContext, describeTimelineEvent } from '../workflow-history-card.js';
+import { buildTimelineEntryActions } from '../workflow-history-card.actions.js';
+import type { DashboardWorkflowTaskRow } from '../workflow-detail-support.js';
 import { buildAttentionTaskActions } from './live-board-attention-actions.js';
 import {
   countActiveSpecialistSteps,
@@ -625,8 +627,18 @@ export function LiveBoardPage(): JSX.Element {
     deduped.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return deduped.slice(0, 10);
   }, [sseEvents, apiEvents]);
+  const liveTimelineContext = useMemo(
+    () => buildLiveTimelineContext(boardEntries, visibleWorkflowTasks),
+    [boardEntries, visibleWorkflowTasks],
+  );
+  const liveEventWorkflowMaps = useMemo(
+    () => buildLiveEventWorkflowMaps(boardEntries, visibleWorkflowTasks),
+    [boardEntries, visibleWorkflowTasks],
+  );
   const latestActivity = recentEvents[0] ?? null;
-  const latestActivityDescriptor = latestActivity ? describeTimelineEvent(latestActivity) : null;
+  const latestActivityDescriptor = latestActivity
+    ? describeTimelineEvent(latestActivity, liveTimelineContext)
+    : null;
   const fleetSummary = useMemo(() => summarizeWorkerFleet(workers), [workers]);
 
   const isLoading = workflowsQuery.isLoading || tasksQuery.isLoading || workersQuery.isLoading;
@@ -786,7 +798,11 @@ export function LiveBoardPage(): JSX.Element {
         <ThroughputChart data={throughputData} />
       </div>
 
-      <LiveEventStream events={recentEvents} />
+      <LiveEventStream
+        context={liveTimelineContext}
+        events={recentEvents}
+        workflowMaps={liveEventWorkflowMaps}
+      />
     </div>
   );
 }
@@ -1800,10 +1816,12 @@ function ThroughputChart({ data }: ThroughputChartProps): JSX.Element {
 }
 
 interface LiveEventStreamProps {
+  context: ReturnType<typeof buildTimelineContext>;
   events: DashboardEventRecord[];
+  workflowMaps: LiveEventWorkflowMaps;
 }
 
-function LiveEventStream({ events }: LiveEventStreamProps): JSX.Element {
+function LiveEventStream({ context, events, workflowMaps }: LiveEventStreamProps): JSX.Element {
   return (
     <Card className="border-border/70 shadow-sm">
       <CardHeader>
@@ -1821,30 +1839,76 @@ function LiveEventStream({ events }: LiveEventStreamProps): JSX.Element {
         ) : (
           <div className="space-y-2">
             {events.map((evt) => {
-              const descriptor = describeTimelineEvent(evt);
+              const descriptor = describeTimelineEvent(evt, context);
+              const workflowId = resolveLiveEventWorkflowId(evt, descriptor, workflowMaps);
+              const actions = workflowId
+                ? buildTimelineEntryActions({
+                    activationId: descriptor.activationId,
+                    childWorkflowHref: descriptor.childWorkflowHref,
+                    childWorkflowId: descriptor.childWorkflowId,
+                    gateStageName: descriptor.gateStageName,
+                    workflowId,
+                    workItemId: descriptor.workItemId,
+                    taskId: descriptor.taskId,
+                  })
+                : [];
               return (
-                <div key={evt.id} className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/10 p-3 text-sm sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant={descriptor.emphasisTone}>{descriptor.emphasisLabel}</Badge>
-                      {descriptor.signalBadges.map((badge) => (
-                        <Badge key={`${evt.id}:${badge}`} variant="outline">
-                          {badge}
-                        </Badge>
+                <div
+                  key={evt.id}
+                  className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-3 text-sm shadow-sm"
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline">{descriptor.actorLabel}</Badge>
+                        <Badge variant={descriptor.emphasisTone}>{descriptor.emphasisLabel}</Badge>
+                        {descriptor.stageName ? (
+                          <Badge variant="outline">{descriptor.stageName}</Badge>
+                        ) : null}
+                        {descriptor.signalBadges.map((badge) => (
+                          <Badge key={`${evt.id}:${badge}`} variant="outline">
+                            {badge}
+                          </Badge>
+                        ))}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="font-medium text-foreground">
+                          {descriptor.narrativeHeadline}
+                        </p>
+                        {descriptor.summary ? (
+                          <p className="text-sm text-muted">{descriptor.summary}</p>
+                        ) : (
+                          <p className="text-sm text-muted">Recent operator activity recorded.</p>
+                        )}
+                        {descriptor.outcomeLabel &&
+                        descriptor.outcomeLabel !== descriptor.summary ? (
+                          <p className="text-sm text-foreground">{descriptor.outcomeLabel}</p>
+                        ) : null}
+                        {descriptor.scopeSummary ? (
+                          <p className="text-xs leading-5 text-muted">
+                            {descriptor.scopeSummary}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right text-xs text-muted">
+                      <p>{formatRelativeTimestamp(evt.created_at)}</p>
+                      <p>{new Date(evt.created_at).toLocaleTimeString()}</p>
+                    </div>
+                  </div>
+                  {actions.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
+                      {actions.map((action) => (
+                        <Link
+                          key={`${evt.id}:${action.label}`}
+                          to={action.href}
+                          className="underline-offset-4 hover:text-foreground hover:underline"
+                        >
+                          {action.label}
+                        </Link>
                       ))}
                     </div>
-                    <p className="font-medium text-foreground">{descriptor.headline}</p>
-                    <p className="text-foreground">
-                      {descriptor.summary ?? 'Recent operator activity recorded.'}
-                    </p>
-                    {descriptor.scopeSummary ? (
-                      <p className="text-xs leading-5 text-muted">{descriptor.scopeSummary}</p>
-                    ) : null}
-                  </div>
-                  <div className="shrink-0 text-right text-xs text-muted">
-                    <p>{formatRelativeTimestamp(evt.created_at)}</p>
-                    <p>{new Date(evt.created_at).toLocaleTimeString()}</p>
-                  </div>
+                  ) : null}
                 </div>
               );
             })}
@@ -1864,4 +1928,97 @@ function SnapshotMetric(props: { label: string; value: string }): JSX.Element {
       <p className="text-sm text-foreground">{props.value}</p>
     </div>
   );
+}
+
+interface LiveEventWorkflowMaps {
+  activationsById: Map<string, string>;
+  tasksById: Map<string, string>;
+  workItemsById: Map<string, string>;
+}
+
+function buildLiveTimelineContext(
+  entries: LiveBoardEntry[],
+  tasks: TaskRecord[],
+): ReturnType<typeof buildTimelineContext> {
+  const timelineTasks: DashboardWorkflowTaskRow[] = tasks.map((task) => ({
+    id: task.id,
+    title: task.title ?? task.name ?? task.id,
+    state: task.state ?? task.status,
+    depends_on: [],
+    work_item_id: task.work_item_id ?? null,
+    role: task.role ?? null,
+    stage_name: task.stage_name ?? null,
+  }));
+
+  return buildTimelineContext({
+    activations: entries.flatMap((entry) => entry.activations),
+    childWorkflows: [],
+    stages: [],
+    tasks: timelineTasks,
+    workItems: entries.flatMap((entry) => entry.board?.work_items ?? []),
+  });
+}
+
+function buildLiveEventWorkflowMaps(
+  entries: LiveBoardEntry[],
+  tasks: TaskRecord[],
+): LiveEventWorkflowMaps {
+  const activationsById = new Map<string, string>();
+  for (const activation of entries.flatMap((entry) => entry.activations)) {
+    activationsById.set(activation.id, activation.workflow_id);
+    if (activation.activation_id) {
+      activationsById.set(activation.activation_id, activation.workflow_id);
+    }
+  }
+
+  const tasksById = new Map<string, string>();
+  for (const task of tasks) {
+    if (task.workflow_id) {
+      tasksById.set(task.id, task.workflow_id);
+    }
+  }
+
+  const workItemsById = new Map<string, string>();
+  for (const workItem of entries.flatMap((entry) => entry.board?.work_items ?? [])) {
+    workItemsById.set(workItem.id, workItem.workflow_id);
+  }
+
+  return { activationsById, tasksById, workItemsById };
+}
+
+function resolveLiveEventWorkflowId(
+  event: DashboardEventRecord,
+  descriptor: ReturnType<typeof describeTimelineEvent>,
+  maps: LiveEventWorkflowMaps,
+): string | null {
+  const explicitWorkflowId = readEventString(event.data?.workflow_id);
+  if (explicitWorkflowId) {
+    return explicitWorkflowId;
+  }
+  if (event.entity_type === 'workflow' && event.entity_id) {
+    return event.entity_id;
+  }
+  if (descriptor.workItemId) {
+    const workItemWorkflowId = maps.workItemsById.get(descriptor.workItemId);
+    if (workItemWorkflowId) {
+      return workItemWorkflowId;
+    }
+  }
+  if (descriptor.taskId) {
+    const taskWorkflowId = maps.tasksById.get(descriptor.taskId);
+    if (taskWorkflowId) {
+      return taskWorkflowId;
+    }
+  }
+  if (descriptor.activationId) {
+    const activationWorkflowId = maps.activationsById.get(descriptor.activationId);
+    if (activationWorkflowId) {
+      return activationWorkflowId;
+    }
+  }
+  return null;
+}
+
+function readEventString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 }
