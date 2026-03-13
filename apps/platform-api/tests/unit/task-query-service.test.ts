@@ -13,7 +13,7 @@ function createPool(row: Record<string, unknown>) {
 }
 
 describe('task query service git activity (FR-055)', () => {
-  it('applies work item, stage, activation, and orchestrator filters when listing tasks', async () => {
+  it('applies work item, escalation, stage, activation, and orchestrator filters when listing tasks', async () => {
     const pool = {
       query: vi
         .fn()
@@ -31,6 +31,7 @@ describe('task query service git activity (FR-055)', () => {
     await service.listTasks(tenantId, {
       workflow_id: 'workflow-1',
       work_item_id: 'work-item-1',
+      escalation_task_id: 'task-esc-1',
       stage_name: 'implementation',
       activation_id: 'activation-1',
       is_orchestrator_task: true,
@@ -42,13 +43,15 @@ describe('task query service git activity (FR-055)', () => {
     const listCall = pool.query.mock.calls[1] as [string, unknown[]];
 
     expect(countCall[0]).toContain('work_item_id = $3');
-    expect(countCall[0]).toContain('stage_name = $4');
-    expect(countCall[0]).toContain('activation_id = $5');
-    expect(countCall[0]).toContain('is_orchestrator_task = $6');
+    expect(countCall[0]).toContain("metadata->>'escalation_task_id' = $4");
+    expect(countCall[0]).toContain('stage_name = $5');
+    expect(countCall[0]).toContain('activation_id = $6');
+    expect(countCall[0]).toContain('is_orchestrator_task = $7');
     expect(countCall[1]).toEqual([
       tenantId,
       'workflow-1',
       'work-item-1',
+      'task-esc-1',
       'implementation',
       'activation-1',
       true,
@@ -58,6 +61,7 @@ describe('task query service git activity (FR-055)', () => {
       tenantId,
       'workflow-1',
       'work-item-1',
+      'task-esc-1',
       'implementation',
       'activation-1',
       true,

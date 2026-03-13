@@ -55,6 +55,7 @@ export class TaskQueryService {
       [query.assigned_agent_id, 'assigned_agent_id'],
       [query.workflow_id, 'workflow_id'],
       [query.work_item_id, 'work_item_id'],
+      [query.escalation_task_id, "metadata->>'escalation_task_id'"],
       [query.stage_name, 'stage_name'],
       [query.activation_id, 'activation_id'],
       [query.parent_id, "metadata->>'parent_id'"],

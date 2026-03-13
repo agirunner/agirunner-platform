@@ -42,6 +42,7 @@ export interface ListTaskQuery {
   parent_id?: string;
   workflow_id?: string;
   work_item_id?: string;
+  escalation_task_id?: string;
   stage_name?: string;
   activation_id?: string;
   is_orchestrator_task?: boolean;

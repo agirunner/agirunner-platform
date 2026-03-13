@@ -253,6 +253,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
         parent_id: query.parent_id,
         workflow_id: query.workflow_id,
         work_item_id: query.work_item_id,
+        escalation_task_id: query.escalation_task_id,
         stage_name: query.stage_name,
         activation_id: query.activation_id,
         is_orchestrator_task:

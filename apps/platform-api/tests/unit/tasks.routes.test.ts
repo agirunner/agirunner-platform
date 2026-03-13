@@ -79,6 +79,56 @@ describe('tasks routes', () => {
     );
   });
 
+  it('passes escalation task filters through the public task query route', async () => {
+    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const listTasks = vi.fn(async () => ({ data: [], pagination: { page: 1, per_page: 20, total: 0 } }));
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('taskService', {
+      listTasks,
+      createTask: vi.fn(),
+      getTask: vi.fn(),
+      updateTask: vi.fn(),
+      getTaskContext: vi.fn(),
+      getTaskGitActivity: vi.fn(),
+      claimTask: vi.fn(),
+      startTask: vi.fn(),
+      completeTask: vi.fn(),
+      failTask: vi.fn(),
+      approveTask: vi.fn(),
+      approveTaskOutput: vi.fn(),
+      retryTask: vi.fn(),
+      cancelTask: vi.fn(),
+      rejectTask: vi.fn(),
+      requestTaskChanges: vi.fn(),
+      skipTask: vi.fn(),
+      reassignTask: vi.fn(),
+      escalateTask: vi.fn(),
+      respondToEscalation: vi.fn(),
+      overrideTaskOutput: vi.fn(),
+      agentEscalate: vi.fn(),
+      resolveEscalation: vi.fn(),
+    });
+
+    await app.register(taskRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/tasks?workflow_id=wf-1&escalation_task_id=task-esc-1',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(listTasks).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        workflow_id: 'wf-1',
+        escalation_task_id: 'task-esc-1',
+      }),
+    );
+  });
+
   it('rejects legacy task state aliases at the query boundary', async () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const listTasks = vi.fn(async () => ({ data: [], pagination: { page: 1, per_page: 20, total: 0 } }));
