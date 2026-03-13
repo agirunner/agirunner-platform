@@ -176,11 +176,17 @@ export async function buildOrchestratorTaskContext(
   const stageRows = stagesRes.rows.map(normalizeWorkflowStageView);
   const activeStages = activeStageNames(workItemsRes.rows);
   const currentStage = currentStageNameFromStages(stageRows);
+  const lifecycle = workflow.lifecycle === 'continuous' ? 'continuous' : 'standard';
   const workflowContext = {
     id: workflow.id,
     name: workflow.name,
     lifecycle: workflow.lifecycle,
-    active_stages: mergeActiveStageNames(activeStages, stageRows, workflow.playbook_definition),
+    active_stages: mergeActiveStageNames(
+      lifecycle,
+      activeStages,
+      stageRows,
+      workflow.playbook_definition,
+    ),
     metadata: workflow.metadata ?? {},
     playbook: {
       name: workflow.playbook_name,
@@ -248,10 +254,14 @@ function activeStageNames(rows: Record<string, unknown>[]): string[] {
 }
 
 function mergeActiveStageNames(
+  lifecycle: 'continuous' | 'standard',
   workItemStages: string[],
   stageRows: Array<Pick<WorkflowStageResponse, 'name' | 'status'>>,
   definition: unknown,
 ): string[] {
+  if (lifecycle === 'continuous') {
+    return orderStageNamesByDefinition(workItemStages, definition);
+  }
   const gateStages = stageRows
     .filter((row) => isActiveStageStatus(row.status))
     .map((row) => row.name);

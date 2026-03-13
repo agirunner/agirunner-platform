@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildOrchestratorTaskContext } from '../../src/services/orchestrator-task-context.js';
 
 describe('buildOrchestratorTaskContext', () => {
-  it('derives active stages from open work items and gate posture for continuous workflows', async () => {
+  it('derives active stages from open work items only for continuous workflows', async () => {
     const db = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes('FROM workflows w')) {
@@ -117,7 +117,7 @@ describe('buildOrchestratorTaskContext', () => {
     expect(context?.workflow).toEqual(
       expect.objectContaining({
         lifecycle: 'continuous',
-        active_stages: ['triage', 'implementation', 'review'],
+        active_stages: ['triage', 'implementation'],
       }),
     );
     expect(context?.workflow).not.toHaveProperty('current_stage');

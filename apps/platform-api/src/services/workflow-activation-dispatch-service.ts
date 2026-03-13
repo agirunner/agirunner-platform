@@ -834,7 +834,8 @@ export class WorkflowActivationDispatchService {
                UNION
                SELECT ws.name AS active_stage_name
                  FROM workflow_stages ws
-               WHERE ws.tenant_id = w.tenant_id
+               WHERE w.lifecycle <> 'continuous'
+                  AND ws.tenant_id = w.tenant_id
                   AND ws.workflow_id = w.id
                   AND ws.gate_status IN ('awaiting_approval', 'changes_requested', 'rejected')
              ) AS active_stage_names
