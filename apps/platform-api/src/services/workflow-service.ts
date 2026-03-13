@@ -39,6 +39,7 @@ import {
 import { WorkflowStateService } from './workflow-state-service.js';
 import { ProjectTimelineService } from './project-timeline-service.js';
 import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
+import { buildWorkflowReadColumns } from './workflow-read-columns.js';
 import type { LogService } from '../logging/log-service.js';
 import type { WorkerConnectionHub } from './worker-connection-hub.js';
 import type {
@@ -189,7 +190,7 @@ export class WorkflowService {
         )
         .then((result) => Number(result.rows[0]?.total ?? '0')),
       this.pool.query<Record<string, unknown> & { tenant_id: string }>(
-        `SELECT w.*,
+        `SELECT ${buildWorkflowReadColumns('w')},
                 p.name AS project_name,
                 pb.name AS playbook_name,
                 pb.definition AS playbook_definition,
@@ -323,7 +324,7 @@ export class WorkflowService {
 
     const workflowRow = await repo.findById<Record<string, unknown> & { tenant_id: string }>(
       'workflows',
-      '*',
+      buildWorkflowReadColumns(),
       workflowId,
     );
     if (!workflowRow) throw new NotFoundError('Workflow not found');
@@ -839,23 +840,13 @@ function normalizeWorkflowReadModel(
 }
 
 function sanitizeWorkflowReadModel(workflow: Record<string, unknown>) {
-  const {
-    template_id: _templateId,
-    template_name: _templateName,
-    template_version: _templateVersion,
-    current_phase: _currentPhase,
-    workflow_phase: _workflowPhase,
-    phases: _phases,
-    phase_summary: _phaseSummary,
-    ...rest
-  } = workflow;
   return {
-    ...rest,
-    metadata: sanitizeWorkflowMetadata(rest.metadata),
-    context: sanitizeWorkflowContext(rest.context),
-    parameters: sanitizeWorkflowParameters(rest.parameters),
-    resolved_config: sanitizeWorkflowConfigView(rest.resolved_config),
-    config_layers: sanitizeWorkflowConfigLayers(rest.config_layers),
+    ...workflow,
+    metadata: sanitizeWorkflowMetadata(workflow.metadata),
+    context: sanitizeWorkflowContext(workflow.context),
+    parameters: sanitizeWorkflowParameters(workflow.parameters),
+    resolved_config: sanitizeWorkflowConfigView(workflow.resolved_config),
+    config_layers: sanitizeWorkflowConfigLayers(workflow.config_layers),
   };
 }
 

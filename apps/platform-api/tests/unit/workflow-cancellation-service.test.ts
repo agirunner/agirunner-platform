@@ -19,7 +19,7 @@ describe('WorkflowCancellationService', () => {
         if (sql === 'BEGIN' || sql === 'COMMIT') {
           return { rowCount: 0, rows: [] };
         }
-        if (sql.startsWith('SELECT * FROM workflows')) {
+        if (sql.startsWith('SELECT id, state, metadata FROM workflows')) {
           return {
             rowCount: 1,
             rows: [{
@@ -48,8 +48,10 @@ describe('WorkflowCancellationService', () => {
     });
 
     const result = await service.cancelWorkflow(identity as never, 'workflow-1');
+    const workflowSql = String(client.query.mock.calls.find(([sql]) => typeof sql === 'string' && sql.includes('FROM workflows'))?.[0] ?? '');
 
     expect(result).toEqual({ id: 'workflow-1', state: 'paused' });
+    expect(workflowSql).toBe('SELECT id, state, metadata FROM workflows WHERE tenant_id = $1 AND id = $2 FOR UPDATE');
     expect(getWorkflow).toHaveBeenCalledWith('tenant-1', 'workflow-1');
     expect(eventService.emit).not.toHaveBeenCalled();
     expect(stateService.recomputeWorkflowState).not.toHaveBeenCalled();
@@ -61,7 +63,7 @@ describe('WorkflowCancellationService', () => {
         if (sql === 'BEGIN' || sql === 'COMMIT') {
           return { rowCount: 0, rows: [] };
         }
-        if (sql.startsWith('SELECT * FROM workflows')) {
+        if (sql.startsWith('SELECT id, state, metadata FROM workflows')) {
           return {
             rowCount: 1,
             rows: [{
@@ -119,7 +121,7 @@ describe('WorkflowCancellationService', () => {
         if (sql === 'BEGIN' || sql === 'COMMIT') {
           return { rowCount: 0, rows: [] };
         }
-        if (sql.startsWith('SELECT * FROM workflows')) {
+        if (sql.startsWith('SELECT id, state, metadata FROM workflows')) {
           return {
             rowCount: 1,
             rows: [{
@@ -180,7 +182,7 @@ describe('WorkflowCancellationService', () => {
         if (sql === 'BEGIN' || sql === 'COMMIT') {
           return { rowCount: 0, rows: [] };
         }
-        if (sql.startsWith('SELECT * FROM workflows')) {
+        if (sql.startsWith('SELECT id, state, metadata FROM workflows')) {
           return {
             rowCount: 1,
             rows: [{
@@ -237,7 +239,7 @@ describe('WorkflowCancellationService', () => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
-        if (sql.startsWith('SELECT * FROM workflows')) {
+        if (sql.startsWith('SELECT id, state, metadata FROM workflows')) {
           return {
             rowCount: 1,
             rows: [{ id: 'workflow-1', state: 'cancelled', metadata: {} }],

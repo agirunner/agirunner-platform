@@ -91,7 +91,7 @@ export class WorkflowChainingService {
 
   private async fetchSourceWorkflow(tenantId: string, workflowId: string) {
     const result = await this.pool.query(
-      'SELECT * FROM workflows WHERE tenant_id = $1 AND id = $2',
+      'SELECT id, project_id, name, state, metadata FROM workflows WHERE tenant_id = $1 AND id = $2',
       [tenantId, workflowId],
     );
     if (!result.rowCount) {

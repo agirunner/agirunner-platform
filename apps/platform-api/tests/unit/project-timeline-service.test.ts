@@ -22,41 +22,216 @@ describe('ProjectTimelineService', () => {
     await expect(service.recordWorkflowTerminalState('tenant-1', 'workflow-1')).rejects.toThrow(
       'only support playbook workflows',
     );
+    expect(String(pool.query.mock.calls[0]?.[0] ?? '')).not.toContain('SELECT * FROM workflows');
+    expect(String(pool.query.mock.calls[0]?.[0] ?? '')).not.toContain('template_id');
   });
 
-  it('returns only persisted summaries and drops non-playbook fallback generation', async () => {
-    const pool = {
-      query: vi.fn().mockResolvedValue({
-        rowCount: 2,
-        rows: [
-          {
-            id: 'workflow-1',
-            name: 'Playbook Workflow',
-            state: 'completed',
-            started_at: null,
-            completed_at: null,
-            created_at: '2026-03-11T00:00:00.000Z',
-            metadata: {
-              run_summary: { workflow_id: 'workflow-1', kind: 'run_summary' },
+  it('hydrates playbook project timelines from live activation, work-item, and gate rows', async () => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes('FROM workflows')) {
+        return {
+          rowCount: 2,
+          rows: [
+            {
+              id: 'workflow-1',
+              name: 'Playbook Workflow',
+              state: 'active',
+              lifecycle: 'standard',
+              playbook_id: 'playbook-1',
+              started_at: '2026-03-11T00:05:00.000Z',
+              completed_at: null,
+              created_at: '2026-03-11T00:00:00.000Z',
+              metadata: {
+                run_summary: {
+                  workflow_id: 'workflow-1',
+                  kind: 'run_summary',
+                  legacy_only: true,
+                  phase_summary: { current_phase: 'build' },
+                },
+              },
             },
-          },
-          {
-            id: 'workflow-2',
-            name: 'Legacy Workflow',
-            state: 'completed',
-            started_at: null,
-            completed_at: null,
-            created_at: '2026-03-11T00:00:00.000Z',
-            metadata: {},
-          },
-        ],
-      }),
-    };
-    const service = new ProjectTimelineService(pool as never);
+            {
+              id: 'workflow-2',
+              name: 'Legacy Workflow',
+              state: 'completed',
+              lifecycle: 'standard',
+              playbook_id: null,
+              started_at: null,
+              completed_at: null,
+              created_at: '2026-03-11T00:00:00.000Z',
+              metadata: {},
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM tasks')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: 'task-1',
+              workflow_id: 'workflow-1',
+              state: 'completed',
+              stage_name: 'review',
+              work_item_id: 'wi-1',
+              rework_count: 0,
+              metrics: { total_cost_usd: 2.25 },
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM workflow_artifacts')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('FROM events')) {
+        return {
+          rowCount: 3,
+          rows: [
+            {
+              workflow_id: 'workflow-1',
+              type: 'workflow.activation_started',
+              actor_type: 'system',
+              actor_id: 'dispatcher',
+              data: {
+                workflow_id: 'workflow-1',
+                activation_id: 'activation-1',
+                event_type: 'work_item.created',
+                reason: 'queued_events',
+              },
+              created_at: '2026-03-11T00:06:00.000Z',
+            },
+            {
+              workflow_id: 'workflow-1',
+              type: 'work_item.created',
+              actor_type: 'agent',
+              actor_id: 'orchestrator',
+              data: {
+                workflow_id: 'workflow-1',
+                work_item_id: 'wi-1',
+                stage_name: 'review',
+              },
+              created_at: '2026-03-11T00:06:15.000Z',
+            },
+            {
+              workflow_id: 'workflow-1',
+              type: 'stage.gate_requested',
+              actor_type: 'agent',
+              actor_id: 'orchestrator',
+              data: {
+                workflow_id: 'workflow-1',
+                stage_name: 'review',
+                recommendation: 'approve',
+              },
+              created_at: '2026-03-11T00:07:00.000Z',
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM workflow_stages')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              workflow_id: 'workflow-1',
+              name: 'review',
+              goal: 'Review the delivery',
+              human_gate: true,
+              status: 'awaiting_gate',
+              gate_status: 'awaiting_approval',
+              iteration_count: 0,
+              summary: null,
+              started_at: '2026-03-11T00:06:00.000Z',
+              completed_at: null,
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM workflow_work_items')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              workflow_id: 'workflow-1',
+              id: 'wi-1',
+              stage_name: 'review',
+              column_id: 'review',
+              title: 'Review the release candidate',
+              completed_at: null,
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM workflow_activations')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              workflow_id: 'workflow-1',
+              activation_id: 'activation-1',
+              state: 'processing',
+              reason: 'work_item.created',
+              event_type: 'work_item.created',
+              task_id: null,
+              queued_at: '2026-03-11T00:05:45.000Z',
+              started_at: '2026-03-11T00:06:00.000Z',
+              consumed_at: null,
+              completed_at: null,
+              error: null,
+            },
+          ],
+        };
+      }
+      if (sql.includes('FROM workflow_stage_gates')) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              workflow_id: 'workflow-1',
+              id: 'gate-1',
+              stage_name: 'review',
+              status: 'awaiting_approval',
+              request_summary: 'Ready for review',
+              recommendation: 'approve',
+              concerns: [],
+              key_artifacts: [],
+              requested_by_type: 'agent',
+              requested_by_id: 'orchestrator',
+              requested_at: '2026-03-11T00:07:00.000Z',
+              decision_feedback: null,
+              decided_by_type: null,
+              decided_by_id: null,
+              decided_at: null,
+            },
+          ],
+        };
+      }
+      return { rowCount: 0, rows: [] };
+    });
+    const service = new ProjectTimelineService({ query } as never);
 
     const result = await service.getProjectTimeline('tenant-1', 'project-1');
 
-    expect(result).toEqual([{ workflow_id: 'workflow-1', kind: 'run_summary' }]);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual(
+      expect.objectContaining({
+        workflow_id: 'workflow-1',
+        kind: 'run_summary',
+        activation_activity: expect.objectContaining({
+          total_events: 1,
+          latest_activation_id: 'activation-1',
+        }),
+        work_item_activity: expect.objectContaining({
+          total: 1,
+          created_event_count: 1,
+        }),
+        gate_activity: expect.objectContaining({
+          requested_count: 1,
+          open_gate_count: 1,
+        }),
+      }),
+    );
+    expect(result[0]).not.toHaveProperty('legacy_only');
+    expect(result[0]).not.toHaveProperty('phase_summary');
   });
 
   it('ignores legacy timeline_summary-only metadata when loading project timelines', async () => {
@@ -87,7 +262,7 @@ describe('ProjectTimelineService', () => {
 
   it('includes activation, escalation, child workflow, and gate activity in terminal workflow summaries', async () => {
     const query = vi.fn(async (sql: string) => {
-      if (sql.includes('SELECT * FROM workflows')) {
+      if (sql.includes('FROM workflows')) {
         return {
           rowCount: 1,
           rows: [
@@ -106,12 +281,13 @@ describe('ProjectTimelineService', () => {
           ],
         };
       }
-      if (sql.includes('SELECT * FROM tasks')) {
+      if (sql.includes('FROM tasks')) {
         return {
           rowCount: 1,
           rows: [
             {
               id: 'task-1',
+              workflow_id: 'workflow-1',
               state: 'completed',
               stage_name: 'review',
               work_item_id: 'wi-1',
@@ -125,12 +301,13 @@ describe('ProjectTimelineService', () => {
         return { rowCount: 0, rows: [] };
       }
       if (sql.includes('FROM events')) {
-        expect(sql).toContain("COALESCE(e.data->>'parent_workflow_id', '') = $2::text");
-        expect(sql).toContain("COALESCE(e.data->>'workflow_id', '') = $2::text");
+        expect(sql).toContain("COALESCE(e.data->>'parent_workflow_id', '') = ANY($2::text[])");
+        expect(sql).toContain("COALESCE(e.data->>'workflow_id', '') = ANY($2::text[])");
         return {
           rowCount: 7,
           rows: [
             {
+              workflow_id: 'workflow-1',
               type: 'workflow.activation_queued',
               actor_type: 'system',
               actor_id: 'dispatcher',
@@ -145,6 +322,7 @@ describe('ProjectTimelineService', () => {
               created_at: '2026-03-10T00:48:00.000Z',
             },
             {
+              workflow_id: 'workflow-1',
               type: 'task.agent_escalated',
               actor_type: 'agent',
               actor_id: 'agent-1',
@@ -159,6 +337,7 @@ describe('ProjectTimelineService', () => {
               created_at: '2026-03-10T00:49:00.000Z',
             },
             {
+              workflow_id: 'workflow-1',
               type: 'workflow.activation_queued',
               actor_type: 'system',
               actor_id: 'dispatcher',
@@ -176,6 +355,7 @@ describe('ProjectTimelineService', () => {
               created_at: '2026-03-10T00:49:30.000Z',
             },
             {
+              workflow_id: 'workflow-1',
               type: 'child_workflow.failed',
               actor_type: 'system',
               actor_id: 'workflow_state_deriver',
@@ -188,6 +368,7 @@ describe('ProjectTimelineService', () => {
               created_at: '2026-03-10T00:49:45.000Z',
             },
             {
+              workflow_id: 'workflow-1',
               type: 'stage.gate_requested',
               actor_type: 'agent',
               actor_id: 'agent-1',
@@ -195,6 +376,7 @@ describe('ProjectTimelineService', () => {
               created_at: '2026-03-10T00:50:00.000Z',
             },
             {
+              workflow_id: 'workflow-1',
               type: 'workflow.activation_stale_detected',
               actor_type: 'system',
               actor_id: 'dispatcher',
@@ -207,6 +389,7 @@ describe('ProjectTimelineService', () => {
               created_at: '2026-03-10T00:54:00.000Z',
             },
             {
+              workflow_id: 'workflow-1',
               type: 'stage.gate.approve',
               actor_type: 'admin',
               actor_id: 'admin-1',
@@ -214,6 +397,7 @@ describe('ProjectTimelineService', () => {
               created_at: '2026-03-10T00:55:00.000Z',
             },
             {
+              workflow_id: 'workflow-1',
               type: 'work_item.updated',
               actor_type: 'system',
               actor_id: 'orchestrator',
@@ -232,6 +416,7 @@ describe('ProjectTimelineService', () => {
           rowCount: 1,
           rows: [
             {
+              workflow_id: 'workflow-1',
               name: 'review',
               goal: 'Validate release readiness',
               human_gate: true,
@@ -250,6 +435,7 @@ describe('ProjectTimelineService', () => {
           rowCount: 1,
           rows: [
             {
+              workflow_id: 'workflow-1',
               id: 'wi-1',
               stage_name: 'review',
               column_id: 'done',
@@ -264,6 +450,7 @@ describe('ProjectTimelineService', () => {
           rowCount: 2,
           rows: [
             {
+              workflow_id: 'workflow-1',
               activation_id: 'activation-1',
               state: 'processing',
               reason: 'task.agent_escalated',
@@ -276,6 +463,7 @@ describe('ProjectTimelineService', () => {
               error: null,
             },
             {
+              workflow_id: 'workflow-1',
               activation_id: 'activation-2',
               state: 'completed',
               reason: 'child_workflow.completed',
@@ -299,6 +487,7 @@ describe('ProjectTimelineService', () => {
           rowCount: 1,
           rows: [
             {
+              workflow_id: 'workflow-1',
               id: 'gate-1',
               stage_name: 'review',
               status: 'approved',
@@ -378,9 +567,9 @@ describe('ProjectTimelineService', () => {
       }),
     );
     expect(persistedSummary).not.toHaveProperty('task_counts');
-    expect((persistedSummary.stage_metrics as Array<Record<string, unknown>>)[0]).not.toHaveProperty(
-      'task_counts',
-    );
+    expect(
+      (persistedSummary.stage_metrics as Array<Record<string, unknown>>)[0],
+    ).not.toHaveProperty('task_counts');
     const workflowUpdateCall = query.mock.calls.find((call) =>
       String(call[0]).includes('UPDATE workflows'),
     ) as [string, unknown[]] | undefined;
@@ -403,7 +592,7 @@ describe('ProjectTimelineService', () => {
       | undefined;
     expect(eventCall?.[1]).toEqual([
       'tenant-1',
-      'workflow-1',
+      ['workflow-1'],
       [
         'stage.started',
         'stage.completed',
@@ -414,17 +603,14 @@ describe('ProjectTimelineService', () => {
         'workflow.activation_requeued',
         'workflow.activation_stale_detected',
       ],
-      [
-        'child_workflow.completed',
-        'child_workflow.failed',
-        'child_workflow.cancelled',
-      ],
+      ['child_workflow.completed', 'child_workflow.failed', 'child_workflow.cancelled'],
       [
         'stage.gate_requested',
         'stage.gate.approve',
         'stage.gate.reject',
         'stage.gate.request_changes',
       ],
+      ['workflow-1'],
       [
         'task.agent_escalated',
         'task.escalation_task_created',
@@ -432,16 +618,13 @@ describe('ProjectTimelineService', () => {
         'task.escalation_resolved',
         'task.escalation_depth_exceeded',
       ],
-      [
-        'work_item.created',
-        'work_item.updated',
-      ],
+      ['work_item.created', 'work_item.updated'],
     ]);
   });
 
   it('persists only activation, stage, gate, work-item, and escalation signals in summaries', async () => {
     const query = vi.fn(async (sql: string) => {
-      if (sql.includes('SELECT * FROM workflows')) {
+      if (sql.includes('FROM workflows')) {
         return {
           rowCount: 1,
           rows: [
@@ -460,7 +643,7 @@ describe('ProjectTimelineService', () => {
           ],
         };
       }
-      if (sql.includes('SELECT * FROM tasks')) {
+      if (sql.includes('FROM tasks')) {
         return { rowCount: 0, rows: [] };
       }
       if (sql.includes('FROM workflow_artifacts')) {
@@ -471,6 +654,7 @@ describe('ProjectTimelineService', () => {
           rowCount: 2,
           rows: [
             {
+              workflow_id: 'workflow-2',
               type: 'workflow.activation_completed',
               actor_type: 'system',
               actor_id: 'dispatcher',
@@ -484,6 +668,7 @@ describe('ProjectTimelineService', () => {
               created_at: '2026-03-10T00:12:00.000Z',
             },
             {
+              workflow_id: 'workflow-2',
               type: 'stage.gate_requested',
               actor_type: 'agent',
               actor_id: 'agent-1',
@@ -498,6 +683,7 @@ describe('ProjectTimelineService', () => {
           rowCount: 1,
           rows: [
             {
+              workflow_id: 'workflow-2',
               name: 'review',
               goal: 'Review work',
               human_gate: true,
@@ -516,6 +702,7 @@ describe('ProjectTimelineService', () => {
           rowCount: 1,
           rows: [
             {
+              workflow_id: 'workflow-2',
               id: 'wi-2',
               stage_name: 'review',
               column_id: 'review',
@@ -530,6 +717,7 @@ describe('ProjectTimelineService', () => {
           rowCount: 1,
           rows: [
             {
+              workflow_id: 'workflow-2',
               activation_id: 'activation-1',
               state: 'completed',
               reason: 'work_item.created',
@@ -549,6 +737,7 @@ describe('ProjectTimelineService', () => {
           rowCount: 1,
           rows: [
             {
+              workflow_id: 'workflow-2',
               id: 'gate-2',
               stage_name: 'review',
               status: 'awaiting_approval',
@@ -603,7 +792,7 @@ describe('ProjectTimelineService', () => {
 
   it('normalizes continuous stage status from work-item and gate posture before persisting terminal summaries', async () => {
     const query = vi.fn(async (sql: string) => {
-      if (sql.includes('SELECT * FROM workflows')) {
+      if (sql.includes('FROM workflows')) {
         return {
           rowCount: 1,
           rows: [
@@ -622,7 +811,7 @@ describe('ProjectTimelineService', () => {
           ],
         };
       }
-      if (sql.includes('SELECT * FROM tasks')) {
+      if (sql.includes('FROM tasks')) {
         return { rowCount: 0, rows: [] };
       }
       if (sql.includes('FROM workflow_artifacts')) {
@@ -636,6 +825,7 @@ describe('ProjectTimelineService', () => {
           rowCount: 3,
           rows: [
             {
+              workflow_id: 'workflow-3',
               name: 'triage',
               goal: 'Sort',
               human_gate: false,
@@ -647,6 +837,7 @@ describe('ProjectTimelineService', () => {
               completed_at: null,
             },
             {
+              workflow_id: 'workflow-3',
               name: 'review',
               goal: 'Review',
               human_gate: true,
@@ -658,6 +849,7 @@ describe('ProjectTimelineService', () => {
               completed_at: null,
             },
             {
+              workflow_id: 'workflow-3',
               name: 'done',
               goal: 'Done',
               human_gate: false,
@@ -676,6 +868,7 @@ describe('ProjectTimelineService', () => {
           rowCount: 2,
           rows: [
             {
+              workflow_id: 'workflow-3',
               id: 'wi-1',
               stage_name: 'triage',
               column_id: 'todo',
@@ -683,6 +876,7 @@ describe('ProjectTimelineService', () => {
               completed_at: null,
             },
             {
+              workflow_id: 'workflow-3',
               id: 'wi-2',
               stage_name: 'done',
               column_id: 'done',

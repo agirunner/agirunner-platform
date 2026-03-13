@@ -22,10 +22,10 @@ export class WorkflowCancellationService {
     try {
       await client.query('BEGIN');
 
-      const workflowRes = await client.query('SELECT * FROM workflows WHERE tenant_id = $1 AND id = $2 FOR UPDATE', [
-        identity.tenantId,
-        workflowId,
-      ]);
+      const workflowRes = await client.query(
+        'SELECT id, state, metadata FROM workflows WHERE tenant_id = $1 AND id = $2 FOR UPDATE',
+        [identity.tenantId, workflowId],
+      );
       if (!workflowRes.rowCount) throw new NotFoundError('Workflow not found');
 
       const workflow = workflowRes.rows[0];

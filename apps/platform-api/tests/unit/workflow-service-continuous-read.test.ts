@@ -21,13 +21,6 @@ describe('WorkflowService continuous workflow reads', () => {
               tenant_id: 'tenant-1',
               lifecycle: 'continuous',
               current_stage: 'legacy-stage',
-              template_id: 'template-1',
-              template_name: 'Legacy template',
-              template_version: 7,
-              current_phase: 'review',
-              workflow_phase: 'review',
-              phases: [{ id: 'phase-1', name: 'review' }],
-              phase_summary: { current_phase: 'review' },
               playbook_definition: {
                 lifecycle: 'continuous',
                 roles: ['triager'],
@@ -53,6 +46,7 @@ describe('WorkflowService continuous workflow reads', () => {
 
     const service = new WorkflowService(pool as never, { emit: vi.fn() } as never, config as never);
     const result = await service.listWorkflows('tenant-1', { page: 1, per_page: 20 });
+    const listSql = String(pool.query.mock.calls[1]?.[0] ?? '');
 
     expect(result.data[0]).not.toHaveProperty('current_stage');
     expect(result.data[0]).not.toHaveProperty('template_id');
@@ -62,6 +56,9 @@ describe('WorkflowService continuous workflow reads', () => {
     expect(result.data[0]).not.toHaveProperty('workflow_phase');
     expect(result.data[0]).not.toHaveProperty('phases');
     expect(result.data[0]).not.toHaveProperty('phase_summary');
+    expect(listSql).not.toContain('SELECT w.*');
+    expect(listSql).not.toContain('template_id');
+    expect(listSql).not.toContain('current_phase');
     expect(result.data[0].active_stages).toEqual(['triage', 'implementation']);
     expect(result.data[0]).not.toHaveProperty('playbook_definition');
     expect(result.data[0].work_item_summary).toEqual({
@@ -87,13 +84,6 @@ describe('WorkflowService continuous workflow reads', () => {
               playbook_id: 'pb-1',
               lifecycle: 'continuous',
               current_stage: 'legacy-stage',
-              template_id: 'template-1',
-              template_name: 'Legacy template',
-              template_version: 7,
-              current_phase: 'review',
-              workflow_phase: 'review',
-              phases: [{ id: 'phase-1', name: 'review' }],
-              phase_summary: { current_phase: 'review' },
               metadata: {},
             },
           ],
@@ -253,6 +243,7 @@ describe('WorkflowService continuous workflow reads', () => {
     };
 
     const workflow = await service.getWorkflow('tenant-1', 'wf-1');
+    const detailSql = String(pool.query.mock.calls[0]?.[0] ?? '');
 
     expect(workflow).not.toHaveProperty('current_stage');
     expect(workflow).not.toHaveProperty('template_id');
@@ -262,6 +253,9 @@ describe('WorkflowService continuous workflow reads', () => {
     expect(workflow).not.toHaveProperty('workflow_phase');
     expect(workflow).not.toHaveProperty('phases');
     expect(workflow).not.toHaveProperty('phase_summary');
+    expect(detailSql).not.toContain('SELECT * FROM workflows');
+    expect(detailSql).not.toContain('template_id');
+    expect(detailSql).not.toContain('current_phase');
     expect(workflow.active_stages).toEqual(['triage', 'implementation']);
     expect(workflow.work_item_summary).toEqual({
       total_work_items: 3,
