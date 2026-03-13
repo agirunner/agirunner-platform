@@ -660,7 +660,8 @@ export class WorkflowActivationDispatchService {
           AND consumed_at IS NULL
           AND activation_id IS NULL
           AND state = 'queued'
-        ORDER BY queued_at ASC
+        ORDER BY CASE WHEN event_type = 'heartbeat' THEN 1 ELSE 0 END ASC,
+                 queued_at ASC
         LIMIT 1
         FOR UPDATE SKIP LOCKED`,
       [tenantId, workflowId],

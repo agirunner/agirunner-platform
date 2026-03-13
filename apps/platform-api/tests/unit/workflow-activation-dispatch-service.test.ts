@@ -1480,6 +1480,77 @@ describe('WorkflowActivationDispatchService', () => {
     });
   });
 
+  it('prioritizes queued workflow events ahead of heartbeat rows for follow-on dispatch after completion', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes("AND activation_id = $3") && sql.includes("state = 'processing'")) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'activation-1']);
+          return { rowCount: 1, rows: [{ id: 'activation-1' }] };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('activation_id = $3') && sql.includes('id <> $5::uuid')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SET state = \'completed\'')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'activation-1',
+                tenant_id: 'tenant-1',
+                workflow_id: 'workflow-1',
+                activation_id: 'activation-1',
+                request_id: 'req-1',
+                reason: 'task.completed',
+                event_type: 'task.completed',
+                payload: {},
+                state: 'completed',
+                queued_at: new Date('2026-03-11T00:00:00Z'),
+                started_at: new Date('2026-03-11T00:00:10Z'),
+                consumed_at: new Date('2026-03-11T00:01:00Z'),
+                completed_at: new Date('2026-03-11T00:01:00Z'),
+                summary: 'Reviewed workflow state',
+                error: null,
+              },
+            ],
+          };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes('activation_id IS NULL')) {
+          expect(sql).toContain("CASE WHEN event_type = 'heartbeat' THEN 1 ELSE 0 END");
+          return { rowCount: 1, rows: [{ id: 'activation-real-event' }] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    const service = new WorkflowActivationDispatchService({
+      pool: { query: vi.fn(), connect: vi.fn() } as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+    const dispatchSpy = vi.spyOn(service, 'dispatchActivation').mockResolvedValue('task-next');
+
+    await service.finalizeActivationForTask(
+      'tenant-1',
+      {
+        id: 'task-1',
+        workflow_id: 'workflow-1',
+        activation_id: 'activation-1',
+        is_orchestrator_task: true,
+        output: { summary: 'Reviewed workflow state' },
+      },
+      'completed',
+      client as never,
+    );
+
+    expect(dispatchSpy).toHaveBeenCalledWith('tenant-1', 'activation-real-event', client, {
+      ignoreDelay: true,
+    });
+  });
+
   it('skips duplicate completion callbacks after an activation was already finalized', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
