@@ -126,6 +126,51 @@ describe('workflow inspector telemetry', () => {
           '/work/workflows/workflow-1/inspector?view=detailed&activation=activation-123456789',
       },
     ]);
+    expect(model.spendBreakdowns).toEqual([
+      {
+        title: 'Stage breakdown',
+        description: 'Top reported stage spend from the workflow run summary.',
+        entries: [
+          {
+            label: 'review',
+            value: '$4.5000',
+            detail: '3 steps contributed to this stage.',
+            href: '/work/workflows/workflow-1/inspector?view=detailed&stage=review',
+          },
+          {
+            label: 'qa',
+            value: '$2.2500',
+            detail: '2 steps contributed to this stage.',
+            href: '/work/workflows/workflow-1/inspector?view=detailed&stage=qa',
+          },
+        ],
+      },
+      {
+        title: 'Task breakdown',
+        description: 'Top task-level spend from the current inspector log slice.',
+        entries: [
+          {
+            label: 'Step task-123',
+            value: '$1.7500',
+            detail: '6 trace entries • 200 ms average recorded duration.',
+            href: '/work/workflows/workflow-1/inspector?view=detailed&task=task-123456789',
+          },
+        ],
+      },
+      {
+        title: 'Activation breakdown',
+        description: 'Top orchestrator activation spend from the current inspector slice.',
+        entries: [
+          {
+            label: 'Activation activati',
+            value: '$2.2500',
+            detail: '5 trace entries • 180 ms average recorded duration.',
+            href:
+              '/work/workflows/workflow-1/inspector?view=detailed&activation=activation-123456789',
+          },
+        ],
+      },
+    ]);
     expect(model.memoryPacket.title).toBe('Memory evolution · Review release notes');
     expect(model.memoryPacket.changes).toEqual([
       expect.objectContaining({
@@ -179,6 +224,23 @@ describe('workflow inspector telemetry', () => {
       detail: 'No stage-level cost packet is available in the current run summary yet.',
       href: null,
     });
+    expect(model.spendBreakdowns).toEqual([
+      {
+        title: 'Stage breakdown',
+        description: 'Top reported stage spend from the workflow run summary.',
+        entries: [],
+      },
+      {
+        title: 'Task breakdown',
+        description: 'Top task-level spend from the current inspector log slice.',
+        entries: [],
+      },
+      {
+        title: 'Activation breakdown',
+        description: 'Top orchestrator activation spend from the current inspector slice.',
+        entries: [],
+      },
+    ]);
     expect(model.memoryPacket).toEqual({
       title: 'Memory evolution',
       detail: 'No active work item is available to anchor a memory evolution packet.',

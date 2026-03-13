@@ -41,6 +41,50 @@ export function WorkflowInspectorTelemetryPanel(
           </Card>
         ))}
       </div>
+      <div className="grid gap-3 xl:grid-cols-3">
+        {props.telemetry.spendBreakdowns.map((section) => (
+          <Card key={section.title} className="border-border/70 bg-card/70 shadow-none">
+            <CardContent className="grid gap-4 p-4">
+              <div className="grid gap-1">
+                <div className="text-sm font-medium text-foreground">{section.title}</div>
+                <p className="text-sm leading-6 text-muted">{section.description}</p>
+              </div>
+              {section.entries.length > 0 ? (
+                <div className="grid gap-3">
+                  {section.entries.map((entry) => (
+                    <div
+                      key={`${section.title}:${entry.label}`}
+                      className="rounded-xl border border-border/70 bg-background/80 p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-foreground">{entry.label}</div>
+                          <p className="mt-1 text-xs leading-5 text-muted">{entry.detail}</p>
+                        </div>
+                        <div className="shrink-0 text-sm font-semibold text-foreground">
+                          {entry.value}
+                        </div>
+                      </div>
+                      {entry.href ? (
+                        <Button asChild variant="ghost" className="mt-2 h-auto justify-start px-0 text-sm">
+                          <Link to={entry.href}>
+                            Open filtered slice
+                            <ExternalLink className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-border/70 bg-background/70 p-4 text-sm text-muted">
+                  No deeper breakdown is available in this slice yet.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
       <Card className="border-border/70 bg-card/70 shadow-none">
         <CardContent className="grid gap-4 p-4">
           <div className="grid gap-1">

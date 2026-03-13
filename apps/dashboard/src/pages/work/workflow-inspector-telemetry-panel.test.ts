@@ -11,6 +11,9 @@ describe('workflow inspector telemetry panel source', () => {
     const source = readSource();
 
     expect(source).toContain('DiffViewer');
+    expect(source).toContain('props.telemetry.spendBreakdowns.map');
+    expect(source).toContain('Open filtered slice');
+    expect(source).toContain('No deeper breakdown is available in this slice yet.');
     expect(source).toContain('change.changedFields.length > 0');
     expect(source).toContain('Open field diff');
     expect(source).toContain("oldLabel={change.status === 'Created' ? 'No previous value' : 'Previous value'}");

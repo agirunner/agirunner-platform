@@ -18,8 +18,15 @@ export interface WorkflowInspectorSpendPacket {
   href: string | null;
 }
 
+export interface WorkflowInspectorSpendBreakdownSection {
+  title: string;
+  description: string;
+  entries: WorkflowInspectorSpendPacket[];
+}
+
 export interface WorkflowInspectorTelemetryModel {
   spendPackets: WorkflowInspectorSpendPacket[];
+  spendBreakdowns: WorkflowInspectorSpendBreakdownSection[];
   memoryPacket: WorkflowInspectorMemoryPacket;
 }
 
@@ -33,21 +40,56 @@ export function buildWorkflowInspectorTelemetryModel(input: {
   now?: number;
 }): WorkflowInspectorTelemetryModel {
   return {
-    spendPackets: [
-      buildStageSpendPacket(input.workflowId, input.workflow),
-      buildTaskSpendPacket(input.workflowId, input.taskCostStats),
-      buildActivationSpendPacket(
-        input.workflowId,
-        input.workflow,
-        input.activationCostStats,
-      ),
-    ],
+    spendPackets: buildSpendPackets(input),
+    spendBreakdowns: buildSpendBreakdowns(input),
     memoryPacket: buildWorkflowInspectorMemoryPacket({
       focusWorkItem: input.focusWorkItem,
       memoryHistory: input.memoryHistory,
       now: input.now,
     }),
   };
+}
+
+function buildSpendPackets(input: {
+  workflowId: string;
+  workflow?: DashboardWorkflowRecord;
+  taskCostStats?: LogStatsResponse;
+  activationCostStats?: LogStatsResponse;
+}): WorkflowInspectorSpendPacket[] {
+  return [
+    buildStageSpendPacket(input.workflowId, input.workflow),
+    buildTaskSpendPacket(input.workflowId, input.taskCostStats),
+    buildActivationSpendPacket(
+      input.workflowId,
+      input.workflow,
+      input.activationCostStats,
+    ),
+  ];
+}
+
+function buildSpendBreakdowns(input: {
+  workflowId: string;
+  workflow?: DashboardWorkflowRecord;
+  taskCostStats?: LogStatsResponse;
+  activationCostStats?: LogStatsResponse;
+}): WorkflowInspectorSpendBreakdownSection[] {
+  return [
+    {
+      title: 'Stage breakdown',
+      description: 'Top reported stage spend from the workflow run summary.',
+      entries: buildStageBreakdownEntries(input.workflowId, input.workflow),
+    },
+    {
+      title: 'Task breakdown',
+      description: 'Top task-level spend from the current inspector log slice.',
+      entries: buildTaskBreakdownEntries(input.workflowId, input.taskCostStats),
+    },
+    {
+      title: 'Activation breakdown',
+      description: 'Top orchestrator activation spend from the current inspector slice.',
+      entries: buildActivationBreakdownEntries(input.workflowId, input.activationCostStats),
+    },
+  ];
 }
 
 function buildStageSpendPacket(
@@ -136,6 +178,77 @@ function buildActivationSpendPacket(
     detail: `Average orchestrator activation spend from ${activationCount} recorded activation batch${activationCount === 1 ? '' : 'es'}.`,
     href: buildWorkflowInspectorLink(workflowId, { view: 'detailed' }),
   };
+}
+
+function buildStageBreakdownEntries(
+  workflowId: string,
+  workflow?: DashboardWorkflowRecord,
+): WorkflowInspectorSpendPacket[] {
+  const analytics = asRecord(asRecord(readWorkflowRunSummary(workflow)).orchestrator_analytics);
+  return asArray(analytics.cost_by_stage)
+    .map((entry) => ({
+      label:
+        readString(asRecord(entry).stage_name)
+        ?? readString(asRecord(entry).group_key)
+        ?? 'Unassigned stage',
+      value: formatCost(Number(asRecord(entry).total_cost_usd ?? 0)),
+      detail: `${Number(asRecord(entry).task_count ?? 0)} step${Number(asRecord(entry).task_count ?? 0) === 1 ? '' : 's'} contributed to this stage.`,
+      href: buildWorkflowInspectorLink(workflowId, {
+        view: 'detailed',
+        stage:
+          readString(asRecord(entry).stage_name)
+          ?? readString(asRecord(entry).group_key)
+          ?? 'unassigned',
+      }),
+    }))
+    .filter((entry) => entry.value !== '$0.0000')
+    .slice(0, 3);
+}
+
+function buildTaskBreakdownEntries(
+  workflowId: string,
+  stats?: LogStatsResponse,
+): WorkflowInspectorSpendPacket[] {
+  return buildStatsBreakdownEntries(stats, {
+    formatLabel: (group) => `Step ${shortId(group.group)}`,
+    formatDetail: (group) =>
+      `${group.count} trace entr${group.count === 1 ? 'y' : 'ies'} • ${formatDuration(group.avg_duration_ms)} average recorded duration.`,
+    hrefFor: (group) => buildWorkflowInspectorLink(workflowId, { view: 'detailed', task: group.group }),
+  });
+}
+
+function buildActivationBreakdownEntries(
+  workflowId: string,
+  stats?: LogStatsResponse,
+): WorkflowInspectorSpendPacket[] {
+  return buildStatsBreakdownEntries(stats, {
+    formatLabel: (group) => `Activation ${shortId(group.group)}`,
+    formatDetail: (group) =>
+      `${group.count} trace entr${group.count === 1 ? 'y' : 'ies'} • ${formatDuration(group.avg_duration_ms)} average recorded duration.`,
+    hrefFor: (group) =>
+      buildWorkflowInspectorLink(workflowId, { view: 'detailed', activation: group.group }),
+  });
+}
+
+function buildStatsBreakdownEntries(
+  stats: LogStatsResponse | undefined,
+  helpers: {
+    formatLabel(group: LogStatsResponse['data']['groups'][number]): string;
+    formatDetail(group: LogStatsResponse['data']['groups'][number]): string;
+    hrefFor(group: LogStatsResponse['data']['groups'][number]): string;
+  },
+): WorkflowInspectorSpendPacket[] {
+  return [...(stats?.data.groups ?? [])]
+    .filter((group) => group.group !== 'unassigned')
+    .filter((group) => readGroupCost(group) > 0)
+    .sort((left, right) => readGroupCost(right) - readGroupCost(left))
+    .slice(0, 3)
+    .map((group) => ({
+      label: helpers.formatLabel(group),
+      value: formatCost(readGroupCost(group)),
+      detail: helpers.formatDetail(group),
+      href: helpers.hrefFor(group),
+    }));
 }
 
 function topCostGroup(
