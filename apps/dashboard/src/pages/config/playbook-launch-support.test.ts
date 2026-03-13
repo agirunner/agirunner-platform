@@ -112,6 +112,13 @@ describe('playbook launch support', () => {
   it('rejects duplicate structured keys and invalid role overrides', () => {
     expect(() =>
       buildStructuredObject(
+        [{ id: 'a', key: 'trace_id', valueType: 'string', value: '' }],
+        'Metadata',
+      ),
+    ).toThrow(/must include a value/i);
+
+    expect(() =>
+      buildStructuredObject(
         [
           { id: 'a', key: 'trace_id', valueType: 'string', value: 'one' },
           { id: 'b', key: 'trace_id', valueType: 'string', value: 'two' },
@@ -345,10 +352,14 @@ describe('playbook launch support', () => {
         },
         workflowName: 'Ship Run',
         workflowBudgetDraft: createWorkflowBudgetDraft(),
+        additionalParametersError: 'Add a key or remove this row.',
+        metadataError: 'Keys must be unique within this section.',
         workflowOverrideError: 'Workflow model override roles are required.',
       }),
     ).toMatchObject({
       fieldErrors: {
+        additionalParameters: 'Add a key or remove this row.',
+        metadata: 'Keys must be unique within this section.',
         workflowOverrides: 'Workflow model override roles are required.',
       },
       isValid: false,

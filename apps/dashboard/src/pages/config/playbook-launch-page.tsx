@@ -50,6 +50,12 @@ import {
   type WorkflowBudgetDraft,
 } from './playbook-launch-support.js';
 import {
+  validateRoleOverrideDrafts,
+  validateStructuredEntries,
+  type RoleOverrideValidationResult,
+  type StructuredEntryValidationResult,
+} from './playbook-launch-entry-validation.js';
+import {
   SelectWithCustomControl,
   type StructuredChoiceOption,
 } from './playbook-authoring-structured-controls.js';
@@ -109,10 +115,24 @@ export function PlaybookLaunchPage(): JSX.Element {
     [modelOverrideDrafts],
   );
   const hasWorkflowOverrides = configuredWorkflowOverrideCount > 0;
+  const extraParametersValidation = useMemo(
+    () => validateStructuredEntries(extraParameterDrafts),
+    [extraParameterDrafts],
+  );
+  const metadataValidation = useMemo(
+    () => validateStructuredEntries(metadataDrafts),
+    [metadataDrafts],
+  );
+  const roleOverrideValidation = useMemo(
+    () => validateRoleOverrideDrafts(modelOverrideDrafts),
+    [modelOverrideDrafts],
+  );
   const workflowOverrides = useMemo(
     () => readWorkflowOverrides(modelOverrideDrafts),
     [modelOverrideDrafts],
   );
+  const workflowOverrideBlockingError =
+    roleOverrideValidation.blockingIssues[0] ?? workflowOverrides.error;
   const projectResolvedModelsQuery = useQuery({
     queryKey: ['project-models', projectId],
     queryFn: () => dashboardApi.getResolvedProjectModels(projectId),
@@ -133,7 +153,7 @@ export function PlaybookLaunchPage(): JSX.Element {
       }),
     enabled:
       selectedPlaybookId.length > 0 &&
-      !workflowOverrides.error &&
+      !workflowOverrideBlockingError &&
       (Object.keys(workflowOverrides.value ?? {}).length > 0 || projectId.length > 0),
   });
   const projects = projectsQuery.data?.data ?? [];
@@ -144,9 +164,18 @@ export function PlaybookLaunchPage(): JSX.Element {
         selectedPlaybook,
         workflowName,
         workflowBudgetDraft,
-        workflowOverrideError: workflowOverrides.error,
+        additionalParametersError: extraParametersValidation.blockingIssues[0],
+        metadataError: metadataValidation.blockingIssues[0],
+        workflowOverrideError: workflowOverrideBlockingError,
       }),
-    [selectedPlaybook, workflowName, workflowBudgetDraft, workflowOverrides.error],
+    [
+      selectedPlaybook,
+      workflowName,
+      workflowBudgetDraft,
+      extraParametersValidation.blockingIssues,
+      metadataValidation.blockingIssues,
+      workflowOverrideBlockingError,
+    ],
   );
   const workflowBudget = useMemo(() => {
     if (
@@ -414,7 +443,9 @@ export function PlaybookLaunchPage(): JSX.Element {
                 selectedPlaybook={selectedPlaybook}
                 selectedProject={selectedProject}
                 workflowName={workflowName}
-                hasStructuredParameters={launchDefinition.parameterSpecs.length > 0 || hasAdditionalParameters}
+                hasStructuredParameters={
+                  launchDefinition.parameterSpecs.length > 0 || hasAdditionalParameters
+                }
                 hasMetadataEntries={hasMetadataEntries}
                 hasWorkflowOverrides={hasWorkflowOverrides}
                 budgetDraft={workflowBudgetDraft}
@@ -459,6 +490,7 @@ export function PlaybookLaunchPage(): JSX.Element {
                 title={launchDefinition.parameterSpecs.length > 0 ? 'Additional Parameters' : 'Parameters'}
                 description="Add extra launch parameters without typing a full JSON object."
                 drafts={extraParameterDrafts}
+                validation={extraParametersValidation}
                 onChange={(drafts) => {
                   setError(null);
                   setExtraParameterDrafts(drafts);
@@ -475,6 +507,7 @@ export function PlaybookLaunchPage(): JSX.Element {
               <StructuredEntryEditor
                 title="Metadata Entries"
                 drafts={metadataDrafts}
+                validation={metadataValidation}
                 onChange={(drafts) => {
                   setError(null);
                   setMetadataDrafts(drafts);
@@ -521,6 +554,7 @@ export function PlaybookLaunchPage(): JSX.Element {
                 playbookRoles={launchDefinition.roles}
                 providers={llmProvidersQuery.data ?? []}
                 models={llmModelsQuery.data ?? []}
+                validation={roleOverrideValidation}
                 onChange={(drafts) => {
                   setError(null);
                   setModelOverrideDrafts(drafts);
@@ -533,8 +567,8 @@ export function PlaybookLaunchPage(): JSX.Element {
               ) : null}
             </StructuredSection>
 
-            {workflowOverrides.error ? (
-              <p className="text-sm text-red-600">{workflowOverrides.error}</p>
+            {workflowOverrideBlockingError ? (
+              <p className="text-sm text-red-600">{workflowOverrideBlockingError}</p>
             ) : null}
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
@@ -645,17 +679,25 @@ function LaunchReadinessPanel(props: {
     },
     {
       label: 'Structured launch inputs',
-      detail: props.hasStructuredParameters
-        ? 'Parameters are configured through structured controls.'
-        : 'This run will start with playbook defaults only.',
-      isReady: true,
+      detail: props.validation.fieldErrors.additionalParameters
+        ? props.validation.fieldErrors.additionalParameters
+        : props.hasStructuredParameters
+          ? 'Parameters are configured through structured controls.'
+          : 'This run will start with playbook defaults only.',
+      isReady: !props.validation.fieldErrors.additionalParameters,
     },
     {
       label: 'Metadata and model policy',
-      detail: props.hasMetadataEntries || props.hasWorkflowOverrides
-        ? 'Metadata or workflow model policy is configured.'
-        : 'Using existing defaults and no workflow-specific overrides.',
-      isReady: true,
+      detail: props.validation.fieldErrors.metadata
+        ? props.validation.fieldErrors.metadata
+        : props.validation.fieldErrors.workflowOverrides
+          ? props.validation.fieldErrors.workflowOverrides
+          : props.hasMetadataEntries || props.hasWorkflowOverrides
+            ? 'Metadata or workflow model policy is configured.'
+            : 'Using existing defaults and no workflow-specific overrides.',
+      isReady:
+        !props.validation.fieldErrors.metadata &&
+        !props.validation.fieldErrors.workflowOverrides,
     },
     {
       label: 'Workflow budget policy',
@@ -824,6 +866,7 @@ function StructuredEntryEditor(props: {
   title: string;
   description?: string;
   drafts: StructuredEntryDraft[];
+  validation: StructuredEntryValidationResult;
   onChange(drafts: StructuredEntryDraft[]): void;
   addLabel: string;
 }): JSX.Element {
@@ -833,18 +876,44 @@ function StructuredEntryEditor(props: {
         <div className="text-sm font-medium">{props.title}</div>
         {props.description ? <p className="text-xs text-muted">{props.description}</p> : null}
       </header>
+      {props.validation.blockingIssues.length > 0 ? (
+        <div className="rounded-md border border-amber-300 bg-amber-50/80 px-3 py-2 text-sm text-amber-950">
+          Resolve the highlighted entry rows before launch.
+        </div>
+      ) : null}
       {props.drafts.length === 0 ? (
         <p className="text-sm text-muted">No entries added yet.</p>
       ) : (
-        props.drafts.map((draft) => (
+        props.drafts.map((draft, index) => (
           <article key={draft.id} className="grid gap-3 rounded-md border border-border p-3">
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1.1fr),minmax(0,0.7fr),minmax(0,1.2fr),auto]">
               <label className="grid gap-1 text-xs">
                 <span className="font-medium">Key</span>
                 <Input
                   value={draft.key}
-                  onChange={(event) => props.onChange(updateStructuredDraft(props.drafts, draft.id, { key: event.target.value }))}
+                  aria-invalid={props.validation.entryErrors[index]?.key ? true : undefined}
+                  className={
+                    props.validation.entryErrors[index]?.key
+                      ? 'border-red-300 focus-visible:ring-red-500'
+                      : undefined
+                  }
+                  onChange={(event) =>
+                    props.onChange(
+                      updateStructuredDraft(props.drafts, draft.id, {
+                        key: event.target.value,
+                      }),
+                    )
+                  }
                 />
+                {props.validation.entryErrors[index]?.key ? (
+                  <span className="text-xs text-red-600">
+                    {props.validation.entryErrors[index]?.key}
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted">
+                    Use a stable key so launch metadata and override packets stay readable.
+                  </span>
+                )}
               </label>
               <label className="grid gap-1 text-xs">
                 <span className="font-medium">Type</span>
@@ -870,8 +939,20 @@ function StructuredEntryEditor(props: {
                 <ValueInput
                   valueType={draft.valueType}
                   value={draft.value}
-                  onChange={(value) => props.onChange(updateStructuredDraft(props.drafts, draft.id, { value }))}
+                  hasError={Boolean(props.validation.entryErrors[index]?.value)}
+                  onChange={(value) =>
+                    props.onChange(updateStructuredDraft(props.drafts, draft.id, { value }))
+                  }
                 />
+                {props.validation.entryErrors[index]?.value ? (
+                  <span className="text-xs text-red-600">
+                    {props.validation.entryErrors[index]?.value}
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted">
+                    Pick the value type first, then enter only the value that should be sent at launch.
+                  </span>
+                )}
               </div>
               <div className="flex items-end">
                 <Button
@@ -912,6 +993,7 @@ function RoleOverrideEditor(props: {
   playbookRoles: string[];
   providers: DashboardLlmProviderRecord[];
   models: DashboardLlmModelRecord[];
+  validation: RoleOverrideValidationResult;
   onChange(drafts: RoleOverrideDraft[]): void;
 }): JSX.Element {
   const enabledModels = useMemo(
@@ -933,10 +1015,17 @@ function RoleOverrideEditor(props: {
       {props.drafts.length === 0 ? (
         <p className="text-sm text-muted">No workflow-specific model overrides configured.</p>
       ) : (
-        props.drafts.map((draft) => {
+        props.drafts.map((draft, index) => {
           const isPlaybookRole = props.playbookRoles.includes(draft.role.trim());
           const selectedProvider = findProviderByDraft(props.providers, draft.provider);
           const availableModels = listModelsForProvider(enabledModels, selectedProvider);
+          const fieldErrors = props.validation.draftErrors[index] ?? {
+            reasoning: {
+              entryErrors: [],
+              blockingIssues: [],
+              isValid: true,
+            },
+          };
           return (
             <div key={draft.id} className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-4">
               <div className="flex items-center justify-between">
@@ -977,6 +1066,13 @@ function RoleOverrideEditor(props: {
                       }
                     />
                   )}
+                  {fieldErrors?.role ? (
+                    <span className="text-xs text-red-600">{fieldErrors.role}</span>
+                  ) : (
+                    <span className="text-xs text-muted">
+                      Prefer declared playbook roles so overrides stay aligned with the selected run.
+                    </span>
+                  )}
                 </label>
                 <label className="grid gap-1 text-xs">
                   <span className="font-medium">Provider</span>
@@ -994,7 +1090,14 @@ function RoleOverrideEditor(props: {
                       )
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger
+                      aria-invalid={fieldErrors?.provider ? true : undefined}
+                      className={
+                        fieldErrors?.provider
+                          ? 'border-red-300 focus-visible:ring-red-500'
+                          : undefined
+                      }
+                    >
                       <SelectValue placeholder="Select provider" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1006,6 +1109,13 @@ function RoleOverrideEditor(props: {
                       ))}
                     </SelectContent>
                   </Select>
+                  {fieldErrors?.provider ? (
+                    <span className="text-xs text-red-600">{fieldErrors.provider}</span>
+                  ) : (
+                    <span className="text-xs text-muted">
+                      Start with the provider so the model list stays bounded to valid choices.
+                    </span>
+                  )}
                 </label>
                 <label className="grid gap-1 text-xs">
                   <span className="font-medium">Model</span>
@@ -1020,7 +1130,14 @@ function RoleOverrideEditor(props: {
                     }
                     disabled={availableModels.length === 0}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger
+                      aria-invalid={fieldErrors?.model ? true : undefined}
+                      className={
+                        fieldErrors?.model
+                          ? 'border-red-300 focus-visible:ring-red-500'
+                          : undefined
+                      }
+                    >
                       <SelectValue
                         placeholder={selectedProvider ? 'Select model' : 'Select a provider first'}
                       />
@@ -1034,6 +1151,13 @@ function RoleOverrideEditor(props: {
                       ))}
                     </SelectContent>
                   </Select>
+                  {fieldErrors?.model ? (
+                    <span className="text-xs text-red-600">{fieldErrors.model}</span>
+                  ) : (
+                    <span className="text-xs text-muted">
+                      Choose a discovered model instead of typing an unverified override target.
+                    </span>
+                  )}
                 </label>
               </div>
               <p className="text-xs text-muted">
@@ -1044,6 +1168,7 @@ function RoleOverrideEditor(props: {
                 title="Reasoning Config Entries"
                 description="Add only the reasoning settings this role needs as structured key/value entries."
                 drafts={draft.reasoningEntries}
+                validation={fieldErrors.reasoning}
                 addLabel="Add reasoning setting"
                 onChange={(reasoningEntries) =>
                   props.onChange(updateRoleDraft(props.drafts, draft.id, { reasoningEntries }))
@@ -1065,12 +1190,19 @@ function ValueInput(props: {
   valueType: StructuredValueType;
   value: string;
   options?: string[];
+  hasError?: boolean;
   onChange(value: string): void;
 }): JSX.Element {
   if (props.options && props.options.length > 0) {
     return (
-      <Select value={props.value || '__empty__'} onValueChange={(value) => props.onChange(value === '__empty__' ? '' : value)}>
-        <SelectTrigger>
+      <Select
+        value={props.value || '__empty__'}
+        onValueChange={(value) => props.onChange(value === '__empty__' ? '' : value)}
+      >
+        <SelectTrigger
+          aria-invalid={props.hasError ? true : undefined}
+          className={props.hasError ? 'border-red-300 focus-visible:ring-red-500' : undefined}
+        >
           <SelectValue placeholder="Select a value" />
         </SelectTrigger>
         <SelectContent>
@@ -1087,8 +1219,14 @@ function ValueInput(props: {
 
   if (props.valueType === 'boolean') {
     return (
-      <Select value={props.value || '__empty__'} onValueChange={(value) => props.onChange(value === '__empty__' ? '' : value)}>
-        <SelectTrigger>
+      <Select
+        value={props.value || '__empty__'}
+        onValueChange={(value) => props.onChange(value === '__empty__' ? '' : value)}
+      >
+        <SelectTrigger
+          aria-invalid={props.hasError ? true : undefined}
+          className={props.hasError ? 'border-red-300 focus-visible:ring-red-500' : undefined}
+        >
           <SelectValue placeholder="Unset" />
         </SelectTrigger>
         <SelectContent>
@@ -1104,7 +1242,10 @@ function ValueInput(props: {
     return (
       <Textarea
         value={props.value}
-        className="min-h-[100px] font-mono text-xs"
+        aria-invalid={props.hasError ? true : undefined}
+        className={`min-h-[100px] font-mono text-xs${
+          props.hasError ? ' border-red-300 focus-visible:ring-red-500' : ''
+        }`}
         onChange={(event) => props.onChange(event.target.value)}
       />
     );
@@ -1115,6 +1256,8 @@ function ValueInput(props: {
       type={props.valueType === 'number' ? 'number' : 'text'}
       inputMode={props.valueType === 'number' ? 'decimal' : undefined}
       value={props.value}
+      aria-invalid={props.hasError ? true : undefined}
+      className={props.hasError ? 'border-red-300 focus-visible:ring-red-500' : undefined}
       onChange={(event) => props.onChange(event.target.value)}
     />
   );

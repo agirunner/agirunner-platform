@@ -64,6 +64,8 @@ export interface LaunchValidationResult {
     tokenBudget?: string;
     costCapUsd?: string;
     maxDurationMinutes?: string;
+    additionalParameters?: string;
+    metadata?: string;
     workflowOverrides?: string;
   };
   blockingIssues: string[];
@@ -115,7 +117,7 @@ export function buildStructuredObject(
     }
     const parsed = parseDraftValue(draft.value, draft.valueType, `${label} '${key}'`);
     if (parsed === undefined) {
-      continue;
+      throw new Error(`${label} '${key}' must include a value.`);
     }
     value[key] = parsed;
   }
@@ -277,6 +279,8 @@ export function validateLaunchDraft(input: {
   selectedPlaybook: DashboardPlaybookRecord | null;
   workflowName: string;
   workflowBudgetDraft: WorkflowBudgetDraft;
+  additionalParametersError?: string;
+  metadataError?: string;
   workflowOverrideError?: string;
 }): LaunchValidationResult {
   const fieldErrors: LaunchValidationResult['fieldErrors'] = {
@@ -291,6 +295,14 @@ export function validateLaunchDraft(input: {
 
   if (!input.workflowName.trim()) {
     fieldErrors.workflowName = 'Workflow name is required before launch.';
+  }
+
+  if (input.additionalParametersError) {
+    fieldErrors.additionalParameters = input.additionalParametersError;
+  }
+
+  if (input.metadataError) {
+    fieldErrors.metadata = input.metadataError;
   }
 
   if (input.workflowOverrideError) {

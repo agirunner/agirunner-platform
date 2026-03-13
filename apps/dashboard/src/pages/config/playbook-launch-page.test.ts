@@ -46,8 +46,13 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('Remove Entry');
     expect(source).toContain('Remove Override');
     expect(source).toContain('StructuredEntryEditor');
+    expect(source).toContain('validateStructuredEntries');
+    expect(source).toContain('validateRoleOverrideDrafts');
+    expect(source).toContain('Resolve the highlighted entry rows before launch.');
     expect(source).toContain('Reasoning Config Entries');
     expect(source).toContain('validateLaunchDraft');
+    expect(source).toContain('additionalParametersError');
+    expect(source).toContain('metadataError');
     expect(source).toContain('launchValidation.fieldErrors.workflowName');
     expect(source).toContain('All required launch inputs are present.');
     expect(source).not.toContain('Reasoning Config JSON');
