@@ -4,6 +4,7 @@ import {
   filterPlaybooks,
   summarizePlaybookLibrary,
   summarizePlaybookStructure,
+  validatePlaybookCreateDraft,
 } from './playbook-list-page.support.js';
 
 const PLAYBOOKS = [
@@ -62,6 +63,59 @@ describe('playbook list support', () => {
     expect(summarizePlaybookStructure(PLAYBOOKS[0])).toEqual({
       boardColumns: 2,
       stages: 2,
+    });
+  });
+
+  it('validates playbook creation basics with inline recovery guidance', () => {
+    expect(
+      validatePlaybookCreateDraft({
+        name: '',
+        slug: '',
+        outcome: '',
+        playbooks: PLAYBOOKS,
+      }),
+    ).toMatchObject({
+      normalizedSlug: '',
+      slugSource: 'name',
+      fieldErrors: {
+        name: 'Enter a playbook name.',
+        outcome: 'Describe the workflow outcome this playbook owns.',
+      },
+      blockingIssues: [
+        'Enter a playbook name.',
+        'Describe the workflow outcome this playbook owns.',
+      ],
+      isValid: false,
+    });
+
+    expect(
+      validatePlaybookCreateDraft({
+        name: 'Release Checklist',
+        slug: '',
+        outcome: 'Deliver a stable release',
+        playbooks: PLAYBOOKS,
+      }),
+    ).toMatchObject({
+      normalizedSlug: 'release-checklist',
+      fieldErrors: {
+        slug: "Slug 'release-checklist' already exists. Choose a different name or custom slug.",
+      },
+      isValid: false,
+    });
+
+    expect(
+      validatePlaybookCreateDraft({
+        name: '!!!',
+        slug: '',
+        outcome: 'Ship safely',
+        playbooks: PLAYBOOKS,
+      }),
+    ).toMatchObject({
+      normalizedSlug: '',
+      fieldErrors: {
+        name: 'Use letters or numbers so the generated slug is valid.',
+      },
+      isValid: false,
     });
   });
 });

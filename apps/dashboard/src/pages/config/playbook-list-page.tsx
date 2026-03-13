@@ -26,6 +26,7 @@ import {
 import {
   filterPlaybooks,
   summarizePlaybookLibrary,
+  validatePlaybookCreateDraft,
   type PlaybookLifecycleFilter,
   type PlaybookStatusFilter,
 } from './playbook-list-page.support.js';
@@ -111,6 +112,16 @@ export function PlaybookListPage(): JSX.Element {
     [allPlaybooks, search, statusFilter, lifecycleFilter],
   );
   const summaryCards = useMemo(() => summarizePlaybookLibrary(allPlaybooks), [allPlaybooks]);
+  const createValidation = useMemo(
+    () =>
+      validatePlaybookCreateDraft({
+        name,
+        slug,
+        outcome,
+        playbooks: allPlaybooks,
+      }),
+    [name, slug, outcome, allPlaybooks],
+  );
 
   function resetForm() {
     setName('');
@@ -129,7 +140,7 @@ export function PlaybookListPage(): JSX.Element {
   }
 
   const summary = summarizePlaybookAuthoringDraft(draft);
-  const canCreate = Boolean(name.trim() && outcome.trim()) && !createMutation.isPending;
+  const canCreate = createValidation.isValid && !createMutation.isPending;
 
   function openCreateWorkspace() {
     resetForm();
@@ -192,25 +203,57 @@ export function PlaybookListPage(): JSX.Element {
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="grid gap-2 text-sm">
                   <span className="font-medium">Name</span>
-                  <Input value={name} onChange={(event) => setName(event.target.value)} />
+                  <Input
+                    value={name}
+                    onChange={(event) => {
+                      setName(event.target.value);
+                      setDefinitionError(null);
+                    }}
+                  />
+                  {createValidation.fieldErrors.name ? (
+                    <p className="text-xs text-red-600">{createValidation.fieldErrors.name}</p>
+                  ) : null}
                 </label>
                 <label className="grid gap-2 text-sm">
                   <span className="font-medium">Slug</span>
                   <Input
                     value={slug}
-                    onChange={(event) => setSlug(event.target.value)}
+                    onChange={(event) => {
+                      setSlug(event.target.value);
+                      setDefinitionError(null);
+                    }}
                     placeholder="optional"
                   />
+                  <p className="text-xs text-muted">
+                    {createValidation.normalizedSlug
+                      ? `Slug preview: ${createValidation.normalizedSlug} (${createValidation.slugSource === 'custom' ? 'custom' : 'derived from name'})`
+                      : 'Slug will be generated from the name once it contains letters or numbers.'}
+                  </p>
+                  {createValidation.fieldErrors.slug ? (
+                    <p className="text-xs text-red-600">{createValidation.fieldErrors.slug}</p>
+                  ) : null}
                 </label>
                 <label className="grid gap-2 text-sm md:col-span-2">
                   <span className="font-medium">Outcome</span>
-                  <Input value={outcome} onChange={(event) => setOutcome(event.target.value)} />
+                  <Input
+                    value={outcome}
+                    onChange={(event) => {
+                      setOutcome(event.target.value);
+                      setDefinitionError(null);
+                    }}
+                  />
+                  {createValidation.fieldErrors.outcome ? (
+                    <p className="text-xs text-red-600">{createValidation.fieldErrors.outcome}</p>
+                  ) : null}
                 </label>
                 <label className="grid gap-2 text-sm md:col-span-2">
                   <span className="font-medium">Description</span>
                   <Textarea
                     value={description}
-                    onChange={(event) => setDescription(event.target.value)}
+                    onChange={(event) => {
+                      setDescription(event.target.value);
+                      setDefinitionError(null);
+                    }}
                     className="min-h-[96px]"
                   />
                 </label>
@@ -252,15 +295,34 @@ export function PlaybookListPage(): JSX.Element {
                 </p>
               </CardHeader>
               <CardContent className="grid gap-3 text-sm">
+                {createValidation.blockingIssues.length > 0 ? (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                    <div className="font-medium">Resolve these blockers before creating the playbook.</div>
+                    <ul className="mt-2 list-disc space-y-1 pl-5">
+                      {createValidation.blockingIssues.map((issue) => (
+                        <li key={issue}>{issue}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
+                    Playbook basics are ready. Continue shaping the board, stages, runtime, and launch posture below.
+                  </div>
+                )}
                 <ReadinessRow
                   label="Identity"
                   value={name.trim() ? name.trim() : 'Add a playbook name'}
-                  ready={name.trim().length > 0}
+                  ready={!createValidation.fieldErrors.name}
                 />
                 <ReadinessRow
                   label="Outcome"
                   value={outcome.trim() ? outcome.trim() : 'Describe the expected result'}
-                  ready={outcome.trim().length > 0}
+                  ready={!createValidation.fieldErrors.outcome}
+                />
+                <ReadinessRow
+                  label="Slug"
+                  value={createValidation.normalizedSlug || 'Generated from the playbook name'}
+                  ready={!createValidation.fieldErrors.slug}
                 />
                 <ReadinessRow label="Lifecycle" value={lifecycle} ready />
                 <ReadinessRow

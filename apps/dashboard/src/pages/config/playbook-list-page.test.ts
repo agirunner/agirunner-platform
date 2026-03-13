@@ -38,5 +38,8 @@ describe('playbook list page source', () => {
     expect(source).toContain('Lifecycle mix');
     expect(source).toContain('statusFilter');
     expect(source).toContain('lifecycleFilter');
+    expect(source).toContain('validatePlaybookCreateDraft');
+    expect(source).toContain('Resolve these blockers before creating the playbook.');
+    expect(source).toContain('Slug preview:');
   });
 });

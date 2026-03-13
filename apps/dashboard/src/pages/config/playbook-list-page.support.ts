@@ -9,6 +9,18 @@ export interface PlaybookLibrarySummaryCard {
   detail: string;
 }
 
+export interface PlaybookCreateValidationResult {
+  normalizedSlug: string;
+  slugSource: 'name' | 'custom';
+  fieldErrors: {
+    name?: string;
+    slug?: string;
+    outcome?: string;
+  };
+  blockingIssues: string[];
+  isValid: boolean;
+}
+
 export function filterPlaybooks(
   playbooks: DashboardPlaybookRecord[],
   search: string,
@@ -77,6 +89,52 @@ export function summarizePlaybookLibrary(
   ];
 }
 
+export function validatePlaybookCreateDraft(input: {
+  name: string;
+  slug: string;
+  outcome: string;
+  playbooks: DashboardPlaybookRecord[];
+}): PlaybookCreateValidationResult {
+  const name = input.name.trim();
+  const customSlug = input.slug.trim();
+  const outcome = input.outcome.trim();
+  const slugSource = customSlug ? 'custom' : 'name';
+  const normalizedSlug = normalizePlaybookSlug(customSlug || name);
+  const fieldErrors: PlaybookCreateValidationResult['fieldErrors'] = {};
+
+  if (!name) {
+    fieldErrors.name = 'Enter a playbook name.';
+  }
+  if (!outcome) {
+    fieldErrors.outcome = 'Describe the workflow outcome this playbook owns.';
+  }
+
+  if ((customSlug || name) && !normalizedSlug) {
+    if (customSlug) {
+      fieldErrors.slug = 'Use letters or numbers so the slug can be generated.';
+    } else {
+      fieldErrors.name = 'Use letters or numbers so the generated slug is valid.';
+    }
+  } else if (
+    normalizedSlug &&
+    input.playbooks.some((playbook) => playbook.slug === normalizedSlug)
+  ) {
+    fieldErrors.slug = `Slug '${normalizedSlug}' already exists. Choose a different name or custom slug.`;
+  }
+
+  const blockingIssues = [fieldErrors.name, fieldErrors.slug, fieldErrors.outcome].filter(
+    (issue): issue is string => Boolean(issue),
+  );
+
+  return {
+    normalizedSlug,
+    slugSource,
+    fieldErrors,
+    blockingIssues,
+    isValid: blockingIssues.length === 0,
+  };
+}
+
 export function summarizePlaybookStructure(playbook: DashboardPlaybookRecord): {
   boardColumns: number;
   stages: number;
@@ -90,4 +148,13 @@ export function summarizePlaybookStructure(playbook: DashboardPlaybookRecord): {
     ? ((playbook.definition as { stages?: unknown[] }).stages?.length ?? 0)
     : 0;
   return { boardColumns, stages };
+}
+
+function normalizePlaybookSlug(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
 }
