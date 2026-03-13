@@ -16,12 +16,17 @@ import {
   MAX_INLINE_ARTIFACT_PREVIEW_BYTES,
   renderArtifactPreviewMarkup,
 } from './artifact-preview-support.js';
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+import {
+  buildArtifactPreviewOperatorNavigation,
+  formatArtifactPreviewFileSize,
+  getPreviewModeLabel,
+} from './artifact-preview-page.support.js';
+import {
+  ArtifactMetadataCard,
+  BinaryPreviewNotice,
+  LargePreviewNotice,
+  PreviewStateNotice,
+} from './artifact-preview-page.sections.js';
 
 export function ArtifactPreviewPage(): JSX.Element {
   const { taskId = '', artifactId = '' } = useParams<{ taskId: string; artifactId: string }>();
@@ -30,6 +35,11 @@ export function ArtifactPreviewPage(): JSX.Element {
   const artifactListQuery = useQuery({
     queryKey: ['task-artifacts', taskId],
     queryFn: () => dashboardApi.listTaskArtifacts(taskId),
+    enabled: taskId.length > 0,
+  });
+  const taskQuery = useQuery({
+    queryKey: ['task', taskId],
+    queryFn: () => dashboardApi.getTask(taskId),
     enabled: taskId.length > 0,
   });
 
@@ -52,7 +62,11 @@ export function ArtifactPreviewPage(): JSX.Element {
   const previewText = previewDescriptor && previewQuery.data ? formatArtifactPreviewText(previewQuery.data.content_text, previewDescriptor) : '';
   const artifactName = artifact?.logical_path.split('/').pop() ?? artifact?.id ?? 'artifact';
   const previewModeLabel = getPreviewModeLabel(artifact, previewDescriptor);
-  const previewLimitLabel = formatFileSize(MAX_INLINE_ARTIFACT_PREVIEW_BYTES);
+  const previewLimitLabel = formatArtifactPreviewFileSize(MAX_INLINE_ARTIFACT_PREVIEW_BYTES);
+  const operatorNavigation = buildArtifactPreviewOperatorNavigation({
+    taskId,
+    task: taskQuery.data,
+  });
 
   async function handleCopyPermalink() {
     const permalink = `${window.location.origin}${buildArtifactPermalink(taskId, artifactId)}`;
@@ -112,7 +126,7 @@ export function ArtifactPreviewPage(): JSX.Element {
             <h1 className="text-2xl font-semibold text-rose-950">Failed to load artifact preview</h1>
             <p className="max-w-2xl text-sm text-rose-800">
               The dashboard could not resolve this artifact or its preview metadata. Re-open the
-              task record and retry from the artifact list.
+              higher-level operator flow or step diagnostics and retry from the artifact list.
             </p>
           </div>
         </section>
@@ -141,21 +155,29 @@ export function ArtifactPreviewPage(): JSX.Element {
             </div>
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline">{artifact.content_type}</Badge>
-              <Badge variant="outline">{formatFileSize(artifact.size_bytes)}</Badge>
+              <Badge variant="outline">{formatArtifactPreviewFileSize(artifact.size_bytes)}</Badge>
               <Badge variant="secondary">{previewModeLabel}</Badge>
               <Badge variant="outline">task {artifact.task_id}</Badge>
             </div>
             <div data-testid="artifact-preview-metadata-grid" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <ArtifactMetadataCard label="Artifact ID" value={artifact.id} helper="Stable operator reference for audit and handoff." />
-              <ArtifactMetadataCard label="Task record" value={`Task ${artifact.task_id}`} helper="Source execution record that produced this artifact." />
+              <ArtifactMetadataCard label="Operator flow" value={operatorNavigation.primaryLabel} helper={operatorNavigation.primaryHelper} />
+              <ArtifactMetadataCard label="Step diagnostics" value={`Task ${artifact.task_id}`} helper={operatorNavigation.diagnosticHref ? 'Use only when you need lower-level runtime and execution detail.' : 'This artifact only has direct step context.'} />
               <ArtifactMetadataCard label="Preview policy" value={previewModeLabel} helper={`Inline previews are capped at ${previewLimitLabel}.`} />
               <ArtifactMetadataCard label="Inspection path" value={previewDescriptor.kind === 'binary' ? 'Download original' : 'Rendered and raw'} helper="Operators can inspect the rendered view, raw content, or download the source." />
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" size="sm">
-              <Link to={`/work/tasks/${artifact.task_id}`}>Back to task record</Link>
+              <Link to={operatorNavigation.primaryHref}>{operatorNavigation.primaryLabel}</Link>
             </Button>
+            {operatorNavigation.diagnosticHref ? (
+              <Button asChild variant="outline" size="sm">
+                <Link to={operatorNavigation.diagnosticHref}>
+                  {operatorNavigation.diagnosticLabel}
+                </Link>
+              </Button>
+            ) : null}
             <Button variant="outline" size="sm" onClick={() => void handleCopyPermalink()}>
               <Copy className="h-4 w-4" />
               Copy Permalink
@@ -188,8 +210,7 @@ export function ArtifactPreviewPage(): JSX.Element {
               Source context
             </p>
             <p className="mt-3 text-sm text-muted-foreground">
-              This preview stays tied to the task record that produced it, so operators can jump back
-              to the originating execution trace, logs, and workflow review packet without losing context.
+              {operatorNavigation.sourceContextBody}
             </p>
           </article>
           <article className="rounded-2xl border border-border/60 bg-background/80 p-4">
@@ -235,7 +256,7 @@ export function ArtifactPreviewPage(): JSX.Element {
             ) : previewQuery.error ? (
               <PreviewStateNotice
                 title="Inline preview failed"
-                body="The artifact metadata loaded, but the content body could not be fetched. Download the source file or retry from the task record."
+                body="The artifact metadata loaded, but the content body could not be fetched. Return to the operator flow or open step diagnostics before retrying the source file."
                 accent="danger"
                 icon={<FileText className="h-4 w-4" />}
               />
@@ -262,71 +283,4 @@ export function ArtifactPreviewPage(): JSX.Element {
       </section>
     </div>
   );
-}
-
-function BinaryPreviewNotice(props: { artifactSize: number }): JSX.Element {
-  return (
-    <PreviewStateNotice
-      title="Download-only artifact"
-      body={`This artifact cannot be rendered safely inline. Download the original file to inspect ${formatFileSize(props.artifactSize)} of source material.`}
-      accent="muted"
-      icon={<Package className="h-4 w-4" />}
-    />
-  );
-}
-
-function LargePreviewNotice(props: { artifactSize: number }): JSX.Element {
-  return (
-    <PreviewStateNotice
-      title="Inline preview limit reached"
-      body={`Inline preview is limited to ${formatFileSize(MAX_INLINE_ARTIFACT_PREVIEW_BYTES)} to keep the operator surface responsive. This artifact is ${formatFileSize(props.artifactSize)}.`}
-      accent="muted"
-      icon={<FileText className="h-4 w-4" />}
-    />
-  );
-}
-
-function ArtifactMetadataCard(props: { label: string; value: string; helper: string }): JSX.Element {
-  return (
-    <div className="rounded-2xl border border-border/60 bg-background/80 p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-        {props.label}
-      </p>
-      <p className="mt-2 break-all text-sm font-medium">{props.value}</p>
-      <p className="mt-2 text-xs leading-5 text-muted-foreground">{props.helper}</p>
-    </div>
-  );
-}
-
-function PreviewStateNotice(props: { title: string; body: string; accent: 'muted' | 'danger'; icon: JSX.Element }): JSX.Element {
-  const className = props.accent === 'danger' ? 'border-rose-200 bg-rose-50/80 text-rose-900' : 'border-border/70 bg-muted/30 text-foreground';
-  return (
-    <div className={`rounded-2xl border p-4 ${className}`}>
-      <div className="flex items-start gap-3">
-        <span className="mt-0.5 rounded-xl border border-current/10 bg-background/80 p-2">
-          {props.icon}
-        </span>
-        <div className="space-y-1">
-          <p className="text-sm font-semibold">{props.title}</p>
-          <p className="text-sm leading-6 text-muted-foreground">{props.body}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function getPreviewModeLabel(
-  artifact: { size_bytes: number } | null,
-  previewDescriptor: { canPreview: boolean } | null,
-): string {
-  if (!artifact || !previewDescriptor) {
-    return 'Preview unavailable';
-  }
-  if (!previewDescriptor.canPreview) {
-    return 'Download only';
-  }
-  if (artifact.size_bytes > MAX_INLINE_ARTIFACT_PREVIEW_BYTES) {
-    return 'Download or raw source';
-  }
-  return 'Inline preview ready';
 }

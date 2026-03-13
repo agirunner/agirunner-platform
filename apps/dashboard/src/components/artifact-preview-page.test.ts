@@ -3,7 +3,13 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './artifact-preview-page.tsx'), 'utf8');
+  return [
+    './artifact-preview-page.tsx',
+    './artifact-preview-page.sections.tsx',
+    './artifact-preview-page.support.ts',
+  ]
+    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
+    .join('\n');
 }
 
 describe('artifact preview page source', () => {
@@ -14,7 +20,10 @@ describe('artifact preview page source', () => {
     expect(source).toContain('Artifact preview');
     expect(source).toContain('Preview workspace');
     expect(source).toContain('ArtifactMetadataCard');
-    expect(source).toContain('Back to task record');
+    expect(source).toContain('Back to work-item flow');
+    expect(source).toContain('Open step diagnostics');
+    expect(source).toContain('Operator flow');
+    expect(source).toContain('Step diagnostics');
     expect(source).toContain('Copy Permalink');
     expect(source).toContain('Download');
     expect(source).toContain('Open Permalink');
@@ -27,6 +36,7 @@ describe('artifact preview page source', () => {
     expect(source).toContain('Download-only artifact');
     expect(source).toContain('Inline preview limit reached');
     expect(source).toContain('Inline preview failed');
+    expect(source).toContain('Return to the operator flow or open step diagnostics');
     expect(source).toContain('Loading inline preview');
     expect(source).toContain('PreviewStateNotice');
   });
