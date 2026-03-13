@@ -10,7 +10,17 @@ describe('project artifact browser page source', () => {
   it('uses the dedicated project artifact explorer instead of the generic content browser', () => {
     const source = readSource();
     expect(source).toContain('ProjectArtifactExplorerPanel');
-    expect(source).toContain('showHeader');
+    expect(source).toContain('showHeader={false}');
     expect(source).not.toContain('ContentBrowserSurface');
+  });
+
+  it('adds an operator-focused wrapper with clear next actions', () => {
+    const source = readSource();
+    expect(source).toContain('Project operator surface');
+    expect(source).toContain('Review scope');
+    expect(source).toContain('Best next step');
+    expect(source).toContain('Cross-check provenance');
+    expect(source).toContain('Open Documents');
+    expect(source).toContain('Cross-check Memory');
   });
 });
