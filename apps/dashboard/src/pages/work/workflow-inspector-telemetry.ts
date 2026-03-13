@@ -2,10 +2,24 @@ import type { DashboardWorkflowRecord, LogStatsResponse } from '../../lib/api.js
 import { formatCost, formatDuration, shortId } from '../../components/execution-inspector-support.js';
 import { readWorkflowRunSummary } from '../workflow-detail-support.js';
 import type { WorkflowInspectorFocusWorkItem } from './workflow-inspector-support.js';
+import { describeSpendBreakdownCoverage } from './workflow-inspector-breakdown-coverage.js';
 import {
   buildWorkflowInspectorMemoryPacket,
   type WorkflowInspectorMemoryPacket,
 } from './workflow-inspector-memory-packet.js';
+import {
+  asArray,
+  asRecord,
+  buildStatsBreakdownEntries as buildTelemetryStatsBreakdownEntries,
+  buildWorkflowInspectorLink,
+  missingSpendPacket,
+  readCostFromPacket,
+  readGroupCost,
+  readString,
+  stripBreakdownCost,
+  sumBreakdownCost,
+  topCostGroup,
+} from './workflow-inspector-telemetry-support.js';
 import { buildWorkItemBreakdownEntries } from './workflow-inspector-work-item-breakdown.js';
 
 export interface WorkflowInspectorSpendPacket {
@@ -18,6 +32,8 @@ export interface WorkflowInspectorSpendPacket {
 export interface WorkflowInspectorSpendBreakdownSection {
   title: string;
   description: string;
+  coverageLabel: string;
+  coverageDetail: string;
   entries: WorkflowInspectorSpendPacket[];
 }
 
@@ -25,6 +41,10 @@ export interface WorkflowInspectorTelemetryModel {
   spendPackets: WorkflowInspectorSpendPacket[];
   spendBreakdowns: WorkflowInspectorSpendBreakdownSection[];
   memoryPacket: WorkflowInspectorMemoryPacket;
+}
+
+interface WorkflowInspectorSpendBreakdownEntry extends WorkflowInspectorSpendPacket {
+  costUsd: number;
 }
 
 export function buildWorkflowInspectorTelemetryModel(input: {
@@ -67,27 +87,64 @@ function buildSpendBreakdowns(input: {
   activationCostStats?: LogStatsResponse;
 }): WorkflowInspectorSpendBreakdownSection[] {
   return [
-    {
+    buildSpendBreakdownSection({
       title: 'Stage breakdown',
       description: 'Top reported stage spend from the workflow run summary.',
+      nounSingular: 'stage',
+      nounPlural: 'stages',
       entries: buildStageBreakdownEntries(input.workflowId, input.workflow),
-    },
-    {
+    }),
+    buildSpendBreakdownSection({
       title: 'Task breakdown',
       description: 'Top task-level spend from the current inspector log slice.',
+      nounSingular: 'task',
+      nounPlural: 'tasks',
       entries: buildTaskBreakdownEntries(input.workflowId, input.taskCostStats),
-    },
-    {
+    }),
+    buildSpendBreakdownSection({
       title: 'Activation breakdown',
       description: 'Top orchestrator activation spend from the current inspector slice.',
+      nounSingular: 'activation',
+      nounPlural: 'activations',
       entries: buildActivationBreakdownEntries(input.workflowId, input.activationCostStats),
-    },
-    {
+    }),
+    buildSpendBreakdownSection({
       title: 'Work item breakdown',
       description: 'Top workflow work-item spend from the current run summary.',
-      entries: buildWorkItemBreakdownEntries(input.workflowId, input.workflow),
-    },
+      nounSingular: 'work item',
+      nounPlural: 'work items',
+      entries: buildWorkItemBreakdownEntries(input.workflowId, input.workflow).map((entry) => ({
+        ...entry,
+        costUsd: readCostFromPacket(entry.value),
+      })),
+    }),
   ];
+}
+
+function buildSpendBreakdownSection(input: {
+  title: string;
+  description: string;
+  nounSingular: string;
+  nounPlural: string;
+  entries: WorkflowInspectorSpendBreakdownEntry[];
+}): WorkflowInspectorSpendBreakdownSection {
+  const visibleEntries = input.entries.slice(0, 3).map(stripBreakdownCost);
+  const coverage = describeSpendBreakdownCoverage({
+    nounSingular: input.nounSingular,
+    nounPlural: input.nounPlural,
+    totalCount: input.entries.length,
+    visibleCount: visibleEntries.length,
+    totalCostUsd: sumBreakdownCost(input.entries),
+    visibleCostUsd: sumBreakdownCost(input.entries.slice(0, 3)),
+  });
+
+  return {
+    title: input.title,
+    description: input.description,
+    coverageLabel: coverage.label,
+    coverageDetail: coverage.detail,
+    entries: visibleEntries,
+  };
 }
 
 function buildStageSpendPacket(
@@ -181,33 +238,36 @@ function buildActivationSpendPacket(
 function buildStageBreakdownEntries(
   workflowId: string,
   workflow?: DashboardWorkflowRecord,
-): WorkflowInspectorSpendPacket[] {
+): WorkflowInspectorSpendBreakdownEntry[] {
   const analytics = asRecord(asRecord(readWorkflowRunSummary(workflow)).orchestrator_analytics);
   return asArray(analytics.cost_by_stage)
-    .map((entry) => ({
-      label:
-        readString(asRecord(entry).stage_name)
-        ?? readString(asRecord(entry).group_key)
-        ?? 'Unassigned stage',
-      value: formatCost(Number(asRecord(entry).total_cost_usd ?? 0)),
-      detail: `${Number(asRecord(entry).task_count ?? 0)} step${Number(asRecord(entry).task_count ?? 0) === 1 ? '' : 's'} contributed to this stage.`,
-      href: buildWorkflowInspectorLink(workflowId, {
-        view: 'detailed',
-        stage:
+    .map((entry) => {
+      const totalCostUsd = Number(asRecord(entry).total_cost_usd ?? 0);
+      return {
+        label:
           readString(asRecord(entry).stage_name)
           ?? readString(asRecord(entry).group_key)
-          ?? 'unassigned',
-      }),
-    }))
-    .filter((entry) => entry.value !== '$0.0000')
-    .slice(0, 3);
+          ?? 'Unassigned stage',
+        value: formatCost(totalCostUsd),
+        detail: `${Number(asRecord(entry).task_count ?? 0)} step${Number(asRecord(entry).task_count ?? 0) === 1 ? '' : 's'} contributed to this stage.`,
+        costUsd: totalCostUsd,
+        href: buildWorkflowInspectorLink(workflowId, {
+          view: 'detailed',
+          stage:
+            readString(asRecord(entry).stage_name)
+            ?? readString(asRecord(entry).group_key)
+            ?? 'unassigned',
+        }),
+      };
+    })
+    .filter((entry) => entry.costUsd > 0);
 }
 
 function buildTaskBreakdownEntries(
   workflowId: string,
   stats?: LogStatsResponse,
-): WorkflowInspectorSpendPacket[] {
-  return buildStatsBreakdownEntries(stats, {
+): WorkflowInspectorSpendBreakdownEntry[] {
+  return buildTelemetryStatsBreakdownEntries(stats, {
     formatLabel: (group) => `Step ${shortId(group.group)}`,
     formatDetail: (group) =>
       `${group.count} trace entr${group.count === 1 ? 'y' : 'ies'} • ${formatDuration(group.avg_duration_ms)} average recorded duration.`,
@@ -218,79 +278,12 @@ function buildTaskBreakdownEntries(
 function buildActivationBreakdownEntries(
   workflowId: string,
   stats?: LogStatsResponse,
-): WorkflowInspectorSpendPacket[] {
-  return buildStatsBreakdownEntries(stats, {
+): WorkflowInspectorSpendBreakdownEntry[] {
+  return buildTelemetryStatsBreakdownEntries(stats, {
     formatLabel: (group) => `Activation ${shortId(group.group)}`,
     formatDetail: (group) =>
       `${group.count} trace entr${group.count === 1 ? 'y' : 'ies'} • ${formatDuration(group.avg_duration_ms)} average recorded duration.`,
     hrefFor: (group) =>
       buildWorkflowInspectorLink(workflowId, { view: 'detailed', activation: group.group }),
   });
-}
-
-function buildStatsBreakdownEntries(
-  stats: LogStatsResponse | undefined,
-  helpers: {
-    formatLabel(group: LogStatsResponse['data']['groups'][number]): string;
-    formatDetail(group: LogStatsResponse['data']['groups'][number]): string;
-    hrefFor(group: LogStatsResponse['data']['groups'][number]): string;
-  },
-): WorkflowInspectorSpendPacket[] {
-  return [...(stats?.data.groups ?? [])]
-    .filter((group) => group.group !== 'unassigned')
-    .filter((group) => readGroupCost(group) > 0)
-    .sort((left, right) => readGroupCost(right) - readGroupCost(left))
-    .slice(0, 3)
-    .map((group) => ({
-      label: helpers.formatLabel(group),
-      value: formatCost(readGroupCost(group)),
-      detail: helpers.formatDetail(group),
-      href: helpers.hrefFor(group),
-    }));
-}
-
-function topCostGroup(
-  stats: LogStatsResponse | undefined,
-  predicate: (group: LogStatsResponse['data']['groups'][number]) => boolean,
-) {
-  return [...(stats?.data.groups ?? [])]
-    .filter(predicate)
-    .filter((group) => readGroupCost(group) > 0)
-    .sort((left, right) => readGroupCost(right) - readGroupCost(left))[0];
-}
-
-function missingSpendPacket(
-  label: string,
-  detail: string,
-): WorkflowInspectorSpendPacket {
-  return { label, value: 'Not recorded', detail, href: null };
-}
-
-function readGroupCost(group: LogStatsResponse['data']['groups'][number]): number {
-  return Number(group.agg.total_cost_usd ?? 0);
-}
-
-function buildWorkflowInspectorLink(
-  workflowId: string,
-  params: Record<string, string>,
-): string {
-  const searchParams = new URLSearchParams(params);
-  return `/work/workflows/${workflowId}/inspector?${searchParams.toString()}`;
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return {};
-  }
-  return value as Record<string, unknown>;
-}
-
-function asArray(value: unknown): Array<Record<string, unknown>> {
-  return Array.isArray(value)
-    ? value.filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === 'object')
-    : [];
-}
-
-function readString(value: unknown): string | null {
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 }

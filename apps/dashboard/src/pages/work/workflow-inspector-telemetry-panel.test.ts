@@ -18,6 +18,8 @@ describe('workflow inspector telemetry panel source', () => {
     expect(source).toContain('Memory evolution review');
     expect(source).toContain('DiffViewer');
     expect(source).toContain('props.telemetry.spendBreakdowns.map');
+    expect(source).toContain('section.coverageLabel');
+    expect(source).toContain('section.coverageDetail');
     expect(source).toContain('Open spend slice');
     expect(source).toContain('Open breakdown slice');
     expect(source).toContain('No deeper breakdown is available in this slice yet.');

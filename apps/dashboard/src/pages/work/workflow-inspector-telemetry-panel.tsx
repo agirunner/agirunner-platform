@@ -81,6 +81,10 @@ export function WorkflowInspectorTelemetryPanel(
               <div className="grid gap-1">
                 <div className="text-sm font-medium text-foreground">{section.title}</div>
                 <p className="text-sm leading-6 text-muted">{section.description}</p>
+                <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted">
+                  {section.coverageLabel}
+                </div>
+                <p className="text-xs leading-5 text-muted">{section.coverageDetail}</p>
               </div>
               {section.entries.length > 0 ? (
                 <div className="grid gap-3">

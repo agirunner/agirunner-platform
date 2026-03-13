@@ -148,7 +148,9 @@ describe('workflow inspector telemetry', () => {
           '/work/workflows/workflow-1/inspector?view=detailed&activation=activation-123456789',
       },
     ]);
-    expect(model.spendBreakdowns).toEqual([
+    expect(
+      model.spendBreakdowns.map(({ title, description, entries }) => ({ title, description, entries })),
+    ).toEqual([
       {
         title: 'Stage breakdown',
         description: 'Top reported stage spend from the workflow run summary.',
@@ -211,6 +213,29 @@ describe('workflow inspector telemetry', () => {
         ],
       },
     ]);
+    expect(
+      model.spendBreakdowns.map(({ coverageLabel, coverageDetail }) => ({
+        coverageLabel,
+        coverageDetail,
+      })),
+    ).toEqual([
+      {
+        coverageLabel: 'Showing all 2 stages',
+        coverageDetail: '$6.7500 of recorded spend is visible in this slice.',
+      },
+      {
+        coverageLabel: 'Showing all 1 task',
+        coverageDetail: '$1.7500 of recorded spend is visible in this slice.',
+      },
+      {
+        coverageLabel: 'Showing all 1 activation',
+        coverageDetail: '$2.2500 of recorded spend is visible in this slice.',
+      },
+      {
+        coverageLabel: 'Showing all 2 work items',
+        coverageDetail: '$6.7500 of recorded spend is visible in this slice.',
+      },
+    ]);
     expect(model.memoryPacket.title).toBe('Memory evolution · Review release notes');
     expect(model.memoryPacket.changes).toEqual([
       expect.objectContaining({
@@ -264,7 +289,9 @@ describe('workflow inspector telemetry', () => {
       detail: 'No stage-level cost packet is available in the current run summary yet.',
       href: null,
     });
-    expect(model.spendBreakdowns).toEqual([
+    expect(
+      model.spendBreakdowns.map(({ title, description, entries }) => ({ title, description, entries })),
+    ).toEqual([
       {
         title: 'Stage breakdown',
         description: 'Top reported stage spend from the workflow run summary.',
@@ -284,6 +311,29 @@ describe('workflow inspector telemetry', () => {
         title: 'Work item breakdown',
         description: 'Top workflow work-item spend from the current run summary.',
         entries: [],
+      },
+    ]);
+    expect(
+      model.spendBreakdowns.map(({ coverageLabel, coverageDetail }) => ({
+        coverageLabel,
+        coverageDetail,
+      })),
+    ).toEqual([
+      {
+        coverageLabel: 'No stage spend recorded',
+        coverageDetail: 'No stage-level spend is available in this inspector lane yet.',
+      },
+      {
+        coverageLabel: 'No task spend recorded',
+        coverageDetail: 'No task-level spend is available in this inspector lane yet.',
+      },
+      {
+        coverageLabel: 'No activation spend recorded',
+        coverageDetail: 'No activation-level spend is available in this inspector lane yet.',
+      },
+      {
+        coverageLabel: 'No work item spend recorded',
+        coverageDetail: 'No work item-level spend is available in this inspector lane yet.',
       },
     ]);
     expect(model.memoryPacket).toEqual({
