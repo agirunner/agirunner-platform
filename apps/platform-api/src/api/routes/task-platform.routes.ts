@@ -9,10 +9,21 @@ import { SchemaValidationFailedError, ValidationError } from '../../errors/domai
 import { ArtifactCatalogService } from '../../services/artifact-catalog-service.js';
 import { TaskAgentScopeService } from '../../services/task-agent-scope-service.js';
 
-const memoryPatchSchema = z.object({
-  key: z.string().min(1).max(256),
-  value: z.unknown(),
-});
+const memoryUpdatesSchema = z
+  .record(z.string().min(1).max(256), z.unknown())
+  .refine((value) => Object.keys(value).length > 0, {
+    message: 'updates must contain at least one entry',
+  });
+
+const memoryPatchSchema = z.union([
+  z.object({
+    key: z.string().min(1).max(256),
+    value: z.unknown(),
+  }),
+  z.object({
+    updates: memoryUpdatesSchema,
+  }),
+]);
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
@@ -59,15 +70,31 @@ export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
       if (!task.project_id) {
         throw new ValidationError('Task is not linked to a project');
       }
+      const context = {
+        workflow_id: task.workflow_id,
+        work_item_id: task.work_item_id,
+        task_id: task.id,
+        stage_name: task.stage_name,
+      };
+
+      if ('updates' in body) {
+        return {
+          data: await app.projectService.patchProjectMemoryEntries(
+            request.auth!,
+            task.project_id,
+            Object.entries(body.updates).map(([key, value]) => ({
+              key,
+              value,
+              context,
+            })),
+          ),
+        };
+      }
+
       return {
         data: await app.projectService.patchProjectMemory(request.auth!, task.project_id, {
           ...body,
-          context: {
-            workflow_id: task.workflow_id,
-            work_item_id: task.work_item_id,
-            task_id: task.id,
-            stage_name: task.stage_name,
-          },
+          context,
         }),
       };
     },

@@ -134,12 +134,25 @@ const workflowCompleteSchema = z.object({
   final_artifacts: z.array(z.string().min(1).max(2000)).max(100).optional(),
 });
 
-const projectMemoryWriteSchema = z.object({
-  request_id: z.string().min(1).max(255),
-  key: z.string().min(1).max(256),
-  value: z.unknown(),
-  work_item_id: z.string().uuid().optional(),
-});
+const projectMemoryUpdatesSchema = z
+  .record(z.string().min(1).max(256), z.unknown())
+  .refine((value) => Object.keys(value).length > 0, {
+    message: 'updates must contain at least one entry',
+  });
+
+const projectMemoryWriteSchema = z.union([
+  z.object({
+    request_id: z.string().min(1).max(255),
+    key: z.string().min(1).max(256),
+    value: z.unknown(),
+    work_item_id: z.string().uuid().optional(),
+  }),
+  z.object({
+    request_id: z.string().min(1).max(255),
+    updates: projectMemoryUpdatesSchema,
+    work_item_id: z.string().uuid().optional(),
+  }),
+]);
 
 const childWorkflowCreateSchema = z.object({
   request_id: z.string().min(1).max(255),
@@ -681,20 +694,36 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         'memory_write',
         body.request_id,
         (client) =>
-          app.projectService.patchProjectMemory(
-            request.auth!,
-            taskScope.project_id as string,
-            {
-              ...body,
-              context: {
-                workflow_id: taskScope.workflow_id,
-                work_item_id: body.work_item_id ?? taskScope.work_item_id,
-                task_id: taskScope.id,
-                stage_name: taskScope.stage_name,
-              },
-            },
-            client,
-          ),
+          'updates' in body
+            ? app.projectService.patchProjectMemoryEntries(
+                request.auth!,
+                taskScope.project_id as string,
+                Object.entries(body.updates).map(([key, value]) => ({
+                  key,
+                  value,
+                  context: {
+                    workflow_id: taskScope.workflow_id,
+                    work_item_id: body.work_item_id ?? taskScope.work_item_id,
+                    task_id: taskScope.id,
+                    stage_name: taskScope.stage_name,
+                  },
+                })),
+                client,
+              )
+            : app.projectService.patchProjectMemory(
+                request.auth!,
+                taskScope.project_id as string,
+                {
+                  ...body,
+                  context: {
+                    workflow_id: taskScope.workflow_id,
+                    work_item_id: body.work_item_id ?? taskScope.work_item_id,
+                    task_id: taskScope.id,
+                    stage_name: taskScope.stage_name,
+                  },
+                },
+                client,
+              ),
       );
       return { data: stored };
     },

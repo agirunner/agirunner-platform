@@ -340,6 +340,130 @@ describe('orchestratorControlRoutes', () => {
     );
   });
 
+  it('accepts design-shaped orchestrator memory updates objects through the replay-safe bridge', async () => {
+    const projectService = {
+      patchProjectMemory: vi.fn(),
+      patchProjectMemoryEntries: vi.fn().mockResolvedValue({
+        id: 'project-1',
+        memory: {
+          summary: 'Scoped note',
+          decision: { outcome: 'ship' },
+        },
+      }),
+      removeProjectMemory: vi.fn(),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'memory_write', 'memory-updates-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              response: {
+                id: 'project-1',
+                memory: {
+                  summary: 'Scoped note',
+                  decision: { outcome: 'ship' },
+                },
+              },
+            }],
+          };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-memory']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-memory',
+              workflow_id: 'workflow-1',
+              project_id: 'project-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'requirements',
+              activation_id: 'activation-1',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => client),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { getWorkflowWorkItem: vi.fn(), createWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', { createTask: vi.fn() });
+    app.decorate('projectService', projectService);
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-memory/memory',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'memory-updates-1',
+        updates: {
+          summary: 'Scoped note',
+          decision: { outcome: 'ship' },
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(projectService.patchProjectMemoryEntries).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'project-1',
+      [
+        {
+          key: 'summary',
+          value: 'Scoped note',
+          context: {
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: 'task-memory',
+            stage_name: 'requirements',
+          },
+        },
+        {
+          key: 'decision',
+          value: { outcome: 'ship' },
+          context: {
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: 'task-memory',
+            stage_name: 'requirements',
+          },
+        },
+      ],
+      client,
+    );
+    expect(response.json().data.memory).toEqual({
+      summary: 'Scoped note',
+      decision: { outcome: 'ship' },
+    });
+  });
+
   it('rejects memory_delete without request_id', async () => {
     app = fastify();
     registerErrorHandler(app);

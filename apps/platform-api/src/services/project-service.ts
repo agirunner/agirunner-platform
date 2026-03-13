@@ -34,6 +34,12 @@ interface UpdateProjectInput {
   is_active?: boolean;
 }
 
+interface ProjectMemoryPatch {
+  key: string;
+  value?: unknown;
+  context?: ProjectMemoryMutationContext;
+}
+
 type ProjectRow = TenantRow & Record<string, unknown>;
 const PROJECT_MEMORY_SECRET_REDACTION = 'redacted://project-memory-secret';
 const PROJECT_SETTINGS_SECRET_REDACTION = 'redacted://project-settings-secret';
@@ -256,62 +262,104 @@ export class ProjectService {
   async patchProjectMemory(
     identity: ApiKeyIdentity,
     projectId: string,
-    patch: { key: string; value?: unknown; context?: ProjectMemoryMutationContext },
+    patch: ProjectMemoryPatch,
     client?: DatabaseClient,
   ) {
-    const project = await this.getProject(identity.tenantId, projectId);
-    const currentMemory = normalizeRecord(project.memory);
-    const nextMemory = {
-      ...currentMemory,
-      [patch.key]: patch.value,
-    };
-    const memoryMaxBytes = Number(project.memory_max_bytes ?? 1_048_576);
-    const memorySizeBytes = byteLengthJson(nextMemory);
+    return this.patchProjectMemoryEntries(identity, projectId, [patch], client);
+  }
 
-    if (memorySizeBytes > memoryMaxBytes) {
-      throw new ValidationError('Project memory patch exceeds memory_max_bytes', {
-        memory_size_bytes: memorySizeBytes,
-        memory_max_bytes: memoryMaxBytes,
-        key: patch.key,
-      });
+  async patchProjectMemoryEntries(
+    identity: ApiKeyIdentity,
+    projectId: string,
+    patches: ProjectMemoryPatch[],
+    client?: DatabaseClient,
+  ) {
+    if (patches.length === 0) {
+      throw new ValidationError('Project memory updates cannot be empty');
     }
 
-    const db = client ?? this.pool;
-    const result = await db.query<Record<string, unknown>>(
-      `UPDATE projects
-       SET memory = $3,
-           memory_size_bytes = $4,
-           updated_at = now()
-       WHERE tenant_id = $1 AND id = $2
-       RETURNING *`,
-      [identity.tenantId, projectId, nextMemory, memorySizeBytes],
-    );
+    const ownsTransaction = !client;
+    const db = client ?? (await this.pool.connect());
 
-    const updatedProject = result.rows[0] as ProjectRow;
+    try {
+      if (ownsTransaction) {
+        await db.query('BEGIN');
+      }
 
-    await this.eventService.emit(
-      {
-        tenantId: identity.tenantId,
-        type: 'project.memory_updated',
-        entityType: 'project',
-        entityId: projectId,
-        actorType: identity.scope,
-        actorId: identity.keyPrefix,
-        data: {
-          key: patch.key,
-          value: sanitizeMemoryEventValue(patch.key, patch.value),
-          project_id: projectId,
-          workflow_id: patch.context?.workflow_id ?? null,
-          work_item_id: patch.context?.work_item_id ?? null,
-          task_id: patch.context?.task_id ?? null,
-          stage_name: patch.context?.stage_name ?? null,
-          memory_size_bytes: memorySizeBytes,
-        },
-      },
-      client,
-    );
+      let project = await this.loadProjectForMemoryMutation(identity.tenantId, projectId, db);
+      let currentMemory = normalizeRecord(project.memory);
 
-    return redactProjectSecrets(updatedProject);
+      for (const patch of patches) {
+        if (!patch.key || patch.key.length > 256) {
+          throw new ValidationError('Project memory key must be between 1 and 256 characters');
+        }
+
+        const nextMemory = {
+          ...currentMemory,
+          [patch.key]: patch.value,
+        };
+        const memoryMaxBytes = Number(project.memory_max_bytes ?? 1_048_576);
+        const memorySizeBytes = byteLengthJson(nextMemory);
+
+        if (memorySizeBytes > memoryMaxBytes) {
+          throw new ValidationError('Project memory patch exceeds memory_max_bytes', {
+            memory_size_bytes: memorySizeBytes,
+            memory_max_bytes: memoryMaxBytes,
+            key: patch.key,
+          });
+        }
+
+        const result = await db.query<Record<string, unknown>>(
+          `UPDATE projects
+           SET memory = $3,
+               memory_size_bytes = $4,
+               updated_at = now()
+           WHERE tenant_id = $1 AND id = $2
+           RETURNING *`,
+          [identity.tenantId, projectId, nextMemory, memorySizeBytes],
+        );
+
+        project = result.rows[0] as ProjectRow;
+        currentMemory = normalizeRecord(project.memory);
+
+        await this.eventService.emit(
+          {
+            tenantId: identity.tenantId,
+            type: 'project.memory_updated',
+            entityType: 'project',
+            entityId: projectId,
+            actorType: identity.scope,
+            actorId: identity.keyPrefix,
+            data: {
+              key: patch.key,
+              value: sanitizeMemoryEventValue(patch.key, patch.value),
+              project_id: projectId,
+              workflow_id: patch.context?.workflow_id ?? null,
+              work_item_id: patch.context?.work_item_id ?? null,
+              task_id: patch.context?.task_id ?? null,
+              stage_name: patch.context?.stage_name ?? null,
+              memory_size_bytes: memorySizeBytes,
+            },
+          },
+          db,
+        );
+      }
+
+      if (ownsTransaction) {
+        await db.query('COMMIT');
+      }
+
+      return redactProjectSecrets(project);
+    } catch (error) {
+      if (ownsTransaction) {
+        await db.query('ROLLBACK');
+      }
+      throw error;
+    } finally {
+      if (ownsTransaction) {
+        db.release();
+      }
+    }
   }
 
   async removeProjectMemory(
@@ -560,6 +608,25 @@ export class ProjectService {
       [tenantId, projectId, encryptedSecret],
     );
     return encryptedSecret;
+  }
+
+  private async loadProjectForMemoryMutation(
+    tenantId: string,
+    projectId: string,
+    client: DatabaseClient,
+  ): Promise<ProjectRow> {
+    const result = await client.query<Record<string, unknown>>(
+      `SELECT *
+         FROM projects
+        WHERE tenant_id = $1
+          AND id = $2
+        FOR UPDATE`,
+      [tenantId, projectId],
+    );
+    if (!result.rowCount) {
+      throw new NotFoundError('Project not found');
+    }
+    return result.rows[0] as ProjectRow;
   }
 }
 
