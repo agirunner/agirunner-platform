@@ -3,7 +3,12 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './project-memory-history-panel.tsx'), 'utf8');
+  return [
+    './project-memory-history-panel.tsx',
+    './project-memory-history-panel.sections.tsx',
+  ]
+    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
+    .join('\n');
 }
 
 describe('project memory history panel source', () => {
@@ -18,8 +23,11 @@ describe('project memory history panel source', () => {
 
   it('renders a per-key version trail with diff review', () => {
     const source = readSource();
+    expect(source).toContain('Current focus');
+    expect(source).toContain('Next review step');
     expect(source).toContain('Version trail');
     expect(source).toContain('Select a revision to compare it against the version immediately before it.');
+    expect(source).toContain('Inspect the selected revision first');
     expect(source).toContain('DiffViewer');
     expect(source).toContain('Version Diff');
     expect(source).toContain('Payload');
