@@ -181,15 +181,25 @@ function toActivationResponse(row: ActivationRow, rows: ActivationRow[] = [row])
   const sortedRows = rows
     .slice()
     .sort((left, right) => left.queued_at.getTime() - right.queued_at.getTime());
+  const activationReason = deriveActivationReason(sortedRows);
+  const dispatchableRows = listDispatchableActivationRows(sortedRows);
+  const primaryRow = findPrimaryActivationRow(row, sortedRows);
+  const eventTypes =
+    dispatchableRows.length > 0
+      ? Array.from(new Set(dispatchableRows.map((event) => event.event_type)))
+      : ['heartbeat'];
+  const latestEventAt =
+    (dispatchableRows[dispatchableRows.length - 1] ?? sortedRows[sortedRows.length - 1] ?? row).queued_at.toISOString();
 
   return {
     id: row.id,
     activation_id: row.activation_id ?? row.id,
     workflow_id: row.workflow_id,
     request_id: row.request_id,
-    reason: row.reason,
-    event_type: row.event_type,
-    payload: sanitizeSecretLikeRecord(row.payload, {
+    reason: primaryRow.reason,
+    event_type: primaryRow.event_type,
+    activation_reason: activationReason,
+    payload: sanitizeSecretLikeRecord(primaryRow.payload, {
       redactionValue: 'redacted://activation-secret',
       allowSecretReferences: false,
     }),
@@ -208,11 +218,10 @@ function toActivationResponse(row: ActivationRow, rows: ActivationRow[] = [row])
     recovery_detected_at: recovery?.detected_at ?? null,
     stale_started_at: recovery?.stale_started_at ?? null,
     redispatched_task_id: recovery?.redispatched_task_id ?? null,
-    event_types: Array.from(new Set(sortedRows.map((event) => event.event_type))),
-    latest_event_at:
-      sortedRows[sortedRows.length - 1]?.queued_at.toISOString() ?? row.queued_at.toISOString(),
-    event_count: rows.length,
-    events: sortedRows.map((event) => serializeEvent(event)),
+    event_types: eventTypes,
+    latest_event_at: latestEventAt,
+    event_count: dispatchableRows.length,
+    events: dispatchableRows.map((event) => serializeEvent(event)),
   };
 }
 
@@ -329,6 +338,18 @@ function groupActivationRows(rows: ActivationRow[]) {
 function findActivationAnchor(rows: ActivationRow[]) {
   const anchorId = rows[0]?.activation_id ?? rows[0]?.id;
   return rows.find((row) => row.id === anchorId) ?? rows[0];
+}
+
+function deriveActivationReason(rows: ActivationRow[]): 'queued_events' | 'heartbeat' {
+  return rows.some((row) => row.event_type !== 'heartbeat') ? 'queued_events' : 'heartbeat';
+}
+
+function listDispatchableActivationRows(rows: ActivationRow[]): ActivationRow[] {
+  return rows.filter((row) => row.event_type !== 'heartbeat');
+}
+
+function findPrimaryActivationRow(anchor: ActivationRow, rows: ActivationRow[]): ActivationRow {
+  return rows.find((row) => row.event_type !== 'heartbeat') ?? anchor;
 }
 
 function assertIdempotentActivationReplay(

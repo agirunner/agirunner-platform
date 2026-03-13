@@ -367,6 +367,137 @@ describe('WorkflowActivationService', () => {
     );
   });
 
+  it('serializes heartbeat-only activations without pseudo-event rows', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.startsWith('SELECT id FROM workflows')) {
+          return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+        }
+        if (sql.includes('FROM workflow_activations')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'activation-heartbeat',
+                workflow_id: 'workflow-1',
+                activation_id: 'activation-heartbeat',
+                request_id: 'heartbeat:workflow-1:5911344',
+                reason: 'heartbeat',
+                event_type: 'heartbeat',
+                payload: {},
+                state: 'queued',
+                dispatch_attempt: 0,
+                dispatch_token: null,
+                queued_at: new Date('2026-03-13T12:00:00Z'),
+                started_at: null,
+                consumed_at: null,
+                completed_at: null,
+                summary: null,
+                error: null,
+              },
+            ],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new WorkflowActivationService(pool as never, { emit: vi.fn() } as never);
+
+    const result = await service.get(identity.tenantId, 'workflow-1', 'activation-heartbeat');
+
+    expect(result.data).toEqual(
+      expect.objectContaining({
+        id: 'activation-heartbeat',
+        activation_id: 'activation-heartbeat',
+        request_id: 'heartbeat:workflow-1:5911344',
+        reason: 'heartbeat',
+        event_type: 'heartbeat',
+        activation_reason: 'heartbeat',
+        event_types: ['heartbeat'],
+        event_count: 0,
+        events: [],
+      }),
+    );
+  });
+
+  it('surfaces the real trigger event for mixed batches anchored by a heartbeat row', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.startsWith('SELECT id FROM workflows')) {
+          return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+        }
+        if (sql.includes('FROM workflow_activations')) {
+          return {
+            rowCount: 2,
+            rows: [
+              {
+                id: 'activation-heartbeat',
+                workflow_id: 'workflow-1',
+                activation_id: 'activation-heartbeat',
+                request_id: 'heartbeat:workflow-1:5911344',
+                reason: 'heartbeat',
+                event_type: 'heartbeat',
+                payload: {},
+                state: 'processing',
+                dispatch_attempt: 1,
+                dispatch_token: 'dispatch-token-1',
+                queued_at: new Date('2026-03-13T12:00:00Z'),
+                started_at: new Date('2026-03-13T12:00:05Z'),
+                consumed_at: null,
+                completed_at: null,
+                summary: null,
+                error: null,
+              },
+              {
+                id: 'activation-task-completed',
+                workflow_id: 'workflow-1',
+                activation_id: 'activation-heartbeat',
+                request_id: 'req-task-completed',
+                reason: 'task.completed',
+                event_type: 'task.completed',
+                payload: { task_id: 'task-9', work_item_id: 'wi-9' },
+                state: 'queued',
+                dispatch_attempt: 1,
+                dispatch_token: 'dispatch-token-1',
+                queued_at: new Date('2026-03-13T12:00:06Z'),
+                started_at: new Date('2026-03-13T12:00:05Z'),
+                consumed_at: null,
+                completed_at: null,
+                summary: null,
+                error: null,
+              },
+            ],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new WorkflowActivationService(pool as never, { emit: vi.fn() } as never);
+
+    const result = await service.get(identity.tenantId, 'workflow-1', 'activation-heartbeat');
+
+    expect(result.data).toEqual(
+      expect.objectContaining({
+        id: 'activation-heartbeat',
+        activation_id: 'activation-heartbeat',
+        request_id: 'heartbeat:workflow-1:5911344',
+        reason: 'task.completed',
+        event_type: 'task.completed',
+        activation_reason: 'queued_events',
+        payload: { task_id: 'task-9', work_item_id: 'wi-9' },
+        event_types: ['task.completed'],
+        event_count: 1,
+        events: [
+          expect.objectContaining({
+            id: 'activation-task-completed',
+            event_type: 'task.completed',
+            reason: 'task.completed',
+          }),
+        ],
+      }),
+    );
+  });
+
   it('filters workflow activations by recovery status and returns derived recovery fields', async () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
