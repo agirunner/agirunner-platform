@@ -3,7 +3,12 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './live-board-page.tsx'), 'utf8');
+  return [
+    './live-board-page.tsx',
+    './live-board-attention-actions.ts',
+  ]
+    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
+    .join('\n');
 }
 
 describe('live board page source', () => {
@@ -42,9 +47,13 @@ describe('live board page source', () => {
     expect(source).toContain('Search boards, work items, stages, gates, steps, or IDs');
     expect(source).toContain('describeAttentionStep');
     expect(source).toContain('resolveTaskOperatorState');
+    expect(source).toContain('buildAttentionTaskActions');
     expect(source).toContain('Open approvals');
     expect(source).toContain('Open work-item flow');
-    expect(source).toContain('Open failed step');
+    expect(source).toContain('Open board context');
+    expect(source).toContain('Open failed step diagnostics');
+    expect(source).toContain('Open step diagnostics');
+    expect(source).toContain('Board work linked');
     expect(source).not.toContain("t.status === 'awaiting_approval'");
     expect(source).not.toContain("t.status === 'failed'");
   });

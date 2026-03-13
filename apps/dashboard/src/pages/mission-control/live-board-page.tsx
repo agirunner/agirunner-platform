@@ -45,6 +45,7 @@ import {
 } from '../../components/ui/table.js';
 import { buildWorkflowDetailPermalink } from '../workflow-detail-permalinks.js';
 import { describeTimelineEvent } from '../workflow-history-card.js';
+import { buildAttentionTaskActions } from './live-board-attention-actions.js';
 import {
   countActiveSpecialistSteps,
   countBlockedBoardItems,
@@ -1158,48 +1159,56 @@ function NeedsAttentionSection({ approvalTasks, failedTasks, blockedItems, stage
               </div>
             </div>
           ))}
-          {items.map((task) => (
-            <div key={task.id} className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-sm">{task.title ?? task.name ?? task.id}</p>
-                <div className="mt-1 flex items-center gap-2">
-                  <Badge variant={resolveTaskOperatorState(task) === 'failed' ? 'destructive' : 'warning'}>
-                    {describeAttentionStep(task)}
-                  </Badge>
-                  {task.stage_name ? <span className="text-xs text-muted">Stage: {task.stage_name}</span> : null}
-                  {task.work_item_id ? <span className="text-xs text-muted">Work item: {task.work_item_id}</span> : null}
-                  {task.role ? <span className="text-xs text-muted">Role: {task.role}</span> : null}
-                  {task.assigned_worker && (
-                    <span className="text-xs text-muted">Worker: {task.assigned_worker}</span>
-                  )}
+          {items.map((task) => {
+            const taskActions = buildAttentionTaskActions({
+              taskId: task.id,
+              workflowId: task.workflow_id,
+              workItemId: task.work_item_id,
+              activationId: task.activation_id,
+              state: task.state,
+              status: task.status,
+            });
+
+            return (
+              <div key={task.id} className="flex flex-col gap-3 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-sm">{task.title ?? task.name ?? task.id}</p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <Badge variant={resolveTaskOperatorState(task) === 'failed' ? 'destructive' : 'warning'}>
+                      {describeAttentionStep(task)}
+                    </Badge>
+                    {task.stage_name ? <span className="text-xs text-muted">Stage: {task.stage_name}</span> : null}
+                    {task.work_item_id ? <span className="text-xs text-muted">Board work linked</span> : null}
+                    {task.role ? <span className="text-xs text-muted">Role: {task.role}</span> : null}
+                    {task.assigned_worker ? (
+                      <span className="text-xs text-muted">Worker: {task.assigned_worker}</span>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2 sm:ml-4">
+                  {taskActions
+                    .filter((action) => action.isPrimary)
+                    .map((action) => (
+                      <Button key={`${task.id}:${action.label}`} size="sm" asChild>
+                        <Link to={action.href}>{action.label}</Link>
+                      </Button>
+                    ))}
+                  {resolveTaskOperatorState(task) === 'awaiting_approval' ? (
+                    <Button size="sm" variant="outline" asChild>
+                      <Link to="/work/approvals?view=tasks">Open approvals</Link>
+                    </Button>
+                  ) : null}
+                  {taskActions
+                    .filter((action) => !action.isPrimary)
+                    .map((action) => (
+                      <Button key={`${task.id}:${action.label}`} size="sm" variant="outline" asChild>
+                        <Link to={action.href}>{action.label}</Link>
+                      </Button>
+                    ))}
                 </div>
               </div>
-              <div className="flex shrink-0 flex-wrap gap-2 sm:ml-4">
-                {task.workflow_id && task.work_item_id ? (
-                  <Button size="sm" asChild>
-                    <Link
-                      to={buildWorkflowDetailPermalink(task.workflow_id, {
-                        workItemId: task.work_item_id,
-                        ...(task.activation_id ? { activationId: task.activation_id } : {}),
-                      })}
-                    >
-                      Open work-item flow
-                    </Link>
-                  </Button>
-                ) : null}
-                {resolveTaskOperatorState(task) === 'awaiting_approval' ? (
-                  <Button size="sm" variant="outline" asChild>
-                    <Link to="/work/approvals?view=tasks">Open approvals</Link>
-                  </Button>
-                ) : null}
-                <Button size="sm" variant="outline" asChild>
-                  <Link to={`/work/tasks/${task.id}`}>
-                    {resolveTaskOperatorState(task) === 'failed' ? 'Open failed step' : 'Open step record'}
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </CardContent>
     </Card>
