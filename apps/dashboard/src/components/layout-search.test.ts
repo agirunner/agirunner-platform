@@ -71,6 +71,43 @@ describe('command palette helpers', () => {
     ]);
   });
 
+  it('surfaces nav items via keyword match when the label does not contain the query', () => {
+    const links: CommandPaletteItem[] = [
+      {
+        id: 'nav:/config/roles',
+        href: '/config/roles',
+        label: 'Roles & Orchestrator',
+        meta: 'Configuration',
+        kind: 'navigation',
+        keywords: ['orchestrator', 'prompt', 'model routing', 'pool posture', 'specialist', 'agent roles', 'role definitions'],
+      },
+      {
+        id: 'nav:/governance/grants',
+        href: '/governance/grants',
+        label: 'Orchestrator Grants',
+        meta: 'Governance',
+        kind: 'navigation',
+      },
+    ];
+
+    const promptResults = filterCommandPaletteQuickLinks(links, 'prompt');
+    expect(promptResults).toHaveLength(1);
+    expect(promptResults[0].id).toBe('nav:/config/roles');
+
+    const orchestratorResults = filterCommandPaletteQuickLinks(links, 'orchestrator');
+    expect(orchestratorResults).toHaveLength(2);
+    expect(orchestratorResults[0].id).toBe('nav:/governance/grants');
+    expect(orchestratorResults[1].id).toBe('nav:/config/roles');
+
+    const poolResults = filterCommandPaletteQuickLinks(links, 'pool');
+    expect(poolResults).toHaveLength(1);
+    expect(poolResults[0].id).toBe('nav:/config/roles');
+
+    const roleDefResults = filterCommandPaletteQuickLinks(links, 'role definitions');
+    expect(roleDefResults).toHaveLength(1);
+    expect(roleDefResults[0].id).toBe('nav:/config/roles');
+  });
+
   it('maps dashboard search results into palette items', () => {
     const items = buildCommandPaletteSearchItems([
       {

@@ -61,10 +61,17 @@ interface LayoutProps {
   onToggleTheme: () => void;
 }
 
+interface NavItem {
+  label: string;
+  href: string;
+  icon: ElementType;
+  keywords?: string[];
+}
+
 interface NavSection {
   label: string;
   icon: ElementType;
-  items: Array<{ label: string; href: string; icon: ElementType }>;
+  items: NavItem[];
 }
 
 const NAV_SECTIONS: NavSection[] = [
@@ -101,7 +108,7 @@ const NAV_SECTIONS: NavSection[] = [
     icon: Cog,
     items: [
       { label: 'Playbooks', href: '/config/playbooks', icon: Workflow },
-      { label: 'Role Definitions', href: '/config/roles', icon: Users },
+      { label: 'Roles & Orchestrator', href: '/config/roles', icon: Users, keywords: ['orchestrator', 'prompt', 'model routing', 'pool posture', 'specialist', 'agent roles', 'role definitions'] },
       { label: 'Platform Instructions', href: '/config/instructions', icon: ScrollText },
       { label: 'LLM Providers', href: '/config/llm', icon: Cog },
       { label: 'Runtimes', href: '/config/runtimes', icon: Server },
@@ -142,6 +149,7 @@ const COMMAND_PALETTE_QUICK_LINKS: CommandPaletteItem[] = NAV_SECTIONS.flatMap((
     label: item.label,
     meta: section.label,
     kind: 'navigation',
+    ...(item.keywords?.length ? { keywords: item.keywords } : {}),
   })),
 );
 

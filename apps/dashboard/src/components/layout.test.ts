@@ -41,6 +41,28 @@ describe('layout breadcrumbs', () => {
     expect(source).not.toContain("label: 'Runtime Defaults'");
   });
 
+  it('labels the roles page as Roles & Orchestrator for discoverability', () => {
+    const source = readFileSync(resolve(import.meta.dirname, './layout.tsx'), 'utf8');
+    expect(source).toContain("label: 'Roles & Orchestrator'");
+    expect(source).toContain("href: '/config/roles'");
+    expect(source).not.toContain("label: 'Role Definitions'");
+  });
+
+  it('attaches orchestrator keywords to the roles nav item for command palette search', () => {
+    const source = readFileSync(resolve(import.meta.dirname, './layout.tsx'), 'utf8');
+    expect(source).toContain("keywords: ['orchestrator'");
+    expect(source).toContain("'prompt'");
+    expect(source).toContain("'model routing'");
+    expect(source).toContain("'pool posture'");
+    expect(source).toContain("'role definitions'");
+  });
+
+  it('passes nav item keywords through to command palette quick links', () => {
+    const source = readFileSync(resolve(import.meta.dirname, './layout.tsx'), 'utf8');
+    expect(source).toContain('item.keywords?.length');
+    expect(source).toContain('keywords: item.keywords');
+  });
+
   it('wires keyboard-first command palette navigation and explicit search states', () => {
     const source = readFileSync(resolve(import.meta.dirname, './layout.tsx'), 'utf8');
     expect(source).toContain("event.key === 'ArrowDown'");
