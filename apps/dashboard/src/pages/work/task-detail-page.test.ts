@@ -25,7 +25,7 @@ describe('task detail page source', () => {
     expect(source).toContain('Open Board Stage Flow');
     expect(source).toContain('buildWorkflowOperatorPermalink');
     expect(source).toContain('usesWorkflowOperatorFlow');
-    expect(source).toContain('Operator packet');
+    expect(source).toContain('TaskDetailContextSection');
     expect(source).toContain('Operator Output Packet');
     expect(source).not.toContain("status === 'running' || status === 'claimed'");
     expect(source).toContain("return 'Specialist step'");
@@ -36,11 +36,9 @@ describe('task detail page source', () => {
     expect(source).toContain('Recommended next move');
     expect(source).toContain('Review the rendered output first');
     expect(source).toContain('Raw payload');
-    expect(source).toContain('Clarifications');
-    expect(source).toContain('Escalation and execution');
-    expect(source).toContain('StructuredRecordView');
+    expect(source).toContain('TaskDetailContextSection');
+    expect(source).toContain('grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-4');
     expect(source).toContain('This specialist step belongs to a workflow work item.');
     expect(source).toContain('This step belongs to a workflow stage.');
-    expect(source).toContain('Step kind');
   });
 });

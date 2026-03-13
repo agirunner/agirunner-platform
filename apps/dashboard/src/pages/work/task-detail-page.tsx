@@ -25,10 +25,6 @@ import {
 } from '../../components/ui/tabs.js';
 import {
   buildTaskNextStep,
-  readClarificationAnswers,
-  readClarificationHistory,
-  readExecutionSummary,
-  readHumanEscalationResponse,
   readReviewSignals,
   readReworkDetails,
 } from '../task-detail-support.js';
@@ -38,6 +34,7 @@ import {
   usesWorkflowOperatorFlow,
 } from './task-operator-flow.js';
 import { TaskDetailArtifactsPanel } from './task-detail-artifacts-panel.js';
+import { TaskDetailContextSection } from './task-detail-context-section.js';
 
 interface Task {
   id: string;
@@ -403,16 +400,6 @@ function summarizeId(value?: string | null): string {
   return `${value.slice(0, 8)}...${value.slice(-4)}`;
 }
 
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
-
-function readStringValue(value: unknown): string | null {
-  return typeof value === 'string' && value.trim().length > 0 ? value : null;
-}
-
 function RelatedLinks({ task }: { task: Task }): JSX.Element {
   const workItemPermalink =
     task.workflow_id && task.work_item_id
@@ -545,166 +532,6 @@ function SignalRow({ label, value }: { label: string; value: string }): JSX.Elem
   );
 }
 
-function ContextSection({ task, status }: { task: Task; status: string }): JSX.Element {
-  const clarificationAnswers = readClarificationAnswers(task as never);
-  const clarificationHistory = readClarificationHistory(task as never);
-  const escalationResponse = readHumanEscalationResponse(task as never);
-  const executionSummary = readExecutionSummary(task as never);
-  const reviewSignals = readReviewSignals(task as never);
-  const input = asRecord(task.input);
-  const context = asRecord(task.context);
-  const reviewPrompt = readStringValue(input.review_prompt);
-  const escalationNotes = [
-    reviewSignals.escalationReason ? `Reason: ${reviewSignals.escalationReason}` : null,
-    reviewSignals.escalationContext ? `Context: ${reviewSignals.escalationContext}` : null,
-  ].filter((value): value is string => Boolean(value));
-
-  return (
-    <div className="grid gap-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Operator packet</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 lg:grid-cols-2">
-          <div className="rounded-xl bg-border/10 p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted">Current status</p>
-            <p className="mt-2 text-sm leading-6">
-              {formatStatusLabel(status)} {task.stage_name ? `in stage ${task.stage_name}` : ''}.
-              {task.work_item_id ? ` Attached to work item ${summarizeId(task.work_item_id)}.` : ''}
-            </p>
-            {reviewPrompt ? (
-              <>
-                <p className="mt-4 text-xs font-medium uppercase tracking-wide text-muted">
-                  Review prompt
-                </p>
-                <p className="mt-2 text-sm leading-6">{reviewPrompt}</p>
-              </>
-            ) : null}
-            {escalationNotes.length > 0 ? (
-              <>
-                <p
-                  id="escalation-response"
-                  className="mt-4 text-xs font-medium uppercase tracking-wide text-muted"
-                >
-                  Escalation briefing
-                </p>
-                <ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6">
-                  {escalationNotes.map((note) => (
-                    <li key={note}>{note}</li>
-                  ))}
-                </ul>
-              </>
-            ) : null}
-          </div>
-          <div className="rounded-xl bg-surface p-4 shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted">
-              Workflow routing
-            </p>
-            <dl className="mt-3 grid gap-3 text-sm">
-              <SignalListItem label="Board" value={task.workflow_name ?? summarizeId(task.workflow_id)} />
-              <SignalListItem label="Stage" value={task.stage_name ?? 'No stage'} />
-              <SignalListItem label="Work item" value={summarizeId(task.work_item_id)} />
-              <SignalListItem label="Activation" value={summarizeId(task.activation_id)} />
-              <SignalListItem label="Step kind" value={task.type ?? describeTaskKind(task)} />
-            </dl>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Clarifications</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {Object.keys(clarificationAnswers).length > 0 ? (
-              <StructuredRecordView
-                data={clarificationAnswers}
-                emptyMessage="No clarification answers recorded."
-              />
-            ) : (
-              <p className="text-sm text-muted">No clarification answers recorded.</p>
-            )}
-            {clarificationHistory.length > 0 ? (
-              <div className="space-y-3">
-                {clarificationHistory.map((entry, index) => (
-                  <article key={`${entry.answered_at ?? 'clarification'}-${index}`} className="rounded-xl bg-border/10 p-4">
-                    <p className="text-sm font-medium">
-                      {entry.feedback ?? 'Clarification request'}
-                    </p>
-                    <p className="mt-1 text-xs text-muted">
-                      {entry.answered_by ?? 'Unknown responder'}
-                      {entry.answered_at ? ` • ${formatTimestamp(entry.answered_at)}` : ''}
-                    </p>
-                    <div className="mt-3">
-                      <StructuredRecordView data={entry.answers ?? {}} emptyMessage="No answers captured." />
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Escalation and execution</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {Object.keys(escalationResponse).length > 0 ? (
-              <StructuredRecordView
-                data={escalationResponse}
-                emptyMessage="No human escalation response recorded."
-              />
-            ) : (
-              <p className="text-sm text-muted">No human escalation response recorded.</p>
-            )}
-            {Object.keys(executionSummary.verification).length > 0 ? (
-              <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
-                  Verification
-                </p>
-                <StructuredRecordView
-                  data={executionSummary.verification}
-                  emptyMessage="No verification data."
-                />
-              </div>
-            ) : null}
-            {Object.keys(executionSummary.metrics).length > 0 ? (
-              <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
-                  Execution metrics
-                </p>
-                <StructuredRecordView
-                  data={executionSummary.metrics}
-                  emptyMessage="No execution metrics."
-                />
-              </div>
-            ) : null}
-            {Object.keys(context).length > 0 ? (
-              <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
-                  Runtime context
-                </p>
-                <StructuredRecordView data={context} emptyMessage="No runtime context." />
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-function SignalListItem({ label, value }: { label: string; value: string }): JSX.Element {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <dt className="text-muted">{label}</dt>
-      <dd className="font-medium">{value}</dd>
-    </div>
-  );
-}
-
 export function TaskDetailPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
 
@@ -785,11 +612,11 @@ export function TaskDetailPage(): JSX.Element {
       </div>
 
       <Tabs defaultValue="output">
-        <TabsList>
-          <TabsTrigger value="output">Output</TabsTrigger>
-          <TabsTrigger value="context">Operator Context</TabsTrigger>
-          <TabsTrigger value="logs">Logs</TabsTrigger>
-          <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-4">
+          <TabsTrigger className="w-full" value="output">Output</TabsTrigger>
+          <TabsTrigger className="w-full" value="context">Operator Context</TabsTrigger>
+          <TabsTrigger className="w-full" value="logs">Logs</TabsTrigger>
+          <TabsTrigger className="w-full" value="artifacts">Artifacts</TabsTrigger>
         </TabsList>
 
         <TabsContent value="output">
@@ -807,7 +634,11 @@ export function TaskDetailPage(): JSX.Element {
         </TabsContent>
 
         <TabsContent value="context">
-          <ContextSection task={task} status={status} />
+          <TaskDetailContextSection
+            task={task}
+            status={status}
+            summarizeId={summarizeId}
+          />
         </TabsContent>
 
         <TabsContent value="logs">
