@@ -62,6 +62,10 @@ const workflowChainSchema = z.object({
   parameters: z.record(z.unknown()).optional(),
 });
 
+const workflowControlMutationSchema = z.object({
+  request_id: z.string().min(1).max(255).optional(),
+});
+
 const workItemCreateSchema = z.object({
   request_id: z.string().min(1).max(255).optional(),
   parent_work_item_id: z.string().uuid().optional(),
@@ -597,8 +601,18 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request) => {
       const params = request.params as { id: string };
-      const workflow = await workflowService.cancelWorkflow(request.auth!, params.id);
-      return { data: workflow };
+      const body = parseOrThrow(workflowControlMutationSchema.safeParse(request.body ?? {}));
+      return {
+        data: await runIdempotentWorkflowAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'operator_cancel_workflow',
+          body.request_id,
+          () => workflowService.cancelWorkflow(request.auth!, params.id),
+        ),
+      };
     },
   );
 
@@ -607,8 +621,18 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request) => {
       const params = request.params as { id: string };
-      const workflow = await workflowService.pauseWorkflow(request.auth!, params.id);
-      return { data: workflow };
+      const body = parseOrThrow(workflowControlMutationSchema.safeParse(request.body ?? {}));
+      return {
+        data: await runIdempotentWorkflowAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'operator_pause_workflow',
+          body.request_id,
+          () => workflowService.pauseWorkflow(request.auth!, params.id),
+        ),
+      };
     },
   );
 
@@ -617,8 +641,18 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request) => {
       const params = request.params as { id: string };
-      const workflow = await workflowService.resumeWorkflow(request.auth!, params.id);
-      return { data: workflow };
+      const body = parseOrThrow(workflowControlMutationSchema.safeParse(request.body ?? {}));
+      return {
+        data: await runIdempotentWorkflowAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'operator_resume_workflow',
+          body.request_id,
+          () => workflowService.resumeWorkflow(request.auth!, params.id),
+        ),
+      };
     },
   );
 
@@ -692,6 +726,84 @@ async function runIdempotentGateDecision<T extends Record<string, unknown>>(
 
     await client.query('COMMIT');
     return result;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function runIdempotentWorkflowAction<T extends object>(
+  app: FastifyInstance,
+  toolResultService: WorkflowToolResultService,
+  tenantId: string,
+  workflowId: string,
+  toolName: string,
+  requestId: string | undefined,
+  run: () => Promise<T>,
+): Promise<T> {
+  const normalizedRequestId = requestId?.trim();
+  if (!normalizedRequestId) {
+    return run();
+  }
+
+  const existing = await loadStoredWorkflowActionResult(
+    app,
+    toolResultService,
+    tenantId,
+    workflowId,
+    toolName,
+    normalizedRequestId,
+  );
+  if (existing) {
+    return existing as T;
+  }
+
+  const result = await run();
+
+  const postMutationExisting = await loadStoredWorkflowActionResult(
+    app,
+    toolResultService,
+    tenantId,
+    workflowId,
+    toolName,
+    normalizedRequestId,
+  );
+  if (postMutationExisting) {
+    return postMutationExisting as T;
+  }
+
+  return toolResultService.storeResult(
+    tenantId,
+    workflowId,
+    toolName,
+    normalizedRequestId,
+    result as Record<string, unknown>,
+  ) as Promise<T>;
+}
+
+async function loadStoredWorkflowActionResult(
+  app: FastifyInstance,
+  toolResultService: WorkflowToolResultService,
+  tenantId: string,
+  workflowId: string,
+  toolName: string,
+  requestId: string,
+) {
+  const client = await app.pgPool.connect();
+  try {
+    await client.query('BEGIN');
+    await toolResultService.lockRequest(tenantId, workflowId, toolName, requestId, client);
+    const existing = await toolResultService.getResult(
+      tenantId,
+      workflowId,
+      toolName,
+      requestId,
+      client,
+    );
+    await client.query('COMMIT');
+    return existing;
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;

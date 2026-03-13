@@ -17,6 +17,44 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   withScope: () => async () => {},
 }));
 
+function createWorkflowControlReplayPool(
+  workflowId: string,
+  toolName: string,
+) {
+  let storedResponse: Record<string, unknown> | null = null;
+  const client = {
+    query: vi.fn(async (sql: string, params?: unknown[]) => {
+      if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('pg_advisory_xact_lock')) {
+        return { rowCount: 1, rows: [] };
+      }
+      if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+        expect(params).toEqual(['tenant-1', workflowId, toolName, 'request-1']);
+        return storedResponse
+          ? { rowCount: 1, rows: [{ response: storedResponse }] }
+          : { rowCount: 0, rows: [] };
+      }
+      throw new Error(`unexpected client query: ${sql}`);
+    }),
+    release: vi.fn(),
+  };
+
+  const pool = {
+    connect: vi.fn(async () => client),
+    query: vi.fn(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('INSERT INTO workflow_tool_results')) {
+        storedResponse = params?.[4] as Record<string, unknown>;
+        return { rowCount: 1, rows: [{ response: storedResponse }] };
+      }
+      throw new Error(`unexpected pool query: ${sql}`);
+    }),
+  };
+
+  return { pool, client };
+}
+
 describe('workflow routes', () => {
   let app: ReturnType<typeof fastify> | undefined;
 
@@ -450,5 +488,184 @@ describe('workflow routes', () => {
     expect(second.json().data).toEqual(expect.objectContaining({ id: 'workflow-child-1' }));
     expect(sourceMetadata.child_workflow_ids).toEqual(['workflow-child-1']);
     expect(sourceMetadata.latest_child_workflow_id).toBe('workflow-child-1');
+  });
+
+  it('deduplicates repeated workflow cancel requests by request_id at the route boundary', async () => {
+    const { pool } = createWorkflowControlReplayPool('workflow-1', 'operator_cancel_workflow');
+    const cancelWorkflow = vi.fn().mockResolvedValue({
+      id: 'workflow-1',
+      state: 'paused',
+      metadata: { cancel_requested_at: '2026-03-12T00:00:00.000Z' },
+    });
+
+    app = fastify();
+    app.decorate('workflowService', {
+      createWorkflow: async () => ({}),
+      listWorkflows: async () => ({ data: [], meta: {} }),
+      getWorkflow: async () => ({}),
+      getWorkflowBudget: async () => ({}),
+      getWorkflowBoard: async () => ({}),
+      listWorkflowStages: async () => ([]),
+      listWorkflowWorkItems: async () => ([]),
+      createWorkflowWorkItem: async () => ({}),
+      getWorkflowWorkItem: async () => ({}),
+      listWorkflowWorkItemTasks: async () => ([]),
+      listWorkflowWorkItemEvents: async () => ([]),
+      getWorkflowWorkItemMemory: async () => ({ entries: [] }),
+      getWorkflowWorkItemMemoryHistory: async () => ({ history: [] }),
+      updateWorkflowWorkItem: async () => ({}),
+      actOnStageGate: async () => ({}),
+      getResolvedConfig: async () => ({}),
+      cancelWorkflow,
+      pauseWorkflow: async () => ({}),
+      resumeWorkflow: async () => ({}),
+      deleteWorkflow: async () => ({}),
+    });
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: async () => undefined });
+    app.decorate('projectService', { getProject: async () => ({ settings: {} }) });
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: async () => null,
+      listProviders: async () => [],
+      listModels: async () => [],
+      getProviderForOperations: async () => null,
+    });
+    await app.register(workflowRoutes);
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/cancel',
+      payload: { request_id: 'request-1' },
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/cancel',
+      payload: { request_id: 'request-1' },
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(cancelWorkflow).toHaveBeenCalledTimes(1);
+    expect(second.json().data).toEqual(first.json().data);
+  });
+
+  it('deduplicates repeated workflow pause requests by request_id at the route boundary', async () => {
+    const { pool } = createWorkflowControlReplayPool('workflow-1', 'operator_pause_workflow');
+    const pauseWorkflow = vi.fn().mockResolvedValue({
+      id: 'workflow-1',
+      state: 'paused',
+      metadata: { pause_requested_at: '2026-03-12T00:00:00.000Z' },
+    });
+
+    app = fastify();
+    app.decorate('workflowService', {
+      createWorkflow: async () => ({}),
+      listWorkflows: async () => ({ data: [], meta: {} }),
+      getWorkflow: async () => ({}),
+      getWorkflowBudget: async () => ({}),
+      getWorkflowBoard: async () => ({}),
+      listWorkflowStages: async () => ([]),
+      listWorkflowWorkItems: async () => ([]),
+      createWorkflowWorkItem: async () => ({}),
+      getWorkflowWorkItem: async () => ({}),
+      listWorkflowWorkItemTasks: async () => ([]),
+      listWorkflowWorkItemEvents: async () => ([]),
+      getWorkflowWorkItemMemory: async () => ({ entries: [] }),
+      getWorkflowWorkItemMemoryHistory: async () => ({ history: [] }),
+      updateWorkflowWorkItem: async () => ({}),
+      actOnStageGate: async () => ({}),
+      getResolvedConfig: async () => ({}),
+      cancelWorkflow: async () => ({}),
+      pauseWorkflow,
+      resumeWorkflow: async () => ({}),
+      deleteWorkflow: async () => ({}),
+    });
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: async () => undefined });
+    app.decorate('projectService', { getProject: async () => ({ settings: {} }) });
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: async () => null,
+      listProviders: async () => [],
+      listModels: async () => [],
+      getProviderForOperations: async () => null,
+    });
+    await app.register(workflowRoutes);
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/pause',
+      payload: { request_id: 'request-1' },
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/pause',
+      payload: { request_id: 'request-1' },
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(pauseWorkflow).toHaveBeenCalledTimes(1);
+    expect(second.json().data).toEqual(first.json().data);
+  });
+
+  it('deduplicates repeated workflow resume requests by request_id at the route boundary', async () => {
+    const { pool } = createWorkflowControlReplayPool('workflow-1', 'operator_resume_workflow');
+    const resumeWorkflow = vi.fn().mockResolvedValue({
+      id: 'workflow-1',
+      state: 'active',
+    });
+
+    app = fastify();
+    app.decorate('workflowService', {
+      createWorkflow: async () => ({}),
+      listWorkflows: async () => ({ data: [], meta: {} }),
+      getWorkflow: async () => ({}),
+      getWorkflowBudget: async () => ({}),
+      getWorkflowBoard: async () => ({}),
+      listWorkflowStages: async () => ([]),
+      listWorkflowWorkItems: async () => ([]),
+      createWorkflowWorkItem: async () => ({}),
+      getWorkflowWorkItem: async () => ({}),
+      listWorkflowWorkItemTasks: async () => ([]),
+      listWorkflowWorkItemEvents: async () => ([]),
+      getWorkflowWorkItemMemory: async () => ({ entries: [] }),
+      getWorkflowWorkItemMemoryHistory: async () => ({ history: [] }),
+      updateWorkflowWorkItem: async () => ({}),
+      actOnStageGate: async () => ({}),
+      getResolvedConfig: async () => ({}),
+      cancelWorkflow: async () => ({}),
+      pauseWorkflow: async () => ({}),
+      resumeWorkflow,
+      deleteWorkflow: async () => ({}),
+    });
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: async () => undefined });
+    app.decorate('projectService', { getProject: async () => ({ settings: {} }) });
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: async () => null,
+      listProviders: async () => [],
+      listModels: async () => [],
+      getProviderForOperations: async () => null,
+    });
+    await app.register(workflowRoutes);
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/resume',
+      payload: { request_id: 'request-1' },
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/resume',
+      payload: { request_id: 'request-1' },
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(resumeWorkflow).toHaveBeenCalledTimes(1);
+    expect(second.json().data).toEqual(first.json().data);
   });
 });
