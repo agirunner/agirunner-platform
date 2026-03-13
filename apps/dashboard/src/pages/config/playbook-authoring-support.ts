@@ -90,6 +90,16 @@ export interface BoardColumnValidationResult {
   isValid: boolean;
 }
 
+export interface ParameterDraftValidationResult {
+  parameterErrors: Array<{
+    category?: string;
+    maps_to?: string;
+    secret?: string;
+  }>;
+  blockingIssues: string[];
+  isValid: boolean;
+}
+
 export function createDefaultAuthoringDraft(lifecycle: PlaybookLifecycle): PlaybookAuthoringDraft {
   return {
     roles: [{ value: 'developer' }],
@@ -288,6 +298,10 @@ export function buildPlaybookDefinition(
   if (hasDuplicates(parameters.map((parameter) => parameter.name))) {
     return { ok: false, error: 'Playbook parameter names must be unique.' };
   }
+  const parameterValidation = validateParameterDrafts(draft.parameters);
+  if (!parameterValidation.isValid) {
+    return { ok: false, error: parameterValidation.blockingIssues[0] };
+  }
   const defaultValueIssue = parameters
     .map((parameter) =>
       validateStructuredParameterDefaultValue(parameter.type, parameter.default),
@@ -376,6 +390,27 @@ export function validateBoardColumnsDraft(
   };
 }
 
+export function validateParameterDrafts(
+  parameters: ParameterDraft[],
+): ParameterDraftValidationResult {
+  const parameterErrors = parameters.map((parameter) => readParameterDraftErrors(parameter));
+  const blockingIssues = Array.from(
+    new Set(
+      parameterErrors.flatMap((entry) =>
+        [entry.category, entry.maps_to, entry.secret].filter(
+          (issue): issue is string => Boolean(issue),
+        ),
+      ),
+    ),
+  );
+
+  return {
+    parameterErrors,
+    blockingIssues,
+    isValid: blockingIssues.length === 0,
+  };
+}
+
 function buildRuntimePoolRecord(pool: RuntimePoolDraft, gated = false): Record<string, unknown> | undefined {
   if (gated && !pool.enabled) {
     return undefined;
@@ -452,6 +487,62 @@ function normalizePullPolicy(value: string): string | undefined {
 function hasDuplicates(values: string[]): boolean {
   const normalized = values.filter(Boolean);
   return new Set(normalized).size !== normalized.length;
+}
+
+function readParameterDraftErrors(parameter: ParameterDraft): {
+  category?: string;
+  maps_to?: string;
+  secret?: string;
+} {
+  const category = parameter.category.trim();
+  const mapsTo = parameter.maps_to.trim();
+  const isSecret = parameter.secret;
+  const hasAnyValue =
+    parameter.name.trim().length > 0 ||
+    category.length > 0 ||
+    mapsTo.length > 0 ||
+    parameter.description.trim().length > 0 ||
+    parameter.default_value.trim().length > 0 ||
+    parameter.required ||
+    parameter.secret;
+
+  if (!hasAnyValue) {
+    return {};
+  }
+
+  const errors: {
+    category?: string;
+    maps_to?: string;
+    secret?: string;
+  } = {};
+
+  if (mapsTo === 'project.credentials.git_token') {
+    if (!isSecret) {
+      errors.secret = 'Git token mappings must be marked secret.';
+    }
+    if (category !== 'credential') {
+      errors.category = 'Git token mappings should use the Credential category.';
+    }
+  }
+
+  if (mapsTo === 'project.repository_url' || mapsTo === 'project.settings.default_branch') {
+    if (isSecret) {
+      errors.secret = 'Repository metadata mappings cannot be marked secret.';
+    }
+    if (category !== 'repository') {
+      errors.category = 'Repository metadata mappings should use the Repository category.';
+    }
+  }
+
+  if (category === 'credential' && !isSecret) {
+    errors.secret = 'Credential parameters must be marked secret.';
+  }
+
+  if (category === 'repository' && isSecret) {
+    errors.secret = 'Repository parameters should stay non-secret.';
+  }
+
+  return errors;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

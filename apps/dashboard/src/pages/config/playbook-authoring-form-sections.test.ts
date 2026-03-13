@@ -41,6 +41,12 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('Structured list items');
     expect(source).toContain('Add object field');
     expect(source).toContain('Add list item');
+    expect(source).toContain('Resolve parameter mapping blockers before save.');
+    expect(source).toContain(
+      'Match repository auto-fill to repository metadata and secure values to the credential category.',
+    );
+    expect(source).toContain('Secret parameters can only map to secret-backed project values.');
+    expect(source).toContain('Repository parameters should map to non-secret project metadata.');
     expect(source).not.toContain('type="checkbox"');
   });
 });

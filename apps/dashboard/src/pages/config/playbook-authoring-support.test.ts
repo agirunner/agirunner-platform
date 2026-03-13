@@ -6,6 +6,7 @@ import {
   createRuntimePoolDraft,
   hydratePlaybookAuthoringDraft,
   summarizePlaybookAuthoringDraft,
+  validateParameterDrafts,
   validateBoardColumnsDraft,
 } from './playbook-authoring-support.js';
 
@@ -162,6 +163,82 @@ describe('playbook authoring support', () => {
       ],
       blockingIssues: ['Add a stable column ID.', 'Add a column label.', 'Column IDs must be unique.'],
       isValid: false,
+    });
+  });
+
+  it('validates parameter category, secret, and project mapping posture together', () => {
+    expect(
+      validateParameterDrafts([
+        {
+          name: 'git_token',
+          type: 'string',
+          required: false,
+          secret: false,
+          category: 'input',
+          maps_to: 'project.credentials.git_token',
+          description: '',
+          default_value: '',
+        },
+        {
+          name: 'default_branch',
+          type: 'string',
+          required: false,
+          secret: true,
+          category: 'credential',
+          maps_to: 'project.settings.default_branch',
+          description: '',
+          default_value: '',
+        },
+      ]),
+    ).toEqual({
+      parameterErrors: [
+        {
+          category: 'Git token mappings should use the Credential category.',
+          secret: 'Git token mappings must be marked secret.',
+        },
+        {
+          category: 'Repository metadata mappings should use the Repository category.',
+          secret: 'Repository metadata mappings cannot be marked secret.',
+        },
+      ],
+      blockingIssues: [
+        'Git token mappings should use the Credential category.',
+        'Git token mappings must be marked secret.',
+        'Repository metadata mappings should use the Repository category.',
+        'Repository metadata mappings cannot be marked secret.',
+      ],
+      isValid: false,
+    });
+  });
+
+  it('accepts aligned repository and credential parameter mappings', () => {
+    expect(
+      validateParameterDrafts([
+        {
+          name: 'repository_url',
+          type: 'string',
+          required: false,
+          secret: false,
+          category: 'repository',
+          maps_to: 'project.repository_url',
+          description: '',
+          default_value: '',
+        },
+        {
+          name: 'git_token',
+          type: 'string',
+          required: false,
+          secret: true,
+          category: 'credential',
+          maps_to: 'project.credentials.git_token',
+          description: '',
+          default_value: '',
+        },
+      ]),
+    ).toEqual({
+      parameterErrors: [{}, {}],
+      blockingIssues: [],
+      isValid: true,
     });
   });
 

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
@@ -17,6 +18,7 @@ import {
   createEmptyRoleDraft,
   createEmptyStageDraft,
   validateBoardColumnsDraft,
+  validateParameterDrafts,
   type PlaybookAuthoringDraft,
 } from './playbook-authoring-support.js';
 import {
@@ -576,9 +578,19 @@ export function OrchestratorSection(
 
 export function RuntimeAndParametersSection(
   props: SectionProps & {
-    onParameterDefaultIssueChange(index: number, issue?: string): void;
+    onParameterIssueChange(index: number, kind: 'default' | 'mapping', issue?: string): void;
   },
 ): JSX.Element {
+  const parameterValidation = validateParameterDrafts(props.draft.parameters);
+
+  useEffect(() => {
+    props.draft.parameters.forEach((_, index) => {
+      const errors = parameterValidation.parameterErrors[index];
+      const issue = errors?.category ?? errors?.maps_to ?? errors?.secret;
+      props.onParameterIssueChange(index, 'mapping', issue);
+    });
+  }, [parameterValidation.parameterErrors, props.draft.parameters.length, props.onParameterIssueChange]);
+
   return (
     <div className="grid gap-4">
       <SectionCard
@@ -634,112 +646,152 @@ export function RuntimeAndParametersSection(
         description="Typed workflow inputs resolved at launch time and stored in workflow parameters."
       >
         <div className="space-y-4">
-          {props.draft.parameters.map((parameter, index) => (
-            <div key={`parameter-${index}`} className="rounded-md border border-border p-4">
-              <div className="grid gap-3 md:grid-cols-2">
-                <LabeledField label="Name">
-                  <Input
-                    value={parameter.name}
-                    onChange={(event) =>
-                      updateParameter(props.onChange, index, 'name', event.target.value)
-                    }
-                    placeholder="goal"
-                  />
-                </LabeledField>
-                <LabeledField label="Type">
-                  <Select
-                    value={parameter.type}
-                    onValueChange={(value) => updateParameter(props.onChange, index, 'type', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="string">String</SelectItem>
-                      <SelectItem value="number">Number</SelectItem>
-                      <SelectItem value="boolean">Boolean</SelectItem>
-                      <SelectItem value="object">JSON object</SelectItem>
-                      <SelectItem value="array">JSON array</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </LabeledField>
-                <LabeledField label="Category">
-                  <SelectWithCustomControl
-                    value={parameter.category}
-                    options={PARAMETER_CATEGORY_OPTIONS}
-                    placeholder="Select a category"
-                    unsetLabel="No category"
-                    customPlaceholder="Custom category"
-                    onChange={(value) => updateParameter(props.onChange, index, 'category', value)}
-                  />
-                </LabeledField>
-                <LabeledField label="Maps to">
-                  <SelectWithCustomControl
-                    value={parameter.maps_to}
-                    options={PARAMETER_MAP_OPTIONS}
-                    placeholder="Select a project value"
-                    unsetLabel="No project mapping"
-                    customPlaceholder="Custom project path"
-                    onChange={(value) => updateParameter(props.onChange, index, 'maps_to', value)}
-                  />
-                </LabeledField>
-              </div>
-              <LabeledField label="Description" className="mt-3">
-                <Textarea
-                  value={parameter.description}
-                  onChange={(event) =>
-                    updateParameter(props.onChange, index, 'description', event.target.value)
-                  }
-                  className="min-h-[72px]"
-                />
-              </LabeledField>
-              <LabeledField label="Default value" className="mt-3">
-                <TypedParameterValueControl
-                  valueType={parameter.type}
-                  value={parameter.default_value}
-                  onValidationChange={(issue) =>
-                    props.onParameterDefaultIssueChange(index, issue)
-                  }
-                  onChange={(value) =>
-                    updateParameter(props.onChange, index, 'default_value', value)
-                  }
-                />
-              </LabeledField>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
-                <div className="flex flex-wrap gap-6">
-                  <ToggleField
-                    label="Required"
-                    checked={parameter.required}
-                    onCheckedChange={(checked) =>
-                      updateParameter(props.onChange, index, 'required', checked)
-                    }
-                  />
-                  <ToggleField
-                    label="Secret"
-                    checked={parameter.secret}
-                    onCheckedChange={(checked) =>
-                      updateParameter(props.onChange, index, 'secret', checked)
-                    }
-                  />
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() =>
-                    props.onChange((current) => ({
-                      ...current,
-                      parameters: current.parameters.filter(
-                        (_, entryIndex) => entryIndex !== index,
-                      ),
-                    }))
-                  }
-                >
-                  <Minus className="h-4 w-4" />
-                  Remove Parameter
-                </Button>
-              </div>
+          {parameterValidation.blockingIssues.length > 0 ? (
+            <div className="rounded-md border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+              Resolve parameter mapping blockers before save.
             </div>
-          ))}
+          ) : null}
+          {props.draft.parameters.map((parameter, index) => {
+            const parameterErrors = parameterValidation.parameterErrors[index] ?? {};
+            const mappingOptions = filterParameterMapOptions(parameter);
+            const mappingHint = describeParameterMappingHint(parameter);
+
+            return (
+              <div key={`parameter-${index}`} className="rounded-md border border-border p-4">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <LabeledField label="Name">
+                    <Input
+                      value={parameter.name}
+                      onChange={(event) =>
+                        updateParameter(props.onChange, index, 'name', event.target.value)
+                      }
+                      placeholder="goal"
+                    />
+                  </LabeledField>
+                  <LabeledField label="Type">
+                    <Select
+                      value={parameter.type}
+                      onValueChange={(value) =>
+                        updateParameter(props.onChange, index, 'type', value)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="string">String</SelectItem>
+                        <SelectItem value="number">Number</SelectItem>
+                        <SelectItem value="boolean">Boolean</SelectItem>
+                        <SelectItem value="object">JSON object</SelectItem>
+                        <SelectItem value="array">JSON array</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </LabeledField>
+                  <LabeledField label="Category">
+                    <div className="space-y-1">
+                      <SelectWithCustomControl
+                        value={parameter.category}
+                        options={PARAMETER_CATEGORY_OPTIONS}
+                        placeholder="Select a category"
+                        unsetLabel="No category"
+                        customPlaceholder="Custom category"
+                        onChange={(value) =>
+                          updateParameter(props.onChange, index, 'category', value)
+                        }
+                      />
+                      {parameterErrors.category ? (
+                        <p className="text-xs text-red-600">{parameterErrors.category}</p>
+                      ) : (
+                        <p className="text-xs text-muted">
+                          Match repository auto-fill to repository metadata and secure values to the credential category.
+                        </p>
+                      )}
+                    </div>
+                  </LabeledField>
+                  <LabeledField label="Maps to">
+                    <div className="space-y-1">
+                      <SelectWithCustomControl
+                        value={parameter.maps_to}
+                        options={mappingOptions}
+                        placeholder="Select a project value"
+                        unsetLabel="No project mapping"
+                        customPlaceholder="Custom project path"
+                        onChange={(value) =>
+                          updateParameter(props.onChange, index, 'maps_to', value)
+                        }
+                      />
+                      {parameterErrors.maps_to ? (
+                        <p className="text-xs text-red-600">{parameterErrors.maps_to}</p>
+                      ) : (
+                        <p className="text-xs text-muted">{mappingHint}</p>
+                      )}
+                    </div>
+                  </LabeledField>
+                </div>
+                <LabeledField label="Description" className="mt-3">
+                  <Textarea
+                    value={parameter.description}
+                    onChange={(event) =>
+                      updateParameter(props.onChange, index, 'description', event.target.value)
+                    }
+                    className="min-h-[72px]"
+                  />
+                </LabeledField>
+                <LabeledField label="Default value" className="mt-3">
+                  <TypedParameterValueControl
+                    valueType={parameter.type}
+                    value={parameter.default_value}
+                    onValidationChange={(issue) =>
+                      props.onParameterIssueChange(index, 'default', issue)
+                    }
+                    onChange={(value) =>
+                      updateParameter(props.onChange, index, 'default_value', value)
+                    }
+                  />
+                </LabeledField>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex flex-wrap gap-6">
+                    <ToggleField
+                      label="Required"
+                      checked={parameter.required}
+                      onCheckedChange={(checked) =>
+                        updateParameter(props.onChange, index, 'required', checked)
+                      }
+                    />
+                    <ToggleField
+                      label="Secret"
+                      checked={parameter.secret}
+                      onCheckedChange={(checked) =>
+                        updateParameter(props.onChange, index, 'secret', checked)
+                      }
+                    />
+                  </div>
+                  {parameterErrors.secret ? (
+                    <p className="text-xs text-red-600">{parameterErrors.secret}</p>
+                  ) : (
+                    <p className="text-xs text-muted">
+                      Mark only credential-backed launch inputs as secret so operators can still review normal repository metadata at launch time.
+                    </p>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      props.onChange((current) => ({
+                        ...current,
+                        parameters: current.parameters.filter(
+                          (_, entryIndex) => entryIndex !== index,
+                        ),
+                      }))
+                    }
+                  >
+                    <Minus className="h-4 w-4" />
+                    Remove Parameter
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
           <Button
             type="button"
             variant="outline"
@@ -956,3 +1008,31 @@ const PARAMETER_MAP_OPTIONS: StructuredChoiceOption[] = [
     description: 'Use the project Git credential reference at launch time.',
   },
 ];
+
+function filterParameterMapOptions(
+  parameter: PlaybookAuthoringDraft['parameters'][number],
+): StructuredChoiceOption[] {
+  const category = parameter.category.trim();
+  if (parameter.secret || category === 'credential') {
+    return PARAMETER_MAP_OPTIONS.filter((option) => option.value === 'project.credentials.git_token');
+  }
+  if (category === 'repository') {
+    return PARAMETER_MAP_OPTIONS.filter((option) =>
+      option.value === 'project.repository_url' || option.value === 'project.settings.default_branch',
+    );
+  }
+  return PARAMETER_MAP_OPTIONS;
+}
+
+function describeParameterMappingHint(
+  parameter: PlaybookAuthoringDraft['parameters'][number],
+): string {
+  const category = parameter.category.trim();
+  if (parameter.secret || category === 'credential') {
+    return 'Secret parameters can only map to secret-backed project values.';
+  }
+  if (category === 'repository') {
+    return 'Repository parameters should map to non-secret project metadata.';
+  }
+  return 'Choose a known project value when possible. Use a custom path only when the standard mappings are not enough.';
+}

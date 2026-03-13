@@ -27,7 +27,7 @@ interface PlaybookAuthoringFormProps {
 
 export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.Element {
   const summary = summarizePlaybookAuthoringDraft(props.draft);
-  const [parameterDefaultIssues, setParameterDefaultIssues] = useState<Record<number, string>>({});
+  const [parameterIssues, setParameterIssues] = useState<Record<string, string>>({});
   const roleDefinitionsQuery = useQuery({
     queryKey: ['role-definitions', 'active'],
     queryFn: () => dashboardApi.listRoleDefinitions(),
@@ -49,31 +49,38 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
   }
 
   useEffect(() => {
-    setParameterDefaultIssues((current) =>
+    setParameterIssues((current) =>
       Object.fromEntries(
-        Object.entries(current).filter(([index]) => Number(index) < props.draft.parameters.length),
+        Object.entries(current).filter(
+          ([key]) => readParameterIssueIndex(key) < props.draft.parameters.length,
+        ),
       ),
     );
   }, [props.draft.parameters.length]);
 
   useEffect(() => {
-    props.onValidationChange?.(Object.values(parameterDefaultIssues).filter(Boolean));
-  }, [parameterDefaultIssues, props.onValidationChange]);
+    props.onValidationChange?.(Object.values(parameterIssues).filter(Boolean));
+  }, [parameterIssues, props.onValidationChange]);
 
-  function updateParameterDefaultIssue(index: number, issue?: string): void {
-    setParameterDefaultIssues((current) => {
+  function updateParameterIssue(
+    index: number,
+    kind: 'default' | 'mapping',
+    issue?: string,
+  ): void {
+    const issueKey = buildParameterIssueKey(index, kind);
+    setParameterIssues((current) => {
       if (!issue) {
-        if (!(index in current)) {
+        if (!(issueKey in current)) {
           return current;
         }
         const next = { ...current };
-        delete next[index];
+        delete next[issueKey];
         return next;
       }
-      if (current[index] === issue) {
+      if (current[issueKey] === issue) {
         return current;
       }
-      return { ...current, [index]: issue };
+      return { ...current, [issueKey]: issue };
     });
   }
 
@@ -171,12 +178,21 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
           <RuntimeAndParametersSection
             draft={props.draft}
             onChange={updateDraft}
-            onParameterDefaultIssueChange={updateParameterDefaultIssue}
+            onParameterIssueChange={updateParameterIssue}
           />
         </TabsContent>
       </Tabs>
     </div>
   );
+}
+
+function buildParameterIssueKey(index: number, kind: 'default' | 'mapping'): string {
+  return `${index}:${kind}`;
+}
+
+function readParameterIssueIndex(issueKey: string): number {
+  const [index] = issueKey.split(':', 1);
+  return Number.parseInt(index ?? '', 10);
 }
 
 function normalizeToolTags(
