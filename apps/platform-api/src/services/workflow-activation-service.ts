@@ -3,7 +3,7 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
-import { sanitizeSecretLikeRecord } from './secret-redaction.js';
+import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
 import {
   enqueueWorkflowActivationRecord,
   type WorkflowActivationEventRow,
@@ -176,6 +176,7 @@ export class WorkflowActivationService {
 }
 
 function toActivationResponse(row: ActivationRow, rows: ActivationRow[] = [row]) {
+  const sanitizedError = sanitizeActivationError(row.error);
   const recovery = readActivationRecovery(rows);
   const sortedRows = rows
     .slice()
@@ -198,8 +199,8 @@ function toActivationResponse(row: ActivationRow, rows: ActivationRow[] = [row])
     started_at: row.started_at?.toISOString() ?? null,
     consumed_at: row.consumed_at?.toISOString() ?? null,
     completed_at: row.completed_at?.toISOString() ?? null,
-    summary: row.summary,
-    error: row.error,
+    summary: sanitizeActivationSummary(row.summary),
+    error: sanitizedError,
     recovery: recovery,
     recovery_status: recovery?.status ?? null,
     recovery_reason: recovery?.reason ?? null,
@@ -225,6 +226,7 @@ function deriveActivationState(row: ActivationRow) {
 }
 
 function serializeEvent(row: WorkflowActivationEventRow) {
+  const sanitizedError = sanitizeActivationError(row.error);
   return {
     id: row.id,
     activation_id: row.activation_id ?? row.id,
@@ -241,20 +243,38 @@ function serializeEvent(row: WorkflowActivationEventRow) {
     started_at: row.started_at?.toISOString() ?? null,
     consumed_at: row.consumed_at?.toISOString() ?? null,
     completed_at: row.completed_at?.toISOString() ?? null,
-    summary: row.summary,
-    error: row.error,
-    recovery: extractRecoveryPayload(row.error),
+    summary: sanitizeActivationSummary(row.summary),
+    error: sanitizedError,
+    recovery: extractRecoveryPayload(sanitizedError),
   };
 }
 
 function readActivationRecovery(rows: ActivationRow[]): ActivationRecoveryPayload | null {
   for (const row of rows) {
-    const payload = extractRecoveryPayload(row.error);
+    const payload = extractRecoveryPayload(sanitizeActivationError(row.error));
     if (payload) {
       return payload;
     }
   }
   return null;
+}
+
+function sanitizeActivationSummary(value: string | null): string | null {
+  const sanitized = sanitizeSecretLikeValue(value, {
+    redactionValue: 'redacted://activation-secret',
+    allowSecretReferences: false,
+  });
+  return typeof sanitized === 'string' ? sanitized : null;
+}
+
+function sanitizeActivationError(value: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  return sanitizeSecretLikeRecord(value, {
+    redactionValue: 'redacted://activation-secret',
+    allowSecretReferences: false,
+  });
 }
 
 function extractRecoveryPayload(error: Record<string, unknown> | null): ActivationRecoveryPayload | null {
