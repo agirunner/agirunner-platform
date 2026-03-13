@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_SCHEDULED_TRIGGER_SOURCE,
+  buildScheduledTriggerOverview,
   buildScheduledTriggerPayload,
   canSaveScheduledTrigger,
   createScheduledTriggerFormState,
@@ -153,5 +154,50 @@ describe('project-scheduled-trigger support', () => {
         updated_at: '2026-03-12T00:00:00.000Z',
       }),
     ).toEqual({ label: 'Scheduled', variant: 'success' });
+  });
+
+  it('builds automation posture packets and next-step guidance', () => {
+    const overview = buildScheduledTriggerOverview([
+      {
+        id: 'trigger-1',
+        project_id: 'project-1',
+        workflow_id: 'workflow-1',
+        name: 'Daily triage',
+        source: 'project.schedule',
+        cadence_minutes: 60,
+        next_fire_at: '2999-01-01T00:00:00.000Z',
+        is_active: true,
+        defaults: {},
+        last_fired_at: null,
+        created_at: '2026-03-12T00:00:00.000Z',
+        updated_at: '2026-03-12T00:00:00.000Z',
+      },
+      {
+        id: 'trigger-2',
+        project_id: 'project-1',
+        workflow_id: 'workflow-1',
+        name: 'Paused sync',
+        source: 'project.schedule',
+        cadence_minutes: 120,
+        next_fire_at: '2999-01-02T00:00:00.000Z',
+        is_active: false,
+        defaults: {},
+        last_fired_at: null,
+        created_at: '2026-03-12T00:00:00.000Z',
+        updated_at: '2026-03-12T00:00:00.000Z',
+      },
+    ]);
+
+    expect(overview.heading).toBe('Automation posture is healthy');
+    expect(overview.packets[0]).toMatchObject({
+      label: 'Schedule coverage',
+      value: '2 schedules',
+      detail: '1 active • 1 paused',
+    });
+    expect(overview.packets[1]).toMatchObject({
+      label: 'Attention needed',
+      value: '0 due',
+    });
+    expect(overview.nextAction).toContain('paused schedules');
   });
 });

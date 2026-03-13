@@ -22,6 +22,7 @@ import type {
 } from '../../lib/api.js';
 import { ProjectScheduledTriggerForm } from './project-scheduled-trigger-form.js';
 import {
+  buildScheduledTriggerOverview,
   buildScheduledTriggerPayload,
   createScheduledTriggerFormState,
   describeTriggerHealth,
@@ -98,6 +99,10 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
         .sort((left, right) => left.next_fire_at.localeCompare(right.next_fire_at)),
     [project.id, triggersQuery.data],
   );
+  const triggerOverview = useMemo(
+    () => buildScheduledTriggerOverview(scheduledTriggers),
+    [scheduledTriggers],
+  );
 
   function resetEditor(): void {
     setEditingTriggerId(null);
@@ -122,6 +127,31 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
           Scheduled triggers belong to the project they automate. They create work items on a
           cadence, target a project run, and wake the orchestrator through the normal activation path.
         </div>
+
+        <section className="space-y-4 rounded-xl border border-border/70 bg-background/70 p-4">
+          <div className="space-y-2">
+            <h3 className="text-sm font-semibold">{triggerOverview.heading}</h3>
+            <p className="text-sm leading-6 text-muted">{triggerOverview.summary}</p>
+          </div>
+          <div className="rounded-xl border border-border/70 bg-card/80 p-3 text-sm leading-6 text-muted">
+            <span className="font-medium text-foreground">Best next step:</span>{' '}
+            {triggerOverview.nextAction}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {triggerOverview.packets.map((packet) => (
+              <div
+                key={packet.label}
+                className="rounded-xl border border-border/70 bg-card/80 p-3"
+              >
+                <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
+                  {packet.label}
+                </div>
+                <div className="mt-1 text-sm font-semibold text-foreground">{packet.value}</div>
+                <p className="mt-1 text-sm leading-6 text-muted">{packet.detail}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">

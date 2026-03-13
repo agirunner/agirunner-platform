@@ -31,6 +31,19 @@ export interface ScheduledTriggerFormValidation {
   isValid: boolean;
 }
 
+export interface ScheduledTriggerOverviewPacket {
+  label: string;
+  value: string;
+  detail: string;
+}
+
+export interface ScheduledTriggerOverview {
+  heading: string;
+  summary: string;
+  nextAction: string;
+  packets: ScheduledTriggerOverviewPacket[];
+}
+
 export function createScheduledTriggerFormState(): ScheduledTriggerFormState {
   return {
     name: '',
@@ -144,6 +157,82 @@ export function describeTriggerHealth(trigger: DashboardScheduledWorkItemTrigger
     return { label: 'Due', variant: 'warning' as const };
   }
   return { label: 'Scheduled', variant: 'success' as const };
+}
+
+export function buildScheduledTriggerOverview(
+  triggers: DashboardScheduledWorkItemTriggerRecord[],
+): ScheduledTriggerOverview {
+  const activeCount = triggers.filter((trigger) => trigger.is_active).length;
+  const disabledCount = triggers.length - activeCount;
+  const dueCount = triggers.filter(
+    (trigger) => trigger.is_active && Date.parse(trigger.next_fire_at) <= Date.now(),
+  ).length;
+  const nextTrigger = [...triggers]
+    .filter((trigger) => trigger.is_active)
+    .sort((left, right) => Date.parse(left.next_fire_at) - Date.parse(right.next_fire_at))[0];
+
+  if (triggers.length === 0) {
+    return {
+      heading: 'No schedules are configured yet',
+      summary:
+        'Scheduled work-item automation is empty for this project. Add the first schedule to create recurring work and wake the orchestrator through the normal activation flow.',
+      nextAction:
+        'Create the first schedule, pick the target run, and define the work item title before you leave this project.',
+      packets: [
+        {
+          label: 'Schedule coverage',
+          value: '0 schedules',
+          detail: 'No recurring work-item automation is active for this project yet.',
+        },
+        {
+          label: 'Attention needed',
+          value: '0 items',
+          detail: 'No paused or overdue schedules need intervention.',
+        },
+        {
+          label: 'Next trigger',
+          value: 'Not scheduled',
+          detail: 'Add a cadence to start recurring work-item creation.',
+        },
+      ],
+    };
+  }
+
+  return {
+    heading: dueCount > 0 ? 'Automation attention is needed' : 'Automation posture is healthy',
+    summary:
+      dueCount > 0
+        ? `${dueCount} active schedule${dueCount === 1 ? '' : 's'} should have fired already. Review the related run before more overdue work accumulates.`
+        : `${activeCount} active schedule${activeCount === 1 ? '' : 's'} are set to keep this project moving without manual launch steps.`,
+    nextAction:
+      dueCount > 0
+        ? 'Review the next due schedule first, then confirm the target run, stage, and owner role still match the intended automation path.'
+        : disabledCount > 0
+          ? 'Decide whether the paused schedules should stay dormant or be re-enabled before the next automation window.'
+          : 'Check the next upcoming schedule, then edit cadence or ownership only if the current project rhythm has changed.',
+    packets: [
+      {
+        label: 'Schedule coverage',
+        value: `${triggers.length} schedules`,
+        detail: `${activeCount} active • ${disabledCount} paused`,
+      },
+      {
+        label: 'Attention needed',
+        value: `${dueCount} due`,
+        detail:
+          dueCount > 0
+            ? 'At least one active schedule is overdue and should be reviewed.'
+            : 'No active schedule is currently overdue.',
+      },
+      {
+        label: 'Next trigger',
+        value: nextTrigger ? formatDateTime(nextTrigger.next_fire_at) : 'Paused',
+        detail: nextTrigger
+          ? `${nextTrigger.name} is the next active schedule to fire.`
+          : 'All schedules are paused right now.',
+      },
+    ],
+  };
 }
 
 export function formatCadence(minutes: number): string {
