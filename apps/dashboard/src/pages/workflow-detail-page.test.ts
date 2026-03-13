@@ -136,6 +136,21 @@ describe('workflow detail model override display', () => {
     expect(source).toContain('setSecondarySurface(\'activity\')');
     expect(source).toContain('<CardTitle>Operator Context</CardTitle>');
   });
+
+  it('wires manual workflow activation controls only for live playbook runs', () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, './workflow-detail-page.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('const canEnqueueManualActivation = Boolean(');
+    expect(source).toContain("['active', 'paused'].includes(workflowQuery.data.state)");
+    expect(source).toContain('workflowQuery.data.playbook_id');
+    expect(source).toContain('workflowId={workflowId}');
+    expect(source).toContain('workflowState={workflowQuery.data?.state}');
+    expect(source).toContain('canEnqueueManualActivation={canEnqueueManualActivation}');
+    expect(source).toContain('onActivationQueued={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}');
+  });
 });
 
 describe('workflow detail work-item creation form', () => {

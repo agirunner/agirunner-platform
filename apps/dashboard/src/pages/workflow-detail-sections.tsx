@@ -10,6 +10,7 @@ import type {
   DashboardWorkflowBoardResponse,
   DashboardWorkflowBoardColumn,
   DashboardWorkflowStageRecord,
+  DashboardWorkflowState,
   DashboardWorkflowWorkItemRecord,
 } from '../lib/api.js';
 import { dashboardApi } from '../lib/api.js';
@@ -58,6 +59,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select.js';
+import { Textarea } from '../components/ui/textarea.js';
 import {
   Table,
   TableBody,
@@ -75,6 +77,9 @@ interface MissionControlSummary {
   completed: number;
   failed: number;
 }
+
+const MANUAL_WORKFLOW_ACTIVATION_EVENT_TYPE = 'operator.manual_enqueue';
+const MANUAL_WORKFLOW_ACTIVATION_SOURCE = 'workflow-detail-activations-card';
 
 export function MissionControlCard(props: {
   summary: MissionControlSummary;
@@ -826,13 +831,20 @@ export function WorkflowStagesCard(props: {
 }
 
 export function WorkflowActivationsCard(props: {
+  workflowId: string;
+  workflowState?: DashboardWorkflowState;
   activations: DashboardWorkflowActivationRecord[];
   isLoading: boolean;
   hasError: boolean;
+  canEnqueueManualActivation?: boolean;
   selectedActivationId?: string | null;
   onSelectActivation?(activationId: string): void;
+  onActivationQueued?(): Promise<unknown> | unknown;
 }) {
   const location = useLocation();
+  const [manualActivationReason, setManualActivationReason] = useState('');
+  const [manualActivationMessage, setManualActivationMessage] = useState<string | null>(null);
+  const [manualActivationError, setManualActivationError] = useState<string | null>(null);
   const processingCount = props.activations.filter((activation) =>
     ['processing', 'running', 'in_progress'].includes(activation.state),
   ).length;
@@ -848,6 +860,34 @@ export function WorkflowActivationsCard(props: {
     (total, activation) => total + (activation.event_count ?? activation.events?.length ?? 1),
     0,
   );
+  const enqueueManualActivationMutation = useMutation({
+    mutationFn: async () => {
+      const reason = manualActivationReason.trim();
+      if (!reason) {
+        throw new Error('Activation reason is required.');
+      }
+      return dashboardApi.enqueueWorkflowActivation(props.workflowId, {
+        reason,
+        event_type: MANUAL_WORKFLOW_ACTIVATION_EVENT_TYPE,
+        payload: {
+          source: MANUAL_WORKFLOW_ACTIVATION_SOURCE,
+          workflow_state: props.workflowState ?? 'active',
+        },
+      });
+    },
+    onSuccess: async () => {
+      setManualActivationReason('');
+      setManualActivationError(null);
+      setManualActivationMessage('Queued operator wake-up for the orchestrator.');
+      await props.onActivationQueued?.();
+    },
+    onError: (error) => {
+      setManualActivationMessage(null);
+      setManualActivationError(
+        error instanceof Error ? error.message : 'Failed to queue workflow activation.',
+      );
+    },
+  });
 
   return (
     <Card>
@@ -860,6 +900,72 @@ export function WorkflowActivationsCard(props: {
       <CardContent className="grid gap-4">
         {props.isLoading ? <p className="text-sm text-muted">Loading activations...</p> : null}
         {props.hasError ? <p className="text-sm text-red-600">Failed to load activations.</p> : null}
+        {props.canEnqueueManualActivation ? (
+          <div className="grid gap-4 rounded-2xl border border-border/70 bg-gradient-to-br from-surface via-surface to-border/10 p-4 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <strong className="text-sm text-foreground">Manual Wake-Up</strong>
+                  <Badge variant="secondary">Operator control</Badge>
+                </div>
+                <p className="text-sm text-muted">
+                  Queue an operator-requested orchestrator activation when the board needs another
+                  management pass outside the normal event flow.
+                </p>
+              </div>
+              <div className="rounded-xl border border-border/70 bg-background/90 px-3 py-2 text-right shadow-sm">
+                <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted">
+                  Event Type
+                </p>
+                <p className="text-sm font-medium text-foreground">
+                  {MANUAL_WORKFLOW_ACTIVATION_EVENT_TYPE}
+                </p>
+              </div>
+            </div>
+            <label className="grid gap-2">
+              <span className="text-sm font-medium text-foreground">Operator reason</span>
+              <Textarea
+                value={manualActivationReason}
+                onChange={(event) => {
+                  setManualActivationReason(event.target.value);
+                  setManualActivationError(null);
+                  setManualActivationMessage(null);
+                }}
+                rows={3}
+                placeholder="Explain what changed or what the orchestrator should reassess."
+              />
+            </label>
+            {manualActivationError ? (
+              <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                {manualActivationError}
+              </p>
+            ) : null}
+            {manualActivationMessage ? (
+              <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
+                {manualActivationMessage}
+              </p>
+            ) : null}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-muted">
+                Use this when workflow state changed outside the queue and the board still needs
+                orchestrator attention.
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => enqueueManualActivationMutation.mutate()}
+                disabled={
+                  enqueueManualActivationMutation.isPending ||
+                  manualActivationReason.trim().length === 0
+                }
+              >
+                {enqueueManualActivationMutation.isPending
+                  ? 'Queueing activation...'
+                  : 'Queue activation'}
+              </Button>
+            </div>
+          </div>
+        ) : null}
         {props.activations.length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <ActivationMetric label="Activation batches" value={String(props.activations.length)} />
@@ -1161,6 +1267,13 @@ function describeActivationEvent(
   summary: string | null;
   scope: string | null;
 } {
+  if (eventType === MANUAL_WORKFLOW_ACTIVATION_EVENT_TYPE) {
+    return {
+      headline: 'Operator wake-up queued',
+      summary: reason ?? 'Operator-requested activation queued for orchestrator review.',
+      scope: null,
+    };
+  }
   const descriptor = describeTimelineEvent({
     id: `${activationId}:${eventType}:${queuedAt}`,
     type: eventType,

@@ -559,6 +559,11 @@ export function WorkflowDetailPage(): JSX.Element {
       ...(workflowQuery.data?.active_stages ?? []),
     ]),
   );
+  const canEnqueueManualActivation = Boolean(
+    workflowQuery.data &&
+      ['active', 'paused'].includes(workflowQuery.data.state) &&
+      workflowQuery.data.playbook_id,
+  );
 
   return (
     <section className="mx-auto grid w-full max-w-[1600px] gap-8 px-4 py-6 lg:px-6 xl:px-8">
@@ -960,13 +965,17 @@ export function WorkflowDetailPage(): JSX.Element {
             onSelectGate={(stageName) => updateWorkflowSelection('gate', stageName)}
           />
           <WorkflowActivationsCard
+            workflowId={workflowId}
+            workflowState={workflowQuery.data?.state}
             activations={activationsQuery.data ?? []}
             isLoading={activationsQuery.isLoading}
             hasError={Boolean(activationsQuery.error)}
+            canEnqueueManualActivation={canEnqueueManualActivation}
             selectedActivationId={selectedActivationId}
             onSelectActivation={(activationId) =>
               updateWorkflowSelection('activation', activationId)
             }
+            onActivationQueued={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}
           />
         </div>
       </section>

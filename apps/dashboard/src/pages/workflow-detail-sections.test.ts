@@ -92,6 +92,17 @@ describe('workflow detail sections source', () => {
     expect(source).toContain('Created {packet.createdLabel}');
   });
 
+  it('adds manual workflow activation operator controls to the activations card', () => {
+    const source = readSource();
+    expect(source).toContain('Manual Wake-Up');
+    expect(source).toContain('Operator control');
+    expect(source).toContain('dashboardApi.enqueueWorkflowActivation');
+    expect(source).toContain('operator.manual_enqueue');
+    expect(source).toContain('Operator wake-up queued');
+    expect(source).toContain('Operator reason');
+    expect(source).toContain('Queue activation');
+  });
+
   it('shows stale recovery context on workflow activations', () => {
     const source = readSource();
     expect(source).toContain('Orchestrator Activations');

@@ -246,6 +246,13 @@ export interface DashboardWorkflowActivationRecord {
   }>;
 }
 
+export interface DashboardWorkflowActivationEnqueueInput {
+  reason: string;
+  event_type?: string;
+  payload?: Record<string, unknown>;
+  request_id?: string;
+}
+
 export interface DashboardWorkflowBoardColumn {
   id: string;
   label: string;
@@ -1261,6 +1268,10 @@ export interface DashboardApi {
     limit?: number,
   ): Promise<{ history: DashboardWorkItemMemoryHistoryEntry[] }>;
   listWorkflowActivations(workflowId: string): Promise<DashboardWorkflowActivationRecord[]>;
+  enqueueWorkflowActivation(
+    workflowId: string,
+    payload: DashboardWorkflowActivationEnqueueInput,
+  ): Promise<DashboardWorkflowActivationRecord>;
   listWorkflowDocuments(workflowId: string): Promise<DashboardResolvedDocumentReference[]>;
   createWorkflowDocument(
     workflowId: string,
@@ -1549,6 +1560,7 @@ export interface DashboardApi {
 export function createDashboardApi(options: DashboardApiOptions = {}): DashboardApi {
   const baseUrl = options.baseUrl ?? API_BASE_URL;
   const session = readSession();
+  const defaultManualWorkflowActivationEventType = 'operator.manual_enqueue';
   const client =
     options.client ??
     new PlatformApiClient({
@@ -2001,6 +2013,22 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         requestData<DashboardWorkflowActivationRecord[]>(
           `/api/v1/workflows/${workflowId}/activations`,
           { method: 'GET' },
+        ),
+      ),
+    enqueueWorkflowActivation: (workflowId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowActivationRecord>(
+          `/api/v1/workflows/${workflowId}/activations`,
+          {
+            method: 'POST',
+            body: buildRequestBodyWithRequestId({
+              ...payload,
+              event_type:
+                typeof payload.event_type === 'string' && payload.event_type.trim().length > 0
+                  ? payload.event_type
+                  : defaultManualWorkflowActivationEventType,
+            }),
+          },
         ),
       ),
     listWorkflowEvents: (workflowId, filters) =>

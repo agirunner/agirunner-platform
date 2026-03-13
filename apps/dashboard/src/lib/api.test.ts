@@ -393,6 +393,64 @@ describe('dashboard api auth/session behavior', () => {
     });
   });
 
+  it('enqueues manual workflow activations through the dashboard api surface', async () => {
+    writeSession({ accessToken: 'activation-token', tenantId: 'tenant-1' });
+    vi.stubGlobal('crypto', {
+      randomUUID: () => 'request-123',
+    });
+
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            id: 'activation-1',
+            activation_id: 'activation-1',
+            workflow_id: 'workflow-1',
+            request_id: 'request-123',
+            reason: 'Reassess board state',
+            event_type: 'operator.manual_enqueue',
+            payload: { source: 'workflow-detail-activations-card' },
+            state: 'queued',
+            queued_at: '2026-03-13T12:00:00.000Z',
+          },
+        }),
+        { status: 201 },
+      ),
+    ) as unknown as typeof fetch;
+
+    const api = createDashboardApi({
+      client: {} as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    const activation = await api.enqueueWorkflowActivation('workflow-1', {
+      reason: 'Reassess board state',
+      payload: { source: 'workflow-detail-activations-card' },
+    });
+
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://localhost:8080/api/v1/workflows/workflow-1/activations',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer activation-token',
+          'Content-Type': 'application/json',
+        }),
+      }),
+    );
+    expect(
+      JSON.parse(String(vi.mocked(fetcher).mock.calls[0]?.[1]?.body ?? '{}')),
+    ).toEqual({
+      request_id: 'request-123',
+      reason: 'Reassess board state',
+      event_type: 'operator.manual_enqueue',
+      payload: { source: 'workflow-detail-activations-card' },
+    });
+    expect(activation.request_id).toBe('request-123');
+    expect(activation.event_type).toBe('operator.manual_enqueue');
+  });
+
   it('updates playbooks through the dashboard api surface', async () => {
     writeSession({ accessToken: 'api-token', tenantId: 'tenant-1' });
 
