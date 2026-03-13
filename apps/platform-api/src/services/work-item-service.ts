@@ -134,7 +134,10 @@ export class WorkItemService {
       [tenantId, workflowId, workItemId],
     );
     return result.rows.map((row) =>
-      sanitizeSecretLikeValue(row, { redactionValue: 'redacted://work-item-secret' }) as Record<string, unknown>,
+      sanitizeSecretLikeValue(row, {
+        redactionValue: 'redacted://work-item-secret',
+        allowSecretReferences: false,
+      }) as Record<string, unknown>,
     );
   }
 
@@ -161,7 +164,10 @@ export class WorkItemService {
       [tenantId, workItemId, workflowId, workItemId, limit],
     );
     return result.rows.map((row) =>
-      sanitizeSecretLikeValue(row, { redactionValue: 'redacted://work-item-secret' }) as Record<string, unknown>,
+      sanitizeSecretLikeValue(row, {
+        redactionValue: 'redacted://work-item-secret',
+        allowSecretReferences: false,
+      }) as Record<string, unknown>,
     );
   }
 
@@ -503,6 +509,7 @@ function actorTypeForIdentity(identity: ApiKeyIdentity): string {
 function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
   const sanitizedRow = sanitizeSecretLikeValue(row, {
     redactionValue: 'redacted://work-item-secret',
+    allowSecretReferences: false,
   }) as Record<string, unknown>;
   const childrenCount = readCount(sanitizedRow.children_count);
   return {

@@ -438,7 +438,7 @@ describe('WorkItemService', () => {
     );
 
     expect((result as Record<string, any>).metadata.webhook_secret).toBe('redacted://work-item-secret');
-    expect((result as Record<string, any>).metadata.secret_ref).toBe('secret:WORK_ITEM_SECRET');
+    expect((result as Record<string, any>).metadata.secret_ref).toBe('redacted://work-item-secret');
   });
 
   it('lists work-item tasks through a dedicated subresource query', async () => {
@@ -603,9 +603,9 @@ describe('WorkItemService', () => {
     const [event] = await service.listWorkItemEvents('tenant-1', 'workflow-1', 'work-item-1', 20);
 
     expect((workItem as Record<string, any>).metadata.webhook_secret).toBe('redacted://work-item-secret');
-    expect((workItem as Record<string, any>).metadata.secret_ref).toBe('secret:WORK_ITEM_SECRET');
+    expect((workItem as Record<string, any>).metadata.secret_ref).toBe('redacted://work-item-secret');
     expect((event as Record<string, any>).data.api_key).toBe('redacted://work-item-secret');
-    expect((event as Record<string, any>).data.secret_ref).toBe('secret:EVENT_TOKEN');
+    expect((event as Record<string, any>).data.secret_ref).toBe('redacted://work-item-secret');
   });
 
   it('lists milestone-aware work items with filters and grouped children', async () => {
