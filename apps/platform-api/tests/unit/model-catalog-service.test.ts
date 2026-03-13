@@ -107,6 +107,34 @@ describe('ModelCatalogService', () => {
       expect(result).not.toHaveProperty('oauth_credentials');
     });
 
+    it('redacts secret-bearing provider metadata on public reads', async () => {
+      pool.query.mockResolvedValueOnce({
+        rows: [{
+          ...sampleProvider,
+          metadata: {
+            api_key: 'sk-live-secret',
+            nested: {
+              authorization: 'Bearer top-secret-token',
+              secret_ref: 'secret:PROVIDER_METADATA_SECRET',
+              safe: 'visible',
+            },
+          },
+        }],
+        rowCount: 1,
+      });
+
+      const result = await service.getProvider(TENANT_ID, PROVIDER_ID);
+
+      expect(result.metadata).toEqual({
+        api_key: 'redacted://provider-metadata-secret',
+        nested: {
+          authorization: 'redacted://provider-metadata-secret',
+          secret_ref: 'redacted://provider-metadata-secret',
+          safe: 'visible',
+        },
+      });
+    });
+
     it('throws NotFoundError for missing provider', async () => {
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
       await expect(service.getProvider(TENANT_ID, PROVIDER_ID)).rejects.toThrow('LLM provider not found');

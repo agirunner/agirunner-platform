@@ -10,6 +10,7 @@ import {
   type EffectiveModelOverride,
 } from './config-hierarchy-service.js';
 import { type DiscoveredModel, isDefaultEnabledModel } from './llm-discovery-service.js';
+import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 
 const createProviderSchema = z.object({
   name: z.string().min(1).max(100),
@@ -777,11 +778,18 @@ function sanitizeProvider(provider: ProviderRow): ProviderRecord {
     auth_mode: provider.auth_mode ?? 'api_key',
     is_enabled: provider.is_enabled,
     rate_limit_rpm: provider.rate_limit_rpm,
-    metadata: provider.metadata ?? {},
+    metadata: sanitizeProviderMetadata(provider.metadata),
     credentials_configured: Boolean(provider.api_key_secret_ref || provider.oauth_credentials),
     created_at: provider.created_at,
     updated_at: provider.updated_at,
   };
+}
+
+function sanitizeProviderMetadata(value: unknown): Record<string, unknown> {
+  return sanitizeSecretLikeRecord(value, {
+    redactionValue: 'redacted://provider-metadata-secret',
+    allowSecretReferences: false,
+  });
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
