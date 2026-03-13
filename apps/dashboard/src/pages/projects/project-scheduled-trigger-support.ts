@@ -20,6 +20,17 @@ export interface ScheduledTriggerFormState {
   nextFireAt: string;
 }
 
+export interface ScheduledTriggerFormValidation {
+  fieldErrors: {
+    name?: string;
+    workflowId?: string;
+    cadenceMinutes?: string;
+    title?: string;
+  };
+  issues: string[];
+  isValid: boolean;
+}
+
 export function createScheduledTriggerFormState(): ScheduledTriggerFormState {
   return {
     name: '',
@@ -92,7 +103,37 @@ export function buildScheduledTriggerPayload(
 }
 
 export function canSaveScheduledTrigger(form: ScheduledTriggerFormState): boolean {
-  return Boolean(form.name.trim() && form.workflowId && form.title.trim());
+  return validateScheduledTriggerForm(form).isValid;
+}
+
+export function validateScheduledTriggerForm(
+  form: ScheduledTriggerFormState,
+): ScheduledTriggerFormValidation {
+  const fieldErrors: ScheduledTriggerFormValidation['fieldErrors'] = {};
+
+  if (!form.name.trim()) {
+    fieldErrors.name = 'Enter a schedule name.';
+  }
+
+  if (!form.workflowId.trim()) {
+    fieldErrors.workflowId = 'Choose the run this trigger should target.';
+  }
+
+  if (!form.title.trim()) {
+    fieldErrors.title = 'Enter the work item title to create on each run.';
+  }
+
+  const cadenceMinutes = Number(form.cadenceMinutes);
+  if (!Number.isFinite(cadenceMinutes) || cadenceMinutes <= 0) {
+    fieldErrors.cadenceMinutes = 'Enter a cadence greater than 0 minutes.';
+  }
+
+  const issues = Object.values(fieldErrors);
+  return {
+    fieldErrors,
+    issues,
+    isValid: issues.length === 0,
+  };
 }
 
 export function describeTriggerHealth(trigger: DashboardScheduledWorkItemTriggerRecord) {

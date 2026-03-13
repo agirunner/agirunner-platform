@@ -8,6 +8,7 @@ import {
   describeTriggerHealth,
   formatCadence,
   hydrateScheduledTriggerForm,
+  validateScheduledTriggerForm,
 } from './project-scheduled-trigger-support.js';
 
 describe('project-scheduled-trigger support', () => {
@@ -103,8 +104,34 @@ describe('project-scheduled-trigger support', () => {
         name: 'Daily triage',
         workflowId: 'workflow-1',
         title: 'Run triage',
+        cadenceMinutes: '30',
       }),
     ).toBe(true);
+  });
+
+  it('returns inline validation guidance for missing trigger requirements', () => {
+    expect(validateScheduledTriggerForm(createScheduledTriggerFormState())).toEqual({
+      fieldErrors: {
+        name: 'Enter a schedule name.',
+        workflowId: 'Choose the run this trigger should target.',
+        title: 'Enter the work item title to create on each run.',
+      },
+      issues: [
+        'Enter a schedule name.',
+        'Choose the run this trigger should target.',
+        'Enter the work item title to create on each run.',
+      ],
+      isValid: false,
+    });
+    expect(
+      validateScheduledTriggerForm({
+        ...createScheduledTriggerFormState(),
+        name: 'Daily triage',
+        workflowId: 'workflow-1',
+        title: 'Run triage',
+        cadenceMinutes: '0',
+      }).fieldErrors.cadenceMinutes,
+    ).toBe('Enter a cadence greater than 0 minutes.');
   });
 
   it('describes trigger posture and cadence for operators', () => {

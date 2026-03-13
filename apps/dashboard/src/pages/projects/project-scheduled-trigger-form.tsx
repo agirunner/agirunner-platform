@@ -2,25 +2,10 @@ import { Loader2, Save } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../components/ui/select.js';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select.js';
 import { Textarea } from '../../components/ui/textarea.js';
-import type {
-  DashboardWorkflowBoardColumn,
-  DashboardWorkflowRecord,
-  DashboardWorkflowStageRecord,
-} from '../../lib/api.js';
-import {
-  canSaveScheduledTrigger,
-  DEFAULT_SCHEDULED_TRIGGER_SOURCE,
-  SCHEDULED_TRIGGER_PRIORITY_OPTIONS,
-  type ScheduledTriggerFormState,
-} from './project-scheduled-trigger-support.js';
+import type { DashboardWorkflowBoardColumn, DashboardWorkflowRecord, DashboardWorkflowStageRecord } from '../../lib/api.js';
+import { DEFAULT_SCHEDULED_TRIGGER_SOURCE, SCHEDULED_TRIGGER_PRIORITY_OPTIONS, validateScheduledTriggerForm, type ScheduledTriggerFormState } from './project-scheduled-trigger-support.js';
 
 const EMPTY_SELECT_VALUE = '__empty__';
 type RoleOption = { id: string; name: string; description: string | null; is_active: boolean };
@@ -52,6 +37,7 @@ export function ProjectScheduledTriggerForm({
   onSubmit: () => void;
   onCancel: () => void;
 }) {
+  const validation = validateScheduledTriggerForm(form);
   return (
     <div className="space-y-4 rounded-md border p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -72,23 +58,60 @@ export function ProjectScheduledTriggerForm({
         <p className="text-sm text-muted">Create a project run before adding a scheduled trigger.</p>
       ) : (
         <>
+          <section
+            className={
+              validation.isValid
+                ? 'rounded-xl border border-emerald-300 bg-emerald-50/70 p-4'
+                : 'rounded-xl border border-amber-300 bg-amber-50/80 p-4'
+            }
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <h4 className="text-sm font-semibold">Save readiness</h4>
+                <p className="text-sm text-muted">
+                  {validation.isValid
+                    ? 'This automation rule is ready to save.'
+                    : 'Resolve the items below before saving this trigger.'}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <span className="rounded-full border border-current/10 bg-background/70 px-3 py-1 text-xs font-medium">
+                  {form.workflowId ? 'Run selected' : 'Choose a run'}
+                </span>
+                <span className="rounded-full border border-current/10 bg-background/70 px-3 py-1 text-xs font-medium">
+                  {form.cadenceMinutes.trim() ? `Every ${form.cadenceMinutes.trim()} min` : 'Cadence missing'}
+                </span>
+              </div>
+            </div>
+            {!validation.isValid ? (
+              <ul className="mt-3 space-y-1 text-sm text-amber-950">
+                {validation.issues.map((issue) => (
+                  <li key={issue}>• {issue}</li>
+                ))}
+              </ul>
+            ) : null}
+          </section>
+
           <div className="grid gap-4 md:grid-cols-2">
             <FormInput
               label="Name"
               value={form.name}
               placeholder="Daily triage"
+              error={validation.fieldErrors.name}
               onChange={(value) => onChange({ name: value })}
             />
             <FormInput
               label="Source"
               value={form.source}
               placeholder={DEFAULT_SCHEDULED_TRIGGER_SOURCE}
+              description="Defaults to the canonical project schedule source when left blank."
               onChange={(value) => onChange({ source: value })}
             />
             <SelectField
               label="Target run"
               value={form.workflowId}
               placeholder="Select run"
+              error={validation.fieldErrors.workflowId}
               options={workflows.map((workflow) => ({
                 value: workflow.id,
                 label: workflow.name,
@@ -105,12 +128,15 @@ export function ProjectScheduledTriggerForm({
               type="number"
               value={form.cadenceMinutes}
               placeholder="60"
+              description="Choose how often this project should create a new work item."
+              error={validation.fieldErrors.cadenceMinutes}
               onChange={(value) => onChange({ cadenceMinutes: value })}
             />
             <FormInput
               label="Work item title"
               value={form.title}
               placeholder="Run daily inbox triage"
+              error={validation.fieldErrors.title}
               onChange={(value) => onChange({ title: value })}
             />
             <FormInput
@@ -180,7 +206,7 @@ export function ProjectScheduledTriggerForm({
 
           {errorMessage ? <p className="text-sm text-red-600">{errorMessage}</p> : null}
           <div className="flex justify-end">
-            <Button disabled={isPending || !canSaveScheduledTrigger(form)} onClick={onSubmit}>
+            <Button disabled={isPending || !validation.isValid} onClick={onSubmit}>
               {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {isEditing ? 'Save schedule' : 'Add schedule'}
             </Button>
@@ -196,7 +222,9 @@ function FormInput(props: {
   value: string;
   placeholder?: string;
   type?: string;
-  onChange: (value: string) => void;
+  description?: string;
+  error?: string;
+  onChange(value: string): void;
 }) {
   return (
     <label className="space-y-1">
@@ -205,8 +233,12 @@ function FormInput(props: {
         type={props.type}
         value={props.value}
         placeholder={props.placeholder}
+        className={props.error ? 'border-red-300 focus-visible:ring-red-500' : undefined}
+        aria-invalid={props.error ? true : undefined}
         onChange={(event) => props.onChange(event.target.value)}
       />
+      {props.description ? <p className="text-xs text-muted">{props.description}</p> : null}
+      {props.error ? <p className="text-xs text-red-600">{props.error}</p> : null}
     </label>
   );
 }
@@ -215,7 +247,7 @@ function FormTextarea(props: {
   label: string;
   value: string;
   placeholder?: string;
-  onChange: (value: string) => void;
+  onChange(value: string): void;
 }) {
   return (
     <label className="space-y-1">
@@ -236,7 +268,8 @@ function SelectField(props: {
   placeholder: string;
   options: Array<{ value: string; label: string }>;
   disabled?: boolean;
-  onChange: (value: string) => void;
+  error?: string;
+  onChange(value: string): void;
 }) {
   return (
     <label className="space-y-1">
@@ -246,7 +279,7 @@ function SelectField(props: {
         disabled={props.disabled}
         onValueChange={(value) => props.onChange(value === EMPTY_SELECT_VALUE ? '' : value)}
       >
-        <SelectTrigger>
+        <SelectTrigger className={props.error ? 'border-red-300 focus:ring-red-500' : undefined}>
           <SelectValue placeholder={props.placeholder} />
         </SelectTrigger>
         <SelectContent>
@@ -258,6 +291,7 @@ function SelectField(props: {
           ))}
         </SelectContent>
       </Select>
+      {props.error ? <p className="text-xs text-red-600">{props.error}</p> : null}
     </label>
   );
 }
