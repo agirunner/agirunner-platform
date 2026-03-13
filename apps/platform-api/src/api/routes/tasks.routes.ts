@@ -131,7 +131,7 @@ const escalationResponseSchema = taskOperatorMutationSchema.extend({
   context: z.record(z.unknown()).optional(),
 });
 
-const agentEscalateSchema = z.object({
+const agentEscalateSchema = taskOperatorMutationSchema.extend({
   reason: z.string().min(1).max(4000),
   context_summary: z.string().max(4000).optional(),
   work_so_far: z.string().max(8000).optional(),
@@ -579,7 +579,14 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(agentEscalateSchema.safeParse(request.body));
-      const task = await taskService.agentEscalate(request.auth!, params.id, body);
+      const { request_id: requestId, ...payload } = body;
+      const task = await runPublicTaskOperatorAction(
+        request.auth!.tenantId,
+        params.id,
+        'public_task_agent_escalate',
+        requestId,
+        () => taskService.agentEscalate(request.auth!, params.id, payload),
+      );
       return { data: task };
     },
   );

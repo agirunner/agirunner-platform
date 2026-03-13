@@ -417,6 +417,57 @@ describe('public task operator route idempotency', () => {
     expect(resolveEscalation).toHaveBeenCalledTimes(1);
     expect(second.json()).toEqual(first.json());
   });
+
+  it('deduplicates repeated agent-escalate requests by request_id', async () => {
+    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const agentEscalate = vi.fn(async () => ({
+      id: 'task-agent-escalate-1',
+      workflow_id: 'workflow-agent-escalate-1',
+      state: 'escalated',
+      metadata: { escalated_by: 'agent' },
+    }));
+
+    app = buildTaskRouteApp(
+      {
+        getTask: vi.fn(async () => ({
+          id: 'task-agent-escalate-1',
+          workflow_id: 'workflow-agent-escalate-1',
+        })),
+        agentEscalate,
+      },
+      createWorkflowReplayPool(
+        'workflow-agent-escalate-1',
+        'public_task_agent_escalate',
+        'agent-escalate-1',
+      ),
+    );
+    await app.register(taskRoutes);
+
+    const payload = {
+      request_id: 'agent-escalate-1',
+      reason: 'Need orchestration guidance before continuing.',
+      context_summary: 'Schema migration is blocked on unclear ownership.',
+      work_so_far: 'Validated the migration plan and collected current schema drift.',
+    };
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-agent-escalate-1/agent-escalate',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-agent-escalate-1/agent-escalate',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(agentEscalate).toHaveBeenCalledTimes(1);
+    expect(second.json()).toEqual(first.json());
+  });
 });
 
 function buildTaskRouteApp(
