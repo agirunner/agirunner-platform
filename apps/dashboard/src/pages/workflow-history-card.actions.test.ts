@@ -22,7 +22,7 @@ describe('workflow history timeline actions', () => {
     ]);
   });
 
-  it('falls back to a direct step record only when no work-item context exists', () => {
+  it('keeps workflow-scoped step links in diagnostics mode even without work-item context', () => {
     expect(
       buildTimelineEntryActions({
         workflowId: 'workflow-1',
@@ -31,7 +31,7 @@ describe('workflow history timeline actions', () => {
       }),
     ).toEqual([
       {
-        label: 'Open step record',
+        label: 'Open step diagnostics',
         href: '/work/tasks/task-9',
       },
     ]);

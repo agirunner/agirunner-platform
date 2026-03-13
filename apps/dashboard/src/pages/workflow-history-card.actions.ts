@@ -19,7 +19,7 @@ export function buildTimelineEntryActions(input: {
 
   if (input.taskId) {
     actions.push({
-      label: input.workItemId ? 'Open step diagnostics' : 'Open step record',
+      label: 'Open step diagnostics',
       href: `/work/tasks/${encodeURIComponent(input.taskId)}`,
     });
   }
