@@ -89,16 +89,16 @@ export function buildWorkItemHistoryPacket(event: DashboardEventRecord): WorkIte
 
   return {
     id: event.id,
-    headline: descriptor.headline,
-    summary: descriptor.summary,
-    scopeSummary: descriptor.scopeSummary,
-    emphasisLabel: descriptor.emphasisLabel,
+    headline: coerceDisplayText(descriptor.headline, humanizeEventType(event.type)),
+    summary: coerceOptionalDisplayText(descriptor.summary),
+    scopeSummary: coerceOptionalDisplayText(descriptor.scopeSummary),
+    emphasisLabel: coerceDisplayText(descriptor.emphasisLabel, 'Recorded activity'),
     emphasisTone: descriptor.emphasisTone,
-    signalBadges: descriptor.signalBadges,
-    stageName: descriptor.stageName,
-    workItemId: descriptor.workItemId,
-    taskId: descriptor.taskId,
-    actor: descriptor.actor,
+    signalBadges: coerceDisplayList(descriptor.signalBadges),
+    stageName: coerceOptionalDisplayText(descriptor.stageName),
+    workItemId: coerceOptionalDisplayText(descriptor.workItemId),
+    taskId: coerceOptionalDisplayText(descriptor.taskId),
+    actor: coerceOptionalDisplayText(descriptor.actor),
     createdAtLabel: formatRelativeTimestamp(event.created_at),
     createdAtTitle: formatTimestamp(event.created_at),
     payload: event.data,
@@ -108,4 +108,50 @@ export function buildWorkItemHistoryPacket(event: DashboardEventRecord): WorkIte
 function formatTimestamp(value: string): string {
   const timestamp = Date.parse(value);
   return Number.isNaN(timestamp) ? value : new Date(timestamp).toLocaleString();
+}
+
+function coerceDisplayList(values: readonly unknown[]): string[] {
+  return values
+    .map((value) => coerceOptionalDisplayText(value))
+    .filter((value): value is string => Boolean(value));
+}
+
+function coerceDisplayText(value: unknown, fallback: string): string {
+  return coerceOptionalDisplayText(value) ?? fallback;
+}
+
+function coerceOptionalDisplayText(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    const values = coerceDisplayList(value);
+    return values.length > 0 ? values.join(', ') : null;
+  }
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    return (
+      coerceOptionalDisplayText(record.label) ??
+      coerceOptionalDisplayText(record.title) ??
+      coerceOptionalDisplayText(record.name) ??
+      coerceOptionalDisplayText(record.summary) ??
+      coerceOptionalDisplayText(record.message) ??
+      coerceOptionalDisplayText(record.id) ??
+      coerceOptionalDisplayText(record.count) ??
+      null
+    );
+  }
+  return null;
+}
+
+function humanizeEventType(eventType: string): string {
+  return eventType
+    .replace(/[._-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }

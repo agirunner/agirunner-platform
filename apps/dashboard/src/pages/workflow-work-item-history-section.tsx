@@ -220,22 +220,36 @@ function StructuredValueReview(props: {
     return <p className="text-sm leading-6 text-muted">{props.emptyMessage}</p>;
   }
 
+  const reviewLabel = normalizeDisplayText(props.label) ?? 'Review packet';
+  const reviewDetail =
+    normalizeDisplayText(summary.detail) ?? 'Structured packet available for operator review.';
+  const shapeLabel = normalizeDisplayText(summary.shapeLabel) ?? 'Structured packet';
+  const scalarFacts = summary.scalarFacts
+    .map((fact) => ({
+      label: normalizeDisplayText(fact.label) ?? 'Field',
+      value: normalizeDisplayText(fact.value) ?? 'Structured value',
+    }))
+    .filter((fact) => fact.label || fact.value);
+  const keyHighlights = normalizeDisplayList(summary.keyHighlights);
+  const disclosureLabel =
+    normalizeDisplayText(props.disclosureLabel) ?? 'Open full payload';
+
   return (
     <div className="grid gap-3 rounded-lg border border-border/70 bg-background/80 p-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="grid gap-1">
           <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
-            {props.label}
+            {reviewLabel}
           </div>
-          <p className="text-sm leading-6 text-muted">{summary.detail}</p>
+          <p className="text-sm leading-6 text-muted">{reviewDetail}</p>
         </div>
-        <Badge variant="outline">{summary.shapeLabel}</Badge>
+        <Badge variant="outline">{shapeLabel}</Badge>
       </div>
-      {summary.scalarFacts.length > 0 ? (
+      {scalarFacts.length > 0 ? (
         <dl className="grid gap-2 sm:grid-cols-2">
-          {summary.scalarFacts.map((fact) => (
+          {scalarFacts.map((fact) => (
             <div
-              key={`${props.label}:${fact.label}`}
+              key={`${reviewLabel}:${fact.label}`}
               className="grid gap-1 rounded-lg border border-border/70 bg-surface px-3 py-2"
             >
               <dt className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
@@ -246,10 +260,10 @@ function StructuredValueReview(props: {
           ))}
         </dl>
       ) : null}
-      {summary.keyHighlights.length > 0 ? (
+      {keyHighlights.length > 0 ? (
         <div className="flex flex-wrap gap-2">
-          {summary.keyHighlights.map((key) => (
-            <Badge key={`${props.label}:${key}`} variant="outline">
+          {keyHighlights.map((key) => (
+            <Badge key={`${reviewLabel}:${key}`} variant="outline">
               {key}
             </Badge>
           ))}
@@ -257,7 +271,7 @@ function StructuredValueReview(props: {
       ) : null}
       <details className="rounded-lg border border-border/70 bg-surface px-3 py-2">
         <summary className="cursor-pointer text-sm font-medium text-foreground">
-          {props.disclosureLabel}
+          {disclosureLabel}
         </summary>
         <div className="mt-3">
           <StructuredRecordView data={props.value} emptyMessage={props.emptyMessage} />

@@ -123,4 +123,89 @@ describe('workflow work-item history section source', () => {
     expect(markup).toContain('work item workitem');
     expect(markup).not.toContain('[object Object]');
   });
+
+  it('normalizes malformed structured payload summaries before rendering the review packet', async () => {
+    vi.doMock('./workflow-work-item-history-support.js', () => ({
+      buildWorkItemHistoryOverview: () => ({
+        focusLabel: 'Gate review',
+        focusTone: 'warning',
+        focusDetail: 'Inspect the event payload.',
+        metrics: [],
+      }),
+      buildWorkItemHistoryPacket: (event: { data?: Record<string, unknown> }) => ({
+        id: 'event-2',
+        headline: 'Gate review requested',
+        summary: 'Operator approval is required.',
+        scopeSummary: 'Stage qa',
+        emphasisLabel: 'Gate review',
+        emphasisTone: 'warning',
+        signalBadges: ['awaiting review'],
+        stageName: 'qa',
+        workItemId: 'workitem-12345678',
+        taskId: 'task-abcdef12',
+        actor: 'Agent agent-7',
+        createdAtLabel: '5m ago',
+        createdAtTitle: '2026-03-13T00:00:00Z',
+        payload: event.data?.payload ?? {},
+      }),
+    }));
+    vi.doMock('./workflow-work-item-detail-support.js', async () => {
+      const actual = await vi.importActual<typeof import('./workflow-work-item-detail-support.js')>(
+        './workflow-work-item-detail-support.js',
+      );
+      return {
+        ...actual,
+        summarizeStructuredValue: () => ({
+          hasValue: true,
+          shapeLabel: { label: 'Structured payload' },
+          detail: { message: 'Review nested recommendation details.' },
+          keyHighlights: [{ label: 'Recommendation' }, { name: 'Needs approval' }],
+          scalarFacts: [
+            {
+              label: { label: 'Primary reason' },
+              value: { message: 'Hold for operator sign-off' },
+            },
+          ],
+        }),
+      };
+    });
+
+    const { WorkItemEventHistorySection } = await import('./workflow-work-item-history-section.js');
+    const markup = renderToStaticMarkup(
+      createElement(
+        MemoryRouter,
+        null,
+        createElement(WorkItemEventHistorySection, {
+          isLoading: false,
+          hasError: false,
+          events: [
+            {
+              id: 'event-2',
+              type: 'stage.gate_requested',
+              entity_type: 'work_item',
+              entity_id: 'workitem-12345678',
+              actor_type: 'agent',
+              actor_id: 'agent-7',
+              created_at: '2026-03-13T00:00:00Z',
+              data: {
+                payload: {
+                  recommendation: {
+                    summary: 'Hold for operator sign-off',
+                  },
+                },
+              },
+            },
+          ],
+        }),
+      ),
+    );
+
+    expect(markup).toContain('Structured payload');
+    expect(markup).toContain('Review nested recommendation details.');
+    expect(markup).toContain('Primary reason');
+    expect(markup).toContain('Hold for operator sign-off');
+    expect(markup).toContain('Recommendation');
+    expect(markup).toContain('Needs approval');
+    expect(markup).not.toContain('[object Object]');
+  });
 });
