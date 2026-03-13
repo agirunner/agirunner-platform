@@ -6,7 +6,13 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './workflow-work-item-history-section.tsx'), 'utf8');
+  return [
+    './workflow-work-item-history-section.tsx',
+    './workflow-work-item-history-controls.tsx',
+    './workflow-work-item-history-entry.tsx',
+  ]
+    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
+    .join('\n');
 }
 
 afterEach(() => {
@@ -18,13 +24,18 @@ describe('workflow work-item history section source', () => {
   it('renders operator history packets with overview metrics and linked-step drill-ins', () => {
     const source = readSource();
 
-    expect(source).toContain('buildWorkItemHistoryOverview(props.events)');
-    expect(source).toContain('buildWorkItemHistoryPacket(event)');
+    expect(source).toContain('buildWorkItemHistoryOverview(filteredEvents)');
+    expect(source).toContain('buildWorkItemHistoryRecords(props.events)');
+    expect(source).toContain('filterAndSortWorkItemHistoryRecords');
+    expect(source).toContain('paginateWorkItemHistoryRecords');
     expect(source).toContain('Latest operator signal');
     expect(source).toContain('overview.metrics.map((metric) =>');
-    expect(source).toContain('metric.label');
-    expect(source).toContain('metric.value');
-    expect(source).toContain('metric.detail');
+    expect(source).toContain('SavedViews');
+    expect(source).toContain('Search activity, stages, steps, actors, work items, or signal labels');
+    expect(source).toContain('Needs attention');
+    expect(source).toContain('Attention first');
+    expect(source).toContain('Showing {start}-{end} of {props.visibleCount} visible events.');
+    expect(source).toContain('WORK_ITEM_HISTORY_PAGE_SIZE');
     expect(source).toContain('data-testid="work-item-history-list"');
     expect(source).toContain('Open linked step');
     expect(source).toContain('Operator review packet');
@@ -73,6 +84,8 @@ describe('workflow work-item history section source', () => {
         MemoryRouter,
         null,
         createElement(WorkItemEventHistorySection, {
+          workflowId: 'workflow-1',
+          workItemId: 'workitem-12345678',
           isLoading: false,
           hasError: false,
           events: [
@@ -176,6 +189,8 @@ describe('workflow work-item history section source', () => {
         MemoryRouter,
         null,
         createElement(WorkItemEventHistorySection, {
+          workflowId: 'workflow-1',
+          workItemId: 'workitem-12345678',
           isLoading: false,
           hasError: false,
           events: [

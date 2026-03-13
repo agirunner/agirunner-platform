@@ -1,14 +1,23 @@
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
 
 import type { DashboardEventRecord } from '../lib/api.js';
-import { StructuredRecordView } from '../components/structured-data.js';
 import { Badge } from '../components/ui/badge.js';
-import { Button } from '../components/ui/button.js';
-import { summarizeStructuredValue } from './workflow-work-item-detail-support.js';
+import { WorkItemHistoryFilterBar, WorkItemHistoryPagination } from './workflow-work-item-history-controls.js';
+import { WorkItemHistoryEntry } from './workflow-work-item-history-entry.js';
 import {
   buildWorkItemHistoryOverview,
-  buildWorkItemHistoryPacket,
 } from './workflow-work-item-history-support.js';
+import {
+  WORK_ITEM_HISTORY_PAGE_SIZE,
+  buildWorkItemHistoryRecords,
+  filterAndSortWorkItemHistoryRecords,
+  filtersToSavedViewState,
+  loadPersistedWorkItemHistoryFilters,
+  paginateWorkItemHistoryRecords,
+  persistWorkItemHistoryFilters,
+  savedViewStateToFilters,
+  totalHistoryPages,
+} from './workflow-work-item-history-filters.js';
 
 const loadingTextClass =
   'rounded-lg border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted';
@@ -16,10 +25,49 @@ const errorTextClass =
   'rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700';
 
 export function WorkItemEventHistorySection(props: {
+  workflowId: string;
+  workItemId: string;
   isLoading: boolean;
   hasError: boolean;
   events: DashboardEventRecord[];
 }): JSX.Element {
+  const storageKey = useMemo(
+    () => `${props.workflowId}:${props.workItemId}`,
+    [props.workflowId, props.workItemId],
+  );
+  const [filters, setFilters] = useState(() => loadPersistedWorkItemHistoryFilters(storageKey));
+  const [page, setPage] = useState(0);
+
+  useEffect(() => {
+    setFilters(loadPersistedWorkItemHistoryFilters(storageKey));
+    setPage(0);
+  }, [storageKey]);
+
+  useEffect(() => {
+    persistWorkItemHistoryFilters(storageKey, filters);
+  }, [filters, storageKey]);
+
+  const records = useMemo(
+    () => buildWorkItemHistoryRecords(props.events),
+    [props.events],
+  );
+  const filteredRecords = useMemo(
+    () => filterAndSortWorkItemHistoryRecords(records, filters),
+    [filters, records],
+  );
+  const totalPages = useMemo(
+    () => totalHistoryPages(filteredRecords.length, WORK_ITEM_HISTORY_PAGE_SIZE),
+    [filteredRecords.length],
+  );
+
+  useEffect(() => {
+    setPage(0);
+  }, [filters.query, filters.signal, filters.sort]);
+
+  useEffect(() => {
+    setPage((currentPage) => Math.min(currentPage, Math.max(0, totalPages - 1)));
+  }, [totalPages]);
+
   if (props.isLoading) {
     return <p className={loadingTextClass}>Loading work-item history...</p>;
   }
@@ -34,10 +82,18 @@ export function WorkItemEventHistorySection(props: {
     );
   }
 
-  const overview = buildWorkItemHistoryOverview(props.events);
+  const filteredEvents = filteredRecords.map((record) => record.event);
+  const overview = buildWorkItemHistoryOverview(filteredEvents);
   const focusLabel = normalizeDisplayText(overview.focusLabel) ?? 'Latest activity';
   const focusDetail =
     normalizeDisplayText(overview.focusDetail) ?? 'Latest activity is ready for operator review.';
+  const visibleRecords = paginateWorkItemHistoryRecords(
+    filteredRecords,
+    page,
+    WORK_ITEM_HISTORY_PAGE_SIZE,
+  );
+  const activeFilters = filtersToSavedViewState(filters);
+  const hasActiveFilters = Object.keys(activeFilters).length > 0;
 
   return (
     <section className="grid gap-4 rounded-xl border border-border/70 bg-surface p-4 shadow-sm">
@@ -48,8 +104,29 @@ export function WorkItemEventHistorySection(props: {
             Review operator-facing activity packets, then step into the linked specialist record only when you need deeper execution detail.
           </p>
         </div>
-        <Badge variant="outline">{props.events.length} entries</Badge>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline">{filteredRecords.length} visible</Badge>
+          <Badge variant="outline">{props.events.length} total entries</Badge>
+        </div>
       </div>
+
+      <WorkItemHistoryFilterBar
+        totalCount={props.events.length}
+        visibleCount={filteredRecords.length}
+        filters={filters}
+        savedViewFilters={activeFilters}
+        savedViewStorageKey={`work-item-history:${storageKey}`}
+        onQueryChange={(value) =>
+          setFilters((currentFilters) => ({ ...currentFilters, query: value }))
+        }
+        onSignalChange={(value) =>
+          setFilters((currentFilters) => ({ ...currentFilters, signal: value }))
+        }
+        onSortChange={(value) =>
+          setFilters((currentFilters) => ({ ...currentFilters, sort: value }))
+        }
+        onApplySavedView={(savedFilters) => setFilters(savedViewStateToFilters(savedFilters))}
+      />
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
         <div className="grid gap-1 rounded-xl border border-border/70 bg-background/80 p-4">
@@ -82,81 +159,33 @@ export function WorkItemEventHistorySection(props: {
         </div>
       </div>
 
-      <ul className="grid gap-3" data-testid="work-item-history-list">
-        {props.events.map((event) => {
-          const packet = buildWorkItemHistoryPacket(event);
-          const headline = normalizeDisplayText(packet.headline) ?? 'Recorded activity';
-          const summary = normalizeDisplayText(packet.summary);
-          const scopeSummary = normalizeDisplayText(packet.scopeSummary);
-          const emphasisLabel = normalizeDisplayText(packet.emphasisLabel) ?? 'Activity';
-          const signalBadges = normalizeDisplayList(packet.signalBadges);
-          const stageName = normalizeDisplayText(packet.stageName);
-          const actor = normalizeDisplayText(packet.actor);
-          const workItemId = normalizeDisplayText(packet.workItemId);
-          const taskId = normalizeDisplayText(packet.taskId);
-          const createdAtLabel = normalizeDisplayText(packet.createdAtLabel) ?? 'recently';
-          const createdAtTitle = normalizeDisplayText(packet.createdAtTitle) ?? createdAtLabel;
-          return (
-            <li
-              key={packet.id}
-              className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4 shadow-sm"
-            >
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div className="grid gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <strong>{headline}</strong>
-                    <Badge variant={packet.emphasisTone}>{emphasisLabel}</Badge>
-                  </div>
-                  {summary ? <p className="text-sm leading-6 text-muted">{summary}</p> : null}
-                  {scopeSummary ? (
-                    <p className="text-xs leading-5 text-muted">{scopeSummary}</p>
-                  ) : null}
-                </div>
-                <div className="text-xs text-muted" title={createdAtTitle}>
-                  {createdAtLabel}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {signalBadges.map((badge) => (
-                  <Badge key={`${packet.id}:${badge}`} variant="outline">
-                    {badge}
-                  </Badge>
-                ))}
-                {stageName ? <Badge variant="outline">{stageName}</Badge> : null}
-                {actor ? <Badge variant="outline">{actor}</Badge> : null}
-                {workItemId ? (
-                  <Badge variant="outline">work item {workItemId.slice(0, 8)}</Badge>
-                ) : null}
-                {taskId ? <Badge variant="outline">step {taskId.slice(0, 8)}</Badge> : null}
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {taskId ? (
-                  <Button asChild variant="outline" size="sm">
-                    <Link to={`/work/tasks/${taskId}`}>Open linked step</Link>
-                  </Button>
-                ) : null}
-              </div>
-
-              <StructuredValueReview
-                label="Operator review packet"
-                value={packet.payload}
-                emptyMessage="No event payload."
-                disclosureLabel="Open full event payload"
-              />
-            </li>
-          );
-        })}
-      </ul>
+      {filteredRecords.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted">
+          {hasActiveFilters
+            ? 'No work-item events match the current history filters. Adjust the saved view or filter bar to bring the relevant activity back into scope.'
+            : 'No work-item events are visible in this history slice.'}
+        </div>
+      ) : (
+        <>
+          <ul className="grid gap-3" data-testid="work-item-history-list">
+            {visibleRecords.map((record) => (
+              <WorkItemHistoryEntry key={record.packet.id} packet={record.packet} />
+            ))}
+          </ul>
+          <WorkItemHistoryPagination
+            currentPage={page}
+            totalPages={totalPages}
+            visibleCount={filteredRecords.length}
+            pageSize={WORK_ITEM_HISTORY_PAGE_SIZE}
+            onPrevious={() => setPage((currentPage) => Math.max(0, currentPage - 1))}
+            onNext={() =>
+              setPage((currentPage) => Math.min(totalPages - 1, currentPage + 1))
+            }
+          />
+        </>
+      )}
     </section>
   );
-}
-
-function normalizeDisplayList(values: readonly unknown[]): string[] {
-  return values
-    .map((value) => normalizeDisplayText(value))
-    .filter((value): value is string => Boolean(value));
 }
 
 function normalizeDisplayText(value: unknown, depth = 0): string | null {
@@ -168,12 +197,14 @@ function normalizeDisplayText(value: unknown, depth = 0): string | null {
     return String(value);
   }
   if (Array.isArray(value)) {
-    const entries = normalizeDisplayList(value);
+    const entries = value
+      .map((entry) => normalizeDisplayText(entry, depth + 1))
+      .filter((entry): entry is string => Boolean(entry));
     return entries.length > 0 ? entries.join(', ') : null;
   }
   const record = asRecord(value);
   if (depth < 2) {
-    const preferredValues = [
+    for (const preferredValue of [
       record.label,
       record.title,
       record.name,
@@ -181,8 +212,7 @@ function normalizeDisplayText(value: unknown, depth = 0): string | null {
       record.message,
       record.id,
       record.count,
-    ];
-    for (const preferredValue of preferredValues) {
+    ]) {
       const normalized = normalizeDisplayText(preferredValue, depth + 1);
       if (normalized) {
         return normalized;
@@ -207,76 +237,4 @@ function humanizeDisplayKey(value: string): string {
     .replace(/[_-]+/g, ' ')
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function StructuredValueReview(props: {
-  label: string;
-  value: unknown;
-  emptyMessage: string;
-  disclosureLabel: string;
-}): JSX.Element {
-  const summary = summarizeStructuredValue(props.value);
-  if (!summary.hasValue) {
-    return <p className="text-sm leading-6 text-muted">{props.emptyMessage}</p>;
-  }
-
-  const reviewLabel = normalizeDisplayText(props.label) ?? 'Review packet';
-  const reviewDetail =
-    normalizeDisplayText(summary.detail) ?? 'Structured packet available for operator review.';
-  const shapeLabel = normalizeDisplayText(summary.shapeLabel) ?? 'Structured packet';
-  const scalarFacts = summary.scalarFacts
-    .map((fact) => ({
-      label: normalizeDisplayText(fact.label) ?? 'Field',
-      value: normalizeDisplayText(fact.value) ?? 'Structured value',
-    }))
-    .filter((fact) => fact.label || fact.value);
-  const keyHighlights = normalizeDisplayList(summary.keyHighlights);
-  const disclosureLabel =
-    normalizeDisplayText(props.disclosureLabel) ?? 'Open full payload';
-
-  return (
-    <div className="grid gap-3 rounded-lg border border-border/70 bg-background/80 p-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="grid gap-1">
-          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
-            {reviewLabel}
-          </div>
-          <p className="text-sm leading-6 text-muted">{reviewDetail}</p>
-        </div>
-        <Badge variant="outline">{shapeLabel}</Badge>
-      </div>
-      {scalarFacts.length > 0 ? (
-        <dl className="grid gap-2 sm:grid-cols-2">
-          {scalarFacts.map((fact) => (
-            <div
-              key={`${reviewLabel}:${fact.label}`}
-              className="grid gap-1 rounded-lg border border-border/70 bg-surface px-3 py-2"
-            >
-              <dt className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
-                {fact.label}
-              </dt>
-              <dd className="text-sm text-foreground">{fact.value}</dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
-      {keyHighlights.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {keyHighlights.map((key) => (
-            <Badge key={`${reviewLabel}:${key}`} variant="outline">
-              {key}
-            </Badge>
-          ))}
-        </div>
-      ) : null}
-      <details className="rounded-lg border border-border/70 bg-surface px-3 py-2">
-        <summary className="cursor-pointer text-sm font-medium text-foreground">
-          {disclosureLabel}
-        </summary>
-        <div className="mt-3">
-          <StructuredRecordView data={props.value} emptyMessage={props.emptyMessage} />
-        </div>
-      </details>
-    </div>
-  );
 }

@@ -380,6 +380,8 @@ export function WorkflowWorkItemDetailPanel(
 
           <TabsContent value="history" className="mt-0 grid">
             <WorkItemEventHistorySection
+              workflowId={props.workflowId}
+              workItemId={props.workItemId}
               isLoading={eventQuery.isLoading}
               hasError={Boolean(eventQuery.error)}
               events={events}
