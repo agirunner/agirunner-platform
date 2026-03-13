@@ -23,6 +23,7 @@ describe('workflow inspector page source', () => {
     expect(source).toContain('Workflow Inspector');
     expect(source).toContain('Workflow Board');
     expect(source).toContain('Current operator scope');
+    expect(source).toContain('Current board stage in the scoped workflow shell');
     expect(source).toContain('Operator focus');
     expect(source).toContain('Best next step:');
     expect(source).toContain('Trace coverage');
@@ -45,11 +46,13 @@ describe('workflow inspector page source', () => {
     expect(source).toContain('mode="inspector"');
   });
 
-  it('keeps continuous workflows on live stage sets instead of falling back to current_stage', () => {
+  it('uses lifecycle-aware stage presentation for standard and continuous workflows', () => {
     const source = readSource();
-    expect(source).toContain('describeLiveStageLabel');
-    expect(source).toContain("if (workflow?.lifecycle === 'continuous')");
-    expect(source).toContain("return 'No live stages'");
-    expect(source).not.toContain('workflow?.current_stage ||');
+    expect(source).toContain('describeWorkflowStageLabel');
+    expect(source).toContain('describeWorkflowStageValue');
+    expect(source).toContain('describeWorkflowScopeSummary');
+    expect(source).toContain('label={stageLabel}');
+    expect(source).toContain('value={stageValue}');
+    expect(source).toContain('scopeSummary');
   });
 });

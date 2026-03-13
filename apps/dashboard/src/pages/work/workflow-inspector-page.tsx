@@ -21,6 +21,11 @@ import {
 import { WorkflowInspectorTelemetryPanel } from './workflow-inspector-telemetry-panel.js';
 import { buildWorkflowInspectorTelemetryModel } from './workflow-inspector-telemetry.js';
 import {
+  describeWorkflowScopeSummary,
+  describeWorkflowStageLabel,
+  describeWorkflowStageValue,
+} from './workflow-inspector-stage-presentation.js';
+import {
   InspectorFocusCard,
   InspectorMetric,
   TraceCoverageNote,
@@ -43,7 +48,9 @@ export function WorkflowInspectorPage(): JSX.Element {
     enabled: Boolean(workflow?.project_id),
     staleTime: 30_000,
   });
-  const liveStageLabel = describeLiveStageLabel(workflow);
+  const stageLabel = describeWorkflowStageLabel(workflow);
+  const stageValue = describeWorkflowStageValue(workflow);
+  const scopeSummary = describeWorkflowScopeSummary(workflow);
   const traceModel = buildWorkflowInspectorTraceModel({
     workflow,
     project: projectQuery.data,
@@ -87,7 +94,7 @@ export function WorkflowInspectorPage(): JSX.Element {
   const focusSummary = buildWorkflowInspectorFocusSummary({
     workflowId,
     workflow,
-    liveStageLabel,
+    liveStageLabel: stageValue,
     traceModel,
   });
 
@@ -157,8 +164,13 @@ export function WorkflowInspectorPage(): JSX.Element {
               <div className="grid gap-3 md:grid-cols-3">
                 <InspectorMetric label="Workflow" value={workflow.name} />
                 <InspectorMetric
-                  label="Live Stages"
-                  value={workflow.work_item_summary?.active_stage_count ?? 0}
+                  label={stageLabel}
+                  value={stageValue}
+                  detail={
+                    workflow.lifecycle === 'continuous'
+                      ? `${workflow.work_item_summary?.active_stage_count ?? 0} active stage${workflow.work_item_summary?.active_stage_count === 1 ? '' : 's'} in the current workflow scope`
+                      : 'Current board stage in the scoped workflow shell'
+                  }
                 />
                 <InspectorMetric
                   label="Open Work Items"
@@ -172,7 +184,7 @@ export function WorkflowInspectorPage(): JSX.Element {
                     <p className="font-medium text-foreground">Current operator scope</p>
                     <p className="text-muted">
                       {workflow.project_name ? `${workflow.project_name} · ` : ''}
-                      {liveStageLabel}
+                      {scopeSummary}
                     </p>
                   </div>
                 </div>
@@ -250,26 +262,4 @@ export function WorkflowInspectorPage(): JSX.Element {
       <LogsSurface scopedWorkflowId={workflowId} mode="inspector" />
     </div>
   );
-}
-
-function describeLiveStageLabel(
-  workflow:
-    | {
-        lifecycle?: 'standard' | 'continuous' | null;
-        work_item_summary?: { active_stage_names?: string[] | null } | null;
-        active_stages?: string[] | null;
-        current_stage?: string | null;
-      }
-    | undefined,
-) {
-  const summaryStages = workflow?.work_item_summary?.active_stage_names?.filter(Boolean) ?? [];
-  const activeStages = workflow?.active_stages?.filter(Boolean) ?? [];
-  const liveStages = summaryStages.length > 0 ? summaryStages : activeStages;
-  if (liveStages.length > 0) {
-    return liveStages.join(', ');
-  }
-  if (workflow?.lifecycle === 'continuous') {
-    return 'No live stages';
-  }
-  return workflow?.current_stage ?? 'No live stage';
 }
