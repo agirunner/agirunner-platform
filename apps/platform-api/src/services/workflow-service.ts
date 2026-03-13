@@ -197,7 +197,7 @@ export class WorkflowService {
                 COALESCE(task_counts.task_counts, '{}'::jsonb) AS task_counts,
                 CASE
                   WHEN w.lifecycle = 'standard'
-                  THEN COALESCE(stage_summary.current_stage_name, w.current_stage)
+                  THEN stage_summary.current_stage_name
                   ELSE NULL
                 END AS current_stage,
                 CASE
@@ -324,7 +324,7 @@ export class WorkflowService {
 
     const workflowRow = await repo.findById<Record<string, unknown> & { tenant_id: string }>(
       'workflows',
-      buildWorkflowReadColumns(),
+      buildWorkflowReadColumns(undefined, { includeCurrentStage: false }),
       workflowId,
     );
     if (!workflowRow) throw new NotFoundError('Workflow not found');
@@ -369,8 +369,7 @@ export class WorkflowService {
         ...normalizedWorkflow,
         ...(workflowRow.lifecycle !== 'continuous'
           ? {
-              current_stage:
-                currentStageNameFromStages(workflowStages as never) ?? workflowRow.current_stage ?? null,
+              current_stage: currentStageNameFromStages(workflowStages as never) ?? null,
             }
           : {}),
         tasks: tasks.map((task) => sanitizeTaskReadModel(task)),

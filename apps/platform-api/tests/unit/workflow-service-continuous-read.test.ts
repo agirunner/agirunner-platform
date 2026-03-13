@@ -59,6 +59,7 @@ describe('WorkflowService continuous workflow reads', () => {
     expect(listSql).not.toContain('SELECT w.*');
     expect(listSql).not.toContain('template_id');
     expect(listSql).not.toContain('current_phase');
+    expect(listSql).not.toContain('w.current_stage');
     expect(result.data[0].active_stages).toEqual(['triage', 'implementation']);
     expect(result.data[0]).not.toHaveProperty('playbook_definition');
     expect(result.data[0].work_item_summary).toEqual({
@@ -254,6 +255,7 @@ describe('WorkflowService continuous workflow reads', () => {
     expect(workflow).not.toHaveProperty('phases');
     expect(workflow).not.toHaveProperty('phase_summary');
     expect(detailSql).not.toContain('SELECT * FROM workflows');
+    expect(detailSql).not.toContain('current_stage');
     expect(detailSql).not.toContain('template_id');
     expect(detailSql).not.toContain('current_phase');
     expect(workflow.active_stages).toEqual(['triage', 'implementation']);
@@ -265,6 +267,55 @@ describe('WorkflowService continuous workflow reads', () => {
       awaiting_gate_count: 1,
       active_stage_names: ['triage', 'implementation'],
     });
+  });
+
+  it('does not fall back to stored workflow current_stage on standard workflow detail reads', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              id: 'wf-standard',
+              tenant_id: 'tenant-1',
+              playbook_id: 'pb-1',
+              lifecycle: 'standard',
+              current_stage: 'implementation',
+              metadata: {},
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: { columns: [{ id: 'queued', label: 'Queued' }] },
+                stages: [{ name: 'implementation', goal: 'Implement work' }],
+              },
+            },
+          ],
+        }),
+    };
+
+    const service = new WorkflowService(pool as never, { emit: vi.fn() } as never, config as never);
+    (service as unknown as { workItemService: { listWorkflowWorkItems: ReturnType<typeof vi.fn> } }).workItemService = {
+      listWorkflowWorkItems: vi.fn().mockResolvedValue([]),
+    };
+    (service as unknown as { activationService: { listWorkflowActivations: ReturnType<typeof vi.fn> } }).activationService = {
+      listWorkflowActivations: vi.fn().mockResolvedValue([]),
+    };
+    (service as unknown as { stageService: { listStages: ReturnType<typeof vi.fn> } }).stageService = {
+      listStages: vi.fn().mockResolvedValue([]),
+    };
+
+    const workflow = await service.getWorkflow('tenant-1', 'wf-standard');
+    const detailSql = String(pool.query.mock.calls[0]?.[0] ?? '');
+
+    expect(detailSql).not.toContain('current_stage');
+    expect(workflow.current_stage).toBeNull();
   });
 
   it('redacts secret-bearing workflow and embedded task payloads on workflow detail reads', async () => {
