@@ -16,10 +16,10 @@ describe('WorkflowCancellationService', () => {
   it('treats a repeated cancellation request as idempotent once cancel_requested_at is present', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
-        if (sql.startsWith('SELECT id, state, metadata FROM workflows')) {
+        if (sql.startsWith('SELECT id, state, metadata, lifecycle FROM workflows')) {
           return {
             rowCount: 1,
             rows: [{
@@ -29,6 +29,7 @@ describe('WorkflowCancellationService', () => {
                 cancel_requested_at: '2026-03-12T00:00:00.000Z',
                 cancel_force_at: '2026-03-12T00:01:00.000Z',
               },
+              lifecycle: 'standard',
             }],
           };
         }
@@ -51,7 +52,7 @@ describe('WorkflowCancellationService', () => {
     const workflowSql = String(client.query.mock.calls.find(([sql]) => typeof sql === 'string' && sql.includes('FROM workflows'))?.[0] ?? '');
 
     expect(result).toEqual({ id: 'workflow-1', state: 'paused' });
-    expect(workflowSql).toBe('SELECT id, state, metadata FROM workflows WHERE tenant_id = $1 AND id = $2 FOR UPDATE');
+    expect(workflowSql).toBe('SELECT id, state, metadata, lifecycle FROM workflows WHERE tenant_id = $1 AND id = $2 FOR UPDATE');
     expect(getWorkflow).toHaveBeenCalledWith('tenant-1', 'workflow-1');
     expect(eventService.emit).not.toHaveBeenCalled();
     expect(stateService.recomputeWorkflowState).not.toHaveBeenCalled();
@@ -60,16 +61,17 @@ describe('WorkflowCancellationService', () => {
   it('uses canonical in_progress task state when selecting active tasks for workflow cancellation', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
-        if (sql.startsWith('SELECT id, state, metadata FROM workflows')) {
+        if (sql.startsWith('SELECT id, state, metadata, lifecycle FROM workflows')) {
           return {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
               state: 'active',
               metadata: {},
+              lifecycle: 'standard',
             }],
           };
         }
@@ -118,16 +120,17 @@ describe('WorkflowCancellationService', () => {
   it('closes pending stage gates when workflow cancellation is requested', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
-        if (sql.startsWith('SELECT id, state, metadata FROM workflows')) {
+        if (sql.startsWith('SELECT id, state, metadata, lifecycle FROM workflows')) {
           return {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
               state: 'active',
               metadata: {},
+              lifecycle: 'standard',
             }],
           };
         }
@@ -176,19 +179,79 @@ describe('WorkflowCancellationService', () => {
     );
   });
 
-  it('cancels escalated tasks immediately during workflow cancellation', async () => {
+  it('does not persist blocked stage status for continuous workflow cancellation', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
-        if (sql.startsWith('SELECT id, state, metadata FROM workflows')) {
+        if (sql.startsWith('SELECT id, state, metadata, lifecycle FROM workflows')) {
           return {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
               state: 'active',
               metadata: {},
+              lifecycle: 'continuous',
+            }],
+          };
+        }
+        if (sql.startsWith('UPDATE tasks')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflow_stage_gates')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflow_stages')) {
+          expect(sql).not.toMatch(/\bstatus\s*=\s*CASE/);
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflow_activations')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes("state IN ('claimed', 'in_progress')")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflows')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.startsWith('UPDATE agents')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkflowCancellationService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'paused') } as never,
+      cancelSignalGracePeriodMs: 60_000,
+      getWorkflow: vi.fn(async () => ({ id: 'workflow-1', state: 'paused' })),
+    });
+
+    await service.cancelWorkflow(identity as never, 'workflow-1');
+
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE workflow_stages'),
+      ['tenant-1', 'workflow-1'],
+    );
+  });
+
+  it('cancels escalated tasks immediately during workflow cancellation', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('SELECT id, state, metadata, lifecycle FROM workflows')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              state: 'active',
+              metadata: {},
+              lifecycle: 'standard',
             }],
           };
         }
@@ -239,10 +302,10 @@ describe('WorkflowCancellationService', () => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
-        if (sql.startsWith('SELECT id, state, metadata FROM workflows')) {
+        if (sql.startsWith('SELECT id, state, metadata, lifecycle FROM workflows')) {
           return {
             rowCount: 1,
-            rows: [{ id: 'workflow-1', state: 'cancelled', metadata: {} }],
+            rows: [{ id: 'workflow-1', state: 'cancelled', metadata: {}, lifecycle: 'standard' }],
           };
         }
         throw new Error(`Unexpected SQL: ${sql}`);

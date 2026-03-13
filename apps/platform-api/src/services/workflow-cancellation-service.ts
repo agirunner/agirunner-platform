@@ -23,7 +23,7 @@ export class WorkflowCancellationService {
       await client.query('BEGIN');
 
       const workflowRes = await client.query(
-        'SELECT id, state, metadata FROM workflows WHERE tenant_id = $1 AND id = $2 FOR UPDATE',
+        'SELECT id, state, metadata, lifecycle FROM workflows WHERE tenant_id = $1 AND id = $2 FOR UPDATE',
         [identity.tenantId, workflowId],
       );
       if (!workflowRes.rowCount) throw new NotFoundError('Workflow not found');
@@ -69,22 +69,7 @@ export class WorkflowCancellationService {
         [identity.tenantId, workflowId, identity.scope, identity.keyPrefix],
       );
 
-      await client.query(
-        `UPDATE workflow_stages
-            SET gate_status = CASE
-                  WHEN gate_status = 'awaiting_approval' THEN 'rejected'
-                  ELSE gate_status
-                END,
-                status = CASE
-                  WHEN status = 'awaiting_gate' THEN 'blocked'
-                  ELSE status
-                END,
-                updated_at = now()
-          WHERE tenant_id = $1
-            AND workflow_id = $2
-            AND gate_status = 'awaiting_approval'`,
-        [identity.tenantId, workflowId],
-      );
+      await this.updateWorkflowStageCancellationPosture(client, workflow, identity.tenantId, workflowId);
 
       const activeTasks = await client.query(
         `SELECT id, assigned_worker_id
@@ -247,6 +232,46 @@ export class WorkflowCancellationService {
     } finally {
       client.release();
     }
+  }
+
+  private async updateWorkflowStageCancellationPosture(
+    client: { query: DatabasePool['query'] },
+    workflow: Record<string, unknown>,
+    tenantId: string,
+    workflowId: string,
+  ) {
+    if (workflow.lifecycle === 'continuous') {
+      await client.query(
+        `UPDATE workflow_stages
+            SET gate_status = CASE
+                  WHEN gate_status = 'awaiting_approval' THEN 'rejected'
+                  ELSE gate_status
+                END,
+                updated_at = now()
+          WHERE tenant_id = $1
+            AND workflow_id = $2
+            AND gate_status = 'awaiting_approval'`,
+        [tenantId, workflowId],
+      );
+      return;
+    }
+
+    await client.query(
+      `UPDATE workflow_stages
+          SET gate_status = CASE
+                WHEN gate_status = 'awaiting_approval' THEN 'rejected'
+                ELSE gate_status
+              END,
+              status = CASE
+                WHEN status = 'awaiting_gate' THEN 'blocked'
+                ELSE status
+              END,
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND gate_status = 'awaiting_approval'`,
+      [tenantId, workflowId],
+    );
   }
 }
 
