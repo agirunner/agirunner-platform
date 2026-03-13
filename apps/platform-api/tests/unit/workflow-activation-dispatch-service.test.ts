@@ -1655,4 +1655,150 @@ describe('WorkflowActivationDispatchService', () => {
     expect(client.query).toHaveBeenCalledTimes(1);
     expect(eventService.emit).not.toHaveBeenCalled();
   });
+
+  it('ignores completion from a stale orchestrator dispatch token', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const service = new WorkflowActivationDispatchService({
+      pool: { query: vi.fn(), connect: vi.fn() } as never,
+      eventService: eventService as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('SELECT id') && sql.includes('dispatch_attempt = $4') && sql.includes('dispatch_token = $5::uuid')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'activation-1',
+            2,
+            'a36e63b2-6d00-44d4-8cf1-d5721a1d3f8e',
+          ]);
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    await service.finalizeActivationForTask(
+      'tenant-1',
+      {
+        id: 'task-1',
+        workflow_id: 'workflow-1',
+        activation_id: 'activation-1',
+        is_orchestrator_task: true,
+        metadata: {
+          activation_dispatch_attempt: 2,
+          activation_dispatch_token: 'a36e63b2-6d00-44d4-8cf1-d5721a1d3f8e',
+        },
+        output: { summary: 'stale completion' },
+      },
+      'completed',
+      client as never,
+    );
+
+    expect(client.query).toHaveBeenCalledTimes(1);
+    expect(eventService.emit).not.toHaveBeenCalled();
+  });
+
+  it('finalizes completion when the orchestrator dispatch token matches the live activation', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const service = new WorkflowActivationDispatchService({
+      pool: { query: vi.fn(), connect: vi.fn() } as never,
+      eventService: eventService as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('SELECT id') && sql.includes('dispatch_attempt = $4') && sql.includes('dispatch_token = $5::uuid')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'activation-1',
+            2,
+            'a36e63b2-6d00-44d4-8cf1-d5721a1d3f8e',
+          ]);
+          return { rowCount: 1, rows: [{ id: 'activation-1' }] };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('activation_id = $3') && sql.includes('id <> $5::uuid')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'activation-1',
+            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+            'task-1',
+          ]);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SET state = \'completed\'')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'activation-1', 'Reviewed workflow state']);
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'activation-1',
+                tenant_id: 'tenant-1',
+                workflow_id: 'workflow-1',
+                activation_id: 'activation-1',
+                request_id: 'req-1',
+                reason: 'task.completed',
+                event_type: 'task.completed',
+                payload: {},
+                state: 'completed',
+                dispatch_attempt: 2,
+                dispatch_token: null,
+                queued_at: new Date('2026-03-11T00:00:00Z'),
+                started_at: new Date('2026-03-11T00:00:10Z'),
+                consumed_at: new Date('2026-03-11T00:01:00Z'),
+                completed_at: new Date('2026-03-11T00:01:00Z'),
+                summary: 'Reviewed workflow state',
+                error: null,
+              },
+            ],
+          };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes('activation_id IS NULL')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    await service.finalizeActivationForTask(
+      'tenant-1',
+      {
+        id: 'task-1',
+        workflow_id: 'workflow-1',
+        activation_id: 'activation-1',
+        is_orchestrator_task: true,
+        metadata: {
+          activation_dispatch_attempt: 2,
+          activation_dispatch_token: 'a36e63b2-6d00-44d4-8cf1-d5721a1d3f8e',
+        },
+        output: { summary: 'Reviewed workflow state' },
+      },
+      'completed',
+      client as never,
+    );
+
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'workflow.activation_completed',
+        entityId: 'workflow-1',
+        data: expect.objectContaining({
+          activation_id: 'activation-1',
+          task_id: 'task-1',
+          event_count: 1,
+        }),
+      }),
+      client,
+    );
+  });
 });

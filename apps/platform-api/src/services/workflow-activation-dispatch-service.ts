@@ -248,11 +248,13 @@ export class WorkflowActivationDispatchService {
     }
 
     const dispatchAttempt = readTaskDispatchAttempt(task);
+    const dispatchToken = readTaskDispatchToken(task);
     const isFinalizable = await this.lockFinalizableActivation(
       tenantId,
       String(task.workflow_id),
       String(task.activation_id),
       dispatchAttempt,
+      dispatchToken,
       client,
     );
     if (!isFinalizable) {
@@ -599,12 +601,24 @@ export class WorkflowActivationDispatchService {
     workflowId: string,
     activationId: string,
     dispatchAttempt: number | null,
+    dispatchToken: string | null,
     client: DatabaseClient,
   ): Promise<boolean> {
+    const dispatchAttemptClause = dispatchAttempt === null ? 'AND dispatch_attempt >= 1' : 'AND dispatch_attempt = $4';
+    const dispatchTokenClause =
+      dispatchToken === null
+        ? ''
+        : dispatchAttempt === null
+          ? 'AND dispatch_token = $4::uuid'
+          : 'AND dispatch_token = $5::uuid';
     const params =
-      dispatchAttempt === null
-        ? [tenantId, workflowId, activationId]
-        : [tenantId, workflowId, activationId, dispatchAttempt];
+      dispatchToken === null
+        ? dispatchAttempt === null
+          ? [tenantId, workflowId, activationId]
+          : [tenantId, workflowId, activationId, dispatchAttempt]
+        : dispatchAttempt === null
+          ? [tenantId, workflowId, activationId, dispatchToken]
+          : [tenantId, workflowId, activationId, dispatchAttempt, dispatchToken];
     const result = await client.query<{ id: string }>(
       `SELECT id
          FROM workflow_activations
@@ -614,7 +628,8 @@ export class WorkflowActivationDispatchService {
           AND activation_id = $3
           AND state = 'processing'
           AND consumed_at IS NULL
-          ${dispatchAttempt === null ? 'AND dispatch_attempt >= 1' : 'AND dispatch_attempt = $4'}
+          ${dispatchAttemptClause}
+          ${dispatchTokenClause}
         FOR UPDATE`,
       params,
     );
@@ -1431,6 +1446,15 @@ function readTaskDispatchAttempt(task: Record<string, unknown>): number | null {
   }
   const value = (metadata as Record<string, unknown>).activation_dispatch_attempt;
   return typeof value === 'number' && Number.isInteger(value) ? value : null;
+}
+
+function readTaskDispatchToken(task: Record<string, unknown>): string | null {
+  const metadata = task.metadata;
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return null;
+  }
+  const value = (metadata as Record<string, unknown>).activation_dispatch_token;
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
 function isReadyForDispatch(activation: QueuedActivationRow, activationDelayMs: number): boolean {
