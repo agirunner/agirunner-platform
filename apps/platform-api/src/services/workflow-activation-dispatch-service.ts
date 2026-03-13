@@ -13,6 +13,7 @@ const ACTIVE_ORCHESTRATOR_TASK_STATES = [
   'awaiting_approval',
   'output_pending_review',
 ] as const;
+const ACTIVATION_TASK_REQUEST_ID_PATTERN = /^activation:([^:]+):dispatch:(\d+)$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 interface QueuedActivationRow {
@@ -1602,10 +1603,13 @@ function asRecord(value: unknown): Record<string, unknown> {
 function readTaskDispatchAttempt(task: Record<string, unknown>): number | null {
   const metadata = task.metadata;
   if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
-    return null;
+    return readTaskDispatchAttemptFromRequestId(task);
   }
   const value = (metadata as Record<string, unknown>).activation_dispatch_attempt;
-  return typeof value === 'number' && Number.isInteger(value) ? value : null;
+  if (typeof value === 'number' && Number.isInteger(value)) {
+    return value;
+  }
+  return readTaskDispatchAttemptFromRequestId(task);
 }
 
 function readTaskDispatchToken(task: Record<string, unknown>): string | null {
@@ -1619,6 +1623,28 @@ function readTaskDispatchToken(task: Record<string, unknown>): string | null {
   }
   const token = value.trim();
   return UUID_PATTERN.test(token) ? token : null;
+}
+
+function readTaskDispatchAttemptFromRequestId(task: Record<string, unknown>): number | null {
+  const requestId =
+    typeof task.request_id === 'string' && task.request_id.trim().length > 0
+      ? task.request_id.trim()
+      : null;
+  const activationId =
+    typeof task.activation_id === 'string' && task.activation_id.trim().length > 0
+      ? task.activation_id.trim()
+      : null;
+  if (!requestId || !activationId) {
+    return null;
+  }
+
+  const match = ACTIVATION_TASK_REQUEST_ID_PATTERN.exec(requestId);
+  if (!match || match[1] !== activationId) {
+    return null;
+  }
+
+  const attempt = Number.parseInt(match[2], 10);
+  return Number.isSafeInteger(attempt) && attempt >= 1 ? attempt : null;
 }
 
 function isReadyForDispatch(activation: QueuedActivationRow, activationDelayMs: number): boolean {
