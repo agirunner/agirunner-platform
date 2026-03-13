@@ -344,12 +344,26 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
       ) : null}
 
       <Tabs value={selectedView} onValueChange={(value) => updateView(value as InspectorView)} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="raw">{rawFirstSurface ? 'Log Stream' : 'Raw Logs'}</TabsTrigger>
-          <TabsTrigger value="summary">{rawFirstSurface ? 'Activity Summary' : 'Summary'}</TabsTrigger>
-          <TabsTrigger value="detailed">{rawFirstSurface ? 'Delivery Packets' : 'Delivery'}</TabsTrigger>
-          <TabsTrigger value="debug">{rawFirstSurface ? 'Trace Detail' : 'Debug'}</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-1 px-1">
+          <TabsList>
+            <TabsTrigger value="raw">
+              <span className="sm:hidden">{rawFirstSurface ? 'Logs' : 'Raw'}</span>
+              <span className="hidden sm:inline">{rawFirstSurface ? 'Log Stream' : 'Raw Logs'}</span>
+            </TabsTrigger>
+            <TabsTrigger value="summary">
+              <span className="sm:hidden">Summary</span>
+              <span className="hidden sm:inline">{rawFirstSurface ? 'Activity Summary' : 'Summary'}</span>
+            </TabsTrigger>
+            <TabsTrigger value="detailed">
+              <span className="sm:hidden">Delivery</span>
+              <span className="hidden sm:inline">{rawFirstSurface ? 'Delivery Packets' : 'Delivery'}</span>
+            </TabsTrigger>
+            <TabsTrigger value="debug">
+              <span className="sm:hidden">Trace</span>
+              <span className="hidden sm:inline">{rawFirstSurface ? 'Trace Detail' : 'Debug'}</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="raw">
           <div className="space-y-4">
@@ -383,6 +397,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
               rolesQuery.isLoading ||
               actorsQuery.isLoading
             }
+            hasError={Boolean(statsQuery.error)}
           />
         </TabsContent>
 

@@ -1,4 +1,4 @@
-import { Activity, AlertTriangle, Clock3, DollarSign } from 'lucide-react';
+import { Activity, AlertTriangle, Clock3, DollarSign, Inbox } from 'lucide-react';
 
 import type {
   LogActorRecord,
@@ -8,6 +8,7 @@ import type {
 } from '../lib/api.js';
 import { Badge } from './ui/badge.js';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card.js';
+import { Skeleton } from './ui/skeleton.js';
 import {
   describeExecutionOperationLabel,
   formatCost,
@@ -22,6 +23,7 @@ interface ExecutionInspectorSummaryViewProps {
   roles: LogRoleRecord[];
   actors: LogActorRecord[];
   isLoading: boolean;
+  hasError?: boolean;
 }
 
 export function ExecutionInspectorSummaryView(
@@ -29,6 +31,28 @@ export function ExecutionInspectorSummaryView(
 ): JSX.Element {
   const totals = props.stats?.data.totals;
   const groups = props.stats?.data.groups ?? [];
+  const isEmptySlice =
+    !props.isLoading &&
+    !props.hasError &&
+    (totals?.count ?? 0) === 0 &&
+    props.operations.length === 0 &&
+    props.roles.length === 0 &&
+    props.actors.length === 0;
+
+  if (isEmptySlice) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+          <Inbox className="h-10 w-10 text-muted" />
+          <p className="text-sm font-medium">No activity in the current slice</p>
+          <p className="max-w-md text-sm text-muted">
+            Widen the time window, adjust the level filter, or clear scoped filters to surface
+            activity records for this summary.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -38,18 +62,21 @@ export function ExecutionInspectorSummaryView(
           value={formatNumber(totals?.count ?? 0)}
           detail="captured records in the current slice"
           icon={<Activity className="h-4 w-4" />}
+          isLoading={props.isLoading}
         />
         <MetricCard
           title="Review posture"
           value={formatNumber(totals?.error_count ?? 0)}
           detail="records that may need operator review"
           icon={<AlertTriangle className="h-4 w-4" />}
+          isLoading={props.isLoading}
         />
         <MetricCard
           title="Captured runtime"
           value={formatDuration(totals?.total_duration_ms ?? 0)}
           detail="reported time across the visible slice"
           icon={<Clock3 className="h-4 w-4" />}
+          isLoading={props.isLoading}
         />
         <MetricCard
           title="Reported spend"
@@ -58,6 +85,7 @@ export function ExecutionInspectorSummaryView(
           )}
           detail="visible telemetry with recorded cost"
           icon={<DollarSign className="h-4 w-4" />}
+          isLoading={props.isLoading}
         />
       </div>
 
@@ -130,6 +158,7 @@ function MetricCard(props: {
   value: string;
   detail: string;
   icon: JSX.Element;
+  isLoading?: boolean;
 }): JSX.Element {
   return (
     <Card>
@@ -140,8 +169,17 @@ function MetricCard(props: {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-1">
-        <div className="text-2xl font-semibold">{props.value}</div>
-        <p className="text-sm text-muted">{props.detail}</p>
+        {props.isLoading ? (
+          <>
+            <Skeleton className="h-7 w-20 rounded" />
+            <Skeleton className="h-4 w-40 rounded" />
+          </>
+        ) : (
+          <>
+            <div className="text-2xl font-semibold">{props.value}</div>
+            <p className="text-sm text-muted">{props.detail}</p>
+          </>
+        )}
       </CardContent>
     </Card>
   );
@@ -160,9 +198,21 @@ function TopListCard(props: {
         <p className="text-sm text-muted">{props.description}</p>
       </CardHeader>
       <CardContent>
-        {props.isLoading ? <p className="text-sm text-muted">Loading…</p> : null}
+        {props.isLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }, (_, i) => (
+              <div key={i} className="flex items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <Skeleton className="h-4 w-32 rounded" />
+                  <Skeleton className="h-3 w-24 rounded" />
+                </div>
+                <Skeleton className="h-5 w-10 rounded" />
+              </div>
+            ))}
+          </div>
+        ) : null}
         {!props.isLoading && props.items.length === 0 ? (
-          <p className="text-sm text-muted">No data for the current filter set.</p>
+          <p className="text-sm text-muted">No data for the current filter set. Try widening the time window or adjusting filters.</p>
         ) : null}
         <div className="space-y-3">
           {props.items.map((item) => (

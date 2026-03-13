@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import type { LogEntry } from '../lib/api.js';
 import { Badge } from './ui/badge.js';
 import { Card, CardContent } from './ui/card.js';
@@ -14,6 +16,9 @@ import {
   statusVariant,
 } from './execution-inspector-support.js';
 
+const INITIAL_VISIBLE_COUNT = 20;
+const VISIBLE_INCREMENT = 20;
+
 interface ExecutionInspectorDetailViewProps {
   entries: LogEntry[];
   selectedLogId: number | null;
@@ -29,6 +34,10 @@ interface ExecutionInspectorDetailViewProps {
 export function ExecutionInspectorDetailView(
   props: ExecutionInspectorDetailViewProps,
 ): JSX.Element {
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
+  const visibleEntries = props.entries.slice(0, visibleCount);
+  const hasHiddenEntries = props.entries.length > visibleCount;
+
   return (
     <Card>
       <CardContent className="p-0">
@@ -39,7 +48,7 @@ export function ExecutionInspectorDetailView(
         {!props.isLoading && props.entries.length > 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/20 px-5 py-3 text-xs text-muted">
             <span>
-              Loaded {props.loadedCount} operator activity packets
+              Showing {visibleEntries.length} of {props.loadedCount} operator activity packets
               {props.hasMore ? ' in the current segment' : ''}
             </span>
             {props.isSelectedOutsideSegment ? (
@@ -55,7 +64,7 @@ export function ExecutionInspectorDetailView(
           </div>
         ) : null}
         <div className="divide-y divide-border">
-          {props.entries.map((entry) => {
+          {visibleEntries.map((entry) => {
             const context = summarizeLogContext(entry);
             const isSelected = props.selectedLogId === entry.id;
             const signals = readExecutionSignals(entry);
@@ -65,7 +74,7 @@ export function ExecutionInspectorDetailView(
                 key={entry.id}
                 type="button"
                 aria-pressed={isSelected}
-                className={`w-full px-5 py-4 text-left transition-colors hover:bg-border/20 ${
+                className={`w-full overflow-hidden px-5 py-4 text-left transition-colors hover:bg-border/20 ${
                   isSelected ? 'bg-border/20' : ''
                 }`}
                 onClick={() => props.onSelect(entry.id)}
@@ -91,8 +100,8 @@ export function ExecutionInspectorDetailView(
                         </Badge>
                       ))}
                     </div>
-                    <div className="font-medium">{describeExecutionHeadline(entry)}</div>
-                    <div className="text-sm text-muted">{describeExecutionSummary(entry)}</div>
+                    <div className="break-words font-medium">{describeExecutionHeadline(entry)}</div>
+                    <div className="break-words text-sm text-muted">{describeExecutionSummary(entry)}</div>
                     {context.length > 0 ? (
                       <div className="flex flex-wrap gap-2 text-xs text-muted">
                         {context.map((item) => (
@@ -107,17 +116,30 @@ export function ExecutionInspectorDetailView(
                       </div>
                     ) : null}
                   </div>
-                  <div className="flex shrink-0 flex-wrap gap-2 text-xs text-muted">
+                  <div className="flex shrink-0 flex-wrap gap-2 break-all text-xs text-muted">
                     <span>{formatDuration(entry.duration_ms)}</span>
-                    <span>diagnostic trace {shortId(entry.trace_id)}</span>
-                    <span>diagnostic span {shortId(entry.span_id)}</span>
+                    <span>trace {shortId(entry.trace_id)}</span>
+                    <span>span {shortId(entry.span_id)}</span>
                   </div>
                 </div>
               </button>
             );
           })}
         </div>
-        {props.hasMore ? (
+        {hasHiddenEntries ? (
+          <div className="border-t border-border p-4 text-center">
+            <Button
+              variant="outline"
+              onClick={() => setVisibleCount((current) => current + VISIBLE_INCREMENT)}
+            >
+              Show {Math.min(VISIBLE_INCREMENT, props.entries.length - visibleCount)} more packets
+            </Button>
+            <p className="mt-1 text-xs text-muted">
+              {props.entries.length - visibleCount} packets hidden for performance
+            </p>
+          </div>
+        ) : null}
+        {!hasHiddenEntries && props.hasMore ? (
           <div className="border-t border-border p-4">
             <Button variant="outline" onClick={props.onLoadMore}>
               Load Older Activity

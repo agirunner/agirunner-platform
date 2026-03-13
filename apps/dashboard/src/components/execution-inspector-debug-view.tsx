@@ -33,12 +33,12 @@ export function ExecutionInspectorDebugView(
   const signals = readExecutionSignals(props.entry);
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
-      <section className="rounded-3xl border border-border/70 bg-card shadow-sm">
+    <div className="grid min-w-0 gap-4 xl:grid-cols-[1.2fr_1fr]">
+      <section className="min-w-0 overflow-hidden rounded-3xl border border-border/70 bg-card shadow-sm">
         <Card className="border-0 bg-transparent shadow-none">
           <CardHeader>
-            <CardTitle className="flex items-center justify-between gap-3">
-              <span>{describeExecutionHeadline(props.entry)}</span>
+            <CardTitle className="flex flex-wrap items-center justify-between gap-3">
+              <span className="min-w-0 break-words">{describeExecutionHeadline(props.entry)}</span>
               <Badge variant="secondary">{props.entry.status}</Badge>
             </CardTitle>
           </CardHeader>
@@ -128,12 +128,12 @@ export function ExecutionInspectorDebugView(
         </Card>
       </section>
 
-      <section className="rounded-3xl border border-border/70 bg-card shadow-sm">
+      <section className="min-w-0 overflow-hidden rounded-3xl border border-border/70 bg-card shadow-sm">
         <Card className="border-0 bg-transparent shadow-none">
           <CardHeader>
             <CardTitle>Diagnostic payload</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             <StructuredRecordView
               data={props.entry.payload ?? {}}
               emptyMessage="No structured detail was recorded for this execution entry."
