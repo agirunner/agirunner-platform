@@ -117,6 +117,12 @@ export function TaskApprovalCard(props: {
   const workflowContextLink =
     buildWorkflowOperatorPermalink(task) ??
     (task.workflow_id ? `/work/workflows/${task.workflow_id}` : null);
+  const primaryFlowLabel = workItemFlow ? 'Open Work Item Flow' : 'Open Board Stage Flow';
+  const diagnosticsLabel = workflowOperatorFlow ? 'Open Step Diagnostics' : 'Open Step Record';
+  const stepReferenceLabel = workflowOperatorFlow ? 'Step diagnostics' : 'Step record';
+  const primaryTitleHref = workflowOperatorFlow && workflowContextLink
+    ? workflowContextLink
+    : `/work/tasks/${task.id}`;
 
   return (
     <>
@@ -141,7 +147,7 @@ export function TaskApprovalCard(props: {
               </div>
               <div className="space-y-1">
                 <CardTitle className="text-base">
-                  <Link to={`/work/tasks/${task.id}`} className="text-accent hover:underline">
+                  <Link to={primaryTitleHref} className="text-accent hover:underline">
                     {taskLabel}
                   </Link>
                 </CardTitle>
@@ -177,11 +183,11 @@ export function TaskApprovalCard(props: {
                 <>
                   <Button size="sm" className="w-full sm:w-auto" asChild>
                     <Link to={workflowContextLink}>
-                      {workItemFlow ? 'Open Work Item Flow' : 'Open Board Stage Flow'}
+                      {primaryFlowLabel}
                     </Link>
                   </Button>
                   <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
-                    <Link to={`/work/tasks/${task.id}`}>Open Step Record</Link>
+                    <Link to={`/work/tasks/${task.id}`}>{diagnosticsLabel}</Link>
                   </Button>
                 </>
               ) : (
@@ -224,7 +230,7 @@ export function TaskApprovalCard(props: {
                     Reject
                   </Button>
                   <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
-                    <Link to={`/work/tasks/${task.id}`}>Open Step Record</Link>
+                    <Link to={`/work/tasks/${task.id}`}>{diagnosticsLabel}</Link>
                   </Button>
                 </>
               )}
@@ -240,7 +246,7 @@ export function TaskApprovalCard(props: {
             {task.stage_name ? <QueueInfoTile label="Stage" value={task.stage_name} /> : null}
             {task.role ? <QueueInfoTile label="Role" value={task.role} /> : null}
             <QueueInfoTile label="Operator flow" value={operatorFlowLabel} />
-            <QueueInfoTile label="Step record" value={task.id} monospace />
+            <QueueInfoTile label={stepReferenceLabel} value={task.id} monospace />
           </div>
 
           <div className="grid gap-3 lg:grid-cols-3">

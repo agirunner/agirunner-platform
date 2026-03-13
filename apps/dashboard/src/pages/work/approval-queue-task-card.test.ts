@@ -19,8 +19,12 @@ describe('approval queue task card source', () => {
     expect(source).toContain('usesWorkflowOperatorFlow');
     expect(source).toContain('Open Work Item Flow');
     expect(source).toContain('Open Board Stage Flow');
+    expect(source).toContain('Open Step Diagnostics');
     expect(source).toContain('Open Step Record');
+    expect(source).toContain('Step diagnostics');
     expect(source).toContain('usesWorkItemOperatorFlow');
+    expect(source).toContain('const primaryTitleHref = workflowOperatorFlow && workflowContextLink');
+    expect(source).toContain('const diagnosticsLabel = workflowOperatorFlow ? \'Open Step Diagnostics\' : \'Open Step Record\'');
     expect(source).toContain('buildApprovalDecisionPacket');
     expect(source).toContain('buildApprovalRecoveryPacket');
     expect(source).toContain('buildApprovalOutputPacket');
