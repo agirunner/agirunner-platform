@@ -284,6 +284,7 @@ export interface DashboardWorkflowWorkItemRecord {
   owner_role?: string | null;
   priority: string;
   notes?: string | null;
+  metadata?: Record<string, unknown> | null;
   completed_at?: string | null;
   task_count?: number;
   children_count?: number;

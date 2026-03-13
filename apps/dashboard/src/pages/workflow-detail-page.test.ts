@@ -138,6 +138,29 @@ describe('workflow detail model override display', () => {
   });
 });
 
+describe('workflow detail work-item creation form', () => {
+  it('supports priority, acceptance criteria, notes, and structured metadata in the board create flow', () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, './workflow-detail-page.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('buildWorkItemMetadata');
+    expect(source).toContain('validateWorkItemMetadataEntries');
+    expect(source).toContain('WORK_ITEM_PRIORITY_OPTIONS');
+    expect(source).toContain('WorkItemMetadataEditor');
+    expect(source).toContain('acceptance_criteria: workItemAcceptanceCriteria.trim() || undefined');
+    expect(source).toContain('priority: workItemPriority');
+    expect(source).toContain('notes: workItemNotes.trim() || undefined');
+    expect(source).toContain('metadata,');
+    expect(source).toContain('Acceptance criteria');
+    expect(source).toContain('Structured metadata');
+    expect(source).toContain('Add Metadata Entry');
+    expect(source).toContain('disabled={');
+    expect(source).toContain('!workItemMetadataValidation.isValid');
+  });
+});
+
 describe('workflow detail interaction timeline', () => {
   it('uses the human-readable interaction timeline card instead of the raw workflow history list', () => {
     const source = readFileSync(

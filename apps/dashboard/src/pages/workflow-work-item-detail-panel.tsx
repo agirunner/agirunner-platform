@@ -27,6 +27,7 @@ import {
   CardTitle,
 } from '../components/ui/card.js';
 import { Input } from '../components/ui/input.js';
+import { Textarea } from '../components/ui/textarea.js';
 import {
   Table,
   TableBody,
@@ -44,7 +45,18 @@ import {
 } from '../components/ui/select.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs.js';
 import { cn } from '../lib/utils.js';
+import type { StructuredEntryDraft } from './projects/project-detail-support.js';
 import { WorkItemEventHistorySection } from './workflow-work-item-history-section.js';
+import {
+  areWorkItemMetadataDraftsEqual,
+  buildWorkItemMetadata,
+  createWorkItemMetadataDraftState,
+  normalizeWorkItemPriority,
+  validateWorkItemMetadataEntries,
+  WORK_ITEM_PRIORITY_OPTIONS,
+  type WorkItemPriority,
+} from './workflow-work-item-form-support.js';
+import { WorkItemMetadataEditor } from './workflow-work-item-metadata-editor.js';
 import { buildWorkItemTaskLinkActions } from './workflow-work-item-task-actions.js';
 import {
   StepChangesDialog,
@@ -180,21 +192,56 @@ export function WorkflowWorkItemDetailPanel(
   const [columnId, setColumnId] = useState('');
   const [ownerRole, setOwnerRole] = useState('');
   const [parentWorkItemId, setParentWorkItemId] = useState('');
+  const [acceptanceCriteria, setAcceptanceCriteria] = useState('');
+  const [notes, setNotes] = useState('');
+  const [priority, setPriority] = useState<WorkItemPriority>(
+    normalizeWorkItemPriority(undefined),
+  );
+  const [metadataDrafts, setMetadataDrafts] = useState<StructuredEntryDraft[]>([]);
+  const [lockedMetadataDraftIds, setLockedMetadataDraftIds] = useState<string[]>([]);
   const [childTitle, setChildTitle] = useState('');
   const [childGoal, setChildGoal] = useState('');
+  const [childAcceptanceCriteria, setChildAcceptanceCriteria] = useState('');
+  const [childNotes, setChildNotes] = useState('');
+  const [childPriority, setChildPriority] = useState<WorkItemPriority>(
+    normalizeWorkItemPriority(undefined),
+  );
+  const [childMetadataDrafts, setChildMetadataDrafts] = useState<
+    StructuredEntryDraft[]
+  >([]);
   const [operatorMessage, setOperatorMessage] = useState<string | null>(null);
   const [operatorError, setOperatorError] = useState<string | null>(null);
+  const metadataValidation = useMemo(
+    () => validateWorkItemMetadataEntries(metadataDrafts),
+    [metadataDrafts],
+  );
+  const childMetadataValidation = useMemo(
+    () => validateWorkItemMetadataEntries(childMetadataDrafts),
+    [childMetadataDrafts],
+  );
 
   useEffect(() => {
     const source = boardWorkItem ?? workItem;
+    const metadataState = createWorkItemMetadataDraftState(
+      workItem?.metadata ?? source?.metadata,
+    );
     setStageName(source?.stage_name ?? '');
     setColumnId(source?.column_id ?? '');
     setOwnerRole(source?.owner_role ?? '');
     setParentWorkItemId(source?.parent_work_item_id ?? '');
+    setAcceptanceCriteria(workItem?.acceptance_criteria ?? source?.acceptance_criteria ?? '');
+    setNotes(workItem?.notes ?? source?.notes ?? '');
+    setPriority(normalizeWorkItemPriority(workItem?.priority ?? source?.priority));
+    setMetadataDrafts(metadataState.drafts);
+    setLockedMetadataDraftIds(metadataState.lockedDraftIds);
     setOperatorMessage(null);
     setOperatorError(null);
     setChildTitle('');
     setChildGoal('');
+    setChildAcceptanceCriteria('');
+    setChildNotes('');
+    setChildPriority(normalizeWorkItemPriority(undefined));
+    setChildMetadataDrafts([]);
   }, [boardWorkItem, workItem, props.workItemId]);
 
   const updateWorkItemMutation = useMutation({
@@ -203,15 +250,19 @@ export function WorkflowWorkItemDetailPanel(
         stage_name: stageName || undefined,
         column_id: columnId || undefined,
         owner_role: isMilestoneWorkItem(boardWorkItem) ? null : ownerRole.trim() || null,
+        acceptance_criteria: acceptanceCriteria.trim(),
         parent_work_item_id:
           isMilestoneWorkItem(boardWorkItem) || parentWorkItemId.length === 0
             ? null
             : parentWorkItemId,
+        priority,
+        notes: notes.trim() || null,
+        metadata: buildWorkItemMetadata(metadataDrafts),
       }),
     onSuccess: async () => {
       setOperatorError(null);
       setOperatorMessage('Saved work item operator changes.');
-      await props.onWorkItemChanged();
+      await Promise.all([props.onWorkItemChanged(), workItemQuery.refetch()]);
     },
     onError: (error) => {
       setOperatorMessage(null);
@@ -227,8 +278,12 @@ export function WorkflowWorkItemDetailPanel(
         parent_work_item_id: props.workItemId,
         title: childTitle.trim(),
         goal: childGoal.trim() || undefined,
+        acceptance_criteria: childAcceptanceCriteria.trim() || undefined,
         stage_name: stageName || undefined,
         column_id: columnId || undefined,
+        priority: childPriority,
+        notes: childNotes.trim() || undefined,
+        metadata: buildWorkItemMetadata(childMetadataDrafts),
       });
     },
     onSuccess: async (created) => {
@@ -236,7 +291,11 @@ export function WorkflowWorkItemDetailPanel(
       setOperatorMessage('Created child work item.');
       setChildTitle('');
       setChildGoal('');
-      await props.onWorkItemChanged();
+      setChildAcceptanceCriteria('');
+      setChildNotes('');
+      setChildPriority(normalizeWorkItemPriority(undefined));
+      setChildMetadataDrafts([]);
+      await Promise.all([props.onWorkItemChanged(), workItemQuery.refetch()]);
       props.onSelectWorkItem(created.id);
     },
     onError: (error) => {
@@ -247,10 +306,16 @@ export function WorkflowWorkItemDetailPanel(
     },
   });
   const canEditParent = !isMilestoneWorkItem(boardWorkItem);
+  const currentMetadata = workItem?.metadata ?? boardWorkItem?.metadata;
   const hasOperatorChanges =
     (boardWorkItem?.stage_name ?? workItem?.stage_name ?? '') !== stageName ||
     (boardWorkItem?.column_id ?? workItem?.column_id ?? '') !== columnId ||
     (boardWorkItem?.owner_role ?? workItem?.owner_role ?? '') !== ownerRole ||
+    (workItem?.acceptance_criteria ?? boardWorkItem?.acceptance_criteria ?? '') !==
+      acceptanceCriteria ||
+    normalizeWorkItemPriority(workItem?.priority ?? boardWorkItem?.priority) !== priority ||
+    (workItem?.notes ?? boardWorkItem?.notes ?? '') !== notes ||
+    !areWorkItemMetadataDraftsEqual(metadataDrafts, currentMetadata) ||
     ((canEditParent ? boardWorkItem?.parent_work_item_id ?? workItem?.parent_work_item_id ?? '' : '') !==
       (canEditParent ? parentWorkItemId : ''));
   const operatorSectionProps = workItem
@@ -264,19 +329,41 @@ export function WorkflowWorkItemDetailPanel(
         columnId,
         ownerRole,
         parentWorkItemId,
+        acceptanceCriteria,
+        notes,
+        priority,
+        metadataDrafts,
+        lockedMetadataDraftIds,
+        metadataValidation,
         childTitle,
         childGoal,
+        childAcceptanceCriteria,
+        childNotes,
+        childPriority,
+        childMetadataDrafts,
+        childMetadataValidation,
         onStageNameChange: setStageName,
         onColumnIdChange: setColumnId,
         onOwnerRoleChange: setOwnerRole,
         onParentWorkItemIdChange: setParentWorkItemId,
+        onAcceptanceCriteriaChange: setAcceptanceCriteria,
+        onNotesChange: setNotes,
+        onPriorityChange: setPriority,
+        onMetadataDraftsChange: setMetadataDrafts,
         onChildTitleChange: setChildTitle,
         onChildGoalChange: setChildGoal,
+        onChildAcceptanceCriteriaChange: setChildAcceptanceCriteria,
+        onChildNotesChange: setChildNotes,
+        onChildPriorityChange: setChildPriority,
+        onChildMetadataDraftsChange: setChildMetadataDrafts,
         onSave: () => updateWorkItemMutation.mutate(),
         onCreateChild: () => createChildMutation.mutate(),
         isSaving: updateWorkItemMutation.isPending,
         isCreatingChild: createChildMutation.isPending,
         hasChanges: hasOperatorChanges,
+        canSave: metadataValidation.isValid,
+        canCreateChild:
+          childTitle.trim().length > 0 && childMetadataValidation.isValid,
         message: operatorMessage,
         error: operatorError,
       } satisfies Parameters<typeof WorkItemOperatorSection>[0])
@@ -411,22 +498,50 @@ function WorkItemOperatorSection(props: {
   columnId: string;
   ownerRole: string;
   parentWorkItemId: string;
+  acceptanceCriteria: string;
+  notes: string;
+  priority: WorkItemPriority;
+  metadataDrafts: StructuredEntryDraft[];
+  lockedMetadataDraftIds: string[];
+  metadataValidation: ReturnType<typeof validateWorkItemMetadataEntries>;
   childTitle: string;
   childGoal: string;
+  childAcceptanceCriteria: string;
+  childNotes: string;
+  childPriority: WorkItemPriority;
+  childMetadataDrafts: StructuredEntryDraft[];
+  childMetadataValidation: ReturnType<typeof validateWorkItemMetadataEntries>;
   onStageNameChange(value: string): void;
   onColumnIdChange(value: string): void;
   onOwnerRoleChange(value: string): void;
   onParentWorkItemIdChange(value: string): void;
+  onAcceptanceCriteriaChange(value: string): void;
+  onNotesChange(value: string): void;
+  onPriorityChange(value: WorkItemPriority): void;
+  onMetadataDraftsChange(value: StructuredEntryDraft[]): void;
   onChildTitleChange(value: string): void;
   onChildGoalChange(value: string): void;
+  onChildAcceptanceCriteriaChange(value: string): void;
+  onChildNotesChange(value: string): void;
+  onChildPriorityChange(value: WorkItemPriority): void;
+  onChildMetadataDraftsChange(value: StructuredEntryDraft[]): void;
   onSave(): void;
   onCreateChild(): void;
   isSaving: boolean;
   isCreatingChild: boolean;
   hasChanges: boolean;
+  canSave: boolean;
+  canCreateChild: boolean;
   message: string | null;
   error: string | null;
 }): JSX.Element {
+  const selectedPriority = WORK_ITEM_PRIORITY_OPTIONS.find(
+    (option) => option.value === props.priority,
+  );
+  const selectedChildPriority = WORK_ITEM_PRIORITY_OPTIONS.find(
+    (option) => option.value === props.childPriority,
+  );
+
   return (
     <section
       className="grid gap-4 rounded-xl border border-border/70 bg-gradient-to-br from-border/10 via-surface to-surface p-4 shadow-sm"
@@ -448,6 +563,76 @@ function WorkItemOperatorSection(props: {
       <p className={mutedBodyClass}>
         Adjust board placement, stage ownership, and milestone nesting without leaving the work-item operator view.
       </p>
+      <OperatorSectionCard
+        eyebrow="Work-item brief"
+        title="Brief and operator notes"
+        description="Keep the selected work-item packet current with explicit priority, acceptance criteria, and operator notes."
+      >
+        <div className="grid gap-4">
+          <label className={fieldStackClass}>
+            <span className="text-sm font-medium text-foreground">Priority</span>
+            <Select
+              value={props.priority}
+              onValueChange={(value) =>
+                props.onPriorityChange(normalizeWorkItemPriority(value))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select priority" />
+              </SelectTrigger>
+              <SelectContent>
+                {WORK_ITEM_PRIORITY_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs leading-5 text-muted">
+              {selectedPriority?.description}
+            </p>
+          </label>
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className={fieldStackClass}>
+              <span className="text-sm font-medium text-foreground">
+                Acceptance criteria
+              </span>
+              <Textarea
+                value={props.acceptanceCriteria}
+                onChange={(event) =>
+                  props.onAcceptanceCriteriaChange(event.target.value)
+                }
+                className="min-h-[124px]"
+                placeholder="List the conditions that define done for this work item."
+              />
+            </label>
+            <label className={fieldStackClass}>
+              <span className="text-sm font-medium text-foreground">Notes</span>
+              <Textarea
+                value={props.notes}
+                onChange={(event) => props.onNotesChange(event.target.value)}
+                className="min-h-[124px]"
+                placeholder="Capture operator context, watchouts, or board-specific follow-up."
+              />
+            </label>
+          </div>
+        </div>
+      </OperatorSectionCard>
+      <OperatorSectionCard
+        eyebrow="Structured metadata"
+        title="Metadata patch"
+        description="Update typed metadata entries with structured controls. Existing keys can be edited here, but key removal is not supported in this operator flow."
+      >
+        <WorkItemMetadataEditor
+          title="Work-item metadata"
+          description="Use typed key and value rows instead of raw JSON so metadata stays accessible in the operator surface."
+          drafts={props.metadataDrafts}
+          validation={props.metadataValidation}
+          addLabel="Add Metadata Entry"
+          lockedDraftIds={props.lockedMetadataDraftIds}
+          onChange={props.onMetadataDraftsChange}
+        />
+      </OperatorSectionCard>
       <OperatorSectionCard
         eyebrow="Board placement"
         title="Stage and board routing"
@@ -571,7 +756,10 @@ function WorkItemOperatorSection(props: {
             <Badge variant="secondary">Work-item flow</Badge>
           )}
         </div>
-        <Button onClick={props.onSave} disabled={!props.hasChanges || props.isSaving}>
+        <Button
+          onClick={props.onSave}
+          disabled={!props.hasChanges || props.isSaving || !props.canSave}
+        >
           {props.isSaving ? 'Saving…' : 'Save Operator Changes'}
         </Button>
       </div>
@@ -582,27 +770,82 @@ function WorkItemOperatorSection(props: {
           description="Break this milestone into child deliverables so operators can track each downstream work item separately."
         >
           <div className="grid gap-4">
-            <label className={fieldStackClass}>
-              <span className="text-sm font-medium text-foreground">Title</span>
-              <Input
-                value={props.childTitle}
-                onChange={(event) => props.onChildTitleChange(event.target.value)}
-                placeholder="e.g. Implement auth service"
-              />
-            </label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className={fieldStackClass}>
+                <span className="text-sm font-medium text-foreground">Title</span>
+                <Input
+                  value={props.childTitle}
+                  onChange={(event) => props.onChildTitleChange(event.target.value)}
+                  placeholder="e.g. Implement auth service"
+                />
+              </label>
+              <label className={fieldStackClass}>
+                <span className="text-sm font-medium text-foreground">Priority</span>
+                <Select
+                  value={props.childPriority}
+                  onValueChange={(value) =>
+                    props.onChildPriorityChange(normalizeWorkItemPriority(value))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {WORK_ITEM_PRIORITY_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs leading-5 text-muted">
+                  {selectedChildPriority?.description}
+                </p>
+              </label>
+            </div>
             <label className={fieldStackClass}>
               <span className="text-sm font-medium text-foreground">Goal</span>
-              <Input
+              <Textarea
                 value={props.childGoal}
                 onChange={(event) => props.onChildGoalChange(event.target.value)}
+                className="min-h-[96px]"
                 placeholder="Describe the child deliverable."
               />
             </label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className={fieldStackClass}>
+                <span className="text-sm font-medium text-foreground">
+                  Child acceptance criteria
+                </span>
+                <Textarea
+                  value={props.childAcceptanceCriteria}
+                  onChange={(event) =>
+                    props.onChildAcceptanceCriteriaChange(event.target.value)
+                  }
+                  className="min-h-[124px]"
+                  placeholder="List the acceptance criteria this child work item must satisfy."
+                />
+              </label>
+              <label className={fieldStackClass}>
+                <span className="text-sm font-medium text-foreground">Child notes</span>
+                <Textarea
+                  value={props.childNotes}
+                  onChange={(event) => props.onChildNotesChange(event.target.value)}
+                  className="min-h-[124px]"
+                  placeholder="Capture implementation notes or operator guidance for the child item."
+                />
+              </label>
+            </div>
+            <WorkItemMetadataEditor
+              title="Child metadata"
+              description="Attach supported typed metadata to the child work item without writing raw JSON."
+              drafts={props.childMetadataDrafts}
+              validation={props.childMetadataValidation}
+              addLabel="Add Child Metadata Entry"
+              onChange={props.onChildMetadataDraftsChange}
+            />
             <div className="flex justify-end">
-              <Button
-                onClick={props.onCreateChild}
-                disabled={props.childTitle.trim().length === 0 || props.isCreatingChild}
-              >
+              <Button onClick={props.onCreateChild} disabled={!props.canCreateChild || props.isCreatingChild}>
                 {props.isCreatingChild ? 'Creating…' : 'Create Child Work Item'}
               </Button>
             </div>

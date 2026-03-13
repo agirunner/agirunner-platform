@@ -38,6 +38,14 @@ import {
   objectToStructuredDrafts,
   type StructuredEntryDraft,
 } from './projects/project-detail-support.js';
+import {
+  buildWorkItemMetadata,
+  normalizeWorkItemPriority,
+  validateWorkItemMetadataEntries,
+  WORK_ITEM_PRIORITY_OPTIONS,
+  type WorkItemPriority,
+} from './workflow-work-item-form-support.js';
+import { WorkItemMetadataEditor } from './workflow-work-item-metadata-editor.js';
 import { WorkflowWorkItemDetailPanel } from './workflow-work-item-detail-panel.js';
 import {
   findWorkItemById,
@@ -111,6 +119,14 @@ export function WorkflowDetailPage(): JSX.Element {
   const [workItemTitle, setWorkItemTitle] = useState('');
   const [workItemGoal, setWorkItemGoal] = useState('');
   const [workItemStage, setWorkItemStage] = useState('');
+  const [workItemAcceptanceCriteria, setWorkItemAcceptanceCriteria] = useState('');
+  const [workItemNotes, setWorkItemNotes] = useState('');
+  const [workItemPriority, setWorkItemPriority] = useState<WorkItemPriority>(
+    normalizeWorkItemPriority(undefined),
+  );
+  const [workItemMetadataDrafts, setWorkItemMetadataDrafts] = useState<
+    StructuredEntryDraft[]
+  >([]);
   const [workItemError, setWorkItemError] = useState<string | null>(null);
   const [isChainDialogOpen, setIsChainDialogOpen] = useState(false);
   const [secondarySurface, setSecondarySurface] = useState<
@@ -418,6 +434,10 @@ export function WorkflowDetailPage(): JSX.Element {
       ),
     [timelineQuery.data, workflowQuery.data?.workflow_relations?.children],
   );
+  const workItemMetadataValidation = useMemo(
+    () => validateWorkItemMetadataEntries(workItemMetadataDrafts),
+    [workItemMetadataDrafts],
+  );
 
   if (workflowQuery.data && !workflowQuery.data.playbook_id) {
     return (
@@ -469,15 +489,24 @@ export function WorkflowDetailPage(): JSX.Element {
       if (!workItemTitle.trim()) {
         throw new Error('Work item title is required.');
       }
+      const metadata = buildWorkItemMetadata(workItemMetadataDrafts);
       return dashboardApi.createWorkflowWorkItem(workflowId, {
         title: workItemTitle.trim(),
         goal: workItemGoal.trim() || undefined,
+        acceptance_criteria: workItemAcceptanceCriteria.trim() || undefined,
         stage_name: workItemStage || undefined,
+        priority: workItemPriority,
+        notes: workItemNotes.trim() || undefined,
+        metadata,
       });
     },
     onSuccess: async () => {
       setWorkItemTitle('');
       setWorkItemGoal('');
+      setWorkItemAcceptanceCriteria('');
+      setWorkItemNotes('');
+      setWorkItemPriority(normalizeWorkItemPriority(undefined));
+      setWorkItemMetadataDrafts([]);
       setWorkItemError(null);
       await invalidateWorkflowQueries(queryClient, workflowId, projectId);
     },
@@ -724,61 +753,133 @@ export function WorkflowDetailPage(): JSX.Element {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-4">
-                <label className="grid gap-1.5">
-                  <span className="text-sm font-medium text-foreground">Title</span>
-                  <Input
-                    value={workItemTitle}
-                    onChange={(event) => {
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="grid gap-1.5">
+                      <span className="text-sm font-medium text-foreground">Title</span>
+                      <Input
+                        value={workItemTitle}
+                        onChange={(event) => {
+                          setWorkItemError(null);
+                          setWorkItemTitle(event.target.value);
+                        }}
+                        placeholder="e.g. Implement billing webhooks"
+                      />
+                    </label>
+                    <label className="grid gap-1.5">
+                      <span className="text-sm font-medium text-foreground">Stage</span>
+                      <Select
+                        value={workItemStage || '__auto__'}
+                        onValueChange={(value) => {
+                          setWorkItemError(null);
+                          setWorkItemStage(value === '__auto__' ? '' : value);
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Use default stage" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__auto__">Use default stage</SelectItem>
+                          {(stagesQuery.data ?? []).map((stage) => (
+                            <SelectItem key={stage.id} value={stage.name}>
+                              {stage.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </label>
+                  </div>
+                  <label className="grid gap-1.5">
+                    <span className="text-sm font-medium text-foreground">Goal</span>
+                    <Textarea
+                      value={workItemGoal}
+                      onChange={(event) => {
+                        setWorkItemError(null);
+                        setWorkItemGoal(event.target.value);
+                      }}
+                      className="min-h-[88px]"
+                      placeholder="Describe the desired outcome and acceptance intent."
+                    />
+                  </label>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <label className="grid gap-1.5">
+                      <span className="text-sm font-medium text-foreground">Priority</span>
+                      <Select
+                        value={workItemPriority}
+                        onValueChange={(value) => {
+                          setWorkItemError(null);
+                          setWorkItemPriority(normalizeWorkItemPriority(value));
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select priority" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {WORK_ITEM_PRIORITY_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted">
+                        {WORK_ITEM_PRIORITY_OPTIONS.find(
+                          (option) => option.value === workItemPriority,
+                        )?.description ?? ''}
+                      </p>
+                    </label>
+                    <label className="grid gap-1.5">
+                      <span className="text-sm font-medium text-foreground">
+                        Acceptance criteria
+                      </span>
+                      <Textarea
+                        value={workItemAcceptanceCriteria}
+                        onChange={(event) => {
+                          setWorkItemError(null);
+                          setWorkItemAcceptanceCriteria(event.target.value);
+                        }}
+                        className="min-h-[112px]"
+                        placeholder="List the conditions that must be true before this work item can be closed."
+                      />
+                    </label>
+                  </div>
+                  <label className="grid gap-1.5">
+                    <span className="text-sm font-medium text-foreground">Notes</span>
+                    <Textarea
+                      value={workItemNotes}
+                      onChange={(event) => {
+                        setWorkItemError(null);
+                        setWorkItemNotes(event.target.value);
+                      }}
+                      className="min-h-[112px]"
+                      placeholder="Capture operator guidance, context, or follow-up constraints."
+                    />
+                  </label>
+                  <WorkItemMetadataEditor
+                    title="Structured metadata"
+                    description="Add supported typed metadata as key and value pairs instead of pasting raw JSON."
+                    drafts={workItemMetadataDrafts}
+                    validation={workItemMetadataValidation}
+                    addLabel="Add Metadata Entry"
+                    onChange={(drafts) => {
                       setWorkItemError(null);
-                      setWorkItemTitle(event.target.value);
+                      setWorkItemMetadataDrafts(drafts);
                     }}
-                    placeholder="e.g. Implement billing webhooks"
                   />
-                </label>
-                <label className="grid gap-1.5">
-                  <span className="text-sm font-medium text-foreground">Stage</span>
-                  <Select
-                    value={workItemStage || '__auto__'}
-                    onValueChange={(value) => setWorkItemStage(value === '__auto__' ? '' : value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Use default stage" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__auto__">Use default stage</SelectItem>
-                      {(stagesQuery.data ?? []).map((stage) => (
-                        <SelectItem key={stage.id} value={stage.name}>
-                          {stage.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </label>
-                <label className="grid gap-1.5">
-                  <span className="text-sm font-medium text-foreground">Goal</span>
-                  <Textarea
-                    value={workItemGoal}
-                    onChange={(event) => {
-                      setWorkItemError(null);
-                      setWorkItemGoal(event.target.value);
-                    }}
-                    className="min-h-[88px]"
-                    placeholder="Describe the desired outcome and acceptance intent."
-                  />
-                </label>
-                {workItemError ? (
-                  <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
-                    {workItemError}
-                  </p>
-                ) : null}
-                <div className="flex justify-end">
-                  <Button
-                    onClick={() => void createWorkItemMutation.mutate()}
-                    disabled={createWorkItemMutation.isPending}
-                  >
-                    {createWorkItemMutation.isPending ? 'Creating…' : 'Create Work Item'}
-                  </Button>
-                </div>
+                  {workItemError ? (
+                    <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                      {workItemError}
+                    </p>
+                  ) : null}
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={() => void createWorkItemMutation.mutate()}
+                      disabled={
+                        createWorkItemMutation.isPending || !workItemMetadataValidation.isValid
+                      }
+                    >
+                      {createWorkItemMutation.isPending ? 'Creating…' : 'Create Work Item'}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
 
