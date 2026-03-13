@@ -2390,6 +2390,53 @@ describe('WorkflowActivationDispatchService', () => {
     expect(eventService.emit).not.toHaveBeenCalled();
   });
 
+  it('falls back to the dispatch-attempt guard when the task metadata token is redacted', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const service = new WorkflowActivationDispatchService({
+      pool: { query: vi.fn(), connect: vi.fn() } as never,
+      eventService: eventService as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('SELECT id') && sql.includes('dispatch_attempt = $4') && !sql.includes('dispatch_token =')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'activation-1',
+            2,
+          ]);
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    await service.finalizeActivationForTask(
+      'tenant-1',
+      {
+        id: 'task-1',
+        workflow_id: 'workflow-1',
+        activation_id: 'activation-1',
+        is_orchestrator_task: true,
+        metadata: {
+          activation_dispatch_attempt: 2,
+          activation_dispatch_token: 'redacted://task-secret',
+        },
+        output: { summary: 'stale completion' },
+      },
+      'completed',
+      client as never,
+    );
+
+    expect(client.query).toHaveBeenCalledTimes(1);
+    expect(eventService.emit).not.toHaveBeenCalled();
+  });
+
   it('finalizes completion when the orchestrator dispatch token matches the live activation', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const service = new WorkflowActivationDispatchService({

@@ -13,6 +13,7 @@ const ACTIVE_ORCHESTRATOR_TASK_STATES = [
   'awaiting_approval',
   'output_pending_review',
 ] as const;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 interface QueuedActivationRow {
   id: string;
@@ -1612,7 +1613,11 @@ function readTaskDispatchToken(task: Record<string, unknown>): string | null {
     return null;
   }
   const value = (metadata as Record<string, unknown>).activation_dispatch_token;
-  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const token = value.trim();
+  return UUID_PATTERN.test(token) ? token : null;
 }
 
 function isReadyForDispatch(activation: QueuedActivationRow, activationDelayMs: number): boolean {
