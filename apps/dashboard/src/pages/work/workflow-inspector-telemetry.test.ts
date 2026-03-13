@@ -148,6 +148,36 @@ describe('workflow inspector telemetry', () => {
           '/work/workflows/workflow-1/inspector?view=detailed&activation=activation-123456789',
       },
     ]);
+    expect(model.executionSummaryPackets).toEqual([
+      {
+        label: 'Stage spend coverage',
+        value: '$6.7500',
+        detail: '2 recorded stages across 5 contributing steps.',
+        sourceLabel: 'Workflow run summary',
+        href: '/work/workflows/workflow-1/inspector?view=detailed',
+      },
+      {
+        label: 'Task spend coverage',
+        value: '$1.7500',
+        detail: '1 traced step across 12 trace entries • 2.00 s total recorded duration.',
+        sourceLabel: 'Inspector log slice',
+        href: '/work/workflows/workflow-1/inspector?view=detailed',
+      },
+      {
+        label: 'Activation spend coverage',
+        value: '$2.2500',
+        detail: '1 orchestrator activation across 5 trace entries • 900 ms total recorded duration.',
+        sourceLabel: 'Inspector orchestrator slice',
+        href: '/work/workflows/workflow-1/inspector?view=detailed',
+      },
+      {
+        label: 'Work item spend coverage',
+        value: '$6.7500',
+        detail: '2 workflow work items across 5 contributing steps.',
+        sourceLabel: 'Workflow run summary',
+        href: '/work/workflows/workflow-1/inspector?view=detailed',
+      },
+    ]);
     expect(
       model.spendBreakdowns.map(({ title, description, entries }) => ({ title, description, entries })),
     ).toEqual([
@@ -289,6 +319,36 @@ describe('workflow inspector telemetry', () => {
       detail: 'No stage-level cost packet is available in the current run summary yet.',
       href: null,
     });
+    expect(model.executionSummaryPackets).toEqual([
+      {
+        label: 'Stage spend coverage',
+        value: 'Not recorded',
+        detail: 'No stage-level spend is available in the workflow run summary yet.',
+        sourceLabel: 'Workflow run summary',
+        href: null,
+      },
+      {
+        label: 'Task spend coverage',
+        value: 'Not recorded',
+        detail: 'No task-level spend is available in the current inspector log slice yet.',
+        sourceLabel: 'Inspector log slice',
+        href: null,
+      },
+      {
+        label: 'Activation spend coverage',
+        value: 'Not recorded',
+        detail: 'No activation-level spend is available in the current orchestrator slice yet.',
+        sourceLabel: 'Inspector orchestrator slice',
+        href: null,
+      },
+      {
+        label: 'Work item spend coverage',
+        value: 'Not recorded',
+        detail: 'No work-item-level spend is available in the workflow run summary yet.',
+        sourceLabel: 'Workflow run summary',
+        href: null,
+      },
+    ]);
     expect(
       model.spendBreakdowns.map(({ title, description, entries }) => ({ title, description, entries })),
     ).toEqual([

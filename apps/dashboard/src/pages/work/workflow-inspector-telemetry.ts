@@ -1,6 +1,10 @@
 import type { DashboardWorkflowRecord, LogStatsResponse } from '../../lib/api.js';
 import { formatCost, formatDuration, shortId } from '../../components/execution-inspector-support.js';
 import { readWorkflowRunSummary } from '../workflow-detail-support.js';
+import {
+  buildWorkflowInspectorExecutionSummaryPackets,
+  type WorkflowInspectorExecutionSummaryPacket,
+} from './workflow-inspector-execution-summary.js';
 import type { WorkflowInspectorFocusWorkItem } from './workflow-inspector-support.js';
 import { describeSpendBreakdownCoverage } from './workflow-inspector-breakdown-coverage.js';
 import {
@@ -38,6 +42,7 @@ export interface WorkflowInspectorSpendBreakdownSection {
 }
 
 export interface WorkflowInspectorTelemetryModel {
+  executionSummaryPackets: WorkflowInspectorExecutionSummaryPacket[];
   spendPackets: WorkflowInspectorSpendPacket[];
   spendBreakdowns: WorkflowInspectorSpendBreakdownSection[];
   memoryPacket: WorkflowInspectorMemoryPacket;
@@ -57,6 +62,7 @@ export function buildWorkflowInspectorTelemetryModel(input: {
   now?: number;
 }): WorkflowInspectorTelemetryModel {
   return {
+    executionSummaryPackets: buildWorkflowInspectorExecutionSummaryPackets(input),
     spendPackets: buildSpendPackets(input),
     spendBreakdowns: buildSpendBreakdowns(input),
     memoryPacket: buildWorkflowInspectorMemoryPacket({

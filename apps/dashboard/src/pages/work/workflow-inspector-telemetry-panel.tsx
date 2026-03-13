@@ -42,6 +42,38 @@ export function WorkflowInspectorTelemetryPanel(
 
       <section className="grid gap-3">
         <SectionHeading
+          title="Execution summary"
+          description="Confirm what each inspector lane currently explains before drilling into a specific spend hotspot or trace chain."
+        />
+        <div className="grid gap-3 xl:grid-cols-2">
+          {props.telemetry.executionSummaryPackets.map((packet) => (
+            <Card key={packet.label} className="border-border/70 bg-card/70 shadow-none">
+              <CardContent className="grid gap-3 p-4">
+                <div className="grid gap-1">
+                  <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+                    {packet.label}
+                  </div>
+                  <div className="text-lg font-semibold text-foreground">{packet.value}</div>
+                  <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted">
+                    {packet.sourceLabel}
+                  </div>
+                </div>
+                <p className="text-sm leading-6 text-muted">{packet.detail}</p>
+                {packet.href ? (
+                  <Button asChild variant="outline" className="justify-between">
+                    <Link to={packet.href}>
+                      Open execution slice
+                      <ExternalLink className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                ) : null}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+      <section className="grid gap-3">
+        <SectionHeading
           title="Spend posture"
           description="Compare the current highest-cost slices first, then step into detailed spend traces if something looks off."
         />

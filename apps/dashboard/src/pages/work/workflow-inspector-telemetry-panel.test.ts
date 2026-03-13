@@ -13,6 +13,10 @@ describe('workflow inspector telemetry panel source', () => {
     expect(source).toContain('Operator focus');
     expect(source).toContain('buildTelemetryFocusPacket');
     expect(source).toContain('Open highest-impact slice');
+    expect(source).toContain('Execution summary');
+    expect(source).toContain('props.telemetry.executionSummaryPackets.map');
+    expect(source).toContain('packet.sourceLabel');
+    expect(source).toContain('Open execution slice');
     expect(source).toContain('Spend posture');
     expect(source).toContain('Telemetry breakdowns');
     expect(source).toContain('Memory evolution review');
