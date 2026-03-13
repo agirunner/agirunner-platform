@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { ConflictError } from '../../src/errors/domain-errors.js';
 import { TaskWriteService } from '../../src/services/task-write-service.js';
 
 describe('TaskWriteService', () => {
@@ -380,8 +381,24 @@ describe('TaskWriteService', () => {
               id: 'task-1',
               tenant_id: 'tenant-1',
               workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
               request_id: 'request-1',
-              metadata: { description: 'existing' },
+              role: null,
+              stage_name: 'implementation',
+              depends_on: [],
+              requires_approval: false,
+              requires_output_review: false,
+              context: {},
+              role_config: null,
+              environment: null,
+              resource_bindings: [],
+              activation_id: null,
+              is_orchestrator_task: false,
+              token_budget: null,
+              cost_cap_usd: null,
+              auto_retry: false,
+              max_retries: 0,
+              metadata: {},
             }],
           };
         }
@@ -511,7 +528,23 @@ describe('TaskWriteService', () => {
                   id: 'task-raced',
                   tenant_id: 'tenant-1',
                   workflow_id: 'workflow-1',
+                  work_item_id: 'work-item-1',
                   request_id: 'request-1',
+                  role: null,
+                  stage_name: 'implementation',
+                  depends_on: [],
+                  requires_approval: false,
+                  requires_output_review: false,
+                  context: {},
+                  role_config: null,
+                  environment: null,
+                  resource_bindings: [],
+                  activation_id: null,
+                  is_orchestrator_task: false,
+                  token_budget: null,
+                  cost_cap_usd: null,
+                  auto_retry: false,
+                  max_retries: 0,
                   metadata: {},
                 }],
               };
@@ -552,6 +585,87 @@ describe('TaskWriteService', () => {
 
     expect(result.id).toBe('task-raced');
     expect(eventService.emit).not.toHaveBeenCalled();
+  });
+
+  it('rejects a request_id replay when the existing task does not match the requested create shape', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql.includes('SELECT workflow_id, stage_name FROM workflow_work_items')) {
+          return {
+            rowCount: 1,
+            rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (
+          sql.includes('FROM tasks') &&
+          sql.includes('workflow_id = $2') &&
+          sql.includes('request_id = $3') &&
+          values?.[1] === 'workflow-1' &&
+          values?.[2] === 'request-1'
+        ) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-1',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              request_id: 'request-1',
+              role: 'reviewer',
+              stage_name: 'implementation',
+              depends_on: [],
+              requires_approval: false,
+              requires_output_review: false,
+              context: {},
+              role_config: null,
+              environment: null,
+              resource_bindings: [],
+              activation_id: null,
+              is_orchestrator_task: false,
+              token_budget: null,
+              cost_cap_usd: null,
+              auto_retry: false,
+              max_retries: 0,
+              metadata: {},
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: { emit: vi.fn() } as never,
+      config: { TASK_DEFAULT_TIMEOUT_MINUTES: 30 },
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    await expect(
+      service.createTask(
+        {
+          tenantId: 'tenant-1',
+          scope: 'admin',
+          keyPrefix: 'admin-key',
+        } as never,
+        {
+          title: 'Existing task',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          request_id: 'request-1',
+          role: 'developer',
+        },
+      ),
+    ).rejects.toBeInstanceOf(ConflictError);
   });
 
   it('rejects plaintext secret-bearing fields in persisted task payloads', async () => {

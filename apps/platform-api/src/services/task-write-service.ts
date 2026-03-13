@@ -2,6 +2,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
+import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
 import { readTemplateLifecyclePolicy } from './task-lifecycle-policy.js';
 import type { CreateTaskInput, TaskServiceConfig } from './task-service.types.js';
@@ -61,6 +62,18 @@ export class TaskWriteService {
     this.assertWorkflowTaskLinkage(normalizedInput);
     normalizedInput = await this.applyWorkflowExecutionDefaults(identity.tenantId, normalizedInput, db);
     normalizedInput = await this.applyRoleCapabilityDefaults(identity.tenantId, normalizedInput);
+    const dependencies = normalizedInput.depends_on ?? [];
+    const metadata = {
+      ...(normalizedInput.metadata ?? {}),
+      ...(normalizedInput.retry_policy
+        ? { lifecycle_policy: { retry_policy: readTemplateLifecyclePolicy({ retry_policy: normalizedInput.retry_policy }, 'retry_policy')?.retry_policy } }
+        : {}),
+      ...(normalizedInput.description ? { description: normalizedInput.description } : {}),
+      ...(normalizedInput.type ? { task_type: normalizedInput.type } : {}),
+      ...(normalizedInput.credentials ? { credential_refs: normalizedInput.credentials } : {}),
+      ...(normalizedInput.parent_id ? { parent_id: normalizedInput.parent_id } : {}),
+      ...(normalizedInput.review_prompt ? { review_prompt: normalizedInput.review_prompt } : {}),
+    };
     if (normalizedInput.request_id?.trim()) {
       const existing = await this.findExistingByRequestId(
         identity.tenantId,
@@ -69,11 +82,18 @@ export class TaskWriteService {
         db,
       );
       if (existing) {
+        assertMatchingCreateTaskReplay(
+          existing,
+          buildExpectedCreateTaskReplay(
+            normalizedInput,
+            dependencies,
+            metadata,
+          ),
+        );
         return this.deps.toTaskResponse(existing);
       }
     }
 
-    const dependencies = normalizedInput.depends_on ?? [];
     if (dependencies.length > 0) {
       const check = await db.query(
         'SELECT id FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[])',
@@ -86,17 +106,6 @@ export class TaskWriteService {
     await this.assertLinkedWorkItem(identity.tenantId, normalizedInput, db);
 
     const initialState = await this.resolveInitialState(identity.tenantId, normalizedInput, dependencies.length);
-    const metadata = {
-      ...(normalizedInput.metadata ?? {}),
-      ...(normalizedInput.retry_policy
-        ? { lifecycle_policy: { retry_policy: readTemplateLifecyclePolicy({ retry_policy: normalizedInput.retry_policy }, 'retry_policy')?.retry_policy } }
-        : {}),
-      ...(normalizedInput.description ? { description: normalizedInput.description } : {}),
-      ...(normalizedInput.type ? { task_type: normalizedInput.type } : {}),
-      ...(normalizedInput.credentials ? { credential_refs: normalizedInput.credentials } : {}),
-      ...(normalizedInput.parent_id ? { parent_id: normalizedInput.parent_id } : {}),
-      ...(normalizedInput.review_prompt ? { review_prompt: normalizedInput.review_prompt } : {}),
-    };
 
     const insertResult = await db.query(
       `INSERT INTO tasks (
@@ -146,6 +155,14 @@ export class TaskWriteService {
           )
         : null;
       if (existing) {
+        assertMatchingCreateTaskReplay(
+          existing,
+          buildExpectedCreateTaskReplay(
+            normalizedInput,
+            dependencies,
+            metadata,
+          ),
+        );
         return this.deps.toTaskResponse(existing);
       }
       throw new ConflictError('Task request conflicted but the existing task could not be loaded');
@@ -618,6 +635,96 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function asNullableString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function asNullableNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim();
+    if (!normalized) {
+      return null;
+    }
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function buildExpectedCreateTaskReplay(
+  input: CreateTaskInput,
+  dependencies: string[],
+  metadata: Record<string, unknown>,
+) {
+  return {
+    workflow_id: input.workflow_id ?? null,
+    work_item_id: input.work_item_id ?? null,
+    project_id: input.project_id ?? null,
+    role: input.role ?? null,
+    stage_name: input.stage_name ?? null,
+    depends_on: dependencies,
+    requires_approval: input.requires_approval ?? false,
+    requires_output_review: input.requires_output_review ?? false,
+    context: input.context ?? {},
+    role_config: input.role_config ?? null,
+    environment: input.environment ?? null,
+    resource_bindings: input.resource_bindings ?? [],
+    activation_id: input.activation_id ?? null,
+    is_orchestrator_task: input.is_orchestrator_task ?? false,
+    token_budget: input.token_budget ?? null,
+    cost_cap_usd: input.cost_cap_usd ?? null,
+    auto_retry: input.auto_retry ?? false,
+    max_retries: input.max_retries ?? 0,
+    metadata: selectReplayStableMetadata(metadata),
+  };
+}
+
+function assertMatchingCreateTaskReplay(
+  existing: Record<string, unknown>,
+  expected: ReturnType<typeof buildExpectedCreateTaskReplay>,
+) {
+  const existingMetadata = asRecord(existing.metadata);
+  if (
+    (existing.workflow_id ?? null) !== expected.workflow_id ||
+    (existing.work_item_id ?? null) !== expected.work_item_id ||
+    (existing.project_id ?? null) !== expected.project_id ||
+    (existing.role ?? null) !== expected.role ||
+    (existing.stage_name ?? null) !== expected.stage_name ||
+    !areJsonValuesEquivalent(existing.depends_on ?? [], expected.depends_on) ||
+    Boolean(existing.requires_approval) !== expected.requires_approval ||
+    Boolean(existing.requires_output_review) !== expected.requires_output_review ||
+    !areJsonValuesEquivalent(asRecord(existing.context), expected.context) ||
+    !areJsonValuesEquivalent(existing.role_config ?? null, expected.role_config) ||
+    !areJsonValuesEquivalent(existing.environment ?? null, expected.environment) ||
+    !areJsonValuesEquivalent(normalizeResourceBindings(existing.resource_bindings), expected.resource_bindings) ||
+    (existing.activation_id ?? null) !== expected.activation_id ||
+    Boolean(existing.is_orchestrator_task) !== expected.is_orchestrator_task ||
+    (existing.token_budget ?? null) !== expected.token_budget ||
+    asNullableNumber(existing.cost_cap_usd) !== expected.cost_cap_usd ||
+    Boolean(existing.auto_retry) !== expected.auto_retry ||
+    Number(existing.max_retries ?? 0) !== expected.max_retries ||
+    !hasMatchingCreateMetadata(existingMetadata, expected.metadata)
+  ) {
+    throw new ConflictError('task request_id replay does not match the existing task');
+  }
+}
+
+function hasMatchingCreateMetadata(
+  existing: Record<string, unknown>,
+  expected: Record<string, unknown>,
+) {
+  return Object.entries(expected).every(([key, value]) => areJsonValuesEquivalent(existing[key], value));
+}
+
+function selectReplayStableMetadata(metadata: Record<string, unknown>) {
+  const stable: Record<string, unknown> = {};
+  for (const key of ['lifecycle_policy', 'task_type', 'credential_refs', 'review_prompt']) {
+    if (key in metadata) {
+      stable[key] = metadata[key];
+    }
+  }
+  return stable;
 }
 
 function assertNoPlaintextSecrets(scope: string, sections: Record<string, unknown>) {
