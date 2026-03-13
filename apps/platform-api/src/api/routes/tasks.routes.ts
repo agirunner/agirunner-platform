@@ -73,14 +73,14 @@ const claimCredentialResolveSchema = z.object({
   { message: 'At least one claim credential handle is required.' },
 );
 
-const taskControlSchema = z.object({
+const taskOperatorMutationSchema = z.object({
+  request_id: z.string().min(1).max(255).optional(),
+});
+
+const taskControlSchema = taskOperatorMutationSchema.extend({
   agent_id: z.string().uuid().optional(),
   worker_id: z.string().uuid().optional(),
   started_at: z.string().datetime().optional(),
-});
-
-const taskOperatorMutationSchema = z.object({
-  request_id: z.string().min(1).max(255).optional(),
 });
 
 const completeSchema = taskOperatorMutationSchema.extend({
@@ -343,7 +343,14 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(taskControlSchema.safeParse(request.body));
-      const task = await taskService.startTask(request.auth!, params.id, body);
+      const { request_id: requestId, ...payload } = body;
+      const task = await runTaskRouteAction(
+        request.auth!.tenantId,
+        params.id,
+        'task_start',
+        requestId,
+        () => taskService.startTask(request.auth!, params.id, payload),
+      );
       return { data: task };
     },
   );
