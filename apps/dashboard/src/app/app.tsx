@@ -3,12 +3,13 @@ import type { ComponentType, ErrorInfo, ReactNode } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 
 import { DashboardLayout } from '../components/layout.js';
+import { resolveAuthCallbackSession } from '../lib/auth-callback.js';
 import {
   completeSsoBrowserSession,
   hasDashboardSession,
   resolveAuthCallbackRedirect,
 } from '../lib/auth-session.js';
-import { clearSession } from '../lib/session.js';
+import { clearSession, readSession } from '../lib/session.js';
 
 import { applyTheme, readTheme } from './theme.js';
 
@@ -277,41 +278,35 @@ function SSOCallbackPage(): JSX.Element {
 
   useEffect(() => {
     let isActive = true;
-    const redirectTo = resolveAuthCallbackRedirect(new URLSearchParams(location.search));
+    const searchParams = new URLSearchParams(location.search);
+    const redirectTo = resolveAuthCallbackRedirect(searchParams);
 
     async function completeSignIn(): Promise<void> {
+      const existingSession = readSession();
+
       try {
-        const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
-          credentials: 'include',
+        const session = await resolveAuthCallbackSession({
+          apiBaseUrl: API_BASE_URL,
+          cookieHeader: typeof document === "undefined" ? "" : document.cookie,
         });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const payload = (await response.json()) as {
-          data?: {
-            tenant_id?: string;
-          };
-        };
-
-        const tenantId = payload.data?.tenant_id?.trim();
-        if (!tenantId) {
-          throw new Error('Missing tenant context');
-        }
-
         const completed = completeSsoBrowserSession(
-          new URLSearchParams({ tenant_id: tenantId }),
+          new URLSearchParams({ tenant_id: session.tenantId }),
+          session.accessToken ? { accessToken: session.accessToken } : undefined,
         );
         if (!isActive) {
           return;
         }
 
-        navigate(completed ? redirectTo : '/login', { replace: true });
+        navigate(completed ? redirectTo : "/login", { replace: true });
       } catch {
-        clearSession();
         if (isActive) {
-          navigate('/login', { replace: true });
+          if (existingSession) {
+            navigate(redirectTo, { replace: true });
+            return;
+          }
+
+          clearSession();
+          navigate("/login", { replace: true });
         }
       }
     }

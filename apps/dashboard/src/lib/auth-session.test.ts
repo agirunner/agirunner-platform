@@ -5,7 +5,7 @@ import {
   hasDashboardSession,
   resolveAuthCallbackRedirect,
 } from './auth-session.js';
-import { clearSession, readSession } from './session.js';
+import { clearSession, readSession, writeSession } from './session.js';
 
 function createStorage(store: Map<string, string>) {
   return {
@@ -58,6 +58,26 @@ describe('auth session helpers', () => {
     expect(resolveAuthCallbackRedirect(searchParams)).toBe(
       '/config/llm?oauth_success=true&provider_id=provider-1',
     );
+    expect(readSession()).toEqual({ accessToken: null, tenantId: 'tenant-42' });
+  });
+
+  it('preserves the existing access token when the callback returns to the same tenant', () => {
+    writeSession({ accessToken: 'existing-token', tenantId: 'tenant-42' });
+
+    expect(
+      completeSsoBrowserSession(new URLSearchParams({ tenant_id: 'tenant-42' })),
+    ).toBe(true);
+
+    expect(readSession()).toEqual({ accessToken: 'existing-token', tenantId: 'tenant-42' });
+  });
+
+  it('drops the previous access token when the callback resolves to a different tenant', () => {
+    writeSession({ accessToken: 'existing-token', tenantId: 'tenant-1' });
+
+    expect(
+      completeSsoBrowserSession(new URLSearchParams({ tenant_id: 'tenant-42' })),
+    ).toBe(true);
+
     expect(readSession()).toEqual({ accessToken: null, tenantId: 'tenant-42' });
   });
 
