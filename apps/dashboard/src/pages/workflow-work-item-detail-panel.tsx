@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 
 import {
   dashboardApi,
-  type DashboardEventRecord,
   type DashboardWorkItemMemoryEntry,
   type DashboardWorkItemMemoryHistoryEntry,
   type DashboardWorkflowBoardColumn,
@@ -41,8 +40,8 @@ import {
 } from '../components/ui/select.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs.js';
 import { cn } from '../lib/utils.js';
-import { describeTimelineEvent } from './workflow-history-card.js';
 import { formatRelativeTimestamp } from './workflow-detail-presentation.js';
+import { WorkItemEventHistorySection } from './workflow-work-item-history-section.js';
 import {
   buildWorkItemBreadcrumbs,
   describeTaskOperatorPosture,
@@ -51,8 +50,8 @@ import {
   isMilestoneWorkItem,
   sortTasksForOperatorReview,
   summarizeMilestoneOperatorFlow,
-  summarizeStructuredValue,
   summarizeWorkItemExecution,
+  summarizeStructuredValue,
   sortMemoryEntriesByKey,
   sortMemoryHistoryNewestFirst,
   sortEventsNewestFirst,
@@ -1513,73 +1512,6 @@ function WorkItemArtifactsSection(props: {
   );
 }
 
-function WorkItemEventHistorySection(props: {
-  isLoading: boolean;
-  hasError: boolean;
-  events: DashboardEventRecord[];
-}): JSX.Element {
-  if (props.isLoading) {
-    return <p className={loadingTextClass}>Loading work-item history...</p>;
-  }
-  if (props.hasError) {
-    return <p className={errorTextClass}>Failed to load work-item history.</p>;
-  }
-  if (props.events.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted">
-        No work-item events recorded yet.
-      </div>
-    );
-  }
-
-  return (
-    <section className="grid gap-4 rounded-xl border border-border/70 bg-surface p-4 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
-        <strong className="text-base">Event history</strong>
-        <Badge variant="outline">{props.events.length} entries</Badge>
-      </div>
-      <ul className="grid gap-3" data-testid="work-item-history-list">
-        {props.events.map((event) => {
-          const descriptor = describeTimelineEvent(event);
-          return (
-            <li
-              key={event.id}
-              className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4 shadow-sm"
-            >
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div className="grid gap-1">
-                  <strong>{descriptor.headline}</strong>
-                  {descriptor.summary ? <p className={mutedBodyClass}>{descriptor.summary}</p> : null}
-                </div>
-                <span className="text-xs text-muted">
-                  <time
-                    dateTime={event.created_at}
-                    title={formatTimestamp(event.created_at)}
-                  >
-                    {formatRelativeTimestamp(event.created_at)}
-                  </time>
-                </span>
-              </div>
-              <div className={metaRowClass}>
-                <Badge variant="outline">{formatTimelineEventType(event.type)}</Badge>
-                {descriptor.stageName ? <Badge variant="outline">{descriptor.stageName}</Badge> : null}
-                {descriptor.workItemId ? <Badge variant="outline">work item {descriptor.workItemId.slice(0, 8)}</Badge> : null}
-                {descriptor.taskId ? <Badge variant="outline">step {descriptor.taskId.slice(0, 8)}</Badge> : null}
-              </div>
-              <StructuredValueReview
-                label="Operator review packet"
-                value={event.data}
-                emptyMessage="No event payload."
-                disclosureLabel="Open full event payload"
-              />
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
 function taskStateBadgeVariant(
   state: DashboardWorkItemTaskRecord['state'],
 ): 'destructive' | 'outline' | 'secondary' | 'success' | 'warning' {
@@ -1614,46 +1546,9 @@ function formatMemoryHistoryEventType(eventType: string): string {
   return 'Updated value';
 }
 
-function formatTimelineEventType(eventType: string): string {
-  return eventType.replaceAll('.', ' ').replaceAll('_', ' ');
-}
-
 function formatTimestamp(value: string): string {
   const timestamp = Date.parse(value);
   return Number.isNaN(timestamp) ? value : new Date(timestamp).toLocaleString();
-}
-
-function DetailStatCard(props: {
-  label: string;
-  value: string;
-  detail: string;
-}): JSX.Element {
-  return (
-    <div className="grid gap-1 rounded-xl border border-border/70 bg-background/80 p-4">
-      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
-        {props.label}
-      </div>
-      <div className="text-sm font-semibold text-foreground">{props.value}</div>
-      <div className="text-xs leading-5 text-muted">{props.detail}</div>
-    </div>
-  );
-}
-
-function TaskOperatorPosturePanel(props: {
-  task: DashboardWorkItemTaskRecord;
-}): JSX.Element {
-  const posture = describeTaskOperatorPosture(props.task);
-  return (
-    <div className="grid gap-1 rounded-lg border border-border/70 bg-background/80 p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
-          Operator next step
-        </div>
-        <Badge variant={posture.tone}>{posture.title}</Badge>
-      </div>
-      <p className="text-xs leading-5 text-muted">{posture.detail}</p>
-    </div>
-  );
 }
 
 function StructuredValueReview(props: {
@@ -1674,7 +1569,7 @@ function StructuredValueReview(props: {
           <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
             {props.label}
           </div>
-          <p className="text-sm leading-6 text-muted">{summary.detail}</p>
+          <p className={mutedBodyClass}>{summary.detail}</p>
         </div>
         <Badge variant="outline">{summary.shapeLabel}</Badge>
       </div>
@@ -1710,6 +1605,39 @@ function StructuredValueReview(props: {
           <StructuredRecordView data={props.value} emptyMessage={props.emptyMessage} />
         </div>
       </details>
+    </div>
+  );
+}
+
+function DetailStatCard(props: {
+  label: string;
+  value: string;
+  detail: string;
+}): JSX.Element {
+  return (
+    <div className="grid gap-1 rounded-xl border border-border/70 bg-background/80 p-4">
+      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+        {props.label}
+      </div>
+      <div className="text-sm font-semibold text-foreground">{props.value}</div>
+      <div className="text-xs leading-5 text-muted">{props.detail}</div>
+    </div>
+  );
+}
+
+function TaskOperatorPosturePanel(props: {
+  task: DashboardWorkItemTaskRecord;
+}): JSX.Element {
+  const posture = describeTaskOperatorPosture(props.task);
+  return (
+    <div className="grid gap-1 rounded-lg border border-border/70 bg-background/80 p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+          Operator next step
+        </div>
+        <Badge variant={posture.tone}>{posture.title}</Badge>
+      </div>
+      <p className="text-xs leading-5 text-muted">{posture.detail}</p>
     </div>
   );
 }
