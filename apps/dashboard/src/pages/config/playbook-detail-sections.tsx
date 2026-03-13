@@ -1,4 +1,4 @@
-import { ArrowRight, Bot, Cpu, History, RotateCcw } from 'lucide-react';
+import { Archive, ArrowRight, Bot, Cpu, History, RotateCcw, Save, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { DiffViewer } from '../../components/diff-viewer.js';
@@ -47,7 +47,7 @@ export function PlaybookControlCenterCard(
   const enabledModelCount = props.llmModels.filter((model) => model.is_enabled !== false).length;
 
   return (
-    <Card>
+    <Card id="playbook-control-center">
       <CardHeader className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
@@ -152,7 +152,7 @@ export function PlaybookRevisionHistoryCard(
     comparedPlaybook !== null && comparedPlaybook.id !== props.currentPlaybook.id;
 
   return (
-    <Card>
+    <Card id="playbook-revision-history">
       <CardHeader className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
@@ -274,6 +274,131 @@ export function PlaybookRevisionHistoryCard(
             )}
           </TabsContent>
         </Tabs>
+      </CardContent>
+    </Card>
+  );
+}
+
+interface PlaybookEditingActionRailCardProps {
+  playbookId: string;
+  isActive: boolean;
+  canSave: boolean;
+  isSaving: boolean;
+  isArchiving: boolean;
+  isDeleting: boolean;
+  onArchive(): void;
+  onRestore(): void;
+  onSave(): void;
+  onDelete(): void;
+}
+
+export function PlaybookEditingActionRailCard(
+  props: PlaybookEditingActionRailCardProps,
+): JSX.Element {
+  return (
+    <Card className="border-border/70">
+      <CardHeader className="space-y-2">
+        <CardTitle className="text-lg">Editing Actions</CardTitle>
+        <p className="text-sm text-muted">
+          Keep the main workflow actions visible while the authoring sections scroll beneath them.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Button
+          className="w-full justify-between"
+          disabled={!props.canSave || props.isSaving}
+          onClick={props.onSave}
+        >
+          <span>Save Playbook</span>
+          <Save className="h-4 w-4" />
+        </Button>
+
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+          <Button asChild variant="outline" className="w-full justify-between">
+            <Link to="/config/roles">Manage Roles</Link>
+          </Button>
+          {props.isActive ? (
+            <Button asChild variant="outline" className="w-full justify-between">
+              <Link to={`/config/playbooks/${props.playbookId}/launch`}>Launch</Link>
+            </Button>
+          ) : (
+            <div className="rounded-xl border border-border/70 bg-muted/15 px-4 py-3 text-sm text-muted">
+              Launch stays disabled until this playbook is active again.
+            </div>
+          )}
+          {props.isActive ? (
+            <Button
+              variant="destructive"
+              className="w-full justify-between"
+              onClick={props.onArchive}
+              disabled={props.isArchiving}
+            >
+              <span>Archive</span>
+              <Archive className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              className="w-full justify-between"
+              onClick={props.onRestore}
+              disabled={props.isArchiving}
+            >
+              <span>Restore</span>
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
+        <Button
+          variant="outline"
+          className="w-full justify-between"
+          onClick={props.onDelete}
+          disabled={props.isDeleting}
+        >
+          <span>Delete Revision</span>
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+interface PlaybookEditOutlineCardProps {
+  links: Array<{
+    href: string;
+    title: string;
+    description: string;
+  }>;
+}
+
+export function PlaybookEditOutlineCard(
+  props: PlaybookEditOutlineCardProps,
+): JSX.Element {
+  return (
+    <Card className="border-border/70">
+      <CardHeader className="space-y-2">
+        <CardTitle className="text-lg">Jump to Editor Sections</CardTitle>
+        <p className="text-sm text-muted">
+          Long playbooks stay manageable when navigation is explicit. Jump straight to the part you
+          need instead of re-scanning the full page.
+        </p>
+      </CardHeader>
+      <CardContent className="grid gap-2">
+        {props.links.map((link) => (
+          <a
+            key={link.href}
+            href={link.href}
+            className="rounded-xl border border-border/70 bg-muted/10 p-3 transition-colors hover:bg-muted/20"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <div className="text-sm font-medium">{link.title}</div>
+                <p className="text-sm text-muted">{link.description}</p>
+              </div>
+              <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
+            </div>
+          </a>
+        ))}
       </CardContent>
     </Card>
   );

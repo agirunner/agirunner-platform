@@ -25,7 +25,18 @@ describe('playbook detail page source', () => {
     expect(source).toContain('Delete Revision');
     expect(source).toContain('Restore');
     expect(source).toContain('max-h-[70vh] max-w-lg overflow-y-auto');
-    expect(source).toContain('sticky bottom-4');
+    expect(source).toContain('Playbook lifecycle');
+    expect(source).toContain('Launch posture');
+    expect(source).toContain('PlaybookEditingActionRailCard');
+    expect(source).toContain('PlaybookEditOutlineCard');
+    expect(source).toContain('xl:sticky xl:top-6');
+    expect(source).toContain('sticky bottom-4 z-10 xl:hidden');
+    expect(source).toContain('grid gap-2 sm:grid-cols-2');
+    expect(source).toContain("variant={selected ? 'secondary' : 'outline'}");
+    expect(source).toContain('rounded-xl border border-red-300 bg-red-50/80');
+    expect(source).toContain('rounded-xl border border-emerald-300 bg-emerald-50/80');
+    expect(source).toContain("href: '#playbook-team-roles'");
+    expect(source).toContain("href: '#playbook-revision-history'");
     expect(source).toContain('Save Playbook');
     expect(source).not.toContain('Raw JSON');
     expect(source.indexOf('<PlaybookAuthoringForm')).toBeLessThan(
