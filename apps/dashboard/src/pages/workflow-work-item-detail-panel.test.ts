@@ -3,10 +3,12 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return readFileSync(
-    resolve(import.meta.dirname, './workflow-work-item-detail-panel.tsx'),
-    'utf8',
-  );
+  return [
+    './workflow-work-item-detail-panel.tsx',
+    './workflow-work-item-task-actions.ts',
+  ]
+    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
+    .join('\n');
 }
 
 describe('workflow work item detail panel source', () => {
@@ -91,8 +93,9 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Retry Step');
     expect(source).toContain('Resume with Guidance');
     expect(source).toContain('Cancel Step');
-    expect(source).toContain('Focus work item');
-    expect(source).toContain('Open step record');
+    expect(source).toContain('buildWorkItemTaskLinkActions');
+    expect(source).toContain('Open work-item flow');
+    expect(source).toContain('Open step diagnostics');
     expect(source).toContain('Stage group');
     expect(source).toContain('Open child work-item flow');
     expect(source).toContain('dashboardApi.updateWorkflowWorkItem');

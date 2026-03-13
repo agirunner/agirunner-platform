@@ -42,6 +42,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs.
 import { cn } from '../lib/utils.js';
 import { formatRelativeTimestamp } from './workflow-detail-presentation.js';
 import { WorkItemEventHistorySection } from './workflow-work-item-history-section.js';
+import { buildWorkItemTaskLinkActions } from './workflow-work-item-task-actions.js';
 import {
   buildWorkItemBreadcrumbs,
   describeTaskOperatorPosture,
@@ -1149,9 +1150,12 @@ function WorkItemTaskActionCell(props: {
   const [instructions, setInstructions] = useState('');
   const [error, setError] = useState<string | null>(null);
   const state = props.task.state;
-  const workItemPermalink = props.task.work_item_id
-    ? `/work/workflows/${props.workflowId}?work_item=${encodeURIComponent(props.task.work_item_id)}#work-item-${encodeURIComponent(props.task.work_item_id)}`
-    : null;
+  const taskLinks = buildWorkItemTaskLinkActions({
+    workflowId: props.workflowId,
+    taskId: props.task.id,
+    workItemId: props.task.work_item_id,
+    state,
+  });
 
   const approveMutation = useMutation({
     mutationFn: () =>
@@ -1255,8 +1259,11 @@ function WorkItemTaskActionCell(props: {
     <div className="grid gap-3">
       <TaskOperatorPosturePanel task={props.task} />
       <div className={metaRowClass}>
-        <Link to={`/work/tasks/${props.task.id}`}>Open step record</Link>
-        {workItemPermalink ? <Link to={workItemPermalink}>Focus work item</Link> : null}
+        {taskLinks.map((action) => (
+          <Link key={`${props.task.id}:${action.label}`} to={action.href}>
+            {action.label}
+          </Link>
+        ))}
       </div>
       <div className={metaRowClass}>
         {canApprove ? (
