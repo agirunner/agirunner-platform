@@ -207,9 +207,6 @@ function sanitizeSecretLikeRecord(value: unknown): Record<string, unknown> {
 
 function sanitizeSecretLikeValue(value: unknown, inheritedSecret: boolean): unknown {
   if (typeof value === 'string') {
-    if (isSecretReference(value)) {
-      return value;
-    }
     return inheritedSecret || isSecretLikeValue(value) ? WORKER_SECRET_REDACTION : value;
   }
 
@@ -238,9 +235,4 @@ function isSecretLikeValue(value: string): boolean {
     return false;
   }
   return secretLikeValuePattern.test(normalized);
-}
-
-function isSecretReference(value: string): boolean {
-  const normalized = value.trim().toLowerCase();
-  return normalized.startsWith('secret:') || normalized.startsWith('redacted://');
 }

@@ -160,7 +160,7 @@ describe('worker registration service', () => {
           },
         },
         host_info: {
-          token: 'secret:RUNTIME_TOKEN',
+          token: 'redacted://worker-secret',
           safe_host: 'builder-01',
         },
       },
