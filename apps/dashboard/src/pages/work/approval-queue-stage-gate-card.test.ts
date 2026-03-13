@@ -23,6 +23,8 @@ describe('approval queue stage gate card source', () => {
     expect(source).toContain('Orchestrator follow-up');
     expect(source).toContain('Gate review packet');
     expect(source).toContain('Open board gate');
+    expect(source).toContain('Open work-item flow');
+    expect(source).toContain('Open follow-up activation');
     expect(source).toContain('Follow-up step:');
   });
 });

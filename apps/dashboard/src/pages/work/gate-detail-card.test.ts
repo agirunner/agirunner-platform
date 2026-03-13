@@ -29,7 +29,10 @@ describe('gate detail card source', () => {
     expect(source).toContain('readGateResumptionSummary');
     expect(source).toContain('Open work-item flow');
     expect(source).toContain('Open follow-up activation');
-    expect(source).toContain('Open follow-up step');
+    expect(source).toContain('Open source step diagnostics');
+    expect(source).toContain('Open follow-up step diagnostics');
+    expect(source).toContain('Keep the decision on the gate or work-item flow first');
+    expect(source).toContain('Keep follow-up triage on the board gate or activation flow first');
     expect(source).toContain('follow-up activations have been recorded');
     expect(source).toContain('Key artifacts');
     expect(source).toContain('Permalink');

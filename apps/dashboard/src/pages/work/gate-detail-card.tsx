@@ -182,6 +182,7 @@ export function GateDetailCard(props: {
           activationId: resume.activation_id,
         })
       : null;
+  const requestTaskPermalink = gate.requested_by_task?.id ? `/work/tasks/${gate.requested_by_task.id}` : null;
   const resumeTaskPermalink = resume?.task?.id ? `/work/tasks/${resume.task.id}` : null;
 
   return (
@@ -239,7 +240,7 @@ export function GateDetailCard(props: {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Link
-                  to={`/work/workflows/${workflowId}`}
+                  to={permalink ?? `/work/workflows/${workflowId}`}
                   className="text-sm font-semibold text-accent hover:underline"
                 >
                   {gate.workflow_name ?? workflowId}
@@ -305,35 +306,33 @@ export function GateDetailCard(props: {
                   <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
                     Request source
                   </div>
+                  <p className="mb-2 text-xs text-muted">
+                    Keep the decision on the gate or work-item flow first. Use step diagnostics only when you need the source execution evidence behind this review packet.
+                  </p>
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {requestedWorkItemPermalink ? (
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={requestedWorkItemPermalink}>Open work-item flow</Link>
+                      </Button>
+                    ) : null}
+                    {requestTaskPermalink ? (
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={requestTaskPermalink}>Open source step diagnostics</Link>
+                      </Button>
+                    ) : null}
+                  </div>
                   <div className="space-y-1 text-xs text-muted">
                     {gate.requested_by_task.work_item_title ? (
                       <div>
-                        Work item:{' '}
-                        {requestedWorkItemPermalink ? (
-                          <Link className="text-accent hover:underline" to={requestedWorkItemPermalink}>
-                            {gate.requested_by_task.work_item_title}
-                          </Link>
-                        ) : (
-                          gate.requested_by_task.work_item_title
-                        )}
+                        Work item: {gate.requested_by_task.work_item_title}
                       </div>
                     ) : null}
                     <div>
-                      Step:{' '}
-                      <Link className="text-accent hover:underline" to={`/work/tasks/${gate.requested_by_task.id}`}>
-                        {gate.requested_by_task.title ?? gate.requested_by_task.id}
-                      </Link>
+                      Source step: {gate.requested_by_task.title ?? gate.requested_by_task.id}
                       {gate.requested_by_task.role ? ` • ${gate.requested_by_task.role}` : ''}
                     </div>
                     {requestSourceSummary.length > 0 ? (
                       <div>{requestSourceSummary.join(' • ')}</div>
-                    ) : null}
-                    {requestedWorkItemPermalink ? (
-                      <div>
-                        <Link className="text-accent hover:underline" to={requestedWorkItemPermalink}>
-                          Open work-item flow
-                        </Link>
-                      </div>
                     ) : null}
                   </div>
                 </div>
@@ -402,6 +401,26 @@ export function GateDetailCard(props: {
                     Orchestrator follow-up
                   </div>
                   <div className="space-y-1">
+                    <p>
+                      Keep follow-up triage on the board gate or activation flow first. Use step diagnostics only when you need the underlying specialist trace.
+                    </p>
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      {permalink ? (
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to={permalink}>Open board gate</Link>
+                        </Button>
+                      ) : null}
+                      {resumePermalink ? (
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to={resumePermalink}>Open follow-up activation</Link>
+                        </Button>
+                      ) : null}
+                      {resumeTaskPermalink ? (
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to={resumeTaskPermalink}>Open follow-up step diagnostics</Link>
+                        </Button>
+                      ) : null}
+                    </div>
                     <p>{resumptionSummary}</p>
                     {!resume && decisionAction ? (
                       <p>The operator decision is recorded. The orchestrator follow-up activation has not been queued yet.</p>
@@ -423,20 +442,6 @@ export function GateDetailCard(props: {
                     ) : null}
                     {resumeHistoryCount > 1 ? (
                       <p>{resumeHistoryCount} follow-up activations have been recorded for this gate.</p>
-                    ) : null}
-                    {resumePermalink ? (
-                      <div>
-                        <Link className="text-accent hover:underline" to={resumePermalink}>
-                          Open follow-up activation
-                        </Link>
-                      </div>
-                    ) : null}
-                    {resumeTaskPermalink ? (
-                      <div>
-                        <Link className="text-accent hover:underline" to={resumeTaskPermalink}>
-                          Open follow-up step
-                        </Link>
-                      </div>
                     ) : null}
                     {resume?.error ? (
                       <div className="rounded-md border border-rose-200 bg-rose-50/80 p-3">

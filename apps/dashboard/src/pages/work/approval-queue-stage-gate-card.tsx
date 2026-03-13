@@ -40,6 +40,18 @@ export function StageGateQueueCard(props: {
   index: number;
 }): JSX.Element {
   const { gate, index } = props;
+  const requestedWorkItemPermalink =
+    gate.requested_by_task?.work_item_id
+      ? buildWorkflowDetailPermalink(gate.workflow_id, {
+          workItemId: gate.requested_by_task.work_item_id,
+        })
+      : null;
+  const resumePermalink =
+    gate.orchestrator_resume?.activation_id
+      ? buildWorkflowDetailPermalink(gate.workflow_id, {
+          activationId: gate.orchestrator_resume.activation_id,
+        })
+      : null;
   const breadcrumbs = buildGateBreadcrumbs(gate);
   const packetSummary = readGatePacketSummary(gate);
   const requestSource = readGateRequestSourceSummary(gate);
@@ -81,6 +93,16 @@ export function StageGateQueueCard(props: {
                 Open board gate
               </Link>
             </Button>
+            {requestedWorkItemPermalink ? (
+              <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
+                <Link to={requestedWorkItemPermalink}>Open work-item flow</Link>
+              </Button>
+            ) : null}
+            {resumePermalink ? (
+              <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
+                <Link to={resumePermalink}>Open follow-up activation</Link>
+              </Button>
+            ) : null}
           </div>
         </div>
       </CardHeader>
