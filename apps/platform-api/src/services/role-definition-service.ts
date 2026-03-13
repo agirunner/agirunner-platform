@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
+import { sanitizeSecretLikeValue } from './secret-redaction.js';
 
 const createRoleSchema = z.object({
   name: z.string().min(1).max(100),
@@ -52,7 +53,8 @@ export class RoleDefinitionService {
     const repo = new TenantScopedRepository(this.pool, tenantId);
     const conditions = activeOnly ? ['is_active = $2'] : [];
     const values = activeOnly ? [true] : [];
-    return repo.findAll<RoleDefinitionRow>('role_definitions', '*', conditions, values);
+    const rows = await repo.findAll<RoleDefinitionRow>('role_definitions', '*', conditions, values);
+    return rows.map(sanitizeRoleDefinitionRow);
   }
 
   async getRoleByName(tenantId: string, name: string): Promise<RoleDefinitionRow | null> {
@@ -63,14 +65,15 @@ export class RoleDefinitionService {
       ['name = $2'],
       [name],
     );
-    return rows[0] ?? null;
+    const row = rows[0] ?? null;
+    return row ? sanitizeRoleDefinitionRow(row) : null;
   }
 
   async getRoleById(tenantId: string, id: string): Promise<RoleDefinitionRow> {
     const repo = new TenantScopedRepository(this.pool, tenantId);
     const row = await repo.findById<RoleDefinitionRow>('role_definitions', '*', id);
     if (!row) throw new NotFoundError('Role definition not found');
-    return row;
+    return sanitizeRoleDefinitionRow(row);
   }
 
   async createRole(tenantId: string, input: CreateRoleInput): Promise<RoleDefinitionRow> {
@@ -103,7 +106,7 @@ export class RoleDefinitionService {
       ],
     );
 
-    return result.rows[0];
+    return sanitizeRoleDefinitionRow(result.rows[0]);
   }
 
   async updateRole(tenantId: string, id: string, input: UpdateRoleInput): Promise<RoleDefinitionRow> {
@@ -149,7 +152,7 @@ export class RoleDefinitionService {
     );
 
     if (!result.rowCount) throw new NotFoundError('Role definition not found');
-    return result.rows[0];
+    return sanitizeRoleDefinitionRow(result.rows[0]);
   }
 
   async deleteRole(tenantId: string, id: string): Promise<void> {
@@ -162,4 +165,25 @@ export class RoleDefinitionService {
     );
     if (!result.rowCount) throw new NotFoundError('Role definition not found');
   }
+}
+
+const ROLE_DEFINITION_SECRET_REDACTION = 'redacted://role-definition-secret';
+
+const REDACTION_OPTIONS = {
+  redactionValue: ROLE_DEFINITION_SECRET_REDACTION,
+  allowSecretReferences: false,
+};
+
+function sanitizeRoleDefinitionRow(row: RoleDefinitionRow): RoleDefinitionRow {
+  return {
+    ...row,
+    system_prompt: sanitizeSecretLikeValue(row.system_prompt, REDACTION_OPTIONS) as string | null,
+    description: sanitizeSecretLikeValue(row.description, REDACTION_OPTIONS) as string | null,
+    model_preference: sanitizeSecretLikeValue(row.model_preference, REDACTION_OPTIONS) as string | null,
+    fallback_model: sanitizeSecretLikeValue(row.fallback_model, REDACTION_OPTIONS) as string | null,
+    verification_strategy: sanitizeSecretLikeValue(
+      row.verification_strategy,
+      REDACTION_OPTIONS,
+    ) as string | null,
+  };
 }

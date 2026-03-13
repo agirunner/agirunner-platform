@@ -144,6 +144,126 @@ describe('RoleDefinitionService', () => {
     });
   });
 
+  describe('secret redaction', () => {
+    const REDACTED = 'redacted://role-definition-secret';
+
+    it('redacts secret references in system_prompt via listRoles', async () => {
+      const roleWithSecrets = {
+        ...sampleRole,
+        system_prompt: 'secret:provider-api-key-openai',
+      };
+      pool.query.mockResolvedValueOnce({ rows: [roleWithSecrets], rowCount: 1 });
+
+      const result = await service.listRoles(TENANT_ID);
+
+      expect(result[0].system_prompt).toBe(REDACTED);
+    });
+
+    it('redacts secret references in system_prompt via getRoleById', async () => {
+      const roleWithSecret = {
+        ...sampleRole,
+        system_prompt: 'secret:github-token-prod',
+      };
+      pool.query.mockResolvedValueOnce({ rows: [roleWithSecret], rowCount: 1 });
+
+      const result = await service.getRoleById(TENANT_ID, ROLE_ID);
+
+      expect(result.system_prompt).toBe(REDACTED);
+    });
+
+    it('redacts secret references in system_prompt via getRoleByName', async () => {
+      const roleWithSecrets = {
+        ...sampleRole,
+        system_prompt: 'secret:my-db-password',
+      };
+      pool.query.mockResolvedValueOnce({ rows: [roleWithSecrets], rowCount: 1 });
+
+      const result = await service.getRoleByName(TENANT_ID, 'developer');
+
+      expect(result!.system_prompt).toBe(REDACTED);
+    });
+
+    it('redacts secret references in system_prompt via createRole', async () => {
+      const insertedRow = {
+        ...sampleRole,
+        system_prompt: 'secret:openai-key',
+      };
+      pool.query
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [insertedRow], rowCount: 1 });
+
+      const result = await service.createRole(TENANT_ID, {
+        name: 'developer',
+        systemPrompt: 'secret:openai-key',
+        allowedTools: [],
+        capabilities: [],
+      });
+
+      expect(result.system_prompt).toBe(REDACTED);
+    });
+
+    it('redacts secret references in system_prompt via updateRole', async () => {
+      const updatedRow = {
+        ...sampleRole,
+        system_prompt: 'secret:github-token-prod',
+      };
+      pool.query
+        .mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [updatedRow], rowCount: 1 });
+
+      const result = await service.updateRole(TENANT_ID, ROLE_ID, {
+        systemPrompt: 'secret:github-token-prod',
+      });
+
+      expect(result.system_prompt).toBe(REDACTED);
+    });
+
+    it('preserves non-secret system_prompt content unchanged', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 });
+
+      const result = await service.getRoleById(TENANT_ID, ROLE_ID);
+
+      expect(result.system_prompt).toBe('You are a developer.');
+      expect(result.name).toBe('developer');
+      expect(result.description).toBe('Implements features');
+    });
+
+    it('redacts enc:v1 encrypted values in description field', async () => {
+      const roleWithEncrypted = {
+        ...sampleRole,
+        description: 'enc:v1:ciphertext-data-here',
+      };
+      pool.query.mockResolvedValueOnce({ rows: [roleWithEncrypted], rowCount: 1 });
+
+      const result = await service.getRoleById(TENANT_ID, ROLE_ID);
+
+      expect(result.description).toBe(REDACTED);
+    });
+
+    it('redacts secret references in model_preference field', async () => {
+      const roleWithSecretModel = {
+        ...sampleRole,
+        model_preference: 'secret:custom-model-key',
+      };
+      pool.query.mockResolvedValueOnce({ rows: [roleWithSecretModel], rowCount: 1 });
+
+      const result = await service.getRoleById(TENANT_ID, ROLE_ID);
+
+      expect(result.model_preference).toBe(REDACTED);
+    });
+
+    it('preserves Date fields through sanitization', async () => {
+      const now = new Date();
+      const roleWithDates = { ...sampleRole, created_at: now, updated_at: now };
+      pool.query.mockResolvedValueOnce({ rows: [roleWithDates], rowCount: 1 });
+
+      const result = await service.getRoleById(TENANT_ID, ROLE_ID);
+
+      expect(result.created_at).toEqual(now);
+      expect(result.updated_at).toEqual(now);
+    });
+  });
+
   describe('deleteRole', () => {
     it('deletes a non-built-in role', async () => {
       const nonBuiltIn = { ...sampleRole, is_built_in: false };
