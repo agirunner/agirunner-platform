@@ -83,10 +83,6 @@ export async function buildTaskContext(
         workflowRow.playbook_definition,
       )
     : [];
-  const currentStage =
-    workflowRow && workflowRow.lifecycle !== 'continuous'
-      ? await loadWorkflowCurrentStage(db, tenantId, String(workflowRow.id))
-      : null;
   const workflowRelations = workflowRow
     ? await loadWorkflowRelations(db, tenantId, workflowRow)
     : null;
@@ -109,13 +105,21 @@ export async function buildTaskContext(
   const flatInstructions = readFlatInstructions(asRecord(task.role_config), agent?.metadata);
   const orchestratorContext = await buildOrchestratorTaskContext(db, tenantId, task);
   const workflowContext = workflowRow
-    ? buildWorkflowContext({
-        workflowRow,
-        activeStages,
-        currentStage,
-        workflowRelations,
-        parentWorkflowContext,
-      })
+    ? isContinuousWorkflowRow(workflowRow)
+      ? buildContinuousWorkflowContext({
+          workflowRow,
+          activeStages,
+          workflowRelations,
+          parentWorkflowContext,
+        })
+      : await buildStandardWorkflowContext({
+          db,
+          tenantId,
+          workflowRow,
+          activeStages,
+          workflowRelations,
+          parentWorkflowContext,
+        })
     : null;
 
   return {
@@ -141,10 +145,9 @@ export async function buildTaskContext(
   };
 }
 
-function buildWorkflowContext(params: {
+function buildWorkflowContextBase(params: {
   workflowRow: Record<string, unknown>;
   activeStages: string[];
-  currentStage: string | null;
   workflowRelations: Record<string, unknown> | null;
   parentWorkflowContext: Record<string, unknown> | null;
 }) {
@@ -174,10 +177,41 @@ function buildWorkflowContext(params: {
     relations: params.workflowRelations,
     parent_workflow: params.parentWorkflowContext,
   };
-  if (params.workflowRow.lifecycle !== 'continuous') {
-    context.current_stage = params.currentStage;
-  }
   return context;
+}
+
+function buildContinuousWorkflowContext(params: {
+  workflowRow: Record<string, unknown> & {
+    lifecycle: 'continuous';
+  };
+  activeStages: string[];
+  workflowRelations: Record<string, unknown> | null;
+  parentWorkflowContext: Record<string, unknown> | null;
+}) {
+  return buildWorkflowContextBase(params);
+}
+
+async function buildStandardWorkflowContext(params: {
+  db: DatabaseQueryable;
+  tenantId: string;
+  workflowRow: Record<string, unknown>;
+  activeStages: string[];
+  workflowRelations: Record<string, unknown> | null;
+  parentWorkflowContext: Record<string, unknown> | null;
+}) {
+  const context = buildWorkflowContextBase(params);
+  context.current_stage = await loadWorkflowCurrentStage(
+    params.db,
+    params.tenantId,
+    String(params.workflowRow.id),
+  );
+  return context;
+}
+
+function isContinuousWorkflowRow(
+  workflowRow: Record<string, unknown>,
+): workflowRow is Record<string, unknown> & { lifecycle: 'continuous' } {
+  return workflowRow.lifecycle === 'continuous';
 }
 
 async function loadWorkflowActiveStages(

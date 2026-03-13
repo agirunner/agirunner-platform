@@ -164,6 +164,11 @@ describe('FR-192: context versioning', () => {
     expect((context.workflow as Record<string, unknown>).playbook).toBeTruthy();
     expect((context.task as Record<string, unknown>).work_item).toBeTruthy();
     expect(context.workflow).not.toHaveProperty('current_stage');
+    expect(
+      mockQuery.mock.calls
+        .map((call) => String(call[0] ?? ''))
+        .some((sql) => sql.includes('FROM workflow_stages') && sql.includes('ORDER BY position ASC')),
+    ).toBe(false);
     expect((context.workflow as Record<string, unknown>).active_stages).toEqual(['build', 'review']);
     expect((context.workflow as Record<string, unknown>).relations).toEqual(
       expect.objectContaining({
