@@ -38,6 +38,7 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
     await seedDefaultTenant(pool, { DEFAULT_ADMIN_API_KEY } as NodeJS.ProcessEnv);
     await seedConfigTables(pool);
     const initialSnapshot = await captureSeedSnapshot(pool);
+    expect(initialSnapshot.migrations).not.toContain('0010_drop_templates.sql');
 
     await pool.query('DROP SCHEMA public CASCADE');
     await pool.query('CREATE SCHEMA public');
@@ -47,6 +48,7 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
     await seedDefaultTenant(pool, { DEFAULT_ADMIN_API_KEY } as NodeJS.ProcessEnv);
     await seedConfigTables(pool);
     const rebuiltSnapshot = await captureSeedSnapshot(pool);
+    expect(rebuiltSnapshot.migrations).not.toContain('0010_drop_templates.sql');
 
     expect(rebuiltSnapshot).toEqual(initialSnapshot);
   }, 120_000);

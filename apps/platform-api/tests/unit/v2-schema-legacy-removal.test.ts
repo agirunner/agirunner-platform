@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
@@ -10,6 +10,10 @@ const executionLogContextMigrationPath =
   '/home/mark/codex/agirunner-platform/apps/platform-api/src/db/migrations/0007_execution_log_workflow_context.sql';
 const fleetPlaybookMigrationPath =
   '/home/mark/codex/agirunner-platform/apps/platform-api/src/db/migrations/0008_fleet_playbook_contract.sql';
+const webhookWorkItemMigrationPath =
+  '/home/mark/codex/agirunner-platform/apps/platform-api/src/db/migrations/0009_webhook_work_item_triggers.sql';
+const droppedTemplateMigrationPath =
+  '/home/mark/codex/agirunner-platform/apps/platform-api/src/db/migrations/0010_drop_templates.sql';
 
 describe('v2 schema legacy removal', () => {
   it('removes template entity values from the canonical schema enum', () => {
@@ -35,10 +39,7 @@ describe('v2 schema legacy removal', () => {
   it('keeps follow-on cleanup migrations V2-only once the base schema is clean', () => {
     const executionLogMigration = readFileSync(executionLogContextMigrationPath, 'utf8');
     const fleetPlaybookMigration = readFileSync(fleetPlaybookMigrationPath, 'utf8');
-    const webhookWorkItemMigration = readFileSync(
-      '/home/mark/codex/agirunner-platform/apps/platform-api/src/db/migrations/0009_webhook_work_item_triggers.sql',
-      'utf8',
-    );
+    const webhookWorkItemMigration = readFileSync(webhookWorkItemMigrationPath, 'utf8');
 
     expect(executionLogMigration).not.toContain('information_schema.columns');
     expect(executionLogMigration).not.toContain("column_name = 'workflow_phase'");
@@ -47,7 +48,9 @@ describe('v2 schema legacy removal', () => {
     expect(fleetPlaybookMigration).not.toContain('idx_runtime_heartbeats_template');
     expect(fleetPlaybookMigration).not.toContain('idx_fleet_events_template');
     expect(fleetPlaybookMigration).toContain('The canonical base schema is already playbook-based.');
-    expect(webhookWorkItemMigration).toContain('DROP TABLE IF EXISTS webhook_task_triggers');
+    expect(webhookWorkItemMigration).not.toContain('webhook_task_triggers');
+    expect(webhookWorkItemMigration).not.toContain('webhook_task_trigger_invocations');
     expect(webhookWorkItemMigration).toContain('CREATE TABLE IF NOT EXISTS webhook_work_item_triggers');
+    expect(existsSync(droppedTemplateMigrationPath)).toBe(false);
   });
 });

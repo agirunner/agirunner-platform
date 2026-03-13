@@ -1,7 +1,7 @@
 BEGIN;
 
-DROP TABLE IF EXISTS webhook_task_trigger_invocations;
-DROP TABLE IF EXISTS webhook_task_triggers;
+-- The canonical base schema is already V2-only. Legacy webhook_task_trigger
+-- cleanup does not belong in the active migration chain anymore.
 
 CREATE TABLE IF NOT EXISTS webhook_work_item_triggers (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
