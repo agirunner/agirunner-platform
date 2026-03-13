@@ -12,9 +12,14 @@ describe('project scheduled trigger form source', () => {
     expect(source).toContain('validateScheduledTriggerForm');
     expect(source).toContain('Save readiness');
     expect(source).toContain('Resolve the items below before saving this trigger.');
-    expect(source).toContain("error={validation.fieldErrors.workflowId}");
-    expect(source).toContain("error={validation.fieldErrors.cadenceMinutes}");
-    expect(source).toContain("error={validation.fieldErrors.title}");
+    expect(source).toContain('Run target and timing');
+    expect(source).toContain('Generated work item');
+    expect(source).toContain(
+      'Save once the target run, cadence, and generated work item copy all look correct.',
+    );
+    expect(source).toContain('error={validation.fieldErrors.workflowId}');
+    expect(source).toContain('error={validation.fieldErrors.cadenceMinutes}');
+    expect(source).toContain('error={validation.fieldErrors.title}');
   });
 
   it('keeps structured select controls for run, stage, column, and owner role selection', () => {

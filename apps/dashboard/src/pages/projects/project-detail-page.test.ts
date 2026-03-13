@@ -9,8 +9,9 @@ function readSource(filename: string) {
 describe('project detail automation tab source', () => {
   it('uses delivery-oriented operator copy for project run history', () => {
     const source = readSource('./project-detail-page.tsx');
+    const supportSource = readSource('./project-detail-support.ts');
     const deliverySource = readSource('./project-delivery-history.tsx');
-    expect(source).toContain('TabsTrigger value="timeline">Delivery</TabsTrigger>');
+    expect(supportSource).toContain("value: 'timeline'");
     expect(source).toContain('<ProjectDeliveryHistory projectId={projectId} />');
     expect(deliverySource).toContain('Delivery overview');
     expect(deliverySource).toContain('Failed to load delivery history.');
@@ -21,8 +22,10 @@ describe('project detail automation tab source', () => {
 
   it('adds an automation tab for scheduled work-item triggers', () => {
     const source = readSource('./project-detail-page.tsx');
-    expect(source).toContain('TabsTrigger value="automation"');
+    const supportSource = readSource('./project-detail-support.ts');
+    expect(supportSource).toContain("value: 'automation'");
     expect(source).toContain('<ScheduledTriggersCard project={project} />');
+    expect(source).toContain('Automation workspace');
   });
 
   it('keeps git webhook management inside the project automation surface', () => {
@@ -43,7 +46,11 @@ describe('project detail automation tab source', () => {
 
   it('adds a model override tab with project override editing and resolved model display', () => {
     const source = readSource('./project-detail-page.tsx');
-    expect(source).toContain('TabsTrigger value="models"');
+    const supportSource = readSource('./project-detail-support.ts');
+    expect(source).toContain('useSearchParams()');
+    expect(source).toContain("normalizeProjectDetailTab(searchParams.get('tab'))");
+    expect(source).toContain('Select project workspace tab');
+    expect(supportSource).toContain("value: 'models'");
     expect(source).toContain('Project Model Overrides');
     expect(source).toContain('dashboardApi.getProjectModelOverrides(project.id)');
     expect(source).toContain('dashboardApi.getResolvedProjectModels(project.id)');
@@ -52,7 +59,9 @@ describe('project detail automation tab source', () => {
     expect(source).toContain('dashboardApi.patchProject(project.id, {');
     expect(source).toContain('Resolved Effective Models');
     expect(source).toContain('<RoleOverrideEditor');
+    expect(source).toContain('Remove role');
     expect(source).not.toContain('Project model overrides must be valid JSON');
+    expect(source).not.toContain('<select');
   });
 
   it('replaces raw project spec JSON editing with structured spec/config/instruction editors', () => {
@@ -94,8 +103,22 @@ describe('project detail automation tab source', () => {
 
   it('adds a first-class artifacts tab for inline project-scoped inspection', () => {
     const source = readSource('./project-detail-page.tsx');
-    expect(source).toContain('TabsTrigger value="artifacts">Artifacts</TabsTrigger>');
+    const supportSource = readSource('./project-detail-support.ts');
+    expect(supportSource).toContain("value: 'artifacts'");
     expect(source).toContain('<ArtifactsTab projectId={project.id} />');
     expect(source).toContain('<ProjectArtifactExplorerPanel projectId={projectId} />');
+  });
+
+  it('adds a workspace overview and mobile-safe resource and tool summaries', () => {
+    const source = readSource('./project-detail-page.tsx');
+    const supportSource = readSource('./project-detail-support.ts');
+    expect(source).toContain('buildProjectWorkspaceOverview(project, projectSpecQuery.data)');
+    expect(supportSource).toContain(
+      'Keep project spec, live context, artifacts, delivery history, models, and automation reachable',
+    );
+    expect(source).toContain('Resource posture');
+    expect(source).toContain('Tool posture');
+    expect(source).toContain('ProjectWorkspaceTabIcon');
+    expect(source).toContain('md:hidden');
   });
 });
