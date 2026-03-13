@@ -3,7 +3,12 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './workflow-list-page.tsx'), 'utf8');
+  return [
+    './workflow-list-page.tsx',
+    './workflow-list-view-toggle.tsx',
+  ]
+    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
+    .join('\n');
 }
 
 describe('workflow board page source', () => {
@@ -33,5 +38,9 @@ describe('workflow board page source', () => {
     expect(source).toContain('describeWorkflowStageLabel(workflow)');
     expect(source).toContain('formatRelativeRunAge');
     expect(source).toContain('Search: {props.searchQuery}');
+    expect(source).toContain('WorkflowListViewToggle');
+    expect(source).toContain('Board layout mode');
+    expect(source).toContain('List view');
+    expect(source).toContain('Board view');
   });
 });

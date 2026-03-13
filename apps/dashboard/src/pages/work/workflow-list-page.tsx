@@ -4,8 +4,6 @@ import { Link } from 'react-router-dom';
 import {
   Activity,
   GitBranch,
-  LayoutGrid,
-  List,
   Plus,
   Search,
 } from 'lucide-react';
@@ -60,6 +58,7 @@ import {
   describeWorkflowStageLabel,
 } from './workflow-list-stage-presentation.js';
 import { WorkflowSummaryCards } from './workflow-list-summary-cards.js';
+import { WorkflowListViewToggle } from './workflow-list-view-toggle.js';
 
 export function WorkflowListPage(): JSX.Element {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -269,24 +268,10 @@ function WorkflowFilterCard(props: {
               }}
             />
 
-            <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
-              <Button
-                variant={props.viewMode === 'list' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => props.onViewModeChange('list')}
-                aria-label="List view"
-              >
-                <List className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={props.viewMode === 'board' ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => props.onViewModeChange('board')}
-                aria-label="Board view"
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-            </div>
+            <WorkflowListViewToggle
+              value={props.viewMode}
+              onChange={props.onViewModeChange}
+            />
           </div>
         </div>
       </CardContent>
