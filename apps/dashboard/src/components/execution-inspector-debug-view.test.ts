@@ -38,9 +38,12 @@ describe('execution inspector secondary surfaces', () => {
   it('keeps the summary view focused on operator attention instead of database telemetry labels', () => {
     const source = readSource('execution-inspector-summary-view.tsx');
 
-    expect(source).toContain('title="Entries"');
-    expect(source).toContain('title="Attention"');
-    expect(source).toContain('title="Spend signal"');
-    expect(source).toContain('Where the current slice is spending the most attention');
+    expect(source).toContain('title="Activity coverage"');
+    expect(source).toContain('title="Review posture"');
+    expect(source).toContain('title="Reported spend"');
+    expect(source).toContain('title="Activity families"');
+    expect(source).toContain('describeActivityFamilyLabel');
+    expect(source).toContain('Activity key · ${item.operation}');
+    expect(source).toContain('Where the current slice is concentrating operator attention');
   });
 });

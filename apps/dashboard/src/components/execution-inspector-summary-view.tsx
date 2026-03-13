@@ -34,39 +34,39 @@ export function ExecutionInspectorSummaryView(
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          title="Entries"
+          title="Activity coverage"
           value={formatNumber(totals?.count ?? 0)}
-          detail="matching activity records"
+          detail="captured records in the current slice"
           icon={<Activity className="h-4 w-4" />}
         />
         <MetricCard
-          title="Attention"
+          title="Review posture"
           value={formatNumber(totals?.error_count ?? 0)}
-          detail="error-level or failed records"
+          detail="records that may need operator review"
           icon={<AlertTriangle className="h-4 w-4" />}
         />
         <MetricCard
-          title="Recorded runtime"
+          title="Captured runtime"
           value={formatDuration(totals?.total_duration_ms ?? 0)}
-          detail="summed reported duration"
+          detail="reported time across the visible slice"
           icon={<Clock3 className="h-4 w-4" />}
         />
         <MetricCard
-          title="Spend signal"
+          title="Reported spend"
           value={formatCost(
             groups.reduce((sum, group) => sum + Number(group.agg.total_cost_usd ?? 0), 0),
           )}
-          detail="from current execution aggregates"
+          detail="visible telemetry with recorded cost"
           icon={<DollarSign className="h-4 w-4" />}
         />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
         <TopListCard
-          title="Top Categories"
-          description="Where the current slice is spending the most attention"
+          title="Activity families"
+          description="Where the current slice is concentrating operator attention"
           items={topGroups(groups, 8).map((group) => ({
-            label: group.group,
+            label: describeActivityFamilyLabel(group.group),
             count: group.count,
             meta: `${formatDuration(group.avg_duration_ms)} avg • ${formatCost(group.agg.total_cost_usd)}`,
             badge: group.error_count > 0 ? `${group.error_count} errors` : undefined,
@@ -74,18 +74,18 @@ export function ExecutionInspectorSummaryView(
           isLoading={props.isLoading}
         />
         <TopListCard
-          title="Top Operations"
-          description="Most active execution paths"
+          title="Top activity paths"
+          description="Execution paths showing up most often in this slice"
           items={topGroups(props.operations, 10).map((item) => ({
             label: describeExecutionOperationLabel(item.operation),
             count: item.count,
-            meta: item.operation,
+            meta: `Activity key · ${item.operation}`,
           }))}
           isLoading={props.isLoading}
         />
         <TopListCard
-          title="Roles"
-          description="Roles driving the current slice"
+          title="Role lanes"
+          description="Roles driving visible activity in this slice"
           items={topGroups(props.roles, 8).map((item) => ({
             label: item.role,
             count: item.count,
@@ -93,18 +93,36 @@ export function ExecutionInspectorSummaryView(
           isLoading={props.isLoading}
         />
         <TopListCard
-          title="Actors"
-          description="Workers, operators, and runtimes active in this slice"
+          title="Workers and operators"
+          description="Actors contributing activity in the current slice"
           items={topGroups(props.actors, 8).map((item) => ({
             label: item.actor_name || `${item.actor_type}:${item.actor_id}`,
             count: item.count,
-            meta: `${item.actor_type}:${item.actor_id}`,
+            meta: `Actor key · ${item.actor_type}:${item.actor_id}`,
           }))}
           isLoading={props.isLoading}
         />
       </div>
     </div>
   );
+}
+
+function describeActivityFamilyLabel(value: string): string {
+  switch (value) {
+    case 'agent_loop':
+      return 'Agent loop';
+    case 'task_lifecycle':
+      return 'Task lifecycle';
+    case 'llm':
+      return 'LLM';
+    case 'container':
+      return 'Container runtime';
+    default:
+      return value
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+  }
 }
 
 function MetricCard(props: {
