@@ -343,9 +343,27 @@ describe('workflow work item detail support', () => {
       }),
     ).toEqual({
       title: 'Output review needed',
-      detail: 'Review the specialist output before the board can advance.',
-        tone: 'warning',
-      });
+      detail: 'Review the specialist output from the work-item flow before the board can advance.',
+      tone: 'warning',
+    });
+
+    expect(
+      describeTaskOperatorPosture({
+        id: 'task-failed',
+        title: 'Fix change',
+        state: 'failed',
+        role: 'reviewer',
+        stage_name: 'verification',
+        completed_at: null,
+        depends_on: [],
+        work_item_id: 'wi-1',
+      }),
+    ).toEqual({
+      title: 'Retry or rework available',
+      detail:
+        'This step failed; choose retry, rework, or escalation from the work-item flow before progress can continue.',
+      tone: 'destructive',
+    });
 
     expect(
       describeTaskOperatorPosture({
@@ -362,6 +380,24 @@ describe('workflow work item detail support', () => {
       title: 'Execution in flight',
       detail: 'A specialist is actively working this step right now.',
       tone: 'secondary',
+    });
+
+    expect(
+      describeTaskOperatorPosture({
+        id: 'task-unknown',
+        title: 'Unknown task',
+        state: 'unknown',
+        role: 'reviewer',
+        stage_name: 'verification',
+        completed_at: null,
+        depends_on: [],
+        work_item_id: 'wi-1',
+      }),
+    ).toEqual({
+      title: 'Execution state recorded',
+      detail:
+        'Stay in the work-item flow for board context, then open step diagnostics if you need runtime detail.',
+      tone: 'outline',
     });
 
     expect(

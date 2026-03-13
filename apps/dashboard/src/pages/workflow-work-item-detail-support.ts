@@ -313,25 +313,25 @@ export function describeTaskOperatorPosture(
     case 'awaiting_approval':
       return {
         title: 'Approval needed',
-        detail: 'An operator decision is blocking the next stage of work.',
+        detail: 'Approve or redirect this step from the work-item flow before the next stage can continue.',
         tone: 'warning',
       };
     case 'output_pending_review':
       return {
         title: 'Output review needed',
-        detail: 'Review the specialist output before the board can advance.',
+        detail: 'Review the specialist output from the work-item flow before the board can advance.',
         tone: 'warning',
       };
     case 'failed':
       return {
         title: 'Retry or rework available',
-        detail: 'This step failed and needs operator intervention before it can continue.',
+        detail: 'This step failed; choose retry, rework, or escalation from the work-item flow before progress can continue.',
         tone: 'destructive',
       };
     case 'escalated':
       return {
         title: 'Escalation waiting',
-        detail: 'The step raised an escalation and needs explicit operator follow-up.',
+        detail: 'The step raised an escalation and needs explicit operator follow-up from the work-item flow.',
         tone: 'destructive',
       };
     case 'blocked':
@@ -367,7 +367,7 @@ export function describeTaskOperatorPosture(
     default:
       return {
         title: 'Execution state recorded',
-        detail: 'Check the step record for the latest runtime and orchestration details.',
+        detail: 'Stay in the work-item flow for board context, then open step diagnostics if you need runtime detail.',
         tone: 'outline',
       };
   }
