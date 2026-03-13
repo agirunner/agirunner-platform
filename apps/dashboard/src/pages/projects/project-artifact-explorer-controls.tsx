@@ -18,13 +18,13 @@ import type {
   ProjectWorkItemOption,
 } from './project-content-browser-support.js';
 import type { ProjectArtifactScopeChip } from './project-artifact-explorer-adaptive-support.js';
-import type {
-  ProjectArtifactSort,
-} from './project-artifact-explorer-support.js';
+import type { ProjectArtifactSort } from './project-artifact-explorer-support.js';
 
 export function ProjectArtifactFilterCard(props: {
   visibleArtifactCount: number;
   selectedArtifactCount: number;
+  previewableArtifactCount: number;
+  roleCount: number;
   nextAction: string;
   scopeChips: ProjectArtifactScopeChip[];
   query: string;
@@ -32,7 +32,9 @@ export function ProjectArtifactFilterCard(props: {
   selectedStageName: string;
   selectedWorkItemId: string;
   selectedTaskId: string;
+  selectedRole: string;
   selectedContentType: string;
+  previewMode: string;
   createdFrom: string;
   createdTo: string;
   sort: ProjectArtifactSort;
@@ -40,13 +42,16 @@ export function ProjectArtifactFilterCard(props: {
   stageOptions: string[];
   workItems: ProjectWorkItemOption[];
   tasks: ProjectTaskOption[];
+  roleOptions: string[];
   contentTypeOptions: string[];
   onQueryChange(value: string): void;
   onWorkflowChange(value: string): void;
   onStageChange(value: string): void;
   onWorkItemChange(value: string): void;
   onTaskChange(value: string): void;
+  onRoleChange(value: string): void;
   onContentTypeChange(value: string): void;
+  onPreviewModeChange(value: string): void;
   onCreatedFromChange(value: string): void;
   onCreatedToChange(value: string): void;
   onSortChange(value: ProjectArtifactSort): void;
@@ -78,13 +83,15 @@ export function ProjectArtifactFilterCard(props: {
           </div>
           <div className="flex flex-wrap gap-2 lg:justify-end">
             <Badge variant="secondary">{props.visibleArtifactCount} visible</Badge>
+            <Badge variant="outline">{props.previewableArtifactCount} preview-ready</Badge>
+            <Badge variant="outline">{props.roleCount} roles</Badge>
             {props.selectedArtifactCount > 0 ? (
               <Badge variant="secondary">{props.selectedArtifactCount} selected</Badge>
             ) : null}
           </div>
         </div>
 
-        <div className="grid gap-3 xl:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,0.8fr))]">
+        <div className="grid gap-3 2xl:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,0.8fr))]">
           <label className="grid gap-1">
             <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted">
               Search
@@ -141,7 +148,14 @@ export function ProjectArtifactFilterCard(props: {
           </ArtifactSelect>
         </div>
 
-        <div className="grid gap-3 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
+        <div className="grid gap-3 2xl:grid-cols-[repeat(5,minmax(0,1fr))_auto]">
+          <ArtifactSelect label="Role" value={props.selectedRole} onValueChange={props.onRoleChange}>
+            {props.roleOptions.map((role) => (
+              <SelectItem key={role} value={role}>
+                {role}
+              </SelectItem>
+            ))}
+          </ArtifactSelect>
           <ArtifactSelect
             label="Content Type"
             value={props.selectedContentType}
@@ -152,6 +166,15 @@ export function ProjectArtifactFilterCard(props: {
                 {contentType}
               </SelectItem>
             ))}
+          </ArtifactSelect>
+          <ArtifactSelect
+            label="Delivery mode"
+            value={props.previewMode}
+            onValueChange={props.onPreviewModeChange}
+            allLabel="All delivery modes"
+          >
+            <SelectItem value="inline">Inline preview ready</SelectItem>
+            <SelectItem value="download">Download only</SelectItem>
           </ArtifactSelect>
           <LabeledInput
             label="Created From"
@@ -224,8 +247,10 @@ function ArtifactSelect(props: {
   label: string;
   value: string;
   onValueChange(value: string): void;
+  allLabel?: string;
   children: ReactNode;
 }): JSX.Element {
+  const allLabel = props.allLabel ?? `All ${props.label.toLowerCase()}s`;
   return (
     <label className="grid gap-1">
       <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted">
@@ -236,10 +261,10 @@ function ArtifactSelect(props: {
         onValueChange={(value) => props.onValueChange(value === '__all__' ? '' : value)}
       >
         <SelectTrigger>
-          <SelectValue placeholder={`All ${props.label.toLowerCase()}s`} />
+          <SelectValue placeholder={allLabel} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="__all__">All {props.label.toLowerCase()}s</SelectItem>
+          <SelectItem value="__all__">{allLabel}</SelectItem>
           {props.children}
         </SelectContent>
       </Select>

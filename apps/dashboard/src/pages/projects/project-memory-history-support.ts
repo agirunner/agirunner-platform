@@ -93,6 +93,7 @@ export function buildMemoryHistoryReview(
   entries: MemoryEntry[],
   selectedKey: string,
   selectedRevisionId: string,
+  compareRevisionId = '',
 ): MemoryHistoryReview {
   const versions = entries.filter((entry) => entry.key === selectedKey);
   const selectedEntry =
@@ -113,7 +114,10 @@ export function buildMemoryHistoryReview(
   const selectedIndex = versions.findIndex(
     (entry) => buildMemoryRevisionId(entry) === buildMemoryRevisionId(selectedEntry),
   );
-  const previousEntry = selectedIndex >= 0 ? versions[selectedIndex + 1] ?? null : null;
+  const automaticPreviousEntry = selectedIndex >= 0 ? versions[selectedIndex + 1] ?? null : null;
+  const previousEntry =
+    versions.find((entry) => buildMemoryRevisionId(entry) === compareRevisionId) ??
+    automaticPreviousEntry;
 
   return {
     versions,
@@ -131,6 +135,25 @@ export function buildMemoryRevisionId(entry: MemoryEntry): string {
     entry.updatedAt ?? 'unknown',
     entry.eventType ?? 'updated',
   ].join(':');
+}
+
+export function buildMemoryRevisionOptions(
+  entries: MemoryEntry[],
+  selectedKey: string,
+  selectedRevisionId: string,
+): Array<{
+  value: string;
+  label: string;
+  helper: string;
+}> {
+  return entries
+    .filter((entry) => entry.key === selectedKey)
+    .filter((entry) => buildMemoryRevisionId(entry) !== selectedRevisionId)
+    .map((entry) => ({
+      value: buildMemoryRevisionId(entry),
+      label: describeMemoryRevisionLabel(entry),
+      helper: entry.updatedAt ? new Date(entry.updatedAt).toLocaleString() : 'Unknown time',
+    }));
 }
 
 export function stringifyMemoryValue(value: unknown): string {
@@ -154,6 +177,14 @@ export function formatMemoryActor(
     return actorType;
   }
   return 'Unknown author';
+}
+
+export function describeMemoryRevisionLabel(entry: MemoryEntry): string {
+  const actor = formatMemoryActor(entry.actorType, entry.actorId);
+  if (entry.eventType === 'deleted') {
+    return `${actor} deleted this key`;
+  }
+  return `${actor} updated this key`;
 }
 
 function buildActorFilterValue(entry: MemoryEntry): string {

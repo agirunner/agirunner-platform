@@ -16,18 +16,23 @@ describe('project memory history panel source', () => {
     const source = readSource();
     expect(source).toContain('Changed by');
     expect(source).toContain('Memory key');
+    expect(source).toContain('Compare against');
     expect(source).toContain('All authors');
     expect(source).toContain('Select a memory key');
+    expect(source).toContain('Previous revision');
     expect(source).toContain('includeAllOption');
   });
 
   it('renders a per-key version trail with diff review', () => {
     const source = readSource();
     expect(source).toContain('Current focus');
-    expect(source).toContain('Next review step');
+    expect(source).toContain('Comparing against');
     expect(source).toContain('Version trail');
-    expect(source).toContain('Select a revision to compare it against the version immediately before it.');
+    expect(source).toContain('Select a revision to compare it against the version immediately before it or against a');
     expect(source).toContain('Inspect the selected revision first');
+    expect(source).toContain('HistoryModeTabs');
+    expect(source).toContain('Version trail');
+    expect(source).toContain('Compare');
     expect(source).toContain('DiffViewer');
     expect(source).toContain('Version Diff');
     expect(source).toContain('Payload');

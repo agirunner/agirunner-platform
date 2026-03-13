@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildArtifactContentTypeOptions,
+  buildArtifactRoleOptions,
   buildArtifactStageOptions,
   buildProjectArtifactEntries,
   filterProjectArtifactEntries,
@@ -123,7 +124,9 @@ describe('project artifact explorer support', () => {
         workItemId: '',
         taskId: '',
         stageName: '',
+        role: '',
         contentType: '',
+        previewMode: 'all',
         createdFrom: '',
         createdTo: '',
         sort: 'newest',
@@ -137,7 +140,9 @@ describe('project artifact explorer support', () => {
         workItemId: '',
         taskId: '',
         stageName: 'delivery',
+        role: 'writer',
         contentType: 'text/markdown',
+        previewMode: 'inline',
         createdFrom: '2026-03-11',
         createdTo: '2026-03-11',
         sort: 'largest',
@@ -170,12 +175,14 @@ describe('project artifact explorer support', () => {
       workflowCount: 1,
       workItemCount: 1,
       taskCount: 2,
+      roleCount: 1,
     });
     expect(buildArtifactStageOptions(combinedEntries)).toEqual(['delivery', 'review']);
     expect(buildArtifactContentTypeOptions(combinedEntries)).toEqual([
       'application/json',
       'text/markdown',
     ]);
+    expect(buildArtifactRoleOptions(combinedEntries)).toEqual(['writer']);
   });
 
   it('formats artifact sizes for operator review surfaces', () => {
@@ -192,7 +199,9 @@ describe('project artifact explorer support', () => {
         stageName: 'delivery',
         workItemTitle: 'Prepare release packet',
         taskTitle: 'Build release notes',
+        role: 'writer',
         contentType: 'text/markdown',
+        previewMode: 'inline',
         createdFrom: '2026-03-10',
         createdTo: '2026-03-12',
       }),
@@ -202,7 +211,9 @@ describe('project artifact explorer support', () => {
       { label: 'Stage', value: 'delivery' },
       { label: 'Work item', value: 'Prepare release packet' },
       { label: 'Task', value: 'Build release notes' },
+      { label: 'Role', value: 'writer' },
       { label: 'Type', value: 'text/markdown' },
+      { label: 'Delivery', value: 'Inline preview ready' },
       { label: 'Created', value: '2026-03-10 to 2026-03-12' },
     ]);
 

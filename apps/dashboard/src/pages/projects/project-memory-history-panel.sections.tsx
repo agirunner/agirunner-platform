@@ -42,6 +42,40 @@ export function HistoryFilter(props: {
   );
 }
 
+export function HistoryModeTabs(props: {
+  value: 'trail' | 'compare';
+  onValueChange(value: 'trail' | 'compare'): void;
+}): JSX.Element {
+  return (
+    <div className="xl:hidden">
+      <div className="grid grid-cols-2 gap-2 rounded-xl border border-border/70 bg-border/10 p-1">
+        <button
+          className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+            props.value === 'trail'
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted hover:text-foreground'
+          }`}
+          type="button"
+          onClick={() => props.onValueChange('trail')}
+        >
+          Version trail
+        </button>
+        <button
+          className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
+            props.value === 'compare'
+              ? 'bg-background text-foreground shadow-sm'
+              : 'text-muted hover:text-foreground'
+          }`}
+          type="button"
+          onClick={() => props.onValueChange('compare')}
+        >
+          Compare
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function HistoryFocusPacket(props: {
   label: string;
   value: string;

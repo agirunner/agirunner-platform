@@ -23,7 +23,10 @@ describe('project artifact explorer panel source', () => {
     expect(source).toContain('buildProjectArtifactScopeChips');
     expect(source).toContain('describeProjectArtifactNextAction');
     expect(source).toContain('selectedStageName');
+    expect(source).toContain('selectedRole');
     expect(source).toContain('selectedContentType');
+    expect(source).toContain('previewMode');
+    expect(source).toContain('buildArtifactRoleOptions');
     expect(source).toContain('createdFrom');
     expect(source).toContain('createdTo');
     expect(source).toContain("setSort('newest')");

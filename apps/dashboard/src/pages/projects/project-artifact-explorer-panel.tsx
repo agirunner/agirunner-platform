@@ -23,10 +23,12 @@ import {
 import { ProjectArtifactExplorerAdaptiveLayout } from './project-artifact-explorer-layout.js';
 import {
   buildArtifactContentTypeOptions,
+  buildArtifactRoleOptions,
   buildArtifactStageOptions,
   buildProjectArtifactEntries,
   filterProjectArtifactEntries,
   summarizeProjectArtifactEntries,
+  type ProjectArtifactPreviewMode,
   type ProjectArtifactSort,
 } from './project-artifact-explorer-support.js';
 import {
@@ -43,7 +45,9 @@ export function ProjectArtifactExplorerPanel(props: {
   const [selectedWorkItemId, setSelectedWorkItemId] = useState('');
   const [selectedTaskId, setSelectedTaskId] = useState('');
   const [selectedStageName, setSelectedStageName] = useState('');
+  const [selectedRole, setSelectedRole] = useState('');
   const [selectedContentType, setSelectedContentType] = useState('');
+  const [previewMode, setPreviewMode] = useState<ProjectArtifactPreviewMode>('all');
   const [createdFrom, setCreatedFrom] = useState('');
   const [createdTo, setCreatedTo] = useState('');
   const [sort, setSort] = useState<ProjectArtifactSort>('newest');
@@ -128,7 +132,9 @@ export function ProjectArtifactExplorerPanel(props: {
         workItemId: selectedWorkItemId,
         taskId: selectedTaskId,
         stageName: selectedStageName,
+        role: selectedRole,
         contentType: selectedContentType,
+        previewMode,
         createdFrom,
         createdTo,
         sort,
@@ -138,11 +144,13 @@ export function ProjectArtifactExplorerPanel(props: {
       createdFrom,
       createdTo,
       query,
+      selectedRole,
       selectedContentType,
       selectedStageName,
       selectedTaskId,
       selectedWorkflowId,
       selectedWorkItemId,
+      previewMode,
       sort,
     ],
   );
@@ -158,14 +166,18 @@ export function ProjectArtifactExplorerPanel(props: {
         stageName: selectedStageName,
         workItemTitle: selectedWorkItem?.title ?? null,
         taskTitle: selectedTask?.title ?? null,
+        role: selectedRole,
         contentType: selectedContentType,
+        previewMode,
         createdFrom,
         createdTo,
       }),
     [
       createdFrom,
       createdTo,
+      previewMode,
       query,
+      selectedRole,
       selectedContentType,
       selectedStageName,
       selectedTask?.title,
@@ -179,6 +191,10 @@ export function ProjectArtifactExplorerPanel(props: {
   );
   const stageOptions = useMemo(
     () => buildArtifactStageOptions(artifactEntries),
+    [artifactEntries],
+  );
+  const roleOptions = useMemo(
+    () => buildArtifactRoleOptions(artifactEntries),
     [artifactEntries],
   );
   const visibleWorkItems = useMemo(
@@ -316,6 +332,8 @@ export function ProjectArtifactExplorerPanel(props: {
         <ProjectArtifactFilterCard
           visibleArtifactCount={filteredArtifacts.length}
           selectedArtifactCount={selectedArtifactIds.length}
+          previewableArtifactCount={filteredArtifacts.filter((artifact) => artifact.canPreview).length}
+          roleCount={summary.roleCount}
           nextAction={nextAction}
           scopeChips={scopeChips}
           query={query}
@@ -323,7 +341,9 @@ export function ProjectArtifactExplorerPanel(props: {
           selectedStageName={selectedStageName}
           selectedWorkItemId={selectedWorkItemId}
           selectedTaskId={selectedTaskId}
+          selectedRole={selectedRole}
           selectedContentType={selectedContentType}
+          previewMode={previewMode === 'all' ? '' : previewMode}
           createdFrom={createdFrom}
           createdTo={createdTo}
           sort={sort}
@@ -331,13 +351,18 @@ export function ProjectArtifactExplorerPanel(props: {
           stageOptions={stageOptions}
           workItems={visibleWorkItems}
           tasks={visibleTasks}
+          roleOptions={roleOptions}
           contentTypeOptions={contentTypeOptions}
           onQueryChange={setQuery}
           onWorkflowChange={setSelectedWorkflowId}
           onStageChange={setSelectedStageName}
           onWorkItemChange={setSelectedWorkItemId}
           onTaskChange={setSelectedTaskId}
+          onRoleChange={setSelectedRole}
           onContentTypeChange={setSelectedContentType}
+          onPreviewModeChange={(value) =>
+            setPreviewMode((value || 'all') as ProjectArtifactPreviewMode)
+          }
           onCreatedFromChange={setCreatedFrom}
           onCreatedToChange={setCreatedTo}
           onSortChange={setSort}
@@ -347,7 +372,9 @@ export function ProjectArtifactExplorerPanel(props: {
             setSelectedWorkItemId('');
             setSelectedTaskId('');
             setSelectedStageName('');
+            setSelectedRole('');
             setSelectedContentType('');
+            setPreviewMode('all');
             setCreatedFrom('');
             setCreatedTo('');
             setSort('newest');

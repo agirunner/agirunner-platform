@@ -152,7 +152,7 @@ export function MemoryBrowserSurface(props: MemoryBrowserPageProps = {}): JSX.El
   const selectedWorkItem = workItems.find((workItem) => workItem.id === selectedWorkItemId) ?? null;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 sm:p-6">
       <MemoryBrowserHeader
         scopedProjectId={scopedProjectId}
         selectedWorkflowId={selectedWorkflowId}

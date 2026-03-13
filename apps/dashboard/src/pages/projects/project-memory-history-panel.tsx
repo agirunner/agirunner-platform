@@ -10,7 +10,9 @@ import { summarizeMemoryValue } from './project-memory-table-support.js';
 import type { MemoryEntry } from './project-memory-support.js';
 import {
   buildMemoryHistoryReview,
+  buildMemoryRevisionOptions,
   buildMemoryRevisionId,
+  describeMemoryRevisionLabel,
   formatMemoryActor,
   type MemoryActorOption,
   type MemoryKeyOption,
@@ -19,6 +21,7 @@ import {
   EmptyHistoryState,
   HistoryFilter,
   HistoryFocusPacket,
+  HistoryModeTabs,
   PayloadCard,
   RevisionEventBadge,
 } from './project-memory-history-panel.sections.js';
@@ -35,10 +38,27 @@ export function ProjectMemoryHistoryPanel(props: {
   onKeyChange(value: string): void;
 }): JSX.Element {
   const [selectedRevisionId, setSelectedRevisionId] = useState('');
+  const [selectedCompareRevisionId, setSelectedCompareRevisionId] = useState('');
+  const [mobileView, setMobileView] = useState<'trail' | 'compare'>('trail');
 
   const review = useMemo(
-    () => buildMemoryHistoryReview(props.entries, props.selectedKey, selectedRevisionId),
-    [props.entries, props.selectedKey, selectedRevisionId],
+    () =>
+      buildMemoryHistoryReview(
+        props.entries,
+        props.selectedKey,
+        selectedRevisionId,
+        selectedCompareRevisionId,
+      ),
+    [props.entries, props.selectedKey, selectedCompareRevisionId, selectedRevisionId],
+  );
+  const compareRevisionOptions = useMemo(
+    () =>
+      buildMemoryRevisionOptions(
+        props.entries,
+        props.selectedKey,
+        review.selectedEntry ? buildMemoryRevisionId(review.selectedEntry) : '',
+      ),
+    [props.entries, props.selectedKey, review.selectedEntry],
   );
 
   useEffect(() => {
@@ -48,9 +68,117 @@ export function ProjectMemoryHistoryPanel(props: {
     }
   }, [review.selectedEntry, selectedRevisionId]);
 
+  useEffect(() => {
+    if (
+      selectedCompareRevisionId &&
+      !compareRevisionOptions.some((option) => option.value === selectedCompareRevisionId)
+    ) {
+      setSelectedCompareRevisionId('');
+    }
+  }, [compareRevisionOptions, selectedCompareRevisionId]);
+
   const focusPackets = useMemo(
     () => buildHistoryFocusPackets(review),
     [review],
+  );
+  const versionTrail = (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <div>
+          <h3 className="text-sm font-medium">Version trail</h3>
+          <p className="text-xs text-muted">
+            Select a revision to compare it against the version immediately before it or against a
+            custom earlier revision.
+          </p>
+        </div>
+        <div className="space-y-2">
+          {review.versions.map((entry) => {
+            const revisionId = buildMemoryRevisionId(entry);
+            const isSelected = revisionId === buildMemoryRevisionId(review.selectedEntry!);
+            return (
+              <button
+                key={revisionId}
+                className={`w-full rounded-2xl border p-3 text-left transition ${
+                  isSelected
+                    ? 'border-accent/50 bg-accent/5 shadow-sm'
+                    : 'border-border/70 bg-card/60 hover:border-accent/30'
+                }`}
+                type="button"
+                onClick={() => {
+                  setSelectedRevisionId(revisionId);
+                  setMobileView('compare');
+                }}
+              >
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <RevisionEventBadge eventType={entry.eventType ?? 'updated'} />
+                  {entry.stageName ? <Badge variant="secondary">{entry.stageName}</Badge> : null}
+                  {entry.taskId ? <Badge variant="outline">Task {entry.taskId}</Badge> : null}
+                </div>
+                <p className="mt-3 text-sm font-medium">{describeMemoryRevisionLabel(entry)}</p>
+                <p className="mt-1 text-xs text-muted">
+                  {entry.updatedAt ? new Date(entry.updatedAt).toLocaleString() : 'Unknown time'}
+                </p>
+                <p className="mt-2 text-xs text-muted">{summarizeMemoryValue(entry.value)}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+  const comparisonPanel = (
+    <div className="space-y-4">
+      <div>
+        <div>
+          <h3 className="text-sm font-medium">{review.selectedEntry?.key}</h3>
+          <p className="text-xs text-muted">
+            Inspect the selected revision first, then use the diff and payload tabs to decide
+            whether project memory needs a follow-up correction.
+          </p>
+        </div>
+      </div>
+
+      <Tabs defaultValue="diff" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="diff">Version Diff</TabsTrigger>
+          <TabsTrigger value="payload">Payload</TabsTrigger>
+        </TabsList>
+        <TabsContent value="diff" className="space-y-4">
+          <DiffViewer
+            oldLabel={
+              review.previousEntry
+                ? `${formatMemoryActor(review.previousEntry.actorType, review.previousEntry.actorId)} · comparison`
+                : 'No previous version'
+            }
+            newLabel={`${formatMemoryActor(review.selectedEntry!.actorType, review.selectedEntry!.actorId)} · selected`}
+            oldText={review.previousText}
+            newText={review.selectedText}
+          />
+        </TabsContent>
+        <TabsContent value="payload" className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <PayloadCard
+              title="Selected value"
+              value={review.selectedEntry?.value}
+              helper={
+                review.selectedEntry?.updatedAt
+                  ? new Date(review.selectedEntry.updatedAt).toLocaleString()
+                  : 'Unknown time'
+              }
+            />
+            <PayloadCard
+              title="Comparison value"
+              value={review.previousEntry?.value}
+              helper={
+                review.previousEntry?.updatedAt
+                  ? new Date(review.previousEntry.updatedAt).toLocaleString()
+                  : 'No previous version'
+              }
+            />
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 
   return (
@@ -70,7 +198,7 @@ export function ProjectMemoryHistoryPanel(props: {
           </div>
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
           <HistoryFilter
             label="Changed by"
             value={props.selectedActor}
@@ -93,6 +221,19 @@ export function ProjectMemoryHistoryPanel(props: {
             {props.keyOptions.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.value} ({option.count})
+              </SelectItem>
+            ))}
+          </HistoryFilter>
+          <HistoryFilter
+            label="Compare against"
+            value={selectedCompareRevisionId}
+            onValueChange={setSelectedCompareRevisionId}
+            placeholder="Previous revision"
+            includeAllOption
+          >
+            {compareRevisionOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
               </SelectItem>
             ))}
           </HistoryFilter>
@@ -133,94 +274,15 @@ export function ProjectMemoryHistoryPanel(props: {
               ))}
             </div>
 
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div>
-                  <h3 className="text-sm font-medium">Version trail</h3>
-                  <p className="text-xs text-muted">
-                    Select a revision to compare it against the version immediately before it.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  {review.versions.map((entry) => {
-                    const revisionId = buildMemoryRevisionId(entry);
-                    const isSelected = revisionId === buildMemoryRevisionId(review.selectedEntry!);
-                    return (
-                      <button
-                        key={revisionId}
-                        className={`w-full rounded-2xl border p-3 text-left transition ${
-                          isSelected ? 'border-accent/50 bg-accent/5 shadow-sm' : 'border-border/70 bg-card/60 hover:border-accent/30'
-                        }`}
-                        type="button"
-                        onClick={() => setSelectedRevisionId(revisionId)}
-                      >
-                        <div className="flex flex-wrap items-center gap-2 text-xs">
-                          <RevisionEventBadge eventType={entry.eventType ?? 'updated'} />
-                          {entry.stageName ? <Badge variant="secondary">{entry.stageName}</Badge> : null}
-                          {entry.taskId ? <Badge variant="outline">Task {entry.taskId}</Badge> : null}
-                        </div>
-                        <p className="mt-3 text-sm font-medium">
-                          {formatMemoryActor(entry.actorType, entry.actorId)}
-                        </p>
-                        <p className="mt-1 text-xs text-muted">
-                          {entry.updatedAt ? new Date(entry.updatedAt).toLocaleString() : 'Unknown time'}
-                        </p>
-                        <p className="mt-2 text-xs text-muted">{summarizeMemoryValue(entry.value)}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+            <HistoryModeTabs value={mobileView} onValueChange={setMobileView} />
 
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-medium">{review.selectedEntry.key}</h3>
-                <p className="text-xs text-muted">
-                  Inspect the selected revision first, then use the diff and payload tabs to decide
-                  whether project memory needs a follow-up correction.
-                </p>
-              </div>
-
-              <Tabs defaultValue="diff" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="diff">Version Diff</TabsTrigger>
-                  <TabsTrigger value="payload">Payload</TabsTrigger>
-                </TabsList>
-                <TabsContent value="diff" className="space-y-4">
-                  <DiffViewer
-                    oldLabel={
-                      review.previousEntry
-                        ? `${formatMemoryActor(review.previousEntry.actorType, review.previousEntry.actorId)} · previous`
-                        : 'No previous version'
-                    }
-                    newLabel={`${formatMemoryActor(review.selectedEntry.actorType, review.selectedEntry.actorId)} · selected`}
-                    oldText={review.previousText}
-                    newText={review.selectedText}
-                  />
-                </TabsContent>
-                <TabsContent value="payload" className="space-y-4">
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <PayloadCard
-                      title="Selected value"
-                      value={review.selectedEntry.value}
-                      helper={review.selectedEntry.updatedAt ? new Date(review.selectedEntry.updatedAt).toLocaleString() : 'Unknown time'}
-                    />
-                    <PayloadCard
-                      title="Previous value"
-                      value={review.previousEntry?.value}
-                      helper={
-                        review.previousEntry?.updatedAt
-                          ? new Date(review.previousEntry.updatedAt).toLocaleString()
-                          : 'No previous version'
-                      }
-                    />
-                  </div>
-                </TabsContent>
-              </Tabs>
+            <div className="space-y-4 xl:hidden">
+              {mobileView === 'trail' ? versionTrail : comparisonPanel}
             </div>
-          </div>
+            <div className="hidden gap-6 xl:grid xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+              {versionTrail}
+              {comparisonPanel}
+            </div>
           </div>
         )}
       </CardContent>
@@ -269,8 +331,8 @@ function buildHistoryFocusPackets(
       icon: 'history',
     },
     {
-      label: 'Next review step',
-      value: review.previousEntry ? 'Inspect diff' : 'Inspect payload',
+      label: 'Comparing against',
+      value: review.previousEntry ? describeMemoryRevisionLabel(review.previousEntry) : 'No baseline',
       helper:
         review.previousEntry
           ? 'Use the diff tab first, then confirm whether the latest change should stay in scoped memory.'

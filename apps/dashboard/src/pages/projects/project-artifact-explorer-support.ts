@@ -16,6 +16,8 @@ export type ProjectArtifactSort =
   | 'smallest'
   | 'name';
 
+export type ProjectArtifactPreviewMode = 'all' | 'inline' | 'download';
+
 export interface ProjectArtifactEntry {
   id: string;
   artifactId: string;
@@ -46,7 +48,9 @@ export interface ProjectArtifactFilters {
   workItemId: string;
   taskId: string;
   stageName: string;
+  role: string;
   contentType: string;
+  previewMode: ProjectArtifactPreviewMode;
   createdFrom: string;
   createdTo: string;
   sort: ProjectArtifactSort;
@@ -59,6 +63,7 @@ export interface ProjectArtifactSummary {
   workflowCount: number;
   workItemCount: number;
   taskCount: number;
+  roleCount: number;
 }
 
 interface BuildProjectArtifactEntriesInput {
@@ -129,7 +134,16 @@ export function filterProjectArtifactEntries(
     if (filters.stageName && entry.stageName !== filters.stageName) {
       return false;
     }
+    if (filters.role && entry.role !== filters.role) {
+      return false;
+    }
     if (filters.contentType && entry.contentType !== filters.contentType) {
+      return false;
+    }
+    if (filters.previewMode === 'inline' && !entry.canPreview) {
+      return false;
+    }
+    if (filters.previewMode === 'download' && entry.canPreview) {
       return false;
     }
     if (!isWithinDateRange(entry.createdAt, filters.createdFrom, filters.createdTo)) {
@@ -155,6 +169,7 @@ export function summarizeProjectArtifactEntries(
     workflowCount: new Set(entries.map((entry) => entry.workflowId).filter(Boolean)).size,
     workItemCount: new Set(entries.map((entry) => entry.workItemId).filter(Boolean)).size,
     taskCount: new Set(entries.map((entry) => entry.taskId)).size,
+    roleCount: new Set(entries.map((entry) => entry.role).filter(Boolean)).size,
   };
 }
 
@@ -164,6 +179,10 @@ export function buildArtifactStageOptions(entries: ProjectArtifactEntry[]): stri
 
 export function buildArtifactContentTypeOptions(entries: ProjectArtifactEntry[]): string[] {
   return buildUniqueOptions(entries.map((entry) => entry.contentType));
+}
+
+export function buildArtifactRoleOptions(entries: ProjectArtifactEntry[]): string[] {
+  return buildUniqueOptions(entries.map((entry) => entry.role));
 }
 
 export function formatArtifactFileSize(bytes: number): string {

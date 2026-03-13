@@ -9,7 +9,9 @@ export function buildProjectArtifactScopeChips(input: {
   stageName: string;
   workItemTitle: string | null;
   taskTitle: string | null;
+  role: string;
   contentType: string;
+  previewMode: 'all' | 'inline' | 'download';
   createdFrom: string;
   createdTo: string;
 }): ProjectArtifactScopeChip[] {
@@ -29,8 +31,17 @@ export function buildProjectArtifactScopeChips(input: {
   if (input.taskTitle) {
     chips.push({ label: 'Task', value: input.taskTitle });
   }
+  if (input.role) {
+    chips.push({ label: 'Role', value: input.role });
+  }
   if (input.contentType) {
     chips.push({ label: 'Type', value: input.contentType });
+  }
+  if (input.previewMode === 'inline') {
+    chips.push({ label: 'Delivery', value: 'Inline preview ready' });
+  }
+  if (input.previewMode === 'download') {
+    chips.push({ label: 'Delivery', value: 'Download-only' });
   }
   if (input.createdFrom || input.createdTo) {
     chips.push({

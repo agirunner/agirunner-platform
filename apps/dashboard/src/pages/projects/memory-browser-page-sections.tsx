@@ -24,17 +24,25 @@ export function MemoryBrowserHeader(props: {
   selectedWorkflowId: string;
   projectBackLabel: string;
 }): JSX.Element {
+  const title = props.scopedProjectId ? 'Project Memory Explorer' : 'Memory Browser';
+  const description = props.scopedProjectId
+    ? 'Review shared project memory, scoped work-item memory, and revision history without leaving the current project.'
+    : 'Review shared project memory, scoped work-item memory, and revision history through operator packets instead of raw record dumps.';
+
   return (
     <div>
-      <h1 className="text-2xl font-semibold">Memory Browser</h1>
-      <p className="text-sm text-muted">
-        Review shared project memory, scoped work-item memory, and revision history through
-        operator packets instead of raw record dumps.
-      </p>
+      <h1 className="text-2xl font-semibold">{title}</h1>
+      <p className="text-sm text-muted">{description}</p>
       {props.scopedProjectId ? (
         <div className="mt-2 flex flex-wrap gap-2 text-sm">
           <Link className="underline-offset-4 hover:underline" to={`/projects/${props.scopedProjectId}`}>
             {props.projectBackLabel}
+          </Link>
+          <Link
+            className="underline-offset-4 hover:underline"
+            to={`/projects/${props.scopedProjectId}/artifacts`}
+          >
+            Open Artifact Explorer
           </Link>
           {props.selectedWorkflowId ? (
             <Link className="underline-offset-4 hover:underline" to={`/work/workflows/${props.selectedWorkflowId}`}>

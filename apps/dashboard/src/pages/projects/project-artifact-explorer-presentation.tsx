@@ -23,7 +23,7 @@ export function ProjectArtifactExplorerSummary(props: {
       <SummaryCard label="Artifacts in scope" value={String(props.summary.totalArtifacts)} helper="Filtered artifact set currently visible to the operator." />
       <SummaryCard label="Previewable" value={String(props.summary.previewableArtifacts)} helper="Artifacts eligible for inline inspection without leaving the page." />
       <SummaryCard label="Source coverage" value={`${props.summary.workflowCount} workflows / ${props.summary.taskCount} tasks`} helper="Cross-workflow delivery coverage currently represented in this scope." />
-      <SummaryCard label="Payload volume" value={formatArtifactFileSize(props.summary.totalBytes)} helper={`${props.summary.workItemCount} work items represented in the visible artifact set.`} />
+      <SummaryCard label="Payload volume" value={formatArtifactFileSize(props.summary.totalBytes)} helper={`${props.summary.workItemCount} work items and ${props.summary.roleCount} roles represented in the visible artifact set.`} />
     </div>
   );
 }
@@ -85,6 +85,11 @@ export function ProjectArtifactExplorerList(props: {
                         <Badge variant={artifact.canPreview ? 'success' : 'outline'}>
                           {artifact.canPreview ? 'Inline preview' : 'Download only'}
                         </Badge>
+                        {Object.keys(artifact.metadata).length > 0 ? (
+                          <Badge variant="outline">
+                            {Object.keys(artifact.metadata).length} metadata
+                          </Badge>
+                        ) : null}
                       </div>
                       <p className="mt-3 text-sm font-semibold">{artifact.fileName}</p>
                       <p className="mt-1 truncate font-mono text-xs text-muted">{artifact.logicalPath}</p>
@@ -155,11 +160,13 @@ export function ProjectArtifactQuickInspector(props: {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <InspectorPacket title="Workflow" value={props.artifact.workflowName} helper={props.artifact.workflowState ?? 'Workflow context'} icon={<Workflow className="h-4 w-4" />} />
               <InspectorPacket title="Task" value={props.artifact.taskTitle} helper={props.artifact.taskState} icon={<Package className="h-4 w-4" />} />
               <InspectorPacket title="Work item" value={props.artifact.workItemTitle ?? 'Unlinked'} helper={props.artifact.stageName ?? 'No stage'} icon={<FileText className="h-4 w-4" />} />
               <InspectorPacket title="Role" value={props.artifact.role ?? 'Unassigned'} helper="Operator handoff source" icon={<Eye className="h-4 w-4" />} />
+              <InspectorPacket title="Delivery" value={props.artifact.canPreview ? 'Inline preview' : 'Download only'} helper={props.artifact.contentType} icon={<ExternalLink className="h-4 w-4" />} />
+              <InspectorPacket title="Metadata" value={`${Object.keys(props.artifact.metadata).length} fields`} helper="Structured artifact packet fields recorded at publish time." icon={<Package className="h-4 w-4" />} />
             </div>
 
             <div className="flex flex-wrap gap-2">

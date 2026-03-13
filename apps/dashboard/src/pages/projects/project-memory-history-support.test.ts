@@ -4,8 +4,10 @@ import type { MemoryEntry } from './project-memory-support.js';
 import {
   buildMemoryActorOptions,
   buildMemoryHistoryReview,
+  buildMemoryRevisionOptions,
   buildMemoryKeyOptions,
   buildMemoryRevisionId,
+  describeMemoryRevisionLabel,
   filterScopedMemoryEntries,
   formatMemoryActor,
   stringifyMemoryValue,
@@ -102,9 +104,28 @@ describe('project memory history support', () => {
     expect(review.versions).toEqual([historyEntries[0], historyEntries[1]]);
   });
 
+  it('allows custom compare baselines and exposes revision options', () => {
+    const selectedRevisionId = buildMemoryRevisionId(historyEntries[0]);
+    const compareRevisionId = buildMemoryRevisionId(historyEntries[1]);
+    const review = buildMemoryHistoryReview(
+      historyEntries,
+      'review_note',
+      selectedRevisionId,
+      compareRevisionId,
+    );
+
+    expect(review.previousEntry).toEqual(historyEntries[1]);
+    const options = buildMemoryRevisionOptions(historyEntries, 'review_note', selectedRevisionId);
+    expect(options).toHaveLength(1);
+    expect(options[0]?.value).toBe(compareRevisionId);
+    expect(options[0]?.label).toBe('system • orchestrator updated this key');
+    expect(options[0]?.helper).toContain('2026');
+  });
+
   it('formats actor labels and stringifies memory values consistently', () => {
     expect(formatMemoryActor('agent', 'reviewer')).toBe('agent • reviewer');
     expect(formatMemoryActor('system', null)).toBe('system');
+    expect(describeMemoryRevisionLabel(historyEntries[2])).toBe('human • ops updated this key');
     expect(stringifyMemoryValue({ summary: 'latest' })).toBe('{\n  "summary": "latest"\n}');
     expect(stringifyMemoryValue('watch release')).toBe('watch release');
   });
