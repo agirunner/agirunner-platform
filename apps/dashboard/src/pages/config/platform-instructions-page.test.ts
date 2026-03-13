@@ -26,6 +26,12 @@ describe('platform instructions page source', () => {
     expect(source).not.toContain('previousVersions');
   });
 
+  it('guards against unsaved changes via beforeunload', () => {
+    const source = readSource();
+    expect(source).toContain('useUnsavedChanges');
+    expect(source).toContain('useUnsavedChanges(hasUnsavedChanges)');
+  });
+
   it('exposes real compare, restore, clear, and diff UX', () => {
     const source = `${readSource()}\n${readSectionSource()}`;
     expect(source).toContain('Version History');

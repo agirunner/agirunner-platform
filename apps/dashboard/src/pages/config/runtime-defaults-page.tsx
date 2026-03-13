@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from '../../components/ui/card.js';
 import { toast } from '../../lib/toast.js';
+import { useUnsavedChanges } from '../../lib/use-unsaved-changes.js';
 import {
   deleteRuntimeDefault,
   fetchRuntimeDefaults,
@@ -72,6 +73,8 @@ export function RuntimeDefaultsPage(): JSX.Element {
     () => [...new Set(Object.values(validationErrors))],
     [validationErrors],
   );
+
+  useUnsavedChanges(isDirty);
 
   useEffect(() => {
     setFormValues(buildFormValues(data));

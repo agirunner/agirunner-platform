@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Archive, RotateCcw, Save, Trash2 } from 'lucide-react';
 
 import { dashboardApi } from '../../lib/api.js';
+import { useUnsavedChanges } from '../../lib/use-unsaved-changes.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
@@ -65,6 +66,7 @@ export function PlaybookDetailPage(): JSX.Element {
   const [definitionError, setDefinitionError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loadedPlaybookId, setLoadedPlaybookId] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -91,6 +93,8 @@ export function PlaybookDetailPage(): JSX.Element {
   });
   const [comparedRevisionId, setComparedRevisionId] = useState('');
 
+  useUnsavedChanges(isDirty);
+
   function loadPlaybook(playbook: NonNullable<typeof playbookQuery.data>): void {
     const nextLifecycle = playbook.lifecycle ?? DEFAULT_LIFECYCLE;
     setName(playbook.name);
@@ -101,6 +105,7 @@ export function PlaybookDetailPage(): JSX.Element {
     setDraft(hydratePlaybookAuthoringDraft(nextLifecycle, playbook.definition));
     setAuthoringValidationIssues([]);
     setLoadedPlaybookId(playbook.id);
+    setIsDirty(false);
   }
 
   useEffect(() => {
@@ -388,21 +393,21 @@ export function PlaybookDetailPage(): JSX.Element {
           <div className="grid gap-4 md:grid-cols-2">
             <label className="grid gap-2 text-sm">
               <span className="font-medium">Name</span>
-              <Input value={name} onChange={(event) => setName(event.target.value)} />
+              <Input value={name} onChange={(event) => { setName(event.target.value); setIsDirty(true); }} />
             </label>
             <label className="grid gap-2 text-sm">
               <span className="font-medium">Slug</span>
-              <Input value={slug} onChange={(event) => setSlug(event.target.value)} />
+              <Input value={slug} onChange={(event) => { setSlug(event.target.value); setIsDirty(true); }} />
             </label>
             <label className="grid gap-2 text-sm md:col-span-2">
               <span className="font-medium">Outcome</span>
-              <Input value={outcome} onChange={(event) => setOutcome(event.target.value)} />
+              <Input value={outcome} onChange={(event) => { setOutcome(event.target.value); setIsDirty(true); }} />
             </label>
             <label className="grid gap-2 text-sm md:col-span-2">
               <span className="font-medium">Description</span>
               <Textarea
                 value={description}
-                onChange={(event) => setDescription(event.target.value)}
+                onChange={(event) => { setDescription(event.target.value); setIsDirty(true); }}
                 className="min-h-[96px]"
               />
             </label>
@@ -424,7 +429,7 @@ export function PlaybookDetailPage(): JSX.Element {
                       type="button"
                       variant={selected ? 'secondary' : 'outline'}
                       className="h-auto w-full items-start justify-start whitespace-normal px-4 py-3 text-left"
-                      onClick={() => setLifecycle(option.value)}
+                      onClick={() => { setLifecycle(option.value); setIsDirty(true); }}
                     >
                       <span className="block">
                         <span className="block font-medium">{option.label}</span>
@@ -470,7 +475,7 @@ export function PlaybookDetailPage(): JSX.Element {
 
       <PlaybookAuthoringForm
         draft={draft}
-        onChange={setDraft}
+        onChange={(nextDraft) => { setDraft(nextDraft); setIsDirty(true); }}
         onClearError={() => {
           setDefinitionError(null);
           setMessage(null);

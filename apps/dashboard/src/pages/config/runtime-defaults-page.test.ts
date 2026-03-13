@@ -47,6 +47,12 @@ describe('runtime defaults page source', () => {
     expect(source).not.toContain('JSON.parse');
   });
 
+  it('guards against unsaved changes via beforeunload', () => {
+    const source = readSource('./runtime-defaults-page.tsx');
+    expect(source).toContain('useUnsavedChanges');
+    expect(source).toContain('useUnsavedChanges(isDirty)');
+  });
+
   it('renders web search provider controls through a dedicated first-class section instead of generic rows', () => {
     const source = readSource('./runtime-defaults-fields.tsx');
     expect(source).toContain('RuntimeDefaultsSearchSection');

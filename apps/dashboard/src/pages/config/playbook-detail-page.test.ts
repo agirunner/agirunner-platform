@@ -45,4 +45,12 @@ describe('playbook detail page source', () => {
       source.indexOf('<PlaybookControlCenterCard'),
     );
   });
+
+  it('guards against unsaved changes via beforeunload with dirty tracking on all form fields', () => {
+    const source = readSource();
+    expect(source).toContain('useUnsavedChanges');
+    expect(source).toContain('useUnsavedChanges(isDirty)');
+    expect(source).toContain('setIsDirty(false)');
+    expect(source).toContain('setIsDirty(true)');
+  });
 });

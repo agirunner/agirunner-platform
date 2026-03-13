@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/button.js';
 import { Card, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
+import { useUnsavedChanges } from '../../lib/use-unsaved-changes.js';
 import {
   buildPlatformInstructionDraftStatus,
   buildPlatformInstructionSummaryCards,
@@ -47,6 +48,8 @@ export function PlatformInstructionsPage(): JSX.Element {
     () => versions.find((version) => String(version.version) === selectedVersion) ?? null,
     [selectedVersion, versions],
   );
+
+  useUnsavedChanges(hasUnsavedChanges);
 
   useEffect(() => {
     if (!currentInstruction) {
