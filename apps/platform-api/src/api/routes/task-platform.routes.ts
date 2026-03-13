@@ -9,6 +9,8 @@ import { createArtifactStorage } from '../../content/storage-factory.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { ArtifactCatalogService } from '../../services/artifact-catalog-service.js';
 import { TaskAgentScopeService } from '../../services/task-agent-scope-service.js';
+import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
+import { runIdempotentTaskRouteAction } from './task-route-idempotency.js';
 
 const memoryUpdatesSchema = z
   .record(z.string().min(1).max(256), z.unknown())
@@ -18,10 +20,12 @@ const memoryUpdatesSchema = z
 
 const memoryPatchSchema = z.union([
   z.object({
+    request_id: z.string().min(1).max(255).optional(),
     key: z.string().min(1).max(256),
     value: z.unknown(),
   }),
   z.object({
+    request_id: z.string().min(1).max(255).optional(),
     updates: memoryUpdatesSchema,
   }),
 ]);
@@ -35,6 +39,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 
 export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
   const taskScopeService = new TaskAgentScopeService(app.pgPool);
+  const toolResultService = new WorkflowToolResultService(app.pgPool);
   const artifactCatalogService = new ArtifactCatalogService(
     app.pgPool,
     createArtifactStorage(buildArtifactStorageConfig(app.config)),
@@ -71,33 +76,43 @@ export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
       if (!task.project_id) {
         throw new ValidationError('Task is not linked to a project');
       }
+      const projectId = task.project_id;
       const context = {
         workflow_id: task.workflow_id,
         work_item_id: task.work_item_id,
         task_id: task.id,
         stage_name: task.stage_name,
       };
+      const requestId = body.request_id;
+      const data = await runIdempotentTaskRouteAction(
+        app,
+        toolResultService,
+        async () => task,
+        request.auth!.tenantId,
+        params.id,
+        'task_memory_patch',
+        requestId,
+        async () => {
+          if ('updates' in body) {
+            return app.projectService.patchProjectMemoryEntries(
+              request.auth!,
+              projectId,
+              Object.entries(body.updates).map(([key, value]) => ({
+                key,
+                value,
+                context,
+              })),
+            );
+          }
 
-      if ('updates' in body) {
-        return {
-          data: await app.projectService.patchProjectMemoryEntries(
-            request.auth!,
-            task.project_id,
-            Object.entries(body.updates).map(([key, value]) => ({
-              key,
-              value,
-              context,
-            })),
-          ),
-        };
-      }
-
-      return {
-        data: await app.projectService.patchProjectMemory(request.auth!, task.project_id, {
-          ...body,
-          context,
-        }),
-      };
+          return app.projectService.patchProjectMemory(request.auth!, projectId, {
+            key: body.key,
+            value: body.value,
+            context,
+          });
+        },
+      );
+      return { data };
     },
   );
 
