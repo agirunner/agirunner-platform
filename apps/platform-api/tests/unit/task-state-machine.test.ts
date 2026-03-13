@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   canTransitionState,
   normalizeTaskState,
-  normalizeTaskStateInput,
   toStoredTaskState,
 } from '../../src/orchestration/task-state-machine.js';
 
@@ -79,10 +78,7 @@ describe('task state machine', () => {
     );
   });
 
-  it('keeps legacy aliases confined to the explicit stale-input compatibility normalizer', () => {
-    expect(normalizeTaskStateInput('running')).toBe('in_progress');
-    expect(normalizeTaskStateInput('awaiting_escalation')).toBe('escalated');
-    expect(normalizeTaskStateInput('in_progress')).toBe('in_progress');
+  it('rejects legacy aliases throughout the exported state helpers', () => {
     expect(canTransitionState('claimed', 'running')).toBe(false);
     expect(canTransitionState('running', 'awaiting_escalation')).toBe(false);
     expect(canTransitionState('running', 'completed')).toBe(false);

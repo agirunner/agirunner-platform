@@ -16,13 +16,6 @@ export const taskStates = [
 export type CanonicalTaskState = (typeof taskStates)[number];
 export type TaskState = CanonicalTaskState;
 
-type LegacyTaskStateAlias = 'running' | 'awaiting_escalation';
-
-const legacyTaskStateAliases: Record<LegacyTaskStateAlias, CanonicalTaskState> = {
-  running: 'in_progress',
-  awaiting_escalation: 'escalated',
-};
-
 const transitionTable: Record<CanonicalTaskState, ReadonlySet<CanonicalTaskState>> = {
   pending: new Set(['ready', 'awaiting_approval', 'cancelled']),
   ready: new Set(['claimed', 'cancelled']),
@@ -62,27 +55,6 @@ export function normalizeTaskState(state: string | null | undefined): CanonicalT
     return null;
   }
   return taskStates.includes(state as CanonicalTaskState) ? (state as CanonicalTaskState) : null;
-}
-
-export function normalizeTaskStateInput(
-  state: string | null | undefined,
-): CanonicalTaskState | null {
-  const normalizedState = normalizeTaskState(state);
-  if (normalizedState) {
-    return normalizedState;
-  }
-  return normalizeTaskStateAlias(state);
-}
-
-function normalizeTaskStateAlias(
-  state: string | null | undefined,
-): CanonicalTaskState | null {
-  if (!state) {
-    return null;
-  }
-  return state in legacyTaskStateAliases
-    ? legacyTaskStateAliases[state as LegacyTaskStateAlias]
-    : null;
 }
 
 export function toStoredTaskState(state: string): CanonicalTaskState {
