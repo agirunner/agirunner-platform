@@ -31,4 +31,31 @@ describe('tools page source', () => {
     expect(source).toContain('Use lowercase letters, numbers, and underscores only.');
     expect(source).toContain('Add a short description so operators understand when this tool should be granted.');
   });
+
+  it('supports edit mode with read-only ID and mode-specific labels', () => {
+    const source = readSource('./tools-page.dialog.tsx');
+    expect(source).toContain("mode: 'edit'");
+    expect(source).toContain("mode: 'create'");
+    expect(source).toContain('Edit Tool');
+    expect(source).toContain('Save Changes');
+    expect(source).toContain('disabled');
+  });
+
+  it('provides a destructive delete confirmation dialog', () => {
+    const source = readSource('./tools-page.delete-dialog.tsx');
+    expect(source).toContain('Delete tool?');
+    expect(source).toContain('irreversible');
+    expect(source).toContain('variant="destructive"');
+    expect(source).toContain('Delete Tool');
+    expect(source).toContain('Cancel');
+  });
+
+  it('renders edit and delete actions for custom tools only', () => {
+    const source = readSource('./tools-page.tsx');
+    expect(source).toContain('is_built_in === false');
+    expect(source).toContain('Pencil');
+    expect(source).toContain('Trash2');
+    expect(source).toContain('openEditDialog');
+    expect(source).toContain('setDeletingTool');
+  });
 });

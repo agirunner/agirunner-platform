@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildEditToolForm,
   createToolIdFromName,
   describeToolCategory,
   summarizeTools,
   validateCreateToolForm,
+  validateEditToolForm,
 } from './tools-page.support.js';
 
 describe('tools page support', () => {
@@ -70,5 +72,32 @@ describe('tools page support', () => {
       detail: 'Outbound connectors and system-specific tool bridges.',
       badgeVariant: 'success',
     });
+  });
+
+  it('builds an edit form from a tool tag', () => {
+    expect(
+      buildEditToolForm({ id: 'my_tool', name: 'My Tool', description: '  Desc  ', category: 'web' }),
+    ).toEqual({ name: 'My Tool', description: 'Desc', category: 'web' });
+  });
+
+  it('defaults missing category to runtime in edit form', () => {
+    expect(
+      buildEditToolForm({ id: 'x', name: 'X' }),
+    ).toEqual({ name: 'X', description: '', category: 'runtime' });
+  });
+
+  it('validates edit form requires a name', () => {
+    const result = validateEditToolForm({ name: '', description: 'something', category: 'runtime' });
+    expect(result.isValid).toBe(false);
+    expect(result.fieldErrors.name).toBe('Enter a tool name.');
+    expect(result.blockingIssues).toContain('Enter a tool name.');
+  });
+
+  it('validates edit form passes with valid name', () => {
+    const result = validateEditToolForm({ name: 'Good Name', description: '', category: 'web' });
+    expect(result.isValid).toBe(true);
+    expect(result.advisoryIssues).toContain(
+      'Add a short description so operators understand when this tool should be granted.',
+    );
   });
 });

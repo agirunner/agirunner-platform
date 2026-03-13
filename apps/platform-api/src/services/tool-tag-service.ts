@@ -56,6 +56,8 @@ const builtInToolTags: Array<{ id: string; name: string; description: string; ca
 
 const allowedCategories = new Set<ToolCategory>(['runtime', 'vcs', 'web', 'language', 'integration']);
 
+const builtInToolIds = new Set(builtInToolTags.map((tag) => tag.id));
+
 export class ToolTagService {
   constructor(private readonly pool: DatabasePool) {}
 
@@ -67,7 +69,7 @@ export class ToolTagService {
 
     const merged = new Map<string, Record<string, unknown>>();
     for (const tag of builtInToolTags) {
-      merged.set(tag.id, tag);
+      merged.set(tag.id, { ...tag, is_built_in: true });
     }
     for (const row of result.rows) {
       merged.set(row.id, {
@@ -75,6 +77,7 @@ export class ToolTagService {
         name: row.name,
         ...(row.description ? { description: row.description } : {}),
         ...(row.category ? { category: row.category } : {}),
+        is_built_in: false,
       });
     }
 
@@ -96,6 +99,64 @@ export class ToolTagService {
       ],
     );
     return result.rows[0];
+  }
+
+  async updateToolTag(
+    identity: ApiKeyIdentity,
+    toolId: string,
+    input: { name?: string; description?: string; category?: string },
+  ) {
+    guardNotBuiltIn(toolId);
+    const fields: string[] = [];
+    const values: unknown[] = [identity.tenantId, toolId];
+    let paramIndex = 3;
+
+    if (input.name !== undefined) {
+      const trimmed = input.name.trim();
+      if (!trimmed) {
+        throw new ValidationError('Tool tag name cannot be empty');
+      }
+      fields.push(`name = $${paramIndex++}`);
+      values.push(trimmed);
+    }
+    if (input.description !== undefined) {
+      fields.push(`description = $${paramIndex++}`);
+      values.push(input.description.trim() || null);
+    }
+    if (input.category !== undefined) {
+      if (input.category && !allowedCategories.has(input.category as ToolCategory)) {
+        throw new ValidationError('Tool tag category is invalid');
+      }
+      fields.push(`category = $${paramIndex++}`);
+      values.push(input.category || null);
+    }
+
+    if (fields.length === 0) {
+      throw new ValidationError('At least one field is required');
+    }
+
+    const result = await this.pool.query<ToolTagRow>(
+      `UPDATE tool_tags SET ${fields.join(', ')}
+       WHERE tenant_id = $1 AND id = $2
+       RETURNING id, name, description, category`,
+      values,
+    );
+
+    if (!result.rowCount) {
+      throw new ValidationError('Tool not found');
+    }
+    return result.rows[0];
+  }
+
+  async deleteToolTag(identity: ApiKeyIdentity, toolId: string): Promise<void> {
+    guardNotBuiltIn(toolId);
+    const result = await this.pool.query(
+      'DELETE FROM tool_tags WHERE tenant_id = $1 AND id = $2',
+      [identity.tenantId, toolId],
+    );
+    if (!result.rowCount) {
+      throw new ValidationError('Tool not found');
+    }
   }
 }
 
@@ -179,6 +240,12 @@ export function computeToolMatch(
     matched,
     unavailable_optional: unavailableOptional,
   };
+}
+
+function guardNotBuiltIn(toolId: string): void {
+  if (builtInToolIds.has(toolId)) {
+    throw new ValidationError('Built-in tools cannot be modified');
+  }
 }
 
 function normalizeToolTag(input: { id: string; name: string; description?: string; category?: string }) {

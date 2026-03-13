@@ -4,10 +4,17 @@ export interface ToolTag {
   description?: string | null;
   category?: string | null;
   created_at?: string;
+  is_built_in?: boolean;
 }
 
 export interface CreateToolForm {
   id: string;
+  name: string;
+  description: string;
+  category: ToolCategory;
+}
+
+export interface EditToolForm {
   name: string;
   description: string;
   category: ToolCategory;
@@ -160,7 +167,28 @@ export function summarizeTools(tools: ToolTag[]): ToolSummaryCard[] {
   ];
 }
 
-function buildAdvisoryIssues(form: CreateToolForm): string[] {
+export function buildEditToolForm(tool: ToolTag): EditToolForm {
+  return {
+    name: tool.name,
+    description: tool.description?.trim() ?? '',
+    category: (tool.category as ToolCategory) ?? 'runtime',
+  };
+}
+
+export function validateEditToolForm(form: EditToolForm): ToolValidation {
+  const fieldErrors: ToolValidation['fieldErrors'] = {};
+  if (!form.name.trim()) {
+    fieldErrors.name = 'Enter a tool name.';
+  }
+  return {
+    fieldErrors,
+    blockingIssues: Object.values(fieldErrors),
+    advisoryIssues: buildAdvisoryIssues(form),
+    isValid: Object.keys(fieldErrors).length === 0,
+  };
+}
+
+function buildAdvisoryIssues(form: CreateToolForm | EditToolForm): string[] {
   const issues: string[] = [];
   if (!form.description.trim()) {
     issues.push('Add a short description so operators understand when this tool should be granted.');

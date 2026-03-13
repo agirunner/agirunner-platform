@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, Wrench } from 'lucide-react';
+import { Loader2, Pencil, Plus, Trash2, Wrench } from 'lucide-react';
 
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -22,14 +22,18 @@ import {
 import { readSession } from '../../lib/session.js';
 import { toast } from '../../lib/toast.js';
 import {
+  buildEditToolForm,
   createToolIdFromName,
   describeToolCategory,
   summarizeTools,
-  type CreateToolForm,
-  type ToolTag,
   validateCreateToolForm,
+  validateEditToolForm,
+  type CreateToolForm,
+  type EditToolForm,
+  type ToolTag,
 } from './tools-page.support.js';
-import { CreateToolDialog } from './tools-page.dialog.js';
+import { ToolDialog } from './tools-page.dialog.js';
+import { DeleteToolDialog } from './tools-page.delete-dialog.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 const INITIAL_FORM: CreateToolForm = { id: '', name: '', description: '', category: 'runtime' };
@@ -73,44 +77,105 @@ async function createTool(payload: CreateToolForm): Promise<ToolTag> {
   return body.data ?? body;
 }
 
+async function updateTool(toolId: string, payload: EditToolForm): Promise<ToolTag> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/tools/${encodeURIComponent(toolId)}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({
+      name: payload.name.trim(),
+      description: payload.description.trim() || undefined,
+      category: payload.category,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+  const body = await response.json();
+  return body.data ?? body;
+}
+
+async function deleteTool(toolId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/tools/${encodeURIComponent(toolId)}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+}
+
 export function ToolsPage(): JSX.Element {
   const queryClient = useQueryClient();
   const { data = [], isLoading, error } = useQuery({ queryKey: ['tools'], queryFn: fetchTools });
-  const [isOpen, setIsOpen] = useState(false);
-  const [form, setForm] = useState<CreateToolForm>(INITIAL_FORM);
-  const [hasCustomId, setHasCustomId] = useState(false);
-  const summaryCards = useMemo(() => summarizeTools(data), [data]);
-  const validation = useMemo(() => validateCreateToolForm(form, data), [form, data]);
 
-  const mutation = useMutation({
-    mutationFn: () => createTool(form),
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateToolForm>(INITIAL_FORM);
+  const [hasCustomId, setHasCustomId] = useState(false);
+
+  const [editingTool, setEditingTool] = useState<ToolTag | null>(null);
+  const [editForm, setEditForm] = useState<EditToolForm>({ name: '', description: '', category: 'runtime' });
+
+  const [deletingTool, setDeletingTool] = useState<ToolTag | null>(null);
+
+  const summaryCards = useMemo(() => summarizeTools(data), [data]);
+  const createValidation = useMemo(() => validateCreateToolForm(createForm, data), [createForm, data]);
+  const editValidation = useMemo(() => validateEditToolForm(editForm), [editForm]);
+
+  const createMutation = useMutation({
+    mutationFn: () => createTool(createForm),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['tools'] });
-      setForm(INITIAL_FORM);
+      setCreateForm(INITIAL_FORM);
       setHasCustomId(false);
-      setIsOpen(false);
+      setIsCreateOpen(false);
       toast.success('Tool created');
     },
     onError: (errorValue) => {
-      const message = errorValue instanceof Error ? errorValue.message : 'Failed to create tool';
-      toast.error(message);
+      toast.error(errorValue instanceof Error ? errorValue.message : 'Failed to create tool');
     },
   });
 
-  function resetDialog(): void {
-    setForm(INITIAL_FORM);
-    setHasCustomId(false);
-  }
+  const editMutation = useMutation({
+    mutationFn: () => updateTool(editingTool!.id, editForm),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['tools'] });
+      setEditingTool(null);
+      toast.success('Tool updated');
+    },
+    onError: (errorValue) => {
+      toast.error(errorValue instanceof Error ? errorValue.message : 'Failed to update tool');
+    },
+  });
 
-  function openDialog(nextOpen: boolean): void {
-    setIsOpen(nextOpen);
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteTool(deletingTool!.id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['tools'] });
+      setDeletingTool(null);
+      toast.success('Tool deleted');
+    },
+    onError: (errorValue) => {
+      toast.error(errorValue instanceof Error ? errorValue.message : 'Failed to delete tool');
+    },
+  });
+
+  function openCreateDialog(nextOpen: boolean): void {
+    setIsCreateOpen(nextOpen);
     if (!nextOpen) {
-      resetDialog();
+      setCreateForm(INITIAL_FORM);
+      setHasCustomId(false);
     }
   }
 
-  function updateName(value: string): void {
-    setForm((current) => ({
+  function openEditDialog(tool: ToolTag): void {
+    setEditingTool(tool);
+    setEditForm(buildEditToolForm(tool));
+  }
+
+  function updateCreateName(value: string): void {
+    setCreateForm((current) => ({
       ...current,
       name: value,
       id: hasCustomId ? current.id : createToolIdFromName(value),
@@ -144,7 +209,7 @@ export function ToolsPage(): JSX.Element {
               and descriptions consistent so operators know what they are granting before execution.
             </CardDescription>
           </div>
-          <Button onClick={() => setIsOpen(true)} data-testid="add-tool">
+          <Button onClick={() => setIsCreateOpen(true)} data-testid="add-tool">
             <Plus className="h-4 w-4" />
             Add Tool
           </Button>
@@ -188,12 +253,35 @@ export function ToolsPage(): JSX.Element {
             <div className="space-y-4 lg:hidden">
               {data.map((tool) => {
                 const category = describeToolCategory(tool.category);
+                const isCustom = tool.is_built_in === false;
                 return (
                   <Card key={tool.id} className="border-border/70 bg-muted/10 shadow-none">
                     <CardHeader className="space-y-2">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <CardTitle className="text-base">{tool.name}</CardTitle>
-                        <Badge variant={category.badgeVariant}>{category.label}</Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={category.badgeVariant}>{category.label}</Badge>
+                          {isCustom ? (
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEditDialog(tool)}
+                                aria-label={`Edit ${tool.name}`}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setDeletingTool(tool)}
+                                aria-label={`Delete ${tool.name}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                       <p className="font-mono text-xs text-muted">{tool.id}</p>
                     </CardHeader>
@@ -214,11 +302,13 @@ export function ToolsPage(): JSX.Element {
                     <TableHead>Name</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Description</TableHead>
+                    <TableHead className="w-24">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {data.map((tool) => {
                     const category = describeToolCategory(tool.category);
+                    const isCustom = tool.is_built_in === false;
                     return (
                       <TableRow key={tool.id}>
                         <TableCell className="font-mono text-sm">{tool.id}</TableCell>
@@ -228,6 +318,36 @@ export function ToolsPage(): JSX.Element {
                         </TableCell>
                         <TableCell className="text-sm text-muted">
                           {tool.description?.trim() || 'No description yet.'}
+                        </TableCell>
+                        <TableCell>
+                          {isCustom ? (
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  openEditDialog(tool);
+                                }}
+                                aria-label={`Edit ${tool.name}`}
+                                data-testid={`edit-tool-${tool.id}`}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setDeletingTool(tool);
+                                }}
+                                aria-label={`Delete ${tool.name}`}
+                                data-testid={`delete-tool-${tool.id}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          ) : null}
                         </TableCell>
                       </TableRow>
                     );
@@ -239,24 +359,48 @@ export function ToolsPage(): JSX.Element {
         </Card>
       )}
 
-      <CreateToolDialog
-        open={isOpen}
-        form={form}
-        validation={validation}
-        isPending={mutation.isPending}
-        onOpenChange={openDialog}
-        onSubmit={() => mutation.mutate()}
-        onNameChange={updateName}
+      <ToolDialog
+        mode="create"
+        open={isCreateOpen}
+        form={createForm}
+        validation={createValidation}
+        isPending={createMutation.isPending}
+        onOpenChange={openCreateDialog}
+        onSubmit={() => createMutation.mutate()}
+        onNameChange={updateCreateName}
         onIdChange={(value) => {
           setHasCustomId(true);
-          setForm((current) => ({ ...current, id: value }));
+          setCreateForm((current) => ({ ...current, id: value }));
         }}
         onDescriptionChange={(value) =>
-          setForm((current) => ({ ...current, description: value }))
+          setCreateForm((current) => ({ ...current, description: value }))
         }
         onCategoryChange={(value) =>
-          setForm((current) => ({ ...current, category: value }))
+          setCreateForm((current) => ({ ...current, category: value }))
         }
+      />
+
+      {editingTool ? (
+        <ToolDialog
+          mode="edit"
+          toolId={editingTool.id}
+          open
+          form={editForm}
+          validation={editValidation}
+          isPending={editMutation.isPending}
+          onOpenChange={(open) => { if (!open) setEditingTool(null); }}
+          onSubmit={() => editMutation.mutate()}
+          onNameChange={(value) => setEditForm((current) => ({ ...current, name: value }))}
+          onDescriptionChange={(value) => setEditForm((current) => ({ ...current, description: value }))}
+          onCategoryChange={(value) => setEditForm((current) => ({ ...current, category: value }))}
+        />
+      ) : null}
+
+      <DeleteToolDialog
+        tool={deletingTool}
+        isDeleting={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+        onOpenChange={(open) => { if (!open) setDeletingTool(null); }}
       />
     </div>
   );

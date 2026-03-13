@@ -29,10 +29,12 @@ import {
   describeToolCategory,
   TOOL_CATEGORIES,
   type CreateToolForm,
+  type EditToolForm,
   type ToolValidation,
 } from './tools-page.support.js';
 
-export function CreateToolDialog(props: {
+interface CreateToolDialogProps {
+  mode: 'create';
   open: boolean;
   form: CreateToolForm;
   validation: ToolValidation;
@@ -43,16 +45,39 @@ export function CreateToolDialog(props: {
   onIdChange(value: string): void;
   onDescriptionChange(value: string): void;
   onCategoryChange(value: CreateToolForm['category']): void;
-}) {
+}
+
+interface EditToolDialogProps {
+  mode: 'edit';
+  toolId: string;
+  open: boolean;
+  form: EditToolForm;
+  validation: ToolValidation;
+  isPending: boolean;
+  onOpenChange(open: boolean): void;
+  onSubmit(): void;
+  onNameChange(value: string): void;
+  onDescriptionChange(value: string): void;
+  onCategoryChange(value: EditToolForm['category']): void;
+}
+
+type ToolDialogProps = CreateToolDialogProps | EditToolDialogProps;
+
+export function ToolDialog(props: ToolDialogProps) {
+  const isEdit = props.mode === 'edit';
   const categoryDescriptor = describeToolCategory(props.form.category);
+  const title = isEdit ? 'Edit Tool' : 'Add Tool';
+  const description = isEdit
+    ? 'Update the tool catalog entry. The tool ID cannot be changed after creation.'
+    : 'Create a shared tool catalog entry with clear operator-facing naming, category, and usage guidance.';
+  const submitLabel = isEdit ? 'Save Changes' : 'Create Tool';
+
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-4xl overflow-hidden p-0">
         <DialogHeader className="border-b border-border/70 px-6 py-5">
-          <DialogTitle>Add Tool</DialogTitle>
-          <DialogDescription>
-            Create a shared tool catalog entry with clear operator-facing naming, category, and usage guidance.
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <form
           className="flex min-h-0 flex-1 flex-col"
@@ -79,15 +104,26 @@ export function CreateToolDialog(props: {
                     data-testid="tool-name-input"
                   />
                 </Field>
-                <Field label="ID" error={props.validation.fieldErrors.id}>
-                  <Input
-                    value={props.form.id}
-                    onChange={(event) => props.onIdChange(event.target.value)}
-                    placeholder="code_formatter"
-                    aria-invalid={Boolean(props.validation.fieldErrors.id)}
-                    data-testid="tool-id-input"
-                  />
-                </Field>
+                {isEdit ? (
+                  <Field label="ID">
+                    <Input
+                      value={props.toolId}
+                      disabled
+                      className="bg-muted/30"
+                      data-testid="tool-id-input"
+                    />
+                  </Field>
+                ) : (
+                  <Field label="ID" error={props.validation.fieldErrors.id}>
+                    <Input
+                      value={props.form.id}
+                      onChange={(event) => props.onIdChange(event.target.value)}
+                      placeholder="code_formatter"
+                      aria-invalid={Boolean(props.validation.fieldErrors.id)}
+                      data-testid="tool-id-input"
+                    />
+                  </Field>
+                )}
                 <Field label="Category">
                   <Select
                     value={props.form.category}
@@ -123,7 +159,7 @@ export function CreateToolDialog(props: {
               <CardHeader>
                 <CardTitle>Save readiness</CardTitle>
                 <CardDescription>
-                  Resolve blockers before adding the tool to the shared catalog.
+                  Resolve blockers before {isEdit ? 'saving changes' : 'adding the tool'} to the shared catalog.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -136,7 +172,7 @@ export function CreateToolDialog(props: {
                 >
                   <p className="font-medium">
                     {props.validation.isValid
-                      ? 'Ready to create this tool.'
+                      ? isEdit ? 'Ready to save changes.' : 'Ready to create this tool.'
                       : 'Resolve these issues before saving.'}
                   </p>
                   {!props.validation.isValid ? (
@@ -171,7 +207,7 @@ export function CreateToolDialog(props: {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-muted">
                 {props.validation.isValid
-                  ? 'The tool is ready to add to the shared catalog.'
+                  ? isEdit ? 'Changes are ready to save.' : 'The tool is ready to add to the shared catalog.'
                   : `${props.validation.blockingIssues.length} save blocker${props.validation.blockingIssues.length === 1 ? '' : 's'} remaining.`}
               </p>
               <div className="flex flex-wrap justify-end gap-2">
@@ -184,7 +220,7 @@ export function CreateToolDialog(props: {
                   data-testid="submit-tool"
                 >
                   {props.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Create Tool
+                  {submitLabel}
                 </Button>
               </div>
             </div>
@@ -194,6 +230,9 @@ export function CreateToolDialog(props: {
     </Dialog>
   );
 }
+
+/** @deprecated Use ToolDialog with mode='create' instead */
+export const CreateToolDialog = ToolDialog;
 
 function Field(props: { label: string; children: ReactNode; error?: string }) {
   return (
