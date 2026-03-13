@@ -48,6 +48,19 @@ describe('runtime defaults page support', () => {
     expect(errors['agent.loop_detection_repeat']).toContain('at least 1');
   });
 
+  it('validates risky container-default overrides with recovery guidance before save', () => {
+    const errors = buildValidationErrors({
+      default_runtime_image: 'https://ghcr.io/agisnap/agirunner runtime:latest',
+      default_cpu: '0',
+      default_memory: 'banana',
+    });
+
+    expect(errors['default_runtime_image']).toContain('image:tag or image@sha256:digest');
+    expect(errors['default_runtime_image']).toContain('clear the field');
+    expect(errors['default_cpu']).toContain('greater than 0');
+    expect(errors['default_memory']).toContain('512m, 2g, or 2Gi');
+  });
+
   it('validates provider-specific web search requirements before save', () => {
     const errors = buildValidationErrors({
       'tools.web_search_provider': 'serper',

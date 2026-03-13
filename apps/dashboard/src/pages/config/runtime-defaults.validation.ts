@@ -2,6 +2,9 @@ import { getWebSearchProviderDetails, resolveWebSearchProvider } from './runtime
 import { FIELD_DEFINITIONS } from './runtime-defaults.schema.js';
 import type { FormValues } from './runtime-defaults.types.js';
 
+const MEMORY_ALLOCATION_PATTERN =
+  /^\d+(?:\.\d+)?(?:b|k|m|g|t|p|e|kb|mb|gb|tb|pb|eb|ki|mi|gi|ti|pi|ei|kib|mib|gib|tib|pib|eib)?$/i;
+
 export function buildValidationErrors(values: FormValues): Record<string, string> {
   const errors: Record<string, string> = {};
 
@@ -31,6 +34,7 @@ export function buildValidationErrors(values: FormValues): Record<string, string
     }
   }
 
+  validateContainerDefaults(values, errors);
   validateHistoryRelationships(values, errors);
   validateWebSearchFields(values, errors);
   return errors;
@@ -69,6 +73,42 @@ function readNumber(value: string | undefined): number | null {
   }
   const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function validateContainerDefaults(
+  values: FormValues,
+  errors: Record<string, string>,
+): void {
+  const runtimeImage = values['default_runtime_image']?.trim();
+  if (runtimeImage) {
+    if (/\s/.test(runtimeImage) || runtimeImage.includes('://')) {
+      errors['default_runtime_image'] =
+        'Runtime image must look like image:tag or image@sha256:digest. Remove spaces or URL prefixes, or clear the field to use the platform default image.';
+    }
+  }
+
+  const cpuValue = values['default_cpu']?.trim();
+  if (cpuValue) {
+    const parsed = Number(cpuValue);
+    if (Number.isFinite(parsed) && parsed <= 0) {
+      errors['default_cpu'] =
+        'Default CPU allocation must be greater than 0. Use a positive value such as 1 or 0.5, or clear the field to use the platform default.';
+    }
+  }
+
+  const memoryValue = values['default_memory']?.trim();
+  if (memoryValue) {
+    if (!MEMORY_ALLOCATION_PATTERN.test(memoryValue)) {
+      errors['default_memory'] =
+        'Default memory allocation must look like 512m, 2g, or 2Gi. Clear the field to use the platform default memory limit.';
+      return;
+    }
+    const numeric = Number.parseFloat(memoryValue);
+    if (!Number.isFinite(numeric) || numeric <= 0) {
+      errors['default_memory'] =
+        'Default memory allocation must be greater than 0. Use a value such as 512m or 2Gi, or clear the field to use the platform default memory limit.';
+    }
+  }
 }
 
 function validateWebSearchFields(
