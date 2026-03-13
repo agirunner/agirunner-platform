@@ -169,7 +169,7 @@ export function GateDetailCard(props: {
     gate.gate_status === 'awaiting_approval' || gate.status === 'awaiting_approval';
   const isActionPending =
     approveMutation.isPending || rejectMutation.isPending || requestChangesMutation.isPending;
-  const breadcrumbs = buildGateBreadcrumbs(gate);
+  const breadcrumbs = buildGateBreadcrumbs(gate).map((label) => ({ label }));
   const packetSummary = readGatePacketSummary(gate);
   const timelineRows = readGateTimelineRows(gate);
   const decisionAction = gate.human_decision?.action ?? null;

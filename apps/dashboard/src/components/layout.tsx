@@ -40,6 +40,7 @@ import { dashboardApi, type DashboardSearchResult } from '../lib/api.js';
 import { readSession, clearSession } from '../lib/session.js';
 import { cn } from '../lib/utils.js';
 import { readTheme } from '../app/theme.js';
+import { BreadcrumbBar } from './breadcrumb-bar.js';
 import {
   Dialog,
   DialogClose,
@@ -634,6 +635,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
 
       <main className="flex-1 overflow-y-auto bg-background pt-12 lg:pt-0">
         <div className="px-4 py-4 sm:px-6 lg:px-8">
+          <BreadcrumbBar />
           <Outlet />
         </div>
       </main>
@@ -863,28 +865,4 @@ function NavSectionGroup({
   );
 }
 
-export function buildBreadcrumbs(pathname: string): Array<{ label: string; href?: string }> {
-  const segments = pathname.split('/').filter(Boolean);
-  if (segments.length === 0) return [{ label: 'Home' }];
-
-  const segmentLabels: Record<string, string> = {
-    boards: 'Workflow Boards',
-    workflows: 'Workflow Boards',
-  };
-  const crumbs: Array<{ label: string; href?: string }> = [];
-  let currentPath = '';
-
-  for (let i = 0; i < segments.length; i++) {
-    const segment = segments[i];
-    const normalizedSegment = segment === 'workflows' ? 'boards' : segment;
-    currentPath += `/${normalizedSegment}`;
-    crumbs.push({
-      label:
-        segmentLabels[segment]
-        ?? segment.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-      href: i === segments.length - 1 ? undefined : currentPath,
-    });
-  }
-
-  return crumbs;
-}
+export { buildBreadcrumbs } from './layout-breadcrumbs.js';

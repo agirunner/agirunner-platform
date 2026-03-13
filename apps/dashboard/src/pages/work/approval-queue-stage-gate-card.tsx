@@ -46,7 +46,7 @@ export function StageGateQueueCard(props: {
         activationId: gate.orchestrator_resume.activation_id,
       })
     : null;
-  const breadcrumbs = buildGateBreadcrumbs(gate);
+  const breadcrumbs = buildGateBreadcrumbs(gate).map((label) => ({ label }));
   const packetSummary = readGatePacketSummary(gate);
   const requestSource = readGateRequestSourceSummary(gate);
   const decisionSummary = readGateDecisionSummary(gate);

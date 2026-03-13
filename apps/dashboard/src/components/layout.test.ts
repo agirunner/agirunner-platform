@@ -19,15 +19,15 @@ describe('layout breadcrumbs', () => {
 
   it('creates labeled breadcrumbs for sections', () => {
     expect(buildBreadcrumbs('/fleet/workers')).toEqual([
-      { label: 'Fleet', href: '/fleet' },
-      { label: 'Workers', href: undefined },
+      { label: 'Fleet' },
+      { label: 'Workers' },
     ]);
   });
 
   it('handles nested paths with id segments', () => {
     const crumbs = buildBreadcrumbs('/work/boards/12345678-aaaa');
     expect(crumbs).toHaveLength(3);
-    expect(crumbs[0]).toEqual({ label: 'Work', href: '/work' });
+    expect(crumbs[0]).toEqual({ label: 'Work' });
     expect(crumbs[1]).toEqual({ label: 'Workflow Boards', href: '/work/boards' });
     expect(crumbs[2].href).toBeUndefined();
   });

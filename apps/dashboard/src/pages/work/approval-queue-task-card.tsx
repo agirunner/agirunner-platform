@@ -112,7 +112,7 @@ export function TaskApprovalCard(props: {
   const taskLabel = task.title ?? task.id;
   const workItemFlow = usesWorkItemOperatorFlow(task);
   const workflowOperatorFlow = usesWorkflowOperatorFlow(task);
-  const breadcrumbs = buildTaskApprovalBreadcrumbs(task);
+  const breadcrumbs = buildTaskApprovalBreadcrumbs(task).map((label) => ({ label }));
   const operatorFlowLabel = readTaskOperatorFlowLabel(task);
   const workflowContextLink =
     buildWorkflowOperatorPermalink(task) ??
