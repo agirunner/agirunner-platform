@@ -5,7 +5,6 @@ import {
   Activity,
   AlertTriangle,
   CheckCircle2,
-  Container,
   DollarSign,
   Cpu,
   Server,
@@ -412,7 +411,6 @@ export function LiveBoardPage(): JSX.Element {
     [activeWorkflows],
   );
   const [boardPage, setBoardPage] = useState(0);
-  const onlineWorkers = useMemo(() => workers.filter((w) => w.status === 'online' || w.status === 'active'), [workers]);
   const approvalTasks = useMemo(
     () => tasks.filter((task) => resolveTaskOperatorState(task) === 'awaiting_approval'),
     [tasks],
@@ -481,22 +479,6 @@ export function LiveBoardPage(): JSX.Element {
     isLoading: Boolean(boardQueries[index]?.isLoading || activationQueries[index]?.isLoading),
     hasError: Boolean(boardQueries[index]?.error || activationQueries[index]?.error),
   }));
-  const openWorkItems = useMemo(
-    () =>
-      activePlaybookWorkflows.reduce(
-        (sum, workflow) => sum + (workflow.work_item_summary?.open_work_item_count ?? 0),
-        0,
-      ),
-    [activePlaybookWorkflows],
-  );
-  const reportedSpend = useMemo(
-    () =>
-      activePlaybookWorkflows.reduce(
-        (sum, workflow) => sum + Number(workflow.metrics?.total_cost_usd ?? 0),
-        0,
-      ),
-    [activePlaybookWorkflows],
-  );
   const visibleTokenPosture = useMemo(
     () => summarizeVisibleTokenUsage(pagedPlaybookWorkflows),
     [pagedPlaybookWorkflows],
@@ -551,6 +533,21 @@ export function LiveBoardPage(): JSX.Element {
       ),
     [pagedPlaybookWorkflows],
   );
+  const visibleSpentBoards = useMemo(
+    () =>
+      pagedPlaybookWorkflows.filter(
+        (workflow) => Number(workflow.metrics?.total_cost_usd ?? 0) > 0,
+      ).length,
+    [pagedPlaybookWorkflows],
+  );
+  const visibleCompletedWorkItems = useMemo(
+    () =>
+      pagedPlaybookWorkflows.reduce(
+        (sum, workflow) => sum + Number(workflow.work_item_summary?.completed_work_item_count ?? 0),
+        0,
+      ),
+    [pagedPlaybookWorkflows],
+  );
   const visibleNeedsAttention =
     visibleBlockedWorkItems +
     visibleGateReviews +
@@ -568,10 +565,10 @@ export function LiveBoardPage(): JSX.Element {
         .includes(normalizedQuery),
     );
   }, [blockedItems, searchQuery]);
-  const liveStages = useMemo(
+  const visibleLiveStages = useMemo(
     () =>
       new Set(
-        activeWorkflows.flatMap((workflow) => {
+        pagedPlaybookWorkflows.flatMap((workflow) => {
           const summaryStages = workflow.work_item_summary?.active_stage_names ?? [];
           const activeStages = workflow.active_stages ?? [];
           const liveStageNames = Array.from(new Set([...activeStages, ...summaryStages]));
@@ -583,7 +580,7 @@ export function LiveBoardPage(): JSX.Element {
             : liveStageNames;
         }),
       ).size,
-    [activeWorkflows],
+    [pagedPlaybookWorkflows],
   );
   const filteredStageGates = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -622,6 +619,9 @@ export function LiveBoardPage(): JSX.Element {
     deduped.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return deduped.slice(0, 10);
   }, [sseEvents, apiEvents]);
+  const latestActivity = recentEvents[0] ?? null;
+  const latestActivityDescriptor = latestActivity ? describeTimelineEvent(latestActivity) : null;
+  const fleetSummary = useMemo(() => summarizeWorkerFleet(workers), [workers]);
 
   const isLoading = workflowsQuery.isLoading || tasksQuery.isLoading || workersQuery.isLoading;
 
@@ -718,15 +718,29 @@ export function LiveBoardPage(): JSX.Element {
       </Card>
 
       <KpiCards
-        activeBoards={activePlaybookWorkflows.length}
-        openWorkItems={openWorkItems}
-        liveStages={liveStages}
-        gateReviews={filteredStageGates.length}
-        workersOnline={onlineWorkers.length}
-        blockedWorkItems={filteredBlockedItems.length}
-        failedSteps={filteredFailedTasks.length}
-        needsAction={needsAction}
-        reportedSpend={reportedSpend}
+        activeBoards={pagedPlaybookWorkflows.length}
+        openWorkItems={boardEntries.reduce(
+          (sum, entry) => sum + (entry.workflow.work_item_summary?.open_work_item_count ?? 0),
+          0,
+        )}
+        completedWorkItems={visibleCompletedWorkItems}
+        liveStages={visibleLiveStages}
+        gateReviews={visibleGateReviews}
+        blockedWorkItems={visibleBlockedWorkItems}
+        failedSteps={visibleFailedSteps}
+        staleActivations={visibleActivationSummary.stale}
+        escalatedSteps={visibleSpecialistSummary.escalations}
+        needsAction={visibleNeedsAttention}
+        reportedSpend={visibleSpend}
+        spentBoards={visibleSpentBoards}
+        tokenPosture={visibleTokenPosture}
+        fleetSummary={fleetSummary}
+        latestActivityLabel={latestActivityDescriptor?.emphasisLabel ?? 'No recent activity'}
+        latestActivityDetail={
+          latestActivityDescriptor
+            ? `${formatRelativeTimestamp(latestActivity.created_at)} • ${latestActivityDescriptor.scopeSummary ?? 'Recent operator activity recorded.'}`
+            : 'Recent operator activity recorded.'
+        }
       />
 
       <TriagePostureSection
@@ -820,84 +834,83 @@ function BoardPaginationCard(props: BoardPaginationCardProps): JSX.Element | nul
 interface KpiCardsProps {
   activeBoards: number;
   openWorkItems: number;
+  completedWorkItems: number;
   liveStages: number;
   gateReviews: number;
-  workersOnline: number;
   blockedWorkItems: number;
   failedSteps: number;
+  staleActivations: number;
+  escalatedSteps: number;
   needsAction: number;
   reportedSpend: number;
+  spentBoards: number;
+  tokenPosture: string;
+  fleetSummary: ReturnType<typeof summarizeWorkerFleet>;
+  latestActivityLabel: string;
+  latestActivityDetail: string;
 }
 
 function KpiCards(props: KpiCardsProps): JSX.Element {
+  const attentionDetailParts = [
+    props.gateReviews > 0 ? `${props.gateReviews} gates` : null,
+    props.blockedWorkItems > 0 ? `${props.blockedWorkItems} blocked` : null,
+    props.failedSteps > 0 ? `${props.failedSteps} failed` : null,
+    props.escalatedSteps > 0 ? `${props.escalatedSteps} escalated` : null,
+    props.staleActivations > 0 ? `${props.staleActivations} stale` : null,
+  ].filter((part): part is string => part !== null);
   const cards = [
     {
-      label: 'Live Boards',
+      label: 'Visible board scope',
       value: props.activeBoards,
-      detail: 'Boards with active work or gates',
+      detail: `${props.liveStages} live stages • ${props.openWorkItems} open work items on this page`,
       icon: WorkflowIcon,
       color: 'text-blue-600',
     },
     {
-      label: 'Open Work Items',
-      value: props.openWorkItems,
-      detail: 'Non-terminal work across visible boards',
+      label: 'Delivery progress',
+      value: props.completedWorkItems > 0 ? `${props.completedWorkItems} complete` : 'No completions',
+      detail: `${props.openWorkItems} open work items • ${props.gateReviews} gate reviews waiting`,
       icon: Activity,
       color: 'text-green-600',
     },
     {
-      label: 'Live Stages',
-      value: props.liveStages,
-      detail: 'Distinct active stage names',
-      icon: Cpu,
-      color: 'text-indigo-600',
+      label: 'Attention posture',
+      value: props.needsAction > 0 ? `${props.needsAction} open` : 'Stable',
+      detail:
+        attentionDetailParts.length > 0
+          ? attentionDetailParts.join(' • ')
+          : 'No gates, blocked work, failed steps, or stale turns on this page',
+      icon: AlertTriangle,
+      color: props.needsAction > 0 ? 'text-amber-600' : 'text-muted',
     },
     {
-      label: 'Stage Gates',
-      value: props.gateReviews,
-      detail: 'Human gate packets waiting',
-      icon: CheckCircle2,
-      color: 'text-amber-600',
-    },
-    {
-      label: 'Reported Spend',
-      value: props.reportedSpend > 0 ? `$${props.reportedSpend.toFixed(2)}` : '-',
-      detail: props.reportedSpend > 0 ? 'Across visible live boards' : 'No spend reported',
+      label: 'Spend & token coverage',
+      value: props.reportedSpend > 0 ? `$${props.reportedSpend.toFixed(2)}` : 'No spend',
+      detail:
+        props.spentBoards > 0
+          ? `${props.spentBoards} board runs reporting spend • ${props.tokenPosture}`
+          : props.tokenPosture,
       icon: DollarSign,
       color: 'text-emerald-600',
     },
     {
-      label: 'Blocked Work',
-      value: props.blockedWorkItems,
-      detail: 'Items in blocked board columns',
-      icon: Container,
-      color: props.blockedWorkItems > 0 ? 'text-rose-600' : 'text-muted',
-    },
-    {
-      label: 'Failed Steps',
-      value: props.failedSteps,
-      detail: 'Specialist steps needing review',
-      icon: AlertTriangle,
-      color: props.failedSteps > 0 ? 'text-rose-600' : 'text-muted',
-    },
-    {
-      label: 'Workers Online',
-      value: props.workersOnline,
-      detail: 'Available worker capacity',
+      label: 'Worker capacity',
+      value: `${props.fleetSummary.online} online`,
+      detail: `${props.fleetSummary.busy} busy • ${props.fleetSummary.available} available • ${props.fleetSummary.assignedSteps} assigned`,
       icon: Server,
       color: 'text-indigo-600',
     },
     {
-      label: 'Needs Action',
-      value: props.needsAction,
-      detail: 'Combined gates, blocked work, and step interventions',
-      icon: AlertTriangle,
-      color: props.needsAction > 0 ? 'text-amber-600' : 'text-muted',
+      label: 'Latest operator activity',
+      value: props.latestActivityLabel,
+      detail: props.latestActivityDetail,
+      icon: CheckCircle2,
+      color: 'text-sky-600',
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {cards.map((card) => (
         <Card key={card.label} className="border-border/70 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">

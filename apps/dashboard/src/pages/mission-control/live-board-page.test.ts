@@ -57,10 +57,12 @@ describe('live board page source', () => {
     expect(source).toContain('Specialist pool posture');
     expect(source).toContain('Escalation and stale attention');
     expect(source).toContain('Spend and token posture');
-    expect(source).toContain('Reported Spend');
-    expect(source).toContain('Blocked Work');
-    expect(source).toContain('Failed Steps');
-    expect(source).toContain('Combined gates, blocked work, and step interventions');
+    expect(source).toContain('Visible board scope');
+    expect(source).toContain('Delivery progress');
+    expect(source).toContain('Attention posture');
+    expect(source).toContain('Spend & token coverage');
+    expect(source).toContain('Latest operator activity');
+    expect(source).toContain('board runs reporting spend');
     expect(source).not.toContain('Containers Running');
     expect(source).not.toContain('Cost Today');
   });
