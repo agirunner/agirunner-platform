@@ -6,6 +6,9 @@ import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 
 const CONFIG_TYPES = ['string', 'number', 'boolean', 'json'] as const;
 const WEB_SEARCH_PROVIDERS = new Set(['duckduckgo', 'serper', 'tavily']);
+const RUNTIME_DEFAULT_SECRET_REDACTION = 'redacted://runtime-default-secret';
+const runtimeDefaultSecretKeyPattern =
+  /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|webhook_url|known_hosts)/i;
 const INTEGER_DEFAULT_RULES = new Map([
   ['default_grace_period', { min: 1 }],
   ['global_max_runtimes', { min: 1 }],
@@ -54,14 +57,15 @@ export class RuntimeDefaultsService {
 
   async listDefaults(tenantId: string): Promise<RuntimeDefaultRow[]> {
     const repo = new TenantScopedRepository(this.pool, tenantId);
-    return repo.findAll<RuntimeDefaultRow>('runtime_defaults', '*');
+    const rows = await repo.findAll<RuntimeDefaultRow>('runtime_defaults', '*');
+    return rows.map(toPublicRuntimeDefaultRow);
   }
 
   async getDefault(tenantId: string, id: string): Promise<RuntimeDefaultRow> {
     const repo = new TenantScopedRepository(this.pool, tenantId);
     const row = await repo.findById<RuntimeDefaultRow>('runtime_defaults', '*', id);
     if (!row) throw new NotFoundError('Runtime default not found');
-    return row;
+    return toPublicRuntimeDefaultRow(row);
   }
 
   async getByKey(tenantId: string, configKey: string): Promise<RuntimeDefaultRow | null> {
@@ -94,7 +98,7 @@ export class RuntimeDefaultsService {
         validated.description ?? null,
       ],
     );
-    return result.rows[0];
+    return toPublicRuntimeDefaultRow(result.rows[0]);
   }
 
   async updateDefault(tenantId: string, id: string, input: UpdateRuntimeDefaultInput): Promise<RuntimeDefaultRow> {
@@ -124,7 +128,7 @@ export class RuntimeDefaultsService {
       }
     }
 
-    if (setClauses.length === 0) return current;
+    if (setClauses.length === 0) return toPublicRuntimeDefaultRow(current);
 
     setClauses.push('updated_at = NOW()');
 
@@ -133,7 +137,7 @@ export class RuntimeDefaultsService {
       values,
     );
     if (!result.rowCount) throw new NotFoundError('Runtime default not found');
-    return result.rows[0];
+    return toPublicRuntimeDefaultRow(result.rows[0]);
   }
 
   async upsertDefault(tenantId: string, input: CreateRuntimeDefaultInput): Promise<RuntimeDefaultRow> {
@@ -154,7 +158,7 @@ export class RuntimeDefaultsService {
         validated.description ?? null,
       ],
     );
-    return result.rows[0];
+    return toPublicRuntimeDefaultRow(result.rows[0]);
   }
 
   async deleteDefault(tenantId: string, id: string): Promise<void> {
@@ -164,6 +168,21 @@ export class RuntimeDefaultsService {
     );
     if (!result.rowCount) throw new NotFoundError('Runtime default not found');
   }
+}
+
+function toPublicRuntimeDefaultRow(row: RuntimeDefaultRow): RuntimeDefaultRow {
+  if (!shouldRedactRuntimeDefault(row.config_key, row.config_value)) {
+    return row;
+  }
+
+  return {
+    ...row,
+    config_value: RUNTIME_DEFAULT_SECRET_REDACTION,
+  };
+}
+
+function shouldRedactRuntimeDefault(configKey: string, configValue: string): boolean {
+  return runtimeDefaultSecretKeyPattern.test(configKey) && configValue.trim().length > 0;
 }
 
 function validateKnownRuntimeDefault(input: CreateRuntimeDefaultInput): void {

@@ -20,6 +20,14 @@ const sampleDefault = {
   updated_at: new Date(),
 };
 
+const sampleSecretDefault = {
+  ...sampleDefault,
+  config_key: 'tools.web_search_api_key_secret_ref',
+  config_value: 'legacy-plaintext-secret',
+  config_type: 'string',
+  description: 'Web search API key secret ref',
+};
+
 describe('RuntimeDefaultsService', () => {
   let pool: ReturnType<typeof createMockPool>;
   let service: RuntimeDefaultsService;
@@ -35,6 +43,19 @@ describe('RuntimeDefaultsService', () => {
       const result = await service.listDefaults(TENANT_ID);
       expect(result).toEqual([sampleDefault]);
     });
+
+    it('redacts secret-bearing runtime defaults on list reads', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [sampleSecretDefault], rowCount: 1 });
+
+      const result = await service.listDefaults(TENANT_ID);
+
+      expect(result).toEqual([
+        {
+          ...sampleSecretDefault,
+          config_value: 'redacted://runtime-default-secret',
+        },
+      ]);
+    });
   });
 
   describe('getDefault', () => {
@@ -47,6 +68,17 @@ describe('RuntimeDefaultsService', () => {
     it('throws NotFoundError when not found', async () => {
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
       await expect(service.getDefault(TENANT_ID, DEFAULT_ID)).rejects.toThrow('Runtime default not found');
+    });
+
+    it('redacts secret-bearing runtime defaults on single reads', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [sampleSecretDefault], rowCount: 1 });
+
+      const result = await service.getDefault(TENANT_ID, DEFAULT_ID);
+
+      expect(result).toEqual({
+        ...sampleSecretDefault,
+        config_value: 'redacted://runtime-default-secret',
+      });
     });
   });
 
@@ -131,6 +163,23 @@ describe('RuntimeDefaultsService', () => {
       ).rejects.toThrow('tools.web_search_api_key_secret_ref must use secret: references');
     });
 
+    it('redacts secret refs from create responses for secret-bearing defaults', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({
+          rows: [{ ...sampleSecretDefault, config_value: 'secret:SERPER_API_KEY' }],
+          rowCount: 1,
+        });
+
+      const result = await service.createDefault(TENANT_ID, {
+        configKey: 'tools.web_search_api_key_secret_ref',
+        configValue: 'secret:SERPER_API_KEY',
+        configType: 'string',
+      });
+
+      expect(result.config_value).toBe('redacted://runtime-default-secret');
+    });
+
     it('rejects invalid runtime agent count defaults', async () => {
       await expect(
         service.createDefault(TENANT_ID, {
@@ -200,6 +249,24 @@ describe('RuntimeDefaultsService', () => {
       await expect(
         service.updateDefault(TENANT_ID, DEFAULT_ID, { configValue: '0' }),
       ).rejects.toThrow('agent.max_iterations must be at least 1');
+    });
+
+    it('redacts secret refs from update responses for secret-bearing defaults', async () => {
+      pool.query
+        .mockResolvedValueOnce({
+          rows: [{ ...sampleSecretDefault, config_value: 'secret:SERPER_API_KEY' }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [{ ...sampleSecretDefault, config_value: 'secret:TAVILY_API_KEY' }],
+          rowCount: 1,
+        });
+
+      const result = await service.updateDefault(TENANT_ID, DEFAULT_ID, {
+        configValue: 'secret:TAVILY_API_KEY',
+      });
+
+      expect(result.config_value).toBe('redacted://runtime-default-secret');
     });
   });
 
