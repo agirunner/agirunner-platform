@@ -9,8 +9,8 @@ describe('dashboard task state normalization', () => {
     expect(normalizeTaskState('awaiting_approval')).toBe('awaiting_approval');
   });
 
-  it('does not rewrite legacy aliases inside operator helpers', () => {
-    expect(normalizeTaskState('running')).toBe('running');
-    expect(normalizeTaskState('awaiting_escalation')).toBe('awaiting_escalation');
+  it('rewrites legacy aliases to canonical operator states', () => {
+    expect(normalizeTaskState('running')).toBe('in_progress');
+    expect(normalizeTaskState('awaiting_escalation')).toBe('escalated');
   });
 });

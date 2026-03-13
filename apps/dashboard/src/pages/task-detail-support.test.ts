@@ -24,8 +24,8 @@ describe('task detail lifecycle support', () => {
     expect(normalizeTaskState('in_progress')).toBe('in_progress');
     expect(normalizeTaskState('escalated')).toBe('escalated');
     expect(normalizeTaskState('awaiting_approval')).toBe('awaiting_approval');
-    expect(normalizeTaskState('running')).toBe('running');
-    expect(normalizeTaskState('awaiting_escalation')).toBe('awaiting_escalation');
+    expect(normalizeTaskState('running')).toBe('in_progress');
+    expect(normalizeTaskState('awaiting_escalation')).toBe('escalated');
   });
 
   it('reads clarification history and answers from task input', () => {
