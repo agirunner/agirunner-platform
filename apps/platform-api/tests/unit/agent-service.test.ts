@@ -73,7 +73,7 @@ describe('AgentService secret redaction', () => {
         authorization: 'redacted://agent-secret',
       },
       profile: {
-        secret_ref: 'secret:AGENT_PROFILE',
+        secret_ref: 'redacted://agent-secret',
       },
     });
     expect(result.tools).toEqual({
@@ -94,6 +94,7 @@ describe('AgentService secret redaction', () => {
               token: 'plain-secret-token',
               nested: {
                 authorization: 'Bearer top-secret-token',
+                secret_ref: 'secret:AGENT_SECRET',
                 safe: 'visible',
               },
             },
@@ -122,6 +123,7 @@ describe('AgentService secret redaction', () => {
           token: 'redacted://agent-secret',
           nested: {
             authorization: 'redacted://agent-secret',
+            secret_ref: 'redacted://agent-secret',
             safe: 'visible',
           },
         },
