@@ -1,0 +1,172 @@
+import type { ReactNode } from 'react';
+import { Bot, Lock, Plus, ShieldAlert, ShieldCheck, Workflow } from 'lucide-react';
+
+import { Button } from '../../components/ui/button.js';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card.js';
+import { type GrantSummary } from './orchestrator-grants-page.support.js';
+
+export function GrantsHeader(props: { onCreate?(): void }): JSX.Element {
+  return (
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <Lock className="h-6 w-6 text-muted-foreground" />
+          <h1 className="text-2xl font-semibold tracking-tight">Orchestrator Grants</h1>
+        </div>
+        <p className="max-w-3xl text-sm leading-6 text-muted">
+          Control which agents can operate on workflow orchestration scopes. Keep the grant list
+          readable, auditable, and easy to revoke when a role, pool, or temporary escalation ends.
+        </p>
+      </div>
+      {props.onCreate ? (
+        <Button onClick={props.onCreate} className="w-full sm:w-auto">
+          <Plus className="h-4 w-4" />
+          Create grant
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+export function GrantsOverview(props: { summary: GrantSummary }): JSX.Element {
+  const packets = [
+    {
+      title: 'Grant coverage',
+      value: `${props.summary.totalGrants} active`,
+      detail: 'Current orchestrator grants across all visible workflows',
+      icon: ShieldCheck,
+    },
+    {
+      title: 'Workflow scope',
+      value: `${props.summary.workflowCount} workflows`,
+      detail: 'Unique workflow bindings currently delegated',
+      icon: Workflow,
+    },
+    {
+      title: 'Agent reach',
+      value: `${props.summary.agentCount} agents`,
+      detail: 'Agents with any live orchestration permission',
+      icon: Bot,
+    },
+    {
+      title: 'Elevated grants',
+      value: `${props.summary.elevatedCount} write or execute`,
+      detail: 'Review these first when tightening operator access',
+      icon: ShieldAlert,
+    },
+  ];
+
+  return (
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      {packets.map((packet) => (
+        <Card key={packet.title} className="border-border/70 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted">{packet.title}</CardTitle>
+            <packet.icon className="h-4 w-4 text-muted" />
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-semibold">{packet.value}</p>
+            <p className="mt-2 text-xs leading-5 text-muted">{packet.detail}</p>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+export function GrantsLoadingState(): JSX.Element {
+  return (
+    <div className="space-y-4 p-6">
+      <GrantsHeader />
+      <Card className="border-border/70 shadow-sm">
+        <CardContent className="p-6 text-sm text-muted">Loading orchestrator grants…</CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export function GrantsErrorState(props: { error: unknown }): JSX.Element {
+  const message = String(props.error ?? '');
+  if (message.includes('404')) {
+    return (
+      <StatusCard
+        title="Grant API unavailable"
+        description="The dashboard cannot find the orchestrator-grants endpoint for this environment."
+        body={
+          <>
+            This page needs the <code>/api/v1/orchestrator-grants</code> API to be enabled before
+            administrators can manage delegation here.
+          </>
+        }
+      />
+    );
+  }
+
+  if (message.includes('403')) {
+    return (
+      <StatusCard
+        cardClassName="border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30"
+        bodyClassName="text-amber-800 dark:text-amber-300"
+        title="Admin access required"
+        description="Grant management is restricted to administrators with orchestration policy access."
+        body="Sign in with an admin API key or ask a workspace administrator to manage grants for this environment."
+      />
+    );
+  }
+
+  return (
+    <StatusCard
+      cardClassName="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30"
+      bodyClassName="text-red-700 dark:text-red-200"
+      title="Unable to load grant posture"
+      description="The dashboard could not refresh the grant registry for this workspace."
+      body="Retry in a moment. If the problem persists, inspect the platform logs for the orchestrator-grants API."
+    />
+  );
+}
+
+export function GrantsEmptyState(props: { onCreate(): void }): JSX.Element {
+  return (
+    <Card className="border-dashed border-border/70 shadow-sm">
+      <CardHeader>
+        <CardTitle>No grants yet</CardTitle>
+        <CardDescription>
+          Create a scoped grant when an agent needs temporary or persistent orchestration access.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="max-w-2xl text-sm leading-6 text-muted">
+          Start with the narrowest workflow scope and only add write or execute permissions when an
+          operator or automation path truly needs them.
+        </p>
+        <Button onClick={props.onCreate} className="w-full sm:w-auto">
+          <Plus className="h-4 w-4" />
+          Create first grant
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StatusCard(props: {
+  title: string;
+  description: string;
+  body: ReactNode;
+  cardClassName?: string;
+  bodyClassName?: string;
+}): JSX.Element {
+  return (
+    <div className="space-y-6 p-6">
+      <GrantsHeader />
+      <Card className={props.cardClassName ?? 'border-border/70 shadow-sm'}>
+        <CardHeader>
+          <CardTitle>{props.title}</CardTitle>
+          <CardDescription>{props.description}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className={`text-sm leading-6 ${props.bodyClassName ?? 'text-muted'}`}>{props.body}</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
