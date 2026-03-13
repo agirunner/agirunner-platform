@@ -215,6 +215,7 @@ describe('work item triggers page support', () => {
     expect(form.name).toBe('');
     expect(form.signatureHeader).toBe('x-hub-signature-256');
     expect(form.signatureMode).toBe('hmac_sha256');
+    expect(form.secretConfigured).toBe(false);
     expect(form.isActive).toBe(true);
     expect(form.fieldMappings).toBe('{}');
     expect(form.defaults).toBe('{}');
@@ -242,6 +243,7 @@ describe('work item triggers page support', () => {
     expect(form.projectId).toBe('proj-1');
     expect(form.eventTypes).toBe('pull_request, push');
     expect(form.secret).toBe('');
+    expect(form.secretConfigured).toBe(true);
     expect(form.isActive).toBe(false);
     expect(JSON.parse(form.fieldMappings)).toEqual({ title: '$.pull_request.title' });
     expect(JSON.parse(form.defaults)).toEqual({ priority: 'high' });
@@ -251,10 +253,10 @@ describe('work item triggers page support', () => {
     const blank = createWebhookTriggerFormState();
     const result = validateWebhookTriggerForm(blank, 'create');
     expect(result.isValid).toBe(false);
-    expect(result.fieldErrors['name']).toBe('Required');
-    expect(result.fieldErrors['source']).toBe('Required');
-    expect(result.fieldErrors['workflowId']).toBe('Required');
-    expect(result.fieldErrors['secret']).toBe('Required');
+    expect(result.fieldErrors['name']).toBe('Add a trigger name.');
+    expect(result.fieldErrors['source']).toBe('Add a source identifier.');
+    expect(result.fieldErrors['workflowId']).toBe('Select a target workflow.');
+    expect(result.fieldErrors['secret']).toBe('Add a shared secret for new triggers.');
   });
 
   it('allows blank secret on edit mode', () => {
@@ -279,12 +281,53 @@ describe('work item triggers page support', () => {
       signatureHeader: 'x-sig',
       secret: 'secret123',
       fieldMappings: '{ broken',
-      defaults: 'not json',
+      defaults: '[]',
     };
     const result = validateWebhookTriggerForm(form, 'create');
     expect(result.isValid).toBe(false);
-    expect(result.fieldErrors['fieldMappings']).toBe('Invalid JSON');
-    expect(result.fieldErrors['defaults']).toBe('Invalid JSON');
+    expect(result.fieldErrors['fieldMappings']).toBe('Field mappings must be valid JSON.');
+    expect(result.fieldErrors['defaults']).toBe('Defaults must be a JSON object.');
+  });
+
+  it('requires an event header when event type filters are configured and rejects duplicate event types', () => {
+    const form = {
+      ...createWebhookTriggerFormState(),
+      name: 'GitHub push',
+      source: 'github.webhook',
+      workflowId: 'wf-1',
+      signatureHeader: 'x-sig',
+      secret: 'secret123',
+      eventTypes: 'push, PUSH',
+    };
+
+    const result = validateWebhookTriggerForm(form, 'create');
+
+    expect(result.isValid).toBe(false);
+    expect(result.fieldErrors['eventHeader']).toBe(
+      'Add an event header when filtering by event type.',
+    );
+    expect(result.fieldErrors['eventTypes']).toBe('Event types must be unique.');
+  });
+
+  it('requires a namespaced source and a header value without spaces', () => {
+    const form = {
+      ...createWebhookTriggerFormState(),
+      name: 'GitHub push',
+      source: 'github',
+      workflowId: 'wf-1',
+      signatureHeader: 'x hub sig',
+      secret: 'secret123',
+    };
+
+    const result = validateWebhookTriggerForm(form, 'create');
+
+    expect(result.isValid).toBe(false);
+    expect(result.fieldErrors['source']).toBe(
+      'Use a namespaced source such as github.webhook or jira.issue.created.',
+    );
+    expect(result.fieldErrors['signatureHeader']).toBe(
+      'Signature headers cannot contain spaces.',
+    );
   });
 
   it('builds a create payload from valid form state', () => {

@@ -3,14 +3,12 @@ import { Plus, Trash2 } from 'lucide-react';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../components/ui/select.js';
 import type { IntegrationHeaderValidation } from './integrations-editor-validation.js';
+import {
+  ConfigField,
+  ConfigInputField,
+  ConfigSelectField,
+} from './config-form-controls.js';
 import type { IntegrationFormState, IntegrationHeaderDraft } from './integrations-page.support.js';
 
 export function IntegrationSelectField(props: {
@@ -23,23 +21,16 @@ export function IntegrationSelectField(props: {
   onValueChange(value: string): void;
 }) {
   return (
-    <label className="space-y-1">
-      <span className="text-xs font-medium">{props.label}</span>
-      <Select value={props.value} disabled={props.disabled} onValueChange={props.onValueChange}>
-        <SelectTrigger className={props.error ? 'border-red-300 focus:ring-red-500' : undefined}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {props.options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {props.description ? <p className="text-xs text-muted">{props.description}</p> : null}
-      {props.error ? <p className="text-xs text-red-600">{props.error}</p> : null}
-    </label>
+    <ConfigSelectField
+      fieldId={`integration-select-${props.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+      label={props.label}
+      value={props.value}
+      disabled={props.disabled}
+      description={props.description}
+      error={props.error}
+      options={props.options}
+      onValueChange={props.onValueChange}
+    />
   );
 }
 
@@ -70,33 +61,39 @@ export function IntegrationHeaderEditor(props: {
           const rowErrors = props.errorsByHeaderId?.[header.id];
           return (
             <div key={header.id} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-              <div className="space-y-1">
-                <Input
-                  value={header.key}
-                  placeholder="Authorization"
-                  className={rowErrors?.key ? 'border-red-300 focus-visible:ring-red-500' : undefined}
-                  aria-invalid={rowErrors?.key ? true : undefined}
-                  onChange={(event) => props.onUpdateHeader(header.id, { key: event.target.value })}
-                />
-                {rowErrors?.key ? <p className="text-xs text-red-600">{rowErrors.key}</p> : null}
-              </div>
-              <div className="space-y-1">
-                <Input
-                  value={header.value}
-                  placeholder={header.hasStoredSecret ? 'Stored secret preserved until replaced' : 'Header value'}
-                  className={rowErrors?.value ? 'border-red-300 focus-visible:ring-red-500' : undefined}
-                  aria-invalid={rowErrors?.value ? true : undefined}
-                  onChange={(event) =>
+              <ConfigInputField
+                fieldId={`${header.id}-key`}
+                label="Header name"
+                error={rowErrors?.key}
+                inputProps={{
+                  value: header.key,
+                  placeholder: 'Authorization',
+                  onChange: (event) =>
+                    props.onUpdateHeader(header.id, { key: event.target.value }),
+                }}
+              />
+              <ConfigInputField
+                fieldId={`${header.id}-value`}
+                label="Header value"
+                description={
+                  header.hasStoredSecret
+                    ? 'Leave blank to keep the stored secret value for this header.'
+                    : undefined
+                }
+                error={rowErrors?.value}
+                inputProps={{
+                  value: header.value,
+                  placeholder: header.hasStoredSecret
+                    ? 'Stored secret preserved until replaced'
+                    : 'Header value',
+                  onChange: (event) =>
                     props.onUpdateHeader(header.id, {
                       value: event.target.value,
-                      hasStoredSecret: header.hasStoredSecret && event.target.value.trim().length === 0,
-                    })}
-                />
-                {header.hasStoredSecret ? (
-                  <p className="text-xs text-muted">Leave blank to keep the stored secret value for this header.</p>
-                ) : null}
-                {rowErrors?.value ? <p className="text-xs text-red-600">{rowErrors.value}</p> : null}
-              </div>
+                      hasStoredSecret:
+                        header.hasStoredSecret && event.target.value.trim().length === 0,
+                    }),
+                }}
+              />
               <Button type="button" variant="outline" size="sm" onClick={() => props.onRemoveHeader(header.id)}>
                 <Trash2 className="h-4 w-4" />
                 Remove
@@ -128,29 +125,44 @@ export function IntegrationLabelsEditor(props: {
         {props.labels.map((label) => (
           <Badge key={label} variant="secondary" className="gap-2 px-3 py-1">
             {label}
-            <button type="button" className="text-xs text-muted" onClick={() => props.onRemoveLabel(label)}>
+            <button
+              type="button"
+              className="text-xs text-muted"
+              aria-label={`Remove ${label} label`}
+              onClick={() => props.onRemoveLabel(label)}
+            >
               Remove
             </button>
           </Badge>
         ))}
         {props.labels.length === 0 ? <p className="text-sm text-muted">No default labels configured.</p> : null}
       </div>
-      <div className="flex flex-wrap gap-2">
-        <Input
-          value={props.labelDraft}
-          placeholder="bug"
-          onChange={(event) => props.onLabelDraftChange(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              props.onAddLabel();
-            }
-          }}
-        />
-        <Button type="button" variant="outline" onClick={props.onAddLabel}>
-          Add label
-        </Button>
-      </div>
+      <ConfigField
+        fieldId="integration-label-draft"
+        label="Add label"
+        description="Press Enter or use the action button to append another default label."
+        action={
+          <Button type="button" variant="outline" onClick={props.onAddLabel}>
+            Add label
+          </Button>
+        }
+      >
+        {({ describedBy }) => (
+          <Input
+            id="integration-label-draft"
+            value={props.labelDraft}
+            placeholder="bug"
+            aria-describedby={describedBy}
+            onChange={(event) => props.onLabelDraftChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                props.onAddLabel();
+              }
+            }}
+          />
+        )}
+      </ConfigField>
     </section>
   );
 }

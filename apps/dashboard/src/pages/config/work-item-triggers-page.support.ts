@@ -13,6 +13,7 @@ export interface WebhookTriggerFormState {
   signatureHeader: string;
   signatureMode: 'hmac_sha256' | 'shared_secret';
   secret: string;
+  secretConfigured: boolean;
   fieldMappings: string;
   defaults: string;
   isActive: boolean;
@@ -35,6 +36,7 @@ export function createWebhookTriggerFormState(): WebhookTriggerFormState {
     signatureHeader: 'x-hub-signature-256',
     signatureMode: 'hmac_sha256',
     secret: '',
+    secretConfigured: false,
     fieldMappings: '{}',
     defaults: '{}',
     isActive: true,
@@ -54,6 +56,7 @@ export function hydrateWebhookTriggerForm(
     signatureHeader: trigger.signature_header,
     signatureMode: trigger.signature_mode,
     secret: '',
+    secretConfigured: Boolean(trigger.secret_configured),
     fieldMappings: JSON.stringify(trigger.field_mappings ?? {}, null, 2),
     defaults: JSON.stringify(trigger.defaults ?? {}, null, 2),
     isActive: trigger.is_active,
@@ -66,48 +69,46 @@ export function validateWebhookTriggerForm(
 ): WebhookTriggerValidation {
   const issues: string[] = [];
   const fieldErrors: Record<string, string> = {};
+  const eventTypes = splitEventTypes(form.eventTypes);
 
   if (!form.name.trim()) {
-    issues.push('Name is required');
-    fieldErrors['name'] = 'Required';
+    addIssue(fieldErrors, issues, 'name', 'Add a trigger name.');
   }
   if (!form.source.trim()) {
-    issues.push('Source is required');
-    fieldErrors['source'] = 'Required';
+    addIssue(fieldErrors, issues, 'source', 'Add a source identifier.');
+  } else if (!/^[a-z0-9]+(?:[._-][a-z0-9]+)+$/i.test(form.source.trim())) {
+    addIssue(
+      fieldErrors,
+      issues,
+      'source',
+      'Use a namespaced source such as github.webhook or jira.issue.created.',
+    );
   }
   if (!form.workflowId) {
-    issues.push('Target workflow is required');
-    fieldErrors['workflowId'] = 'Required';
+    addIssue(fieldErrors, issues, 'workflowId', 'Select a target workflow.');
   }
   if (!form.signatureHeader.trim()) {
-    issues.push('Signature header is required');
-    fieldErrors['signatureHeader'] = 'Required';
+    addIssue(fieldErrors, issues, 'signatureHeader', 'Add the header that carries the request signature.');
+  } else if (/\s/.test(form.signatureHeader.trim())) {
+    addIssue(fieldErrors, issues, 'signatureHeader', 'Signature headers cannot contain spaces.');
   }
   if (mode === 'create' && !form.secret.trim()) {
-    issues.push('Secret is required for new triggers');
-    fieldErrors['secret'] = 'Required';
+    addIssue(fieldErrors, issues, 'secret', 'Add a shared secret for new triggers.');
   }
-  if (form.fieldMappings.trim()) {
-    try { JSON.parse(form.fieldMappings); } catch {
-      issues.push('Field mappings must be valid JSON');
-      fieldErrors['fieldMappings'] = 'Invalid JSON';
-    }
+  if (eventTypes.length > 0 && !form.eventHeader.trim()) {
+    addIssue(fieldErrors, issues, 'eventHeader', 'Add an event header when filtering by event type.');
   }
-  if (form.defaults.trim()) {
-    try { JSON.parse(form.defaults); } catch {
-      issues.push('Defaults must be valid JSON');
-      fieldErrors['defaults'] = 'Invalid JSON';
-    }
+  if (hasDuplicateValues(eventTypes)) {
+    addIssue(fieldErrors, issues, 'eventTypes', 'Event types must be unique.');
   }
+  validateJsonObjectField(form.fieldMappings, 'fieldMappings', 'Field mappings', fieldErrors, issues);
+  validateJsonObjectField(form.defaults, 'defaults', 'Defaults', fieldErrors, issues);
 
   return { isValid: issues.length === 0, issues, fieldErrors };
 }
 
 export function buildWebhookTriggerCreatePayload(form: WebhookTriggerFormState) {
-  const eventTypes = form.eventTypes
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean);
+  const eventTypes = splitEventTypes(form.eventTypes);
   return {
     name: form.name.trim(),
     source: form.source.trim(),
@@ -125,10 +126,7 @@ export function buildWebhookTriggerCreatePayload(form: WebhookTriggerFormState) 
 }
 
 export function buildWebhookTriggerUpdatePayload(form: WebhookTriggerFormState) {
-  const eventTypes = form.eventTypes
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean);
+  const eventTypes = splitEventTypes(form.eventTypes);
   return {
     name: form.name.trim(),
     source: form.source.trim(),
@@ -146,9 +144,57 @@ export function buildWebhookTriggerUpdatePayload(form: WebhookTriggerFormState) 
 }
 
 function parseJsonOrEmpty(value: string): Record<string, unknown> {
-  try { return JSON.parse(value.trim() || '{}') as Record<string, unknown>; } catch {
+  try {
+    return JSON.parse(value.trim() || '{}') as Record<string, unknown>;
+  } catch {
     return {};
   }
+}
+
+function splitEventTypes(value: string): string[] {
+  return value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function hasDuplicateValues(values: string[]): boolean {
+  return new Set(values.map((value) => value.toLowerCase())).size !== values.length;
+}
+
+function validateJsonObjectField(
+  value: string,
+  field: 'fieldMappings' | 'defaults',
+  label: string,
+  fieldErrors: Record<string, string>,
+  issues: string[],
+): void {
+  if (!value.trim()) {
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!isPlainObject(parsed)) {
+      addIssue(fieldErrors, issues, field, `${label} must be a JSON object.`);
+    }
+  } catch {
+    addIssue(fieldErrors, issues, field, `${label} must be valid JSON.`);
+  }
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function addIssue(
+  fieldErrors: Record<string, string>,
+  issues: string[],
+  field: string,
+  message: string,
+): void {
+  fieldErrors[field] = message;
+  issues.push(message);
 }
 
 export interface TriggerOverviewSummaryCard {

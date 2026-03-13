@@ -79,5 +79,9 @@ describe('trigger overview page source', () => {
     expect(source).toContain('Save readiness');
     expect(source).toContain('validateWebhookTriggerForm');
     expect(source).toContain('Ready to save');
+    expect(source).toContain('ConfigInputField');
+    expect(source).toContain('ConfigSelectField');
+    expect(source).toContain('ConfigTextAreaField');
+    expect(source).not.toContain('EditorField(');
   });
 });

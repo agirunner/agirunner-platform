@@ -40,6 +40,11 @@ export interface IntegrationFieldDefinition {
   placeholder: string;
 }
 
+export interface IntegrationEventOption {
+  value: string;
+  description: string;
+}
+
 const SECRET_HEADER_SENTINEL = 'redacted://integration-header-secret';
 let nextDraftId = 0;
 
@@ -50,19 +55,55 @@ export const KIND_LABELS: Record<IntegrationKind, string> = {
   github_issues: 'GitHub Issues',
 };
 
-export const INTEGRATION_EVENT_OPTIONS = [
-  'workflow.created',
-  'workflow.completed',
-  'workflow.failed',
-  'workflow.cancelled',
-  'workflow.gate_requested',
-  'work_item.created',
-  'work_item.updated',
-  'task.created',
-  'task.completed',
-  'task.failed',
-  'task.escalated',
-  'task.awaiting_approval',
+export const INTEGRATION_EVENT_OPTIONS: readonly IntegrationEventOption[] = [
+  {
+    value: 'workflow.created',
+    description: 'Notify when a workflow is created and initial delivery wiring should fan out.',
+  },
+  {
+    value: 'workflow.completed',
+    description: 'Send completion updates for successful workflow exits.',
+  },
+  {
+    value: 'workflow.failed',
+    description: 'Surface workflow failures so operators can react quickly.',
+  },
+  {
+    value: 'workflow.cancelled',
+    description: 'Track operator or system cancellations separately from failures.',
+  },
+  {
+    value: 'workflow.gate_requested',
+    description: 'Alert downstream systems when a workflow pauses for approval or a gate.',
+  },
+  {
+    value: 'work_item.created',
+    description: 'Emit inbound work creation into downstream ticketing or messaging tools.',
+  },
+  {
+    value: 'work_item.updated',
+    description: 'Keep external systems synced as work-item state or metadata changes.',
+  },
+  {
+    value: 'task.created',
+    description: 'Capture new task creation for detailed runtime observability.',
+  },
+  {
+    value: 'task.completed',
+    description: 'Notify when runtime execution completes successfully.',
+  },
+  {
+    value: 'task.failed',
+    description: 'Send failure signals for task-level troubleshooting workflows.',
+  },
+  {
+    value: 'task.escalated',
+    description: 'Route escalations to operators or incident channels.',
+  },
+  {
+    value: 'task.awaiting_approval',
+    description: 'Expose tasks that are blocked on an approval decision.',
+  },
 ] as const;
 
 const FIELDS_BY_KIND: Record<IntegrationKind, IntegrationFieldDefinition[]> = {

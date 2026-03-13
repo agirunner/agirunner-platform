@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog.js';
-import { Input } from '../../components/ui/input.js';
+import { ToggleCard } from '../../components/ui/toggle-card.js';
 import { dashboardApi, type DashboardIntegrationRecord } from '../../lib/api.js';
 import {
   INTEGRATION_EVENT_OPTIONS,
@@ -26,6 +26,7 @@ import {
   type IntegrationHeaderDraft,
 } from './integrations-page.support.js';
 import { validateIntegrationForm } from './integrations-editor-validation.js';
+import { ConfigInputField } from './config-form-controls.js';
 import {
   IntegrationHeaderEditor,
   IntegrationLabelsEditor,
@@ -204,22 +205,21 @@ export function IntegrationEditorDialog({
             <div>
               <h3 className="text-sm font-medium">Subscribed events</h3>
               <p className="text-sm text-muted">
-                Select the events this integration should receive. Leave everything unselected to follow the default delivery policy.
+                Select the events this integration should receive. Leave everything unselected to
+                follow the default delivery policy for this destination.
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {INTEGRATION_EVENT_OPTIONS.map((eventType) => {
-                const selected = form.subscriptions.includes(eventType);
+            <div className="grid gap-3 md:grid-cols-2">
+              {INTEGRATION_EVENT_OPTIONS.map((eventOption) => {
+                const selected = form.subscriptions.includes(eventOption.value);
                 return (
-                  <Button
-                    key={eventType}
-                    type="button"
-                    size="sm"
-                    variant={selected ? 'default' : 'outline'}
-                    onClick={() => toggleSubscription(eventType)}
-                  >
-                    {eventType}
-                  </Button>
+                  <ToggleCard
+                    key={eventOption.value}
+                    label={eventOption.value}
+                    description={eventOption.description}
+                    checked={selected}
+                    onCheckedChange={() => toggleSubscription(eventOption.value)}
+                  />
                 );
               })}
             </div>
@@ -236,19 +236,19 @@ export function IntegrationEditorDialog({
               {fields.map((field) => {
                 const fieldError = validation.fieldErrors[field.key];
                 return (
-                  <label key={field.key} className="space-y-1">
-                    <span className="text-xs font-medium">{field.label}</span>
-                    <Input
-                      type={field.type}
-                      value={form.config[field.key] ?? ''}
-                      placeholder={field.placeholder}
-                      className={fieldError ? 'border-red-300 focus-visible:ring-red-500' : undefined}
-                      aria-invalid={fieldError ? true : undefined}
-                      onChange={(event) => updateConfig(field.key, event.target.value)}
-                    />
-                    {renderIntegrationFieldHint(form, field.key, isCreate)}
-                    {fieldError ? <p className="text-xs text-red-600">{fieldError}</p> : null}
-                  </label>
+                  <ConfigInputField
+                    key={field.key}
+                    fieldId={`integration-${field.key}`}
+                    label={field.label}
+                    description={renderIntegrationFieldHint(form, field.key, isCreate)}
+                    error={fieldError}
+                    inputProps={{
+                      type: field.type,
+                      value: form.config[field.key] ?? '',
+                      placeholder: field.placeholder,
+                      onChange: (event) => updateConfig(field.key, event.target.value),
+                    }}
+                  />
                 );
               })}
             </div>

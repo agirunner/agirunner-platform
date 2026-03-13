@@ -11,14 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog.js';
-import { Input } from '../../components/ui/input.js';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../components/ui/select.js';
 import { Switch } from '../../components/ui/switch.js';
 import {
   Table,
@@ -28,7 +20,6 @@ import {
   TableHeader,
   TableRow,
 } from '../../components/ui/table.js';
-import { Textarea } from '../../components/ui/textarea.js';
 import type {
   DashboardProjectRecord,
   DashboardScheduledWorkItemTriggerRecord,
@@ -51,6 +42,12 @@ import {
   hydrateWebhookTriggerForm,
   validateWebhookTriggerForm,
 } from './work-item-triggers-page.support.js';
+import {
+  ConfigInputField,
+  ConfigSelectField,
+  ConfigTextAreaField,
+  ConfigToggleField,
+} from './config-form-controls.js';
 
 export function TriggerSummarySection(props: {
   focus: TriggerOperatorFocusPacket;
@@ -429,79 +426,162 @@ export function WebhookTriggerEditorDialog(props: {
           </section>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <EditorField label="Name" error={validation.fieldErrors['name']}>
-              <Input value={form.name} placeholder="e.g. GitHub PR opened" onChange={(event) => update('name', event.target.value)} />
-            </EditorField>
-            <EditorField label="Source" error={validation.fieldErrors['source']}>
-              <Input value={form.source} placeholder="e.g. github.webhook" onChange={(event) => update('source', event.target.value)} />
-            </EditorField>
+            <ConfigInputField
+              fieldId="webhook-trigger-name"
+              label="Name"
+              description="Use a short operator-facing label that identifies the inbound automation rule."
+              error={validation.fieldErrors['name']}
+              inputProps={{
+                value: form.name,
+                placeholder: 'e.g. GitHub PR opened',
+                onChange: (event) => update('name', event.target.value),
+              }}
+            />
+            <ConfigInputField
+              fieldId="webhook-trigger-source"
+              label="Source"
+              description="Use a namespaced source key such as github.webhook so operators can trace the external system."
+              error={validation.fieldErrors['source']}
+              inputProps={{
+                value: form.source,
+                placeholder: 'e.g. github.webhook',
+                onChange: (event) => update('source', event.target.value),
+              }}
+            />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <EditorField label="Project scope">
-              <Select value={form.projectId || '__none__'} onValueChange={(value) => update('projectId', value === '__none__' ? '' : value)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Unscoped</SelectItem>
-                  {props.projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </EditorField>
-            <EditorField label="Target workflow" error={validation.fieldErrors['workflowId']}>
-              <Select value={form.workflowId || '__none__'} onValueChange={(value) => update('workflowId', value === '__none__' ? '' : value)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__" disabled>Select workflow</SelectItem>
-                  {props.workflows.map((workflow) => (
-                    <SelectItem key={workflow.id} value={workflow.id}>{workflow.name || workflow.id}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </EditorField>
+            <ConfigSelectField
+              fieldId="webhook-trigger-project-scope"
+              label="Project scope"
+              value={form.projectId || '__none__'}
+              description="Leave this unscoped to accept events for any project, or pin the trigger to one project."
+              options={[
+                { value: '__none__', label: 'Unscoped' },
+                ...props.projects.map((project) => ({ value: project.id, label: project.name })),
+              ]}
+              onValueChange={(value) => update('projectId', value === '__none__' ? '' : value)}
+            />
+            <ConfigSelectField
+              fieldId="webhook-trigger-workflow"
+              label="Target workflow"
+              value={form.workflowId || '__none__'}
+              description="Choose the workflow board that should receive work items created by this trigger."
+              error={validation.fieldErrors['workflowId']}
+              options={[
+                { value: '__none__', label: 'Select workflow' },
+                ...props.workflows.map((workflow) => ({
+                  value: workflow.id,
+                  label: workflow.name || workflow.id,
+                })),
+              ]}
+              onValueChange={(value) => update('workflowId', value === '__none__' ? '' : value)}
+            />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <EditorField label="Signature header" error={validation.fieldErrors['signatureHeader']}>
-              <Input value={form.signatureHeader} placeholder="x-hub-signature-256" onChange={(event) => update('signatureHeader', event.target.value)} />
-            </EditorField>
-            <EditorField label="Signature mode">
-              <Select value={form.signatureMode} onValueChange={(value) => update('signatureMode', value as WebhookTriggerFormState['signatureMode'])}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hmac_sha256">HMAC SHA-256</SelectItem>
-                  <SelectItem value="shared_secret">Shared secret</SelectItem>
-                </SelectContent>
-              </Select>
-            </EditorField>
+            <ConfigInputField
+              fieldId="webhook-trigger-signature-header"
+              label="Signature header"
+              description="Match the HTTP header that carries the request signature from the source system."
+              error={validation.fieldErrors['signatureHeader']}
+              inputProps={{
+                value: form.signatureHeader,
+                placeholder: 'x-hub-signature-256',
+                onChange: (event) => update('signatureHeader', event.target.value),
+              }}
+            />
+            <ConfigSelectField
+              fieldId="webhook-trigger-signature-mode"
+              label="Signature mode"
+              value={form.signatureMode}
+              description="Use HMAC for signed payload digests or shared secret for direct token comparison."
+              options={[
+                { value: 'hmac_sha256', label: 'HMAC SHA-256' },
+                { value: 'shared_secret', label: 'Shared secret' },
+              ]}
+              onValueChange={(value) =>
+                update('signatureMode', value as WebhookTriggerFormState['signatureMode'])
+              }
+            />
           </div>
 
-          <EditorField label={isCreate ? 'Secret' : 'Secret (leave blank to keep current)'} error={validation.fieldErrors['secret']}>
-            <Input type="password" value={form.secret} placeholder={isCreate ? 'Webhook secret' : 'Leave blank to keep stored value'} onChange={(event) => update('secret', event.target.value)} />
-          </EditorField>
+          <ConfigInputField
+            fieldId="webhook-trigger-secret"
+            label={isCreate ? 'Secret' : 'Secret'}
+            description={
+              isCreate
+                ? 'Provide the shared secret used to validate inbound requests.'
+                : form.secretConfigured
+                  ? 'Leave blank to keep the stored secret, or enter a new value to rotate it now.'
+                  : 'Add a new shared secret to start validating inbound requests.'
+            }
+            error={validation.fieldErrors['secret']}
+            inputProps={{
+              type: 'password',
+              value: form.secret,
+              placeholder: isCreate ? 'Webhook secret' : 'Leave blank to keep stored value',
+              onChange: (event) => update('secret', event.target.value),
+            }}
+          />
 
           <div className="grid gap-4 md:grid-cols-2">
-            <EditorField label="Event header">
-              <Input value={form.eventHeader} placeholder="e.g. x-github-event" onChange={(event) => update('eventHeader', event.target.value)} />
-            </EditorField>
-            <EditorField label="Event types (comma-separated)">
-              <Input value={form.eventTypes} placeholder="e.g. push, pull_request.opened" onChange={(event) => update('eventTypes', event.target.value)} />
-            </EditorField>
+            <ConfigInputField
+              fieldId="webhook-trigger-event-header"
+              label="Event header"
+              description="Optional. Add the header that identifies event types when you want to filter to specific events."
+              error={validation.fieldErrors['eventHeader']}
+              inputProps={{
+                value: form.eventHeader,
+                placeholder: 'e.g. x-github-event',
+                onChange: (event) => update('eventHeader', event.target.value),
+              }}
+            />
+            <ConfigInputField
+              fieldId="webhook-trigger-event-types"
+              label="Event types"
+              description="Comma-separated event values. Use this only when the source system sends a stable event header."
+              error={validation.fieldErrors['eventTypes']}
+              inputProps={{
+                value: form.eventTypes,
+                placeholder: 'e.g. push, pull_request.opened',
+                onChange: (event) => update('eventTypes', event.target.value),
+              }}
+            />
           </div>
 
-          <EditorField label="Field mappings (JSON)" error={validation.fieldErrors['fieldMappings']}>
-            <Textarea rows={4} className="font-mono text-xs" value={form.fieldMappings} onChange={(event) => update('fieldMappings', event.target.value)} />
-          </EditorField>
+          <ConfigTextAreaField
+            fieldId="webhook-trigger-field-mappings"
+            label="Field mappings (JSON)"
+            description="Use a JSON object that maps incoming payload fields into work-item fields."
+            error={validation.fieldErrors['fieldMappings']}
+            textAreaProps={{
+              rows: 4,
+              className: 'font-mono text-xs',
+              value: form.fieldMappings,
+              onChange: (event) => update('fieldMappings', event.target.value),
+            }}
+          />
 
-          <EditorField label="Defaults (JSON)" error={validation.fieldErrors['defaults']}>
-            <Textarea rows={4} className="font-mono text-xs" value={form.defaults} onChange={(event) => update('defaults', event.target.value)} />
-          </EditorField>
+          <ConfigTextAreaField
+            fieldId="webhook-trigger-defaults"
+            label="Defaults (JSON)"
+            description="Use a JSON object for fallback work-item values when the incoming payload omits them."
+            error={validation.fieldErrors['defaults']}
+            textAreaProps={{
+              rows: 4,
+              className: 'font-mono text-xs',
+              value: form.defaults,
+              onChange: (event) => update('defaults', event.target.value),
+            }}
+          />
 
-          <div className="flex items-center gap-2">
-            <Switch checked={form.isActive} onCheckedChange={(checked) => update('isActive', checked)} />
-            <span className="text-sm">{form.isActive ? 'Enabled' : 'Disabled'}</span>
-          </div>
+          <ConfigToggleField
+            label="Trigger status"
+            description="Disable the trigger to keep its configuration without accepting inbound webhook events."
+            checked={form.isActive}
+            onCheckedChange={(checked) => update('isActive', checked)}
+          />
 
           {props.errorMessage ? <p className="text-sm text-red-600">{props.errorMessage}</p> : null}
 
@@ -613,16 +693,6 @@ export function WebhookTriggerInspectDialog(props: {
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function EditorField(props: { label: string; error?: string; children: React.ReactNode }) {
-  return (
-    <label className="space-y-1">
-      <span className="text-xs font-medium">{props.label}</span>
-      {props.children}
-      {props.error ? <p className="text-xs text-red-600">{props.error}</p> : null}
-    </label>
   );
 }
 
