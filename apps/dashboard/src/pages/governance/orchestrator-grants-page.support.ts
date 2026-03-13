@@ -1,3 +1,5 @@
+import type { ComboboxItem } from '../../components/log-viewer/ui/searchable-combobox.js';
+import type { DashboardAgentRecord } from '../../lib/api.js';
 import { readSession } from '../../lib/session.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
@@ -25,6 +27,63 @@ export interface GrantSummary {
   workflowCount: number;
   agentCount: number;
   elevatedCount: number;
+}
+
+export function sortAgents(agents: DashboardAgentRecord[]): DashboardAgentRecord[] {
+  return [...agents].sort((left, right) => {
+    const leftLabel = agentDisplayName(left);
+    const rightLabel = agentDisplayName(right);
+    return leftLabel.localeCompare(rightLabel);
+  });
+}
+
+export function buildAgentItems(agents: DashboardAgentRecord[]): ComboboxItem[] {
+  return agents.map((agent) => ({
+    id: agent.id,
+    label: agentDisplayName(agent),
+    subtitle: describeAgentOption(agent),
+    status: toComboboxStatus(agent.status),
+  }));
+}
+
+export function findAgent(agents: DashboardAgentRecord[], agentId: string): DashboardAgentRecord | null {
+  return agents.find((agent) => agent.id === agentId) ?? null;
+}
+
+export function agentDisplayName(agent: DashboardAgentRecord): string {
+  return agent.name?.trim() || agent.id;
+}
+
+export function describeAgentOption(agent: DashboardAgentRecord): string {
+  const parts = [normalizeAgentStatus(agent.status)];
+  if (agent.worker_id) {
+    parts.push(`worker ${agent.worker_id}`);
+  }
+  if (agent.current_task_id) {
+    parts.push(`task ${agent.current_task_id}`);
+  }
+  if (agent.capabilities && agent.capabilities.length > 0) {
+    parts.push(agent.capabilities.join(', '));
+  }
+  return parts.join(' • ');
+}
+
+export function describeSelectedAgent(agent: DashboardAgentRecord | null): Array<{ label: string; value: string }> {
+  if (!agent) {
+    return [];
+  }
+
+  const details = [{ label: 'Status', value: normalizeAgentStatus(agent.status) }];
+  if (agent.worker_id) {
+    details.push({ label: 'Worker', value: agent.worker_id });
+  }
+  if (agent.current_task_id) {
+    details.push({ label: 'Current task', value: agent.current_task_id });
+  }
+  if (agent.capabilities && agent.capabilities.length > 0) {
+    details.push({ label: 'Capabilities', value: agent.capabilities.join(', ') });
+  }
+  return details;
 }
 
 export function fetchGrants(): Promise<OrchestratorGrant[]> {
@@ -79,6 +138,27 @@ export function permissionVariant(
     return 'success';
   }
   return 'secondary';
+}
+
+function normalizeAgentStatus(status: string | null | undefined): string {
+  return status?.trim() || 'unknown';
+}
+
+function toComboboxStatus(
+  status: string | null | undefined,
+): ComboboxItem['status'] | undefined {
+  switch (normalizeAgentStatus(status)) {
+    case 'active':
+    case 'idle':
+      return 'active';
+    case 'busy':
+    case 'degraded':
+      return 'pending';
+    case 'inactive':
+      return 'failed';
+    default:
+      return undefined;
+  }
 }
 
 function authHeaders(): Record<string, string> {

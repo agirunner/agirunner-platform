@@ -18,6 +18,21 @@ interface NamedRecord {
   status?: string;
 }
 
+export interface DashboardAgentRecord {
+  id: string;
+  worker_id?: string | null;
+  name?: string | null;
+  capabilities?: string[] | null;
+  status?: string | null;
+  current_task_id?: string | null;
+  heartbeat_interval_seconds?: number | null;
+  last_heartbeat_at?: string | null;
+  metadata?: Record<string, unknown> | null;
+  registered_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
 export interface DashboardSearchResult {
   type: 'workflow' | 'task' | 'worker' | 'agent' | 'project' | 'playbook';
   id: string;
@@ -1318,7 +1333,7 @@ export interface DashboardApi {
   downloadTaskArtifact(taskId: string, artifactId: string): Promise<DashboardTaskArtifactDownload>;
   deleteTaskArtifact(taskId: string, artifactId: string): Promise<void>;
   listWorkers(): Promise<unknown>;
-  listAgents(): Promise<unknown>;
+  listAgents(): Promise<DashboardAgentRecord[]>;
   getApprovalQueue(): Promise<DashboardApprovalQueueResponse>;
   approveTask(taskId: string): Promise<unknown>;
   approveTaskOutput(taskId: string): Promise<unknown>;
@@ -2108,7 +2123,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         }).then(() => undefined),
       ),
     listWorkers: () => withRefresh(() => client.listWorkers()),
-    listAgents: () => withRefresh(() => client.listAgents()),
+    listAgents: () => withRefresh(() => client.listAgents() as Promise<DashboardAgentRecord[]>),
     getApprovalQueue: () =>
       withRefresh(() =>
         requestData<DashboardApprovalQueueResponse>('/api/v1/approvals', {
