@@ -36,14 +36,6 @@ import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
 import { SavedViews, type SavedViewFilters } from '../../components/saved-views.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from '../../components/ui/table.js';
 import { buildWorkflowDetailPermalink } from '../workflow-detail-permalinks.js';
 import { buildTimelineContext, describeTimelineEvent } from '../workflow-history-card.js';
 import { buildTimelineEntryActions } from '../workflow-history-card.actions.js';
@@ -82,7 +74,6 @@ import {
   buildWorkflowStageProgressSteps,
   describeWorkflowStageLabel,
   describeWorkflowStageProgressSummary,
-  describeWorkflowStageSummary,
 } from './live-board-stage-presentation.js';
 
 interface WorkflowRecord {
@@ -825,8 +816,6 @@ export function LiveBoardPage(): JSX.Element {
 
       <ActivePlaybookBoards entries={boardEntries} />
 
-      <BoardSnapshotTable entries={boardEntries} />
-
       <div className="grid gap-6 lg:grid-cols-2">
         <FleetStatusPanel workers={workers} />
         <ThroughputChart data={throughputData} />
@@ -1484,168 +1473,6 @@ function SpecialistQueueCard(props: { task: TaskRecord }): JSX.Element {
           ))}
       </div>
     </div>
-  );
-}
-
-function BoardSnapshotTable(props: {
-  entries: LiveBoardEntry[];
-}): JSX.Element {
-  if (props.entries.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Board Snapshot</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted">No live boards.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="border-border/70 shadow-sm">
-      <CardHeader>
-        <CardTitle>Board Snapshot</CardTitle>
-        <p className="text-sm text-muted">
-          Compare board posture, pool pressure, progress, spend and tokens, and risk across the current live page.
-        </p>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-3 lg:hidden">
-          {props.entries.map((entry) => {
-            const { workflow, board, activations, tasks, gateCount, isLoading, hasError } = entry;
-            const posture = resolveBoardPosture(workflow, board);
-            const activationSummary = summarizeActivationHealth(activations);
-            const specialistSummary = summarizeSpecialistPosture(tasks);
-            const riskPosture = describeRiskPosture({
-              blocked: countBlockedBoardItems(board),
-              gates: gateCount,
-              failed: specialistSummary.failed,
-              escalated: specialistSummary.escalations,
-              reworkHeavy: specialistSummary.reworkHeavy,
-              staleActivations: activationSummary.stale,
-            });
-            return (
-              <div
-                key={workflow.id}
-                className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <Link
-                      className="block truncate text-sm font-semibold text-accent hover:underline"
-                      to={`/work/boards/${workflow.id}`}
-                    >
-                      {workflow.name}
-                    </Link>
-                    <p className="text-xs text-muted">{describeBoardHeadline(workflow, board)}</p>
-                  </div>
-                  <Badge variant={statusBadgeVariant(posture)}>{posture}</Badge>
-                </div>
-                <WorkflowProgressPanel workflow={workflow} board={board} />
-                <div className="grid gap-3 rounded-lg border border-border/60 bg-background/70 p-3 sm:grid-cols-2 xl:grid-cols-3">
-                  <SnapshotMetric
-                    label={describeWorkflowStageLabel(workflow)}
-                    value={describeWorkflowStage(workflow)}
-                  />
-                  <SnapshotMetric
-                    label="Orchestrator pool"
-                    value={isLoading ? 'Loading…' : hasError ? 'Unavailable' : describeOrchestratorPool(activationSummary)}
-                  />
-                  <SnapshotMetric
-                    label="Specialist pool"
-                    value={describeSpecialistPool(specialistSummary)}
-                  />
-                  <SnapshotMetric
-                    label="Spend & tokens"
-                    value={`${describeBoardSpend(workflow)} • ${describeBoardTokens(workflow)}`}
-                  />
-                  <SnapshotMetric label="Risk" value={isLoading ? 'Loading…' : hasError ? 'Unavailable' : riskPosture} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <div className="hidden overflow-x-auto lg:block">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Board</TableHead>
-                <TableHead>Posture</TableHead>
-                <TableHead>Pools</TableHead>
-                <TableHead>Progress</TableHead>
-                <TableHead>Spend &amp; Tokens</TableHead>
-                <TableHead>Risk</TableHead>
-                <TableHead>Updated</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {props.entries.map((entry) => {
-                const { workflow, board, activations, tasks, gateCount, isLoading, hasError } = entry;
-                const posture = resolveBoardPosture(workflow, board);
-                const activationSummary = summarizeActivationHealth(activations);
-                const specialistSummary = summarizeSpecialistPosture(tasks);
-                const riskPosture = describeRiskPosture({
-                  blocked: countBlockedBoardItems(board),
-                  gates: gateCount,
-                  failed: specialistSummary.failed,
-                  escalated: specialistSummary.escalations,
-                  reworkHeavy: specialistSummary.reworkHeavy,
-                  staleActivations: activationSummary.stale,
-                });
-                return (
-                  <TableRow key={workflow.id}>
-                    <TableCell className="align-top font-medium">
-                      <div className="space-y-1">
-                        <Link
-                          className="text-accent hover:underline"
-                          to={`/work/boards/${workflow.id}`}
-                        >
-                          {workflow.name}
-                        </Link>
-                        <p className="text-xs text-muted">
-                          {describeWorkflowStageSummary(workflow)}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="align-top">
-                      <div className="space-y-1">
-                        <Badge variant={statusBadgeVariant(posture)}>{posture}</Badge>
-                        <p className="text-xs text-muted">
-                          {describeBoardHeadline(workflow, board)}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="align-top">
-                      <div className="space-y-2 text-sm">
-                        <p>{isLoading ? 'Loading…' : hasError ? 'Unavailable' : describeOrchestratorPool(activationSummary)}</p>
-                        <p className="text-muted">{describeSpecialistPool(specialistSummary)}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="align-top text-sm">
-                      <WorkflowProgressPanel workflow={workflow} board={board} compact />
-                    </TableCell>
-                    <TableCell className="align-top">
-                      <div className="space-y-1 text-sm">
-                        <p>{describeBoardSpend(workflow)}</p>
-                        <p className="text-muted">{describeBoardTokens(workflow)}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="align-top text-sm">
-                      {isLoading ? 'Loading…' : hasError ? 'Unavailable' : riskPosture}
-                    </TableCell>
-                    <TableCell className="align-top text-sm">
-                      {formatRelativeTimestamp(workflow.started_at ?? workflow.created_at)}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 

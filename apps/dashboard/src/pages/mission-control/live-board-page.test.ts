@@ -105,12 +105,14 @@ describe('live board page source', () => {
     expect(source).toContain('describeSpecialistPool');
     expect(source).toContain('describeRiskPosture');
     expect(source).toContain('describeWorkflowStageLabel(workflow)');
-    expect(source).toContain('describeWorkflowStageSummary(workflow)');
     expect(source).toContain('formatRelativeTimestamp');
-    expect(source).toContain('Compare board posture, pool pressure, progress, spend and tokens, and risk');
     expect(source).toContain('Each card keeps posture, progress, and recovery signals above the fold');
     expect(source).toContain('Most active work');
     expect(source).toContain('Show remaining active work items');
+    expect(source).not.toContain('Board Snapshot');
+    expect(source).not.toContain(
+      'Compare board posture, pool pressure, progress, spend and tokens, and risk',
+    );
   });
 
   it('shows rework-aware work-item cards and richer attention packets on the operations board', () => {
