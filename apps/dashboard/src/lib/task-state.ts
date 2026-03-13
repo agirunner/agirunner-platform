@@ -12,11 +12,6 @@ const CANONICAL_TASK_STATES = new Set([
   'blocked',
 ]);
 
-const LEGACY_TASK_STATE_ALIASES: Record<string, string> = {
-  running: 'in_progress',
-  awaiting_escalation: 'escalated',
-};
-
 export function normalizeTaskState(value: string | null | undefined): string {
   const normalized = (value ?? '').toLowerCase();
   if (!normalized) {
@@ -25,5 +20,5 @@ export function normalizeTaskState(value: string | null | undefined): string {
   if (CANONICAL_TASK_STATES.has(normalized)) {
     return normalized;
   }
-  return LEGACY_TASK_STATE_ALIASES[normalized] ?? normalized;
+  return normalized;
 }
