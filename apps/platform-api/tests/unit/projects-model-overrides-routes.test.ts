@@ -150,4 +150,55 @@ describe('project model override routes', () => {
       'apiKeySecretRef',
     );
   });
+
+  it('sanitizes base resolved project models when no overrides are present', async () => {
+    const { projectRoutes } = await import('../../src/api/routes/projects.routes.js');
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', {});
+    app.decorate('eventService', {});
+    app.decorate('workflowService', { getProjectTimeline: vi.fn() });
+    app.decorate('projectService', {
+      createProject: vi.fn(),
+      getProject: vi.fn().mockResolvedValue({
+        id: 'project-1',
+        settings: {},
+      }),
+      updateProject: vi.fn(),
+      patchProjectMemory: vi.fn(),
+      setGitWebhookConfig: vi.fn(),
+      deleteProject: vi.fn(),
+      listProjects: vi.fn(),
+    });
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: vi.fn().mockResolvedValue({
+        provider: {
+          name: 'openai',
+          providerType: 'openai',
+          apiKeySecretRef: 'secret:OPENAI_API_KEY',
+          oauth_credentials: { access_token: 'enc:v1:token' },
+        },
+        model: { modelId: 'gpt-5.4' },
+        reasoningConfig: { effort: 'medium' },
+      }),
+      listProviders: vi.fn().mockResolvedValue([]),
+      listModels: vi.fn().mockResolvedValue([]),
+      getProviderForOperations: vi.fn(),
+    });
+
+    await app.register(projectRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/projects/project-1/model-overrides/resolved?roles=developer',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.effective_models.developer.resolved.provider).toEqual({
+      name: 'openai',
+      providerType: 'openai',
+    });
+  });
 });

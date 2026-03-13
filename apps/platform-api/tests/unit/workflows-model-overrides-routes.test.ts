@@ -223,4 +223,78 @@ describe('workflow model override routes', () => {
       'apiKeySecretRef',
     );
   });
+
+  it('sanitizes fallback workflow model resolutions when overrides cannot be applied', async () => {
+    const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', {});
+    app.decorate('projectService', {
+      getProject: vi.fn().mockResolvedValue({
+        id: 'project-1',
+        settings: {},
+      }),
+    });
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: vi.fn().mockResolvedValue({
+        provider: {
+          name: 'openai',
+          providerType: 'openai',
+          apiKeySecretRef: 'secret:OPENAI_API_KEY',
+          oauthCredentials: { access_token: 'enc:v1:token' },
+        },
+        model: { modelId: 'gpt-5.4' },
+        reasoningConfig: { effort: 'medium' },
+      }),
+      listProviders: vi.fn().mockResolvedValue([]),
+      listModels: vi.fn().mockResolvedValue([]),
+      getProviderForOperations: vi.fn(),
+    });
+    app.decorate('workflowService', {
+      createWorkflow: vi.fn(),
+      listWorkflows: vi.fn(),
+      getWorkflow: vi.fn().mockResolvedValue({
+        id: 'workflow-1',
+        project_id: 'project-1',
+        metadata: {
+          model_overrides: {
+            developer: {
+              provider: 'missing-provider',
+              model: 'missing-model',
+            },
+          },
+        },
+      }),
+      getWorkflowBoard: vi.fn(),
+      listWorkflowStages: vi.fn(),
+      listWorkflowWorkItems: vi.fn(),
+      createWorkflowWorkItem: vi.fn(),
+      getWorkflowWorkItem: vi.fn(),
+      getWorkflowWorkItemMemory: vi.fn(),
+      getWorkflowWorkItemMemoryHistory: vi.fn(),
+      updateWorkflowWorkItem: vi.fn(),
+      actOnStageGate: vi.fn(),
+      getResolvedConfig: vi.fn(),
+      cancelWorkflow: vi.fn(),
+      pauseWorkflow: vi.fn(),
+      resumeWorkflow: vi.fn(),
+      deleteWorkflow: vi.fn(),
+    });
+
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/workflows/workflow-1/model-overrides/resolved?roles=developer',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.effective_models.developer.fallback).toBe(true);
+    expect(response.json().data.effective_models.developer.resolved.provider).toEqual({
+      name: 'openai',
+      providerType: 'openai',
+    });
+  });
 });

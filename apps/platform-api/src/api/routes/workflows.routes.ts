@@ -911,6 +911,7 @@ async function resolveEffectiveModels(
     const baseResolved = (await modelCatalogService.resolveRoleConfig(tenantId, role)) as
       | Record<string, unknown>
       | null;
+    const sanitizedBaseResolved = sanitizeResolvedRoleConfig(baseResolved);
     const workflowOverride = asRecord(workflowOverrides[role]);
     const projectOverride = asRecord(projectOverrides[role]);
     const activeOverride = Object.keys(workflowOverride).length > 0 ? workflowOverride : projectOverride;
@@ -922,7 +923,11 @@ async function resolveEffectiveModels(
           : 'base';
 
     if (Object.keys(activeOverride).length === 0) {
-      results[role] = { source, resolved: baseResolved, fallback: baseResolved === null };
+      results[role] = {
+        source,
+        resolved: sanitizedBaseResolved,
+        fallback: sanitizedBaseResolved === null,
+      };
       continue;
     }
 
@@ -931,7 +936,7 @@ async function resolveEffectiveModels(
     if (!provider) {
       results[role] = {
         source,
-        resolved: baseResolved,
+        resolved: sanitizedBaseResolved,
         fallback: true,
         fallback_reason: `provider '${providerRef}' is not available`,
       };
@@ -950,7 +955,7 @@ async function resolveEffectiveModels(
     if (!model) {
       results[role] = {
         source,
-        resolved: baseResolved,
+        resolved: sanitizedBaseResolved,
         fallback: true,
         fallback_reason: `model '${String(activeOverride.model)}' is not enabled for provider '${providerRef}'`,
       };
@@ -992,4 +997,31 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function sanitizeResolvedRoleConfig(value: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!value) {
+    return null;
+  }
+
+  const provider = asRecord(value.provider);
+  return {
+    ...value,
+    ...(Object.keys(provider).length > 0 ? { provider: sanitizeResolvedProvider(provider) } : {}),
+  };
+}
+
+function sanitizeResolvedProvider(provider: Record<string, unknown>): Record<string, unknown> {
+  const {
+    apiKeySecretRef: _apiKeySecretRef,
+    api_key_secret_ref: _apiKeySecretRefSnake,
+    accessTokenSecret: _accessTokenSecret,
+    extraHeadersSecret: _extraHeadersSecret,
+    oauthConfig: _oauthConfig,
+    oauth_config: _oauthConfigSnake,
+    oauthCredentials: _oauthCredentials,
+    oauth_credentials: _oauthCredentialsSnake,
+    ...safeProvider
+  } = provider;
+  return safeProvider;
 }
