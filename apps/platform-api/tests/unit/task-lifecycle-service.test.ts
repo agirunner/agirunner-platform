@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { TaskLifecycleService } from '../../src/services/task-lifecycle-service.js';
 
+type TaskLifecycleDependencies = ConstructorParameters<typeof TaskLifecycleService>[0];
+
 describe('TaskLifecycleService concurrent state guard (maintenance-sad cancellation race)', () => {
   it('prevents stale transitions from overwriting newer task state', async () => {
     const client = {
@@ -2227,7 +2229,7 @@ describe('TaskLifecycleService replay-safe idempotent guards', () => {
     keyPrefix: 'ak',
   };
 
-  function buildService(overrides: Record<string, unknown>) {
+  function buildService(overrides: Partial<TaskLifecycleDependencies> = {}) {
     const client = {
       query: vi.fn(async () => ({ rows: [], rowCount: 0 })),
       release: vi.fn(),
@@ -2239,6 +2241,7 @@ describe('TaskLifecycleService replay-safe idempotent guards', () => {
         eventService: { emit: vi.fn() } as never,
         workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
         defaultTaskTimeoutMinutes: 30,
+        loadTaskOrThrow: vi.fn(),
         toTaskResponse: (task: Record<string, unknown>) => task,
         ...overrides,
       }),
