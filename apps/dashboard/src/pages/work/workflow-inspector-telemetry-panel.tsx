@@ -1,6 +1,7 @@
 import { ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+import { DiffViewer } from '../../components/diff-viewer.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
@@ -68,12 +69,36 @@ export function WorkflowInspectorTelemetryPanel(
                   </div>
                   <p className="mt-2 text-sm leading-6 text-foreground">{change.summary}</p>
                   <p className="mt-2 text-xs leading-5 text-muted">{change.detail}</p>
+                  {change.changedFields.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {change.changedFields.map((field) => (
+                        <Badge key={field} variant="secondary">
+                          {field}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
                   <p
                     className="mt-3 text-xs font-medium text-muted"
                     title={change.occurredAtTitle}
                   >
                     {change.occurredAtLabel}
                   </p>
+                  {change.canRenderDiff ? (
+                    <details className="mt-3 rounded-xl border border-border/70 bg-card/60 p-3">
+                      <summary className="cursor-pointer text-sm font-medium text-foreground">
+                        Open field diff
+                      </summary>
+                      <div className="mt-3">
+                        <DiffViewer
+                          oldLabel={change.status === 'Created' ? 'No previous value' : 'Previous value'}
+                          newLabel={change.status === 'Deleted' ? 'Deleted value' : 'Current value'}
+                          oldText={change.previousText}
+                          newText={change.currentText}
+                        />
+                      </div>
+                    </details>
+                  ) : null}
                 </div>
               ))}
             </div>

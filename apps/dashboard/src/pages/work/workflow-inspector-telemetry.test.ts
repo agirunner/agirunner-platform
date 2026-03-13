@@ -128,30 +128,36 @@ describe('workflow inspector telemetry', () => {
     ]);
     expect(model.memoryPacket.title).toBe('Memory evolution · Review release notes');
     expect(model.memoryPacket.changes).toEqual([
-      {
+      expect.objectContaining({
         key: 'release_risk',
         status: 'Updated',
         summary: 'Changed from level: medium to level: high.',
         detail: 'agent agent-1 updated this key in stage review.',
         occurredAtLabel: '30m ago',
         occurredAtTitle: new Date('2026-03-10T05:00:00Z').toLocaleString(),
-      },
-      {
+        changedFields: ['level'],
+        canRenderDiff: true,
+      }),
+      expect.objectContaining({
         key: 'release_risk',
         status: 'Created',
         summary: 'Recorded level: medium for the first time.',
         detail: 'agent agent-1 updated this key in stage review.',
         occurredAtLabel: '1h ago',
         occurredAtTitle: new Date('2026-03-10T04:00:00Z').toLocaleString(),
-      },
-      {
+        changedFields: ['value'],
+        canRenderDiff: true,
+      }),
+      expect.objectContaining({
         key: 'release_notes',
         status: 'Deleted',
         summary: 'Removed from the work-item memory packet.',
         detail: 'system updated this key in stage review.',
         occurredAtLabel: '2h ago',
         occurredAtTitle: new Date('2026-03-10T03:00:00Z').toLocaleString(),
-      },
+        changedFields: ['value'],
+        canRenderDiff: false,
+      }),
     ]);
   });
 

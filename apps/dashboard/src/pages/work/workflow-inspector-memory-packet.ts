@@ -9,6 +9,10 @@ export interface WorkflowInspectorMemoryChange {
   detail: string;
   occurredAtLabel: string;
   occurredAtTitle: string;
+  changedFields: string[];
+  previousText: string;
+  currentText: string;
+  canRenderDiff: boolean;
 }
 
 export interface WorkflowInspectorMemoryPacket {
@@ -45,6 +49,7 @@ export function buildWorkflowInspectorMemoryPacket(input: {
         .slice(index + 1)
         .find((candidate) => candidate.key === entry.key);
       const occurredAt = new Date(entry.updated_at);
+      const currentValue = entry.event_type === 'deleted' ? null : entry.value;
       return {
         key: entry.key,
         status: entry.event_type === 'deleted'
@@ -56,6 +61,10 @@ export function buildWorkflowInspectorMemoryPacket(input: {
         detail: describeMemoryDetail(entry),
         occurredAtLabel: describeRelativeTime(occurredAt.getTime(), input.now ?? Date.now()),
         occurredAtTitle: occurredAt.toLocaleString(),
+        changedFields: readChangedFields(previous?.value, currentValue),
+        previousText: stringifyMemoryValue(previous?.value),
+        currentText: stringifyMemoryValue(currentValue),
+        canRenderDiff: previous !== undefined || entry.event_type !== 'deleted',
       };
     }),
   };
@@ -111,6 +120,46 @@ function summarizeMemoryValue(value: unknown): string {
     return `${entries.length} field object`;
   }
   return 'a recorded value';
+}
+
+function readChangedFields(previousValue: unknown, currentValue: unknown): string[] {
+  const previousRecord = asComparableRecord(previousValue);
+  const currentRecord = asComparableRecord(currentValue);
+  if (!previousRecord || !currentRecord) {
+    if (JSON.stringify(previousValue) === JSON.stringify(currentValue)) {
+      return [];
+    }
+    return ['value'];
+  }
+
+  const keys = new Set([
+    ...Object.keys(previousRecord),
+    ...Object.keys(currentRecord),
+  ]);
+
+  return [...keys]
+    .filter((key) =>
+      JSON.stringify(previousRecord[key] ?? null) !== JSON.stringify(currentRecord[key] ?? null),
+    )
+    .sort((left, right) => left.localeCompare(right))
+    .slice(0, 4);
+}
+
+function stringifyMemoryValue(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean' || value === null || value === undefined) {
+    return String(value ?? '');
+  }
+  return JSON.stringify(value, null, 2);
+}
+
+function asComparableRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
 }
 
 function describeRelativeTime(timestamp: number, now: number): string {
