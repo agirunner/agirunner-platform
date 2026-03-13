@@ -15,6 +15,9 @@ describe('logs page source', () => {
     const source = readPage();
     expect(source).toContain('return <LogsSurface mode="logs" />;');
     expect(source).toContain("const surfaceMode = props.mode ?? (scopedWorkflowId ? 'inspector' : 'logs');");
+    expect(source).toContain('const [logsSurfaceView, setLogsSurfaceView] = useState<InspectorView>(() =>');
+    expect(source).toContain('readLogsSurfaceView(searchParams)');
+    expect(source).toContain("const selectedView = rawFirstSurface");
     expect(source).toContain("{rawFirstSurface ? 'Logs' : 'Execution Inspector'}");
     expect(source).toContain(
       "Browse raw log and event rows first. Use the summary, delivery, and trace tabs only when you need curated inspector packets or deeper drill-in.",

@@ -34,6 +34,7 @@ import {
   buildInspectorOverviewCards,
   buildRecentLogActivityPackets,
 } from './logs-page-support.js';
+import { readLogsSurfaceView } from './logs-page-view.js';
 
 const PAGE_SIZE = '50';
 const SUMMARY_DETAIL_MODE = 'summary';
@@ -54,6 +55,9 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
   const scopedWorkflowId = props.scopedWorkflowId?.trim() ?? '';
   const surfaceMode = props.mode ?? (scopedWorkflowId ? 'inspector' : 'logs');
   const rawFirstSurface = surfaceMode === 'logs';
+  const [logsSurfaceView, setLogsSurfaceView] = useState<InspectorView>(() =>
+    rawFirstSurface ? readLogsSurfaceView(searchParams) : 'raw',
+  );
   const filters = useMemo(() => {
     const nextFilters = readInspectorFilters(searchParams);
     if (scopedWorkflowId) {
@@ -65,7 +69,8 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
     () => readSelectedInspectorLogId(searchParams),
     [searchParams],
   );
-  const selectedView = useMemo(() => readInspectorView(searchParams), [searchParams]);
+  const inspectorView = useMemo(() => readInspectorView(searchParams), [searchParams]);
+  const selectedView = rawFirstSurface ? logsSurfaceView : inspectorView;
   const filterStateKey = useMemo(() => JSON.stringify(filters), [filters]);
 
   const baseFilters = useMemo(() => buildLogFilters(filters), [filters]);
@@ -186,6 +191,9 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
   }
 
   function updateView(view: InspectorView): void {
+    if (rawFirstSurface) {
+      setLogsSurfaceView(view);
+    }
     setSearchParams(
       (current) => {
         const next = new URLSearchParams(current);
