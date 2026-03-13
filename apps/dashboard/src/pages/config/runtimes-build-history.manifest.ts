@@ -19,7 +19,7 @@ export function buildRuntimeManifestPackets(
     {
       label: 'Base image',
       value: manifest.base_image || 'No base image',
-      detail: `Template ${manifest.template || 'unspecified'} anchors the current runtime manifest.`,
+      detail: `Runtime preset ${manifest.template || 'unspecified'} anchors the current runtime manifest.`,
     },
     {
       label: 'System packages',

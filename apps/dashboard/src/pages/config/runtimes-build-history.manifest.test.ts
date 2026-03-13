@@ -27,7 +27,7 @@ describe('runtime manifest support', () => {
       {
         label: 'Base image',
         value: 'ghcr.io/agisnap/runtime:2026.03',
-        detail: 'Template python anchors the current runtime manifest.',
+        detail: 'Runtime preset python anchors the current runtime manifest.',
       },
       {
         label: 'System packages',
