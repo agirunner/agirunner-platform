@@ -1145,7 +1145,9 @@ function WorkItemTaskActionCell(props: {
   onWorkItemChanged(): Promise<unknown> | unknown;
 }): JSX.Element {
   const [isChangesDialogOpen, setIsChangesDialogOpen] = useState(false);
+  const [isEscalationDialogOpen, setIsEscalationDialogOpen] = useState(false);
   const [feedback, setFeedback] = useState('');
+  const [instructions, setInstructions] = useState('');
   const [error, setError] = useState<string | null>(null);
   const state = props.task.state;
   const workItemPermalink = props.task.work_item_id
@@ -1204,11 +1206,51 @@ function WorkItemTaskActionCell(props: {
       setError(mutationError instanceof Error ? mutationError.message : 'Failed to retry step.');
     },
   });
+  const resolveEscalationMutation = useMutation({
+    mutationFn: () =>
+      dashboardApi.resolveEscalation(props.task.id, { instructions: instructions.trim() }),
+    onSuccess: async () => {
+      setError(null);
+      setInstructions('');
+      setIsEscalationDialogOpen(false);
+      await props.onWorkItemChanged();
+    },
+    onError: (mutationError) => {
+      setError(
+        mutationError instanceof Error
+          ? mutationError.message
+          : 'Failed to resume escalated step.',
+      );
+    },
+  });
+  const cancelMutation = useMutation({
+    mutationFn: () => dashboardApi.cancelTask(props.task.id),
+    onSuccess: async () => {
+      setError(null);
+      setFeedback('');
+      setInstructions('');
+      setIsChangesDialogOpen(false);
+      setIsEscalationDialogOpen(false);
+      await props.onWorkItemChanged();
+    },
+    onError: (mutationError) => {
+      setError(mutationError instanceof Error ? mutationError.message : 'Failed to cancel step.');
+    },
+  });
 
   const canApprove = state === 'awaiting_approval' || state === 'output_pending_review';
   const canRequestChanges =
     state === 'awaiting_approval' || state === 'output_pending_review' || state === 'failed';
   const canRetry = state === 'failed';
+  const canResolveEscalation = state === 'escalated';
+  const canCancel = state === 'failed' || state === 'escalated' || state === 'in_progress';
+  const isAnyMutationPending =
+    approveMutation.isPending ||
+    rejectMutation.isPending ||
+    requestChangesMutation.isPending ||
+    retryMutation.isPending ||
+    resolveEscalationMutation.isPending ||
+    cancelMutation.isPending;
 
   return (
     <div className="grid gap-3">
@@ -1222,7 +1264,7 @@ function WorkItemTaskActionCell(props: {
           <Button
             size="sm"
             onClick={() => approveMutation.mutate()}
-            disabled={approveMutation.isPending || rejectMutation.isPending || requestChangesMutation.isPending}
+            disabled={isAnyMutationPending}
           >
             {state === 'output_pending_review' ? 'Approve Output' : 'Approve Step'}
           </Button>
@@ -1232,14 +1274,34 @@ function WorkItemTaskActionCell(props: {
             size="sm"
             variant="outline"
             onClick={() => setIsChangesDialogOpen(true)}
-            disabled={approveMutation.isPending || rejectMutation.isPending || requestChangesMutation.isPending}
+            disabled={isAnyMutationPending}
           >
             Request Changes
           </Button>
         ) : null}
         {canRetry ? (
-          <Button size="sm" variant="outline" onClick={() => retryMutation.mutate()} disabled={retryMutation.isPending}>
+          <Button size="sm" variant="outline" onClick={() => retryMutation.mutate()} disabled={isAnyMutationPending}>
             Retry Step
+          </Button>
+        ) : null}
+        {canResolveEscalation ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setIsEscalationDialogOpen(true)}
+            disabled={isAnyMutationPending}
+          >
+            Resume with Guidance
+          </Button>
+        ) : null}
+        {canCancel ? (
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => cancelMutation.mutate()}
+            disabled={isAnyMutationPending}
+          >
+            Cancel Step
           </Button>
         ) : null}
       </div>
@@ -1255,13 +1317,13 @@ function WorkItemTaskActionCell(props: {
             rows={3}
           />
           <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsChangesDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsChangesDialogOpen(false)} disabled={isAnyMutationPending}>
               Cancel
             </Button>
             {state === 'failed' ? (
               <Button
                 onClick={() => requestChangesMutation.mutate()}
-                disabled={!feedback.trim() || requestChangesMutation.isPending}
+                disabled={!feedback.trim() || isAnyMutationPending}
               >
                 Rework Step
               </Button>
@@ -1270,18 +1332,49 @@ function WorkItemTaskActionCell(props: {
                 <Button
                   variant="destructive"
                   onClick={() => rejectMutation.mutate()}
-                  disabled={!feedback.trim() || rejectMutation.isPending}
+                  disabled={!feedback.trim() || isAnyMutationPending}
                 >
                   Reject Step
                 </Button>
                 <Button
                   onClick={() => requestChangesMutation.mutate()}
-                  disabled={!feedback.trim() || requestChangesMutation.isPending}
+                  disabled={!feedback.trim() || isAnyMutationPending}
                 >
                   Request Changes
                 </Button>
               </>
             )}
+          </div>
+        </div>
+      ) : null}
+      {isEscalationDialogOpen ? (
+        <div className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-3">
+          <Textarea
+            value={instructions}
+            onChange={(event: React.ChangeEvent<HTMLTextAreaElement>) =>
+              setInstructions(event.target.value)
+            }
+            placeholder="Describe the operator guidance needed to resume this step..."
+            rows={3}
+          />
+          <p className="text-xs leading-5 text-muted">
+            Resume the escalated step from this work-item flow so the guidance stays attached to
+            the selected work item and board context.
+          </p>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsEscalationDialogOpen(false)}
+              disabled={isAnyMutationPending}
+            >
+              Close
+            </Button>
+            <Button
+              onClick={() => resolveEscalationMutation.mutate()}
+              disabled={!instructions.trim() || isAnyMutationPending}
+            >
+              Provide Operator Guidance
+            </Button>
           </div>
         </div>
       ) : null}

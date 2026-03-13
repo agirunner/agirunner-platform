@@ -89,6 +89,8 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Approve Step');
     expect(source).toContain('Request Changes');
     expect(source).toContain('Retry Step');
+    expect(source).toContain('Resume with Guidance');
+    expect(source).toContain('Cancel Step');
     expect(source).toContain('Focus work item');
     expect(source).toContain('Open step record');
     expect(source).toContain('Stage group');
@@ -98,6 +100,10 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('dashboardApi.approveTask');
     expect(source).toContain('dashboardApi.requestTaskChanges');
     expect(source).toContain('dashboardApi.retryTask');
+    expect(source).toContain('dashboardApi.resolveEscalation');
+    expect(source).toContain('dashboardApi.cancelTask');
+    expect(source).toContain('Provide Operator Guidance');
+    expect(source).toContain('Describe the operator guidance needed to resume this step...');
   });
 
   it('uses a responsive card-plus-table execution layout instead of a table-only task presentation', () => {
