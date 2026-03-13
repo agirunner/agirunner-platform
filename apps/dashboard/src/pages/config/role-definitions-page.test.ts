@@ -71,6 +71,30 @@ describe('role definitions page source', () => {
     expect(source).toContain('Choose a unique role name.');
   });
 
+  it('provides an inline active toggle so operators skip the full dialog for status changes', () => {
+    const source = readCombinedSource();
+    expect(source).toContain('onToggleActive');
+    expect(source).toContain('toggleActiveMutation');
+    expect(source).toContain('Updated role active state.');
+    expect(source).toContain("aria-label={`Toggle ${props.role.name} active`}");
+  });
+
+  it('provides a duplicate action so operators can clone roles without rebuilding from scratch', () => {
+    const source = readCombinedSource();
+    expect(source).toContain('onDuplicate');
+    expect(source).toContain('duplicateFrom');
+    expect(source).toContain('Duplicate');
+    expect(source).toContain("aria-label={`Duplicate ${props.role.name}`}");
+  });
+
+  it('shows a primary CTA button in the empty state per UX guideline 44', () => {
+    const source = readSource();
+    expect(source).toContain('No roles defined');
+    expect(source).toContain('Create Role');
+    const emptyStateMatch = source.match(/No roles defined[\s\S]*?Create Role/);
+    expect(emptyStateMatch).not.toBeNull();
+  });
+
   it('supports a first-class create role flow and uses the live create and replace routes', () => {
     const source = readCombinedSource();
     expect(source).toContain('Create Role');

@@ -30,6 +30,7 @@ import {
 import { useRolePageOrchestratorState } from './role-definitions-page.orchestrator.js';
 import {
   countRoleStateSummary,
+  createRoleForm,
   type RoleDefinition,
 } from './role-definitions-page.support.js';
 import { RoleDialog } from './role-definitions-dialog.js';
@@ -39,6 +40,7 @@ export function RoleDefinitionsPage(): JSX.Element {
   const queryClient = useQueryClient();
   const [editingRole, setEditingRole] = useState<RoleDefinition | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [duplicateFrom, setDuplicateFrom] = useState<RoleDefinition | null>(null);
   const [deletingRole, setDeletingRole] = useState<RoleDefinition | null>(null);
   const rolesQuery = useQuery({ queryKey: ['roles'], queryFn: fetchRoles });
   const orchestratorState = useRolePageOrchestratorState();
@@ -60,6 +62,22 @@ export function RoleDefinitionsPage(): JSX.Element {
     },
     onError: (error) => {
       const message = error instanceof Error ? error.message : 'Failed to delete role.';
+      toast.error(message);
+    },
+  });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: async (role: RoleDefinition) => {
+      const form = createRoleForm(role);
+      form.isActive = !form.isActive;
+      await saveRole(role.id, form);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['roles'] });
+      toast.success('Updated role active state.');
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'Failed to update role.';
       toast.error(message);
     },
   });
@@ -111,6 +129,10 @@ export function RoleDefinitionsPage(): JSX.Element {
             <p className="font-medium">No roles defined</p>
             <p className="text-sm">Create the first specialist role definition here. Orchestrator prompt, model, and pool posture stay in the control plane above.</p>
           </div>
+          <Button onClick={() => setIsCreating(true)}>
+            <Plus className="h-4 w-4" />
+            Create Role
+          </Button>
         </div>
       ) : (
         <Card id="specialist-role-catalog">
@@ -134,8 +156,14 @@ export function RoleDefinitionsPage(): JSX.Element {
                   <RoleRow
                     key={role.id}
                     role={role}
+                    togglingRoleId={toggleActiveMutation.isPending ? (toggleActiveMutation.variables as RoleDefinition | undefined)?.id ?? null : null}
                     onEdit={setEditingRole}
                     onDelete={setDeletingRole}
+                    onToggleActive={(target) => toggleActiveMutation.mutate(target)}
+                    onDuplicate={(source) => {
+                      setDuplicateFrom(source);
+                      setIsCreating(true);
+                    }}
                   />
                 ))}
               </TableBody>
@@ -144,7 +172,7 @@ export function RoleDefinitionsPage(): JSX.Element {
         </Card>
       )}
 
-      {isCreating ? <RoleDialog {...dialogProps} onClose={() => setIsCreating(false)} /> : null}
+      {isCreating ? <RoleDialog {...dialogProps} duplicateFrom={duplicateFrom} onClose={() => { setIsCreating(false); setDuplicateFrom(null); }} /> : null}
       {editingRole ? <RoleDialog {...dialogProps} role={editingRole} onClose={() => setEditingRole(null)} /> : null}
       <DeleteRoleDialog
         role={deletingRole}

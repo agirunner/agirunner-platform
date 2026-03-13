@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Pencil, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Copy, Pencil, Trash2 } from 'lucide-react';
 
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
+import { Switch } from '../../components/ui/switch.js';
 import { TableCell, TableRow } from '../../components/ui/table.js';
 import { cn } from '../../lib/utils.js';
 import {
@@ -40,8 +41,11 @@ export function MetricCard(props: {
 
 export function RoleRow(props: {
   role: RoleDefinition;
+  togglingRoleId: string | null;
   onEdit(role: RoleDefinition): void;
   onDelete(role: RoleDefinition): void;
+  onToggleActive(role: RoleDefinition): void;
+  onDuplicate(role: RoleDefinition): void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const modelPolicy = describeRoleModelPolicy(props.role);
@@ -67,9 +71,17 @@ export function RoleRow(props: {
             <div className="space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{props.role.name}</span>
-                <Badge variant={props.role.is_active === false ? 'warning' : 'success'}>
+                <Switch
+                  checked={props.role.is_active !== false}
+                  disabled={props.togglingRoleId === props.role.id}
+                  onCheckedChange={() => props.onToggleActive(props.role)}
+                  onClick={(event) => event.stopPropagation()}
+                  aria-label={`Toggle ${props.role.name} active`}
+                  className="scale-90"
+                />
+                <span className={cn('text-xs', props.role.is_active === false ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400')}>
                   {props.role.is_active === false ? 'Inactive' : 'Active'}
-                </Badge>
+                </span>
                 <Badge variant={props.role.is_built_in ? 'secondary' : 'outline'}>
                   {props.role.is_built_in ? 'Built-in' : 'Custom'}
                 </Badge>
@@ -92,6 +104,18 @@ export function RoleRow(props: {
         </TableCell>
         <TableCell className="text-right">
           <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-label={`Duplicate ${props.role.name}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                props.onDuplicate(props.role);
+              }}
+            >
+              <Copy className="h-4 w-4" />
+              Duplicate
+            </Button>
             <Button
               size="sm"
               variant="ghost"

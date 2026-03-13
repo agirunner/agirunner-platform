@@ -34,6 +34,7 @@ import {
 
 export function RoleDialog(props: {
   role?: RoleDefinition | null;
+  duplicateFrom?: RoleDefinition | null;
   roles: RoleDefinition[];
   providers: LlmProviderRecord[];
   models: LlmModelRecord[];
@@ -43,7 +44,15 @@ export function RoleDialog(props: {
   onClose(): void;
 }) {
   const queryClient = useQueryClient();
-  const [form, setForm] = useState<RoleFormState>(createRoleForm(props.role));
+  const [form, setForm] = useState<RoleFormState>(() => {
+    if (props.role) return createRoleForm(props.role);
+    if (props.duplicateFrom) {
+      const duplicated = createRoleForm(props.duplicateFrom);
+      duplicated.name = '';
+      return duplicated;
+    }
+    return createRoleForm(null);
+  });
   const [customCapability, setCustomCapability] = useState('');
   const [customTool, setCustomTool] = useState('');
   const [customCapabilityError, setCustomCapabilityError] = useState<string>();

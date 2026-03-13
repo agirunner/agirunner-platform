@@ -199,6 +199,12 @@ export function createRoleForm(role?: RoleDefinition | null): RoleFormState {
   };
 }
 
+export function createDuplicateRoleForm(source: RoleDefinition): RoleFormState {
+  const form = createRoleForm(source);
+  form.name = '';
+  return form;
+}
+
 export function buildRolePayload(form: RoleFormState) {
   return {
     name: form.name.trim(),
