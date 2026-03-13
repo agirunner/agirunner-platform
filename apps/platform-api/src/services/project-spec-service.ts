@@ -4,6 +4,7 @@ import { ForbiddenError, NotFoundError, ValidationError } from '../errors/domain
 import { EventService } from './event-service.js';
 import { validateProjectDocumentRegistry } from './document-reference-service.js';
 import { normalizeInstructionDocument } from './instruction-policy.js';
+import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 import { readProjectToolTags, validateProjectToolTags } from './tool-tag-service.js';
 
 type ResourceType =
@@ -45,6 +46,7 @@ const resourceFieldsByType: Record<ResourceType, string[]> = {
 };
 
 const blockedBindingKeys = /(secret|token|password|api[_-]?key|credential)/i;
+const PROJECT_SPEC_SECRET_REDACTION = 'redacted://project-spec-secret';
 
 function asRecord(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -107,7 +109,7 @@ export class ProjectSpecService {
     return {
       project_id: projectId,
       version: row.version,
-      spec: row.spec ?? {},
+      spec: sanitizeProjectSpec(row.spec),
       created_at: row.created_at.toISOString(),
       created_by_type: row.created_by_type,
       created_by_id: row.created_by_id,
@@ -203,6 +205,8 @@ export class ProjectSpecService {
   }
 
   private validateProjectSpec(spec: Record<string, unknown>): void {
+    assertNoPlaintextSecretsInSpec(spec);
+
     const resources = this.readResourceMap(spec);
     for (const [logicalName, entry] of Object.entries(resources)) {
       if (!logicalName.trim()) {
@@ -337,4 +341,18 @@ export class ProjectSpecService {
       value === 'api'
     );
   }
+}
+
+function sanitizeProjectSpec(value: unknown): Record<string, unknown> {
+  return sanitizeSecretLikeRecord(value, { redactionValue: PROJECT_SPEC_SECRET_REDACTION });
+}
+
+function assertNoPlaintextSecretsInSpec(spec: Record<string, unknown>): void {
+  const sanitized = sanitizeProjectSpec(spec);
+  if (JSON.stringify(sanitized) === JSON.stringify(spec)) {
+    return;
+  }
+  throw new ValidationError(
+    'Project spec contains plaintext secret-bearing values. Use secret: references or external secret storage instead.',
+  );
 }
