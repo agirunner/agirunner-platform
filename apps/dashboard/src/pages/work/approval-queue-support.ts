@@ -2,6 +2,7 @@ import type {
   DashboardApprovalStageGateRecord,
   DashboardApprovalTaskRecord,
 } from '../../lib/api.js';
+import { readWorkflowOperatorFlowLabel } from './task-operator-flow.js';
 import {
   buildGateBreadcrumbs,
   readGateDecisionSummary,
@@ -113,10 +114,6 @@ export function matchesApprovalSearch(
   return searchCorpus.includes(normalizedQuery);
 }
 
-export function usesWorkItemOperatorFlow(task: DashboardApprovalTaskRecord): boolean {
-  return Boolean(task.workflow_id && task.work_item_id);
-}
-
 export function buildTaskApprovalBreadcrumbs(task: DashboardApprovalTaskRecord): string[] {
   const breadcrumbs: string[] = [];
   if (task.workflow_name) {
@@ -138,7 +135,7 @@ export function buildTaskApprovalBreadcrumbs(task: DashboardApprovalTaskRecord):
 }
 
 export function readTaskOperatorFlowLabel(task: DashboardApprovalTaskRecord): string {
-  return usesWorkItemOperatorFlow(task)
-    ? 'Grouped work-item operator flow'
-    : 'Direct operator decision';
+  return readWorkflowOperatorFlowLabel(task);
 }
+
+export { usesWorkItemOperatorFlow };
