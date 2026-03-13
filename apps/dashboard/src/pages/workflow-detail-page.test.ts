@@ -258,6 +258,11 @@ describe('workflow detail deep links', () => {
     expect(source).toContain('Immediate context values');
     expect(source).toContain('Structured context sections');
     expect(source).toContain('Resolved inline values');
+    expect(source).toContain('Run outcome narrative');
+    expect(source).toContain('Board completion');
+    expect(source).toContain('Gate posture');
+    expect(source).toContain('Reported spend');
+    expect(source).toContain('Artifacts delivered');
     expect(source).toContain('Terminal run signals');
     expect(source).toContain('PacketFactGrid');
     expect(source).toContain('PacketBadgePanel');

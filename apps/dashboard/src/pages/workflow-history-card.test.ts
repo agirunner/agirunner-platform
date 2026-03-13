@@ -37,6 +37,8 @@ describe('workflow interaction timeline', () => {
     expect(descriptor.summary).toContain('Handle provider redirects');
     expect(descriptor.stageName).toBe('implementation');
     expect(descriptor.workItemId).toBe('wi-1');
+    expect(descriptor.emphasisLabel).toBe('Board work');
+    expect(descriptor.scopeSummary).toContain('Stage implementation');
   });
 
   it('describes stage-gate decisions instead of exposing raw event codes', () => {
@@ -50,8 +52,10 @@ describe('workflow interaction timeline', () => {
       }),
     );
 
-    expect(descriptor.headline).toBe('request changes gate for design');
+    expect(descriptor.headline).toBe('Request changes gate for design');
     expect(descriptor.summary).toContain('Clarify the runtime credential flow');
+    expect(descriptor.emphasisLabel).toBe('Gate decision');
+    expect(descriptor.emphasisTone).toBe('warning');
   });
 
   it('describes workflow budget warnings with operator-readable usage details', () => {
@@ -74,6 +78,8 @@ describe('workflow interaction timeline', () => {
     expect(descriptor.summary).toContain('Approaching configured workflow guardrails');
     expect(descriptor.summary).toContain('tokens (96,000 / 120,000)');
     expect(descriptor.summary).toContain('cost ($9.5000 / $12.0000)');
+    expect(descriptor.emphasisLabel).toBe('Budget');
+    expect(descriptor.signalBadges).toContain('tokens guardrail');
   });
 
   it('describes workflow budget exceedances with human-readable overage context', () => {
@@ -101,6 +107,10 @@ describe('workflow interaction timeline', () => {
       'utf8',
     );
 
+    expect(source).toContain('descriptor.emphasisLabel');
+    expect(source).toContain('descriptor.scopeSummary');
+    expect(source).toContain('descriptor.signalBadges');
+    expect(source).toContain('Gate decision');
     expect(source).toContain('Interaction packet');
     expect(source).toContain('describeReviewPacket');
     expect(source).toContain('readPacketScalarFacts');

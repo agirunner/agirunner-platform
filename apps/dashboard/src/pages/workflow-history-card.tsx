@@ -17,13 +17,17 @@ import {
 } from './workflow-detail-presentation.js';
 import { readPacketScalarFacts } from './workflow-detail-support.js';
 
-interface TimelineDescriptor {
+export interface TimelineDescriptor {
   headline: string;
   summary: string | null;
   stageName: string | null;
   workItemId: string | null;
   taskId: string | null;
   actor: string | null;
+  emphasisLabel: string;
+  emphasisTone: 'secondary' | 'warning' | 'destructive' | 'success';
+  scopeSummary: string | null;
+  signalBadges: string[];
 }
 
 export function WorkflowInteractionTimelineCard(props: {
@@ -99,234 +103,146 @@ export function describeTimelineEvent(event: DashboardEventRecord): TimelineDesc
     readString(event.data?.child_name) ??
     null;
   const nextState = readString(event.data?.to_state) ?? readString(event.data?.state) ?? null;
+  const context = {
+    stageName,
+    workItemId,
+    taskId,
+    actor,
+    eventType: event.type,
+    data: event.data,
+  };
 
   switch (event.type) {
     case 'workflow.created':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: 'Board run created',
         summary: actor ? `Started by ${actor}.` : 'The board run was initialized.',
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'workflow.activation_queued':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: 'Orchestrator wake-up queued',
         summary: readString(event.data?.reason) ?? 'A new activation batch was queued for the orchestrator.',
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'workflow.activation_started':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: 'Orchestrator activation started',
         summary:
           readString(event.data?.activation_id) != null
             ? `Activation ${readString(event.data?.activation_id)} is processing queued workflow events.`
             : 'The orchestrator started processing queued workflow events.',
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'workflow.state_changed':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: nextState ? `Workflow moved to ${humanizeToken(nextState)}` : 'Workflow state changed',
         summary: readString(event.data?.reason) ?? null,
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'workflow.completed':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: 'Workflow completed',
         summary: readString(event.data?.summary) ?? 'All required workflow outcomes were delivered.',
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'workflow.cancelled':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: 'Workflow cancelled',
         summary: readString(event.data?.reason) ?? null,
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'work_item.created':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: workItemTitle ? `Created work item ${workItemTitle}` : 'Created work item',
         summary:
           readString(event.data?.goal) ??
           readString(event.data?.notes) ??
           'The orchestrator added new board work.',
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'work_item.updated':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: workItemTitle ? `Updated work item ${workItemTitle}` : 'Updated work item',
         summary: readString(event.data?.summary) ?? readString(event.data?.notes) ?? null,
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'work_item.moved':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: workItemTitle ? `Moved work item ${workItemTitle}` : 'Moved work item',
         summary: buildMovementSummary(event.data, stageName),
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'work_item.reparented':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: workItemTitle ? `Reparented work item ${workItemTitle}` : 'Reparented work item',
         summary: readString(event.data?.parent_work_item_title) ?? 'The work item moved under a different milestone.',
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'work_item.completed':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: workItemTitle ? `Completed work item ${workItemTitle}` : 'Completed work item',
         summary: readString(event.data?.summary) ?? null,
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'task.created':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: taskTitle ? `Queued step ${taskTitle}` : 'Queued specialist step',
         summary: readString(event.data?.role) ?? readString(event.data?.assigned_role) ?? null,
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'task.completed':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: taskTitle ? `Completed step ${taskTitle}` : 'Completed specialist step',
         summary: readString(event.data?.summary) ?? readString(event.data?.role) ?? null,
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'task.failed':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: taskTitle ? `Step failed: ${taskTitle}` : 'Specialist step failed',
         summary: readString(event.data?.error) ?? readString(event.data?.message) ?? null,
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'task.escalated':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: taskTitle ? `Escalated step ${taskTitle}` : 'Specialist step escalated',
         summary: readString(event.data?.reason) ?? null,
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'stage.started':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: stageName ? `Started stage ${stageName}` : 'Started workflow stage',
         summary: readString(event.data?.goal) ?? readString(event.data?.summary) ?? null,
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'stage.completed':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: stageName ? `Completed stage ${stageName}` : 'Completed workflow stage',
         summary: readString(event.data?.summary) ?? null,
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'stage.gate_requested':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: stageName ? `Requested gate for ${stageName}` : 'Requested stage gate',
         summary: readString(event.data?.recommendation) ?? readString(event.data?.request_summary) ?? null,
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'stage.gate.approve':
     case 'stage.gate.reject':
     case 'stage.gate.request_changes':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: stageName
-          ? `${humanizeToken(event.type.replace('stage.gate.', ''))} gate for ${stageName}`
-          : `${humanizeToken(event.type.replace('stage.gate.', ''))} stage gate`,
+          ? `${capitalizeToken(event.type.replace('stage.gate.', ''))} gate for ${stageName}`
+          : `${capitalizeToken(event.type.replace('stage.gate.', ''))} stage gate`,
         summary: readString(event.data?.feedback) ?? null,
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'budget.warning':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: 'Workflow budget warning',
         summary: buildBudgetSummary(event.data, 'warning'),
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'budget.exceeded':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: 'Workflow budget exceeded',
         summary: buildBudgetSummary(event.data, 'exceeded'),
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'child_workflow.completed':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: childWorkflowName ? `Child board completed: ${childWorkflowName}` : 'Child board completed',
         summary: readString(event.data?.summary) ?? null,
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     case 'child_workflow.failed':
-      return {
+      return buildTimelineDescriptor(context, {
         headline: childWorkflowName ? `Child board failed: ${childWorkflowName}` : 'Child board failed',
         summary: readString(event.data?.error) ?? readString(event.data?.reason) ?? null,
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
     default:
-      return {
+      return buildTimelineDescriptor(context, {
         headline: humanizeToken(event.type),
         summary: readString(event.data?.summary) ?? readString(event.data?.reason) ?? null,
-        stageName,
-        workItemId,
-        taskId,
-        actor,
-      };
+      });
   }
 }
 
@@ -334,19 +250,26 @@ function TimelineEntry(props: { workflowId: string; event: DashboardEventRecord 
   const descriptor = describeTimelineEvent(props.event);
 
   return (
-    <li className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4 shadow-sm">
+    <li className={timelineEntryClassName(descriptor.emphasisTone)}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="grid gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <strong>{descriptor.headline}</strong>
-            <Badge variant="outline">{humanizeToken(props.event.type)}</Badge>
-            {descriptor.stageName ? <Badge variant="secondary">{descriptor.stageName}</Badge> : null}
+            <Badge variant={descriptor.emphasisTone}>{descriptor.emphasisLabel}</Badge>
+            {descriptor.stageName ? <Badge variant="outline">{descriptor.stageName}</Badge> : null}
+            {descriptor.signalBadges.map((badge) => (
+              <Badge key={`${props.event.id}:${badge}`} variant="outline">
+                {badge}
+              </Badge>
+            ))}
           </div>
+          <strong>{descriptor.headline}</strong>
           <span className="text-sm text-muted">{formatTimestamp(props.event.created_at)}</span>
         </div>
-        {descriptor.actor ? <Badge variant="outline">{descriptor.actor}</Badge> : null}
       </div>
       {descriptor.summary ? <p className="text-sm text-muted">{descriptor.summary}</p> : null}
+      {descriptor.scopeSummary ? (
+        <p className="text-xs leading-5 text-muted">{descriptor.scopeSummary}</p>
+      ) : null}
       <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
         {descriptor.workItemId ? (
           <Link to={`/work/workflows/${props.workflowId}?work_item=${descriptor.workItemId}`} className="underline-offset-4 hover:underline">
@@ -362,6 +285,45 @@ function TimelineEntry(props: { workflowId: string; event: DashboardEventRecord 
       <TimelineEventPacket event={props.event} />
     </li>
   );
+}
+
+function timelineEntryClassName(
+  tone: TimelineDescriptor['emphasisTone'],
+): string {
+  if (tone === 'destructive') {
+    return 'grid gap-3 rounded-xl border border-red-200 bg-red-50/70 p-4 shadow-sm dark:border-red-900/70 dark:bg-red-950/20';
+  }
+  if (tone === 'warning') {
+    return 'grid gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4 shadow-sm dark:border-amber-900/70 dark:bg-amber-950/20';
+  }
+  return 'grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4 shadow-sm';
+}
+
+function buildTimelineDescriptor(
+  context: {
+    actor: string | null;
+    data?: Record<string, unknown>;
+    eventType: string;
+    stageName: string | null;
+    taskId: string | null;
+    workItemId: string | null;
+  },
+  base: {
+    headline: string;
+    summary: string | null;
+  },
+): TimelineDescriptor {
+  return {
+    ...base,
+    actor: context.actor,
+    stageName: context.stageName,
+    workItemId: context.workItemId,
+    taskId: context.taskId,
+    emphasisLabel: describeTimelineEmphasisLabel(context.eventType),
+    emphasisTone: describeTimelineEmphasisTone(context.eventType),
+    scopeSummary: describeTimelineScopeSummary(context),
+    signalBadges: readTimelineSignalBadges(context.eventType, context.data),
+  };
 }
 
 function TimelineEventPacket(props: { event: DashboardEventRecord }): JSX.Element {
@@ -514,9 +476,9 @@ function readActorLabel(type: string, id: string | null | undefined): string | n
     return actorId;
   }
   if (!actorId) {
-    return actorType;
+    return capitalizeToken(actorType);
   }
-  return `${actorType}:${actorId}`;
+  return `${capitalizeToken(actorType)} ${actorId}`;
 }
 
 function readNumber(value: unknown): number | null {
@@ -552,6 +514,93 @@ function formatMinutes(value: number): string {
 
 function humanizeToken(value: string): string {
   return value.replaceAll('.', ' ').replaceAll('_', ' ');
+}
+
+function capitalizeToken(value: string): string {
+  const humanized = humanizeToken(value);
+  return humanized.charAt(0).toUpperCase() + humanized.slice(1);
+}
+
+function describeTimelineEmphasisLabel(eventType: string): string {
+  if (eventType.startsWith('stage.gate.')) return 'Gate decision';
+  if (eventType === 'stage.gate_requested') return 'Gate review';
+  if (eventType.startsWith('stage.')) return 'Stage progress';
+  if (eventType.startsWith('task.')) {
+    if (eventType.includes('escalat')) return 'Escalation';
+    if (eventType.includes('failed')) return 'Failure';
+    return 'Specialist step';
+  }
+  if (eventType.startsWith('work_item.')) return 'Board work';
+  if (eventType.startsWith('workflow.activation_')) return 'Orchestrator';
+  if (eventType.startsWith('workflow.')) return 'Board status';
+  if (eventType.startsWith('budget.')) return 'Budget';
+  if (eventType.startsWith('child_workflow.')) return 'Child board';
+  return 'Activity';
+}
+
+function describeTimelineEmphasisTone(
+  eventType: string,
+): TimelineDescriptor['emphasisTone'] {
+  if (eventType.includes('escalat') || eventType.includes('gate.reject') || eventType.includes('failed') || eventType === 'budget.exceeded') {
+    return 'destructive';
+  }
+  if (eventType.includes('request_changes') || eventType.includes('gate_requested') || eventType === 'budget.warning') {
+    return 'warning';
+  }
+  if (eventType.includes('completed') || eventType.includes('approve')) {
+    return 'success';
+  }
+  return 'secondary';
+}
+
+function describeTimelineScopeSummary(context: {
+  actor: string | null;
+  stageName: string | null;
+  workItemId: string | null;
+  taskId: string | null;
+}): string | null {
+  const parts: string[] = [];
+  if (context.actor) {
+    parts.push(`Actor ${context.actor}`);
+  }
+  if (context.stageName) {
+    parts.push(`Stage ${context.stageName}`);
+  }
+  if (context.workItemId) {
+    parts.push(`Work item ${context.workItemId.slice(0, 8)}`);
+  }
+  if (context.taskId) {
+    parts.push(`Step ${context.taskId.slice(0, 8)}`);
+  }
+  return parts.length > 0 ? parts.join(' • ') : null;
+}
+
+function readTimelineSignalBadges(
+  eventType: string,
+  data: Record<string, unknown> | undefined,
+): string[] {
+  const badges: string[] = [];
+  const role = readString(data?.role) ?? readString(data?.assigned_role);
+  const activationId = readString(data?.activation_id);
+  const dimensions = readStringArray(data?.dimensions);
+  if (role) {
+    badges.push(role);
+  }
+  if (activationId) {
+    badges.push(`activation ${activationId.slice(0, 8)}`);
+  }
+  if (eventType.startsWith('budget.')) {
+    for (const dimension of dimensions) {
+      badges.push(`${dimension} guardrail`);
+    }
+  }
+  if (eventType.startsWith('stage.gate.')) {
+    badges.push('operator decision');
+  }
+  if (eventType === 'stage.gate_requested') {
+    badges.push('awaiting review');
+  }
+  return badges;
 }
 
 function readString(value: unknown): string | null {

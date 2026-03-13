@@ -1579,23 +1579,34 @@ function LiveEventStream({ events }: LiveEventStreamProps): JSX.Element {
           <p className="text-sm text-muted">No recent events.</p>
         ) : (
           <div className="space-y-2">
-            {events.map((evt) => (
-              <div key={evt.id} className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/10 p-3 text-sm sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={eventBadgeVariant(evt.type)}>{describeTimelineEvent(evt).headline}</Badge>
-                    <span className="text-muted">{describeEventScope(evt)}</span>
+            {events.map((evt) => {
+              const descriptor = describeTimelineEvent(evt);
+              return (
+                <div key={evt.id} className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/10 p-3 text-sm sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant={descriptor.emphasisTone}>{descriptor.emphasisLabel}</Badge>
+                      {descriptor.signalBadges.map((badge) => (
+                        <Badge key={`${evt.id}:${badge}`} variant="outline">
+                          {badge}
+                        </Badge>
+                      ))}
+                    </div>
+                    <p className="font-medium text-foreground">{descriptor.headline}</p>
+                    <p className="text-foreground">
+                      {descriptor.summary ?? 'Recent operator activity recorded.'}
+                    </p>
+                    {descriptor.scopeSummary ? (
+                      <p className="text-xs leading-5 text-muted">{descriptor.scopeSummary}</p>
+                    ) : null}
                   </div>
-                  <p className="text-foreground">
-                    {describeTimelineEvent(evt).summary ?? 'Recent operator activity recorded.'}
-                  </p>
+                  <div className="shrink-0 text-right text-xs text-muted">
+                    <p>{formatRelativeTimestamp(evt.created_at)}</p>
+                    <p>{new Date(evt.created_at).toLocaleTimeString()}</p>
+                  </div>
                 </div>
-                <div className="shrink-0 text-right text-xs text-muted">
-                  <p>{formatRelativeTimestamp(evt.created_at)}</p>
-                  <p>{new Date(evt.created_at).toLocaleTimeString()}</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>
@@ -1612,38 +1623,4 @@ function SnapshotMetric(props: { label: string; value: string }): JSX.Element {
       <p className="text-sm text-foreground">{props.value}</p>
     </div>
   );
-}
-
-function describeEventScope(event: DashboardEventRecord): string {
-  const descriptor = describeTimelineEvent(event);
-  const parts: string[] = [];
-  if (descriptor.actor) {
-    parts.push(descriptor.actor);
-  }
-  if (descriptor.stageName) {
-    parts.push(`stage ${descriptor.stageName}`);
-  }
-  if (descriptor.workItemId) {
-    parts.push(`work item ${descriptor.workItemId.slice(0, 8)}`);
-  }
-  if (descriptor.taskId) {
-    parts.push(`task ${descriptor.taskId.slice(0, 8)}`);
-  }
-  if (parts.length === 0) {
-    parts.push(`${event.entity_type}/${event.entity_id?.slice(0, 8) ?? 'unknown'}`);
-  }
-  return parts.join(' • ');
-}
-
-function eventBadgeVariant(eventType: string): 'secondary' | 'warning' | 'destructive' | 'success' {
-  if (eventType.includes('escalat') || eventType.includes('gate.reject') || eventType.includes('failed')) {
-    return 'destructive';
-  }
-  if (eventType.includes('request_changes') || eventType.includes('gate_requested')) {
-    return 'warning';
-  }
-  if (eventType.includes('completed') || eventType.includes('approve')) {
-    return 'success';
-  }
-  return 'secondary';
 }

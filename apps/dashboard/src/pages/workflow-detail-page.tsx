@@ -312,7 +312,7 @@ export function WorkflowDetailPage(): JSX.Element {
       return null;
     }
     const descriptor = describeTimelineEvent(latestEvent);
-    return descriptor.summary ?? descriptor.headline;
+    return descriptor.summary ? `${descriptor.headline} — ${descriptor.summary}` : descriptor.headline;
   }, [historyEvents]);
   const costSummary = useMemo(() => {
     const tasks = taskQuery.data?.data ?? [];
@@ -1166,34 +1166,73 @@ function WorkflowRunSummaryPacket(props: {
   const producedArtifacts = asPacketArray(summary.produced_artifacts);
   const childChain = asPacketRecord(summary.chain);
   const childCounts = asPacketRecord(childChain.child_status_counts);
+  const orchestratorAnalytics = asPacketRecord(summary.orchestrator_analytics);
   const scalarFacts = readPacketScalarFacts(summary, 4);
   const stageMetricCards = stageMetrics
     .map((entry) => describeStageMetricCard(entry))
     .filter((entry): entry is { label: string; value: string; detail: string } => entry !== null)
     .slice(0, 4);
+  const completedStages = countStageMetricsWithStatus(stageMetrics, 'completed');
+  const gateReviewCount = countStageMetricsWithGate(stageMetrics, ['requested', 'changes_requested']);
+  const reportedSpendUsd = readPacketNumber(orchestratorAnalytics.total_cost_usd);
+  const totalReworkCycles = readPacketNumber(orchestratorAnalytics.total_rework_cycles);
+  const childBoardCount = readNumericPacketValue(childCounts.total);
+  const outcomeNarrative = describeRunOutcomeNarrative({
+    completedStages,
+    gateReviewCount,
+    producedArtifacts: producedArtifacts.length,
+    reportedSpendUsd,
+    stageCount: stageMetrics.length,
+    childBoardCount,
+  });
 
   return (
     <div className="grid gap-4">
+      <div className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-4">
+        <div className="grid gap-1">
+          <div className="text-sm font-medium text-foreground">Run outcome narrative</div>
+          <p className="text-sm leading-6 text-muted">
+            Judge completion posture, gate pressure, reported spend, and delivered artifacts without opening the raw final packet.
+          </p>
+        </div>
+        <p className="text-sm font-medium text-foreground">{outcomeNarrative}</p>
+      </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <WorkflowSignalTile
-          label="Stage metrics"
-          value={String(stageMetrics.length)}
-          detail="Captured stage outcome rows"
+          label="Board completion"
+          value={`${completedStages}/${stageMetrics.length || 0} stages`}
+          detail={
+            stageMetrics.length > 0
+              ? `${stageActivity.length} stage timeline packet${stageActivity.length === 1 ? '' : 's'} captured`
+              : 'No stage outcome rows were captured in the final packet.'
+          }
         />
         <WorkflowSignalTile
-          label="Stage activity"
-          value={String(stageActivity.length)}
-          detail="Timeline snapshots in the final run packet"
+          label="Gate posture"
+          value={gateReviewCount === 0 ? 'Clear' : `${gateReviewCount} waiting`}
+          detail={
+            gateReviewCount === 0
+              ? 'No stage gates remained waiting at run completion.'
+              : 'Stage gates still needed operator review or requested changes.'
+          }
         />
         <WorkflowSignalTile
-          label="Artifacts"
+          label="Reported spend"
+          value={formatPacketCurrency(reportedSpendUsd)}
+          detail={
+            totalReworkCycles > 0
+              ? `${totalReworkCycles} rework cycle${totalReworkCycles === 1 ? '' : 's'} were recorded across the board run.`
+              : 'No rework cycles were recorded in orchestrator analytics.'
+          }
+        />
+        <WorkflowSignalTile
+          label="Artifacts delivered"
           value={String(producedArtifacts.length)}
-          detail="Artifacts recorded in the final board summary"
-        />
-        <WorkflowSignalTile
-          label="Child boards"
-          value={String(readNumericPacketValue(childCounts.total))}
-          detail="Linked child workflows counted in lineage"
+          detail={
+            childBoardCount > 0
+              ? `${childBoardCount} child board${childBoardCount === 1 ? '' : 's'} contributed to the final lineage.`
+              : 'All delivered outputs came from this board run.'
+          }
         />
       </div>
       {scalarFacts.length > 0 ? (
@@ -1513,6 +1552,44 @@ function describeStageMetricCard(
   };
 }
 
+function countStageMetricsWithStatus(stageMetrics: unknown[], status: string): number {
+  return stageMetrics.filter((entry) => readPacketString(asPacketRecord(entry).status) === status).length;
+}
+
+function countStageMetricsWithGate(stageMetrics: unknown[], statuses: string[]): number {
+  return stageMetrics.filter((entry) => {
+    const gateStatus = readPacketString(asPacketRecord(entry).gate_status);
+    return gateStatus ? statuses.includes(gateStatus) : false;
+  }).length;
+}
+
+function describeRunOutcomeNarrative(input: {
+  completedStages: number;
+  gateReviewCount: number;
+  producedArtifacts: number;
+  reportedSpendUsd: number;
+  stageCount: number;
+  childBoardCount: number;
+}): string {
+  const stageSummary =
+    input.stageCount > 0
+      ? `${input.completedStages} of ${input.stageCount} stages reached completion`
+      : 'No stage outcome rows were captured';
+  const gateSummary =
+    input.gateReviewCount > 0
+      ? `${input.gateReviewCount} gate review${input.gateReviewCount === 1 ? '' : 's'} remained active`
+      : 'no gate review pressure remained';
+  const artifactSummary =
+    input.producedArtifacts > 0
+      ? `${input.producedArtifacts} artifact${input.producedArtifacts === 1 ? '' : 's'} were recorded`
+      : 'no artifacts were recorded';
+  const childSummary =
+    input.childBoardCount > 0
+      ? `${input.childBoardCount} child board${input.childBoardCount === 1 ? '' : 's'} were linked`
+      : 'no child boards were linked';
+  return `${stageSummary}; ${gateSummary}; reported spend ${formatPacketCurrency(input.reportedSpendUsd)}; ${artifactSummary}; ${childSummary}.`;
+}
+
 function asPacketRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -1533,6 +1610,10 @@ function readPacketString(value: unknown): string | null {
 
 function readPacketNumber(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function formatPacketCurrency(value: number): string {
+  return `$${value.toFixed(4)}`;
 }
 
 function summarizeReasoningProfile(

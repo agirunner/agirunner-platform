@@ -91,7 +91,10 @@ describe('live board page source', () => {
   it('renders human-readable live activity instead of raw event type rows', () => {
     const source = readSource();
     expect(source).toContain('describeTimelineEvent');
-    expect(source).toContain('describeEventScope');
+    expect(source).toContain('descriptor.emphasisLabel');
+    expect(source).toContain('descriptor.scopeSummary');
+    expect(source).toContain('descriptor.signalBadges');
+    expect(source).toContain('descriptor.emphasisTone');
     expect(source).toContain('Recent operator activity recorded.');
     expect(source).toContain('Latest human-readable operator activity across the visible live scope.');
     expect(source).not.toContain('Badge variant="secondary">{evt.type}');
