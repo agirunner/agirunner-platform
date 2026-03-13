@@ -137,5 +137,3 @@ export function buildTaskApprovalBreadcrumbs(task: DashboardApprovalTaskRecord):
 export function readTaskOperatorFlowLabel(task: DashboardApprovalTaskRecord): string {
   return readWorkflowOperatorFlowLabel(task);
 }
-
-export { usesWorkItemOperatorFlow };

@@ -59,11 +59,15 @@ import {
   summarizeFirstGate,
   summarizeOldestWaiting,
   truncateOutput,
-  usesWorkItemOperatorFlow,
 } from './approval-queue-support.js';
 import { OperatorBreadcrumbTrail } from './operator-breadcrumb-trail.js';
 import { invalidateWorkflowQueries } from '../workflow-detail-query.js';
 import { buildWorkflowDetailPermalink } from '../workflow-detail-permalinks.js';
+import {
+  buildWorkflowOperatorPermalink,
+  usesWorkItemOperatorFlow,
+  usesWorkflowOperatorFlow,
+} from './task-operator-flow.js';
 
 function invalidateApprovalWorkflowQueries(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -151,17 +155,12 @@ function TaskApprovalCard({ task }: { task: DashboardApprovalTaskRecord }): JSX.
   const outputPreview = truncateOutput(task.output);
   const taskLabel = task.title ?? task.id;
   const workItemFlow = usesWorkItemOperatorFlow(task);
+  const workflowOperatorFlow = usesWorkflowOperatorFlow(task);
   const breadcrumbs = buildTaskApprovalBreadcrumbs(task);
   const operatorFlowLabel = readTaskOperatorFlowLabel(task);
   const workflowContextLink =
-    task.workflow_id && task.work_item_id
-      ? buildWorkflowDetailPermalink(task.workflow_id, {
-          workItemId: task.work_item_id,
-          activationId: task.activation_id ?? null,
-        })
-      : task.workflow_id
-        ? `/work/workflows/${task.workflow_id}`
-        : null;
+    buildWorkflowOperatorPermalink(task) ??
+    (task.workflow_id ? `/work/workflows/${task.workflow_id}` : null);
 
   return (
     <>
@@ -196,7 +195,9 @@ function TaskApprovalCard({ task }: { task: DashboardApprovalTaskRecord }): JSX.
                 <CardDescription>
                   {workItemFlow
                     ? 'Review this step from the grouped work-item operator flow so approval, rework, and retry context stays attached to the work item.'
-                    : 'This step is waiting on a direct operator decision.'}
+                    : workflowOperatorFlow
+                      ? 'Review this step from the board stage flow so operator decisions stay attached to workflow stage context instead of the standalone step record.'
+                      : 'This step is waiting on a direct operator decision.'}
                 </CardDescription>
               </div>
               <div className="space-y-2">
@@ -217,10 +218,12 @@ function TaskApprovalCard({ task }: { task: DashboardApprovalTaskRecord }): JSX.
             </div>
 
             <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap">
-              {workItemFlow && workflowContextLink ? (
+              {workflowOperatorFlow && workflowContextLink ? (
                 <>
                   <Button size="sm" className="w-full sm:w-auto" asChild>
-                    <Link to={workflowContextLink}>Open Work Item Flow</Link>
+                    <Link to={workflowContextLink}>
+                      {workItemFlow ? 'Open Work Item Flow' : 'Open Board Stage Flow'}
+                    </Link>
                   </Button>
                   <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
                     <Link to={`/work/tasks/${task.id}`}>Open Step Record</Link>

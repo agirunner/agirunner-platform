@@ -45,6 +45,16 @@ describe('approval queue support', () => {
     ).toBe('Grouped work-item operator flow');
     expect(
       readTaskOperatorFlowLabel({
+        id: 'task-stage',
+        title: 'Review release readiness',
+        state: 'awaiting_approval',
+        workflow_id: 'wf-2',
+        stage_name: 'qa',
+        created_at: '2026-03-12T12:00:00.000Z',
+      }),
+    ).toBe('Stage/operator board flow');
+    expect(
+      readTaskOperatorFlowLabel({
         id: 'task-2',
         title: 'Review login copy',
         state: 'awaiting_approval',

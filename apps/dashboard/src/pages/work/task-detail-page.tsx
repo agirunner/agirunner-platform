@@ -34,6 +34,11 @@ import {
   readReviewSignals,
   readReworkDetails,
 } from '../task-detail-support.js';
+import {
+  buildWorkflowOperatorPermalink,
+  usesWorkItemOperatorFlow,
+  usesWorkflowOperatorFlow,
+} from './task-operator-flow.js';
 
 interface Task {
   id: string;
@@ -111,10 +116,6 @@ function describeTaskKind(task: Task): string {
   return 'Specialist step';
 }
 
-function usesWorkItemOperatorFlow(task: Task): boolean {
-  return Boolean(task.workflow_id && task.work_item_id);
-}
-
 function formatTimestamp(value?: string): string {
   if (!value) return '-';
   return new Date(value).toLocaleString();
@@ -171,10 +172,8 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
   const isFailed = status === 'failed';
   const isInProgress = status === 'in_progress';
   const workItemFlow = usesWorkItemOperatorFlow(task);
-  const workItemPermalink =
-    task.workflow_id && task.work_item_id
-      ? `/work/workflows/${task.workflow_id}?work_item=${encodeURIComponent(task.work_item_id)}#work-item-${encodeURIComponent(task.work_item_id)}`
-      : null;
+  const workflowOperatorFlow = usesWorkflowOperatorFlow(task);
+  const workflowOperatorPermalink = buildWorkflowOperatorPermalink(task);
 
   const approveMutation = useMutation({
     mutationFn: () =>
@@ -215,16 +214,20 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
     retryMutation.isPending ||
     cancelMutation.isPending;
 
-  if (workItemFlow && workItemPermalink) {
+  if (workflowOperatorFlow && workflowOperatorPermalink) {
     return (
       <div className="space-y-2">
         <div className="flex gap-2">
           <Button size="sm" asChild>
-            <Link to={workItemPermalink}>Open Work Item Flow</Link>
+            <Link to={workflowOperatorPermalink}>
+              {workItemFlow ? 'Open Work Item Flow' : 'Open Board Stage Flow'}
+            </Link>
           </Button>
         </div>
         <p className="text-xs text-muted">
-          This step belongs to a workflow work item. Operator review, rework, and retry decisions should run through the work-item panel so gate state, linked steps, and board context stay aligned.
+          {workItemFlow
+            ? 'This step belongs to a workflow work item. Operator review, rework, and retry decisions should run through the work-item panel so gate state, linked steps, and board context stay aligned.'
+            : 'This step belongs to a workflow stage. Operator review, rework, and retry decisions should run through the board stage flow so stage-gate and board context stay aligned.'}
         </p>
       </div>
     );
@@ -452,6 +455,7 @@ function OperatorBriefingCard({ task, status }: { task: Task; status: string }):
   const reviewSignals = readReviewSignals(task as never);
   const reworkDetails = readReworkDetails(task as never);
   const workItemFlow = usesWorkItemOperatorFlow(task);
+  const workflowOperatorFlow = usesWorkflowOperatorFlow(task);
 
   return (
     <Card className="border-border/70 shadow-sm">
@@ -486,9 +490,11 @@ function OperatorBriefingCard({ task, status }: { task: Task; status: string }):
           </p>
           <h2 className="mt-2 text-lg font-semibold">{nextStep.title}</h2>
           <p className="mt-2 text-sm leading-6 text-muted">{nextStep.detail}</p>
-          {workItemFlow ? (
+          {workflowOperatorFlow ? (
             <p className="mt-3 text-sm text-muted">
-              This specialist step belongs to a workflow work item. Run approval, rework, and retry decisions from the work-item flow so stage state, linked steps, and board context stay aligned.
+              {workItemFlow
+                ? 'This specialist step belongs to a workflow work item. Run approval, rework, and retry decisions from the work-item flow so stage state, linked steps, and board context stay aligned.'
+                : 'This specialist step belongs to a workflow stage. Run approval, rework, and retry decisions from the board stage flow so stage-gate and board context stay aligned.'}
             </p>
           ) : null}
         </section>

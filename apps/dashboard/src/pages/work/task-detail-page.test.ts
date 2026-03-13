@@ -22,6 +22,9 @@ describe('task detail page source', () => {
     expect(source).toContain('escalated');
     expect(source).toContain('Open Escalation Context');
     expect(source).toContain('Open Work Item Flow');
+    expect(source).toContain('Open Board Stage Flow');
+    expect(source).toContain('buildWorkflowOperatorPermalink');
+    expect(source).toContain('usesWorkflowOperatorFlow');
     expect(source).toContain('Operator packet');
     expect(source).toContain('Operator Output Packet');
     expect(source).not.toContain("status === 'running' || status === 'claimed'");
@@ -37,6 +40,7 @@ describe('task detail page source', () => {
     expect(source).toContain('Escalation and execution');
     expect(source).toContain('StructuredRecordView');
     expect(source).toContain('This specialist step belongs to a workflow work item.');
+    expect(source).toContain('This step belongs to a workflow stage.');
     expect(source).toContain('Step kind');
   });
 });

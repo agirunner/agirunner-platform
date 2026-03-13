@@ -63,7 +63,7 @@ describe('approval queue page source', () => {
 
   it('renders task approval breadcrumbs with work-item, role, activation, and board-flow context', () => {
     const source = readSource();
-    expect(source).toContain('buildWorkflowDetailPermalink');
+    expect(source).toContain('buildWorkflowOperatorPermalink');
     expect(source).toContain('buildTaskApprovalBreadcrumbs');
     expect(source).toContain('readTaskOperatorFlowLabel');
     expect(source).toContain('OperatorBreadcrumbTrail');
@@ -73,8 +73,9 @@ describe('approval queue page source', () => {
     expect(source).toContain('Rework round');
     expect(source).toContain('Step approval');
     expect(source).toContain('Output gate');
-    expect(source).toContain('activationId: task.activation_id ?? null');
+    expect(source).toContain('usesWorkflowOperatorFlow');
     expect(source).toContain('Open Work Item Flow');
+    expect(source).toContain('Open Board Stage Flow');
     expect(source).toContain('Open Step Record');
     expect(source).toContain('usesWorkItemOperatorFlow');
   });
