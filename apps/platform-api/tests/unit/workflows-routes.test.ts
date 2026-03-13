@@ -317,4 +317,138 @@ describe('workflow routes', () => {
       }),
     );
   });
+
+  it('deduplicates explicit workflow chaining by request_id without duplicating parent linkage', async () => {
+    const playbookId = '00000000-0000-4000-8000-000000000002';
+    const createWorkflow = vi.fn().mockResolvedValue({
+      id: 'workflow-child-1',
+      playbook_id: playbookId,
+      name: 'Follow-up Flow',
+      metadata: {
+        parent_workflow_id: 'workflow-1',
+        chain_origin: 'explicit',
+        create_request_id: 'chain-1',
+      },
+    });
+    const getWorkflow = vi.fn(async (_tenantId: string, workflowId: string) => {
+      if (workflowId === 'workflow-child-1') {
+        return {
+          id: 'workflow-child-1',
+          playbook_id: playbookId,
+          name: 'Follow-up Flow',
+          metadata: {
+            parent_workflow_id: 'workflow-1',
+            chain_origin: 'explicit',
+            create_request_id: 'chain-1',
+          },
+        };
+      }
+      return {};
+    });
+    let sourceMetadata: Record<string, unknown> = {};
+    let existingReplayVisible = false;
+    const query = vi.fn(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('SELECT * FROM workflows WHERE tenant_id = $1 AND id = $2')) {
+        expect(params).toEqual(['tenant-1', 'workflow-1']);
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'workflow-1',
+            name: 'Source Flow',
+            project_id: 'project-1',
+            state: 'active',
+            metadata: sourceMetadata,
+          }],
+        };
+      }
+      if (sql.includes("metadata->>'parent_workflow_id' = $2") && sql.includes("metadata->>'create_request_id' = $3")) {
+        expect(params).toEqual(['tenant-1', 'workflow-1', 'chain-1']);
+        return existingReplayVisible
+          ? { rowCount: 1, rows: [{ id: 'workflow-child-1' }] }
+          : { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('UPDATE workflows') && sql.includes('metadata = metadata || $3::jsonb')) {
+        sourceMetadata = params?.[2] as Record<string, unknown>;
+        existingReplayVisible = true;
+        return { rowCount: 1, rows: [] };
+      }
+      throw new Error(`unexpected query: ${sql}`);
+    });
+
+    app = fastify();
+    app.decorate('workflowService', {
+      createWorkflow,
+      listWorkflows: async () => ({ data: [], meta: {} }),
+      getWorkflow,
+      getWorkflowBudget: async () => ({}),
+      getWorkflowBoard: async () => ({}),
+      listWorkflowStages: async () => ([]),
+      listWorkflowWorkItems: async () => ([]),
+      createWorkflowWorkItem: async () => ({}),
+      getWorkflowWorkItem: async () => ({}),
+      listWorkflowWorkItemTasks: async () => ([]),
+      listWorkflowWorkItemEvents: async () => ([]),
+      getWorkflowWorkItemMemory: async () => ({ entries: [] }),
+      getWorkflowWorkItemMemoryHistory: async () => ({ history: [] }),
+      updateWorkflowWorkItem: async () => ({}),
+      actOnStageGate: async () => ({}),
+      getResolvedConfig: async () => ({}),
+      cancelWorkflow: async () => ({}),
+      pauseWorkflow: async () => ({}),
+      resumeWorkflow: async () => ({}),
+      deleteWorkflow: async () => ({}),
+    });
+    app.decorate('pgPool', { query });
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: async () => undefined });
+    app.decorate('projectService', { getProject: async () => ({ settings: {} }) });
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: async () => null,
+      listProviders: async () => [],
+      listModels: async () => [],
+      getProviderForOperations: async () => null,
+    });
+    await app.register(workflowRoutes);
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/chain',
+      payload: {
+        request_id: 'chain-1',
+        playbook_id: playbookId,
+        name: 'Follow-up Flow',
+      },
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/chain',
+      payload: {
+        request_id: 'chain-1',
+        playbook_id: playbookId,
+        name: 'Follow-up Flow',
+      },
+    });
+
+    expect(first.statusCode).toBe(201);
+    expect(second.statusCode).toBe(201);
+    expect(createWorkflow).toHaveBeenCalledTimes(1);
+    expect(createWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      expect.objectContaining({
+        playbook_id: playbookId,
+        project_id: 'project-1',
+        name: 'Follow-up Flow',
+        metadata: expect.objectContaining({
+          parent_workflow_id: 'workflow-1',
+          chain_origin: 'explicit',
+          create_request_id: 'chain-1',
+        }),
+      }),
+    );
+    expect(getWorkflow).toHaveBeenCalledWith('tenant-1', 'workflow-child-1');
+    expect(first.json().data).toEqual(expect.objectContaining({ id: 'workflow-child-1' }));
+    expect(second.json().data).toEqual(expect.objectContaining({ id: 'workflow-child-1' }));
+    expect(sourceMetadata.child_workflow_ids).toEqual(['workflow-child-1']);
+    expect(sourceMetadata.latest_child_workflow_id).toBe('workflow-child-1');
+  });
 });

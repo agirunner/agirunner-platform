@@ -56,6 +56,7 @@ const stageGateSchema = z.object({
 });
 
 const workflowChainSchema = z.object({
+  request_id: z.string().min(1).max(255).optional(),
   playbook_id: z.string().uuid(),
   name: z.string().min(1).max(255).optional(),
   parameters: z.record(z.unknown()).optional(),
