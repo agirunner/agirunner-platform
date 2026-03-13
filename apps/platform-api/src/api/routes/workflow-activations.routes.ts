@@ -4,8 +4,10 @@ import { z } from 'zod';
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
 
+const requestIdSchema = z.string().min(1).max(255);
+
 const enqueueSchema = z.object({
-  request_id: z.string().max(255).optional(),
+  request_id: requestIdSchema,
   reason: z.string().min(1).max(2000),
   event_type: z.string().min(1).max(120),
   payload: z.record(z.unknown()).optional(),

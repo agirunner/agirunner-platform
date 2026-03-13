@@ -49,25 +49,27 @@ const workflowCreateSchema = z.object({
   model_overrides: modelOverridesSchema.optional(),
 });
 
+const requestIdSchema = z.string().min(1).max(255);
+
 const stageGateSchema = z.object({
-  request_id: z.string().min(1).max(255).optional(),
+  request_id: requestIdSchema,
   action: z.enum(['approve', 'reject', 'request_changes']),
   feedback: z.string().min(1).max(4000).optional(),
 });
 
 const workflowChainSchema = z.object({
-  request_id: z.string().min(1).max(255).optional(),
+  request_id: requestIdSchema,
   playbook_id: z.string().uuid(),
   name: z.string().min(1).max(255).optional(),
   parameters: z.record(z.unknown()).optional(),
 });
 
 const workflowControlMutationSchema = z.object({
-  request_id: z.string().min(1).max(255).optional(),
+  request_id: requestIdSchema,
 });
 
 const workItemCreateSchema = z.object({
-  request_id: z.string().min(1).max(255).optional(),
+  request_id: requestIdSchema,
   parent_work_item_id: z.string().uuid().optional(),
   stage_name: z.string().min(1).max(120).optional(),
   title: z.string().min(1).max(500),
@@ -81,7 +83,7 @@ const workItemCreateSchema = z.object({
 });
 
 const workItemUpdateSchema = z.object({
-  request_id: z.string().min(1).max(255).optional(),
+  request_id: requestIdSchema,
   parent_work_item_id: z.string().uuid().nullable().optional(),
   title: z.string().min(1).max(500).optional(),
   goal: z.string().max(4000).optional(),
@@ -95,7 +97,7 @@ const workItemUpdateSchema = z.object({
 });
 
 const workflowDocumentCreateSchema = z.object({
-  request_id: z.string().min(1).max(255).optional(),
+  request_id: requestIdSchema,
   logical_name: z.string().min(1).max(255),
   source: z.enum(['repository', 'artifact', 'external']),
   title: z.string().max(4000).optional(),
@@ -111,7 +113,7 @@ const workflowDocumentCreateSchema = z.object({
 
 const workflowDocumentUpdateSchema = z
   .object({
-    request_id: z.string().min(1).max(255).optional(),
+    request_id: requestIdSchema,
     source: z.enum(['repository', 'artifact', 'external']).optional(),
     title: z.string().max(4000).nullable().optional(),
     description: z.string().max(8000).nullable().optional(),
@@ -128,7 +130,7 @@ const workflowDocumentUpdateSchema = z
   });
 
 const workflowDocumentDeleteQuerySchema = z.object({
-  request_id: z.string().min(1).max(255).optional(),
+  request_id: requestIdSchema,
 });
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {

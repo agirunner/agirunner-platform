@@ -9,8 +9,10 @@ import { WorkflowActivationService } from '../../services/workflow-activation-se
 import { WorkflowStateService } from '../../services/workflow-state-service.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
 
+const requestIdSchema = z.string().min(1).max(255);
+
 const gateDecisionSchema = z.object({
-  request_id: z.string().min(1).max(255).optional(),
+  request_id: requestIdSchema,
   action: z.enum(['approve', 'reject', 'request_changes']),
   feedback: z.string().min(1).max(4000).optional(),
 });
