@@ -4,19 +4,21 @@ import type { LogEntry } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
 import { LogEntryRow, LogTableHeader } from './log-entry-row.js';
 import { LogEntryDetail } from './log-entry-detail.js';
+import { Button } from '../ui/button.js';
 import { Skeleton } from '../ui/skeleton.js';
 
 const SKELETON_COUNT = 6;
 const COL_COUNT = 11;
+export const MAX_VISIBLE_ENTRIES_PER_TASK_GROUP = 20;
 
-interface TaskBucket {
+export interface TaskBucket {
   taskId: string;
   taskTitle: string;
   role: string | null;
   entries: LogEntry[];
 }
 
-function groupByTask(entries: LogEntry[]): {
+export function groupByTask(entries: LogEntry[]): {
   buckets: TaskBucket[];
   ungroupedCount: number;
 } {
@@ -56,24 +58,38 @@ function TaskGroupHeader({
   onToggle: () => void;
 }): JSX.Element {
   const Chevron = isExpanded ? ChevronDown : ChevronRight;
+  const entryCount = bucket.entries.length;
+  const entryLabel = entryCount === 1 ? 'entry' : 'entries';
 
   return (
     <tr
       className="border-b border-border bg-muted/40 cursor-pointer hover:bg-muted/60 transition-colors"
       onClick={onToggle}
+      tabIndex={0}
+      role="button"
+      aria-expanded={isExpanded}
+      aria-label={`Task ${bucket.taskTitle}, ${entryCount} ${entryLabel}${isExpanded ? ', collapse' : ', expand'}`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onToggle();
+        }
+      }}
     >
       <td colSpan={COL_COUNT} className="px-3 py-2">
         <div className="flex items-center gap-2">
-          <Chevron className="h-4 w-4 text-muted-foreground" />
+          <Chevron className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <span className="text-sm font-semibold">{bucket.taskTitle}</span>
           {bucket.role && (
-            <span className="rounded bg-rose-50 px-1.5 py-px text-[10px] font-medium text-rose-600">
+            <span
+              className="rounded bg-rose-50 px-1.5 py-px text-[10px] font-medium text-rose-600"
+              aria-label={`Role: ${bucket.role}`}
+            >
               {bucket.role}
             </span>
           )}
           <span className="text-xs text-muted-foreground">
-            {bucket.entries.length}{' '}
-            {bucket.entries.length === 1 ? 'entry' : 'entries'}
+            {entryCount} {entryLabel}
           </span>
         </div>
       </td>
@@ -94,6 +110,7 @@ export function LogTaskGroupedTable({
 }: LogTaskGroupedTableProps): JSX.Element {
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [expandedEntryId, setExpandedEntryId] = useState<number | null>(null);
+  const [visibleCounts, setVisibleCounts] = useState<Map<string, number>>(new Map());
 
   const { buckets, ungroupedCount } = useMemo(() => groupByTask(entries), [entries]);
 
@@ -105,6 +122,15 @@ export function LogTaskGroupedTable({
       } else {
         next.add(taskId);
       }
+      return next;
+    });
+  }
+
+  function showMoreEntries(taskId: string): void {
+    setVisibleCounts((prev) => {
+      const next = new Map(prev);
+      const current = next.get(taskId) ?? MAX_VISIBLE_ENTRIES_PER_TASK_GROUP;
+      next.set(taskId, current + MAX_VISIBLE_ENTRIES_PER_TASK_GROUP);
       return next;
     });
   }
@@ -142,6 +168,10 @@ export function LogTaskGroupedTable({
           {!isLoading &&
             buckets.map((bucket) => {
               const isTaskExpanded = expandedTasks.has(bucket.taskId);
+              const visibleLimit = visibleCounts.get(bucket.taskId) ?? MAX_VISIBLE_ENTRIES_PER_TASK_GROUP;
+              const visibleEntries = isTaskExpanded ? bucket.entries.slice(0, visibleLimit) : [];
+              const hiddenCount = isTaskExpanded ? bucket.entries.length - visibleEntries.length : 0;
+
               return (
                 <Fragment key={bucket.taskId}>
                   <TaskGroupHeader
@@ -150,7 +180,7 @@ export function LogTaskGroupedTable({
                     onToggle={() => toggleTask(bucket.taskId)}
                   />
                   {isTaskExpanded &&
-                    bucket.entries.map((entry) => {
+                    visibleEntries.map((entry) => {
                       const isEntryExpanded = expandedEntryId === entry.id;
                       return (
                         <Fragment key={entry.id}>
@@ -176,6 +206,23 @@ export function LogTaskGroupedTable({
                         </Fragment>
                       );
                     })}
+                  {isTaskExpanded && hiddenCount > 0 && (
+                    <tr className="border-b border-border/40">
+                      <td colSpan={COL_COUNT} className="px-3 py-2 text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => showMoreEntries(bucket.taskId)}
+                          aria-label={`Show ${Math.min(hiddenCount, MAX_VISIBLE_ENTRIES_PER_TASK_GROUP)} more entries for task ${bucket.taskTitle}`}
+                        >
+                          Show {Math.min(hiddenCount, MAX_VISIBLE_ENTRIES_PER_TASK_GROUP)} more
+                          {hiddenCount > MAX_VISIBLE_ENTRIES_PER_TASK_GROUP
+                            ? ` of ${hiddenCount} remaining`
+                            : ''}
+                        </Button>
+                      </td>
+                    </tr>
+                  )}
                 </Fragment>
               );
             })}

@@ -8,12 +8,12 @@ import { Skeleton } from '../ui/skeleton.js';
 const SKELETON_COUNT = 6;
 const COL_COUNT = 11;
 
-interface IterationBucket {
+export interface IterationBucket {
   iteration: number;
   entries: LogEntry[];
 }
 
-function groupByIteration(entries: LogEntry[]): {
+export function groupByIteration(entries: LogEntry[]): {
   buckets: IterationBucket[];
   ungroupedCount: number;
 } {

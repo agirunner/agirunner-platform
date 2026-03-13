@@ -4,9 +4,11 @@ import type { LogEntry } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
 import { LogEntryRow } from './log-entry-row.js';
 import { LogEntryDetail } from './log-entry-detail.js';
+import { Button } from '../ui/button.js';
 import { getCanonicalStageNames } from './log-entry-context.js';
 
 const COL_COUNT = 11;
+export const MAX_VISIBLE_ENTRIES_PER_ITERATION = 20;
 
 export interface LogIterationGroupProps {
   iteration: number;
@@ -54,18 +56,30 @@ function IterationHeader({
   const Chevron = isExpanded ? ChevronDown : ChevronRight;
   const stages = getCanonicalStageNames(entries);
   const totalDuration = computeTotalDuration(entries);
+  const entryCount = entries.length;
+  const entryLabel = entryCount === 1 ? 'entry' : 'entries';
 
   return (
     <tr
       className="border-b border-border bg-muted/40 cursor-pointer hover:bg-muted/60 transition-colors"
       onClick={onToggle}
+      tabIndex={0}
+      role="button"
+      aria-expanded={isExpanded}
+      aria-label={`Iteration ${iteration}, ${entryCount} ${entryLabel}${isExpanded ? ', collapse' : ', expand'}`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onToggle();
+        }
+      }}
     >
       <td colSpan={COL_COUNT} className="px-3 py-2">
         <div className="flex items-center gap-2">
-          <Chevron className="h-4 w-4 text-muted-foreground" />
+          <Chevron className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <span className="text-sm font-semibold">Iteration {iteration}</span>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1" aria-label={`Stages: ${stages.join(', ')}`}>
             {stages.map((stage) => (
               <span
                 key={stage}
@@ -86,7 +100,7 @@ function IterationHeader({
           )}
 
           <span className="text-xs text-muted-foreground">
-            {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
+            {entryCount} {entryLabel}
           </span>
         </div>
       </td>
@@ -102,7 +116,11 @@ export function LogIterationGroup({
   onFilterTrace,
 }: LogIterationGroupProps): JSX.Element {
   const [expandedEntryId, setExpandedEntryId] = useState<number | null>(null);
+  const [visibleCount, setVisibleCount] = useState(MAX_VISIBLE_ENTRIES_PER_ITERATION);
   const bgTint = iteration % 2 === 0 ? 'bg-muted/20' : 'bg-muted/10';
+
+  const visibleEntries = isExpanded ? entries.slice(0, visibleCount) : [];
+  const hiddenCount = isExpanded ? entries.length - visibleEntries.length : 0;
 
   return (
     <>
@@ -113,7 +131,7 @@ export function LogIterationGroup({
         onToggle={onToggle}
       />
       {isExpanded &&
-        entries.map((entry) => {
+        visibleEntries.map((entry) => {
           const isEntryExpanded = expandedEntryId === entry.id;
           return (
             <Fragment key={entry.id}>
@@ -132,6 +150,23 @@ export function LogIterationGroup({
             </Fragment>
           );
         })}
+      {isExpanded && hiddenCount > 0 && (
+        <tr className="border-b border-border/40">
+          <td colSpan={COL_COUNT} className="px-3 py-2 text-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setVisibleCount((prev) => prev + MAX_VISIBLE_ENTRIES_PER_ITERATION)}
+              aria-label={`Show ${Math.min(hiddenCount, MAX_VISIBLE_ENTRIES_PER_ITERATION)} more entries for iteration ${iteration}`}
+            >
+              Show {Math.min(hiddenCount, MAX_VISIBLE_ENTRIES_PER_ITERATION)} more
+              {hiddenCount > MAX_VISIBLE_ENTRIES_PER_ITERATION
+                ? ` of ${hiddenCount} remaining`
+                : ''}
+            </Button>
+          </td>
+        </tr>
+      )}
     </>
   );
 }
