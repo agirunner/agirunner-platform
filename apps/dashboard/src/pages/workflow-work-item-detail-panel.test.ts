@@ -15,7 +15,7 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('data-testid="work-item-detail-shell"');
     expect(source).toContain('data-testid="work-item-operator-controls"');
     expect(source).toContain('data-testid="milestone-operator-summary"');
-    expect(source).toContain('data-testid="work-item-history-list"');
+    expect(source).toContain('<WorkItemEventHistorySection');
     expect(source).toContain('CardHeader');
     expect(source).toContain('CardContent');
     expect(source).toContain('TableHeader');
@@ -54,7 +54,7 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('formatMemoryHistoryEventType');
     expect(source).toContain('Deleted value');
     expect(source).toContain('Created {formatRelativeTimestamp(artifact.created_at)}');
-    expect(source).toContain('step {descriptor.taskId.slice(0, 8)}');
+    expect(source).toContain('step {entry.task_id}');
   });
 
   it('surfaces milestone operator context with parent-child navigation and grouped task messaging', () => {
@@ -125,10 +125,9 @@ describe('workflow work item detail panel source', () => {
 
   it('uses human-readable descriptors for work-item event history instead of raw event codes', () => {
     const source = readSource();
-    expect(source).toContain('describeTimelineEvent');
-    expect(source).toContain('formatTimelineEventType');
-    expect(source).toContain('Operator review packet');
-    expect(source).toContain('Open full event payload');
+    expect(source).toContain("import { WorkItemEventHistorySection } from './workflow-work-item-history-section.js';");
+    expect(source).toContain('<WorkItemEventHistorySection');
+    expect(source).not.toContain('formatTimelineEventType');
     expect(source).not.toContain('<strong>{event.type}</strong>');
   });
 });
