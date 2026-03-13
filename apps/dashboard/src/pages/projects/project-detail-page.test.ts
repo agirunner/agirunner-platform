@@ -72,6 +72,8 @@ describe('project detail automation tab source', () => {
     expect(source).toContain('Edit project configuration as structured key/value entries');
     expect(source).toContain('Edit structured project instructions and document references');
     expect(source).toContain('dashboardApi.updateProjectSpec(projectId, nextSpec)');
+    expect(source).toContain('SelectTrigger className="w-full"');
+    expect(source).toContain('Remove entry');
     expect(source).not.toContain('Save (read-only)');
   });
 
@@ -88,10 +90,12 @@ describe('project detail automation tab source', () => {
 
   it('uses typed memory entry controls instead of heuristic string-or-json parsing', () => {
     const source = readSource('./project-detail-page.tsx');
-    expect(source).toContain("const [newValueType, setNewValueType] = useState<StructuredValueType>('string')");
-    expect(source).toContain("buildStructuredObject(");
-    expect(source).toContain('<label className="text-xs font-medium">Value Type</label>');
-    expect(source).not.toContain('Value (string or JSON)');
+    const memorySource = readSource('./project-detail-memory-tab.tsx');
+    expect(source).toContain('<ProjectDetailMemoryTab projectId={project.id} />');
+    expect(memorySource).toContain('ProjectMemoryTable');
+    expect(memorySource).toContain('MemoryEditor');
+    expect(memorySource).toContain('Choose a different key.');
+    expect(memorySource).not.toContain('<select');
   });
 
   it('adds a first-class artifacts tab for inline project-scoped inspection', () => {

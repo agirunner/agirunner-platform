@@ -29,6 +29,13 @@ import { Input } from '../../components/ui/input.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import { Switch } from '../../components/ui/switch.js';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select.js';
+import {
   Table,
   TableHeader,
   TableBody,
@@ -54,6 +61,7 @@ import {
   type StructuredValueType,
 } from './project-detail-support.js';
 import { ProjectArtifactExplorerPanel } from './project-artifact-explorer-panel.js';
+import { ProjectDetailMemoryTab } from './project-detail-memory-tab.js';
 import { ScheduledTriggersCard } from './project-scheduled-triggers-card.js';
 
 /* ------------------------------------------------------------------ */
@@ -451,159 +459,6 @@ function TimelineTab({ projectId }: { projectId: string }): JSX.Element {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Memory Tab                                                         */
-/* ------------------------------------------------------------------ */
-
-function MemoryTab({ projectId }: { projectId: string }): JSX.Element {
-  const queryClient = useQueryClient();
-  const [newKey, setNewKey] = useState('');
-  const [newValueType, setNewValueType] = useState<StructuredValueType>('string');
-  const [newValue, setNewValue] = useState('');
-  const [formError, setFormError] = useState<string | null>(null);
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['project', projectId],
-    queryFn: () => dashboardApi.getProject(projectId),
-  });
-
-  const patchMutation = useMutation({
-    mutationFn: (payload: { key: string; value: unknown }) =>
-      dashboardApi.patchProjectMemory(projectId, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
-    },
-  });
-
-  if (isLoading) return <LoadingCard />;
-
-  const memory = (data?.memory ?? {}) as Record<string, unknown>;
-
-  function handleAdd() {
-    if (!newKey.trim()) return;
-    let parsedValue: unknown = '';
-    try {
-      parsedValue =
-        buildStructuredObject(
-          [
-            {
-              id: 'new-memory-entry',
-              key: newKey.trim(),
-              valueType: newValueType,
-              value: newValue,
-            },
-          ],
-          'Project memory',
-        )?.[newKey.trim()] ?? '';
-      setFormError(null);
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Invalid memory value.');
-      return;
-    }
-    patchMutation.mutate({ key: newKey.trim(), value: parsedValue });
-    setNewKey('');
-    setNewValueType('string');
-    setNewValue('');
-  }
-
-  function handleDelete(key: string) {
-    patchMutation.mutate({ key, value: null });
-  }
-
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Memory Entries</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {Object.keys(memory).length === 0 ? (
-            <p className="text-sm text-muted">No memory entries.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Key</TableHead>
-                  <TableHead>Value</TableHead>
-                  <TableHead className="w-16" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {Object.entries(memory).map(([key, value]) => (
-                  <TableRow key={key}>
-                    <TableCell className="font-mono text-sm">{key}</TableCell>
-                    <TableCell>
-                      <pre className="max-w-md truncate text-xs">
-                        {typeof value === 'string' ? value : JSON.stringify(value)}
-                      </pre>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(key)}
-                        disabled={patchMutation.isPending}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Add Entry</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 md:grid-cols-[1fr,180px,1.2fr,auto]">
-            <div className="flex-1 space-y-1">
-              <label className="text-xs font-medium">Key</label>
-              <Input
-                placeholder="my_key"
-                value={newKey}
-                onChange={(e) => setNewKey(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium">Value Type</label>
-              <select
-                className="w-full rounded-md border bg-surface px-3 py-2 text-sm"
-                value={newValueType}
-                onChange={(event) => setNewValueType(event.target.value as StructuredValueType)}
-              >
-                <option value="string">String</option>
-                <option value="number">Number</option>
-                <option value="boolean">Boolean</option>
-                <option value="json">JSON</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium">Value</label>
-              <ValueInput valueType={newValueType} value={newValue} onChange={setNewValue} />
-            </div>
-            <div className="flex items-end">
-              <Button
-                size="sm"
-                onClick={handleAdd}
-                disabled={patchMutation.isPending || !newKey.trim()}
-              >
-                <Plus className="h-4 w-4" />
-                Add
-              </Button>
-            </div>
-          </div>
-          {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 function ArtifactsTab({ projectId }: { projectId: string }): JSX.Element {
   return <ProjectArtifactExplorerPanel projectId={projectId} />;
 }
@@ -928,18 +783,22 @@ function StructuredEntryEditor(props: {
               </label>
               <label className="grid gap-1 text-xs">
                 <span className="font-medium">Type</span>
-                <select
-                  className="w-full rounded-md border bg-surface px-3 py-2 text-sm"
+                <Select
                   value={draft.valueType}
-                  onChange={(event) =>
-                    props.onChange(updateStructuredDraft(props.drafts, draft.id, { valueType: event.target.value as StructuredValueType }))
+                  onValueChange={(value) =>
+                    props.onChange(updateStructuredDraft(props.drafts, draft.id, { valueType: value as StructuredValueType }))
                   }
                 >
-                  <option value="string">String</option>
-                  <option value="number">Number</option>
-                  <option value="boolean">Boolean</option>
-                  <option value="json">JSON</option>
-                </select>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="string">String</SelectItem>
+                    <SelectItem value="number">Number</SelectItem>
+                    <SelectItem value="boolean">Boolean</SelectItem>
+                    <SelectItem value="json">JSON</SelectItem>
+                  </SelectContent>
+                </Select>
               </label>
               <div className="grid gap-1 text-xs">
                 <span className="font-medium">Value</span>
@@ -953,10 +812,11 @@ function StructuredEntryEditor(props: {
                 <Button
                   type="button"
                   variant="outline"
-                  size="icon"
+                  size="sm"
                   onClick={() => props.onChange(props.drafts.filter((entry) => entry.id !== draft.id))}
                 >
                   <Trash2 className="h-4 w-4" />
+                  Remove entry
                 </Button>
               </div>
             </div>
@@ -968,6 +828,43 @@ function StructuredEntryEditor(props: {
         {props.addLabel}
       </Button>
     </div>
+  );
+}
+
+function ValueInput(props: {
+  valueType: StructuredValueType;
+  value: string;
+  onChange(value: string): void;
+}): JSX.Element {
+  if (props.valueType === 'boolean') {
+    return (
+      <Select value={props.value} onValueChange={props.onChange}>
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="Select boolean value" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="">Unset</SelectItem>
+          <SelectItem value="true">True</SelectItem>
+          <SelectItem value="false">False</SelectItem>
+        </SelectContent>
+      </Select>
+    );
+  }
+  if (props.valueType === 'json') {
+    return (
+      <Textarea
+        value={props.value}
+        className="min-h-[100px] font-mono text-xs"
+        onChange={(event) => props.onChange(event.target.value)}
+      />
+    );
+  }
+  return (
+    <Input
+      type={props.valueType === 'number' ? 'number' : 'text'}
+      value={props.value}
+      onChange={(event) => props.onChange(event.target.value)}
+    />
   );
 }
 
@@ -1083,42 +980,6 @@ function RoleOverrideEditor(props: {
         Add role override
       </Button>
     </div>
-  );
-}
-
-function ValueInput(props: {
-  valueType: StructuredValueType;
-  value: string;
-  onChange(value: string): void;
-}): JSX.Element {
-  if (props.valueType === 'boolean') {
-    return (
-      <select
-        className="w-full rounded-md border bg-surface px-3 py-2 text-sm"
-        value={props.value}
-        onChange={(event) => props.onChange(event.target.value)}
-      >
-        <option value="">Unset</option>
-        <option value="true">True</option>
-        <option value="false">False</option>
-      </select>
-    );
-  }
-  if (props.valueType === 'json') {
-    return (
-      <Textarea
-        value={props.value}
-        className="min-h-[100px] font-mono text-xs"
-        onChange={(event) => props.onChange(event.target.value)}
-      />
-    );
-  }
-  return (
-    <Input
-      type={props.valueType === 'number' ? 'number' : 'text'}
-      value={props.value}
-      onChange={(event) => props.onChange(event.target.value)}
-    />
   );
 }
 
@@ -1404,7 +1265,7 @@ export function ProjectDetailPage(): JSX.Element {
         </TabsContent>
 
         <TabsContent value="memory">
-          <MemoryTab projectId={project.id} />
+          <ProjectDetailMemoryTab projectId={project.id} />
         </TabsContent>
 
         <TabsContent value="artifacts">
