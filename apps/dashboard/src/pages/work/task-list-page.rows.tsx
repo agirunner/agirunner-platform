@@ -11,7 +11,6 @@ import {
   TableRow,
 } from '../../components/ui/table.js';
 import {
-  buildTaskPrimaryOperatorAction,
   describeTaskKind,
   describeTaskNextAction,
   describeTaskScope,
@@ -21,10 +20,15 @@ import {
   statusBadgeVariant,
   type TaskListRecord,
 } from './task-list-page.support.js';
+import {
+  buildTaskDiagnosticAction,
+  buildTaskPrimaryOperatorAction,
+} from './task-list-page.actions.js';
 
 export function TaskMobileCard(props: { task: TaskListRecord }): JSX.Element {
   const status = resolveTaskStatus(props.task);
   const primaryAction = buildTaskPrimaryOperatorAction(props.task);
+  const diagnosticAction = buildTaskDiagnosticAction(props.task);
   return (
     <div className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -64,9 +68,9 @@ export function TaskMobileCard(props: { task: TaskListRecord }): JSX.Element {
         <Button size="sm" asChild>
           <Link to={primaryAction.href}>{primaryAction.label}</Link>
         </Button>
-        {primaryAction.showsSeparateStepRecord ? (
+        {diagnosticAction ? (
           <Button size="sm" variant="outline" asChild>
-            <Link to={`/work/tasks/${props.task.id}`}>Open step record</Link>
+            <Link to={diagnosticAction.href}>{diagnosticAction.label}</Link>
           </Button>
         ) : null}
         {props.task.workflow_id ? (
@@ -105,6 +109,7 @@ export function TaskTableRows(props: { tasks: TaskListRecord[] }): JSX.Element {
 function TaskTableRow(props: { task: TaskListRecord }): JSX.Element {
   const status = resolveTaskStatus(props.task);
   const primaryAction = buildTaskPrimaryOperatorAction(props.task);
+  const diagnosticAction = buildTaskDiagnosticAction(props.task);
   return (
     <TableRow>
       <TableCell className="align-top">
@@ -146,9 +151,9 @@ function TaskTableRow(props: { task: TaskListRecord }): JSX.Element {
             {formatRelativeTime(props.task.created_at)}
           </p>
           <p className="text-muted">{formatTaskDuration(props.task)}</p>
-          {primaryAction.showsSeparateStepRecord ? (
-            <Link to={`/work/tasks/${props.task.id}`} className="text-xs font-medium text-accent hover:underline">
-              Open step record
+          {diagnosticAction ? (
+            <Link to={diagnosticAction.href} className="text-xs font-medium text-accent hover:underline">
+              {diagnosticAction.label}
             </Link>
           ) : null}
         </div>

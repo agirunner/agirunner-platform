@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 function readSource() {
   return [
     './task-list-page.tsx',
+    './task-list-page.actions.ts',
     './task-list-page.sections.tsx',
     './task-list-page.rows.tsx',
     './task-list-page.support.ts',
@@ -47,7 +48,8 @@ describe('task list page source', () => {
     expect(source).toContain('Open board');
     expect(source).toContain('Open work-item flow');
     expect(source).toContain('Open board stage flow');
-    expect(source).toContain('Open step record');
+    expect(source).toContain('Open step diagnostics');
+    expect(source).toContain('Open failed step diagnostics');
     expect(source).toContain('Every row or card leads with current posture, board context, and the correct operator');
   });
 });

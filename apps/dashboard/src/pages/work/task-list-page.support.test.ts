@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   STATUS_FILTERS,
   TASK_LIST_PAGE_SIZE,
-  buildTaskPrimaryOperatorAction,
   buildTaskSearchText,
   describeTaskKind,
   describeTaskNextAction,
@@ -16,6 +15,10 @@ import {
   statusBadgeVariant,
   summarizeTaskPosture,
 } from './task-list-page.support.js';
+import {
+  buildTaskDiagnosticAction,
+  buildTaskPrimaryOperatorAction,
+} from './task-list-page.actions.js';
 
 describe('task list page support', () => {
   it('describes v2 step kind, scope, and next action', () => {
@@ -41,7 +44,11 @@ describe('task list page support', () => {
       href: '/work/workflows/workflow-1?work_item=work-item-12345678&activation=activation-12345678#work-item-work-item-12345678',
       label: 'Open work-item flow',
       helper: 'Review this step from the grouped work-item flow so board context stays aligned.',
-      showsSeparateStepRecord: true,
+      showsDiagnosticLink: true,
+    });
+    expect(buildTaskDiagnosticAction(approvalTask)).toEqual({
+      href: '/work/tasks/task-1',
+      label: 'Open step diagnostics',
     });
   });
 
@@ -58,7 +65,19 @@ describe('task list page support', () => {
       href: '/work/workflows/workflow-1?gate=review#gate-review',
       label: 'Open board stage flow',
       helper: 'Review this step from the board stage flow so the stage gate stays aligned.',
-      showsSeparateStepRecord: true,
+      showsDiagnosticLink: true,
+    });
+    expect(
+      buildTaskDiagnosticAction({
+        id: 'task-stage',
+        status: 'failed',
+        workflow_id: 'workflow-1',
+        stage_name: 'review',
+        created_at: '2026-03-12T12:00:00.000Z',
+      }),
+    ).toEqual({
+      href: '/work/tasks/task-stage',
+      label: 'Open failed step diagnostics',
     });
     expect(
       buildTaskPrimaryOperatorAction({
@@ -70,8 +89,15 @@ describe('task list page support', () => {
       href: '/work/tasks/task-direct',
       label: 'Open step record',
       helper: 'Open the step record for full context and recent activity.',
-      showsSeparateStepRecord: false,
+      showsDiagnosticLink: false,
     });
+    expect(
+      buildTaskDiagnosticAction({
+        id: 'task-direct',
+        status: 'failed',
+        created_at: '2026-03-12T12:00:00.000Z',
+      }),
+    ).toBeNull();
   });
 
   it('formats timing and status labels for operator scanning', () => {

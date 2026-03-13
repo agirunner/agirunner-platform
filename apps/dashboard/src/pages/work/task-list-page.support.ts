@@ -1,8 +1,6 @@
 import {
-  buildWorkflowOperatorPermalink,
-  usesWorkItemOperatorFlow,
-  usesWorkflowOperatorFlow,
-} from './task-operator-flow.js';
+  readTaskOperatorFlowDescription,
+} from './task-list-page.actions.js';
 
 export interface TaskListRecord {
   id: string;
@@ -122,7 +120,7 @@ export function describeTaskScope(task: TaskListRecord): string {
 
 export function describeTaskNextAction(task: TaskListRecord): string {
   const status = resolveTaskStatus(task);
-  const operatorFlow = readTaskOperatorFlow(task);
+  const operatorFlow = readTaskOperatorFlowDescription(task);
   if (status === 'awaiting_approval') {
     return operatorFlow
       ? `Review and approve this step from the ${operatorFlow}.`
@@ -244,51 +242,6 @@ export function buildTaskSearchText(task: TaskListRecord): string {
   ]
     .join(' ')
     .toLowerCase();
-}
-
-export interface TaskPrimaryOperatorAction {
-  href: string;
-  label: string;
-  helper: string;
-  showsSeparateStepRecord: boolean;
-}
-
-export function buildTaskPrimaryOperatorAction(
-  task: TaskListRecord,
-): TaskPrimaryOperatorAction {
-  const workflowPermalink = buildWorkflowOperatorPermalink(task);
-  if (workflowPermalink && usesWorkItemOperatorFlow(task)) {
-    return {
-      href: workflowPermalink,
-      label: 'Open work-item flow',
-      helper: 'Review this step from the grouped work-item flow so board context stays aligned.',
-      showsSeparateStepRecord: true,
-    };
-  }
-  if (workflowPermalink && usesWorkflowOperatorFlow(task)) {
-    return {
-      href: workflowPermalink,
-      label: 'Open board stage flow',
-      helper: 'Review this step from the board stage flow so the stage gate stays aligned.',
-      showsSeparateStepRecord: true,
-    };
-  }
-  return {
-    href: `/work/tasks/${task.id}`,
-    label: 'Open step record',
-    helper: 'Open the step record for full context and recent activity.',
-    showsSeparateStepRecord: false,
-  };
-}
-
-function readTaskOperatorFlow(task: TaskListRecord): string | null {
-  if (usesWorkItemOperatorFlow(task)) {
-    return 'grouped work-item flow';
-  }
-  if (usesWorkflowOperatorFlow(task)) {
-    return 'board stage flow';
-  }
-  return null;
 }
 
 function compactIdentifier(value: string): string {
