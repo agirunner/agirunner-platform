@@ -81,6 +81,39 @@ describe('WorkflowActivationDispatchService', () => {
     expect(dispatched).toBe(1);
   });
 
+  it('continues dispatching later workflows when one activation fails with a generic dispatch error', async () => {
+    const pool = {
+      query: vi.fn(async () => ({
+        rowCount: 3,
+        rows: [
+          { id: 'activation-1', tenant_id: 'tenant-1', workflow_id: 'workflow-1' },
+          { id: 'activation-2', tenant_id: 'tenant-1', workflow_id: 'workflow-2' },
+          { id: 'activation-3', tenant_id: 'tenant-1', workflow_id: 'workflow-3' },
+        ],
+      })),
+      connect: vi.fn(),
+    };
+    const service = new WorkflowActivationDispatchService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+    const dispatchSpy = vi
+      .spyOn(service, 'dispatchActivation')
+      .mockRejectedValueOnce(new Error('transient dispatch failure'))
+      .mockResolvedValueOnce('task-2')
+      .mockResolvedValueOnce(null);
+
+    const dispatched = await service.dispatchQueuedActivations(3);
+
+    expect(dispatchSpy).toHaveBeenCalledTimes(3);
+    expect(dispatched).toBe(1);
+  });
+
   it('dispatches an idle work item activation immediately into a batched orchestrator task', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
@@ -1613,6 +1646,91 @@ describe('WorkflowActivationDispatchService', () => {
     });
     expect(eventService.emit).not.toHaveBeenCalled();
     expect(client.query).not.toHaveBeenCalled();
+  });
+
+  it('continues stale recovery when one activation candidate throws a generic recovery error', async () => {
+    const pool = {
+      query: vi.fn(async () => ({
+        rowCount: 3,
+        rows: [
+          { id: 'activation-1', tenant_id: 'tenant-1' },
+          { id: 'activation-2', tenant_id: 'tenant-1' },
+          { id: 'activation-3', tenant_id: 'tenant-1' },
+        ],
+      })),
+      connect: vi.fn(),
+    };
+    const service = new WorkflowActivationDispatchService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 10_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+    const recoverSpy = vi
+      .spyOn(service as never, 'recoverStaleActivation' as never)
+      .mockRejectedValueOnce(new Error('stale recovery failed'))
+      .mockResolvedValueOnce({
+        requeued: 1,
+        redispatched: 0,
+        reported: 1,
+        details: [
+          {
+            activation_id: 'activation-2',
+            workflow_id: 'workflow-2',
+            status: 'requeued',
+            reason: 'missing_orchestrator_task',
+            stale_started_at: '2026-03-11T00:00:00.000Z',
+            detected_at: '2026-03-11T00:05:00.000Z',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        requeued: 0,
+        redispatched: 1,
+        reported: 1,
+        details: [
+          {
+            activation_id: 'activation-3',
+            workflow_id: 'workflow-3',
+            status: 'redispatched',
+            reason: 'missing_orchestrator_task',
+            stale_started_at: '2026-03-11T00:01:00.000Z',
+            detected_at: '2026-03-11T00:06:00.000Z',
+            redispatched_task_id: 'task-3',
+          },
+        ],
+      });
+
+    const recovery = await service.recoverStaleActivations(3);
+
+    expect(recoverSpy).toHaveBeenCalledTimes(3);
+    expect(recovery).toEqual({
+      requeued: 1,
+      redispatched: 1,
+      reported: 2,
+      details: [
+        {
+          activation_id: 'activation-2',
+          workflow_id: 'workflow-2',
+          status: 'requeued',
+          reason: 'missing_orchestrator_task',
+          stale_started_at: '2026-03-11T00:00:00.000Z',
+          detected_at: '2026-03-11T00:05:00.000Z',
+        },
+        {
+          activation_id: 'activation-3',
+          workflow_id: 'workflow-3',
+          status: 'redispatched',
+          reason: 'missing_orchestrator_task',
+          stale_started_at: '2026-03-11T00:01:00.000Z',
+          detected_at: '2026-03-11T00:06:00.000Z',
+          redispatched_task_id: 'task-3',
+        },
+      ],
+    });
   });
 
   it('ignores completion from a stale orchestrator dispatch attempt', async () => {

@@ -175,7 +175,7 @@ export class WorkflowActivationDispatchService {
         taskId = await this.dispatchActivation(row.tenant_id, row.id);
       } catch (error) {
         if (!isActiveActivationConstraintError(error)) {
-          throw error;
+          continue;
         }
       }
       if (taskId) {
@@ -227,7 +227,12 @@ export class WorkflowActivationDispatchService {
       details: [],
     };
     for (const row of result.rows) {
-      const recovery = await this.recoverStaleActivation(row.tenant_id, row.id);
+      let recovery: ActivationRecoveryResult;
+      try {
+        recovery = await this.recoverStaleActivation(row.tenant_id, row.id);
+      } catch {
+        continue;
+      }
       totals.requeued += recovery.requeued;
       totals.redispatched += recovery.redispatched;
       totals.reported += recovery.reported;
