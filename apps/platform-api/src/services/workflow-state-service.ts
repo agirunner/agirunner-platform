@@ -225,7 +225,7 @@ export class WorkflowStateService {
 
     const normalizedLifecycle: WorkflowPosture['lifecycle'] =
       workflowResult.rows[0]?.lifecycle === 'continuous' ? 'continuous' : 'standard';
-    const [stageResult, orchestratorResult, workItemResult, currentStageResult] = await Promise.all([
+    const [stageResult, orchestratorResult, workItemResult] = await Promise.all([
       db.query<{ status: string; gate_status: string }>(
         'SELECT status, gate_status FROM workflow_stages WHERE tenant_id = $1 AND workflow_id = $2',
         [tenantId, workflowId],
@@ -245,20 +245,10 @@ export class WorkflowStateService {
            FROM workflow_work_items WHERE tenant_id = $1 AND workflow_id = $2`,
         [tenantId, workflowId],
       ),
-      normalizedLifecycle === 'standard'
-        ? db.query<{ current_stage: string | null }>(
-            `SELECT current_stage
-               FROM workflows
-              WHERE tenant_id = $1
-                AND id = $2`,
-            [tenantId, workflowId],
-          )
-        : Promise.resolve({ rows: [{ current_stage: null }] }),
     ]);
 
     return buildWorkflowPosture(
       normalizedLifecycle,
-      currentStageResult.rows[0]?.current_stage ?? null,
       stageResult.rows,
       (orchestratorResult.rowCount ?? 0) > 0,
       workItemResult.rows[0]?.open_work_item_count ?? 0,
@@ -287,7 +277,6 @@ type WorkflowPostureShape = Omit<WorkflowPostureBase, 'lifecycle'>;
 
 interface StandardWorkflowPosture extends WorkflowPostureBase {
   lifecycle: 'standard';
-  currentStage: string | null;
 }
 
 interface ContinuousWorkflowPosture extends WorkflowPostureBase {
@@ -298,7 +287,6 @@ type WorkflowPosture = StandardWorkflowPosture | ContinuousWorkflowPosture;
 
 function buildWorkflowPosture(
   lifecycle: string,
-  currentStage: string | null,
   stages: Array<{ status: string; gate_status: string }>,
   hasActiveOrchestratorTask: boolean,
   openWorkItemCount: number,
@@ -319,7 +307,6 @@ function buildWorkflowPosture(
   return {
     ...base,
     lifecycle: normalizedLifecycle,
-    currentStage,
   };
 }
 
@@ -339,8 +326,7 @@ function deriveContinuousWorkflowState(posture: ContinuousWorkflowPosture) {
 function hasActiveWorkflowPosture(posture: StandardWorkflowPosture) {
   if (posture.hasActiveOrchestratorTask || posture.openWorkItemCount > 0) return true;
   if (posture.stages.some((stage) => isAttentionGateStatus(stage.gate_status))) return true;
-  if (posture.stages.some((stage) => isActiveStageStatus(stage.status))) return true;
-  return Boolean(posture.currentStage && posture.stages.some((stage) => stage.status !== 'completed'));
+  return posture.stages.some((stage) => isActiveStageStatus(stage.status));
 }
 
 function hasContinuousWorkflowPosture(posture: ContinuousWorkflowPosture) {

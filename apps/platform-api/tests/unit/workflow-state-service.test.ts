@@ -40,7 +40,6 @@ describe('WorkflowStateService', () => {
       rowSet([{ status: 'completed', gate_status: 'approved' }, { status: 'completed', gate_status: 'approved' }]),
       rowSet([]),
       rowSet([{ open_work_item_count: 0 }]),
-      rowSet([{ current_stage: null }]),
       rowSet([]),
       rowSet([{ task_count: 0, failed_task_count: 0 }]),
     ]);
@@ -57,14 +56,13 @@ describe('WorkflowStateService', () => {
     );
   });
 
-  it('returns active for standard workflows when the current stage is active even without specialist task activity', async () => {
+  it('returns active for standard workflows when a stage row is active even without specialist task activity', async () => {
     const pool = createPool([
       workflowRow({ state: 'pending' }),
       rowSet([{ lifecycle: 'standard' }]),
-      rowSet([{ status: 'pending', gate_status: 'not_requested' }, { status: 'pending', gate_status: 'not_requested' }]),
+      rowSet([{ status: 'active', gate_status: 'not_requested' }, { status: 'pending', gate_status: 'not_requested' }]),
       rowSet([]),
       rowSet([{ open_work_item_count: 0 }]),
-      rowSet([{ current_stage: 'implementation' }]),
       rowSet([]),
     ]);
     const eventService = { emit: vi.fn() };
@@ -78,6 +76,11 @@ describe('WorkflowStateService', () => {
       }),
       undefined,
     );
+    expect(
+      pool.query.mock.calls
+        .map((call) => String(call[0] ?? ''))
+        .some((sql) => sql.includes('SELECT current_stage')),
+    ).toBe(false);
   });
 
   it('returns pending for continuous workflows when no active work-item or gate posture remains', async () => {
@@ -191,7 +194,6 @@ describe('WorkflowStateService', () => {
       rowSet([{ status: 'pending', gate_status: 'not_requested' }]),
       rowSet([]),
       rowSet([{ open_work_item_count: 2 }]),
-      rowSet([{ current_stage: null }]),
       rowSet([]),
     ]);
     const eventService = { emit: vi.fn() };
@@ -217,7 +219,6 @@ describe('WorkflowStateService', () => {
       rowSet([{ status: 'pending', gate_status: 'not_requested' }]),
       rowSet([]),
       rowSet([{ open_work_item_count: 0 }]),
-      rowSet([{ current_stage: null }]),
       rowSet([]),
       rowSet([{ task_count: 3, failed_task_count: 1 }]),
     ]);
@@ -244,7 +245,6 @@ describe('WorkflowStateService', () => {
       rowSet([{ status: 'active', gate_status: 'not_requested' }]),
       rowSet([]),
       rowSet([{ open_work_item_count: 0 }]),
-      rowSet([{ current_stage: 'requirements' }]),
       rowSet([]),
       rowSet([{ task_count: 0, failed_task_count: 0 }]),
     ]);
@@ -280,7 +280,6 @@ describe('WorkflowStateService', () => {
       rowSet([{ status: 'completed', gate_status: 'approved' }, { status: 'completed', gate_status: 'approved' }]),
       rowSet([]),
       rowSet([{ open_work_item_count: 0 }]),
-      rowSet([{ current_stage: null }]),
       rowSet([]),
       rowSet([{ task_count: 4, failed_task_count: 1 }]),
       rowSet([
@@ -307,7 +306,7 @@ describe('WorkflowStateService', () => {
     const result = await service.recomputeWorkflowState('tenant-1', 'workflow-child');
     expect(result).toBe('completed');
     expect(pool.query).toHaveBeenNthCalledWith(
-      9,
+      8,
       expect.stringContaining('INSERT INTO workflow_activations'),
       [
         'tenant-1',
