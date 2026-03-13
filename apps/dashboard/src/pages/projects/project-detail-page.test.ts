@@ -2,13 +2,13 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './project-detail-page.tsx'), 'utf8');
+function readSource(filename: string) {
+  return readFileSync(resolve(import.meta.dirname, filename), 'utf8');
 }
 
 describe('project detail automation tab source', () => {
   it('uses delivery-oriented operator copy for project run history', () => {
-    const source = readSource();
+    const source = readSource('./project-detail-page.tsx');
     expect(source).toContain('TabsTrigger value="timeline">Delivery</TabsTrigger>');
     expect(source).toContain('No delivery history for this project yet.');
     expect(source).toContain('Failed to load delivery history.');
@@ -26,30 +26,29 @@ describe('project detail automation tab source', () => {
   });
 
   it('adds an automation tab for scheduled work-item triggers', () => {
-    const source = readSource();
+    const source = readSource('./project-detail-page.tsx');
     expect(source).toContain('TabsTrigger value="automation"');
-    expect(source).toContain('Scheduled Work Item Triggers');
-    expect(source).toContain('dashboardApi.listScheduledWorkItemTriggers()');
-    expect(source).toContain("dashboardApi.listWorkflows({ project_id: project.id, per_page: '100' })");
+    expect(source).toContain('<ScheduledTriggersCard project={project} />');
   });
 
   it('keeps git webhook management inside the project automation surface', () => {
-    const source = readSource();
+    const source = readSource('./project-detail-page.tsx');
+    const triggerSource = readSource('./project-scheduled-triggers-card.tsx');
     expect(source).toContain('<GitWebhookTab project={project} />');
-    expect(source).toContain('Open trigger overview');
+    expect(triggerSource).toContain('Open trigger overview');
   });
 
   it('relabels scheduled trigger targeting around project runs instead of workflows', () => {
-    const source = readSource();
-    expect(source).toContain('target a project run');
-    expect(source).toContain('<TableHead>Target Run</TableHead>');
-    expect(source).toContain('Create a project run before adding a scheduled trigger.');
-    expect(source).toContain('<label className="text-xs font-medium">Target Run</label>');
-    expect(source).toContain('<option value="">Select run</option>');
+    const cardSource = readSource('./project-scheduled-triggers-card.tsx');
+    const formSource = readSource('./project-scheduled-trigger-form.tsx');
+    expect(cardSource).toContain('target a project run');
+    expect(formSource).toContain('Create a project run before adding a scheduled trigger.');
+    expect(formSource).toContain('label="Target run"');
+    expect(formSource).toContain('placeholder="Select run"');
   });
 
   it('adds a model override tab with project override editing and resolved model display', () => {
-    const source = readSource();
+    const source = readSource('./project-detail-page.tsx');
     expect(source).toContain('TabsTrigger value="models"');
     expect(source).toContain('Project Model Overrides');
     expect(source).toContain('dashboardApi.getProjectModelOverrides(project.id)');
@@ -63,7 +62,7 @@ describe('project detail automation tab source', () => {
   });
 
   it('replaces raw project spec JSON editing with structured spec/config/instruction editors', () => {
-    const source = readSource();
+    const source = readSource('./project-detail-page.tsx');
     expect(source).toContain('Save Spec');
     expect(source).toContain('Config Entries');
     expect(source).toContain('Instruction Entries');
@@ -77,15 +76,18 @@ describe('project detail automation tab source', () => {
   });
 
   it('uses bounded workflow stage and role options in the automation form when they are available', () => {
-    const source = readSource();
-    expect(source).toContain('dashboardApi.listRoleDefinitions()');
-    expect(source).toContain('dashboardApi.getWorkflow(form.workflowId)');
-    expect(source).toContain('<option value="">Select stage</option>');
-    expect(source).toContain('<option value="">Select role</option>');
+    const triggerSource = readSource('./project-scheduled-triggers-card.tsx');
+    const formSource = readSource('./project-scheduled-trigger-form.tsx');
+    expect(triggerSource).toContain('dashboardApi.listRoleDefinitions()');
+    expect(triggerSource).toContain('dashboardApi.getWorkflow(form.workflowId)');
+    expect(triggerSource).toContain('dashboardApi.getWorkflowBoard(form.workflowId)');
+    expect(formSource).toContain('label="Stage"');
+    expect(formSource).toContain('label="Target board column"');
+    expect(formSource).toContain('label="Owner role"');
   });
 
   it('uses typed memory entry controls instead of heuristic string-or-json parsing', () => {
-    const source = readSource();
+    const source = readSource('./project-detail-page.tsx');
     expect(source).toContain("const [newValueType, setNewValueType] = useState<StructuredValueType>('string')");
     expect(source).toContain("buildStructuredObject(");
     expect(source).toContain('<label className="text-xs font-medium">Value Type</label>');
@@ -93,7 +95,7 @@ describe('project detail automation tab source', () => {
   });
 
   it('adds a first-class artifacts tab for inline project-scoped inspection', () => {
-    const source = readSource();
+    const source = readSource('./project-detail-page.tsx');
     expect(source).toContain('TabsTrigger value="artifacts">Artifacts</TabsTrigger>');
     expect(source).toContain('<ArtifactsTab projectId={project.id} />');
     expect(source).toContain('<ProjectArtifactExplorerPanel projectId={projectId} />');

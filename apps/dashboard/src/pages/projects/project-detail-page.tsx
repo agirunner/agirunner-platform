@@ -17,10 +17,8 @@ import type {
   DashboardProjectRecord,
   DashboardProjectSpecRecord,
   DashboardProjectResourceRecord,
-  DashboardScheduledWorkItemTriggerRecord,
   DashboardProjectToolCatalog,
   DashboardProjectTimelineEntry,
-  DashboardWorkflowRecord,
 } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
 import { StructuredRecordView } from '../../components/structured-data.js';
@@ -56,6 +54,7 @@ import {
   type StructuredValueType,
 } from './project-detail-support.js';
 import { ProjectArtifactExplorerPanel } from './project-artifact-explorer-panel.js';
+import { ScheduledTriggersCard } from './project-scheduled-triggers-card.js';
 
 /* ------------------------------------------------------------------ */
 /*  Spec Tab                                                           */
@@ -614,7 +613,6 @@ function ArtifactsTab({ projectId }: { projectId: string }): JSX.Element {
 /* ------------------------------------------------------------------ */
 
 const GIT_PROVIDERS = ['github', 'gitea', 'gitlab'] as const;
-const DEFAULT_SCHEDULED_TRIGGER_SOURCE = 'project.schedule';
 
 function GitWebhookTab({ project }: { project: DashboardProjectRecord }): JSX.Element {
   const queryClient = useQueryClient();
@@ -717,326 +715,12 @@ function GitWebhookTab({ project }: { project: DashboardProjectRecord }): JSX.El
   );
 }
 
-interface ScheduledTriggerFormState {
-  name: string;
-  source: string;
-  workflowId: string;
-  cadenceMinutes: string;
-  title: string;
-  stageName: string;
-  ownerRole: string;
-  goal: string;
-  notes: string;
-  nextFireAt: string;
-}
-
-const INITIAL_SCHEDULED_TRIGGER_FORM: ScheduledTriggerFormState = {
-  name: '',
-  source: DEFAULT_SCHEDULED_TRIGGER_SOURCE,
-  workflowId: '',
-  cadenceMinutes: '60',
-  title: '',
-  stageName: '',
-  ownerRole: '',
-  goal: '',
-  notes: '',
-  nextFireAt: '',
-};
-
 function AutomationTab({ project }: { project: DashboardProjectRecord }): JSX.Element {
   return (
     <div className="space-y-4">
-      <ScheduledTriggersTab project={project} />
+      <ScheduledTriggersCard project={project} />
       <GitWebhookTab project={project} />
     </div>
-  );
-}
-
-function ScheduledTriggersTab({ project }: { project: DashboardProjectRecord }): JSX.Element {
-  const queryClient = useQueryClient();
-  const [form, setForm] = useState<ScheduledTriggerFormState>(INITIAL_SCHEDULED_TRIGGER_FORM);
-
-  const triggersQuery = useQuery({
-    queryKey: ['scheduled-work-item-triggers', project.id],
-    queryFn: () => dashboardApi.listScheduledWorkItemTriggers(),
-  });
-  const workflowsQuery = useQuery({
-    queryKey: ['project-workflows', project.id],
-    queryFn: () => dashboardApi.listWorkflows({ project_id: project.id, per_page: '100' }),
-  });
-  const roleDefinitionsQuery = useQuery({
-    queryKey: ['role-definitions', 'active'],
-    queryFn: () => dashboardApi.listRoleDefinitions(),
-  });
-  const selectedWorkflowQuery = useQuery({
-    queryKey: ['workflow', form.workflowId, 'stages'],
-    queryFn: () => dashboardApi.getWorkflow(form.workflowId),
-    enabled: form.workflowId.length > 0,
-  });
-
-  const createMutation = useMutation({
-    mutationFn: () =>
-      dashboardApi.createScheduledWorkItemTrigger(buildScheduledTriggerPayload(project.id, form)),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['scheduled-work-item-triggers', project.id] });
-      setForm(INITIAL_SCHEDULED_TRIGGER_FORM);
-    },
-  });
-  const toggleMutation = useMutation({
-    mutationFn: ({ triggerId, isActive }: { triggerId: string; isActive: boolean }) =>
-      dashboardApi.updateScheduledWorkItemTrigger(triggerId, { is_active: isActive }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['scheduled-work-item-triggers', project.id] });
-    },
-  });
-  const deleteMutation = useMutation({
-    mutationFn: (triggerId: string) => dashboardApi.deleteScheduledWorkItemTrigger(triggerId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['scheduled-work-item-triggers', project.id] });
-    },
-  });
-
-  const workflows = (workflowsQuery.data?.data ?? []) as DashboardWorkflowRecord[];
-  const roleOptions = (roleDefinitionsQuery.data ?? []).map((role) => role.name).filter(Boolean);
-  const scheduledTriggers = ((triggersQuery.data?.data ?? []) as DashboardScheduledWorkItemTriggerRecord[])
-    .filter((trigger) => trigger.project_id === project.id)
-    .sort((left, right) => left.next_fire_at.localeCompare(right.next_fire_at));
-
-  const workflowOptions = workflows.filter((workflow) => workflow.id.length > 0);
-  const selectedWorkflowStages = selectedWorkflowQuery.data?.workflow_stages ?? [];
-  const canCreate = form.name.trim() && form.workflowId && form.title.trim();
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Zap className="h-4 w-4" />
-          Scheduled Work Item Triggers
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="rounded-md border bg-border/10 p-3 text-sm text-muted">
-          Scheduled triggers belong to the project they automate. They create work items on a
-          cadence, target a project run, and wake the orchestrator through the normal
-          activation path.
-        </div>
-
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium">Current schedules</h3>
-            <Link to="/config/triggers" className="text-sm text-accent hover:underline">
-              Open trigger overview
-            </Link>
-          </div>
-          {triggersQuery.isLoading ? (
-            <LoadingCard />
-          ) : scheduledTriggers.length === 0 ? (
-            <p className="text-sm text-muted">No scheduled work item triggers for this project.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Target Run</TableHead>
-                  <TableHead>Cadence</TableHead>
-                  <TableHead>Next Run</TableHead>
-                  <TableHead>Health</TableHead>
-                  <TableHead>Active</TableHead>
-                  <TableHead className="w-[60px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {scheduledTriggers.map((trigger) => {
-                  const workflow = workflows.find((item) => item.id === trigger.workflow_id);
-                  const health = describeTriggerHealth(trigger);
-                  return (
-                    <TableRow key={trigger.id}>
-                      <TableCell className="font-medium">
-                        <div className="space-y-1">
-                          <div>{trigger.name}</div>
-                          <div className="text-xs text-muted">{trigger.source}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div>{workflow?.name ?? trigger.workflow_id}</div>
-                          {trigger.last_fired_at ? (
-                            <div className="text-xs text-muted">
-                              Last run {formatDateTime(trigger.last_fired_at)}
-                            </div>
-                          ) : (
-                            <div className="text-xs text-muted">Not fired yet</div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{formatCadence(trigger.cadence_minutes)}</TableCell>
-                      <TableCell>{formatDateTime(trigger.next_fire_at)}</TableCell>
-                      <TableCell>
-                        <Badge variant={health.variant}>{health.label}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Switch
-                          checked={trigger.is_active}
-                          disabled={toggleMutation.isPending}
-                          onCheckedChange={(checked) =>
-                            toggleMutation.mutate({ triggerId: trigger.id, isActive: checked })}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          disabled={deleteMutation.isPending}
-                          onClick={() => deleteMutation.mutate(trigger.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </div>
-
-        <div className="space-y-4 rounded-md border p-4">
-          <h3 className="text-sm font-medium">Add schedule</h3>
-          {workflowOptions.length === 0 ? (
-            <p className="text-sm text-muted">
-              Create a project run before adding a scheduled trigger.
-            </p>
-          ) : (
-            <>
-              <div className="grid gap-4 md:grid-cols-2">
-                <InputField
-                  label="Name"
-                  value={form.name}
-                  onChange={(value) => setForm((current) => ({ ...current, name: value }))}
-                  placeholder="Daily triage"
-                />
-                <InputField
-                  label="Source"
-                  value={form.source}
-                  onChange={(value) => setForm((current) => ({ ...current, source: value }))}
-                  placeholder={DEFAULT_SCHEDULED_TRIGGER_SOURCE}
-                />
-                <div className="space-y-1">
-                  <label className="text-xs font-medium">Target Run</label>
-                  <select
-                    className="w-full rounded-md border bg-surface px-3 py-2 text-sm"
-                    value={form.workflowId}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, workflowId: event.target.value }))}
-                  >
-                    <option value="">Select run</option>
-                    {workflowOptions.map((workflow) => (
-                      <option key={workflow.id} value={workflow.id}>
-                        {workflow.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <InputField
-                  label="Cadence (minutes)"
-                  value={form.cadenceMinutes}
-                  onChange={(value) => setForm((current) => ({ ...current, cadenceMinutes: value }))}
-                  placeholder="60"
-                />
-                <InputField
-                  label="Work item title"
-                  value={form.title}
-                  onChange={(value) => setForm((current) => ({ ...current, title: value }))}
-                  placeholder="Run daily inbox triage"
-                />
-                <div className="space-y-1">
-                  <label className="text-xs font-medium">Stage name</label>
-                  {selectedWorkflowStages.length > 0 ? (
-                    <select
-                      className="w-full rounded-md border bg-surface px-3 py-2 text-sm"
-                      value={form.stageName}
-                      onChange={(event) =>
-                        setForm((current) => ({ ...current, stageName: event.target.value }))}
-                    >
-                      <option value="">Select stage</option>
-                      {selectedWorkflowStages.map((stage) => (
-                        <option key={stage.id} value={stage.name}>
-                          {stage.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <Input
-                      value={form.stageName}
-                      placeholder="triage"
-                      onChange={(event) =>
-                        setForm((current) => ({ ...current, stageName: event.target.value }))}
-                    />
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-medium">Owner role</label>
-                  {roleOptions.length > 0 ? (
-                    <select
-                      className="w-full rounded-md border bg-surface px-3 py-2 text-sm"
-                      value={form.ownerRole}
-                      onChange={(event) =>
-                        setForm((current) => ({ ...current, ownerRole: event.target.value }))}
-                    >
-                      <option value="">Select role</option>
-                      {roleOptions.map((role) => (
-                        <option key={role} value={role}>
-                          {role}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <Input
-                      value={form.ownerRole}
-                      placeholder="triager"
-                      onChange={(event) =>
-                        setForm((current) => ({ ...current, ownerRole: event.target.value }))}
-                    />
-                  )}
-                </div>
-                <InputField
-                  label="First run (optional)"
-                  type="datetime-local"
-                  value={form.nextFireAt}
-                  onChange={(value) => setForm((current) => ({ ...current, nextFireAt: value }))}
-                />
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <TextAreaField
-                  label="Goal"
-                  value={form.goal}
-                  onChange={(value) => setForm((current) => ({ ...current, goal: value }))}
-                  placeholder="Check open work, route urgent items, and summarize the queue."
-                />
-                <TextAreaField
-                  label="Notes"
-                  value={form.notes}
-                  onChange={(value) => setForm((current) => ({ ...current, notes: value }))}
-                  placeholder="Optional operator notes for the generated work item."
-                />
-              </div>
-              {createMutation.isError ? (
-                <p className="text-sm text-red-600">Failed to create scheduled trigger.</p>
-              ) : null}
-              <div className="flex justify-end">
-                <Button
-                  disabled={createMutation.isPending || !canCreate}
-                  onClick={() => createMutation.mutate()}
-                >
-                  <Plus className="h-4 w-4" />
-                  Add schedule
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -1494,54 +1178,6 @@ function formatDuration(seconds?: number | null): string {
   const minutes = Math.floor(seconds / 60);
   const remaining = Math.round(seconds % 60);
   return `${minutes}m ${remaining}s`;
-}
-
-function formatCadence(minutes: number): string {
-  if (minutes < 60) return `Every ${minutes} min`;
-  if (minutes % 60 === 0) return `Every ${minutes / 60} hr`;
-  const hours = Math.floor(minutes / 60);
-  const remaining = minutes % 60;
-  return `Every ${hours} hr ${remaining} min`;
-}
-
-function formatDateTime(value?: string | null): string {
-  if (!value) return '-';
-  const timestamp = Date.parse(value);
-  return Number.isNaN(timestamp) ? value : new Date(timestamp).toLocaleString();
-}
-
-function describeTriggerHealth(trigger: DashboardScheduledWorkItemTriggerRecord) {
-  if (!trigger.is_active) {
-    return { label: 'Disabled', variant: 'secondary' as const };
-  }
-  if (Date.parse(trigger.next_fire_at) <= Date.now()) {
-    return { label: 'Due', variant: 'warning' as const };
-  }
-  return { label: 'Scheduled', variant: 'success' as const };
-}
-
-function buildScheduledTriggerPayload(projectId: string, form: ScheduledTriggerFormState) {
-  const cadenceMinutes = Number(form.cadenceMinutes);
-  const defaults: Record<string, unknown> = {
-    title: form.title.trim(),
-  };
-  if (form.stageName.trim()) defaults.stage_name = form.stageName.trim();
-  if (form.ownerRole.trim()) defaults.owner_role = form.ownerRole.trim();
-  if (form.goal.trim()) defaults.goal = form.goal.trim();
-  if (form.notes.trim()) defaults.notes = form.notes.trim();
-
-  const payload: Parameters<typeof dashboardApi.createScheduledWorkItemTrigger>[0] = {
-    name: form.name.trim(),
-    source: form.source.trim() || DEFAULT_SCHEDULED_TRIGGER_SOURCE,
-    project_id: projectId,
-    workflow_id: form.workflowId,
-    cadence_minutes: Number.isFinite(cadenceMinutes) && cadenceMinutes > 0 ? cadenceMinutes : 60,
-    defaults,
-  };
-  if (form.nextFireAt) {
-    payload.next_fire_at = new Date(form.nextFireAt).toISOString();
-  }
-  return payload;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
