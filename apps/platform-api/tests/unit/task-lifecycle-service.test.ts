@@ -1446,6 +1446,13 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
                 metadata: {
                   escalation_reason: 'Need operator guidance',
                   escalation_target: 'human',
+                  escalation_context_packet: {
+                    summary: 'The task is blocked on a product decision.',
+                    artifact_id: 'artifact-1',
+                  },
+                  escalation_recommendation: 'Approve the staged rollout plan.',
+                  escalation_blocking_task_id: '11111111-1111-1111-1111-111111111111',
+                  escalation_urgency: 'important',
                   escalation_awaiting_human: true,
                   review_action: 'escalate',
                   review_feedback: 'Need operator guidance',
@@ -1489,6 +1496,13 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       'task-manual-escalate',
       {
         reason: 'Need operator guidance',
+        context: {
+          summary: 'The task is blocked on a product decision.',
+          artifact_id: 'artifact-1',
+        },
+        recommendation: 'Approve the staged rollout plan.',
+        blocking_task_id: '11111111-1111-1111-1111-111111111111',
+        urgency: 'important',
       },
     );
 
@@ -1496,12 +1510,30 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(result.metadata).toMatchObject({
       escalation_reason: 'Need operator guidance',
       escalation_target: 'human',
+      escalation_context_packet: {
+        summary: 'The task is blocked on a product decision.',
+        artifact_id: 'artifact-1',
+      },
+      escalation_recommendation: 'Approve the staged rollout plan.',
+      escalation_blocking_task_id: '11111111-1111-1111-1111-111111111111',
+      escalation_urgency: 'important',
       escalation_awaiting_human: true,
       review_action: 'escalate',
       review_feedback: 'Need operator guidance',
     });
     expect(eventService.emit).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'task.escalated' }),
+      expect.objectContaining({
+        type: 'task.escalated',
+        data: expect.objectContaining({
+          context: {
+            summary: 'The task is blocked on a product decision.',
+            artifact_id: 'artifact-1',
+          },
+          recommendation: 'Approve the staged rollout plan.',
+          blocking_task_id: '11111111-1111-1111-1111-111111111111',
+          urgency: 'important',
+        }),
+      }),
       expect.anything(),
     );
   });
@@ -1628,9 +1660,17 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
           {
             reason: 'Need operator guidance',
             target: null,
+            context: { summary: 'Blocked on a product decision.' },
+            recommendation: 'Approve the rollout.',
+            blocking_task_id: '11111111-1111-1111-1111-111111111111',
+            urgency: 'critical',
             escalated_at: '2026-03-12T00:00:00.000Z',
           },
         ],
+        escalation_context_packet: { summary: 'Blocked on a product decision.' },
+        escalation_recommendation: 'Approve the rollout.',
+        escalation_blocking_task_id: '11111111-1111-1111-1111-111111111111',
+        escalation_urgency: 'critical',
         review_action: 'escalate',
         review_feedback: 'Need operator guidance',
       },
@@ -1657,6 +1697,10 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       'task-manual-escalate',
       {
         reason: 'Need operator guidance',
+        context: { summary: 'Blocked on a product decision.' },
+        recommendation: 'Approve the rollout.',
+        blocking_task_id: '11111111-1111-1111-1111-111111111111',
+        urgency: 'critical',
       },
     );
 

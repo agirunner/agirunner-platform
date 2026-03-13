@@ -350,7 +350,14 @@ export class TaskService {
   escalateTask(
     identity: ApiKeyIdentity,
     taskId: string,
-    payload: { reason: string; escalation_target?: string },
+    payload: {
+      reason: string;
+      escalation_target?: string;
+      context?: Record<string, unknown>;
+      recommendation?: string;
+      blocking_task_id?: string;
+      urgency?: 'info' | 'important' | 'critical';
+    },
     client?: DatabaseClient,
   ) {
     return this.lifecycleService.escalateTask(identity, taskId, payload, client);

@@ -103,6 +103,10 @@ const orchestratorTaskReassignSchema = orchestratorTaskMutationSchema.extend({
 
 const orchestratorTaskEscalateSchema = orchestratorTaskMutationSchema.extend({
   reason: z.string().min(1).max(4000),
+  context: z.record(z.unknown()).optional(),
+  recommendation: z.string().max(4000).optional(),
+  blocking_task_id: z.string().uuid().optional(),
+  urgency: z.enum(['info', 'important', 'critical']).optional(),
 });
 
 const orchestratorTaskMessageSchema = orchestratorTaskMutationSchema.extend({
@@ -420,6 +424,10 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
             params.managedTaskId,
             {
               reason: body.reason,
+              context: body.context,
+              recommendation: body.recommendation,
+              blocking_task_id: body.blocking_task_id,
+              urgency: body.urgency,
               escalation_target: 'human',
             },
             client,

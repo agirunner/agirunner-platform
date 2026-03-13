@@ -134,8 +134,14 @@ function matchesReviewMetadata(
 
 function hasMatchingManualEscalation(
   task: Record<string, unknown>,
-  reason: string,
-  escalationTarget?: string,
+  payload: {
+    reason: string;
+    escalation_target?: string;
+    context?: Record<string, unknown>;
+    recommendation?: string;
+    blocking_task_id?: string;
+    urgency?: 'info' | 'important' | 'critical';
+  },
 ): boolean {
   const metadata = asRecord(task.metadata);
   const escalations = Array.isArray(metadata.escalations)
@@ -145,10 +151,18 @@ function hasMatchingManualEscalation(
   if (!latestEscalation) {
     return false;
   }
-  return latestEscalation.reason === reason
-    && (latestEscalation.target ?? null) === (escalationTarget ?? null)
+  return latestEscalation.reason === payload.reason
+    && (latestEscalation.target ?? null) === (payload.escalation_target ?? null)
+    && areJsonValuesEquivalent(latestEscalation.context ?? null, payload.context ?? null)
+    && (latestEscalation.recommendation ?? null) === (payload.recommendation ?? null)
+    && (latestEscalation.blocking_task_id ?? null) === (payload.blocking_task_id ?? null)
+    && (latestEscalation.urgency ?? null) === (payload.urgency ?? null)
     && metadata.review_action === 'escalate'
-    && metadata.review_feedback === reason;
+    && metadata.review_feedback === payload.reason
+    && areJsonValuesEquivalent(metadata.escalation_context_packet ?? null, payload.context ?? null)
+    && (metadata.escalation_recommendation ?? null) === (payload.recommendation ?? null)
+    && (metadata.escalation_blocking_task_id ?? null) === (payload.blocking_task_id ?? null)
+    && (metadata.escalation_urgency ?? null) === (payload.urgency ?? null);
 }
 
 function hasMatchingReviewRejection(
@@ -1104,13 +1118,20 @@ export class TaskLifecycleService {
   async escalateTask(
     identity: ApiKeyIdentity,
     taskId: string,
-    payload: { reason: string; escalation_target?: string },
+    payload: {
+      reason: string;
+      escalation_target?: string;
+      context?: Record<string, unknown>;
+      recommendation?: string;
+      blocking_task_id?: string;
+      urgency?: 'info' | 'important' | 'critical';
+    },
     client?: DatabaseClient,
   ) {
     const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId, client));
     if (
       task.state === 'escalated'
-      && hasMatchingManualEscalation(task, payload.reason, payload.escalation_target)
+      && hasMatchingManualEscalation(task, payload)
     ) {
       return this.deps.toTaskResponse(task);
     }
@@ -1128,11 +1149,19 @@ export class TaskLifecycleService {
           {
             reason: payload.reason,
             target: payload.escalation_target ?? null,
+            context: payload.context ?? null,
+            recommendation: payload.recommendation ?? null,
+            blocking_task_id: payload.blocking_task_id ?? null,
+            urgency: payload.urgency ?? null,
             escalated_at: new Date().toISOString(),
           },
         ],
         escalation_reason: payload.reason,
         escalation_target: payload.escalation_target ?? 'human',
+        escalation_context_packet: payload.context ?? null,
+        escalation_recommendation: payload.recommendation ?? null,
+        escalation_blocking_task_id: payload.blocking_task_id ?? null,
+        escalation_urgency: payload.urgency ?? null,
         escalation_awaiting_human: true,
         review_action: 'escalate',
         review_feedback: payload.reason,
@@ -1147,6 +1176,10 @@ export class TaskLifecycleService {
           stage_name: task.stage_name ?? null,
           escalation_target: payload.escalation_target ?? 'human',
           escalation_reason: payload.reason,
+          escalation_context_packet: payload.context ?? null,
+          escalation_recommendation: payload.recommendation ?? null,
+          escalation_blocking_task_id: payload.blocking_task_id ?? null,
+          escalation_urgency: payload.urgency ?? null,
         }, client);
         await this.deps.eventService.emit(
           {
@@ -1159,6 +1192,10 @@ export class TaskLifecycleService {
             data: {
               reason: payload.reason,
               escalation_target: payload.escalation_target ?? 'human',
+              context: payload.context ?? null,
+              recommendation: payload.recommendation ?? null,
+              blocking_task_id: payload.blocking_task_id ?? null,
+              urgency: payload.urgency ?? null,
             },
           },
           client,

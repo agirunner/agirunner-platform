@@ -761,6 +761,13 @@ describe('orchestratorControlRoutes', () => {
       payload: {
         request_id: 'escalate-1',
         reason: 'Needs product approval',
+        context: {
+          summary: 'Plan is blocked on a pricing decision.',
+          artifact_id: 'artifact-1',
+        },
+        recommendation: 'Approve the enterprise pricing change.',
+        blocking_task_id: '11111111-1111-1111-1111-111111111111',
+        urgency: 'critical',
       },
     });
 
@@ -770,6 +777,13 @@ describe('orchestratorControlRoutes', () => {
       'task-specialist',
       {
         reason: 'Needs product approval',
+        context: {
+          summary: 'Plan is blocked on a pricing decision.',
+          artifact_id: 'artifact-1',
+        },
+        recommendation: 'Approve the enterprise pricing change.',
+        blocking_task_id: '11111111-1111-1111-1111-111111111111',
+        urgency: 'critical',
         escalation_target: 'human',
       },
       client,
