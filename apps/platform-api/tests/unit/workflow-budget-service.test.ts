@@ -124,4 +124,67 @@ describe('WorkflowBudgetService', () => {
     expect(client.query).toHaveBeenCalledWith('COMMIT');
     nowSpy.mockRestore();
   });
+
+  it('emits warning events without wakeups when a workflow crosses only the warning threshold', async () => {
+    const client = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rowCount: 0, rows: [] })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{
+            id: 'workflow-1',
+            token_budget: 1000,
+            cost_cap_usd: '5.0000',
+            max_duration_minutes: 60,
+            created_at: new Date('2026-03-12T00:00:00.000Z'),
+            started_at: new Date('2026-03-12T00:00:00.000Z'),
+            orchestration_state: {},
+          }],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{ total_tokens_input: '600', total_tokens_output: '250', total_cost_usd: '1.2500' }],
+        })
+        .mockResolvedValueOnce({ rowCount: 1, rows: [{ count: '3' }] })
+        .mockResolvedValueOnce({ rowCount: 1, rows: [{ count: '1' }] })
+        .mockResolvedValueOnce({ rowCount: 1, rows: [] }),
+      release: vi.fn(),
+    };
+    const emit = vi.fn(async () => undefined);
+    const enqueueForWorkflow = vi.fn(async () => ({ id: 'activation-1' }));
+    const dispatchActivation = vi.fn(async () => 'task-1');
+    const service = new WorkflowBudgetService(
+      {
+        connect: vi.fn(async () => client),
+      } as never,
+      { emit } as never,
+      { WORKFLOW_BUDGET_WARNING_RATIO: 0.8 },
+      { enqueueForWorkflow } as never,
+      { dispatchActivation } as never,
+    );
+
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(
+      new Date('2026-03-12T00:30:00.000Z').valueOf(),
+    );
+
+    const evaluation = await service.evaluatePolicy('tenant-1', 'workflow-1');
+
+    expect(evaluation.snapshot.warning_dimensions).toEqual(['tokens']);
+    expect(evaluation.snapshot.exceeded_dimensions).toEqual([]);
+    expect(evaluation.newWarningDimensions).toEqual(['tokens']);
+    expect(evaluation.newExceededDimensions).toEqual([]);
+    expect(emit).toHaveBeenCalledTimes(1);
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'budget.warning',
+        entityId: 'workflow-1',
+      }),
+      client,
+    );
+    expect(enqueueForWorkflow).not.toHaveBeenCalled();
+    expect(dispatchActivation).not.toHaveBeenCalled();
+    expect(client.query).toHaveBeenCalledWith('COMMIT');
+    nowSpy.mockRestore();
+  });
 });
