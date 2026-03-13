@@ -332,7 +332,7 @@ function hasActiveWorkflowPosture(posture: StandardWorkflowPosture) {
 function hasContinuousWorkflowPosture(posture: ContinuousWorkflowPosture) {
   if (posture.hasActiveOrchestratorTask || posture.openWorkItemCount > 0) return true;
   if (posture.stages.some((stage) => isAttentionGateStatus(stage.gate_status))) return true;
-  return posture.stages.some((stage) => isActiveStageStatus(stage.status));
+  return false;
 }
 
 function hasPendingCancellationWork(posture: WorkflowPosture) {

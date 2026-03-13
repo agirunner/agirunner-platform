@@ -157,6 +157,28 @@ describe('WorkflowStateService', () => {
     );
   });
 
+  it('returns pending for continuous workflows when only a stale stage status remains', async () => {
+    const pool = createPool([
+      workflowRow({ state: 'active' }),
+      rowSet([{ lifecycle: 'continuous' }]),
+      rowSet([{ status: 'active', gate_status: 'not_requested' }]),
+      rowSet([]),
+      rowSet([{ open_work_item_count: 0 }]),
+      rowSet([]),
+    ]);
+    const eventService = { emit: vi.fn() };
+    const service = new WorkflowStateService(pool as never, eventService as never);
+    const result = await service.recomputeWorkflowState('tenant-1', 'workflow-1');
+    expect(result).toBe('pending');
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'workflow.state_changed',
+        data: { from_state: 'active', to_state: 'pending' },
+      }),
+      undefined,
+    );
+  });
+
   it('keeps workflows paused while the pause marker remains even if work-item posture is still active', async () => {
     const pool = createPool([
       workflowRow({
