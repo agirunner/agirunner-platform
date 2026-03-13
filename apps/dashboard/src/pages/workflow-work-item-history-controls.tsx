@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 
 import { SavedViews, type SavedViewFilters } from '../components/saved-views.js';
@@ -17,6 +18,8 @@ import type {
   WorkItemHistorySignalFilter,
   WorkItemHistorySort,
 } from './workflow-work-item-history-filters.js';
+
+const SEARCH_DEBOUNCE_MS = 200;
 
 const signalOptions: Array<{ value: WorkItemHistorySignalFilter; label: string }> = [
   { value: 'all', label: 'All signals' },
@@ -63,15 +66,11 @@ export function WorkItemHistoryFilterBar(props: {
           </Badge>
         </div>
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_220px_220px_auto]">
-          <div className="relative min-w-0">
-            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-            <Input
-              placeholder="Search activity, stages, steps, actors, work items, or signal labels"
-              className="pl-9"
-              value={props.filters.query}
-              onChange={(event) => props.onQueryChange(event.target.value)}
-            />
-          </div>
+          <DebouncedSearchInput
+            value={props.filters.query}
+            onChange={props.onQueryChange}
+            placeholder="Search activity, stages, steps, actors, work items, or signal labels"
+          />
           <Select
             value={props.filters.signal}
             onValueChange={(value) => props.onSignalChange(value as WorkItemHistorySignalFilter)}
@@ -110,6 +109,45 @@ export function WorkItemHistoryFilterBar(props: {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function DebouncedSearchInput(props: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}): JSX.Element {
+  const [localValue, setLocalValue] = useState(props.value);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const onChangeRef = useRef(props.onChange);
+  onChangeRef.current = props.onChange;
+
+  useEffect(() => {
+    setLocalValue(props.value);
+  }, [props.value]);
+
+  useEffect(() => {
+    return () => clearTimeout(timerRef.current);
+  }, []);
+
+  return (
+    <div className="relative min-w-0">
+      <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+      <Input
+        placeholder={props.placeholder}
+        className="pl-9"
+        value={localValue}
+        onChange={(event) => {
+          const newValue = event.target.value;
+          setLocalValue(newValue);
+          clearTimeout(timerRef.current);
+          timerRef.current = setTimeout(
+            () => onChangeRef.current(newValue),
+            SEARCH_DEBOUNCE_MS,
+          );
+        }}
+      />
+    </div>
   );
 }
 

@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import type { DashboardEventRecord } from '../lib/api.js';
@@ -12,11 +13,27 @@ import {
 } from '../components/ui/card.js';
 import { buildTimelineEntryActions } from './workflow-history-card.actions.js';
 import {
-  describeTimelineEvent,
+  buildTimelineRecords,
+  filterAndSortTimelineRecords,
+  filtersToSavedViewState,
+  loadPersistedTimelineFilters,
+  paginateTimelineRecords,
+  persistTimelineFilters,
+  savedViewStateToFilters,
+  TIMELINE_PAGE_SIZE,
+  totalTimelinePages,
+  type TimelineRecord,
+} from './workflow-history-card.filters.js';
+import {
   type TimelineDescriptor,
   type TimelineLookupContext,
 } from './workflow-history-card.narrative.js';
 import { TimelineEventPacket } from './workflow-history-card.packet.js';
+import { formatRelativeTimestamp } from './workflow-detail-presentation.js';
+import {
+  WorkItemHistoryFilterBar,
+  WorkItemHistoryPagination,
+} from './workflow-work-item-history-controls.js';
 
 export { buildTimelineContext, describeTimelineEvent } from './workflow-history-card.narrative.js';
 
@@ -30,7 +47,50 @@ export function WorkflowInteractionTimelineCard(props: {
   onLoadMore?: () => void;
   events: DashboardEventRecord[];
 }) {
-  const events = sortEventsOldestFirst(props.events);
+  const storageKey = `timeline:${props.workflowId}`;
+  const [filters, setFilters] = useState(() =>
+    loadPersistedTimelineFilters(storageKey),
+  );
+  const [page, setPage] = useState(0);
+
+  useEffect(() => {
+    setFilters(loadPersistedTimelineFilters(storageKey));
+    setPage(0);
+  }, [storageKey]);
+
+  useEffect(() => {
+    persistTimelineFilters(storageKey, filters);
+  }, [filters, storageKey]);
+
+  const records = useMemo(
+    () => buildTimelineRecords(props.events, props.context),
+    [props.events, props.context],
+  );
+  const filteredRecords = useMemo(
+    () => filterAndSortTimelineRecords(records, filters),
+    [filters, records],
+  );
+  const totalPages = useMemo(
+    () => totalTimelinePages(filteredRecords.length, TIMELINE_PAGE_SIZE),
+    [filteredRecords.length],
+  );
+
+  useEffect(() => {
+    setPage(0);
+  }, [filters.query, filters.signal, filters.sort]);
+
+  useEffect(() => {
+    setPage((currentPage) =>
+      Math.min(currentPage, Math.max(0, totalPages - 1)),
+    );
+  }, [totalPages]);
+
+  const visibleRecords = useMemo(
+    () => paginateTimelineRecords(filteredRecords, page, TIMELINE_PAGE_SIZE),
+    [filteredRecords, page],
+  );
+  const activeFilters = filtersToSavedViewState(filters);
+  const hasActiveFilters = Object.keys(activeFilters).length > 0;
 
   return (
     <Card>
@@ -51,43 +111,91 @@ export function WorkflowInteractionTimelineCard(props: {
             Failed to load workflow activity.
           </p>
         ) : null}
-        {events.length === 0 && !props.isLoading && !props.hasError ? (
+        {props.events.length === 0 && !props.isLoading && !props.hasError ? (
           <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
             No workflow activity recorded yet.
           </p>
         ) : null}
-        {props.hasMore ? (
-          <div className="flex justify-start">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={props.onLoadMore}
-              disabled={props.isLoadingMore}
-            >
-              {props.isLoadingMore ? 'Loading older activity...' : 'Load older activity'}
-            </Button>
-          </div>
-        ) : null}
-        <ol className="grid gap-4">
-          {events.map((event) => (
-            <TimelineEntry
-              key={event.id}
-              context={props.context}
-              workflowId={props.workflowId}
-              event={event}
+        {props.events.length > 0 && !props.isLoading ? (
+          <>
+            {props.hasMore ? (
+              <div className="flex justify-start">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={props.onLoadMore}
+                  disabled={props.isLoadingMore}
+                >
+                  {props.isLoadingMore
+                    ? 'Loading older activity...'
+                    : 'Load older activity'}
+                </Button>
+              </div>
+            ) : null}
+            <WorkItemHistoryFilterBar
+              totalCount={props.events.length}
+              visibleCount={filteredRecords.length}
+              filters={filters}
+              savedViewFilters={activeFilters}
+              savedViewStorageKey={`timeline:${props.workflowId}`}
+              onQueryChange={(value) =>
+                setFilters((current) => ({ ...current, query: value }))
+              }
+              onSignalChange={(value) =>
+                setFilters((current) => ({ ...current, signal: value }))
+              }
+              onSortChange={(value) =>
+                setFilters((current) => ({ ...current, sort: value }))
+              }
+              onApplySavedView={(savedFilters) =>
+                setFilters(savedViewStateToFilters(savedFilters))
+              }
             />
-          ))}
-        </ol>
+            {filteredRecords.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
+                {hasActiveFilters
+                  ? 'No timeline events match the current filters. Adjust the saved view or filter bar to bring the relevant activity back into scope.'
+                  : 'No timeline events are visible in this history slice.'}
+              </p>
+            ) : (
+              <>
+                <ol className="grid gap-4">
+                  {visibleRecords.map((record) => (
+                    <TimelineEntry
+                      key={record.event.id}
+                      workflowId={props.workflowId}
+                      record={record}
+                    />
+                  ))}
+                </ol>
+                <WorkItemHistoryPagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  visibleCount={filteredRecords.length}
+                  pageSize={TIMELINE_PAGE_SIZE}
+                  onPrevious={() =>
+                    setPage((current) => Math.max(0, current - 1))
+                  }
+                  onNext={() =>
+                    setPage((current) =>
+                      Math.min(totalPages - 1, current + 1),
+                    )
+                  }
+                />
+              </>
+            )}
+          </>
+        ) : null}
       </CardContent>
     </Card>
   );
 }
+
 function TimelineEntry(props: {
-  context: TimelineLookupContext;
   workflowId: string;
-  event: DashboardEventRecord;
+  record: TimelineRecord;
 }) {
-  const descriptor = describeTimelineEvent(props.event, props.context);
+  const { descriptor, event } = props.record;
   const actions = buildTimelineEntryActions({
     activationId: descriptor.activationId,
     childWorkflowHref: descriptor.childWorkflowHref,
@@ -104,29 +212,43 @@ function TimelineEntry(props: {
         <div className="grid gap-1">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">{descriptor.actorLabel}</Badge>
-            <Badge variant={descriptor.emphasisTone}>{descriptor.emphasisLabel}</Badge>
-            {descriptor.stageName ? <Badge variant="outline">{descriptor.stageName}</Badge> : null}
+            <Badge variant={descriptor.emphasisTone}>
+              {descriptor.emphasisLabel}
+            </Badge>
+            {descriptor.stageName ? (
+              <Badge variant="outline">{descriptor.stageName}</Badge>
+            ) : null}
             {descriptor.signalBadges.map((badge) => (
-              <Badge key={`${props.event.id}:${badge}`} variant="outline">
+              <Badge key={`${event.id}:${badge}`} variant="outline">
                 {badge}
               </Badge>
             ))}
           </div>
           <strong>{descriptor.narrativeHeadline}</strong>
-          <span className="text-sm text-muted">{formatTimestamp(props.event.created_at)}</span>
+          <span
+            className="text-sm text-muted"
+            title={event.created_at}
+          >
+            {formatRelativeTimestamp(event.created_at)}
+          </span>
         </div>
       </div>
-      {descriptor.summary ? <p className="text-sm text-muted">{descriptor.summary}</p> : null}
-      {descriptor.outcomeLabel && descriptor.outcomeLabel !== descriptor.summary ? (
+      {descriptor.summary ? (
+        <p className="text-sm text-muted">{descriptor.summary}</p>
+      ) : null}
+      {descriptor.outcomeLabel &&
+      descriptor.outcomeLabel !== descriptor.summary ? (
         <p className="text-sm text-foreground">{descriptor.outcomeLabel}</p>
       ) : null}
       {descriptor.scopeSummary ? (
-        <p className="text-xs leading-5 text-muted">{descriptor.scopeSummary}</p>
+        <p className="text-xs leading-5 text-muted">
+          {descriptor.scopeSummary}
+        </p>
       ) : null}
       <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
         {actions.map((action) => (
           <Link
-            key={`${props.event.id}:${action.label}`}
+            key={`${event.id}:${action.label}`}
             to={action.href}
             className="underline-offset-4 hover:underline"
           >
@@ -134,7 +256,7 @@ function TimelineEntry(props: {
           </Link>
         ))}
       </div>
-      <TimelineEventPacket event={props.event} />
+      <TimelineEventPacket event={event} />
     </li>
   );
 }
@@ -149,16 +271,4 @@ function timelineEntryClassName(
     return 'grid gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4 shadow-sm dark:border-amber-900/70 dark:bg-amber-950/20';
   }
   return 'grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4 shadow-sm';
-}
-
-function formatTimestamp(value: string): string {
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleString();
-}
-
-function sortEventsOldestFirst(events: DashboardEventRecord[]): DashboardEventRecord[] {
-  return [...events].sort((left, right) => left.created_at.localeCompare(right.created_at));
 }

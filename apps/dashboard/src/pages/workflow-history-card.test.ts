@@ -209,4 +209,44 @@ describe('workflow interaction timeline', () => {
     expect(source).toContain('buildTimelineEntryActions');
     expect(source).not.toContain('Event payload');
   });
+
+  it('uses filter, sort, pagination, and saved-view controls in the interaction timeline card', () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, './workflow-history-card.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('WorkItemHistoryFilterBar');
+    expect(source).toContain('WorkItemHistoryPagination');
+    expect(source).toContain('filterAndSortTimelineRecords');
+    expect(source).toContain('paginateTimelineRecords');
+    expect(source).toContain('savedViewStorageKey');
+    expect(source).toContain('onApplySavedView');
+    expect(source).toContain('loadPersistedTimelineFilters');
+    expect(source).toContain('persistTimelineFilters');
+  });
+
+  it('uses relative timestamps with absolute tooltip instead of toLocaleString', () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, './workflow-history-card.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('formatRelativeTimestamp');
+    expect(source).toContain('title={event.created_at}');
+    expect(source).not.toContain('toLocaleString');
+    expect(source).not.toContain('formatTimestamp');
+  });
+
+  it('uses a debounced search input in the filter bar controls', () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, './workflow-work-item-history-controls.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('DebouncedSearchInput');
+    expect(source).toContain('SEARCH_DEBOUNCE_MS');
+    expect(source).toContain('setTimeout');
+    expect(source).toContain('clearTimeout');
+  });
 });
