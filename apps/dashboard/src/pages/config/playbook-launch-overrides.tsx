@@ -161,7 +161,7 @@ function RoleOverrideCard(props: {
             />
           )}
           {fieldErrors?.role ? (
-            <span className="text-xs text-red-600">{fieldErrors.role}</span>
+            <span className="text-xs text-red-600 dark:text-red-400">{fieldErrors.role}</span>
           ) : (
             <span className="text-xs text-muted">
               Prefer declared playbook roles so overrides stay aligned with the selected run.
@@ -204,7 +204,7 @@ function RoleOverrideCard(props: {
             </SelectContent>
           </Select>
           {fieldErrors?.provider ? (
-            <span className="text-xs text-red-600">{fieldErrors.provider}</span>
+            <span className="text-xs text-red-600 dark:text-red-400">{fieldErrors.provider}</span>
           ) : (
             <span className="text-xs text-muted">
               Start with the provider so the model list stays bounded to valid choices.
@@ -246,7 +246,7 @@ function RoleOverrideCard(props: {
             </SelectContent>
           </Select>
           {fieldErrors?.model ? (
-            <span className="text-xs text-red-600">{fieldErrors.model}</span>
+            <span className="text-xs text-red-600 dark:text-red-400">{fieldErrors.model}</span>
           ) : (
             <span className="text-xs text-muted">
               Choose a discovered model instead of typing an unverified override target.

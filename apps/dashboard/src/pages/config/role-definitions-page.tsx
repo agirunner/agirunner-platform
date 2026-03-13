@@ -86,7 +86,7 @@ export function RoleDefinitionsPage(): JSX.Element {
     return <div className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-muted" /></div>;
   }
   if (rolesQuery.error) {
-    return <div className="p-6"><div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">Failed to load roles: {String(rolesQuery.error)}</div></div>;
+    return <div className="p-6"><div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">Failed to load roles: {String(rolesQuery.error)}</div></div>;
   }
 
   const roles = rolesQuery.data ?? [];

@@ -478,7 +478,7 @@ function ConnectOAuthDialog(): JSX.Element {
           </div>
         )}
         {profilesQuery.error && (
-          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
             Failed to load profiles: {String(profilesQuery.error)}
           </div>
         )}
@@ -641,7 +641,7 @@ function OAuthProviderCard({
           <Button
             variant="ghost"
             size="sm"
-            className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30"
+            className="text-red-600 dark:text-red-400 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30"
             onClick={() => onDelete(provider.id)}
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -734,8 +734,8 @@ function AddProviderDialog(props: {
           <section
             className={
               validation.isValid
-                ? 'rounded-xl border border-emerald-300 bg-emerald-50/70 p-4'
-                : 'rounded-xl border border-amber-300 bg-amber-50/80 p-4'
+                ? 'rounded-xl border border-emerald-300 bg-emerald-50/70 p-4 dark:border-emerald-800 dark:bg-emerald-950/30'
+                : 'rounded-xl border border-amber-300 bg-amber-50/80 p-4 dark:border-amber-800 dark:bg-amber-950/30'
             }
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -808,7 +808,7 @@ function AddProviderDialog(props: {
               }
             />
             {validation.fieldErrors.name ? (
-              <p className="text-xs text-red-600">{validation.fieldErrors.name}</p>
+              <p className="text-xs text-red-600 dark:text-red-400">{validation.fieldErrors.name}</p>
             ) : showsRecommendedName ? (
               <p className="text-xs text-muted">
                 Recommended operator label for this provider type: {providerDefaults.name}
@@ -829,7 +829,7 @@ function AddProviderDialog(props: {
               }
             />
             {validation.fieldErrors.baseUrl ? (
-              <p className="text-xs text-red-600">{validation.fieldErrors.baseUrl}</p>
+              <p className="text-xs text-red-600 dark:text-red-400">{validation.fieldErrors.baseUrl}</p>
             ) : (
               <p className="text-xs text-muted">
                 {form.providerType === 'openai-compatible'
@@ -856,13 +856,13 @@ function AddProviderDialog(props: {
               }
             />
             {validation.fieldErrors.apiKey ? (
-              <p className="text-xs text-red-600">{validation.fieldErrors.apiKey}</p>
+              <p className="text-xs text-red-600 dark:text-red-400">{validation.fieldErrors.apiKey}</p>
             ) : (
               <p className="text-xs text-muted">Stored write-only. Existing keys are never shown again.</p>
             )}
           </div>
           {mutation.error && (
-            <p className="text-sm text-red-600">
+            <p className="text-sm text-red-600 dark:text-red-400">
               {String(mutation.error)}
             </p>
           )}
@@ -951,7 +951,7 @@ function ProviderCard({
           <Button
             variant="ghost"
             size="sm"
-            className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30"
+            className="text-red-600 dark:text-red-400 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30"
             onClick={() => onDelete(provider.id)}
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -1165,7 +1165,7 @@ function ModelReasoningSelect({
           ))}
         </SelectContent>
       </Select>
-      {modelError ? <p className="text-xs text-red-600">{modelError}</p> : null}
+      {modelError ? <p className="text-xs text-red-600 dark:text-red-400">{modelError}</p> : null}
     </div>
   );
   const reasoningField = (
@@ -1328,10 +1328,10 @@ function RoleAssignmentsSection({
       <div
         className={
           assignmentSurface.guidance.tone === 'danger'
-            ? 'rounded-xl border border-red-300 bg-red-50/80 px-4 py-3 text-sm text-red-800'
+            ? 'rounded-xl border border-red-300 bg-red-50/80 px-4 py-3 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200'
             : assignmentSurface.guidance.tone === 'warning'
-              ? 'rounded-xl border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950'
-              : 'rounded-xl border border-emerald-300 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-800'
+              ? 'rounded-xl border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200'
+              : 'rounded-xl border border-emerald-300 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200'
         }
       >
         <div className="font-medium">{assignmentSurface.guidance.headline}</div>
@@ -1381,7 +1381,7 @@ function RoleAssignmentsSection({
           />
         </div>
         {assignmentValidation.blockingIssues.length > 0 ? (
-          <p className="text-xs text-red-600">
+          <p className="text-xs text-red-600 dark:text-red-400">
             No system default is configured. Assign explicit models below or restore a default model before saving.
           </p>
         ) : (
@@ -1409,7 +1409,7 @@ function RoleAssignmentsSection({
           )}
         </div>
         {assignmentValidation.blockingIssues.length > 0 ? (
-          <div className="mb-4 rounded-md border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+          <div className="mb-4 rounded-md border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
             {assignmentValidation.blockingIssues.map((issue) => (
               <p key={issue}>{issue}</p>
             ))}
@@ -1810,7 +1810,7 @@ export function LlmProvidersPage(): JSX.Element {
   if (hasError) {
     return (
       <div className="p-6">
-        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
           Failed to load LLM configuration:{' '}
           {String(providersQuery.error ?? modelsQuery.error ?? assignmentsQuery.error ?? roleDefinitionsQuery.error)}
         </div>

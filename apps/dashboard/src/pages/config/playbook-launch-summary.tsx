@@ -92,7 +92,7 @@ function PlaybookSummaryBody(props: {
         {props.playbook.is_active === false ? <Badge variant="destructive">Archived</Badge> : null}
       </div>
       {props.playbook.is_active === false ? (
-        <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950">
+        <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
           Launch is disabled for archived revisions. Restore this playbook from its detail page
           before starting a new workflow.
         </div>
@@ -154,7 +154,7 @@ function EffectiveModelPreview(props: {
       {props.previewLoading ? (
         <p className="text-muted">Resolving effective models...</p>
       ) : props.previewError ? (
-        <p className="text-red-600">Failed to resolve effective models.</p>
+        <p className="text-red-600 dark:text-red-400">Failed to resolve effective models.</p>
       ) : props.previewData && Object.keys(props.previewData.effective_models).length > 0 ? (
         <ResolvedModelList effectiveModels={props.previewData.effective_models} />
       ) : props.projectResolvedModels &&
@@ -195,7 +195,7 @@ function ResolvedModelList(props: {
             <p className="text-sm text-muted">No resolved model available.</p>
           )}
           {resolution.fallback_reason ? (
-            <p className="mt-2 text-xs text-red-600">{resolution.fallback_reason}</p>
+            <p className="mt-2 text-xs text-red-600 dark:text-red-400">{resolution.fallback_reason}</p>
           ) : null}
         </div>
       ))}

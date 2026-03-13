@@ -60,7 +60,7 @@ export function ConfigField(props: {
         </p>
       ) : null}
       {props.error ? (
-        <p id={errorId} className="flex items-start gap-2 text-xs leading-5 text-red-600">
+        <p id={errorId} className="flex items-start gap-2 text-xs leading-5 text-red-600 dark:text-red-400">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>{props.error}</span>
         </p>

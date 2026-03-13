@@ -277,7 +277,7 @@ export function WebhookTriggerSection(props: {
                       <Button size="sm" variant="outline" onClick={() => props.onEditClick(trigger)}>
                         <Pencil className="h-3.5 w-3.5" /> Edit
                       </Button>
-                      <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700" onClick={() => props.onDeleteClick(trigger)}>
+                      <Button size="sm" variant="outline" className="text-red-600 dark:text-red-400 hover:text-red-700" onClick={() => props.onDeleteClick(trigger)}>
                         <Trash2 className="h-3.5 w-3.5" /> Delete
                       </Button>
                     </div>
@@ -330,7 +330,7 @@ export function WebhookTriggerSection(props: {
                           <Button size="sm" variant="ghost" title="Edit" onClick={() => props.onEditClick(trigger)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" title="Delete" className="text-red-600 hover:text-red-700" onClick={() => props.onDeleteClick(trigger)}>
+                          <Button size="sm" variant="ghost" title="Delete" className="text-red-600 dark:text-red-400 hover:text-red-700" onClick={() => props.onDeleteClick(trigger)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -399,8 +399,8 @@ export function WebhookTriggerEditorDialog(props: {
           <section
             className={
               validation.isValid
-                ? 'rounded-xl border border-emerald-300 bg-emerald-50/70 p-4'
-                : 'rounded-xl border border-amber-300 bg-amber-50/80 p-4'
+                ? 'rounded-xl border border-emerald-300 bg-emerald-50/70 p-4 dark:border-emerald-800 dark:bg-emerald-950/30'
+                : 'rounded-xl border border-amber-300 bg-amber-50/80 p-4 dark:border-amber-800 dark:bg-amber-950/30'
             }
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -583,7 +583,7 @@ export function WebhookTriggerEditorDialog(props: {
             onCheckedChange={(checked) => update('isActive', checked)}
           />
 
-          {props.errorMessage ? <p className="text-sm text-red-600">{props.errorMessage}</p> : null}
+          {props.errorMessage ? <p className="text-sm text-red-600 dark:text-red-400">{props.errorMessage}</p> : null}
 
           <div className="flex flex-wrap justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>Cancel</Button>

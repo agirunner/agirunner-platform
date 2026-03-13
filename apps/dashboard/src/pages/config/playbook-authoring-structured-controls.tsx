@@ -250,7 +250,7 @@ function StructuredParameterDefaultEditor(props: {
         </p>
       </div>
       {editorState.sourceError ? (
-        <div className="space-y-3 rounded-lg border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+        <div className="space-y-3 rounded-lg border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
           <p>{editorState.sourceError}</p>
           <Button type="button" variant="outline" size="sm" onClick={resetStructuredDefault}>
             {props.valueType === 'object' ? 'Clear object default' : 'Clear list default'}
@@ -258,7 +258,7 @@ function StructuredParameterDefaultEditor(props: {
         </div>
       ) : null}
       {validation.blockingIssues.length > 0 ? (
-        <div className="rounded-lg border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+        <div className="rounded-lg border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
           Resolve the highlighted default-value rows before saving the playbook.
         </div>
       ) : null}
@@ -337,7 +337,7 @@ function StructuredParameterEntryCard(props: {
               placeholder="branch"
             />
             {props.errors.key ? (
-              <span className="text-xs text-red-600">{props.errors.key}</span>
+              <span className="text-xs text-red-600 dark:text-red-400">{props.errors.key}</span>
             ) : (
               <span className="text-xs text-muted">
                 Use stable field names that match the launch input operators expect.
@@ -372,7 +372,7 @@ function StructuredParameterEntryCard(props: {
             onChange={(value) => props.onChange({ value })}
           />
           {props.errors.value ? (
-            <span className="text-xs text-red-600">{props.errors.value}</span>
+            <span className="text-xs text-red-600 dark:text-red-400">{props.errors.value}</span>
           ) : (
             <span className="text-xs text-muted">
               Choose JSON only when the nested default is genuinely complex.

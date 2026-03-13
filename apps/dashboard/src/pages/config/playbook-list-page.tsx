@@ -222,7 +222,7 @@ export function PlaybookListPage(): JSX.Element {
                     }}
                   />
                   {createValidation.fieldErrors.name ? (
-                    <p className="text-xs text-red-600">{createValidation.fieldErrors.name}</p>
+                    <p className="text-xs text-red-600 dark:text-red-400">{createValidation.fieldErrors.name}</p>
                   ) : null}
                 </label>
                 <label className="grid gap-2 text-sm">
@@ -241,7 +241,7 @@ export function PlaybookListPage(): JSX.Element {
                       : 'Slug will be generated from the name once it contains letters or numbers.'}
                   </p>
                   {createValidation.fieldErrors.slug ? (
-                    <p className="text-xs text-red-600">{createValidation.fieldErrors.slug}</p>
+                    <p className="text-xs text-red-600 dark:text-red-400">{createValidation.fieldErrors.slug}</p>
                   ) : null}
                 </label>
                 <label className="grid gap-2 text-sm md:col-span-2">
@@ -254,7 +254,7 @@ export function PlaybookListPage(): JSX.Element {
                     }}
                   />
                   {createValidation.fieldErrors.outcome ? (
-                    <p className="text-xs text-red-600">{createValidation.fieldErrors.outcome}</p>
+                    <p className="text-xs text-red-600 dark:text-red-400">{createValidation.fieldErrors.outcome}</p>
                   ) : null}
                 </label>
                 <label className="grid gap-2 text-sm md:col-span-2">
@@ -294,7 +294,7 @@ export function PlaybookListPage(): JSX.Element {
                 onValidationChange={setAuthoringValidationIssues}
               />
 
-              {definitionError ? <p className="text-sm text-red-600">{definitionError}</p> : null}
+              {definitionError ? <p className="text-sm text-red-600 dark:text-red-400">{definitionError}</p> : null}
             </CardContent>
           </Card>
 
@@ -425,7 +425,7 @@ export function PlaybookListPage(): JSX.Element {
 
       {playbooksQuery.isLoading ? <p className="text-sm text-muted">Loading playbooks...</p> : null}
       {playbooksQuery.error ? (
-        <p className="text-sm text-red-600">Failed to load playbooks.</p>
+        <p className="text-sm text-red-600 dark:text-red-400">Failed to load playbooks.</p>
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

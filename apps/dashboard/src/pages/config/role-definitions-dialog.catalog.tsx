@@ -84,7 +84,7 @@ export function RoleCapabilitiesSection(props: {
           </Button>
         </div>
         {props.customCapabilityError ? (
-          <p className="text-xs text-red-600">{props.customCapabilityError}</p>
+          <p className="text-xs text-red-600 dark:text-red-400">{props.customCapabilityError}</p>
         ) : (
           <p className="text-xs text-muted">
             Use stable ID-style capability labels so routing and staffing logic stay readable.
@@ -155,7 +155,7 @@ export function RoleToolGrantsSection(props: {
           </Button>
         </div>
         {props.customToolError ? (
-          <p className="text-xs text-red-600">{props.customToolError}</p>
+          <p className="text-xs text-red-600 dark:text-red-400">{props.customToolError}</p>
         ) : (
           <p className="text-xs text-muted">
             Use the exact tool ID when you add a non-catalog grant.

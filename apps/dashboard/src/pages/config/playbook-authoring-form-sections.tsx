@@ -165,7 +165,7 @@ export function BoardColumnsSection(props: SectionProps): JSX.Element {
     >
       <div className="space-y-4">
         {boardColumnValidation.blockingIssues.length > 0 ? (
-          <div className="rounded-md border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+          <div className="rounded-md border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
             Resolve board-column blockers before save.
           </div>
         ) : null}
@@ -215,7 +215,7 @@ export function BoardColumnsSection(props: SectionProps): JSX.Element {
                     placeholder="planned"
                   />
                   {boardColumnValidation.columnErrors[index]?.id ? (
-                    <p className="text-xs text-red-600">
+                    <p className="text-xs text-red-600 dark:text-red-400">
                       {boardColumnValidation.columnErrors[index]?.id}
                     </p>
                   ) : (
@@ -241,7 +241,7 @@ export function BoardColumnsSection(props: SectionProps): JSX.Element {
                     placeholder="Planned"
                   />
                   {boardColumnValidation.columnErrors[index]?.label ? (
-                    <p className="text-xs text-red-600">
+                    <p className="text-xs text-red-600 dark:text-red-400">
                       {boardColumnValidation.columnErrors[index]?.label}
                     </p>
                   ) : (
@@ -783,7 +783,7 @@ export function RuntimeAndParametersSection(
       >
         <div className="space-y-4">
           {parameterValidation.blockingIssues.length > 0 ? (
-            <div className="rounded-md border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+            <div className="rounded-md border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
               Resolve parameter mapping blockers before save.
             </div>
           ) : null}
@@ -836,7 +836,7 @@ export function RuntimeAndParametersSection(
                         }
                       />
                       {parameterErrors.category ? (
-                        <p className="text-xs text-red-600">{parameterErrors.category}</p>
+                        <p className="text-xs text-red-600 dark:text-red-400">{parameterErrors.category}</p>
                       ) : (
                         <p className="text-xs text-muted">
                           Match repository auto-fill to repository metadata and secure values to the credential category.
@@ -857,7 +857,7 @@ export function RuntimeAndParametersSection(
                         }
                       />
                       {parameterErrors.maps_to ? (
-                        <p className="text-xs text-red-600">{parameterErrors.maps_to}</p>
+                        <p className="text-xs text-red-600 dark:text-red-400">{parameterErrors.maps_to}</p>
                       ) : (
                         <p className="text-xs text-muted">{mappingHint}</p>
                       )}
@@ -979,7 +979,7 @@ export function RuntimeAndParametersSection(
                     />
                   </div>
                   {parameterErrors.secret ? (
-                    <p className="text-xs text-red-600">{parameterErrors.secret}</p>
+                    <p className="text-xs text-red-600 dark:text-red-400">{parameterErrors.secret}</p>
                   ) : (
                     <p className="text-xs text-muted">
                       Mark only credential-backed launch inputs as secret so operators can still review normal repository metadata at launch time.

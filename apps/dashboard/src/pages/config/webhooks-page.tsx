@@ -236,7 +236,7 @@ export function WebhooksPage(): JSX.Element {
   if (webhooksQuery.error) {
     return (
       <div className="p-6">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
           <span className="font-medium">Could not load outbound webhooks.</span> Refresh the page,
           then verify the dashboard still has admin access to the platform API.
         </div>

@@ -266,19 +266,19 @@ export function PlaybookLaunchForm(props: {
                 onChange={props.onModelOverrideDraftsChange}
               />
               {props.hasLlmLoadError ? (
-                <p className="text-sm text-red-600">
+                <p className="text-sm text-red-600 dark:text-red-400">
                   Failed to load provider or model options for workflow overrides.
                 </p>
               ) : null}
             </StructuredSection>
 
             {props.workflowConfigBlockingError ? (
-              <p className="text-sm text-red-600">{props.workflowConfigBlockingError}</p>
+              <p className="text-sm text-red-600 dark:text-red-400">{props.workflowConfigBlockingError}</p>
             ) : null}
             {props.workflowOverrideBlockingError ? (
-              <p className="text-sm text-red-600">{props.workflowOverrideBlockingError}</p>
+              <p className="text-sm text-red-600 dark:text-red-400">{props.workflowOverrideBlockingError}</p>
             ) : null}
-            {props.error ? <p className="text-sm text-red-600">{props.error}</p> : null}
+            {props.error ? <p className="text-sm text-red-600 dark:text-red-400">{props.error}</p> : null}
 
             <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/10 p-4">
               <div className="space-y-1">

@@ -170,7 +170,7 @@ function BudgetNumberField(props: {
         placeholder={props.placeholder}
       />
       <span className="text-xs text-muted">{props.hint}</span>
-      {props.error ? <span className="text-xs text-red-600">{props.error}</span> : null}
+      {props.error ? <span className="text-xs text-red-600 dark:text-red-400">{props.error}</span> : null}
     </label>
   );
 }

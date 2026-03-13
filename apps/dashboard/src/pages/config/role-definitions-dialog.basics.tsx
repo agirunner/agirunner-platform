@@ -54,7 +54,7 @@ export function RoleBasicsSection(props: {
             aria-invalid={Boolean(props.validation.fieldErrors.name)}
           />
           {props.validation.fieldErrors.name ? (
-            <span className="text-xs text-red-600">{props.validation.fieldErrors.name}</span>
+            <span className="text-xs text-red-600 dark:text-red-400">{props.validation.fieldErrors.name}</span>
           ) : null}
         </label>
         <div className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/10 px-4 py-3">
@@ -150,7 +150,7 @@ export function RoleBasicsSection(props: {
             )?.description ?? 'Choose where the role should hand off blocked work.'}
           </span>
           {props.validation.fieldErrors.escalationTarget ? (
-            <span className="text-xs text-red-600">
+            <span className="text-xs text-red-600 dark:text-red-400">
               {props.validation.fieldErrors.escalationTarget}
             </span>
           ) : null}
@@ -175,7 +175,7 @@ export function RoleBasicsSection(props: {
               aria-invalid={Boolean(props.validation.fieldErrors.maxEscalationDepth)}
             />
             {props.validation.fieldErrors.maxEscalationDepth ? (
-              <span className="text-xs text-red-600">
+              <span className="text-xs text-red-600 dark:text-red-400">
                 {props.validation.fieldErrors.maxEscalationDepth}
               </span>
             ) : null}
@@ -232,7 +232,7 @@ export function RoleModelPreferenceSection(props: {
             </SelectContent>
           </Select>
           {props.validation.fieldErrors.modelPreference ? (
-            <span className="text-xs text-red-600">
+            <span className="text-xs text-red-600 dark:text-red-400">
               {props.validation.fieldErrors.modelPreference}
             </span>
           ) : null}
@@ -270,7 +270,7 @@ export function RoleModelPreferenceSection(props: {
             </SelectContent>
           </Select>
           {props.validation.fieldErrors.fallbackModel ? (
-            <span className="text-xs text-red-600">
+            <span className="text-xs text-red-600 dark:text-red-400">
               {props.validation.fieldErrors.fallbackModel}
             </span>
           ) : null}

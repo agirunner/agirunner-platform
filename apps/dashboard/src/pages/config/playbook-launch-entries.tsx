@@ -32,7 +32,7 @@ export function StructuredEntryEditor(props: {
         {props.description ? <p className="text-xs text-muted">{props.description}</p> : null}
       </header>
       {props.validation.blockingIssues.length > 0 ? (
-        <div className="rounded-md border border-amber-300 bg-amber-50/80 px-3 py-2 text-sm text-amber-950">
+        <div className="rounded-md border border-amber-300 bg-amber-50/80 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
           Resolve the highlighted entry rows before launch.
         </div>
       ) : null}
@@ -89,7 +89,7 @@ function StructuredEntryRow(props: {
             onChange={(event) => props.onUpdate({ key: event.target.value })}
           />
           {errors?.key ? (
-            <span className="text-xs text-red-600">{errors.key}</span>
+            <span className="text-xs text-red-600 dark:text-red-400">{errors.key}</span>
           ) : (
             <span className="text-xs text-muted">
               Use a stable key so launch metadata and override packets stay readable.
@@ -124,7 +124,7 @@ function StructuredEntryRow(props: {
             onChange={(value) => props.onUpdate({ value })}
           />
           {errors?.value ? (
-            <span className="text-xs text-red-600">{errors.value}</span>
+            <span className="text-xs text-red-600 dark:text-red-400">{errors.value}</span>
           ) : (
             <span className="text-xs text-muted">
               Pick the value type first, then enter only the value that should be sent at launch.

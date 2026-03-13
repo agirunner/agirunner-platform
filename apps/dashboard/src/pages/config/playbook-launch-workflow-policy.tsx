@@ -156,7 +156,7 @@ function WorkflowConfigOverrideEditor(props: {
       {props.definition.configOverrideSpecs.length > 0 ? (
         <div className="grid gap-4">
           {props.validation.blockingIssues.length > 0 ? (
-            <div className="rounded-lg border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+            <div className="rounded-lg border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
               Resolve the highlighted config override fields before launch.
             </div>
           ) : null}
@@ -236,7 +236,7 @@ function WorkflowConfigOverrideField(props: {
           onChange={props.onChange}
         />
         {props.fieldError ? (
-          <span className="text-xs text-red-600">{props.fieldError}</span>
+          <span className="text-xs text-red-600 dark:text-red-400">{props.fieldError}</span>
         ) : (
           <span className="text-xs text-muted">
             Leave this empty to keep the playbook and project-resolved value.

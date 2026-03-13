@@ -198,7 +198,7 @@ function SearchFieldBlock({
       </div>
       {children}
       {error ? (
-        <p className="flex items-start gap-2 text-xs leading-5 text-red-600">
+        <p className="flex items-start gap-2 text-xs leading-5 text-red-600 dark:text-red-400">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>{error}</span>
         </p>

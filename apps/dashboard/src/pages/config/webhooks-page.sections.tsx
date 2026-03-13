@@ -176,8 +176,8 @@ export function WebhookEditorDialog(props: {
   }
 
   const readinessTone = validation.isValid
-    ? 'rounded-xl border border-emerald-300 bg-emerald-50/70 p-4'
-    : 'rounded-xl border border-amber-300 bg-amber-50/80 p-4';
+    ? 'rounded-xl border border-emerald-300 bg-emerald-50/70 p-4 dark:border-emerald-800 dark:bg-emerald-950/30'
+    : 'rounded-xl border border-amber-300 bg-amber-50/80 p-4 dark:border-amber-800 dark:bg-amber-950/30';
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
@@ -240,7 +240,7 @@ export function WebhookEditorDialog(props: {
                   data-testid="webhook-url-input"
                 />
                 {validation.fieldErrors.url ? (
-                  <p className="text-sm text-red-600">{validation.fieldErrors.url}</p>
+                  <p className="text-sm text-red-600 dark:text-red-400">{validation.fieldErrors.url}</p>
                 ) : (
                   <p className="text-sm leading-6 text-muted">
                     Use an `http://` or `https://` endpoint reachable by the platform and owned by
@@ -352,7 +352,7 @@ export function WebhookEditorDialog(props: {
                     data-testid="webhook-secret-input"
                   />
                   {validation.fieldErrors.secret ? (
-                    <p className="text-sm text-red-600">{validation.fieldErrors.secret}</p>
+                    <p className="text-sm text-red-600 dark:text-red-400">{validation.fieldErrors.secret}</p>
                   ) : (
                     <p className="text-sm leading-6 text-muted">
                       Optional. Provide a known secret when the receiver validates signatures.
@@ -385,7 +385,7 @@ export function WebhookEditorDialog(props: {
               </section>
 
               {props.errorMessage ? (
-                <p className="text-sm text-red-600">{props.errorMessage}</p>
+                <p className="text-sm text-red-600 dark:text-red-400">{props.errorMessage}</p>
               ) : null}
             </div>
 
@@ -530,7 +530,7 @@ export function DeleteWebhookDialog(props: {
               </p>
             </div>
             {props.errorMessage ? (
-              <p className="text-sm text-red-600">{props.errorMessage}</p>
+              <p className="text-sm text-red-600 dark:text-red-400">{props.errorMessage}</p>
             ) : null}
             <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button
@@ -687,7 +687,7 @@ function ActionButtons(props: {
       <Button
         size="sm"
         variant="outline"
-        className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30"
+        className="text-red-600 dark:text-red-400 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30"
         onClick={props.onDelete}
       >
         <Trash2 className="h-4 w-4" />

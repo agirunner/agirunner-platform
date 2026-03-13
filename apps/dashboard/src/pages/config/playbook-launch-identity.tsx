@@ -87,11 +87,11 @@ export function RunIdentitySection(props: {
           </SelectContent>
         </Select>
         {props.launchValidation.fieldErrors.playbook && !props.isSelectedPlaybookArchived ? (
-          <p className="text-xs text-red-600">{props.launchValidation.fieldErrors.playbook}</p>
+          <p className="text-xs text-red-600 dark:text-red-400">{props.launchValidation.fieldErrors.playbook}</p>
         ) : null}
       </label>
       {props.isSelectedPlaybookArchived ? (
-        <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950">
+        <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
           This playbook revision is archived. Restore it from the playbook detail page before
           launching a new workflow.
         </div>
@@ -105,7 +105,7 @@ export function RunIdentitySection(props: {
           placeholder="e.g. Customer onboarding board run"
         />
         {props.launchValidation.fieldErrors.workflowName ? (
-          <p className="text-xs text-red-600">
+          <p className="text-xs text-red-600 dark:text-red-400">
             {props.launchValidation.fieldErrors.workflowName}
           </p>
         ) : (

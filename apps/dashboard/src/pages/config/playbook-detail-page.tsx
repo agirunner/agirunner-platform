@@ -255,7 +255,7 @@ export function PlaybookDetailPage(): JSX.Element {
   }
 
   if (playbookQuery.error || !playbookQuery.data) {
-    return <div className="p-6 text-sm text-red-600">Failed to load playbook.</div>;
+    return <div className="p-6 text-sm text-red-600 dark:text-red-400">Failed to load playbook.</div>;
   }
 
   const playbook = playbookQuery.data;
@@ -266,7 +266,7 @@ export function PlaybookDetailPage(): JSX.Element {
       detail: playbook.is_active
         ? 'This revision can launch workflows immediately.'
         : 'Restore or create a newer active revision before launch.',
-      tone: playbook.is_active ? 'border-emerald-300 bg-emerald-50/80 text-emerald-950' : 'border-amber-300 bg-amber-50/80 text-amber-950',
+      tone: playbook.is_active ? 'border-emerald-300 bg-emerald-50/80 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200' : 'border-amber-300 bg-amber-50/80 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200',
     },
     {
       label: 'Lifecycle',
@@ -463,7 +463,7 @@ export function PlaybookDetailPage(): JSX.Element {
             {!playbook.is_active ? (
               <div className="grid gap-2 text-sm">
                 <span className="font-medium">Archive state</span>
-                <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-4 text-sm text-amber-950">
+                <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-4 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
                   This playbook is archived. Revision history remains available, but launch is
                   disabled until a new active revision is created.
                 </div>
@@ -484,7 +484,7 @@ export function PlaybookDetailPage(): JSX.Element {
       />
 
       {authoringValidationIssues.length > 0 ? (
-        <div className="rounded-xl border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+        <div className="rounded-xl border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
           <div className="font-medium">Resolve these authoring blockers before saving.</div>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             {authoringValidationIssues.map((issue) => (
@@ -494,12 +494,12 @@ export function PlaybookDetailPage(): JSX.Element {
         </div>
       ) : null}
       {definitionError ? (
-        <div className="rounded-xl border border-red-300 bg-red-50/80 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-xl border border-red-300 bg-red-50/80 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
           {definitionError}
         </div>
       ) : null}
       {message ? (
-        <div className="rounded-xl border border-emerald-300 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-700">
+        <div className="rounded-xl border border-emerald-300 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
           {message}
         </div>
       ) : null}

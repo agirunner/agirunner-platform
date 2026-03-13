@@ -173,8 +173,8 @@ export function IntegrationEditorDialog({
           <section
             className={
               validation.isValid
-                ? 'rounded-xl border border-emerald-300 bg-emerald-50/70 p-4'
-                : 'rounded-xl border border-amber-300 bg-amber-50/80 p-4'
+                ? 'rounded-xl border border-emerald-300 bg-emerald-50/70 p-4 dark:border-emerald-800 dark:bg-emerald-950/30'
+                : 'rounded-xl border border-amber-300 bg-amber-50/80 p-4 dark:border-amber-800 dark:bg-amber-950/30'
             }
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -193,7 +193,7 @@ export function IntegrationEditorDialog({
               </span>
             </div>
             {!validation.isValid ? (
-              <ul className="mt-3 space-y-1 text-sm text-amber-950">
+              <ul className="mt-3 space-y-1 text-sm text-amber-950 dark:text-amber-200">
                 {validation.issues.map((issue) => (
                   <li key={issue}>• {issue}</li>
                 ))}
@@ -274,7 +274,7 @@ export function IntegrationEditorDialog({
             />
           ) : null}
 
-          {errorMessage ? <p className="text-sm text-red-600">{errorMessage}</p> : null}
+          {errorMessage ? <p className="text-sm text-red-600 dark:text-red-400">{errorMessage}</p> : null}
 
           <div className="flex flex-wrap justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

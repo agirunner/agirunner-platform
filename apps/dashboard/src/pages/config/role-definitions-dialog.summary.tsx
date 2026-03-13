@@ -87,7 +87,7 @@ export function RoleDialogFooter(props: {
   return (
     <div className="border-t border-border/70 bg-surface/95 px-6 py-4 backdrop-blur">
       {props.mutationError ? (
-        <p className="mb-3 text-sm text-red-600">{String(props.mutationError)}</p>
+        <p className="mb-3 text-sm text-red-600 dark:text-red-400">{String(props.mutationError)}</p>
       ) : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted">

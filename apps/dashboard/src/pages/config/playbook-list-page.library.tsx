@@ -122,7 +122,7 @@ export function PlaybookCard(props: {
           <div className="text-muted">{playbook.outcome}</div>
         </div>
         {!playbook.is_active ? (
-          <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950">
+          <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
             Archived playbooks stay available for review and revision history, but launch is
             disabled until this revision is restored or a new active revision is created.
           </div>
