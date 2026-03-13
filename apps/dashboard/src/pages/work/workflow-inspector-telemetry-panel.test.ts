@@ -7,12 +7,19 @@ function readSource() {
 }
 
 describe('workflow inspector telemetry panel source', () => {
-  it('renders changed-field badges and inline diff review for memory evolution cards', () => {
+  it('adds operator focus, spend posture, and memory-review hierarchy to the telemetry panel', () => {
     const source = readSource();
 
+    expect(source).toContain('Operator focus');
+    expect(source).toContain('buildTelemetryFocusPacket');
+    expect(source).toContain('Open highest-impact slice');
+    expect(source).toContain('Spend posture');
+    expect(source).toContain('Telemetry breakdowns');
+    expect(source).toContain('Memory evolution review');
     expect(source).toContain('DiffViewer');
     expect(source).toContain('props.telemetry.spendBreakdowns.map');
-    expect(source).toContain('Open filtered slice');
+    expect(source).toContain('Open spend slice');
+    expect(source).toContain('Open breakdown slice');
     expect(source).toContain('No deeper breakdown is available in this slice yet.');
     expect(source).toContain('change.changedFields.length > 0');
     expect(source).toContain('Open field diff');

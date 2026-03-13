@@ -16,9 +16,36 @@ interface WorkflowInspectorTelemetryPanelProps {
 export function WorkflowInspectorTelemetryPanel(
   props: WorkflowInspectorTelemetryPanelProps,
 ): JSX.Element {
+  const focusPacket = buildTelemetryFocusPacket(props.telemetry, props.isMemoryLoading);
+
   return (
     <>
-      <div className="grid gap-3 xl:grid-cols-3">
+      <Card className="border-border/70 bg-card/70 shadow-none">
+        <CardContent className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <div className="grid gap-1">
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+              Operator focus
+            </div>
+            <div className="text-lg font-semibold text-foreground">{focusPacket.value}</div>
+            <p className="text-sm leading-6 text-muted">{focusPacket.detail}</p>
+          </div>
+          {focusPacket.href ? (
+            <Button asChild className="w-full justify-between lg:w-auto">
+              <Link to={focusPacket.href}>
+                {focusPacket.actionLabel}
+                <ExternalLink className="h-4 w-4" />
+              </Link>
+            </Button>
+          ) : null}
+        </CardContent>
+      </Card>
+
+      <section className="grid gap-3">
+        <SectionHeading
+          title="Spend posture"
+          description="Compare the current highest-cost slices first, then step into detailed spend traces if something looks off."
+        />
+        <div className="grid gap-3 xl:grid-cols-3">
         {props.telemetry.spendPackets.map((packet) => (
           <Card key={packet.label} className="border-border/70 bg-card/70 shadow-none">
             <CardContent className="grid gap-3 p-4">
@@ -32,7 +59,7 @@ export function WorkflowInspectorTelemetryPanel(
               {packet.href ? (
                 <Button asChild variant="outline" className="justify-between">
                   <Link to={packet.href}>
-                    Open slice
+                    Open spend slice
                     <ExternalLink className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -40,8 +67,14 @@ export function WorkflowInspectorTelemetryPanel(
             </CardContent>
           </Card>
         ))}
-      </div>
-      <div className="grid gap-3 xl:grid-cols-3">
+        </div>
+      </section>
+      <section className="grid gap-3">
+        <SectionHeading
+          title="Telemetry breakdowns"
+          description="Use the richest slice in each lane to understand which stage, step, activation, or work item needs follow-up."
+        />
+        <div className="grid gap-3 xl:grid-cols-2">
         {props.telemetry.spendBreakdowns.map((section) => (
           <Card key={section.title} className="border-border/70 bg-card/70 shadow-none">
             <CardContent className="grid gap-4 p-4">
@@ -68,7 +101,7 @@ export function WorkflowInspectorTelemetryPanel(
                       {entry.href ? (
                         <Button asChild variant="ghost" className="mt-2 h-auto justify-start px-0 text-sm">
                           <Link to={entry.href}>
-                            Open filtered slice
+                            Open breakdown slice
                             <ExternalLink className="h-4 w-4" />
                           </Link>
                         </Button>
@@ -78,16 +111,21 @@ export function WorkflowInspectorTelemetryPanel(
                 </div>
               ) : (
                 <div className="rounded-xl border border-dashed border-border/70 bg-background/70 p-4 text-sm text-muted">
-                  No deeper breakdown is available in this slice yet.
+                  No deeper breakdown is available in this slice yet. Use the spend posture packet
+                  above if you need the top trace to inspect first.
                 </div>
               )}
             </CardContent>
           </Card>
         ))}
-      </div>
+        </div>
+      </section>
       <Card className="border-border/70 bg-card/70 shadow-none">
         <CardContent className="grid gap-4 p-4">
           <div className="grid gap-1">
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+              Memory evolution review
+            </div>
             <div className="text-sm font-medium text-foreground">
               {props.telemetry.memoryPacket.title}
             </div>
@@ -154,5 +192,63 @@ export function WorkflowInspectorTelemetryPanel(
         </CardContent>
       </Card>
     </>
+  );
+}
+
+function buildTelemetryFocusPacket(
+  telemetry: WorkflowInspectorTelemetryModel,
+  isMemoryLoading: boolean,
+): {
+  value: string;
+  detail: string;
+  href: string | null;
+  actionLabel: string;
+} {
+  if (isMemoryLoading) {
+    return {
+      value: 'Memory telemetry is still loading',
+      detail: 'Wait for the memory packet to finish loading before deciding whether recent handoff changes need follow-up.',
+      href: null,
+      actionLabel: 'Open slice',
+    };
+  }
+
+  const latestMemoryChange = telemetry.memoryPacket.changes[0];
+  if (latestMemoryChange) {
+    return {
+      value: `${latestMemoryChange.status} · ${latestMemoryChange.key}`,
+      detail: `${latestMemoryChange.summary} ${latestMemoryChange.detail}`,
+      href: null,
+      actionLabel: 'Open slice',
+    };
+  }
+
+  const primarySpendPacket = telemetry.spendPackets.find((packet) => packet.href);
+  if (primarySpendPacket) {
+    return {
+      value: primarySpendPacket.label,
+      detail: primarySpendPacket.detail,
+      href: primarySpendPacket.href,
+      actionLabel: 'Open highest-impact slice',
+    };
+  }
+
+  return {
+    value: 'No active hotspot',
+    detail: 'No spend or memory hotspot needs operator follow-up right now.',
+    href: null,
+    actionLabel: 'Open slice',
+  };
+}
+
+function SectionHeading(props: {
+  title: string;
+  description: string;
+}): JSX.Element {
+  return (
+    <div className="grid gap-1">
+      <div className="text-sm font-medium text-foreground">{props.title}</div>
+      <p className="text-sm leading-6 text-muted">{props.description}</p>
+    </div>
   );
 }
