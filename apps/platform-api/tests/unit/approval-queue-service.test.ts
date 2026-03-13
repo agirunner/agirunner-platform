@@ -295,4 +295,114 @@ describe('ApprovalQueueService', () => {
       }),
     );
   });
+
+  it('redacts secret references from gate packets', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes("SELECT wa.payload->>'gate_id' AS gate_id")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              gate_id: 'gate-secret',
+              id: 'activation-row-secret',
+              workflow_id: 'workflow-secret',
+              activation_id: 'activation-secret',
+              request_id: 'gate-secret-approve',
+              reason: 'stage.gate.approve',
+              event_type: 'stage.gate.approve',
+              state: 'processing',
+              queued_at: new Date('2026-03-11T03:11:00Z'),
+              started_at: new Date('2026-03-11T03:12:00Z'),
+              consumed_at: null,
+              completed_at: null,
+              summary: 'secret:RESUME_SUMMARY',
+              error: { token: 'secret:RESUME_TOKEN' },
+              task_id: 'task-orchestrator-secret',
+              task_title: 'secret:RESUME_TASK_TITLE',
+              task_state: 'in_progress',
+              task_started_at: new Date('2026-03-11T03:12:30Z'),
+              task_completed_at: null,
+            }],
+          };
+        }
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'gate-secret',
+            workflow_id: 'workflow-secret',
+            workflow_name: 'Workflow Secret',
+            stage_id: 'stage-secret',
+            stage_name: 'qa',
+            stage_goal: 'Validate release',
+            status: 'approved',
+            request_summary: 'secret:GATE_SUMMARY',
+            recommendation: 'secret:GATE_RECOMMENDATION',
+            concerns: ['secret:CONCERN_SECRET'],
+            key_artifacts: [{ note: 'secret:ARTIFACT_SECRET' }],
+            requested_by_type: 'orchestrator',
+            requested_by_id: 'task-secret',
+            requested_at: new Date('2026-03-11T03:00:00Z'),
+            updated_at: new Date('2026-03-11T03:15:00Z'),
+            decided_by_type: 'admin',
+            decided_by_id: 'admin-1',
+            decision_feedback: 'secret:DECISION_SECRET',
+            decided_at: new Date('2026-03-11T03:15:00Z'),
+            requested_by_task_id: 'task-secret',
+            requested_by_task_title: 'secret:REQUEST_TASK_TITLE',
+            requested_by_task_role: 'orchestrator',
+            requested_by_work_item_id: 'work-item-secret',
+            requested_by_work_item_title: 'secret:WORK_ITEM_TITLE',
+            decision_history: [
+              {
+                action: 'requested',
+                actor_type: 'agent',
+                actor_id: 'agent-9',
+                feedback: 'secret:REQUEST_FEEDBACK',
+                created_at: '2026-03-11T03:00:00.000Z',
+              },
+              {
+                action: 'approve',
+                actor_type: 'admin',
+                actor_id: 'admin-1',
+                feedback: 'secret:APPROVE_FEEDBACK',
+                created_at: '2026-03-11T03:15:00.000Z',
+              },
+            ],
+          }],
+        };
+      }),
+    };
+
+    const service = new ApprovalQueueService(pool as never);
+    const gate = await service.getGate('tenant-1', 'gate-secret');
+
+    expect(gate).toEqual(
+      expect.objectContaining({
+        request_summary: 'redacted://gate-secret',
+        summary: 'redacted://gate-secret',
+        recommendation: 'redacted://gate-secret',
+        concerns: ['redacted://gate-secret'],
+        key_artifacts: [{ note: 'redacted://gate-secret' }],
+        decision_feedback: 'redacted://gate-secret',
+        requested_by_task: expect.objectContaining({
+          title: 'redacted://gate-secret',
+          work_item_title: 'redacted://gate-secret',
+        }),
+        human_decision: expect.objectContaining({
+          feedback: 'redacted://gate-secret',
+        }),
+        decision_history: [
+          expect.objectContaining({ feedback: 'redacted://gate-secret' }),
+          expect.objectContaining({ feedback: 'redacted://gate-secret' }),
+        ],
+        orchestrator_resume: expect.objectContaining({
+          summary: 'redacted://gate-secret',
+          error: { token: 'redacted://gate-secret' },
+          task: expect.objectContaining({
+            title: 'redacted://gate-secret',
+          }),
+        }),
+      }),
+    );
+  });
 });

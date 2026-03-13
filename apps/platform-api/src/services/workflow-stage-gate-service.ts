@@ -286,6 +286,7 @@ function normalizeResumeHistoryArray(value: unknown) {
 function sanitizeGateString(value: unknown): string | null {
   const sanitized = sanitizeSecretLikeValue(value, {
     redactionValue: GATE_SECRET_REDACTION,
+    allowSecretReferences: false,
   });
   return typeof sanitized === 'string' ? sanitized : null;
 }
@@ -294,9 +295,15 @@ function sanitizeGateRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return null;
   }
-  return sanitizeSecretLikeRecord(value, { redactionValue: GATE_SECRET_REDACTION });
+  return sanitizeSecretLikeRecord(value, {
+    redactionValue: GATE_SECRET_REDACTION,
+    allowSecretReferences: false,
+  });
 }
 
 function sanitizeGateValue(value: unknown): unknown {
-  return sanitizeSecretLikeValue(value, { redactionValue: GATE_SECRET_REDACTION });
+  return sanitizeSecretLikeValue(value, {
+    redactionValue: GATE_SECRET_REDACTION,
+    allowSecretReferences: false,
+  });
 }
