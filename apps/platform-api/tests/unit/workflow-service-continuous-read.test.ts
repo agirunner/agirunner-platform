@@ -363,16 +363,19 @@ describe('WorkflowService continuous workflow reads', () => {
               id: 'task-1',
               tenant_id: 'tenant-1',
               workflow_id: 'wf-1',
-              input: { api_key: 'task-input-secret' },
-              context: { password: 'task-context-secret' },
-              output: { token: 'task-output-secret' },
-              error: { authorization: 'Bearer failure-secret' },
-              role_config: { webhook_url: 'https://hooks.slack.com/services/plain-secret' },
-              environment: { ACCESS_TOKEN: 'task-env-secret' },
-              resource_bindings: [{ credentials: { token: 'binding-secret' } }],
+              input: { api_key: 'task-input-secret', api_key_secret_ref: 'secret:TASK_INPUT_KEY' },
+              context: { password: 'task-context-secret', token_ref: 'secret:TASK_CONTEXT_TOKEN' },
+              output: { token: 'task-output-secret', result_ref: 'secret:TASK_OUTPUT_TOKEN' },
+              error: { authorization: 'Bearer failure-secret', secret_ref: 'secret:TASK_ERROR_SECRET' },
+              role_config: {
+                webhook_url: 'https://hooks.slack.com/services/plain-secret',
+                api_key_secret_ref: 'secret:TASK_ROLE_SECRET',
+              },
+              environment: { ACCESS_TOKEN: 'task-env-secret', TOKEN_REF: 'secret:TASK_ENV_SECRET' },
+              resource_bindings: [{ credentials: { token: 'binding-secret', token_ref: 'secret:TASK_BINDING_SECRET' } }],
               metrics: { summary: 'kept' },
-              git_info: { private_key: 'task-git-secret' },
-              metadata: { refresh_token: 'task-meta-secret' },
+              git_info: { private_key: 'task-git-secret', ssh_key_ref: 'secret:TASK_GIT_SECRET' },
+              metadata: { refresh_token: 'task-meta-secret', secret_ref: 'secret:TASK_META_SECRET' },
             },
           ],
         })
@@ -430,16 +433,45 @@ describe('WorkflowService continuous workflow reads', () => {
     });
     expect(workflow.tasks).toEqual([
       expect.objectContaining({
-        input: { api_key: 'redacted://task-secret' },
-        context: { password: 'redacted://task-secret' },
-        output: { token: 'redacted://task-secret' },
-        error: { authorization: 'redacted://task-secret' },
-        role_config: { webhook_url: 'redacted://task-secret' },
-        environment: { ACCESS_TOKEN: 'redacted://task-secret' },
-        resource_bindings: [{ credentials: { token: 'redacted://task-secret' } }],
+        input: {
+          api_key: 'redacted://task-secret',
+          api_key_secret_ref: 'redacted://task-secret',
+        },
+        context: {
+          password: 'redacted://task-secret',
+          token_ref: 'redacted://task-secret',
+        },
+        output: {
+          token: 'redacted://task-secret',
+          result_ref: 'redacted://task-secret',
+        },
+        error: {
+          authorization: 'redacted://task-secret',
+          secret_ref: 'redacted://task-secret',
+        },
+        role_config: {
+          webhook_url: 'redacted://task-secret',
+          api_key_secret_ref: 'redacted://task-secret',
+        },
+        environment: {
+          ACCESS_TOKEN: 'redacted://task-secret',
+          TOKEN_REF: 'redacted://task-secret',
+        },
+        resource_bindings: [{
+          credentials: {
+            token: 'redacted://task-secret',
+            token_ref: 'redacted://task-secret',
+          },
+        }],
         metrics: { summary: 'kept' },
-        git_info: { private_key: 'redacted://task-secret' },
-        metadata: { refresh_token: 'redacted://task-secret' },
+        git_info: {
+          private_key: 'redacted://task-secret',
+          ssh_key_ref: 'redacted://task-secret',
+        },
+        metadata: {
+          refresh_token: 'redacted://task-secret',
+          secret_ref: 'redacted://task-secret',
+        },
       }),
     ]);
   });

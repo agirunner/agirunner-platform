@@ -901,7 +901,10 @@ function sanitizeWorkflowConfigLayers(value: unknown) {
 }
 
 function sanitizeTaskPayload(value: unknown) {
-  return sanitizeSecretLikeValue(value, { redactionValue: 'redacted://task-secret' });
+  return sanitizeSecretLikeValue(value, {
+    redactionValue: 'redacted://task-secret',
+    allowSecretReferences: false,
+  });
 }
 
 function normalizeWorkflowWorkItemSummary(
