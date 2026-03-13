@@ -789,14 +789,30 @@ function isMissingExecutionLogPartitionError(error: unknown): boolean {
 }
 
 function isDuplicateExecutionLogPartitionError(error: unknown): boolean {
-  if (!isDatabaseError(error)) {
+  const databaseError = getDatabaseErrorDetails(error);
+  if (!databaseError) {
     return false;
   }
-  return error.code === '42P07' || error.message.includes('already exists');
+  return databaseError.code === '42P07' || databaseError.message.includes('already exists');
 }
 
-function isDatabaseError(error: unknown): error is Error & { code?: string } {
-  return error instanceof Error;
+function getDatabaseErrorDetails(error: unknown): { message: string; code?: string } | null {
+  if (error instanceof Error) {
+    return { message: error.message, code: (error as Error & { code?: string }).code };
+  }
+  if (!error || typeof error !== 'object') {
+    return null;
+  }
+  const message = typeof (error as { message?: unknown }).message === 'string'
+    ? (error as { message: string }).message
+    : null;
+  if (!message) {
+    return null;
+  }
+  const code = typeof (error as { code?: unknown }).code === 'string'
+    ? (error as { code: string }).code
+    : undefined;
+  return { message, code };
 }
 
 function buildAgg(row: {

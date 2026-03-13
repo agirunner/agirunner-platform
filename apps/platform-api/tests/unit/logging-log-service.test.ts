@@ -223,6 +223,32 @@ describe('LogService', () => {
       expect(getInsertCall(pool)).toBeDefined();
     });
 
+    it('treats plain database error objects for duplicate partition creation as success', async () => {
+      const pool = createMockPool();
+      pool.query
+        .mockRejectedValueOnce({
+          message: 'relation "execution_logs_2026_03_13" already exists',
+          code: '42P07',
+        })
+        .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+      const service = new LogService(pool as never);
+
+      await service.insert({
+        tenantId: 'tenant-1',
+        traceId: 'trace-1',
+        spanId: 'span-1',
+        source: 'platform',
+        category: 'api',
+        level: 'info',
+        operation: 'api.partition-race-object',
+        status: 'completed',
+        createdAt: '2026-03-13T11:28:01.888699Z',
+      });
+
+      expect(getPartitionCalls(pool)).toHaveLength(1);
+      expect(getInsertCall(pool)).toBeDefined();
+    });
+
     it('deduplicates concurrent partition creation for the same date', async () => {
       const deferred = createDeferred<{ rowCount: number; rows: never[] }>();
       const pool = {
