@@ -77,16 +77,16 @@ describe('workflow detail realtime invalidation scope', () => {
 });
 
 describe('workflow detail continuous stage display', () => {
-  it('derives live stages from active stage sources instead of preferring current_stage', () => {
+  it('uses lifecycle-aware stage presentation instead of current_stage fallback copy', () => {
     const source = readFileSync(
       resolve(import.meta.dirname, './workflow-detail-page.tsx'),
       'utf8',
     );
 
-    expect(source).toContain('deriveWorkflowStageDisplay');
-    expect(source).toContain("label: 'Live stages'");
-    expect(source).toContain('workflow.work_item_summary?.active_stage_names');
-    expect(source).not.toContain('value: workflow.current_stage ?? null');
+    expect(source).toContain("from './workflow-detail-stage-presentation.js'");
+    expect(source).toContain('stageDisplay.badgeValue');
+    expect(source).toContain('stageDisplay.detailValue');
+    expect(source).not.toContain('No active stage yet');
   });
 });
 

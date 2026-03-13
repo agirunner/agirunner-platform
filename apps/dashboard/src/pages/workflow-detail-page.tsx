@@ -60,6 +60,7 @@ import {
 } from './workflow-history-card.js';
 import { WorkflowDocumentsCard, ProjectMemoryCard } from './workflow-detail-content.js';
 import { invalidateWorkflowQueries } from './workflow-detail-query.js';
+import { deriveWorkflowStageDisplay } from './workflow-detail-stage-presentation.js';
 import { buildWorkflowDetailHash } from './workflow-detail-permalinks.js';
 import { ChainWorkflowDialog } from '../components/chain-workflow-dialog.js';
 import { StructuredRecordView } from '../components/structured-data.js';
@@ -85,36 +86,6 @@ import {
 
 interface TaskListResult {
   data: DashboardWorkflowTaskRow[];
-}
-
-function deriveWorkflowStageDisplay(
-  workflow: DashboardWorkflowRecord | undefined,
-): { label: string; value: string | null } {
-  if (!workflow) {
-    return { label: 'Current stage', value: null };
-  }
-
-  const liveStages = Array.from(
-    new Set([
-      ...(workflow.work_item_summary?.active_stage_names ?? []),
-      ...(workflow.active_stages ?? []),
-    ]),
-  ).filter((stage) => stage.trim().length > 0);
-
-  if (workflow.lifecycle === 'continuous') {
-    if (liveStages.length > 0) {
-      return { label: 'Live stages', value: liveStages.join(', ') };
-    }
-    return { label: 'Live stages', value: null };
-  }
-
-  if (workflow.current_stage) {
-    return { label: 'Current stage', value: workflow.current_stage };
-  }
-  if (liveStages.length > 0) {
-    return { label: 'Current stage', value: liveStages.join(', ') };
-  }
-  return { label: 'Current stage', value: null };
 }
 
 export function WorkflowDetailPage(): JSX.Element {
@@ -540,8 +511,10 @@ export function WorkflowDetailPage(): JSX.Element {
                     <Badge variant={workflowQuery.data.state === 'completed' ? 'success' : 'outline'}>
                       {workflowQuery.data.state}
                     </Badge>
-                    {isPlaybookWorkflow && stageDisplay.value ? (
-                      <Badge variant="secondary">{stageDisplay.label}: {stageDisplay.value}</Badge>
+                    {isPlaybookWorkflow && stageDisplay.badgeValue ? (
+                      <Badge variant="secondary">
+                        {stageDisplay.label}: {stageDisplay.badgeValue}
+                      </Badge>
                     ) : null}
                   </div>
                 ) : null}
@@ -637,7 +610,7 @@ export function WorkflowDetailPage(): JSX.Element {
                         <dt className="text-xs font-medium uppercase tracking-wide text-muted">
                           Stage Signal
                         </dt>
-                        <dd className="text-foreground">{stageDisplay.value ?? 'No active stage yet'}</dd>
+                        <dd className="text-foreground">{stageDisplay.detailValue}</dd>
                       </div>
                       <div className="grid gap-1">
                         <dt className="text-xs font-medium uppercase tracking-wide text-muted">
