@@ -155,10 +155,11 @@ function WorkItemFlowActionBlock({
         <Button size="sm" asChild>
           <Link to={workItemPermalink}>Open Work Item Flow</Link>
         </Button>
-        <Button size="sm" variant="outline" asChild>
-          <Link to={`/work/tasks/${task.id}`}>Open Step Record</Link>
-        </Button>
       </div>
+      <p className="text-xs text-muted">
+        Use the grouped work-item flow first. Open the step record later from the work-item view
+        only if you need runtime diagnostics.
+      </p>
     </div>
   );
 }
@@ -1101,9 +1102,11 @@ function EscalationCard({ task, onResolve, onSkip, onCancel, isLoading }: Escala
               Open board
             </Link>
           ) : null}
-          <Link to={`/work/tasks/${task.id}`} className="underline-offset-4 hover:underline">
-            Open step detail
-          </Link>
+          {!workItemPermalink ? (
+            <Link to={`/work/tasks/${task.id}`} className="underline-offset-4 hover:underline">
+              Open step detail
+            </Link>
+          ) : null}
         </div>
 
         {workItemFlow ? (
