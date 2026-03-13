@@ -1,66 +1,45 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Loader2,
-  Plus,
-  Wrench,
-} from 'lucide-react';
-import { readSession } from '../../lib/session.js';
-import { toast } from '../../lib/toast.js';
-import { Button } from '../../components/ui/button.js';
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Loader2, Plus, Wrench } from 'lucide-react';
+
 import { Badge } from '../../components/ui/badge.js';
-import { Input } from '../../components/ui/input.js';
+import { Button } from '../../components/ui/button.js';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '../../components/ui/dialog.js';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../components/ui/select.js';
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../../components/ui/card.js';
 import {
   Table,
-  TableHeader,
   TableBody,
-  TableRow,
-  TableHead,
   TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '../../components/ui/table.js';
+import { readSession } from '../../lib/session.js';
+import { toast } from '../../lib/toast.js';
+import {
+  createToolIdFromName,
+  describeToolCategory,
+  summarizeTools,
+  type CreateToolForm,
+  type ToolTag,
+  validateCreateToolForm,
+} from './tools-page.support.js';
+import { CreateToolDialog } from './tools-page.dialog.js';
 
-interface ToolTag {
-  id: string;
-  name: string;
-  description?: string | null;
-  category?: string | null;
-  created_at?: string;
-}
-
-interface CreateToolForm {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-}
-
-const API_BASE_URL =
-  import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
-
-const CATEGORIES = ['runtime', 'vcs', 'web', 'language', 'integration'] as const;
+const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
+const INITIAL_FORM: CreateToolForm = { id: '', name: '', description: '', category: 'runtime' };
 
 function getAuthHeaders(): Record<string, string> {
   const session = readSession();
-  const headers: Record<string, string> = {
+  return {
     'Content-Type': 'application/json',
+    ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
   };
-  if (session?.accessToken) {
-    headers.Authorization = `Bearer ${session.accessToken}`;
-  }
-  return headers;
 }
 
 async function fetchTools(): Promise<ToolTag[]> {
@@ -68,7 +47,9 @@ async function fetchTools(): Promise<ToolTag[]> {
     headers: getAuthHeaders(),
     credentials: 'include',
   });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
   const body = await response.json();
   return body.data ?? body;
 }
@@ -79,169 +60,66 @@ async function createTool(payload: CreateToolForm): Promise<ToolTag> {
     headers: getAuthHeaders(),
     credentials: 'include',
     body: JSON.stringify({
-      id: payload.id,
-      name: payload.name,
-      description: payload.description || undefined,
-      category: payload.category || undefined,
+      id: payload.id.trim(),
+      name: payload.name.trim(),
+      description: payload.description.trim() || undefined,
+      category: payload.category,
     }),
   });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
   const body = await response.json();
   return body.data ?? body;
 }
 
-const INITIAL_FORM: CreateToolForm = {
-  id: '',
-  name: '',
-  description: '',
-  category: 'runtime',
-};
-
-function categoryVariant(category?: string | null) {
-  const map: Record<string, 'default' | 'secondary' | 'outline' | 'warning' | 'success'> = {
-    runtime: 'default',
-    vcs: 'secondary',
-    web: 'outline',
-    language: 'warning',
-    integration: 'success',
-  };
-  return map[category ?? ''] ?? ('outline' as const);
-}
-
-function CreateToolDialog(): JSX.Element {
+export function ToolsPage(): JSX.Element {
   const queryClient = useQueryClient();
+  const { data = [], isLoading, error } = useQuery({ queryKey: ['tools'], queryFn: fetchTools });
   const [isOpen, setIsOpen] = useState(false);
   const [form, setForm] = useState<CreateToolForm>(INITIAL_FORM);
+  const [hasCustomId, setHasCustomId] = useState(false);
+  const summaryCards = useMemo(() => summarizeTools(data), [data]);
+  const validation = useMemo(() => validateCreateToolForm(form, data), [form, data]);
 
   const mutation = useMutation({
     mutationFn: () => createTool(form),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tools'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['tools'] });
       setForm(INITIAL_FORM);
+      setHasCustomId(false);
       setIsOpen(false);
       toast.success('Tool created');
     },
-    onError: () => {
-      toast.error('Failed to create tool');
+    onError: (errorValue) => {
+      const message = errorValue instanceof Error ? errorValue.message : 'Failed to create tool';
+      toast.error(message);
     },
   });
 
-  function handleNameChange(value: string): void {
-    const id = value
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '_')
-      .replace(/^_|_$/g, '');
-    setForm((prev) => ({ ...prev, name: value, id }));
+  function resetDialog(): void {
+    setForm(INITIAL_FORM);
+    setHasCustomId(false);
   }
 
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <Button onClick={() => setIsOpen(true)} data-testid="add-tool">
-        <Plus className="h-4 w-4" />
-        Add Tool
-      </Button>
-      <DialogContent className="max-h-[75vh] max-w-xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Add Tool</DialogTitle>
-        </DialogHeader>
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            mutation.mutate();
-          }}
-        >
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Name</label>
-            <Input
-              placeholder="Code Formatter"
-              value={form.name}
-              onChange={(e) => handleNameChange(e.target.value)}
-              required
-              data-testid="tool-name-input"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">ID</label>
-            <Input
-              placeholder="code_formatter"
-              value={form.id}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, id: e.target.value }))
-              }
-              required
-              data-testid="tool-id-input"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Category</label>
-            <Select
-              value={form.category}
-              onValueChange={(v) =>
-                setForm((prev) => ({ ...prev, category: v }))
-              }
-            >
-              <SelectTrigger data-testid="tool-category-select">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CATEGORIES.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Description</label>
-            <Input
-              placeholder="Optional description"
-              value={form.description}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, description: e.target.value }))
-              }
-              data-testid="tool-description-input"
-            />
-          </div>
-          {mutation.error && (
-            <p className="text-sm text-red-600">{String(mutation.error)}</p>
-          )}
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={mutation.isPending} data-testid="submit-tool">
-              {mutation.isPending && (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              )}
-              Create
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
+  function openDialog(nextOpen: boolean): void {
+    setIsOpen(nextOpen);
+    if (!nextOpen) {
+      resetDialog();
+    }
+  }
 
-export function ToolsPage(): JSX.Element {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['tools'],
-    queryFn: fetchTools,
-  });
+  function updateName(value: string): void {
+    setForm((current) => ({
+      ...current,
+      name: value,
+      id: hasCustomId ? current.id : createToolIdFromName(value),
+    }));
+  }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted" />
-      </div>
-    );
+    return <div className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-muted" /></div>;
   }
-
   if (error) {
     return (
       <div className="p-6">
@@ -252,56 +130,134 @@ export function ToolsPage(): JSX.Element {
     );
   }
 
-  const tools = Array.isArray(data) ? data : [];
-
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Tools</h1>
-          <p className="text-sm text-muted">
-            Manage tool definitions available to agents during task execution.
-          </p>
-        </div>
-        <CreateToolDialog />
+    <div className="space-y-6 p-6">
+      <Card>
+        <CardHeader className="gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Wrench className="h-5 w-5 text-muted" />
+              <CardTitle className="text-2xl">Tools</CardTitle>
+            </div>
+            <CardDescription className="max-w-3xl text-sm leading-6">
+              Manage the shared tool catalog available to roles and agents. Keep names, categories,
+              and descriptions consistent so operators know what they are granting before execution.
+            </CardDescription>
+          </div>
+          <Button onClick={() => setIsOpen(true)} data-testid="add-tool">
+            <Plus className="h-4 w-4" />
+            Add Tool
+          </Button>
+        </CardHeader>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {summaryCards.map((summary) => (
+          <Card key={summary.label} className="border-border/70 shadow-sm">
+            <CardHeader className="space-y-1">
+              <p className="text-sm font-medium text-muted">{summary.label}</p>
+              <CardTitle className="text-2xl">{summary.value}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm leading-6 text-muted">{summary.detail}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {tools.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-muted">
-          <Wrench className="h-12 w-12 mb-4" />
-          <p className="font-medium">No tools registered</p>
-          <p className="text-sm mt-1">
-            Add a tool to make it available to agents.
-          </p>
-        </div>
+      {data.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center text-muted">
+            <Wrench className="h-12 w-12" />
+            <div className="space-y-1">
+              <p className="font-medium text-foreground">No tools registered</p>
+              <p className="text-sm">Add the first tool to make it available to roles and agent workflows.</p>
+            </div>
+          </CardContent>
+        </Card>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Description</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {tools.map((tool) => (
-              <TableRow key={tool.id}>
-                <TableCell className="font-mono text-sm">{tool.id}</TableCell>
-                <TableCell className="font-medium">{tool.name}</TableCell>
-                <TableCell>
-                  <Badge variant={categoryVariant(tool.category)}>
-                    {tool.category ?? 'unknown'}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-sm text-muted">
-                  {tool.description ?? '-'}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <Card className="border-border/70 shadow-sm">
+          <CardHeader className="space-y-2">
+            <CardTitle>Tool catalog</CardTitle>
+            <CardDescription>
+              Review tool posture at a glance, then use the category and description to confirm it
+              should be granted into runtime execution.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-4 lg:hidden">
+              {data.map((tool) => {
+                const category = describeToolCategory(tool.category);
+                return (
+                  <Card key={tool.id} className="border-border/70 bg-muted/10 shadow-none">
+                    <CardHeader className="space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <CardTitle className="text-base">{tool.name}</CardTitle>
+                        <Badge variant={category.badgeVariant}>{category.label}</Badge>
+                      </div>
+                      <p className="font-mono text-xs text-muted">{tool.id}</p>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                      <p className="text-foreground">{tool.description?.trim() || 'No description yet.'}</p>
+                      <p className="text-muted">{category.detail}</p>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            <div className="hidden overflow-x-auto lg:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Description</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.map((tool) => {
+                    const category = describeToolCategory(tool.category);
+                    return (
+                      <TableRow key={tool.id}>
+                        <TableCell className="font-mono text-sm">{tool.id}</TableCell>
+                        <TableCell className="font-medium">{tool.name}</TableCell>
+                        <TableCell>
+                          <Badge variant={category.badgeVariant}>{category.label}</Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted">
+                          {tool.description?.trim() || 'No description yet.'}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       )}
+
+      <CreateToolDialog
+        open={isOpen}
+        form={form}
+        validation={validation}
+        isPending={mutation.isPending}
+        onOpenChange={openDialog}
+        onSubmit={() => mutation.mutate()}
+        onNameChange={updateName}
+        onIdChange={(value) => {
+          setHasCustomId(true);
+          setForm((current) => ({ ...current, id: value }));
+        }}
+        onDescriptionChange={(value) =>
+          setForm((current) => ({ ...current, description: value }))
+        }
+        onCategoryChange={(value) =>
+          setForm((current) => ({ ...current, category: value }))
+        }
+      />
     </div>
   );
 }
