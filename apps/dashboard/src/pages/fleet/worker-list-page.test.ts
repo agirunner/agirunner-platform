@@ -16,6 +16,10 @@ describe('worker list two-pool source', () => {
     expect(source).toContain('dashboardApi.deleteFleetWorker(workerId)');
     expect(source).toContain('WorkerDesiredStateDialog');
     expect(source).toContain('Runtime defaults');
+    expect(source).toContain('Needs attention');
+    expect(source).toContain('Disable worker desired state');
+    expect(source).toContain('Desired state disabled.');
+    expect(source).toContain('Restart requested');
     expect(source).toContain('Orchestrator workers');
     expect(source).toContain('Specialist workers');
   });

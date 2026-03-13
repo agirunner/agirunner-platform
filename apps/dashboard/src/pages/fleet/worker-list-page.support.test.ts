@@ -5,12 +5,14 @@ import {
   buildCreateWorkerPayload,
   buildEnvironmentEntries,
   buildEnvironmentRecord,
+  formatCapacityDelta,
   buildUpdateWorkerPayload,
   buildWorkerFormValues,
   listModelsForProvider,
   listSuggestedWorkerRoles,
   removeEnvironmentEntry,
   updateEnvironmentEntry,
+  validateWorkerDesiredState,
 } from './worker-list-page.support.js';
 
 describe('worker list support', () => {
@@ -82,8 +84,20 @@ describe('worker list support', () => {
   it('filters models to the selected provider and lists known worker roles', () => {
     const models = listModelsForProvider(
       [
-        { id: 'm-1', model_id: 'gpt-5', provider_id: 'p-1', provider_name: 'OpenAI', is_enabled: true },
-        { id: 'm-2', model_id: 'sonnet', provider_id: 'p-2', provider_name: 'Anthropic', is_enabled: true },
+        {
+          id: 'm-1',
+          model_id: 'gpt-5',
+          provider_id: 'p-1',
+          provider_name: 'OpenAI',
+          is_enabled: true,
+        },
+        {
+          id: 'm-2',
+          model_id: 'sonnet',
+          provider_id: 'p-2',
+          provider_name: 'Anthropic',
+          is_enabled: true,
+        },
       ],
       { id: 'p-1', name: 'OpenAI', auth_mode: 'api_key', credentials_configured: true },
     );
@@ -136,5 +150,32 @@ describe('worker list support', () => {
 
     expect(models.map((model) => model.model_id)).toEqual(['gpt-5']);
     expect(roles).toEqual(['developer', 'reviewer']);
+  });
+
+  it('validates required worker desired-state fields and summarizes capacity drift', () => {
+    const errors = validateWorkerDesiredState({
+      workerName: '',
+      role: '',
+      poolKind: 'specialist',
+      runtimeImage: '',
+      cpuLimit: '2',
+      memoryLimit: '2g',
+      networkPolicy: 'restricted',
+      environmentEntries: [],
+      llmProvider: '',
+      llmModel: '',
+      llmApiKeySecretRef: '',
+      replicas: '0',
+      enabled: true,
+    });
+
+    expect(errors).toMatchObject({
+      workerName: 'Enter a worker name so operators can target this desired state.',
+      role: 'Enter the worker role that this desired state should service.',
+      runtimeImage: 'Provide the runtime image that should be deployed for this worker.',
+      replicas: 'Desired replicas must be at least 1.',
+    });
+    expect(formatCapacityDelta(3, 1)).toBe('2 replicas below target');
+    expect(formatCapacityDelta(2, 4)).toBe('2 extra replicas still running');
   });
 });

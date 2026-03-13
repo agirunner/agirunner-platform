@@ -1,15 +1,22 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Activity, ArrowRight, Pencil, Plus, Power, PowerOff, Server } from 'lucide-react';
+import {
+  Activity,
+  AlertTriangle,
+  ArrowRight,
+  Loader2,
+  Pencil,
+  Plus,
+  Power,
+  PowerOff,
+  Server,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import {
-  dashboardApi,
-  type FleetStatusResponse,
-  type FleetWorkerRecord,
-} from '../../lib/api.js';
+import { dashboardApi, type FleetStatusResponse, type FleetWorkerRecord } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import { cn } from '../../lib/utils.js';
+import { RelativeTimestamp } from '../../components/operator-display.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import {
@@ -20,8 +27,16 @@ import {
   CardHeader,
   CardTitle,
 } from '../../components/ui/card.js';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/dialog.js';
 import { Skeleton } from '../../components/ui/skeleton.js';
 import { WorkerDesiredStateDialog } from './worker-desired-state-dialog.js';
+import { formatCapacityDelta } from './worker-list-page.support.js';
 
 type PoolKind = 'orchestrator' | 'specialist';
 
@@ -38,13 +53,6 @@ function statusVariant(status: string): 'success' | 'destructive' | 'warning' | 
   return STATUS_VARIANT[status.toLowerCase()] ?? 'secondary';
 }
 
-function formatHeartbeat(timestamp: string | null): string {
-  if (!timestamp) {
-    return 'No runtime heartbeat';
-  }
-  return new Date(timestamp).toLocaleString();
-}
-
 function buildWorkerStatus(worker: FleetWorkerRecord): string {
   if (!worker.enabled) {
     return 'disabled';
@@ -58,6 +66,25 @@ function buildWorkerStatus(worker: FleetWorkerRecord): string {
   return 'configured';
 }
 
+function describeWorkerAttention(worker: FleetWorkerRecord, runningContainers: number): string {
+  if (!worker.enabled) {
+    return 'Desired state disabled. This worker stays defined, but orchestration should stop scheduling new work here.';
+  }
+  if (worker.draining) {
+    return 'Drain is active. Existing containers can finish, and new work should route to other workers.';
+  }
+  if (worker.restart_requested) {
+    return 'Restart requested. Watch reconciliation until replacement containers are healthy.';
+  }
+  if (runningContainers < worker.replicas) {
+    return `${formatCapacityDelta(worker.replicas, runningContainers)}. Check docker containers or runtime capacity.`;
+  }
+  if (runningContainers > worker.replicas) {
+    return `${formatCapacityDelta(worker.replicas, runningContainers)}. Wait for reconciliation before forcing action.`;
+  }
+  return 'Desired capacity and runtime containers are aligned.';
+}
+
 function Metric({ label, value }: { label: string; value: string | number }): JSX.Element {
   return (
     <div className="rounded-md border border-border p-3">
@@ -68,9 +95,7 @@ function Metric({ label, value }: { label: string; value: string | number }): JS
 }
 
 function PoolBadge({ poolKind }: { poolKind: PoolKind }): JSX.Element {
-  return (
-    <Badge variant={poolKind === 'orchestrator' ? 'secondary' : 'outline'}>{poolKind}</Badge>
-  );
+  return <Badge variant={poolKind === 'orchestrator' ? 'secondary' : 'outline'}>{poolKind}</Badge>;
 }
 
 function WorkerPoolSummaryCards({
@@ -96,7 +121,8 @@ function WorkerPoolSummaryCards({
                     {poolKind === 'orchestrator' ? 'Orchestrator Pool' : 'Specialist Pool'}
                   </CardTitle>
                   <CardDescription>
-                    Worker desired state drives warm capacity, running containers, and draining behavior.
+                    Worker desired state drives warm capacity, running containers, and draining
+                    behavior.
                   </CardDescription>
                 </div>
                 <PoolBadge poolKind={poolKind} />
@@ -121,14 +147,14 @@ function WorkerCard({
   onRestart,
   onDrain,
   onDisable,
-  isMutating,
+  pendingAction,
 }: {
   worker: FleetWorkerRecord;
   onEdit: () => void;
   onRestart: () => void;
   onDrain: () => void;
   onDisable: () => void;
-  isMutating: boolean;
+  pendingAction: 'restart' | 'drain' | 'disable' | null;
 }): JSX.Element {
   const runningContainers = worker.actual.filter(
     (instance) => instance.container_status?.toLowerCase() === 'running',
@@ -138,6 +164,8 @@ function WorkerCard({
   const pinnedModel = worker.llm_model?.trim()
     ? `${worker.llm_provider ?? 'provider'} / ${worker.llm_model}`
     : 'Runtime default';
+  const attentionMessage = describeWorkerAttention(worker, runningContainers);
+  const isBusy = pendingAction !== null;
 
   return (
     <Card>
@@ -159,6 +187,16 @@ function WorkerCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div
+          className={cn(
+            'rounded-lg p-3 text-sm',
+            workerStatus === 'online'
+              ? 'bg-border/30 text-muted-foreground'
+              : 'bg-yellow-100/70 text-yellow-900 dark:bg-yellow-900/25 dark:text-yellow-100',
+          )}
+        >
+          {attentionMessage}
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <Metric label="Replicas" value={worker.replicas} />
           <Metric label="Running" value={runningContainers} />
@@ -167,14 +205,19 @@ function WorkerCard({
         </div>
         <div className="grid gap-2 text-sm">
           <DetailRow label="Runtime image" value={worker.runtime_image} mono />
-          <DetailRow label="CPU / Memory" value={`${worker.cpu_limit} CPU · ${worker.memory_limit}`} />
+          <DetailRow
+            label="CPU / Memory"
+            value={`${worker.cpu_limit} CPU · ${worker.memory_limit}`}
+          />
           <DetailRow label="Network" value={worker.network_policy} />
           <DetailRow label="Model pinning" value={pinnedModel} />
-          <DetailRow
-            label="Updated"
-            value={formatHeartbeat(worker.updated_at)}
-            valueClassName={cn(worker.enabled ? 'text-foreground' : 'text-muted-foreground')}
-          />
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">Updated</span>
+            <RelativeTimestamp
+              value={worker.updated_at}
+              className={cn(worker.enabled ? 'text-foreground' : 'text-muted-foreground')}
+            />
+          </div>
         </div>
       </CardContent>
       <CardFooter className="flex flex-wrap gap-2 border-t border-border pt-3">
@@ -182,17 +225,31 @@ function WorkerCard({
           <Pencil className="h-3.5 w-3.5" />
           Edit
         </Button>
-        <Button variant="outline" size="sm" disabled={isMutating || !worker.enabled} onClick={onDrain}>
+        <Button variant="outline" size="sm" disabled={isBusy || !worker.enabled} onClick={onDrain}>
           <PowerOff className="h-3.5 w-3.5" />
-          Drain
+          {pendingAction === 'drain' ? 'Draining…' : 'Drain'}
         </Button>
-        <Button variant="outline" size="sm" disabled={isMutating || !worker.enabled} onClick={onRestart}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={isBusy || !worker.enabled}
+          onClick={onRestart}
+        >
           <Power className="h-3.5 w-3.5" />
-          Restart
+          {pendingAction === 'restart' ? 'Restarting…' : 'Restart'}
         </Button>
-        <Button variant="outline" size="sm" disabled={isMutating || !worker.enabled} onClick={onDisable}>
-          <Activity className="h-3.5 w-3.5" />
-          Disable
+        <Button
+          variant="destructive"
+          size="sm"
+          disabled={isBusy || !worker.enabled}
+          onClick={onDisable}
+        >
+          {pendingAction === 'disable' ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Activity className="h-3.5 w-3.5" />
+          )}
+          {pendingAction === 'disable' ? 'Disabling…' : 'Disable'}
         </Button>
       </CardFooter>
     </Card>
@@ -213,7 +270,13 @@ function DetailRow({
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-muted-foreground">{label}</span>
-      <span className={cn('max-w-[65%] truncate text-right font-medium', mono && 'font-mono text-xs', valueClassName)}>
+      <span
+        className={cn(
+          'max-w-[65%] truncate text-right font-medium',
+          mono && 'font-mono text-xs',
+          valueClassName,
+        )}
+      >
         {value}
       </span>
     </div>
@@ -225,6 +288,7 @@ export function WorkerListPage(): JSX.Element {
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [selectedWorker, setSelectedWorker] = useState<FleetWorkerRecord | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [workerPendingDisable, setWorkerPendingDisable] = useState<FleetWorkerRecord | null>(null);
 
   const workersQuery = useQuery({
     queryKey: ['fleet-workers'],
@@ -245,16 +309,28 @@ export function WorkerListPage(): JSX.Element {
 
   const restartMutation = useMutation({
     mutationFn: (workerId: string) => dashboardApi.restartFleetWorker(workerId),
-    onSuccess: () => {
+    onSuccess: (_, workerId) => {
       void queryClient.invalidateQueries({ queryKey: ['fleet-workers'] });
       void queryClient.invalidateQueries({ queryKey: ['fleet-status'] });
+      const workerName =
+        workersQuery.data?.find((candidate) => candidate.id === workerId)?.worker_name ?? 'Worker';
+      toast.success(`${workerName} restart requested`);
+    },
+    onError: () => {
+      toast.error('Failed to request worker restart');
     },
   });
   const drainMutation = useMutation({
     mutationFn: (workerId: string) => dashboardApi.drainFleetWorker(workerId),
-    onSuccess: () => {
+    onSuccess: (_, workerId) => {
       void queryClient.invalidateQueries({ queryKey: ['fleet-workers'] });
       void queryClient.invalidateQueries({ queryKey: ['fleet-status'] });
+      const workerName =
+        workersQuery.data?.find((candidate) => candidate.id === workerId)?.worker_name ?? 'Worker';
+      toast.success(`${workerName} drain requested`);
+    },
+    onError: () => {
+      toast.error('Failed to request worker drain');
     },
   });
   const disableMutation = useMutation({
@@ -263,6 +339,7 @@ export function WorkerListPage(): JSX.Element {
       void queryClient.invalidateQueries({ queryKey: ['fleet-workers'] });
       void queryClient.invalidateQueries({ queryKey: ['fleet-status'] });
       toast.success('Worker desired state disabled');
+      setWorkerPendingDisable(null);
     },
     onError: () => {
       toast.error('Failed to disable worker desired state');
@@ -299,6 +376,19 @@ export function WorkerListPage(): JSX.Element {
     providersQuery.isError || modelsQuery.isError
       ? String(providersQuery.error ?? modelsQuery.error)
       : null;
+  const needsAttentionCount = workers.filter((worker) => {
+    const runningContainers = worker.actual.filter(
+      (instance) => instance.container_status?.toLowerCase() === 'running',
+    ).length;
+    return (
+      !worker.enabled ||
+      worker.draining ||
+      worker.restart_requested ||
+      runningContainers !== worker.replicas
+    );
+  }).length;
+  const activeRestartRequests = workers.filter((worker) => worker.restart_requested).length;
+  const disabledWorkers = workers.filter((worker) => !worker.enabled).length;
 
   function openCreateDialog(): void {
     setDialogMode('create');
@@ -366,6 +456,43 @@ export function WorkerListPage(): JSX.Element {
         </Card>
       </div>
 
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Fleet workers</CardTitle>
+            <CardDescription>
+              Desired-state entries currently tracked by fleet control.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-semibold">{workers.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Needs attention</CardTitle>
+            <CardDescription>
+              Disabled, draining, restarting, or off-target worker entries.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-yellow-600" />
+            <p className="text-3xl font-semibold">{needsAttentionCount}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Action backlog</CardTitle>
+            <CardDescription>
+              Restart requests and disabled definitions waiting on operator follow-through.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-semibold">{activeRestartRequests + disabledWorkers}</p>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="space-y-6">
         {orderedPools.map((poolKind) => {
           const poolWorkers = workers.filter((worker) => worker.pool_kind === poolKind);
@@ -378,7 +505,9 @@ export function WorkerListPage(): JSX.Element {
                 <PoolBadge poolKind={poolKind} />
               </div>
               {poolWorkers.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No workers configured for this pool.</p>
+                <p className="text-sm text-muted-foreground">
+                  No workers configured for this pool.
+                </p>
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {poolWorkers.map((worker) => (
@@ -388,11 +517,15 @@ export function WorkerListPage(): JSX.Element {
                       onEdit={() => openEditDialog(worker)}
                       onRestart={() => restartMutation.mutate(worker.id)}
                       onDrain={() => drainMutation.mutate(worker.id)}
-                      onDisable={() => disableMutation.mutate(worker.id)}
-                      isMutating={
-                        restartMutation.isPending ||
-                        drainMutation.isPending ||
-                        disableMutation.isPending
+                      onDisable={() => setWorkerPendingDisable(worker)}
+                      pendingAction={
+                        restartMutation.isPending && restartMutation.variables === worker.id
+                          ? 'restart'
+                          : drainMutation.isPending && drainMutation.variables === worker.id
+                            ? 'drain'
+                            : disableMutation.isPending && disableMutation.variables === worker.id
+                              ? 'disable'
+                              : null
                       }
                     />
                   ))}
@@ -414,6 +547,46 @@ export function WorkerListPage(): JSX.Element {
         modelCatalogError={modelCatalogError}
         onClose={() => setIsDialogOpen(false)}
       />
+
+      <Dialog
+        open={workerPendingDisable !== null}
+        onOpenChange={(open) => (!open ? setWorkerPendingDisable(null) : undefined)}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Disable worker desired state</DialogTitle>
+            <DialogDescription>
+              Stop scheduling new work to this desired-state entry while keeping the historical
+              worker record available for inspection.
+            </DialogDescription>
+          </DialogHeader>
+          {workerPendingDisable ? (
+            <div className="space-y-4">
+              <div className="rounded-lg bg-border/30 p-4 text-sm text-muted-foreground">
+                <p className="font-medium text-foreground">{workerPendingDisable.worker_name}</p>
+                <p className="mt-1">
+                  Role {workerPendingDisable.role} in the {workerPendingDisable.pool_kind} pool with{' '}
+                  {workerPendingDisable.replicas} desired replica
+                  {workerPendingDisable.replicas === 1 ? '' : 's'}.
+                </p>
+              </div>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button variant="outline" onClick={() => setWorkerPendingDisable(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  disabled={disableMutation.isPending}
+                  onClick={() => disableMutation.mutate(workerPendingDisable.id)}
+                >
+                  {disableMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Disable worker
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

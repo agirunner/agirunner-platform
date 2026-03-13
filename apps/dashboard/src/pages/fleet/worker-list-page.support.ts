@@ -29,12 +29,23 @@ export interface WorkerDesiredStateFormValues {
   enabled: boolean;
 }
 
+export interface WorkerDesiredStateValidationErrors {
+  workerName?: string;
+  role?: string;
+  runtimeImage?: string;
+  replicas?: string;
+}
+
 export const POOL_KIND_OPTIONS: Array<{ value: PoolKind; label: string }> = [
   { value: 'orchestrator', label: 'Orchestrator pool' },
   { value: 'specialist', label: 'Specialist pool' },
 ];
 
-export const NETWORK_POLICY_OPTIONS: Array<{ value: NetworkPolicy; label: string; description: string }> = [
+export const NETWORK_POLICY_OPTIONS: Array<{
+  value: NetworkPolicy;
+  label: string;
+  description: string;
+}> = [
   {
     value: 'restricted',
     label: 'Restricted',
@@ -76,7 +87,9 @@ export function formatEnvironmentValue(value: unknown): string {
   }
 }
 
-export function buildEnvironmentEntries(environment: Record<string, unknown>): WorkerEnvironmentEntry[] {
+export function buildEnvironmentEntries(
+  environment: Record<string, unknown>,
+): WorkerEnvironmentEntry[] {
   const entries = Object.entries(environment).map(([key, value], index) => ({
     id: nextEntryId(index),
     key,
@@ -114,7 +127,9 @@ export function createBlankWorkerFormValues(): WorkerDesiredStateFormValues {
   };
 }
 
-export function buildWorkerFormValues(worker?: FleetWorkerRecord | null): WorkerDesiredStateFormValues {
+export function buildWorkerFormValues(
+  worker?: FleetWorkerRecord | null,
+): WorkerDesiredStateFormValues {
   if (!worker) {
     return createBlankWorkerFormValues();
   }
@@ -176,9 +191,7 @@ export function updateEnvironmentEntry(
   entryId: string,
   patch: Partial<Pick<WorkerEnvironmentEntry, 'key' | 'value'>>,
 ): WorkerEnvironmentEntry[] {
-  return entries.map((entry) =>
-    entry.id === entryId ? { ...entry, ...patch } : entry,
-  );
+  return entries.map((entry) => (entry.id === entryId ? { ...entry, ...patch } : entry));
 }
 
 export function buildCreateWorkerPayload(values: WorkerDesiredStateFormValues): {
@@ -241,4 +254,37 @@ export function buildUpdateWorkerPayload(values: WorkerDesiredStateFormValues): 
     replicas: Math.max(1, Number.parseInt(values.replicas, 10) || 1),
     enabled: values.enabled,
   };
+}
+
+export function validateWorkerDesiredState(
+  values: WorkerDesiredStateFormValues,
+): WorkerDesiredStateValidationErrors {
+  const errors: WorkerDesiredStateValidationErrors = {};
+
+  if (!values.workerName.trim()) {
+    errors.workerName = 'Enter a worker name so operators can target this desired state.';
+  }
+  if (!values.role.trim()) {
+    errors.role = 'Enter the worker role that this desired state should service.';
+  }
+  if (!values.runtimeImage.trim()) {
+    errors.runtimeImage = 'Provide the runtime image that should be deployed for this worker.';
+  }
+
+  const replicas = Number.parseInt(values.replicas, 10);
+  if (!Number.isFinite(replicas) || replicas < 1) {
+    errors.replicas = 'Desired replicas must be at least 1.';
+  }
+
+  return errors;
+}
+
+export function formatCapacityDelta(desired: number, actual: number): string {
+  if (desired === actual) {
+    return 'Capacity aligned';
+  }
+  if (actual < desired) {
+    return `${desired - actual} replica${desired - actual === 1 ? '' : 's'} below target`;
+  }
+  return `${actual - desired} extra replica${actual - desired === 1 ? '' : 's'} still running`;
 }

@@ -38,11 +38,13 @@ import {
   buildCreateWorkerPayload,
   buildUpdateWorkerPayload,
   buildWorkerFormValues,
+  formatCapacityDelta,
   listModelsForProvider,
   listSuggestedWorkerRoles,
   NETWORK_POLICY_OPTIONS,
   POOL_KIND_OPTIONS,
   type WorkerDesiredStateFormValues,
+  validateWorkerDesiredState,
   updateEnvironmentEntry,
   removeEnvironmentEntry,
 } from './worker-list-page.support.js';
@@ -63,13 +65,35 @@ interface WorkerDesiredStateDialogProps {
 
 const DEFAULT_PROVIDER_VALUE = '__runtime-default__';
 
-export function WorkerDesiredStateDialog(
-  props: WorkerDesiredStateDialogProps,
-): JSX.Element {
-  const queryClient = useQueryClient();
-  const [formValues, setFormValues] = useState<WorkerDesiredStateFormValues>(
-    buildWorkerFormValues(),
+function SummaryField({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}): JSX.Element {
+  return (
+    <div className="rounded-lg bg-border/30 p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">{label}</p>
+      <p
+        className={
+          mono
+            ? 'mt-1 font-mono text-xs text-foreground'
+            : 'mt-1 text-sm font-medium text-foreground'
+        }
+      >
+        {value}
+      </p>
+    </div>
   );
+}
+
+export function WorkerDesiredStateDialog(props: WorkerDesiredStateDialogProps): JSX.Element {
+  const queryClient = useQueryClient();
+  const [formValues, setFormValues] =
+    useState<WorkerDesiredStateFormValues>(buildWorkerFormValues());
 
   useEffect(() => {
     if (props.isOpen) {
@@ -87,6 +111,13 @@ export function WorkerDesiredStateDialog(
     () => listModelsForProvider(props.models, selectedProvider),
     [props.models, selectedProvider],
   );
+  const validationErrors = useMemo(() => validateWorkerDesiredState(formValues), [formValues]);
+  const hasValidationErrors = Object.keys(validationErrors).length > 0;
+  const desiredReplicas = Math.max(1, Number.parseInt(formValues.replicas, 10) || 1);
+  const actualReplicas = props.worker?.actual.length ?? 0;
+  const networkDescription =
+    NETWORK_POLICY_OPTIONS.find((option) => option.value === formValues.networkPolicy)
+      ?.description ?? 'Network policy not selected.';
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -96,10 +127,7 @@ export function WorkerDesiredStateDialog(
       if (!props.worker) {
         throw new Error('Worker is required to update desired state.');
       }
-      return dashboardApi.updateFleetWorker(
-        props.worker.id,
-        buildUpdateWorkerPayload(formValues),
-      );
+      return dashboardApi.updateFleetWorker(props.worker.id, buildUpdateWorkerPayload(formValues));
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['fleet-workers'] });
@@ -126,10 +154,7 @@ export function WorkerDesiredStateDialog(
     setFormValues((current) => ({
       ...current,
       poolKind: nextPoolKind,
-      role:
-        nextPoolKind === 'orchestrator' && !current.role.trim()
-          ? 'orchestrator'
-          : current.role,
+      role: nextPoolKind === 'orchestrator' && !current.role.trim() ? 'orchestrator' : current.role,
     }));
   }
 
@@ -138,12 +163,9 @@ export function WorkerDesiredStateDialog(
       setFormValues((current) => ({ ...current, llmProvider: '', llmModel: '' }));
       return;
     }
-    const provider =
-      props.providers.find((candidate) => candidate.name === nextValue) ?? null;
+    const provider = props.providers.find((candidate) => candidate.name === nextValue) ?? null;
     const allowedModels = listModelsForProvider(props.models, provider);
-    const nextModel = allowedModels.some(
-      (model) => model.model_id === formValues.llmModel,
-    )
+    const nextModel = allowedModels.some((model) => model.model_id === formValues.llmModel)
       ? formValues.llmModel
       : '';
     setFormValues((current) => ({
@@ -158,21 +180,55 @@ export function WorkerDesiredStateDialog(
     mutation.mutate();
   }
 
-  const title =
-    props.mode === 'create' ? 'Register Fleet Worker' : 'Edit Worker Desired State';
+  const title = props.mode === 'create' ? 'Register Fleet Worker' : 'Edit Worker Desired State';
 
   return (
     <Dialog open={props.isOpen} onOpenChange={(open) => (!open ? props.onClose() : undefined)}>
-      <DialogContent className="max-h-[85vh] max-w-4xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto p-0">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
-            Configure the desired runtime posture, pool assignment, model pinning, and environment
-            for this worker entry.
-          </DialogDescription>
+          <div className="space-y-2 border-b border-border px-6 pt-6 pb-4">
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>
+              Configure the desired runtime posture, pool assignment, model pinning, and environment
+              for this worker entry.
+            </DialogDescription>
+          </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6 px-6 pb-6">
+          <section className="grid gap-3 pt-2 md:grid-cols-2 xl:grid-cols-4">
+            <SummaryField
+              label="Pool assignment"
+              value={
+                formValues.poolKind === 'orchestrator' ? 'Orchestrator pool' : 'Specialist pool'
+              }
+            />
+            <SummaryField
+              label="Capacity"
+              value={
+                props.mode === 'create'
+                  ? `${desiredReplicas} desired replica${desiredReplicas === 1 ? '' : 's'}`
+                  : `${desiredReplicas} desired • ${formatCapacityDelta(
+                      desiredReplicas,
+                      actualReplicas,
+                    )}`
+              }
+            />
+            <SummaryField
+              label="Model routing"
+              value={
+                formValues.llmProvider.trim()
+                  ? `${formValues.llmProvider} / ${formValues.llmModel || 'Provider default'}`
+                  : 'Runtime default'
+              }
+            />
+            <SummaryField
+              label="Runtime image"
+              value={formValues.runtimeImage.trim() || 'Set the runtime image'}
+              mono
+            />
+          </section>
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Identity and pool</CardTitle>
@@ -192,11 +248,15 @@ export function WorkerDesiredStateDialog(
                   onChange={(event) => setField('workerName', event.target.value)}
                   placeholder="specialist-developer-01"
                   disabled={props.mode === 'edit'}
+                  aria-invalid={validationErrors.workerName ? 'true' : 'false'}
                 />
                 {props.mode === 'edit' ? (
                   <p className="text-xs text-muted">
                     Worker names are immutable. Create a new worker entry to rename it.
                   </p>
+                ) : null}
+                {validationErrors.workerName ? (
+                  <p className="text-xs text-red-600">{validationErrors.workerName}</p>
                 ) : null}
               </div>
               <div className="space-y-2">
@@ -226,12 +286,20 @@ export function WorkerDesiredStateDialog(
                   placeholder={
                     formValues.poolKind === 'orchestrator' ? 'orchestrator' : 'developer'
                   }
+                  aria-invalid={validationErrors.role ? 'true' : 'false'}
                 />
                 <datalist id="worker-role-suggestions">
                   {suggestedRoles.map((role) => (
                     <option key={role} value={role} />
                   ))}
                 </datalist>
+                {validationErrors.role ? (
+                  <p className="text-xs text-red-600">{validationErrors.role}</p>
+                ) : (
+                  <p className="text-xs text-muted">
+                    Use the role label operators expect to route and inspect work against.
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <label htmlFor="worker-replicas" className="text-sm font-medium">
@@ -243,14 +311,22 @@ export function WorkerDesiredStateDialog(
                   min={1}
                   value={formValues.replicas}
                   onChange={(event) => setField('replicas', event.target.value)}
+                  aria-invalid={validationErrors.replicas ? 'true' : 'false'}
                 />
+                {validationErrors.replicas ? (
+                  <p className="text-xs text-red-600">{validationErrors.replicas}</p>
+                ) : (
+                  <p className="text-xs text-muted">
+                    Set the steady-state capacity that the reconciler should maintain.
+                  </p>
+                )}
               </div>
               <div className="space-y-2 md:col-span-2">
                 <div className="flex items-center justify-between rounded-lg border border-border p-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium">Enabled</p>
                     <p className="text-xs text-muted">
-                      Disable a worker entry without removing its desired-state record.
+                      Disable this worker to keep the definition without placing new work on it.
                     </p>
                   </div>
                   <Switch
@@ -279,7 +355,15 @@ export function WorkerDesiredStateDialog(
                   value={formValues.runtimeImage}
                   onChange={(event) => setField('runtimeImage', event.target.value)}
                   placeholder="ghcr.io/agirunner/runtime:latest"
+                  aria-invalid={validationErrors.runtimeImage ? 'true' : 'false'}
                 />
+                {validationErrors.runtimeImage ? (
+                  <p className="text-xs text-red-600">{validationErrors.runtimeImage}</p>
+                ) : (
+                  <p className="text-xs text-muted">
+                    Match the image that should be present on the worker after reconciliation.
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <label htmlFor="worker-cpu-limit" className="text-sm font-medium">
@@ -307,7 +391,9 @@ export function WorkerDesiredStateDialog(
                 <label className="text-sm font-medium">Network policy</label>
                 <Select
                   value={formValues.networkPolicy}
-                  onValueChange={(value) => setField('networkPolicy', value as 'restricted' | 'open')}
+                  onValueChange={(value) =>
+                    setField('networkPolicy', value as 'restricted' | 'open')
+                  }
                 >
                   <SelectTrigger data-testid="worker-network-policy">
                     <SelectValue />
@@ -320,13 +406,7 @@ export function WorkerDesiredStateDialog(
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted">
-                  {
-                    NETWORK_POLICY_OPTIONS.find(
-                      (option) => option.value === formValues.networkPolicy,
-                    )?.description
-                  }
-                </p>
+                <p className="text-xs text-muted">{networkDescription}</p>
               </div>
             </CardContent>
           </Card>
@@ -350,9 +430,7 @@ export function WorkerDesiredStateDialog(
                     <SelectValue placeholder="Use runtime default" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={DEFAULT_PROVIDER_VALUE}>
-                      Use runtime default
-                    </SelectItem>
+                    <SelectItem value={DEFAULT_PROVIDER_VALUE}>Use runtime default</SelectItem>
                     {props.providers.map((provider) => (
                       <SelectItem key={provider.id} value={provider.name}>
                         {provider.name}
@@ -378,9 +456,7 @@ export function WorkerDesiredStateDialog(
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={DEFAULT_PROVIDER_VALUE}>
-                      Use provider default
-                    </SelectItem>
+                    <SelectItem value={DEFAULT_PROVIDER_VALUE}>Use provider default</SelectItem>
                     {availableModels.map((model) => (
                       <SelectItem key={model.id} value={model.model_id}>
                         {model.model_id}
@@ -455,7 +531,7 @@ export function WorkerDesiredStateDialog(
                   <Button
                     type="button"
                     variant="outline"
-                    size="icon"
+                    size="sm"
                     onClick={() =>
                       setField(
                         'environmentEntries',
@@ -465,6 +541,7 @@ export function WorkerDesiredStateDialog(
                     aria-label="Remove environment variable"
                   >
                     <Trash2 className="h-4 w-4" />
+                    Remove
                   </Button>
                 </div>
               ))}
@@ -472,10 +549,7 @@ export function WorkerDesiredStateDialog(
                 type="button"
                 variant="outline"
                 onClick={() =>
-                  setField(
-                    'environmentEntries',
-                    addEnvironmentEntry(formValues.environmentEntries),
-                  )
+                  setField('environmentEntries', addEnvironmentEntry(formValues.environmentEntries))
                 }
               >
                 <Plus className="h-4 w-4" />
@@ -484,22 +558,17 @@ export function WorkerDesiredStateDialog(
             </CardContent>
           </Card>
 
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="sticky bottom-0 -mx-6 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface px-6 py-4">
+            <p className="text-sm text-muted">
+              {hasValidationErrors
+                ? 'Fix the highlighted fields before saving this desired state.'
+                : 'Saving updates fleet worker desired state immediately.'}
+            </p>
             <Button type="button" variant="outline" onClick={props.onClose}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={
-                mutation.isPending ||
-                !formValues.workerName.trim() ||
-                !formValues.role.trim() ||
-                !formValues.runtimeImage.trim()
-              }
-            >
-              {mutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : null}
+            <Button type="submit" disabled={mutation.isPending || hasValidationErrors}>
+              {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {props.mode === 'create' ? 'Create worker' : 'Save changes'}
             </Button>
           </div>
