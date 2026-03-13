@@ -87,9 +87,9 @@ describe('FR-192: context versioning', () => {
           }],
         });
       }
-      if (sql.includes('SELECT DISTINCT stage_name')) {
+      if (sql.includes('SELECT DISTINCT wi.stage_name') && sql.includes('completed_at IS NULL')) {
         return Promise.resolve({
-          rows: [{ stage_name: 'review' }, { stage_name: 'build' }],
+          rows: [{ stage_name: 'build' }],
         });
       }
       if (sql.includes('LEFT JOIN playbooks pb') && sql.includes('ANY($2::uuid[])')) {
@@ -169,7 +169,7 @@ describe('FR-192: context versioning', () => {
         .map((call) => String(call[0] ?? ''))
         .some((sql) => sql.includes('FROM workflow_stages') && sql.includes('ORDER BY position ASC')),
     ).toBe(false);
-    expect((context.workflow as Record<string, unknown>).active_stages).toEqual(['build', 'review']);
+    expect((context.workflow as Record<string, unknown>).active_stages).toEqual(['build']);
     expect((context.workflow as Record<string, unknown>).relations).toEqual(
       expect.objectContaining({
         parent: expect.objectContaining({ workflow_id: 'wf-parent', state: 'completed' }),

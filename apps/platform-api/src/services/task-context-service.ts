@@ -74,6 +74,8 @@ export async function buildTaskContext(
   );
 
   const workflowRow = workflowRes.rows[0] as Record<string, unknown> | undefined;
+  const continuousWorkflowRow =
+    workflowRow && isContinuousWorkflowRow(workflowRow) ? workflowRow : null;
   const workItem = await loadWorkItemContext(db, tenantId, task);
   const activeStages = workflowRow
     ? await loadWorkflowActiveStages(
@@ -81,6 +83,7 @@ export async function buildTaskContext(
         tenantId,
         String(workflowRow.id),
         workflowRow.playbook_definition,
+        continuousWorkflowRow ? 'continuous' : 'standard',
       )
     : [];
   const workflowRelations = workflowRow
@@ -105,9 +108,9 @@ export async function buildTaskContext(
   const flatInstructions = readFlatInstructions(asRecord(task.role_config), agent?.metadata);
   const orchestratorContext = await buildOrchestratorTaskContext(db, tenantId, task);
   const workflowContext = workflowRow
-    ? isContinuousWorkflowRow(workflowRow)
+    ? continuousWorkflowRow
       ? buildContinuousWorkflowContext({
-          workflowRow,
+          workflowRow: continuousWorkflowRow,
           activeStages,
           workflowRelations,
           parentWorkflowContext,
@@ -219,8 +222,38 @@ async function loadWorkflowActiveStages(
   tenantId: string,
   workflowId: string,
   definition: unknown,
+  lifecycle: 'continuous' | 'standard',
 ): Promise<string[]> {
-  const result = await db.query<{ stage_name: string }>(
+  const result =
+    lifecycle === 'continuous'
+      ? await loadContinuousWorkflowActiveStages(db, tenantId, workflowId)
+      : await loadStandardWorkflowActiveStages(db, tenantId, workflowId);
+  return orderStageNamesByDefinition(result.rows.map((row) => row.stage_name), definition);
+}
+
+async function loadContinuousWorkflowActiveStages(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+) {
+  return db.query<{ stage_name: string }>(
+    `SELECT DISTINCT wi.stage_name
+       FROM workflow_work_items wi
+      WHERE wi.tenant_id = $1
+        AND wi.workflow_id = $2
+        AND wi.completed_at IS NULL
+        AND wi.stage_name IS NOT NULL
+      ORDER BY wi.stage_name ASC`,
+    [tenantId, workflowId],
+  );
+}
+
+async function loadStandardWorkflowActiveStages(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+) {
+  return db.query<{ stage_name: string }>(
     `SELECT DISTINCT stage_name
        FROM (
          SELECT wi.stage_name
@@ -239,7 +272,6 @@ async function loadWorkflowActiveStages(
       ORDER BY stage_name ASC`,
     [tenantId, workflowId],
   );
-  return orderStageNamesByDefinition(result.rows.map((row) => row.stage_name), definition);
 }
 
 async function loadWorkflowCurrentStage(
