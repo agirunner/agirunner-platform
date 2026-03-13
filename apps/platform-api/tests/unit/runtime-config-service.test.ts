@@ -31,6 +31,13 @@ const sampleDefault = {
   updated_at: new Date(),
 };
 
+const sampleSecretDefault = {
+  config_key: 'tools.web_search_api_key_secret_ref',
+  config_value: 'secret:SERPER_API_KEY',
+  config_type: 'string',
+  updated_at: new Date(),
+};
+
 describe('RuntimeConfigService', () => {
   let pool: ReturnType<typeof createMockPool>;
   let service: RuntimeConfigService;
@@ -56,6 +63,24 @@ describe('RuntimeConfigService', () => {
     expect(result.defaults[0].key).toBe('max_rework_attempts');
     expect(result.primaryModel).toBeNull();
     expect(result.version).toBeDefined();
+  });
+
+  it('redacts secret-bearing runtime defaults in worker config responses', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [sampleWorker], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [sampleSecretDefault], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+    const result = await service.getConfigForWorker(TENANT_ID, 'built-in-worker');
+
+    expect(result.defaults).toEqual([
+      {
+        key: 'tools.web_search_api_key_secret_ref',
+        value: 'redacted://runtime-config-secret',
+        type: 'string',
+      },
+    ]);
   });
 
   it('throws NotFoundError for missing worker', async () => {

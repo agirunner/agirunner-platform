@@ -1,6 +1,10 @@
 import type { DatabasePool } from '../db/database.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 
+const RUNTIME_CONFIG_SECRET_REDACTION = 'redacted://runtime-config-secret';
+const runtimeConfigSecretKeyPattern =
+  /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|webhook_url|known_hosts)/i;
+
 interface RuntimeConfigRole {
   name: string;
   description: string | null;
@@ -153,7 +157,9 @@ export class RuntimeConfigService {
     );
     return result.rows.map((row) => ({
       key: row.config_key,
-      value: row.config_value,
+      value: shouldRedactRuntimeConfigDefault(row.config_key, row.config_value)
+        ? RUNTIME_CONFIG_SECRET_REDACTION
+        : row.config_value,
       type: row.config_type,
     }));
   }
@@ -206,4 +212,8 @@ export class RuntimeConfigService {
   ): Date {
     return new Date();
   }
+}
+
+function shouldRedactRuntimeConfigDefault(configKey: string, configValue: string): boolean {
+  return runtimeConfigSecretKeyPattern.test(configKey) && configValue.trim().length > 0;
 }
