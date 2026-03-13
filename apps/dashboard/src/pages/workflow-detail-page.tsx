@@ -444,7 +444,7 @@ export function WorkflowDetailPage(): JSX.Element {
       <section className="grid gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Board Detail Unavailable</CardTitle>
+            <CardTitle>Workflow Board Unavailable</CardTitle>
             <CardDescription>
               This detail view requires a playbook-backed board run.
             </CardDescription>
@@ -568,7 +568,7 @@ export function WorkflowDetailPage(): JSX.Element {
             <CardHeader className="gap-4 border-b border-border/70 bg-gradient-to-br from-surface via-surface to-border/10">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="space-y-1">
-                  <CardTitle>Board Detail</CardTitle>
+                  <CardTitle>Workflow Board</CardTitle>
                   <CardDescription>
                     Live operator view of the workflow, board state, and orchestration context.
                   </CardDescription>
@@ -625,7 +625,7 @@ export function WorkflowDetailPage(): JSX.Element {
                           <Badge variant="outline">Project-linked</Badge>
                         ) : null}
                         <Button asChild size="sm" variant="outline">
-                          <Link to={`/work/workflows/${workflowId}/inspector`}>Open Inspector</Link>
+                          <Link to={`/work/boards/${workflowId}/inspector`}>Open Inspector</Link>
                         </Button>
                         {projectId ? (
                           <Button asChild size="sm" variant="outline">

@@ -256,7 +256,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
           </p>
           {scopedWorkflowId ? (
             <div className="text-sm">
-              <Link className="underline-offset-4 hover:underline" to={`/work/workflows/${scopedWorkflowId}`}>
+              <Link className="underline-offset-4 hover:underline" to={`/work/boards/${scopedWorkflowId}`}>
                 Back to Workflow Board
               </Link>
             </div>
@@ -444,5 +444,5 @@ function buildInspectorPermalink(
 }
 
 function buildWorkflowContextLink(entry: LogEntry): string {
-  return buildLogWorkflowContextLink(entry) ?? `/work/workflows/${entry.workflow_id}`;
+  return buildLogWorkflowContextLink(entry) ?? `/work/boards/${entry.workflow_id}`;
 }

@@ -452,7 +452,7 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
             {selectedWorkflowId ? (
               <Link
                 className="underline-offset-4 hover:underline"
-                to={`/work/workflows/${selectedWorkflowId}`}
+                to={`/work/boards/${selectedWorkflowId}`}
               >
                 Open Workflow Board
               </Link>
@@ -560,7 +560,7 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                     <Badge variant="secondary">{selectedWorkflow.state}</Badge>
                     <Link
                       className="text-sm text-accent hover:underline"
-                      to={`/work/workflows/${selectedWorkflow.id}`}
+                      to={`/work/boards/${selectedWorkflow.id}`}
                     >
                       Open workflow
                     </Link>
@@ -1104,7 +1104,7 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                             ) : (
                               <Link
                                 className="text-sm text-accent hover:underline"
-                                to={`/work/workflows/${selectedWorkflowId}`}
+                                to={`/work/boards/${selectedWorkflowId}`}
                               >
                                 Open workflow
                               </Link>

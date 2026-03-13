@@ -116,7 +116,7 @@ export function TaskApprovalCard(props: {
   const operatorFlowLabel = readTaskOperatorFlowLabel(task);
   const workflowContextLink =
     buildWorkflowOperatorPermalink(task) ??
-    (task.workflow_id ? `/work/workflows/${task.workflow_id}` : null);
+    (task.workflow_id ? `/work/boards/${task.workflow_id}` : null);
   const primaryFlowLabel = workItemFlow ? 'Open Work Item Flow' : 'Open Board Stage Flow';
   const diagnosticsLabel = workflowOperatorFlow ? 'Open Step Diagnostics' : 'Open Step Record';
   const stepReferenceLabel = workflowOperatorFlow ? 'Step diagnostics' : 'Step record';
@@ -169,7 +169,7 @@ export function TaskApprovalCard(props: {
                 </div>
                 {task.workflow_name && task.workflow_id ? (
                   <Link
-                    to={workflowContextLink ?? `/work/workflows/${task.workflow_id}`}
+                    to={workflowContextLink ?? `/work/boards/${task.workflow_id}`}
                     className="font-medium text-accent hover:underline"
                   >
                     Open board context

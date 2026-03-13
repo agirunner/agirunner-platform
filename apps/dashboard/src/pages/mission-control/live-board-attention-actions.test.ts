@@ -15,7 +15,7 @@ describe('live board attention actions', () => {
     ).toEqual([
       {
         label: 'Open work-item flow',
-        href: '/work/workflows/workflow-1?work_item=work-item-1&activation=activation-1',
+        href: '/work/boards/workflow-1?work_item=work-item-1&activation=activation-1',
         isPrimary: true,
       },
       {
@@ -36,7 +36,7 @@ describe('live board attention actions', () => {
     ).toEqual([
       {
         label: 'Open board context',
-        href: '/work/workflows/workflow-2',
+        href: '/work/boards/workflow-2',
         isPrimary: true,
       },
       {

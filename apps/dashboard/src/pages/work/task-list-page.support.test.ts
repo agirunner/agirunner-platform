@@ -41,7 +41,7 @@ describe('task list page support', () => {
       'Review and approve this step from the grouped work-item flow.',
     );
     expect(buildTaskPrimaryOperatorAction(approvalTask)).toEqual({
-      href: '/work/workflows/workflow-1?work_item=work-item-12345678&activation=activation-12345678#work-item-work-item-12345678',
+      href: '/work/boards/workflow-1?work_item=work-item-12345678&activation=activation-12345678#work-item-work-item-12345678',
       label: 'Open work-item flow',
       helper: 'Review this step from the grouped work-item flow so board context stays aligned.',
       showsDiagnosticLink: true,
@@ -62,7 +62,7 @@ describe('task list page support', () => {
         created_at: '2026-03-12T12:00:00.000Z',
       }),
     ).toEqual({
-      href: '/work/workflows/workflow-1?gate=review#gate-review',
+      href: '/work/boards/workflow-1?gate=review#gate-review',
       label: 'Open board stage flow',
       helper: 'Review this step from the board stage flow so the stage gate stays aligned.',
       showsDiagnosticLink: true,

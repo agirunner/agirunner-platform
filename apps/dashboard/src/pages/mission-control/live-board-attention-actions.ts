@@ -25,13 +25,13 @@ export function buildAttentionTaskActions(input: {
     }
     actions.push({
       label: 'Open work-item flow',
-      href: `/work/workflows/${encodeURIComponent(workflowId)}?${params.toString()}`,
+      href: `/work/boards/${encodeURIComponent(workflowId)}?${params.toString()}`,
       isPrimary: true,
     });
   } else if (workflowId) {
     actions.push({
       label: 'Open board context',
-      href: `/work/workflows/${encodeURIComponent(workflowId)}`,
+      href: `/work/boards/${encodeURIComponent(workflowId)}`,
       isPrimary: true,
     });
   }

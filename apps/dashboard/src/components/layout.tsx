@@ -89,7 +89,12 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Work',
     icon: Workflow,
     items: [
-      { label: 'Workflows', href: '/work/workflows', icon: Workflow },
+      {
+        label: 'Workflow Boards',
+        href: '/work/boards',
+        icon: Workflow,
+        keywords: ['workflow', 'workflows', 'board', 'boards', 'delivery board', 'board run'],
+      },
       { label: 'Tasks', href: '/work/tasks', icon: Clipboard },
       { label: 'Approval Queue', href: '/work/approvals', icon: Bell },
     ],
@@ -590,7 +595,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
                       Search the workspace
                     </p>
                     <p className="text-xs text-muted">
-                      Workflows, tasks, projects, playbooks, workers, and agents.
+                      Workflow boards, tasks, projects, playbooks, workers, and agents.
                     </p>
                   </div>
                   <kbd className="rounded border border-border px-1.5 py-0.5 text-xs text-muted">
@@ -770,13 +775,21 @@ export function buildBreadcrumbs(pathname: string): Array<{ label: string; href?
   const segments = pathname.split('/').filter(Boolean);
   if (segments.length === 0) return [{ label: 'Home' }];
 
+  const segmentLabels: Record<string, string> = {
+    boards: 'Workflow Boards',
+    workflows: 'Workflow Boards',
+  };
   const crumbs: Array<{ label: string; href?: string }> = [];
   let currentPath = '';
 
   for (let i = 0; i < segments.length; i++) {
-    currentPath += `/${segments[i]}`;
+    const segment = segments[i];
+    const normalizedSegment = segment === 'workflows' ? 'boards' : segment;
+    currentPath += `/${normalizedSegment}`;
     crumbs.push({
-      label: segments[i].replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+      label:
+        segmentLabels[segment]
+        ?? segment.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
       href: i === segments.length - 1 ? undefined : currentPath,
     });
   }

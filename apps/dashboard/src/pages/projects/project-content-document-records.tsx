@@ -44,7 +44,7 @@ export function DocumentCard(props: {
           ) : null}
           <Link
             className="text-sm text-accent hover:underline"
-            to={`/work/workflows/${props.workflowId}`}
+            to={`/work/boards/${props.workflowId}`}
           >
             Open workflow
           </Link>
@@ -99,7 +99,7 @@ export function DocumentDesktopRow(props: {
           ) : null}
           <Link
             className="text-sm text-accent hover:underline"
-            to={`/work/workflows/${props.workflowId}`}
+            to={`/work/boards/${props.workflowId}`}
           >
             Open workflow
           </Link>

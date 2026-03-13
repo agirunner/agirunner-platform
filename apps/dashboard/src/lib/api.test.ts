@@ -1972,7 +1972,7 @@ describe('dashboard global search', () => {
       'worker',
       'agent',
     ]);
-    expect(results[0].href).toBe('/work/workflows/workflow-1');
+    expect(results[0].href).toBe('/work/boards/workflow-1');
     expect(results[1].href).toBe('/work/tasks/task-1');
     expect(results[2].href).toBe('/projects/project-1');
     expect(results[3].href).toBe('/config/playbooks/playbook-1');

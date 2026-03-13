@@ -29,7 +29,9 @@ describe('app trigger routes source', () => {
     expect(source).toContain('path="/projects/:id/memory"');
     expect(source).toContain('path="/projects/:id/content"');
     expect(source).toContain('path="/projects/:id/artifacts"');
-    expect(source).toContain('path="/work/workflows/:id/inspector"');
+    expect(source).toContain('path="/work/boards/:id/inspector"');
+    expect(source).toContain('path="/work/workflows/*"');
+    expect(source).toContain("replace('/work/workflows', '/work/boards')");
   });
 
   it('keeps /config/runtimes as the canonical route and redirects the legacy runtime-defaults path', () => {

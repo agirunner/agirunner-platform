@@ -90,7 +90,7 @@ const SEARCH_RESULT_SECTION_ORDER: Array<DashboardSearchResult['type']> = [
 ];
 
 const SEARCH_RESULT_SECTION_LABELS: Record<DashboardSearchResult['type'], string> = {
-  workflow: 'Workflows',
+  workflow: 'Workflow Boards',
   task: 'Tasks',
   project: 'Projects',
   playbook: 'Playbooks',

@@ -86,7 +86,7 @@ export function readGateId(gate: GateIdentityShape): string | null {
 }
 
 export function buildWorkflowGatePermalink(workflowId: string, stageName: string): string {
-  return `/work/workflows/${workflowId}?gate=${encodeURIComponent(stageName)}#gate-${encodeURIComponent(stageName)}`;
+  return `/work/boards/${workflowId}?gate=${encodeURIComponent(stageName)}#gate-${encodeURIComponent(stageName)}`;
 }
 
 export function buildApprovalQueueGatePermalink(gateId: string): string {

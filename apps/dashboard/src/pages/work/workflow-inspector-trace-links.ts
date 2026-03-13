@@ -20,7 +20,7 @@ export function buildWorkflowInspectorTraceLinks(
   const links: WorkflowInspectorTraceLink[] = [
     {
       label: 'Board trace',
-      href: `/work/workflows/${workflowId}`,
+      href: `/work/boards/${workflowId}`,
       detail: 'Open activations, work items, gates, and specialist steps in one board view.',
     },
   ];
@@ -104,8 +104,8 @@ function buildWorkflowBoardLink(
   const searchParams = new URLSearchParams(params);
   const query = searchParams.toString();
   return query
-    ? `/work/workflows/${workflowId}?${query}`
-    : `/work/workflows/${workflowId}`;
+    ? `/work/boards/${workflowId}?${query}`
+    : `/work/boards/${workflowId}`;
 }
 
 function buildWorkflowInspectorLogLink(
@@ -116,7 +116,7 @@ function buildWorkflowInspectorLogLink(
   if (params.activation) {
     searchParams.set('activation', params.activation);
   }
-  return `/work/workflows/${workflowId}/inspector?${searchParams.toString()}`;
+  return `/work/boards/${workflowId}/inspector?${searchParams.toString()}`;
 }
 
 function humanizeToken(value: string): string {

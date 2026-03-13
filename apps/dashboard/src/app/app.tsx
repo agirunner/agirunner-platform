@@ -198,9 +198,10 @@ export function App(): JSX.Element {
             <Route path="/logs" element={<LogsPage />} />
 
             {/* Work */}
-            <Route path="/work/workflows" element={<WorkflowListPage />} />
-            <Route path="/work/workflows/:id" element={<WorkflowDetailPage />} />
-            <Route path="/work/workflows/:id/inspector" element={<WorkflowInspectorPage />} />
+            <Route path="/work/boards" element={<WorkflowListPage />} />
+            <Route path="/work/boards/:id" element={<WorkflowDetailPage />} />
+            <Route path="/work/boards/:id/inspector" element={<WorkflowInspectorPage />} />
+            <Route path="/work/workflows/*" element={<LegacyWorkflowBoardRedirect />} />
             <Route path="/work/tasks" element={<TaskListPage />} />
             <Route path="/work/tasks/:id" element={<TaskDetailPage />} />
             <Route path="/artifacts/tasks/:taskId/:artifactId" element={<ArtifactPreviewPage />} />
@@ -270,6 +271,16 @@ function RequireAuth(): JSX.Element {
   }
 
   return <Outlet />;
+}
+
+function LegacyWorkflowBoardRedirect(): JSX.Element {
+  const location = useLocation();
+  return (
+    <Navigate
+      to={`${location.pathname.replace('/work/workflows', '/work/boards')}${location.search}${location.hash}`}
+      replace
+    />
+  );
 }
 
 function SSOCallbackPage(): JSX.Element {

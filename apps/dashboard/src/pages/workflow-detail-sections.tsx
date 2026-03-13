@@ -975,7 +975,7 @@ export function WorkflowActivationsCard(props: {
                 </Button>
                 <CopyableIdBadge value={activation.activation_id ?? activation.id} label="Activation" />
                 <Link
-                  to={`/work/workflows/${activation.workflow_id}/inspector?activation=${activation.activation_id ?? activation.id}&view=debug`}
+                  to={`/work/boards/${activation.workflow_id}/inspector?activation=${activation.activation_id ?? activation.id}&view=debug`}
                   className="text-sm text-muted underline-offset-4 hover:underline"
                 >
                   Open inspector

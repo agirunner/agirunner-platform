@@ -175,7 +175,7 @@ export function ProjectArtifactQuickInspector(props: {
               </Button>
               {props.artifact.workflowId ? (
                 <Button asChild variant="outline" size="sm">
-                  <Link to={`/work/workflows/${props.artifact.workflowId}`}>Open Workflow</Link>
+                  <Link to={`/work/boards/${props.artifact.workflowId}`}>Open Workflow Board</Link>
                 </Button>
               ) : null}
               <Button asChild size="sm">

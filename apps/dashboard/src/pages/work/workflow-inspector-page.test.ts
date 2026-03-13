@@ -20,7 +20,7 @@ describe('workflow inspector page source', () => {
     expect(source).toContain('dashboardApi.getProject');
     expect(source).toContain('dashboardApi.getLogStats');
     expect(source).toContain('dashboardApi.getWorkflowWorkItemMemoryHistory');
-    expect(source).toContain('Workflow Inspector');
+    expect(source).toContain('Workflow Board Inspector');
     expect(source).toContain('Workflow Board');
     expect(source).toContain('Current operator scope');
     expect(source).toContain('Current board stage in the scoped workflow shell');

@@ -16,7 +16,7 @@ function readSource() {
 describe('workflow board page source', () => {
   it('keeps the workflow list centered on summary-first delivery operations', () => {
     const source = readSource();
-    expect(source).toContain('Delivery Boards');
+    expect(source).toContain('Workflow Boards');
     expect(source).toContain('Board operations');
     expect(source).toContain('Review posture, progress, live stages, gate pressure, and reported spend');
     expect(source).toContain('WorkflowSummaryCards');
@@ -24,7 +24,7 @@ describe('workflow board page source', () => {
     expect(source).toContain('spentBoards={collectionSummary.spentBoards}');
     expect(source).toContain('All Postures');
     expect(source).toContain('Search runs, stages, gates, or projects...');
-    expect(source).toContain('Failed to load delivery boards. Please try again later.');
+    expect(source).toContain('Failed to load workflow boards. Please try again later.');
     expect(source).toContain('No runs match the current filters.');
     expect(source).toContain('Clear the filters or launch a new playbook run');
   });

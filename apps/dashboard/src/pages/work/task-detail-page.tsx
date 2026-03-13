@@ -403,13 +403,13 @@ function summarizeId(value?: string | null): string {
 function RelatedLinks({ task }: { task: Task }): JSX.Element {
   const workItemPermalink =
     task.workflow_id && task.work_item_id
-      ? `/work/workflows/${task.workflow_id}?work_item=${encodeURIComponent(task.work_item_id)}#work-item-${encodeURIComponent(task.work_item_id)}`
+      ? `/work/boards/${task.workflow_id}?work_item=${encodeURIComponent(task.work_item_id)}#work-item-${encodeURIComponent(task.work_item_id)}`
       : null;
 
   return (
     <div className="flex flex-wrap gap-2 text-sm">
       {task.workflow_id ? (
-        <Link to={`/work/workflows/${task.workflow_id}`} className="text-accent hover:underline">
+        <Link to={`/work/boards/${task.workflow_id}`} className="text-accent hover:underline">
           Open board
         </Link>
       ) : null}
@@ -420,7 +420,7 @@ function RelatedLinks({ task }: { task: Task }): JSX.Element {
       ) : null}
       {task.activation_id && task.workflow_id ? (
         <Link
-          to={`/work/workflows/${task.workflow_id}#activation-${encodeURIComponent(task.activation_id)}`}
+          to={`/work/boards/${task.workflow_id}#activation-${encodeURIComponent(task.activation_id)}`}
           className="text-accent hover:underline"
         >
           Open activation

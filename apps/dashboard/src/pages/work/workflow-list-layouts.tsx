@@ -59,7 +59,7 @@ export function WorkflowTable(props: { workflows: WorkflowListRecord[] }): JSX.E
                   <TableCell className="align-top">
                     <div className="space-y-1">
                       <Link
-                        to={`/work/workflows/${workflow.id}`}
+                        to={`/work/boards/${workflow.id}`}
                         className="font-medium text-accent hover:underline"
                       >
                         {workflow.name}
@@ -120,7 +120,7 @@ function WorkflowListCard(props: { workflow: WorkflowListRecord }): JSX.Element 
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
             <Link
-              to={`/work/workflows/${props.workflow.id}`}
+              to={`/work/boards/${props.workflow.id}`}
               className="block truncate text-base font-semibold text-accent hover:underline"
             >
               {props.workflow.name}
@@ -149,7 +149,7 @@ function WorkflowListCard(props: { workflow: WorkflowListRecord }): JSX.Element 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-muted">{formatRelativeRunAge(props.workflow.created_at)}</p>
           <Button size="sm" asChild>
-            <Link to={`/work/workflows/${props.workflow.id}`}>Open board</Link>
+            <Link to={`/work/boards/${props.workflow.id}`}>Open board</Link>
           </Button>
         </div>
       </CardContent>

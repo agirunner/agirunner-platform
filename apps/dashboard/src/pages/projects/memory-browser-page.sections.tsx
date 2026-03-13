@@ -61,7 +61,7 @@ export function MemoryBrowserHeader(props: {
           {props.selectedWorkflowId ? (
             <Link
               className="underline-offset-4 hover:underline"
-              to={`/work/workflows/${props.selectedWorkflowId}`}
+              to={`/work/boards/${props.selectedWorkflowId}`}
             >
               Open Workflow Board
             </Link>
@@ -237,7 +237,7 @@ export function WorkflowScopeCard(props: {
             {selectedWorkflow ? (
               <Link
                 className="text-sm text-accent hover:underline"
-                to={`/work/workflows/${selectedWorkflow.id}`}
+                to={`/work/boards/${selectedWorkflow.id}`}
               >
                 Open workflow
               </Link>
@@ -350,7 +350,7 @@ export function RecentWorkflowContextCard(props: {
                   <div className="min-w-0">
                     <Link
                       className="truncate text-sm font-medium text-accent hover:underline"
-                      to={`/work/workflows/${workflow.id}`}
+                      to={`/work/boards/${workflow.id}`}
                     >
                       {workflow.name}
                     </Link>

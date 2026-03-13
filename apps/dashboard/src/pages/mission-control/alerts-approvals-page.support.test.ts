@@ -56,12 +56,12 @@ describe('alerts approvals support', () => {
       links: [
         {
           label: 'Open work item flow',
-          to: '/work/workflows/workflow-12345678?work_item=workitem-87654321&activation=activation-345#work-item-workitem-87654321',
+          to: '/work/boards/workflow-12345678?work_item=workitem-87654321&activation=activation-345#work-item-workitem-87654321',
           priority: 'primary',
         },
         {
           label: 'Open board context',
-          to: '/work/workflows/workflow-12345678',
+          to: '/work/boards/workflow-12345678',
           priority: 'secondary',
         },
         {

@@ -9,12 +9,12 @@ function readSource() {
 describe('workflow list page source', () => {
   it('uses board-first posture labels and operator summaries', () => {
     const source = readSource();
-    expect(source).toContain('Delivery Boards');
-    expect(source).toContain('Board Posture');
-    expect(source).toContain('describeOperatorSignal');
-    expect(source).toContain('describeWorkItemSummary');
+    expect(source).toContain('Workflow Boards');
+    expect(source).toContain('Board operations');
+    expect(source).toContain('WorkflowSummaryCards');
+    expect(source).toContain('Board posture view');
     expect(source).toContain('describeGateSummary');
-    expect(source).toContain('No runs match the current filters.');
+    expect(source).toContain('Search runs, stages, gates, or projects...');
   });
 
   it('uses current V2 launch and saved-view controls', () => {

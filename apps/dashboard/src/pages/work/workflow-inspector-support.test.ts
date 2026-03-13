@@ -121,22 +121,22 @@ describe('workflow inspector support', () => {
     expect(model.links).toEqual([
       {
         label: 'Board trace',
-        href: '/work/workflows/workflow-1',
+        href: '/work/boards/workflow-1',
         detail: 'Open activations, work items, gates, and specialist steps in one board view.',
       },
       {
         label: 'Activation drill-in',
-        href: '/work/workflows/workflow-1/inspector?view=detailed&activation=activation-1',
+        href: '/work/boards/workflow-1/inspector?view=detailed&activation=activation-1',
         detail: 'Queued follow-up review work.',
       },
       {
         label: 'Open work item',
-        href: '/work/workflows/workflow-1?work_item=work-item-1',
+        href: '/work/boards/workflow-1?work_item=work-item-1',
         detail: 'Review release notes is still open in review.',
       },
       {
         label: 'Gate review lane',
-        href: '/work/workflows/workflow-1?stage=review',
+        href: '/work/boards/workflow-1?stage=review',
         detail: 'review is carrying the current gate posture for this workflow.',
       },
       {
@@ -182,7 +182,7 @@ describe('workflow inspector support', () => {
     expect(model.links).toEqual([
       {
         label: 'Board trace',
-        href: '/work/workflows/workflow-2',
+        href: '/work/boards/workflow-2',
         detail: 'Open activations, work items, gates, and specialist steps in one board view.',
       },
     ]);
@@ -243,7 +243,7 @@ describe('workflow inspector support', () => {
       nextAction:
         'Start with the board stage that is waiting for approval, then use the trace packets below to confirm spend, artifacts, and memory context before deciding.',
       actionLabel: 'Open board stage',
-      actionHref: '/work/workflows/workflow-3',
+      actionHref: '/work/boards/workflow-3',
     });
   });
 });

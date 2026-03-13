@@ -45,7 +45,7 @@ export function MemoryBrowserHeader(props: {
             Open Artifact Explorer
           </Link>
           {props.selectedWorkflowId ? (
-            <Link className="underline-offset-4 hover:underline" to={`/work/workflows/${props.selectedWorkflowId}`}>
+            <Link className="underline-offset-4 hover:underline" to={`/work/boards/${props.selectedWorkflowId}`}>
               Open Workflow Board
             </Link>
           ) : null}
@@ -196,7 +196,7 @@ export function WorkflowScopeCard(props: {
           <div className="flex items-center justify-between gap-2">
             <Badge variant="secondary">{selectedWorkflow?.state ?? selectedWorkItem?.columnId ?? 'project'}</Badge>
             {selectedWorkflow ? (
-              <Link className="text-sm text-accent hover:underline" to={`/work/workflows/${selectedWorkflow.id}`}>
+              <Link className="text-sm text-accent hover:underline" to={`/work/boards/${selectedWorkflow.id}`}>
                 Open workflow
               </Link>
             ) : null}

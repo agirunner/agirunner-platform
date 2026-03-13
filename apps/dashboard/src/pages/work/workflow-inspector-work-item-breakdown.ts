@@ -28,7 +28,7 @@ export function buildWorkItemBreakdownEntries(
         detail: stageName
           ? `${stageName} • ${taskCount} step${taskCount === 1 ? '' : 's'} contributed to this work item.`
           : `${taskCount} step${taskCount === 1 ? '' : 's'} contributed to this work item.`,
-        href: `/work/workflows/${workflowId}/inspector?view=detailed&work_item=${workItemId}`,
+        href: `/work/boards/${workflowId}/inspector?view=detailed&work_item=${workItemId}`,
       };
     })
     .filter((entry) => entry.value !== '$0.00')

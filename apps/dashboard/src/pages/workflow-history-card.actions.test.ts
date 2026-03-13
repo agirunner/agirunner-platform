@@ -7,7 +7,7 @@ describe('workflow history timeline actions', () => {
     expect(
       buildTimelineEntryActions({
         activationId: 'activation-3',
-        childWorkflowHref: '/work/workflows/workflow-child-2',
+        childWorkflowHref: '/work/boards/workflow-child-2',
         childWorkflowId: 'workflow-child-2',
         gateStageName: 'design',
         workflowId: 'workflow-1',
@@ -17,19 +17,19 @@ describe('workflow history timeline actions', () => {
     ).toEqual([
       {
         label: 'Open work item flow',
-        href: '/work/workflows/workflow-1?work_item=work-item-7',
+        href: '/work/boards/workflow-1?work_item=work-item-7',
       },
       {
         label: 'Open gate focus',
-        href: '/work/workflows/workflow-1?gate=design#gate-design',
+        href: '/work/boards/workflow-1?gate=design#gate-design',
       },
       {
         label: 'Open activation packet',
-        href: '/work/workflows/workflow-1?activation=activation-3#activation-activation-3',
+        href: '/work/boards/workflow-1?activation=activation-3#activation-activation-3',
       },
       {
         label: 'Open child board',
-        href: '/work/workflows/workflow-child-2',
+        href: '/work/boards/workflow-child-2',
       },
       {
         label: 'Open step diagnostics',

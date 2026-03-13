@@ -84,7 +84,7 @@ export function buildArtifactPreviewOperatorNavigation(input: {
 
   if (workflowScope.workflow_id) {
     return {
-      primaryHref: `/work/workflows/${encodeURIComponent(workflowScope.workflow_id)}`,
+      primaryHref: `/work/boards/${encodeURIComponent(workflowScope.workflow_id)}`,
       primaryLabel: 'Back to board context',
       primaryHelper:
         'Return to the board context first, then open step diagnostics only if you need lower-level runtime detail.',

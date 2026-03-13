@@ -106,7 +106,7 @@ export function WorkflowInspectorPage(): JSX.Element {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Workflow className="h-5 w-5 text-muted-foreground" />
-                <CardTitle>Workflow Inspector</CardTitle>
+                <CardTitle>Workflow Board Inspector</CardTitle>
               </div>
               <CardDescription className="max-w-3xl">
                 Inspect execution traces for a single workflow with the shared inspector tooling,
@@ -115,7 +115,7 @@ export function WorkflowInspectorPage(): JSX.Element {
             </div>
             <div className="flex flex-wrap gap-2">
               <Button asChild variant="outline">
-                <Link to={`/work/workflows/${workflowId}`}>
+                <Link to={`/work/boards/${workflowId}`}>
                   Workflow Board
                   <ExternalLink className="h-4 w-4" />
                 </Link>

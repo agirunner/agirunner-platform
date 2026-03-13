@@ -65,7 +65,7 @@ export function usePlaybookLaunchMutation(input: UsePlaybookLaunchMutationInput)
       });
     },
     onSuccess: (workflow) => {
-      input.navigate(`/work/workflows/${workflow.id}`);
+      input.navigate(`/work/boards/${workflow.id}`);
     },
     onError: (mutationError) => {
       input.setError(

@@ -50,7 +50,7 @@ export function TaskMobileCard(props: { task: TaskListRecord }): JSX.Element {
         <TaskMetaRow
           label="Board"
           value={props.task.workflow_name ?? props.task.workflow_id ?? 'No workflow'}
-          link={props.task.workflow_id ? `/work/workflows/${props.task.workflow_id}` : undefined}
+          link={props.task.workflow_id ? `/work/boards/${props.task.workflow_id}` : undefined}
         />
         <TaskMetaRow label="Scope" value={describeTaskScope(props.task)} />
         <TaskMetaRow
@@ -75,7 +75,7 @@ export function TaskMobileCard(props: { task: TaskListRecord }): JSX.Element {
         ) : null}
         {props.task.workflow_id ? (
           <Button size="sm" variant="outline" asChild>
-            <Link to={`/work/workflows/${props.task.workflow_id}`}>Open board</Link>
+            <Link to={`/work/boards/${props.task.workflow_id}`}>Open board</Link>
           </Button>
         ) : null}
       </div>
@@ -130,7 +130,7 @@ function TaskTableRow(props: { task: TaskListRecord }): JSX.Element {
       <TableCell className="align-top">
         <div className="space-y-1 text-sm">
           {props.task.workflow_id ? (
-            <Link to={`/work/workflows/${props.task.workflow_id}`} className="font-medium text-accent hover:underline">
+            <Link to={`/work/boards/${props.task.workflow_id}`} className="font-medium text-accent hover:underline">
               {props.task.workflow_name ?? props.task.workflow_id}
             </Link>
           ) : (

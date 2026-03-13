@@ -1489,7 +1489,7 @@ function BoardSnapshotTable(props: {
                   <div className="min-w-0">
                     <Link
                       className="block truncate text-sm font-semibold text-accent hover:underline"
-                      to={`/work/workflows/${workflow.id}`}
+                      to={`/work/boards/${workflow.id}`}
                     >
                       {workflow.name}
                     </Link>
@@ -1554,7 +1554,7 @@ function BoardSnapshotTable(props: {
                       <div className="space-y-1">
                         <Link
                           className="text-accent hover:underline"
-                          to={`/work/workflows/${workflow.id}`}
+                          to={`/work/boards/${workflow.id}`}
                         >
                           {workflow.name}
                         </Link>
@@ -1658,7 +1658,7 @@ function ActivePlaybookBoards(props: {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <Link
-                      to={`/work/workflows/${workflow.id}`}
+                      to={`/work/boards/${workflow.id}`}
                       className="block truncate font-medium text-accent hover:underline"
                     >
                       {workflow.name}
@@ -1714,7 +1714,7 @@ function ActivePlaybookBoards(props: {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-medium text-foreground">Most active work</p>
                       <Button size="sm" variant="outline" asChild>
-                        <Link to={`/work/workflows/${workflow.id}`}>Open board</Link>
+                        <Link to={`/work/boards/${workflow.id}`}>Open board</Link>
                       </Button>
                     </div>
                     {visibleActiveItems.map((item) => (

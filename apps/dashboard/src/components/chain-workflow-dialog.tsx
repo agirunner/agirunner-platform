@@ -117,7 +117,7 @@ export function ChainWorkflowDialog(props: ChainWorkflowDialogProps): JSX.Elemen
       setErrorMessage(null);
       const created = extractId(data);
       if (created) {
-        navigate(`/work/workflows/${created}`);
+        navigate(`/work/boards/${created}`);
       }
     },
     onError: (error) => {

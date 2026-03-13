@@ -17,21 +17,21 @@ export function buildTimelineEntryActions(input: {
   if (input.workItemId) {
     actions.push({
       label: 'Open work item flow',
-      href: `/work/workflows/${input.workflowId}?work_item=${encodeURIComponent(input.workItemId)}`,
+      href: `/work/boards/${input.workflowId}?work_item=${encodeURIComponent(input.workItemId)}`,
     });
   }
 
   if (input.gateStageName) {
     actions.push({
       label: 'Open gate focus',
-      href: `/work/workflows/${input.workflowId}?gate=${encodeURIComponent(input.gateStageName)}#gate-${encodeURIComponent(input.gateStageName)}`,
+      href: `/work/boards/${input.workflowId}?gate=${encodeURIComponent(input.gateStageName)}#gate-${encodeURIComponent(input.gateStageName)}`,
     });
   }
 
   if (input.activationId) {
     actions.push({
       label: 'Open activation packet',
-      href: `/work/workflows/${input.workflowId}?activation=${encodeURIComponent(input.activationId)}#activation-${encodeURIComponent(input.activationId)}`,
+      href: `/work/boards/${input.workflowId}?activation=${encodeURIComponent(input.activationId)}#activation-${encodeURIComponent(input.activationId)}`,
     });
   }
 
@@ -40,7 +40,7 @@ export function buildTimelineEntryActions(input: {
       label: 'Open child board',
       href:
         input.childWorkflowHref ??
-        `/work/workflows/${input.workflowId}?child=${encodeURIComponent(input.childWorkflowId ?? '')}#child-workflow-${encodeURIComponent(input.childWorkflowId ?? '')}`,
+        `/work/boards/${input.workflowId}?child=${encodeURIComponent(input.childWorkflowId ?? '')}#child-workflow-${encodeURIComponent(input.childWorkflowId ?? '')}`,
     });
   }
 

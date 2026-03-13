@@ -97,7 +97,7 @@ function BoardColumnView(props: BoardSection): JSX.Element {
       </div>
       <div className="space-y-3">
         {props.workflows.map((workflow) => (
-          <Link key={workflow.id} to={`/work/workflows/${workflow.id}`} className="block">
+          <Link key={workflow.id} to={`/work/boards/${workflow.id}`} className="block">
             <Card className="border-border/70 transition-shadow hover:shadow-md">
               <CardContent className="grid gap-3 p-4">
                 <div className="flex items-start justify-between gap-3">

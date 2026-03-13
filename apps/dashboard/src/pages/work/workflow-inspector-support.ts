@@ -115,7 +115,7 @@ export function buildWorkflowInspectorFocusSummary(input: {
       nextAction:
         'Start with the board stage that is waiting for approval, then use the trace packets below to confirm spend, artifacts, and memory context before deciding.',
       actionLabel: 'Open board stage',
-      actionHref: `/work/workflows/${input.workflowId}`,
+      actionHref: `/work/boards/${input.workflowId}`,
     };
   }
 
@@ -126,7 +126,7 @@ export function buildWorkflowInspectorFocusSummary(input: {
       nextAction:
         'Inspect the focus work item first, then use telemetry and memory history to decide whether follow-up belongs in rework, stage advancement, or another orchestrator turn.',
       actionLabel: 'Open focus work item',
-      actionHref: `/work/workflows/${input.workflowId}?work_item=${encodeURIComponent(input.traceModel.focusWorkItem.id)}`,
+      actionHref: `/work/boards/${input.workflowId}?work_item=${encodeURIComponent(input.traceModel.focusWorkItem.id)}`,
     };
   }
 
@@ -137,7 +137,7 @@ export function buildWorkflowInspectorFocusSummary(input: {
       nextAction:
         'Review the latest orchestrator batch first, then move into board or project drill-ins only if the activation packet does not explain the current workflow posture.',
       actionLabel: 'Open board trace',
-      actionHref: `/work/workflows/${input.workflowId}`,
+      actionHref: `/work/boards/${input.workflowId}`,
     };
   }
 
@@ -147,7 +147,7 @@ export function buildWorkflowInspectorFocusSummary(input: {
     nextAction:
       'Open the board trace first, confirm whether the run has started producing work items, and return here after the first activation and memory packets land.',
     actionLabel: 'Open board trace',
-    actionHref: `/work/workflows/${input.workflowId}`,
+    actionHref: `/work/boards/${input.workflowId}`,
   };
 }
 

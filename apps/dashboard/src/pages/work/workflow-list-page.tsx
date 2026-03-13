@@ -54,7 +54,7 @@ export function WorkflowListPage(): JSX.Element {
   if (error) {
     return (
       <div className="p-6 text-red-600">
-        Failed to load delivery boards. Please try again later.
+        Failed to load workflow boards. Please try again later.
       </div>
     );
   }
@@ -125,7 +125,7 @@ function WorkflowListHeader(): JSX.Element {
           Board operations
         </Badge>
         <div className="space-y-1">
-          <h1 className="text-3xl font-semibold tracking-tight">Delivery Boards</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Workflow Boards</h1>
           <p className="max-w-3xl text-sm leading-6 text-muted">
             Review posture, progress, live stages, gate pressure, and reported spend without
             drilling into every board run.

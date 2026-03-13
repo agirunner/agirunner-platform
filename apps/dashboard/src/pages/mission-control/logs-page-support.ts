@@ -145,8 +145,8 @@ export function buildLogWorkflowContextLink(
   }
   const query = next.toString();
   return query
-    ? `/work/workflows/${entry.workflow_id}?${query}`
-    : `/work/workflows/${entry.workflow_id}`;
+    ? `/work/boards/${entry.workflow_id}?${query}`
+    : `/work/boards/${entry.workflow_id}`;
 }
 
 function describeInspectorFocus(filters: InspectorFilters, scopedWorkflowId: string): string {

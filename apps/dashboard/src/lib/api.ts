@@ -2600,7 +2600,7 @@ export function buildSearchResults(
     id: item.id,
     label: item.name ?? item.id,
     subtitle: item.state ?? 'workflow',
-    href: `/work/workflows/${item.id}`,
+    href: `/work/boards/${item.id}`,
   }));
 
   const taskMatches = filterRecords(collections.tasks, normalizedQuery).map((item) => ({

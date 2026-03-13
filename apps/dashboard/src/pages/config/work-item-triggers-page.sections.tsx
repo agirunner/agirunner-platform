@@ -142,7 +142,7 @@ export function ScheduledTriggerSection(props: {
                       <Link to={`/projects/${trigger.project_id}`}>Open project</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link to={`/work/workflows/${trigger.workflow_id}`}>Open board</Link>
+                      <Link to={`/work/boards/${trigger.workflow_id}`}>Open board</Link>
                     </Button>
                   </div>
                 </CardContent>
@@ -184,7 +184,7 @@ export function ScheduledTriggerSection(props: {
                           <Link to={`/projects/${trigger.project_id}`}>Open project</Link>
                         </Button>
                         <Button asChild size="sm" variant="outline">
-                          <Link to={`/work/workflows/${trigger.workflow_id}`}>Open board</Link>
+                          <Link to={`/work/boards/${trigger.workflow_id}`}>Open board</Link>
                         </Button>
                       </div>
                     </TableCell>

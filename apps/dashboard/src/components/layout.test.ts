@@ -17,10 +17,10 @@ describe('layout breadcrumbs', () => {
   });
 
   it('handles nested paths with id segments', () => {
-    const crumbs = buildBreadcrumbs('/work/workflows/12345678-aaaa');
+    const crumbs = buildBreadcrumbs('/work/boards/12345678-aaaa');
     expect(crumbs).toHaveLength(3);
     expect(crumbs[0]).toEqual({ label: 'Work', href: '/work' });
-    expect(crumbs[1]).toEqual({ label: 'Workflows', href: '/work/workflows' });
+    expect(crumbs[1]).toEqual({ label: 'Workflow Boards', href: '/work/boards' });
     expect(crumbs[2].href).toBeUndefined();
   });
 

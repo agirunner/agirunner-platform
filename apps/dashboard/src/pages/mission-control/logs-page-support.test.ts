@@ -130,7 +130,7 @@ describe('logs page support', () => {
       createdAtDetail: new Date('2026-03-12T22:00:00.000Z').toLocaleString(),
       actions: [
         {
-          href: '/work/workflows/workflow-12345678?work_item=workitem-88888888&activation=activation-9999',
+          href: '/work/boards/workflow-12345678?work_item=workitem-88888888&activation=activation-9999',
           label: 'Board context',
         },
         {

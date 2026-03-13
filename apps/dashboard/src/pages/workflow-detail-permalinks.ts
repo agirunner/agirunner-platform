@@ -26,7 +26,7 @@ export function buildWorkflowDetailPermalink(
 
   const query = params.toString();
   const hash = buildWorkflowDetailHash(target);
-  return `/work/workflows/${workflowId}${query ? `?${query}` : ''}${hash}`;
+  return `/work/boards/${workflowId}${query ? `?${query}` : ''}${hash}`;
 }
 
 export function buildWorkflowDetailHash(target: WorkflowDetailTarget): string {

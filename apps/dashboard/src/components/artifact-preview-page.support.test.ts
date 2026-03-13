@@ -20,7 +20,7 @@ describe('artifact preview page support', () => {
       }),
     ).toEqual({
       primaryHref:
-        '/work/workflows/workflow-1?work_item=work-item-1&activation=activation-1#work-item-work-item-1',
+        '/work/boards/workflow-1?work_item=work-item-1&activation=activation-1#work-item-work-item-1',
       primaryLabel: 'Back to work-item flow',
       primaryHelper:
         'Return to the grouped work-item flow first so artifact review stays attached to board context and operator decisions.',
@@ -41,7 +41,7 @@ describe('artifact preview page support', () => {
         },
       }),
     ).toEqual({
-      primaryHref: '/work/workflows/workflow-1?gate=review#gate-review',
+      primaryHref: '/work/boards/workflow-1?gate=review#gate-review',
       primaryLabel: 'Back to board stage flow',
       primaryHelper:
         'Return to the board stage flow first so review, rework, and escalation stay attached to the current stage.',
@@ -59,7 +59,7 @@ describe('artifact preview page support', () => {
         },
       }),
     ).toEqual({
-      primaryHref: '/work/workflows/workflow-1',
+      primaryHref: '/work/boards/workflow-1',
       primaryLabel: 'Back to board context',
       primaryHelper:
         'Return to the board context first, then open step diagnostics only if you need lower-level runtime detail.',

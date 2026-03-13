@@ -33,7 +33,7 @@ describe('workflow interaction timeline', () => {
         started_at: null,
         completed_at: null,
         is_terminal: true,
-        link: '/work/workflows/workflow-child-2',
+        link: '/work/boards/workflow-child-2',
       },
     ],
     stages: [

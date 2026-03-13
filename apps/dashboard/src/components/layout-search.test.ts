@@ -23,9 +23,9 @@ const QUICK_LINKS: CommandPaletteItem[] = [
     kind: 'navigation',
   },
   {
-    id: 'nav:/work/workflows',
-    href: '/work/workflows',
-    label: 'Workflows',
+    id: 'nav:/work/boards',
+    href: '/work/boards',
+    label: 'Workflow Boards',
     meta: 'Work',
     kind: 'navigation',
   },
@@ -115,14 +115,14 @@ describe('command palette helpers', () => {
         type: 'workflow',
         label: 'Auth Workflow',
         subtitle: 'running',
-        href: '/work/workflows/workflow-1',
+        href: '/work/boards/workflow-1',
       },
     ]);
 
     expect(items).toEqual([
       {
         id: 'workflow:workflow-1',
-        href: '/work/workflows/workflow-1',
+        href: '/work/boards/workflow-1',
         label: 'Auth Workflow',
         meta: 'running',
         kind: 'workflow',
@@ -146,9 +146,9 @@ describe('command palette helpers', () => {
       recentItems: [
         {
           id: 'workflow:recent-auth',
-          href: '/work/workflows/recent-auth',
+          href: '/work/boards/recent-auth',
           label: 'Recent Auth Workflow',
-          meta: 'Workflows',
+          meta: 'Workflow Boards',
           kind: 'workflow',
         },
       ],
@@ -159,7 +159,7 @@ describe('command palette helpers', () => {
           type: 'workflow',
           label: 'Auth Workflow',
           subtitle: 'review stage',
-          href: '/work/workflows/workflow-1',
+          href: '/work/boards/workflow-1',
         },
         {
           id: 'task-1',
@@ -173,7 +173,7 @@ describe('command palette helpers', () => {
 
     expect(sections.map((section) => section.title)).toEqual([
       'Recent',
-      'Workflows',
+      'Workflow Boards',
       'Tasks',
     ]);
   });
@@ -182,9 +182,9 @@ describe('command palette helpers', () => {
     const storage = createStorageStub();
     const recentWorkflow: CommandPaletteItem = {
       id: 'workflow:recent-auth',
-      href: '/work/workflows/recent-auth',
+      href: '/work/boards/recent-auth',
       label: 'Recent Auth Workflow',
-      meta: 'Workflows',
+      meta: 'Workflow Boards',
       kind: 'workflow',
     };
 

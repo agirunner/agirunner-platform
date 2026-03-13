@@ -263,7 +263,7 @@ export function RecentWorkflowContextCard(props: {
             {props.recentWorkflows.map((workflow) => (
               <div key={workflow.id} className="rounded-xl border border-border/70 bg-muted/10 p-4">
                 <div className="flex items-center justify-between gap-3">
-                  <Link className="truncate text-sm font-medium text-accent hover:underline" to={`/work/workflows/${workflow.id}`}>
+                  <Link className="truncate text-sm font-medium text-accent hover:underline" to={`/work/boards/${workflow.id}`}>
                     {workflow.name}
                   </Link>
                   <Badge variant="secondary">{workflow.state}</Badge>

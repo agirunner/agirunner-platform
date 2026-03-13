@@ -56,7 +56,7 @@ export function ContentBrowserOverview(props: ContentBrowserOverviewProps): JSX.
             props.selectedWorkflow
               ? {
                   label: 'Open workflow',
-                  href: `/work/workflows/${props.workflowId}`,
+                  href: `/work/boards/${props.workflowId}`,
                 }
               : null,
           )
@@ -108,7 +108,7 @@ export function ContentBrowserOverview(props: ContentBrowserOverviewProps): JSX.
               : props.selectedWorkItem && props.workflowId
                 ? {
                     label: 'Open work item flow',
-                    href: `/work/workflows/${props.workflowId}?work_item=${encodeURIComponent(props.selectedWorkItem.id)}#work-item-${encodeURIComponent(props.selectedWorkItem.id)}`,
+                    href: `/work/boards/${props.workflowId}?work_item=${encodeURIComponent(props.selectedWorkItem.id)}#work-item-${encodeURIComponent(props.selectedWorkItem.id)}`,
                   }
                 : null,
           )
@@ -170,7 +170,7 @@ function buildOperatorFocusAction(props: ContentBrowserOverviewProps): PacketAct
     return props.selectedWorkflow
       ? {
           label: 'Open workflow documents',
-          href: `/work/workflows/${props.workflowId}`,
+          href: `/work/boards/${props.workflowId}`,
         }
       : null;
   }
@@ -183,7 +183,7 @@ function buildOperatorFocusAction(props: ContentBrowserOverviewProps): PacketAct
   if (props.selectedWorkItem && props.workflowId) {
     return {
       label: 'Open work item flow',
-      href: `/work/workflows/${props.workflowId}?work_item=${encodeURIComponent(props.selectedWorkItem.id)}#work-item-${encodeURIComponent(props.selectedWorkItem.id)}`,
+      href: `/work/boards/${props.workflowId}?work_item=${encodeURIComponent(props.selectedWorkItem.id)}#work-item-${encodeURIComponent(props.selectedWorkItem.id)}`,
     };
   }
   return null;
@@ -195,7 +195,7 @@ function buildDocumentAction(props: ContentBrowserOverviewProps): PacketAction |
   }
   return {
     label: 'Open workflow',
-    href: `/work/workflows/${props.workflowId}`,
+    href: `/work/boards/${props.workflowId}`,
   };
 }
 

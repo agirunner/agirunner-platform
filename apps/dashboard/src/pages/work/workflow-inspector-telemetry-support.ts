@@ -6,7 +6,7 @@ export function buildWorkflowInspectorLink(
   params: Record<string, string>,
 ): string {
   const searchParams = new URLSearchParams(params);
-  return `/work/workflows/${workflowId}/inspector?${searchParams.toString()}`;
+  return `/work/boards/${workflowId}/inspector?${searchParams.toString()}`;
 }
 
 export function topCostGroup(

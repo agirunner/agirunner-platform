@@ -54,8 +54,8 @@ export function buildProjectDeliveryOverview(
 export function buildProjectDeliveryPacket(
   entry: DashboardProjectTimelineEntry,
 ): ProjectDeliveryPacket {
-  const workflowHref = entry.link || `/work/workflows/${entry.workflow_id}`;
-  const inspectorHref = `/work/workflows/${entry.workflow_id}/inspector`;
+  const workflowHref = entry.link || `/work/boards/${entry.workflow_id}`;
+  const inspectorHref = `/work/boards/${entry.workflow_id}/inspector`;
   const stageMetric = buildStageMetric(entry.stage_progression);
   const workItemMetric = buildWorkItemMetric(entry.stage_metrics);
   const gateMetric = buildGateMetric(entry.stage_metrics);

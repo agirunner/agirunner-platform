@@ -19,7 +19,7 @@ export function buildWorkItemTaskLinkActions(input: {
   if (workflowId && workItemId) {
     actions.push({
       label: 'Open work-item flow',
-      href: `/work/workflows/${encodeURIComponent(workflowId)}?work_item=${encodeURIComponent(workItemId)}#work-item-${encodeURIComponent(workItemId)}`,
+      href: `/work/boards/${encodeURIComponent(workflowId)}?work_item=${encodeURIComponent(workItemId)}#work-item-${encodeURIComponent(workItemId)}`,
       isPrimary: true,
     });
   }
