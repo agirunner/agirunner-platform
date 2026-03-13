@@ -23,12 +23,14 @@ import {
 } from './project-memory-support.js';
 import {
   MemoryBrowserHeader,
-  MemoryExplorerCard,
   MemoryOverviewSection,
   ProjectScopeCard,
-  RecentWorkflowContextCard,
   WorkflowScopeCard,
 } from './memory-browser-page-sections.js';
+import {
+  MemoryExplorerCard,
+  RecentWorkflowContextCard,
+} from './memory-browser-page-explorer.js';
 import {
   useScopedSelection,
   useSelectionGuards,
