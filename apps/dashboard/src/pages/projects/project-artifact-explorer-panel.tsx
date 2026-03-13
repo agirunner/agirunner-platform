@@ -22,10 +22,13 @@ import {
   ProjectArtifactBulkActionBar,
   ProjectArtifactFilterCard,
 } from './project-artifact-explorer-controls.js';
+import { ProjectArtifactExplorerAdaptiveLayout } from './project-artifact-explorer-layout.js';
 import {
+  buildProjectArtifactScopeChips,
   buildArtifactContentTypeOptions,
   buildArtifactStageOptions,
   buildProjectArtifactEntries,
+  describeProjectArtifactNextAction,
   filterProjectArtifactEntries,
   summarizeProjectArtifactEntries,
   type ProjectArtifactSort,
@@ -91,6 +94,11 @@ export function ProjectArtifactExplorerPanel(props: {
     () => workItemQueries.flatMap((queryResult) => normalizeWorkItemOptions(queryResult.data)),
     [workItemQueries],
   );
+  const selectedWorkflow =
+    workflows.find((workflow) => workflow.id === selectedWorkflowId) ?? null;
+  const selectedWorkItem =
+    workItems.find((workItem) => workItem.id === selectedWorkItemId) ?? null;
+  const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
   const scopedTaskIds = useMemo(() => {
     return tasks
       .filter((task) => (selectedWorkItemId ? task.workItemId === selectedWorkItemId : true))
@@ -148,6 +156,34 @@ export function ProjectArtifactExplorerPanel(props: {
     () => summarizeProjectArtifactEntries(filteredArtifacts),
     [filteredArtifacts],
   );
+  const selectedWorkflow =
+    workflows.find((workflow) => workflow.id === selectedWorkflowId) ?? null;
+  const selectedWorkItem =
+    workItems.find((workItem) => workItem.id === selectedWorkItemId) ?? null;
+  const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
+  const scopeChips = useMemo(
+    () =>
+      buildProjectArtifactScopeChips({
+        query,
+        workflowName: selectedWorkflow?.name ?? null,
+        stageName: selectedStageName,
+        workItemTitle: selectedWorkItem?.title ?? null,
+        taskTitle: selectedTask?.title ?? null,
+        contentType: selectedContentType,
+        createdFrom,
+        createdTo,
+      }),
+    [
+      createdFrom,
+      createdTo,
+      query,
+      selectedContentType,
+      selectedStageName,
+      selectedTask?.title,
+      selectedWorkItem?.title,
+      selectedWorkflow?.name,
+    ],
+  );
   const contentTypeOptions = useMemo(
     () => buildArtifactContentTypeOptions(artifactEntries),
     [artifactEntries],
@@ -180,6 +216,21 @@ export function ProjectArtifactExplorerPanel(props: {
     filteredArtifacts.find((artifact) => artifact.id === selectedArtifactId) ??
     filteredArtifacts[0] ??
     null;
+  const nextAction = useMemo(
+    () =>
+      describeProjectArtifactNextAction({
+        totalArtifacts: filteredArtifacts.length,
+        selectedCount: selectedArtifactIds.length,
+        selectedArtifactName: selectedArtifact?.fileName ?? null,
+        activeFilterCount: scopeChips.length,
+      }),
+    [
+      filteredArtifacts.length,
+      scopeChips.length,
+      selectedArtifact?.fileName,
+      selectedArtifactIds.length,
+    ],
+  );
   const previewDescriptor = selectedArtifact
     ? describeArtifactPreview(selectedArtifact.contentType, selectedArtifact.logicalPath)
     : null;
@@ -279,6 +330,10 @@ export function ProjectArtifactExplorerPanel(props: {
       <ProjectArtifactExplorerSummary summary={summary} />
 
       <ProjectArtifactFilterCard
+        visibleArtifactCount={filteredArtifacts.length}
+        selectedArtifactCount={selectedArtifactIds.length}
+        nextAction={nextAction}
+        scopeChips={scopeChips}
         query={query}
         selectedWorkflowId={selectedWorkflowId}
         selectedStageName={selectedStageName}
@@ -325,38 +380,44 @@ export function ProjectArtifactExplorerPanel(props: {
       {timelineQuery.error ? (
         <Card><CardContent className="pt-6 text-sm text-red-600">Failed to load project artifact scope.</CardContent></Card>
       ) : (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.95fr)]">
-          <ProjectArtifactExplorerList
-            artifacts={filteredArtifacts}
-            isLoading={isLoading}
-            selectedArtifactId={selectedArtifactId}
-            selectedArtifactIds={selectedArtifactIds}
-            onSelectArtifact={setSelectedArtifactId}
-            onToggleArtifact={(artifactId) =>
-              setSelectedArtifactIds((current) =>
-                current.includes(artifactId)
-                  ? current.filter((value) => value !== artifactId)
-                  : [...current, artifactId],
-              )
-            }
-          />
-          <ProjectArtifactQuickInspector
-            artifact={selectedArtifact}
-            previewMarkup={
-              previewDescriptor && previewQuery.data
-                ? renderArtifactPreviewMarkup(previewQuery.data.content_text, previewDescriptor)
-                : ''
-            }
-            previewText={
-              previewDescriptor && previewQuery.data
-                ? formatArtifactPreviewText(previewQuery.data.content_text, previewDescriptor)
-                : ''
-            }
-            previewKind={previewDescriptor?.kind ?? 'binary'}
-            isPreviewLoading={previewQuery.isLoading}
-            previewError={previewQuery.error instanceof Error ? previewQuery.error.message : null}
-          />
-        </div>
+        <ProjectArtifactExplorerAdaptiveLayout
+          artifactCount={filteredArtifacts.length}
+          selectedArtifactName={selectedArtifact?.fileName ?? null}
+          list={
+            <ProjectArtifactExplorerList
+              artifacts={filteredArtifacts}
+              isLoading={isLoading}
+              selectedArtifactId={selectedArtifactId}
+              selectedArtifactIds={selectedArtifactIds}
+              onSelectArtifact={setSelectedArtifactId}
+              onToggleArtifact={(artifactId) =>
+                setSelectedArtifactIds((current) =>
+                  current.includes(artifactId)
+                    ? current.filter((value) => value !== artifactId)
+                    : [...current, artifactId],
+                )
+              }
+            />
+          }
+          inspector={
+            <ProjectArtifactQuickInspector
+              artifact={selectedArtifact}
+              previewMarkup={
+                previewDescriptor && previewQuery.data
+                  ? renderArtifactPreviewMarkup(previewQuery.data.content_text, previewDescriptor)
+                  : ''
+              }
+              previewText={
+                previewDescriptor && previewQuery.data
+                  ? formatArtifactPreviewText(previewQuery.data.content_text, previewDescriptor)
+                  : ''
+              }
+              previewKind={previewDescriptor?.kind ?? 'binary'}
+              isPreviewLoading={previewQuery.isLoading}
+              previewError={previewQuery.error instanceof Error ? previewQuery.error.message : null}
+            />
+          }
+        />
       )}
     </div>
   );

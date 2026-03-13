@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildProjectArtifactScopeChips,
   buildArtifactContentTypeOptions,
   buildArtifactStageOptions,
   buildProjectArtifactEntries,
+  describeProjectArtifactNextAction,
   filterProjectArtifactEntries,
   formatArtifactFileSize,
   summarizeProjectArtifactEntries,
@@ -178,5 +180,55 @@ describe('project artifact explorer support', () => {
     expect(formatArtifactFileSize(300)).toBe('300 B');
     expect(formatArtifactFileSize(2048)).toBe('2.0 KB');
     expect(formatArtifactFileSize(2 * 1024 * 1024)).toBe('2.0 MB');
+  });
+
+  it('builds scope chips and next-action guidance for adaptive review', () => {
+    expect(
+      buildProjectArtifactScopeChips({
+        query: 'release',
+        workflowName: 'Release board',
+        stageName: 'delivery',
+        workItemTitle: 'Prepare release packet',
+        taskTitle: 'Build release notes',
+        contentType: 'text/markdown',
+        createdFrom: '2026-03-10',
+        createdTo: '2026-03-12',
+      }),
+    ).toEqual([
+      { label: 'Search', value: 'release' },
+      { label: 'Workflow', value: 'Release board' },
+      { label: 'Stage', value: 'delivery' },
+      { label: 'Work item', value: 'Prepare release packet' },
+      { label: 'Task', value: 'Build release notes' },
+      { label: 'Type', value: 'text/markdown' },
+      { label: 'Created', value: '2026-03-10 to 2026-03-12' },
+    ]);
+
+    expect(
+      describeProjectArtifactNextAction({
+        totalArtifacts: 0,
+        selectedCount: 0,
+        selectedArtifactName: null,
+        activeFilterCount: 3,
+      }),
+    ).toContain('Widen the current filters');
+
+    expect(
+      describeProjectArtifactNextAction({
+        totalArtifacts: 8,
+        selectedCount: 2,
+        selectedArtifactName: null,
+        activeFilterCount: 4,
+      }),
+    ).toContain('2 selected artifacts');
+
+    expect(
+      describeProjectArtifactNextAction({
+        totalArtifacts: 4,
+        selectedCount: 0,
+        selectedArtifactName: 'release-notes.md',
+        activeFilterCount: 1,
+      }),
+    ).toContain('release-notes.md');
   });
 });

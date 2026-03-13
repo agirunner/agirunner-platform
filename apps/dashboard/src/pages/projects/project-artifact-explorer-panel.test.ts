@@ -20,6 +20,8 @@ describe('project artifact explorer panel source', () => {
     const source = readSource();
     expect(source).toContain('ProjectArtifactFilterCard');
     expect(source).toContain('ProjectArtifactBulkActionBar');
+    expect(source).toContain('buildProjectArtifactScopeChips');
+    expect(source).toContain('describeProjectArtifactNextAction');
     expect(source).toContain('selectedStageName');
     expect(source).toContain('selectedContentType');
     expect(source).toContain('createdFrom');
@@ -30,6 +32,7 @@ describe('project artifact explorer panel source', () => {
   it('supports quick inspection with inline preview and bulk download', () => {
     const source = readSource();
     expect(source).toContain('ProjectArtifactQuickInspector');
+    expect(source).toContain('ProjectArtifactExplorerAdaptiveLayout');
     expect(source).toContain('dashboardApi.readTaskArtifactContent');
     expect(source).toContain('renderArtifactPreviewMarkup');
     expect(source).toContain('formatArtifactPreviewText');

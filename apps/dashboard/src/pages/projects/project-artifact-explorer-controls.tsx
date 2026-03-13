@@ -17,9 +17,16 @@ import type {
   ProjectWorkflowOption,
   ProjectWorkItemOption,
 } from './project-content-browser-support.js';
-import type { ProjectArtifactSort } from './project-artifact-explorer-support.js';
+import type {
+  ProjectArtifactScopeChip,
+  ProjectArtifactSort,
+} from './project-artifact-explorer-support.js';
 
 export function ProjectArtifactFilterCard(props: {
+  visibleArtifactCount: number;
+  selectedArtifactCount: number;
+  nextAction: string;
+  scopeChips: ProjectArtifactScopeChip[];
   query: string;
   selectedWorkflowId: string;
   selectedStageName: string;
@@ -51,6 +58,32 @@ export function ProjectArtifactFilterCard(props: {
         <CardTitle>Filter Artifacts</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="grid gap-3 rounded-2xl bg-muted/10 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+          <div className="space-y-2">
+            <div>
+              <p className="text-sm font-medium">Current review scope</p>
+              <p className="text-sm text-muted">{props.nextAction}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {props.scopeChips.length > 0 ? (
+                props.scopeChips.map((chip) => (
+                  <Badge key={`${chip.label}:${chip.value}`} variant="outline">
+                    {chip.label}: {chip.value}
+                  </Badge>
+                ))
+              ) : (
+                <Badge variant="outline">Project-wide artifact scope</Badge>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            <Badge variant="secondary">{props.visibleArtifactCount} visible</Badge>
+            {props.selectedArtifactCount > 0 ? (
+              <Badge variant="secondary">{props.selectedArtifactCount} selected</Badge>
+            ) : null}
+          </div>
+        </div>
+
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,0.8fr))]">
           <label className="grid gap-1">
             <span className="text-xs font-medium uppercase tracking-[0.18em] text-muted">
