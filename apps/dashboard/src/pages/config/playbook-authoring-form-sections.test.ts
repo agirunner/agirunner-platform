@@ -12,6 +12,7 @@ function readSource() {
 describe('playbook authoring form sections source', () => {
   it('uses structured controls for known stage and parameter choices and exposes explicit reordering controls', () => {
     const source = readSource();
+    expect(source).toContain('validateBoardColumnsDraft');
     expect(source).toContain('MultiChoiceButtonsControl');
     expect(source).toContain('SelectWithCustomControl');
     expect(source).toContain('ToggleCard');
@@ -20,6 +21,13 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('Move Earlier');
     expect(source).toContain('Move Later');
     expect(source).toContain('Remove Role');
+    expect(source).toContain('Resolve board-column blockers before save.');
+    expect(source).toContain(
+      'Use a stable slug-style ID. This is what automation, stages, and board links reference.',
+    );
+    expect(source).toContain(
+      'Labels should match the board language operators use in workflow views.',
+    );
     expect(source).toContain('No optional verification tools enabled.');
     expect(source).toContain('Column ${index + 1} of ${columnCount}');
     expect(source).toContain('Stage ${index + 1} of ${stageCount}');

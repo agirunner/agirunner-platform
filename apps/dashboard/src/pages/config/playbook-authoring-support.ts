@@ -79,6 +79,15 @@ export interface PlaybookAuthoringSummary {
   runtimeOverrideCount: number;
 }
 
+export interface BoardColumnValidationResult {
+  columnErrors: Array<{
+    id?: string;
+    label?: string;
+  }>;
+  blockingIssues: string[];
+  isValid: boolean;
+}
+
 export function createDefaultAuthoringDraft(lifecycle: PlaybookLifecycle): PlaybookAuthoringDraft {
   return {
     roles: [{ value: 'developer' }],
@@ -257,14 +266,13 @@ export function buildPlaybookDefinition(
       parameter.secret,
     );
 
+  const boardColumnValidation = validateBoardColumnsDraft(draft.columns);
+
+  if (boardColumnValidation.blockingIssues[0]) {
+    return { ok: false, error: boardColumnValidation.blockingIssues[0] };
+  }
   if (columns.length === 0) {
     return { ok: false, error: 'At least one board column is required.' };
-  }
-  if (columns.some((column) => !column.id || !column.label)) {
-    return { ok: false, error: 'Every board column needs an ID and label.' };
-  }
-  if (hasDuplicates(columns.map((column) => column.id))) {
-    return { ok: false, error: 'Board column IDs must be unique.' };
   }
   if (stages.some((stage) => !stage.name || !stage.goal)) {
     return { ok: false, error: 'Every stage needs a name and goal.' };
@@ -324,6 +332,40 @@ export function buildPlaybookDefinition(
   return { ok: true, value: definition };
 }
 
+export function validateBoardColumnsDraft(
+  columns: BoardColumnDraft[],
+): BoardColumnValidationResult {
+  if (columns.length === 0) {
+    return {
+      columnErrors: [],
+      blockingIssues: ['At least one board column is required.'],
+      isValid: false,
+    };
+  }
+
+  const normalizedIds = columns.map((column) => column.id.trim().toLowerCase());
+  const duplicateIds = new Set(
+    normalizedIds.filter((value, index) => value && normalizedIds.indexOf(value) !== index),
+  );
+  const columnErrors = columns.map((column) => ({
+    id: readBoardColumnIdError(column, duplicateIds),
+    label: readBoardColumnLabelError(column),
+  }));
+  const blockingIssues = Array.from(
+    new Set(
+      columnErrors.flatMap((column) =>
+        [column.id, column.label].filter((value): value is string => Boolean(value)),
+      ),
+    ),
+  );
+
+  return {
+    columnErrors,
+    blockingIssues,
+    isValid: blockingIssues.length === 0,
+  };
+}
+
 function buildRuntimePoolRecord(pool: RuntimePoolDraft, gated = false): Record<string, unknown> | undefined {
   if (gated && !pool.enabled) {
     return undefined;
@@ -357,6 +399,27 @@ function splitCsv(value: string): string[] {
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function readBoardColumnIdError(
+  column: BoardColumnDraft,
+  duplicateIds: Set<string>,
+): string | undefined {
+  const id = column.id.trim();
+  if (!id) {
+    return 'Add a stable column ID.';
+  }
+  if (duplicateIds.has(id.toLowerCase())) {
+    return 'Column IDs must be unique.';
+  }
+  return undefined;
+}
+
+function readBoardColumnLabelError(column: BoardColumnDraft): string | undefined {
+  if (!column.label.trim()) {
+    return 'Add a column label.';
+  }
+  return undefined;
 }
 
 function parseOptionalInt(value: string): number | undefined {

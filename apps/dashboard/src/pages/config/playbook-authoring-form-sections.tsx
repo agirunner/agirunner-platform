@@ -16,6 +16,7 @@ import {
   createEmptyParameterDraft,
   createEmptyRoleDraft,
   createEmptyStageDraft,
+  validateBoardColumnsDraft,
   type PlaybookAuthoringDraft,
 } from './playbook-authoring-support.js';
 import {
@@ -148,6 +149,7 @@ export function TeamRolesSection(
 
 export function BoardColumnsSection(props: SectionProps): JSX.Element {
   const columnCount = props.draft.columns.length;
+  const boardColumnValidation = validateBoardColumnsDraft(props.draft.columns);
 
   return (
     <SectionCard
@@ -156,6 +158,11 @@ export function BoardColumnsSection(props: SectionProps): JSX.Element {
       description="Work-item columns that define the board posture and terminal lanes."
     >
       <div className="space-y-4">
+        {boardColumnValidation.blockingIssues.length > 0 ? (
+          <div className="rounded-md border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+            Resolve board-column blockers before save.
+          </div>
+        ) : null}
         {props.draft.columns.map((column, index) => (
           <div key={`column-${index}`} className="rounded-md border border-border p-4">
             <ReorderableCardHeader
@@ -171,22 +178,56 @@ export function BoardColumnsSection(props: SectionProps): JSX.Element {
             />
             <div className="grid gap-3 md:grid-cols-2">
               <LabeledField label="Column ID">
-                <Input
-                  value={column.id}
-                  onChange={(event) =>
-                    updateColumn(props.onChange, index, 'id', event.target.value)
-                  }
-                  placeholder="planned"
-                />
+                <div className="space-y-1">
+                  <Input
+                    value={column.id}
+                    aria-invalid={boardColumnValidation.columnErrors[index]?.id ? true : undefined}
+                    className={
+                      boardColumnValidation.columnErrors[index]?.id
+                        ? 'border-red-300 focus-visible:ring-red-500'
+                        : undefined
+                    }
+                    onChange={(event) =>
+                      updateColumn(props.onChange, index, 'id', event.target.value)
+                    }
+                    placeholder="planned"
+                  />
+                  {boardColumnValidation.columnErrors[index]?.id ? (
+                    <p className="text-xs text-red-600">
+                      {boardColumnValidation.columnErrors[index]?.id}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted">
+                      Use a stable slug-style ID. This is what automation, stages, and board links reference.
+                    </p>
+                  )}
+                </div>
               </LabeledField>
               <LabeledField label="Label">
-                <Input
-                  value={column.label}
-                  onChange={(event) =>
-                    updateColumn(props.onChange, index, 'label', event.target.value)
-                  }
-                  placeholder="Planned"
-                />
+                <div className="space-y-1">
+                  <Input
+                    value={column.label}
+                    aria-invalid={boardColumnValidation.columnErrors[index]?.label ? true : undefined}
+                    className={
+                      boardColumnValidation.columnErrors[index]?.label
+                        ? 'border-red-300 focus-visible:ring-red-500'
+                        : undefined
+                    }
+                    onChange={(event) =>
+                      updateColumn(props.onChange, index, 'label', event.target.value)
+                    }
+                    placeholder="Planned"
+                  />
+                  {boardColumnValidation.columnErrors[index]?.label ? (
+                    <p className="text-xs text-red-600">
+                      {boardColumnValidation.columnErrors[index]?.label}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted">
+                      Labels should match the board language operators use in workflow views.
+                    </p>
+                  )}
+                </div>
               </LabeledField>
             </div>
             <LabeledField label="Description" className="mt-3">

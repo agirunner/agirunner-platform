@@ -6,6 +6,7 @@ import {
   createRuntimePoolDraft,
   hydratePlaybookAuthoringDraft,
   summarizePlaybookAuthoringDraft,
+  validateBoardColumnsDraft,
 } from './playbook-authoring-support.js';
 
 describe('playbook authoring support', () => {
@@ -94,14 +95,33 @@ describe('playbook authoring support', () => {
 
     expect(buildPlaybookDefinition('continuous', draft)).toEqual({
       ok: false,
-      error: 'Every board column needs an ID and label.',
+      error: 'Add a stable column ID.',
     });
 
     draft.columns[0].id = 'inbox';
     draft.columns[1].id = 'inbox';
     expect(buildPlaybookDefinition('continuous', draft)).toEqual({
       ok: false,
-      error: 'Board column IDs must be unique.',
+      error: 'Column IDs must be unique.',
+    });
+  });
+
+  it('validates board columns inline while operators edit the draft', () => {
+    const draft = createDefaultAuthoringDraft('standard');
+    draft.columns = [
+      { id: '', label: '', description: '', is_blocked: false, is_terminal: false },
+      { id: 'inbox', label: 'Inbox', description: '', is_blocked: false, is_terminal: false },
+      { id: 'inbox', label: 'Doing', description: '', is_blocked: false, is_terminal: false },
+    ];
+
+    expect(validateBoardColumnsDraft(draft.columns)).toEqual({
+      columnErrors: [
+        { id: 'Add a stable column ID.', label: 'Add a column label.' },
+        { id: 'Column IDs must be unique.', label: undefined },
+        { id: 'Column IDs must be unique.', label: undefined },
+      ],
+      blockingIssues: ['Add a stable column ID.', 'Add a column label.', 'Column IDs must be unique.'],
+      isValid: false,
     });
   });
 
