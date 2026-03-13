@@ -6,10 +6,7 @@ import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import type { PublicTaskState } from '../../services/task-service.types.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
-import {
-  loadTaskWorkflowId,
-  runIdempotentWorkflowBackedTaskAction,
-} from './task-route-idempotency.js';
+import { runIdempotentPublicTaskOperatorAction } from './task-route-idempotency.js';
 
 
 const taskCreateSchema = z.object({
@@ -98,38 +95,38 @@ const taskOperatorMutationSchema = z.object({
   request_id: z.string().min(1).max(255).optional(),
 });
 
-const retrySchema = z.object({
+const retrySchema = taskOperatorMutationSchema.extend({
   override_input: z.record(z.unknown()).optional(),
   force: z.boolean().optional(),
 });
 
-const rejectSchema = z.object({
+const rejectSchema = taskOperatorMutationSchema.extend({
   feedback: z.string().min(1).max(4000),
 });
 
-const requestChangesSchema = z.object({
+const requestChangesSchema = taskOperatorMutationSchema.extend({
   feedback: z.string().min(1).max(4000),
   override_input: z.record(z.unknown()).optional(),
   preferred_agent_id: z.string().uuid().optional(),
   preferred_worker_id: z.string().uuid().optional(),
 });
 
-const skipSchema = z.object({
+const skipSchema = taskOperatorMutationSchema.extend({
   reason: z.string().min(1).max(4000),
 });
 
-const reassignSchema = z.object({
+const reassignSchema = taskOperatorMutationSchema.extend({
   preferred_agent_id: z.string().uuid().optional(),
   preferred_worker_id: z.string().uuid().optional(),
   reason: z.string().min(1).max(4000),
 });
 
-const escalateSchema = z.object({
+const escalateSchema = taskOperatorMutationSchema.extend({
   reason: z.string().min(1).max(4000),
   escalation_target: z.string().max(255).optional(),
 });
 
-const escalationResponseSchema = z.object({
+const escalationResponseSchema = taskOperatorMutationSchema.extend({
   instructions: z.string().min(1).max(4000),
   context: z.record(z.unknown()).optional(),
 });
@@ -140,12 +137,12 @@ const agentEscalateSchema = z.object({
   work_so_far: z.string().max(8000).optional(),
 });
 
-const resolveEscalationSchema = z.object({
+const resolveEscalationSchema = taskOperatorMutationSchema.extend({
   instructions: z.string().min(1).max(4000),
   context: z.record(z.unknown()).optional(),
 });
 
-const overrideOutputSchema = z.object({
+const overrideOutputSchema = taskOperatorMutationSchema.extend({
   output: z.unknown(),
   reason: z.string().min(1).max(4000),
 });
@@ -183,6 +180,23 @@ function parseTaskStateFilter(value: string | undefined) {
 export const taskRoutes: FastifyPluginAsync = async (app) => {
   const taskService = app.taskService;
   const toolResultService = new WorkflowToolResultService(app.pgPool);
+  const runPublicTaskOperatorAction = <T extends Record<string, unknown>>(
+    tenantId: string,
+    taskId: string,
+    toolName: string,
+    requestId: string | undefined,
+    run: (client: import('../../db/database.js').DatabaseClient | undefined) => Promise<T>,
+  ) =>
+    runIdempotentPublicTaskOperatorAction(
+      app,
+      toolResultService,
+      taskService.getTask.bind(taskService),
+      tenantId,
+      taskId,
+      toolName,
+      requestId,
+      run,
+    );
 
   app.post(
     '/api/v1/tasks',
@@ -348,14 +362,9 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(taskOperatorMutationSchema.safeParse(request.body ?? {}));
-      const workflowId = body.request_id
-        ? await loadTaskWorkflowId(taskService.getTask.bind(taskService), request.auth!.tenantId, params.id)
-        : null;
-      const task = await runIdempotentWorkflowBackedTaskAction(
-        app,
-        toolResultService,
+      const task = await runPublicTaskOperatorAction(
         request.auth!.tenantId,
-        workflowId,
+        params.id,
         'public_task_approve',
         body.request_id,
         (client) => taskService.approveTask(request.auth!, params.id, client),
@@ -370,14 +379,9 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(taskOperatorMutationSchema.safeParse(request.body ?? {}));
-      const workflowId = body.request_id
-        ? await loadTaskWorkflowId(taskService.getTask.bind(taskService), request.auth!.tenantId, params.id)
-        : null;
-      const task = await runIdempotentWorkflowBackedTaskAction(
-        app,
-        toolResultService,
+      const task = await runPublicTaskOperatorAction(
         request.auth!.tenantId,
-        workflowId,
+        params.id,
         'public_task_approve_output',
         body.request_id,
         (client) => taskService.approveTaskOutput(request.auth!, params.id, client),
@@ -392,7 +396,14 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(retrySchema.safeParse(request.body ?? {}));
-      const task = await taskService.retryTask(request.auth!, params.id, body);
+      const { request_id: requestId, ...payload } = body;
+      const task = await runPublicTaskOperatorAction(
+        request.auth!.tenantId,
+        params.id,
+        'public_task_retry',
+        requestId,
+        (client) => taskService.retryTask(request.auth!, params.id, payload, client),
+      );
       return { data: task };
     },
   );
@@ -403,14 +414,9 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(taskOperatorMutationSchema.safeParse(request.body ?? {}));
-      const workflowId = body.request_id
-        ? await loadTaskWorkflowId(taskService.getTask.bind(taskService), request.auth!.tenantId, params.id)
-        : null;
-      const task = await runIdempotentWorkflowBackedTaskAction(
-        app,
-        toolResultService,
+      const task = await runPublicTaskOperatorAction(
         request.auth!.tenantId,
-        workflowId,
+        params.id,
         'public_task_cancel',
         body.request_id,
         (client) => taskService.cancelTask(request.auth!, params.id, client),
@@ -425,7 +431,14 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(rejectSchema.safeParse(request.body));
-      const task = await taskService.rejectTask(request.auth!, params.id, body);
+      const { request_id: requestId, ...payload } = body;
+      const task = await runPublicTaskOperatorAction(
+        request.auth!.tenantId,
+        params.id,
+        'public_task_reject',
+        requestId,
+        () => taskService.rejectTask(request.auth!, params.id, payload),
+      );
       return { data: task };
     },
   );
@@ -436,7 +449,14 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(requestChangesSchema.safeParse(request.body));
-      const task = await taskService.requestTaskChanges(request.auth!, params.id, body);
+      const { request_id: requestId, ...payload } = body;
+      const task = await runPublicTaskOperatorAction(
+        request.auth!.tenantId,
+        params.id,
+        'public_task_request_changes',
+        requestId,
+        (client) => taskService.requestTaskChanges(request.auth!, params.id, payload, client),
+      );
       return { data: task };
     },
   );
@@ -447,7 +467,14 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(requestChangesSchema.safeParse(request.body));
-      const task = await taskService.requestTaskChanges(request.auth!, params.id, body);
+      const { request_id: requestId, ...payload } = body;
+      const task = await runPublicTaskOperatorAction(
+        request.auth!.tenantId,
+        params.id,
+        'public_task_request_changes',
+        requestId,
+        (client) => taskService.requestTaskChanges(request.auth!, params.id, payload, client),
+      );
       return { data: task };
     },
   );
@@ -458,7 +485,14 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(skipSchema.safeParse(request.body));
-      const task = await taskService.skipTask(request.auth!, params.id, body);
+      const { request_id: requestId, ...payload } = body;
+      const task = await runPublicTaskOperatorAction(
+        request.auth!.tenantId,
+        params.id,
+        'public_task_skip',
+        requestId,
+        () => taskService.skipTask(request.auth!, params.id, payload),
+      );
       return { data: task };
     },
   );
@@ -469,7 +503,14 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(reassignSchema.safeParse(request.body));
-      const task = await taskService.reassignTask(request.auth!, params.id, body);
+      const { request_id: requestId, ...payload } = body;
+      const task = await runPublicTaskOperatorAction(
+        request.auth!.tenantId,
+        params.id,
+        'public_task_reassign',
+        requestId,
+        (client) => taskService.reassignTask(request.auth!, params.id, payload, client),
+      );
       return { data: task };
     },
   );
@@ -480,7 +521,14 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(escalateSchema.safeParse(request.body));
-      const task = await taskService.escalateTask(request.auth!, params.id, body);
+      const { request_id: requestId, ...payload } = body;
+      const task = await runPublicTaskOperatorAction(
+        request.auth!.tenantId,
+        params.id,
+        'public_task_escalate',
+        requestId,
+        (client) => taskService.escalateTask(request.auth!, params.id, payload, client),
+      );
       return { data: task };
     },
   );
@@ -491,7 +539,14 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(escalationResponseSchema.safeParse(request.body));
-      const task = await taskService.respondToEscalation(request.auth!, params.id, body);
+      const { request_id: requestId, ...payload } = body;
+      const task = await runPublicTaskOperatorAction(
+        request.auth!.tenantId,
+        params.id,
+        'public_task_escalation_response',
+        requestId,
+        () => taskService.respondToEscalation(request.auth!, params.id, payload),
+      );
       return { data: task };
     },
   );
@@ -502,10 +557,18 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(overrideOutputSchema.safeParse(request.body));
-      const task = await taskService.overrideTaskOutput(request.auth!, params.id, {
-        output: body.output,
-        reason: body.reason,
-      });
+      const { request_id: requestId, ...payload } = body;
+      const task = await runPublicTaskOperatorAction(
+        request.auth!.tenantId,
+        params.id,
+        'public_task_output_override',
+        requestId,
+        () =>
+          taskService.overrideTaskOutput(request.auth!, params.id, {
+            output: payload.output,
+            reason: payload.reason,
+          }),
+      );
       return { data: task };
     },
   );
@@ -527,7 +590,14 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(resolveEscalationSchema.safeParse(request.body));
-      const task = await taskService.resolveEscalation(request.auth!, params.id, body);
+      const { request_id: requestId, ...payload } = body;
+      const task = await runPublicTaskOperatorAction(
+        request.auth!.tenantId,
+        params.id,
+        'public_task_resolve_escalation',
+        requestId,
+        () => taskService.resolveEscalation(request.auth!, params.id, payload),
+      );
       return { data: task };
     },
   );
