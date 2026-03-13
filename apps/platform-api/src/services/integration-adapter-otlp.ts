@@ -40,7 +40,7 @@ export function normalizeStoredOtlpConfig(
     endpoint,
     headers:
       nextConfig.headers !== undefined
-        ? normalizeIntegrationHeaders(nextConfig.headers, encryptionKey)
+        ? normalizeIntegrationHeaders(nextConfig.headers, encryptionKey, current?.headers ?? {})
         : (current?.headers ?? {}),
     service_name:
       typeof nextConfig.service_name === 'string'

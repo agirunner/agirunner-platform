@@ -5,6 +5,7 @@ const SECRET_HEADER_REDACTION = 'redacted://integration-header-secret';
 export function normalizeIntegrationHeaders(
   headers: unknown,
   encryptionKey: string,
+  currentHeaders: Record<string, string> = {},
 ): Record<string, string> {
   if (!headers || typeof headers !== 'object' || Array.isArray(headers)) {
     return {};
@@ -15,6 +16,10 @@ export function normalizeIntegrationHeaders(
       .filter(([, value]) => typeof value === 'string')
       .map(([key, value]) => {
         const normalizedValue = value as string;
+        const preservedValue = readPreservedHeaderValue(key, normalizedValue, currentHeaders);
+        if (preservedValue) {
+          return [key, preservedValue];
+        }
         return [
           key,
           isSecretLikeHeader(key, normalizedValue)
@@ -84,4 +89,15 @@ function shouldEncryptHeaderValue(key: string, value: string): boolean {
     return false;
   }
   return !/^enc:v\d+:/i.test(normalizedValue) && !/^secret:/i.test(normalizedValue);
+}
+
+function readPreservedHeaderValue(
+  key: string,
+  value: string,
+  currentHeaders: Record<string, string>,
+): string | null {
+  if (!/^redacted:\/\//i.test(value.trim())) {
+    return null;
+  }
+  return typeof currentHeaders[key] === 'string' ? currentHeaders[key] : null;
 }

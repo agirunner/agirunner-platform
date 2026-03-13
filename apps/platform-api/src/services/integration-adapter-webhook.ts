@@ -78,7 +78,7 @@ export function normalizeStoredWebhookConfig(
     url,
     headers:
       nextConfig.headers !== undefined
-        ? normalizeIntegrationHeaders(nextConfig.headers, encryptionKey)
+        ? normalizeIntegrationHeaders(nextConfig.headers, encryptionKey, current?.headers ?? {})
         : (current?.headers ?? {}),
     ...normalizeSecret(current?.secret, nextConfig.secret, encryptionKey),
   };

@@ -521,4 +521,102 @@ describe('IntegrationAdapterService', () => {
       }),
     );
   });
+
+  it('preserves redacted secret headers when updating an adapter', async () => {
+    const preservedSecretHeader = encryptWebhookSecret('Bearer keep-me', encryptionKey);
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'adapter-1',
+            tenant_id: 'tenant-1',
+            workflow_id: null,
+            kind: 'webhook',
+            config: {
+              url: 'https://example.com/hooks',
+              headers: {
+                Authorization: preservedSecretHeader,
+                'x-safe': 'true',
+              },
+              secret: 'enc:v1:masked-secret',
+            },
+            subscriptions: ['task.*'],
+            is_active: true,
+            created_at: new Date('2026-03-06T00:00:00Z'),
+            updated_at: new Date('2026-03-06T00:00:00Z'),
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'adapter-1',
+            tenant_id: 'tenant-1',
+            workflow_id: null,
+            kind: 'webhook',
+            config: {
+              url: 'https://example.com/new-hooks',
+              headers: {
+                Authorization: preservedSecretHeader,
+                'x-safe': 'changed',
+              },
+              secret: 'enc:v1:masked-secret',
+            },
+            subscriptions: ['task.*'],
+            is_active: true,
+            created_at: new Date('2026-03-06T00:00:00Z'),
+            updated_at: new Date('2026-03-06T01:00:00Z'),
+          },
+        ],
+      });
+    const service = new IntegrationAdapterService(
+      { query } as never,
+      {
+        WEBHOOK_ENCRYPTION_KEY: encryptionKey,
+        WEBHOOK_MAX_ATTEMPTS: 1,
+        WEBHOOK_RETRY_BASE_DELAY_MS: 1,
+      } as never,
+      vi.fn(),
+    );
+
+    const updated = await service.updateAdapter('tenant-1', 'adapter-1', {
+      config: {
+        url: 'https://example.com/new-hooks',
+        headers: {
+          Authorization: 'redacted://integration-header-secret',
+          'x-safe': 'changed',
+        },
+      },
+    });
+
+    expect(query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('UPDATE integration_adapters'),
+      [
+        'tenant-1',
+        'adapter-1',
+        {
+          url: 'https://example.com/new-hooks',
+          headers: {
+            Authorization: preservedSecretHeader,
+            'x-safe': 'changed',
+          },
+          secret: 'enc:v1:masked-secret',
+        },
+        null,
+        null,
+      ],
+    );
+    expect(updated.config).toEqual({
+      url: 'https://example.com/new-hooks',
+      headers: {
+        Authorization: 'redacted://integration-header-secret',
+        'x-safe': 'changed',
+      },
+      secret_configured: true,
+    });
+  });
 });

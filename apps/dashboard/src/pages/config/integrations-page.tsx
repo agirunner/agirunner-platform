@@ -1,72 +1,26 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Loader2,
-  Plus,
-  Trash2,
-  Plug,
-} from 'lucide-react';
-import {
-  dashboardApi,
-  type DashboardIntegrationRecord,
-} from '../../lib/api.js';
-import { toast } from '../../lib/toast.js';
-import { Button } from '../../components/ui/button.js';
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Loader2, Pencil, Plug, Trash2 } from 'lucide-react';
+
 import { Badge } from '../../components/ui/badge.js';
-import { Input } from '../../components/ui/input.js';
-import { Switch } from '../../components/ui/switch.js';
+import { Button } from '../../components/ui/button.js';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card.js';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog.js';
+import { Switch } from '../../components/ui/switch.js';
+import { dashboardApi, type DashboardIntegrationRecord } from '../../lib/api.js';
+import { toast } from '../../lib/toast.js';
+import { IntegrationEditorDialog } from './integrations-editor-dialog.js';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../components/ui/select.js';
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from '../../components/ui/table.js';
-
-type IntegrationKind = DashboardIntegrationRecord['kind'];
-
-const KIND_LABELS: Record<IntegrationKind, string> = {
-  webhook: 'Webhook',
-  slack: 'Slack',
-  otlp_http: 'OTLP HTTP',
-  github_issues: 'GitHub Issues',
-};
-
-const KIND_FIELDS: Record<IntegrationKind, string[]> = {
-  webhook: ['url', 'secret'],
-  slack: ['webhook_url', 'channel'],
-  otlp_http: ['endpoint', 'headers'],
-  github_issues: ['owner', 'repo', 'token'],
-};
-
-const INTEGRATION_EVENT_OPTIONS = [
-  'workflow.created',
-  'workflow.completed',
-  'workflow.failed',
-  'workflow.cancelled',
-  'workflow.gate_requested',
-  'work_item.created',
-  'work_item.updated',
-  'task.created',
-  'task.completed',
-  'task.failed',
-  'task.escalated',
-  'task.awaiting_approval',
-] as const;
+  KIND_LABELS,
+  summarizeIntegrationConfig,
+  type IntegrationKind,
+} from './integrations-page.support.js';
 
 function kindVariant(kind: IntegrationKind) {
   const map: Record<IntegrationKind, 'default' | 'secondary' | 'outline' | 'warning'> = {
@@ -75,226 +29,62 @@ function kindVariant(kind: IntegrationKind) {
     otlp_http: 'outline',
     github_issues: 'warning',
   };
-  return map[kind] ?? ('outline' as const);
+  return map[kind];
 }
 
-function normalizeIntegrations(
-  data: DashboardIntegrationRecord[] | { data: DashboardIntegrationRecord[] } | undefined,
-): DashboardIntegrationRecord[] {
-  if (!data) return [];
-  if (Array.isArray(data)) return data;
-  return data.data ?? [];
-}
-
-interface AddIntegrationForm {
-  kind: IntegrationKind;
-  workflow_id: string;
-  subscriptions: string[];
-  config: Record<string, string>;
-}
-
-const INITIAL_FORM: AddIntegrationForm = {
-  kind: 'webhook',
-  workflow_id: '',
-  subscriptions: [],
-  config: {},
-};
-
-function AddIntegrationDialog() {
+export function IntegrationsPage(): JSX.Element {
   const queryClient = useQueryClient();
-  const [isOpen, setIsOpen] = useState(false);
-  const [form, setForm] = useState<AddIntegrationForm>(INITIAL_FORM);
+  const [editorTarget, setEditorTarget] = useState<DashboardIntegrationRecord | 'create' | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DashboardIntegrationRecord | null>(null);
 
-  const configFields = KIND_FIELDS[form.kind] ?? [];
+  const integrationsQuery = useQuery({
+    queryKey: ['integrations'],
+    queryFn: () => dashboardApi.listIntegrations(),
+  });
   const workflowsQuery = useQuery({
-    queryKey: ['workflow-options'],
+    queryKey: ['integration-workflow-options'],
     queryFn: () => dashboardApi.listWorkflows(),
   });
-  const workflowOptions = workflowsQuery.data?.data ?? [];
 
-  const mutation = useMutation({
-    mutationFn: () =>
-      dashboardApi.createIntegration({
-        kind: form.kind,
-        workflow_id: form.workflow_id || undefined,
-        subscriptions: form.subscriptions.length > 0 ? form.subscriptions : undefined,
-        config: form.config,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['integrations'] });
-      setForm(INITIAL_FORM);
-      setIsOpen(false);
+  const createMutation = useMutation({
+    mutationFn: dashboardApi.createIntegration,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      setEditorTarget(null);
       toast.success('Integration created');
     },
-    onError: () => {
-      toast.error('Failed to create integration');
+    onError: (error) => {
+      toast.error(`Failed to create integration: ${String(error)}`);
     },
   });
-
-  function updateConfigField(field: string, value: string) {
-    setForm((prev) => ({
-      ...prev,
-      config: { ...prev.config, [field]: value },
-    }));
-  }
-
-  function toggleSubscription(eventType: string) {
-    setForm((prev) => ({
-      ...prev,
-      subscriptions: prev.subscriptions.includes(eventType)
-        ? prev.subscriptions.filter((value) => value !== eventType)
-        : [...prev.subscriptions, eventType],
-    }));
-  }
-
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <Button onClick={() => setIsOpen(true)}>
-        <Plus className="h-4 w-4" />
-        Add Integration
-      </Button>
-      <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Add Integration</DialogTitle>
-        </DialogHeader>
-        <form
-          className="space-y-5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            mutation.mutate();
-          }}
-        >
-          <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Integration kind</label>
-            <Select
-              value={form.kind}
-              onValueChange={(v) =>
-                setForm((prev) => ({
-                  ...prev,
-                  kind: v as IntegrationKind,
-                  config: {},
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(KIND_LABELS).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Workflow scope</label>
-            <Select
-              value={form.workflow_id || '__global__'}
-              onValueChange={(value) =>
-                setForm((prev) => ({
-                  ...prev,
-                  workflow_id: value === '__global__' ? '' : value,
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Global integration" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__global__">Global integration</SelectItem>
-                {workflowOptions.map((workflow) => (
-                  <SelectItem key={workflow.id} value={workflow.id}>
-                    {workflow.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Subscribed events</label>
-            <p className="text-sm text-muted">
-              Select the workflow and task events this integration should receive. Leave everything unchecked to follow the backend default.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {INTEGRATION_EVENT_OPTIONS.map((eventType) => {
-                const selected = form.subscriptions.includes(eventType);
-                return (
-                  <Button
-                    key={eventType}
-                    type="button"
-                    variant={selected ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => toggleSubscription(eventType)}
-                  >
-                    {eventType}
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-          {configFields.map((field) => (
-            <div key={field} className="space-y-2">
-              <label className="text-sm font-medium capitalize">
-                {field.replace(/_/g, ' ')}
-              </label>
-              <Input
-                placeholder={field}
-                value={form.config[field] ?? ''}
-                onChange={(e) => updateConfigField(field, e.target.value)}
-                type={
-                  field.includes('secret') || field.includes('token')
-                    ? 'password'
-                    : 'text'
-                }
-              />
-            </div>
-          ))}
-          </div>
-
-          {mutation.error && (
-            <p className="text-sm text-red-600">{String(mutation.error)}</p>
-          )}
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending && (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              )}
-              Create
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function DeleteConfirmDialog({
-  integrationId,
-  onClose,
-}: {
-  integrationId: string;
-  onClose: () => void;
-}) {
-  const queryClient = useQueryClient();
-  const mutation = useMutation({
-    mutationFn: () => dashboardApi.deleteIntegration(integrationId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['integrations'] });
-      onClose();
+  const updateMutation = useMutation({
+    mutationFn: ({ integrationId, payload }: { integrationId: string; payload: Parameters<typeof dashboardApi.updateIntegration>[1] }) =>
+      dashboardApi.updateIntegration(integrationId, payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      setEditorTarget(null);
+      toast.success('Integration updated');
+    },
+    onError: (error) => {
+      toast.error(`Failed to update integration: ${String(error)}`);
+    },
+  });
+  const toggleMutation = useMutation({
+    mutationFn: ({ integrationId, isActive }: { integrationId: string; isActive: boolean }) =>
+      dashboardApi.updateIntegration(integrationId, { is_active: isActive }),
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      toast.success(variables.isActive ? 'Integration enabled' : 'Integration disabled');
+    },
+    onError: () => {
+      toast.error('Failed to update integration');
+    },
+  });
+  const deleteMutation = useMutation({
+    mutationFn: (integrationId: string) => dashboardApi.deleteIntegration(integrationId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      setDeleteTarget(null);
       toast.success('Integration deleted');
     },
     onError: () => {
@@ -302,119 +92,15 @@ function DeleteConfirmDialog({
     },
   });
 
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[70vh] max-w-lg overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Delete Integration</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted">
-          Are you sure you want to delete this integration? This action cannot
-          be undone.
-        </p>
-        {mutation.error && (
-          <p className="text-sm text-red-600">{String(mutation.error)}</p>
-        )}
-        <div className="flex justify-end gap-2 mt-4">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={() => mutation.mutate()}
-            disabled={mutation.isPending}
-          >
-            {mutation.isPending && (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            )}
-            Delete
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+  const workflowNameById = useMemo(
+    () =>
+      new Map(
+        (workflowsQuery.data?.data ?? []).map((workflow) => [workflow.id, workflow.name] as const),
+      ),
+    [workflowsQuery.data],
   );
-}
 
-function IntegrationRow({
-  integration,
-}: {
-  integration: DashboardIntegrationRecord;
-}) {
-  const queryClient = useQueryClient();
-  const [deleteTarget, setDeleteTarget] = useState(false);
-
-  const toggleMutation = useMutation({
-    mutationFn: (checked: boolean) =>
-      dashboardApi.updateIntegration(integration.id, {
-        is_active: checked,
-      }),
-    onSuccess: (_data, checked) => {
-      queryClient.invalidateQueries({ queryKey: ['integrations'] });
-      toast.success(checked ? 'Integration enabled' : 'Integration disabled');
-    },
-    onError: () => {
-      toast.error('Failed to update integration');
-    },
-  });
-
-  return (
-    <>
-      <TableRow>
-        <TableCell>
-          <Badge variant={kindVariant(integration.kind)}>
-            {KIND_LABELS[integration.kind] ?? integration.kind}
-          </Badge>
-        </TableCell>
-        <TableCell className="text-sm text-muted font-mono">
-          {integration.workflow_id ?? 'Global'}
-        </TableCell>
-        <TableCell>
-          <div className="flex flex-wrap gap-1">
-            {integration.subscriptions.length > 0 ? (
-              integration.subscriptions.map((sub) => (
-                <Badge key={sub} variant="outline" className="text-xs">
-                  {sub}
-                </Badge>
-              ))
-            ) : (
-              <span className="text-sm text-muted">All events</span>
-            )}
-          </div>
-        </TableCell>
-        <TableCell>
-          <Switch
-            checked={integration.is_active}
-            onCheckedChange={(checked) => toggleMutation.mutate(checked)}
-            disabled={toggleMutation.isPending}
-          />
-        </TableCell>
-        <TableCell>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => setDeleteTarget(true)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </TableCell>
-      </TableRow>
-      {deleteTarget && (
-        <DeleteConfirmDialog
-          integrationId={integration.id}
-          onClose={() => setDeleteTarget(false)}
-        />
-      )}
-    </>
-  );
-}
-
-export function IntegrationsPage(): JSX.Element {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['integrations'],
-    queryFn: () => dashboardApi.listIntegrations(),
-  });
-
-  if (isLoading) {
+  if (integrationsQuery.isLoading) {
     return (
       <div className="flex items-center justify-center p-12">
         <Loader2 className="h-6 w-6 animate-spin text-muted" />
@@ -422,59 +108,193 @@ export function IntegrationsPage(): JSX.Element {
     );
   }
 
-  if (error) {
+  if (integrationsQuery.error) {
     return (
       <div className="p-6">
         <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-          Failed to load integrations: {String(error)}
+          Failed to load integrations: {String(integrationsQuery.error)}
         </div>
       </div>
     );
   }
 
-  const integrations = normalizeIntegrations(data);
+  const integrations = integrationsQuery.data ?? [];
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Integrations</h1>
-          <p className="text-sm text-muted">
-            Manage webhooks, notifications, and external service connections.
-          </p>
-        </div>
-        <AddIntegrationDialog />
-      </div>
+    <div className="space-y-6 p-6">
+      <Card>
+        <CardHeader className="gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2">
+            <CardTitle className="text-2xl">Integrations</CardTitle>
+            <CardDescription className="max-w-2xl leading-6">
+              Configure outbound delivery for workflow events with first-class controls for scope, subscriptions, and provider-specific settings.
+            </CardDescription>
+          </div>
+          <Button onClick={() => setEditorTarget('create')}>Add integration</Button>
+        </CardHeader>
+      </Card>
 
       {integrations.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-muted">
-          <Plug className="h-12 w-12 mb-4" />
-          <p className="font-medium">No integrations configured</p>
-          <p className="text-sm mt-1">
-            Add an integration to connect with external services.
-          </p>
-        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+            <Plug className="h-12 w-12 text-muted" />
+            <div className="space-y-1">
+              <p className="font-medium">No integrations configured</p>
+              <p className="text-sm text-muted">Add an integration to connect workflows with your external systems.</p>
+            </div>
+            <Button onClick={() => setEditorTarget('create')}>Add integration</Button>
+          </CardContent>
+        </Card>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Kind</TableHead>
-              <TableHead>Workflow</TableHead>
-              <TableHead>Subscriptions</TableHead>
-              <TableHead>Active</TableHead>
-              <TableHead className="w-[60px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {integrations.map((integration) => (
-              <IntegrationRow
-                key={integration.id}
-                integration={integration}
-              />
-            ))}
-          </TableBody>
-        </Table>
+        <div className="space-y-4">
+          {integrations.map((integration) => (
+            <IntegrationCard
+              key={integration.id}
+              integration={integration}
+              workflowName={integration.workflow_id ? workflowNameById.get(integration.workflow_id) ?? integration.workflow_id : 'Global integration'}
+              isMutating={toggleMutation.isPending || deleteMutation.isPending || updateMutation.isPending}
+              onEdit={() => setEditorTarget(integration)}
+              onDelete={() => setDeleteTarget(integration)}
+              onToggle={(isActive) => toggleMutation.mutate({ integrationId: integration.id, isActive })}
+            />
+          ))}
+        </div>
       )}
+
+      <IntegrationEditorDialog
+        mode={editorTarget === 'create' ? 'create' : 'edit'}
+        integration={typeof editorTarget === 'object' ? editorTarget : null}
+        open={editorTarget !== null}
+        workflows={workflowsQuery.data?.data ?? []}
+        isPending={createMutation.isPending || updateMutation.isPending}
+        errorMessage={
+          createMutation.error
+            ? String(createMutation.error)
+            : updateMutation.error
+              ? String(updateMutation.error)
+              : null
+        }
+        onOpenChange={(open) => !open && setEditorTarget(null)}
+        onSubmit={(payload) => {
+          if (editorTarget === 'create') {
+            createMutation.mutate(payload as Parameters<typeof dashboardApi.createIntegration>[0]);
+            return;
+          }
+          if (editorTarget && typeof editorTarget === 'object') {
+            updateMutation.mutate({
+              integrationId: editorTarget.id,
+              payload: payload as Parameters<typeof dashboardApi.updateIntegration>[1],
+            });
+          }
+        }}
+      />
+
+      <DeleteIntegrationDialog
+        integration={deleteTarget}
+        isPending={deleteMutation.isPending}
+        onClose={() => setDeleteTarget(null)}
+        onDelete={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+      />
     </div>
+  );
+}
+
+function IntegrationCard(props: {
+  integration: DashboardIntegrationRecord;
+  workflowName: string;
+  isMutating: boolean;
+  onEdit(): void;
+  onDelete(): void;
+  onToggle(isActive: boolean): void;
+}) {
+  const summary = summarizeIntegrationConfig(props.integration);
+
+  return (
+    <Card>
+      <CardHeader className="gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={kindVariant(props.integration.kind)}>
+              {KIND_LABELS[props.integration.kind]}
+            </Badge>
+            <Badge variant="outline">{props.workflowName}</Badge>
+            <Badge variant={props.integration.is_active ? 'secondary' : 'outline'}>
+              {props.integration.is_active ? 'Active' : 'Paused'}
+            </Badge>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {props.integration.subscriptions.length > 0 ? (
+              props.integration.subscriptions.map((subscription) => (
+                <Badge key={subscription} variant="outline" className="text-xs">
+                  {subscription}
+                </Badge>
+              ))
+            ) : (
+              <Badge variant="outline">Default event coverage</Badge>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 rounded-md border px-3 py-2">
+            <span className="text-sm">Active</span>
+            <Switch
+              checked={props.integration.is_active}
+              disabled={props.isMutating}
+              onCheckedChange={props.onToggle}
+            />
+          </div>
+          <Button variant="outline" onClick={props.onEdit} disabled={props.isMutating}>
+            <Pencil className="h-4 w-4" />
+            Edit integration
+          </Button>
+          <Button variant="outline" onClick={props.onDelete} disabled={props.isMutating}>
+            <Trash2 className="h-4 w-4" />
+            Delete integration
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {summary.map((field) => (
+            <div key={field.label} className="rounded-md bg-border/10 p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted">{field.label}</p>
+              <p className="mt-1 text-sm">{field.value}</p>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DeleteIntegrationDialog(props: {
+  integration: DashboardIntegrationRecord | null;
+  isPending: boolean;
+  onClose(): void;
+  onDelete(): void;
+}) {
+  return (
+    <Dialog open={props.integration !== null} onOpenChange={(open) => !open && props.onClose()}>
+      <DialogContent className="max-h-[70vh] max-w-lg overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Delete integration</DialogTitle>
+          <DialogDescription>
+            {props.integration
+              ? `Delete the ${KIND_LABELS[props.integration.kind]} integration and stop future outbound deliveries for this destination.`
+              : 'Delete this integration.'}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={props.onClose} disabled={props.isPending}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={props.onDelete} disabled={props.isPending}>
+            {props.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            Delete integration
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
