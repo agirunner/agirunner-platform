@@ -4,6 +4,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { registerErrorHandler } from '../../src/errors/error-handler.js';
 import { taskPlatformRoutes } from '../../src/api/routes/task-platform.routes.js';
 
+const downloadArtifactForTaskScope = vi.fn();
+const listArtifactsForTaskScope = vi.fn();
+const previewArtifactForTaskScope = vi.fn();
+
 vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
@@ -18,10 +22,19 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   withScope: () => async () => {},
 }));
 
+vi.mock('../../src/services/artifact-catalog-service.js', () => ({
+  ArtifactCatalogService: vi.fn().mockImplementation(() => ({
+    listArtifactsForTaskScope,
+    downloadArtifactForTaskScope,
+    previewArtifactForTaskScope,
+  })),
+}));
+
 describe('task platform routes', () => {
   let app: ReturnType<typeof fastify> | undefined;
 
   afterEach(async () => {
+    vi.clearAllMocks();
     if (app) {
       await app.close();
       app = undefined;
@@ -130,5 +143,53 @@ describe('task platform routes', () => {
       summary: 'Scoped note',
       decision: { outcome: 'ship' },
     });
+  });
+
+  it('uses the artifact logical filename for catalog downloads', async () => {
+    downloadArtifactForTaskScope.mockResolvedValue({
+      artifact: {
+        logical_path: 'docs/spec.md',
+      },
+      contentType: 'text/plain; charset=utf-8',
+      data: Buffer.from('hello'),
+    });
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', {
+      query: vi.fn().mockResolvedValue({
+        rowCount: 1,
+        rows: [{
+          id: 'task-1',
+          workflow_id: 'workflow-1',
+          project_id: 'project-1',
+          work_item_id: 'work-item-1',
+          stage_name: 'design',
+          activation_id: null,
+          assigned_agent_id: 'agent-1',
+          is_orchestrator_task: false,
+          state: 'in_progress',
+        }],
+      }),
+    } as never);
+    app.decorate('projectService', {} as never);
+    app.decorate('config', {
+      ARTIFACT_STORAGE_BACKEND: 'local',
+      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
+      ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
+      ARTIFACT_PREVIEW_MAX_BYTES: 1024,
+    } as never);
+
+    await app.register(taskPlatformRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/tasks/task-1/artifact-catalog/artifact-1',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['content-disposition']).toBe('attachment; filename="spec.md"');
+    expect(response.body).toBe('hello');
   });
 });

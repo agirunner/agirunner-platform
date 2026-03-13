@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
+import path from 'node:path';
 import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
@@ -143,7 +144,10 @@ export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
         params.artifactId,
       );
       reply.header('Content-Type', result.contentType);
-      reply.header('Content-Disposition', `attachment; filename="${params.artifactId}"`);
+      reply.header(
+        'Content-Disposition',
+        `attachment; filename="${escapeArtifactDownloadFileName(resolveArtifactFileName(result.artifact.logical_path, params.artifactId))}"`,
+      );
       return reply.send(result.data);
     },
   );
@@ -181,3 +185,15 @@ export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 };
+
+function resolveArtifactFileName(logicalPath: string | null | undefined, fallback: string): string {
+  const fileName = path.posix.basename(logicalPath ?? '');
+  if (fileName.length > 0 && fileName !== '.') {
+    return fileName;
+  }
+  return fallback;
+}
+
+function escapeArtifactDownloadFileName(fileName: string): string {
+  return fileName.replace(/["\\\r\n]/g, '_');
+}
