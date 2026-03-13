@@ -8,6 +8,7 @@ import {
   describeExecutionOperationLabel,
   describeExecutionOperationOption,
   describeExecutionSummary,
+  formatCost,
   readInspectorFilters,
   readInspectorView,
   readSelectedInspectorLogId,
@@ -146,5 +147,15 @@ describe('execution inspector support', () => {
     expect(readInspectorView(params)).toBe('debug');
     expect(readInspectorView(new URLSearchParams())).toBe('raw');
     expect(readInspectorView(new URLSearchParams('view=summary'))).toBe('summary');
+  });
+
+  it('MCL-005: formats zero cost as $0.00 and non-zero cost with four decimal places', () => {
+    expect(formatCost(0)).toBe('$0.00');
+    expect(formatCost(null)).toBe('$0.00');
+    expect(formatCost(undefined)).toBe('$0.00');
+    expect(formatCost(NaN)).toBe('$0.00');
+    expect(formatCost(1.5)).toBe('$1.5000');
+    expect(formatCost(0.0012)).toBe('$0.0012');
+    expect(formatCost('2.5')).toBe('$2.5000');
   });
 });

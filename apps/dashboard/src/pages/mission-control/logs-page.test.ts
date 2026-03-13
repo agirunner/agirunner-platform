@@ -22,12 +22,20 @@ describe('logs page source', () => {
     expect(source).toContain(
       "Browse raw log and event rows first. Use the summary, delivery, and trace tabs only when you need curated inspector packets or deeper drill-in.",
     );
-    expect(source).toContain("{rawFirstSurface ? 'Log Stream' : 'Raw Logs'}");
-    expect(source).toContain("{rawFirstSurface ? 'Activity Summary' : 'Summary'}");
-    expect(source).toContain("{rawFirstSurface ? 'Delivery Packets' : 'Delivery'}");
-    expect(source).toContain("{rawFirstSurface ? 'Trace Detail' : 'Debug'}");
+    expect(source).toContain("rawFirstSurface ? 'Log Stream' : 'Raw Logs'");
+    expect(source).toContain("rawFirstSurface ? 'Activity Summary' : 'Summary'");
+    expect(source).toContain("rawFirstSurface ? 'Delivery Packets' : 'Delivery'");
+    expect(source).toContain("rawFirstSurface ? 'Trace Detail' : 'Debug'");
     expect(source).toContain('Failed to load delivery entries. Please refine filters and try again.');
     expect(source).toContain('Raw event and log rows stay first-class here');
+  });
+
+  it('MCL-004: uses shorter mobile tab labels to prevent truncation', () => {
+    const source = readPage();
+    expect(source).toContain('overflow-x-auto');
+    expect(source).toContain('sm:hidden');
+    expect(source).toContain('hidden sm:inline');
+    expect(source).toContain("rawFirstSurface ? 'Logs' : 'Raw'");
   });
 
   it('keeps the inspector surfaces available without forcing inspector summary cards onto raw logs', () => {

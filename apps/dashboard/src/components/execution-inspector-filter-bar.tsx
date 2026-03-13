@@ -1,4 +1,5 @@
-import { Search, RotateCcw } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronDown, ChevronUp, Search, RotateCcw } from 'lucide-react';
 
 import { Button } from './ui/button.js';
 import { Card, CardContent } from './ui/card.js';
@@ -10,7 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select.js';
-import type { InspectorFilters } from './execution-inspector-support.js';
+import {
+  DEFAULT_INSPECTOR_FILTERS,
+  type InspectorFilters,
+} from './execution-inspector-support.js';
 
 interface ExecutionInspectorFilterBarProps {
   filters: InspectorFilters;
@@ -38,110 +42,153 @@ const LEVEL_OPTIONS = [
 export function ExecutionInspectorFilterBar(
   props: ExecutionInspectorFilterBarProps,
 ): JSX.Element {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const activeFilterCount = countActiveFilters(props.filters);
+
   return (
     <Card>
       <CardContent className="space-y-4 p-5">
-        <div className="space-y-1">
-          <p className="text-sm font-medium">Focus the execution slice</p>
-          <p className="text-sm text-muted">
-            Narrow the inspector by board, specialist step, stage, activation, role, or runtime emitter.
-          </p>
-        </div>
-        <div className="grid gap-3 lg:grid-cols-[2fr_repeat(4,minmax(0,1fr))]">
-          <label className="space-y-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted">
-              Search
-            </span>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted" />
-              <Input
-                className="pl-9"
-                value={props.filters.search}
-                onChange={(event) =>
-                  props.onChange({ ...props.filters, search: event.target.value })
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-3 text-left"
+          onClick={() => setIsExpanded((current) => !current)}
+        >
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Focus the execution slice</p>
+            {!isExpanded ? (
+              <p className="text-sm text-muted">
+                {activeFilterCount > 0
+                  ? `${activeFilterCount} active filter${activeFilterCount > 1 ? 's' : ''} applied`
+                  : 'Tap to narrow by board, step, stage, activation, role, or emitter'}
+              </p>
+            ) : (
+              <p className="text-sm text-muted">
+                Narrow the inspector by board, specialist step, stage, activation, role, or runtime emitter.
+              </p>
+            )}
+          </div>
+          {isExpanded ? (
+            <ChevronUp className="h-4 w-4 shrink-0 text-muted" />
+          ) : (
+            <ChevronDown className="h-4 w-4 shrink-0 text-muted" />
+          )}
+        </button>
+
+        {isExpanded ? (
+          <>
+            <div className="grid gap-3 lg:grid-cols-[2fr_repeat(4,minmax(0,1fr))]">
+              <label className="space-y-1">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted">
+                  Search
+                </span>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted" />
+                  <Input
+                    className="pl-9"
+                    value={props.filters.search}
+                    onChange={(event) =>
+                      props.onChange({ ...props.filters, search: event.target.value })
+                    }
+                    placeholder="operation, board, step, error, or payload text"
+                  />
+                </div>
+              </label>
+              <FilterSelect
+                label="Time window"
+                value={props.filters.timeWindowHours}
+                options={TIME_WINDOWS}
+                onChange={(value) => props.onChange({ ...props.filters, timeWindowHours: value })}
+              />
+              <FilterSelect
+                label="Level"
+                value={props.filters.level}
+                options={LEVEL_OPTIONS}
+                onChange={(value) => props.onChange({ ...props.filters, level: value })}
+              />
+              <FilterSelect
+                label="Activity"
+                value={props.filters.operation || '__all__'}
+                options={props.operationOptions}
+                includeAll
+                onChange={(value) =>
+                  props.onChange({ ...props.filters, operation: value === '__all__' ? '' : value })
                 }
-                placeholder="operation, board, step, error, or payload text"
+              />
+              <FilterSelect
+                label="Step role"
+                value={props.filters.role || '__all__'}
+                options={props.roleOptions}
+                includeAll
+                onChange={(value) =>
+                  props.onChange({ ...props.filters, role: value === '__all__' ? '' : value })
+                }
+              />
+              <FilterSelect
+                label="Emitter"
+                value={props.filters.actor || '__all__'}
+                options={props.actorOptions}
+                includeAll
+                onChange={(value) =>
+                  props.onChange({ ...props.filters, actor: value === '__all__' ? '' : value })
+                }
               />
             </div>
-          </label>
-          <FilterSelect
-            label="Time window"
-            value={props.filters.timeWindowHours}
-            options={TIME_WINDOWS}
-            onChange={(value) => props.onChange({ ...props.filters, timeWindowHours: value })}
-          />
-          <FilterSelect
-            label="Level"
-            value={props.filters.level}
-            options={LEVEL_OPTIONS}
-            onChange={(value) => props.onChange({ ...props.filters, level: value })}
-          />
-          <FilterSelect
-            label="Activity"
-            value={props.filters.operation || '__all__'}
-            options={props.operationOptions}
-            includeAll
-            onChange={(value) =>
-              props.onChange({ ...props.filters, operation: value === '__all__' ? '' : value })
-            }
-          />
-          <FilterSelect
-            label="Step role"
-            value={props.filters.role || '__all__'}
-            options={props.roleOptions}
-            includeAll
-            onChange={(value) =>
-              props.onChange({ ...props.filters, role: value === '__all__' ? '' : value })
-            }
-          />
-          <FilterSelect
-            label="Emitter"
-            value={props.filters.actor || '__all__'}
-            options={props.actorOptions}
-            includeAll
-            onChange={(value) =>
-              props.onChange({ ...props.filters, actor: value === '__all__' ? '' : value })
-            }
-          />
-        </div>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <FilterInput
-            label="Board ID"
-            value={props.filters.workflowId}
-            onChange={(value) => props.onChange({ ...props.filters, workflowId: value })}
-          />
-          <FilterInput
-            label="Step ID"
-            value={props.filters.taskId}
-            onChange={(value) => props.onChange({ ...props.filters, taskId: value })}
-          />
-          <FilterInput
-            label="Work item ID"
-            value={props.filters.workItemId}
-            onChange={(value) => props.onChange({ ...props.filters, workItemId: value })}
-          />
-          <FilterInput
-            label="Stage"
-            value={props.filters.stageName}
-            onChange={(value) => props.onChange({ ...props.filters, stageName: value })}
-          />
-          <FilterInput
-            label="Activation"
-            value={props.filters.activationId}
-            onChange={(value) => props.onChange({ ...props.filters, activationId: value })}
-          />
-        </div>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+              <FilterInput
+                label="Board ID"
+                value={props.filters.workflowId}
+                onChange={(value) => props.onChange({ ...props.filters, workflowId: value })}
+              />
+              <FilterInput
+                label="Step ID"
+                value={props.filters.taskId}
+                onChange={(value) => props.onChange({ ...props.filters, taskId: value })}
+              />
+              <FilterInput
+                label="Work item ID"
+                value={props.filters.workItemId}
+                onChange={(value) => props.onChange({ ...props.filters, workItemId: value })}
+              />
+              <FilterInput
+                label="Stage"
+                value={props.filters.stageName}
+                onChange={(value) => props.onChange({ ...props.filters, stageName: value })}
+              />
+              <FilterInput
+                label="Activation"
+                value={props.filters.activationId}
+                onChange={(value) => props.onChange({ ...props.filters, activationId: value })}
+              />
+            </div>
 
-        <div className="flex justify-end">
-          <Button variant="outline" onClick={props.onReset}>
-            <RotateCcw className="h-4 w-4" />
-            Reset Filters
-          </Button>
-        </div>
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={props.onReset}>
+                <RotateCcw className="h-4 w-4" />
+                Reset Filters
+              </Button>
+            </div>
+          </>
+        ) : null}
       </CardContent>
     </Card>
   );
+}
+
+function countActiveFilters(filters: InspectorFilters): number {
+  let count = 0;
+  if (filters.search.trim().length > 0) count++;
+  if (filters.workflowId.trim().length > 0) count++;
+  if (filters.taskId.trim().length > 0) count++;
+  if (filters.workItemId.trim().length > 0) count++;
+  if (filters.stageName.trim().length > 0) count++;
+  if (filters.activationId.trim().length > 0) count++;
+  if (filters.operation.trim().length > 0) count++;
+  if (filters.role.trim().length > 0) count++;
+  if (filters.actor.trim().length > 0) count++;
+  if (filters.level !== DEFAULT_INSPECTOR_FILTERS.level) count++;
+  if (filters.timeWindowHours !== DEFAULT_INSPECTOR_FILTERS.timeWindowHours) count++;
+  return count;
 }
 
 function FilterInput(props: {

@@ -23,4 +23,16 @@ describe('execution inspector filter bar source', () => {
     expect(source).toContain('label="Step role"');
     expect(source).toContain('label="Emitter"');
   });
+
+  it('MCL-006: supports collapse/expand behavior to reduce mobile vertical space', () => {
+    const source = readSource();
+
+    expect(source).toContain('isExpanded');
+    expect(source).toContain('setIsExpanded');
+    expect(source).toContain('countActiveFilters');
+    expect(source).toContain('active filter');
+    expect(source).toContain('ChevronDown');
+    expect(source).toContain('ChevronUp');
+    expect(source).toContain('Tap to narrow by board');
+  });
 });

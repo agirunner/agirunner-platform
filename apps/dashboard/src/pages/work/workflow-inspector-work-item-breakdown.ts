@@ -31,7 +31,7 @@ export function buildWorkItemBreakdownEntries(
         href: `/work/workflows/${workflowId}/inspector?view=detailed&work_item=${workItemId}`,
       };
     })
-    .filter((entry) => entry.value !== '$0.0000')
+    .filter((entry) => entry.value !== '$0.00')
     .slice(0, 3);
 }
 

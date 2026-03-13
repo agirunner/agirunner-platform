@@ -274,7 +274,7 @@ export function formatNumber(value: number): string {
 export function formatCost(value: unknown): string {
   const cost = typeof value === 'number' ? value : Number(value ?? 0);
   if (!Number.isFinite(cost) || cost === 0) {
-    return '$0.0000';
+    return '$0.00';
   }
   return `$${cost.toFixed(4)}`;
 }
