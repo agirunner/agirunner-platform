@@ -1,9 +1,13 @@
 import { Component, lazy, Suspense, useEffect } from 'react';
 import type { ComponentType, ErrorInfo, ReactNode } from 'react';
-import { Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 
 import { DashboardLayout } from '../components/layout.js';
-import { completeSsoBrowserSession, hasDashboardSession } from '../lib/auth-session.js';
+import {
+  completeSsoBrowserSession,
+  hasDashboardSession,
+  resolveAuthCallbackRedirect,
+} from '../lib/auth-session.js';
 import { clearSession } from '../lib/session.js';
 
 import { applyTheme, readTheme } from './theme.js';
@@ -268,10 +272,12 @@ function RequireAuth(): JSX.Element {
 }
 
 function SSOCallbackPage(): JSX.Element {
+  const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
     let isActive = true;
+    const redirectTo = resolveAuthCallbackRedirect(new URLSearchParams(location.search));
 
     async function completeSignIn(): Promise<void> {
       try {
@@ -301,7 +307,7 @@ function SSOCallbackPage(): JSX.Element {
           return;
         }
 
-        navigate(completed ? '/' : '/login', { replace: true });
+        navigate(completed ? redirectTo : '/login', { replace: true });
       } catch {
         clearSession();
         if (isActive) {
@@ -315,7 +321,7 @@ function SSOCallbackPage(): JSX.Element {
     return () => {
       isActive = false;
     };
-  }, [navigate]);
+  }, [location.search, navigate]);
 
   return (
     <div className="flex min-h-screen items-center justify-center">

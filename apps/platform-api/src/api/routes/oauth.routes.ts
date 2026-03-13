@@ -8,6 +8,9 @@ import { ValidationError } from '../../errors/domain-errors.js';
 
 const OAUTH_CALLBACK_PORT = 1455;
 const GENERIC_OAUTH_ERROR = 'OAuth callback failed. Retry the connection or reconnect the provider.';
+const DASHBOARD_AUTH_CALLBACK_PATH = '/auth/callback';
+const OAUTH_PROVIDER_RETURN_PATH = '/config/llm';
+const DASHBOARD_REDIRECT_PARAM = 'redirect_to';
 
 export const oauthRoutes: FastifyPluginAsync = async (app) => {
   const service = app.oauthService;
@@ -148,8 +151,22 @@ function buildDashboardRedirect(
   dashboardUrl: string,
   query: Record<string, string>,
 ): string {
+  const callbackUrl = new URL(DASHBOARD_AUTH_CALLBACK_PATH, dashboardUrl);
+  callbackUrl.searchParams.set(
+    DASHBOARD_REDIRECT_PARAM,
+    buildProviderReturnPath(query),
+  );
+  return callbackUrl.toString();
+}
+
+function buildProviderReturnPath(query: Record<string, string>): string {
   const params = new URLSearchParams(query);
-  return `${dashboardUrl}/config/llm?${params.toString()}`;
+  const queryString = params.toString();
+  if (!queryString) {
+    return OAUTH_PROVIDER_RETURN_PATH;
+  }
+
+  return `${OAUTH_PROVIDER_RETURN_PATH}?${queryString}`;
 }
 
 function sanitizeOAuthRedirectMessage(value: string): string {

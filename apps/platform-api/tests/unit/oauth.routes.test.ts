@@ -57,6 +57,14 @@ describe('oauth routes', () => {
     }
   });
 
+  function buildDashboardCallbackRedirect(query: Record<string, string>): string {
+    const callbackUrl = new URL('/auth/callback', 'http://localhost:3000');
+    const providerPath = new URL('/config/llm', 'http://localhost:3000');
+    providerPath.search = new URLSearchParams(query).toString();
+    callbackUrl.searchParams.set('redirect_to', `${providerPath.pathname}${providerPath.search}`);
+    return callbackUrl.toString();
+  }
+
   it('redirects callback failures with sanitized oauth_error messages', async () => {
     const { oauthRoutes } = await import('../../src/api/routes/oauth.routes.js');
 
@@ -86,11 +94,9 @@ describe('oauth routes', () => {
     expect(response.writeHead).toHaveBeenCalledWith(
       302,
       expect.objectContaining({
-        Location:
-          'http://localhost:3000/config/llm?'
-          + new URLSearchParams({
-            oauth_error: 'OAuth callback failed. Retry the connection or reconnect the provider.',
-          }).toString(),
+        Location: buildDashboardCallbackRedirect({
+          oauth_error: 'OAuth callback failed. Retry the connection or reconnect the provider.',
+        }),
       }),
     );
   });
@@ -122,11 +128,48 @@ describe('oauth routes', () => {
     expect(response.writeHead).toHaveBeenCalledWith(
       302,
       expect.objectContaining({
-        Location:
-          'http://localhost:3000/config/llm?'
-          + new URLSearchParams({
-            oauth_error: 'Provider not configured for OAuth',
-          }).toString(),
+        Location: buildDashboardCallbackRedirect({
+          oauth_error: 'Provider not configured for OAuth',
+        }),
+      }),
+    );
+  });
+
+  it('routes successful provider callbacks through the dashboard auth bootstrap page', async () => {
+    const { oauthRoutes } = await import('../../src/api/routes/oauth.routes.js');
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('config', { DASHBOARD_URL: 'http://localhost:3000' } as never);
+    app.decorate('oauthService', {
+      handleCallback: vi.fn().mockResolvedValue({
+        providerId: 'provider-1',
+        email: 'operator@example.com',
+      }),
+      initiateFlow: vi.fn(),
+      getStatus: vi.fn(),
+      disconnect: vi.fn(),
+    });
+
+    await app.register(oauthRoutes);
+
+    const response = {
+      writeHead: vi.fn(),
+      end: vi.fn(),
+    };
+    await serverState.handler?.(
+      { url: '/auth/callback?code=test-code&state=test-state' },
+      response,
+    );
+
+    expect(response.writeHead).toHaveBeenCalledWith(
+      302,
+      expect.objectContaining({
+        Location: buildDashboardCallbackRedirect({
+          oauth_success: 'true',
+          provider_id: 'provider-1',
+          oauth_email: 'operator@example.com',
+        }),
       }),
     );
   });
