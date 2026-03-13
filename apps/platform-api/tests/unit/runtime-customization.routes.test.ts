@@ -82,7 +82,7 @@ describe('runtime customization routes', () => {
           api_key: 'redacted://runtime-customization-secret',
           nested: {
             authorization: 'redacted://runtime-customization-secret',
-            keep_ref: 'secret:RUNTIME_ARTIFACT_TOKEN',
+            keep_ref: 'redacted://runtime-customization-secret',
           },
         },
       },
@@ -101,6 +101,7 @@ describe('runtime customization routes', () => {
               password: 'super-secret-password',
               nested: {
                 token: 'ghp_live_secret_token',
+                token_ref: 'secret:RUNTIME_ARTIFACT_TOKEN',
               },
             },
           },
@@ -127,6 +128,7 @@ describe('runtime customization routes', () => {
           password: 'redacted://runtime-customization-secret',
           nested: {
             token: 'redacted://runtime-customization-secret',
+            token_ref: 'redacted://runtime-customization-secret',
           },
         },
       },

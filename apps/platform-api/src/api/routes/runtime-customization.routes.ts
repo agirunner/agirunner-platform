@@ -67,6 +67,7 @@ function toErrorEnvelope(
 function sanitizeProxyBody(body: Record<string, unknown>): Record<string, unknown> {
   const sanitized = sanitizeSecretLikeValue(body, {
     redactionValue: RUNTIME_CUSTOMIZATION_SECRET_REDACTION,
+    allowSecretReferences: false,
   });
   return sanitized && typeof sanitized === 'object' && !Array.isArray(sanitized)
     ? (sanitized as Record<string, unknown>)
