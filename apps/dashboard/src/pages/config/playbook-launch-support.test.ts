@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildLaunchSectionLinks,
   buildModelOverrides,
   buildParametersFromDrafts,
   buildStructuredObject,
@@ -9,6 +10,8 @@ import {
   defaultParameterDraftValue,
   readMappedProjectParameterDraft,
   readLaunchDefinition,
+  summarizeLaunchOverviewCards,
+  summarizeWorkflowBudgetDraft,
   syncRoleOverrideDrafts,
 } from './playbook-launch-support.js';
 
@@ -194,6 +197,89 @@ describe('playbook launch support', () => {
     });
   });
 
+  it('summarizes launch overview cards and section links for the long-form launch surface', () => {
+    const launchDefinition = readLaunchDefinition({
+      id: 'pb-1',
+      name: 'Ship',
+      slug: 'ship',
+      outcome: 'Ship software',
+      lifecycle: 'continuous',
+      version: 1,
+      definition: {
+        roles: ['architect', 'developer'],
+        board: {
+          columns: [
+            { id: 'triage', label: 'Triage' },
+            { id: 'doing', label: 'Doing' },
+          ],
+        },
+        stages: [
+          { name: 'triage' },
+          { name: 'delivery' },
+        ],
+        parameters: [{ name: 'ticket_id', label: 'Ticket', type: 'string' }],
+      },
+    });
+
+    expect(
+      summarizeLaunchOverviewCards({
+        selectedPlaybook: {
+          id: 'pb-1',
+          name: 'Ship',
+          slug: 'ship',
+          outcome: 'Ship software',
+          lifecycle: 'continuous',
+          version: 1,
+          definition: {},
+        },
+        selectedProject: {
+          id: 'project-1',
+          name: 'Demo',
+          slug: 'demo',
+          repository_url: 'https://github.com/agisnap/agirunner-test-fixtures',
+        },
+        launchDefinition,
+        extraParameterCount: 2,
+        metadataCount: 1,
+        overrideCount: 1,
+        workflowBudgetDraft: {
+          tokenBudget: '120000',
+          costCapUsd: '',
+          maxDurationMinutes: '',
+        },
+      }),
+    ).toEqual([
+      {
+        label: 'Run identity',
+        value: 'Ship',
+        detail: 'Project context: Demo',
+      },
+      {
+        label: 'Launch inputs',
+        value: '1 typed / 2 extra',
+        detail: '1 metadata entry configured.',
+      },
+      {
+        label: 'Workflow policy',
+        value: '1 override',
+        detail: 'Workflow guardrails set for 120000 tokens.',
+      },
+    ]);
+
+    expect(
+      buildLaunchSectionLinks({
+        launchDefinition,
+        extraParameterCount: 2,
+        metadataCount: 1,
+        overrideCount: 1,
+      }),
+    ).toContainEqual({
+      id: 'playbook-parameters',
+      label: 'Playbook parameters',
+      detail: '1 typed, 2 extra',
+    });
+  });
+
   it('rejects invalid workflow budget values', () => {
     expect(() =>
       buildWorkflowBudgetInput({
@@ -210,5 +296,15 @@ describe('playbook launch support', () => {
         maxDurationMinutes: '',
       }),
     ).toThrow(/Cost cap must be greater than zero/i);
+  });
+
+  it('describes workflow budget posture for the launch summary', () => {
+    expect(
+      summarizeWorkflowBudgetDraft({
+        tokenBudget: '',
+        costCapUsd: '12.5',
+        maxDurationMinutes: '90',
+      }),
+    ).toBe('Workflow guardrails set for $12.5 cost cap, 90 minutes.');
   });
 });

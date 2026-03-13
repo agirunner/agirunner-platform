@@ -45,6 +45,18 @@ export interface WorkflowBudgetDraft {
   maxDurationMinutes: string;
 }
 
+export interface LaunchOverviewCard {
+  label: string;
+  value: string;
+  detail: string;
+}
+
+export interface LaunchSectionLink {
+  id: string;
+  label: string;
+  detail: string;
+}
+
 let draftCounter = 0;
 
 export function readLaunchDefinition(playbook: DashboardPlaybookRecord | null): LaunchDefinitionSummary {
@@ -246,6 +258,104 @@ export function buildWorkflowBudgetInput(
     value.max_duration_minutes = maxDurationMinutes;
   }
   return Object.keys(value).length > 0 ? value : undefined;
+}
+
+export function summarizeWorkflowBudgetDraft(draft: WorkflowBudgetDraft): string {
+  const parts: string[] = [];
+  if (draft.tokenBudget.trim()) {
+    parts.push(`${draft.tokenBudget.trim()} tokens`);
+  }
+  if (draft.costCapUsd.trim()) {
+    parts.push(`$${draft.costCapUsd.trim()} cost cap`);
+  }
+  if (draft.maxDurationMinutes.trim()) {
+    parts.push(`${draft.maxDurationMinutes.trim()} minutes`);
+  }
+  return parts.length > 0
+    ? `Workflow guardrails set for ${parts.join(', ')}.`
+    : 'No explicit budget guardrails; the workflow will use open-ended defaults.';
+}
+
+export function summarizeLaunchOverviewCards(input: {
+  selectedPlaybook: DashboardPlaybookRecord | null;
+  selectedProject: DashboardProjectRecord | null;
+  launchDefinition: LaunchDefinitionSummary;
+  extraParameterCount: number;
+  metadataCount: number;
+  overrideCount: number;
+  workflowBudgetDraft: WorkflowBudgetDraft;
+}): LaunchOverviewCard[] {
+  return [
+    {
+      label: 'Run identity',
+      value: input.selectedPlaybook?.name ?? 'Choose playbook',
+      detail: input.selectedProject?.name
+        ? `Project context: ${input.selectedProject.name}`
+        : 'Launching as a standalone workflow.',
+    },
+    {
+      label: 'Launch inputs',
+      value: `${input.launchDefinition.parameterSpecs.length} typed / ${input.extraParameterCount} extra`,
+      detail:
+        input.metadataCount > 0
+          ? `${input.metadataCount} metadata entr${input.metadataCount === 1 ? 'y' : 'ies'} configured.`
+          : 'No extra metadata configured for this run.',
+    },
+    {
+      label: 'Workflow policy',
+      value:
+        input.overrideCount > 0
+          ? `${input.overrideCount} override${input.overrideCount === 1 ? '' : 's'}`
+          : 'Defaults only',
+      detail: summarizeWorkflowBudgetDraft(input.workflowBudgetDraft),
+    },
+  ];
+}
+
+export function buildLaunchSectionLinks(input: {
+  launchDefinition: LaunchDefinitionSummary;
+  extraParameterCount: number;
+  metadataCount: number;
+  overrideCount: number;
+}): LaunchSectionLink[] {
+  return [
+    {
+      id: 'launch-readiness',
+      label: 'Launch readiness',
+      detail: 'Review the required run checks before launch.',
+    },
+    {
+      id: 'playbook-snapshot',
+      label: 'Playbook snapshot',
+      detail: `${input.launchDefinition.boardColumns.length} columns, ${input.launchDefinition.stageNames.length} stages, ${input.launchDefinition.roles.length} roles`,
+    },
+    {
+      id: 'playbook-parameters',
+      label: 'Playbook parameters',
+      detail: `${input.launchDefinition.parameterSpecs.length} typed, ${input.extraParameterCount} extra`,
+    },
+    {
+      id: 'launch-metadata',
+      label: 'Metadata',
+      detail:
+        input.metadataCount > 0
+          ? `${input.metadataCount} metadata entr${input.metadataCount === 1 ? 'y' : 'ies'}`
+          : 'No extra metadata',
+    },
+    {
+      id: 'workflow-budget-policy',
+      label: 'Workflow budget policy',
+      detail: 'Optional token, cost, and duration guardrails.',
+    },
+    {
+      id: 'workflow-model-overrides',
+      label: 'Workflow model overrides',
+      detail:
+        input.overrideCount > 0
+          ? `${input.overrideCount} override${input.overrideCount === 1 ? '' : 's'} configured`
+          : 'Using playbook and project defaults',
+    },
+  ];
 }
 
 function readParameterSpecs(value: unknown): LaunchParameterSpec[] {

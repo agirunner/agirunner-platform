@@ -3,7 +3,12 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './playbook-launch-page.tsx'), 'utf8');
+  return [
+    './playbook-launch-page.tsx',
+    './playbook-launch-page.sections.tsx',
+  ]
+    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
+    .join('\n');
 }
 
 describe('playbook launch model override source', () => {
@@ -19,8 +24,12 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('sticky bottom-4');
     expect(source).toContain('Launch Readiness');
     expect(source).toContain('Playbook Snapshot');
+    expect(source).toContain('Launch overview');
+    expect(source).toContain('Jump to section');
     expect(source).toContain('LaunchReadinessPanel');
     expect(source).toContain('LaunchDefinitionSnapshot');
+    expect(source).toContain('LaunchOverviewCards');
+    expect(source).toContain('LaunchOutlineCard');
     expect(source).toContain('launchablePlaybooks');
     expect(source).toContain('Archived revision selected - restore first');
     expect(source).toContain('Archived playbooks must be restored before launch.');
@@ -54,5 +63,6 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('model_overrides: modelOverrides');
     expect(source).toContain('budget: workflowBudget.value');
     expect(source).toContain('Resolved Effective Models');
+    expect(source).toContain('scroll-mt-24');
   });
 });

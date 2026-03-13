@@ -26,10 +26,12 @@ import {
 } from '../../components/ui/select.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import {
+  buildLaunchSectionLinks,
   buildModelOverrides,
   buildParametersFromDrafts,
   buildStructuredObject,
   buildWorkflowBudgetInput,
+  summarizeLaunchOverviewCards,
   createWorkflowBudgetDraft,
   createRoleOverrideDraft,
   createStructuredEntryDraft,
@@ -37,6 +39,7 @@ import {
   mergeStructuredObjects,
   readLaunchDefinition,
   readMappedProjectParameterDraft,
+  summarizeWorkflowBudgetDraft,
   syncRoleOverrideDrafts,
   type LaunchParameterSpec,
   type RoleOverrideDraft,
@@ -48,6 +51,10 @@ import {
   SelectWithCustomControl,
   type StructuredChoiceOption,
 } from './playbook-authoring-structured-controls.js';
+import {
+  LaunchOutlineCard,
+  LaunchOverviewCards,
+} from './playbook-launch-page.sections.js';
 
 export function PlaybookLaunchPage(): JSX.Element {
   const navigate = useNavigate();
@@ -95,14 +102,11 @@ export function PlaybookLaunchPage(): JSX.Element {
   const launchDefinition = useMemo(() => readLaunchDefinition(selectedPlaybook), [selectedPlaybook]);
   const hasAdditionalParameters = extraParameterDrafts.length > 0;
   const hasMetadataEntries = metadataDrafts.length > 0;
-  const hasWorkflowOverrides = modelOverrideDrafts.some(
-    (draft) =>
-      draft.provider.trim().length > 0 ||
-      draft.model.trim().length > 0 ||
-      draft.reasoningEntries.some(
-        (entry) => entry.key.trim().length > 0 || entry.value.trim().length > 0,
-      ),
+  const configuredWorkflowOverrideCount = useMemo(
+    () => countConfiguredWorkflowOverrides(modelOverrideDrafts),
+    [modelOverrideDrafts],
   );
+  const hasWorkflowOverrides = configuredWorkflowOverrideCount > 0;
   const workflowOverrides = useMemo(
     () => readWorkflowOverrides(modelOverrideDrafts),
     [modelOverrideDrafts],
@@ -153,6 +157,42 @@ export function PlaybookLaunchPage(): JSX.Element {
   ) ?? workflowBudget.error;
   const projects = projectsQuery.data?.data ?? [];
   const selectedProject = projects.find((project) => project.id === projectId) ?? null;
+  const overviewCards = useMemo(
+    () =>
+      summarizeLaunchOverviewCards({
+        selectedPlaybook,
+        selectedProject,
+        launchDefinition,
+        extraParameterCount: extraParameterDrafts.length,
+        metadataCount: metadataDrafts.length,
+        overrideCount: configuredWorkflowOverrideCount,
+        workflowBudgetDraft,
+      }),
+    [
+      selectedPlaybook,
+      selectedProject,
+      launchDefinition,
+      extraParameterDrafts.length,
+      metadataDrafts.length,
+      configuredWorkflowOverrideCount,
+      workflowBudgetDraft,
+    ],
+  );
+  const sectionLinks = useMemo(
+    () =>
+      buildLaunchSectionLinks({
+        launchDefinition,
+        extraParameterCount: extraParameterDrafts.length,
+        metadataCount: metadataDrafts.length,
+        overrideCount: configuredWorkflowOverrideCount,
+      }),
+    [
+      launchDefinition,
+      extraParameterDrafts.length,
+      metadataDrafts.length,
+      configuredWorkflowOverrideCount,
+    ],
+  );
 
   useEffect(() => {
     if (!workflowName.trim() && selectedPlaybook) {
@@ -273,6 +313,8 @@ export function PlaybookLaunchPage(): JSX.Element {
         </div>
       </div>
 
+      <LaunchOverviewCards cards={overviewCards} />
+
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr),minmax(0,22rem)]">
         <Card>
           <CardHeader>
@@ -348,6 +390,7 @@ export function PlaybookLaunchPage(): JSX.Element {
             </div>
 
             <StructuredSection
+              id="launch-readiness"
               title="Launch Readiness"
               description="Review the launch essentials before starting the run."
             >
@@ -364,6 +407,7 @@ export function PlaybookLaunchPage(): JSX.Element {
             </StructuredSection>
 
             <StructuredSection
+              id="playbook-snapshot"
               title="Playbook Snapshot"
               description="Preview the board shape, stages, and declared roles that will frame this run."
             >
@@ -371,6 +415,7 @@ export function PlaybookLaunchPage(): JSX.Element {
             </StructuredSection>
 
             <StructuredSection
+              id="playbook-parameters"
               title="Playbook Parameters"
               description={
                 launchDefinition.parameterSpecs.length > 0
@@ -407,6 +452,7 @@ export function PlaybookLaunchPage(): JSX.Element {
             </StructuredSection>
 
             <StructuredSection
+              id="launch-metadata"
               title="Metadata"
               description="Attach structured workflow metadata as key/value entries instead of a raw JSON blob."
             >
@@ -422,6 +468,7 @@ export function PlaybookLaunchPage(): JSX.Element {
             </StructuredSection>
 
             <StructuredSection
+              id="workflow-budget-policy"
               title="Workflow Budget Policy"
               description="Set optional workflow-level guardrails for token spend, cost, and elapsed runtime."
             >
@@ -435,6 +482,7 @@ export function PlaybookLaunchPage(): JSX.Element {
             </StructuredSection>
 
             <StructuredSection
+              id="workflow-model-overrides"
               title="Workflow Model Overrides"
               description="Configure workflow-scoped overrides per playbook role and preview the effective model stack before launch."
             >
@@ -490,6 +538,7 @@ export function PlaybookLaunchPage(): JSX.Element {
         </Card>
 
         <div className="space-y-4 xl:sticky xl:top-6">
+          <LaunchOutlineCard sections={sectionLinks} />
           <PlaybookSummaryCard
             playbook={selectedPlaybook}
             projects={projects}
@@ -529,12 +578,16 @@ export function PlaybookLaunchPage(): JSX.Element {
 }
 
 function StructuredSection(props: {
+  id?: string;
   title: string;
   description: string;
   children: ReactNode;
 }): JSX.Element {
   return (
-    <section className="space-y-4 rounded-2xl border border-border/70 bg-card/60 p-4 sm:p-5">
+    <section
+      id={props.id}
+      className="scroll-mt-24 space-y-4 rounded-2xl border border-border/70 bg-card/60 p-4 sm:p-5"
+    >
       <header>
         <div className="font-medium text-foreground">{props.title}</div>
         <p className="mt-1 text-sm text-muted">{props.description}</p>
@@ -728,22 +781,6 @@ function ParameterField(props: {
   );
 }
 
-function summarizeWorkflowBudgetDraft(draft: WorkflowBudgetDraft): string {
-  const parts: string[] = [];
-  if (draft.tokenBudget.trim()) {
-    parts.push(`${draft.tokenBudget.trim()} tokens`);
-  }
-  if (draft.costCapUsd.trim()) {
-    parts.push(`$${draft.costCapUsd.trim()} cost cap`);
-  }
-  if (draft.maxDurationMinutes.trim()) {
-    parts.push(`${draft.maxDurationMinutes.trim()} minutes`);
-  }
-  return parts.length > 0
-    ? `Workflow guardrails set for ${parts.join(', ')}.`
-    : 'No explicit budget guardrails; the workflow will use open-ended defaults.';
-}
-
 function StructuredEntryEditor(props: {
   title: string;
   description?: string;
@@ -818,6 +855,17 @@ function StructuredEntryEditor(props: {
       </Button>
     </section>
   );
+}
+
+function countConfiguredWorkflowOverrides(drafts: RoleOverrideDraft[]): number {
+  return drafts.filter(
+    (draft) =>
+      draft.provider.trim().length > 0 ||
+      draft.model.trim().length > 0 ||
+      draft.reasoningEntries.some(
+        (entry) => entry.key.trim().length > 0 || entry.value.trim().length > 0,
+      ),
+  ).length;
 }
 
 function RoleOverrideEditor(props: {
