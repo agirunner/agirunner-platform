@@ -55,6 +55,7 @@ export async function enqueueWorkflowActivationRecord(
   const requestId = params.requestId?.trim() || null;
   const payload = sanitizeSecretLikeRecord(params.payload ?? {}, {
     redactionValue: 'redacted://activation-secret',
+    allowSecretReferences: false,
   });
   const result = await db.query<WorkflowActivationEventRow>(
     `INSERT INTO workflow_activations (tenant_id, workflow_id, request_id, reason, event_type, payload)

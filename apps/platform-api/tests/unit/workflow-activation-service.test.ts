@@ -90,7 +90,7 @@ describe('WorkflowActivationService', () => {
             api_key: 'redacted://activation-secret',
             nested: {
               authorization: 'redacted://activation-secret',
-              secret_ref: 'secret:ACTIVATION_TOKEN',
+              secret_ref: 'redacted://activation-secret',
             },
           });
           return {
@@ -106,7 +106,7 @@ describe('WorkflowActivationService', () => {
                 api_key: 'redacted://activation-secret',
                 nested: {
                   authorization: 'redacted://activation-secret',
-                  secret_ref: 'secret:ACTIVATION_TOKEN',
+                  secret_ref: 'redacted://activation-secret',
                 },
               },
               state: 'queued',
@@ -141,7 +141,7 @@ describe('WorkflowActivationService', () => {
 
     expect((result.payload as Record<string, any>).api_key).toBe('redacted://activation-secret');
     expect((result.payload as Record<string, any>).nested.authorization).toBe('redacted://activation-secret');
-    expect((result.payload as Record<string, any>).nested.secret_ref).toBe('secret:ACTIVATION_TOKEN');
+    expect((result.payload as Record<string, any>).nested.secret_ref).toBe('redacted://activation-secret');
   });
 
   it('returns the existing activation row when request_id conflicts', async () => {
@@ -607,7 +607,7 @@ describe('WorkflowActivationService', () => {
     const result = await service.get(identity.tenantId, 'workflow-1', 'activation-1');
 
     expect((result.data.payload as Record<string, any>).refresh_token).toBe('redacted://activation-secret');
-    expect((result.data.events[0] as Record<string, any>).payload.nested.secret_ref).toBe('secret:SAFE_TOKEN');
+    expect((result.data.events[0] as Record<string, any>).payload.nested.secret_ref).toBe('redacted://activation-secret');
   });
 
   it('caps grouped activation batches by limit even when many event rows are present', async () => {

@@ -191,6 +191,7 @@ function toActivationResponse(row: ActivationRow, rows: ActivationRow[] = [row])
     event_type: row.event_type,
     payload: sanitizeSecretLikeRecord(row.payload, {
       redactionValue: 'redacted://activation-secret',
+      allowSecretReferences: false,
     }),
     state: deriveActivationState(row),
     dispatch_attempt: row.dispatch_attempt,
@@ -235,6 +236,7 @@ function serializeEvent(row: WorkflowActivationEventRow) {
     event_type: row.event_type,
     payload: sanitizeSecretLikeRecord(row.payload, {
       redactionValue: 'redacted://activation-secret',
+      allowSecretReferences: false,
     }),
     state: deriveActivationState(row),
     dispatch_attempt: row.dispatch_attempt,
@@ -337,6 +339,7 @@ function assertIdempotentActivationReplay(
   const expectedEventType = params.eventType.trim();
   const expectedPayload = sanitizeSecretLikeRecord(params.payload ?? {}, {
     redactionValue: 'redacted://activation-secret',
+    allowSecretReferences: false,
   });
 
   if (
