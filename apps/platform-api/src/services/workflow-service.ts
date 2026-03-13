@@ -206,9 +206,17 @@ export class WorkflowService {
                     'total_work_items', COALESCE(work_item_summary.total_work_items, 0),
                     'open_work_item_count', COALESCE(work_item_summary.open_work_item_count, 0),
                     'completed_work_item_count', COALESCE(work_item_summary.completed_work_item_count, 0),
-                    'active_stage_count', COALESCE(stage_summary.active_stage_count, COALESCE(work_item_summary.active_stage_count, 0)),
+                    'active_stage_count', CASE
+                      WHEN w.lifecycle = 'continuous'
+                      THEN COALESCE(work_item_summary.active_stage_count, 0)
+                      ELSE COALESCE(stage_summary.active_stage_count, COALESCE(work_item_summary.active_stage_count, 0))
+                    END,
                     'awaiting_gate_count', COALESCE(stage_summary.awaiting_gate_count, 0),
-                    'active_stage_names', COALESCE(to_jsonb(stage_summary.active_stage_names), '[]'::jsonb)
+                    'active_stage_names', CASE
+                      WHEN w.lifecycle = 'continuous'
+                      THEN COALESCE(to_jsonb(work_item_summary.active_stage_names), '[]'::jsonb)
+                      ELSE COALESCE(to_jsonb(stage_summary.active_stage_names), '[]'::jsonb)
+                    END
                   )
                 END AS work_item_summary
            FROM workflows w
@@ -970,14 +978,8 @@ function buildWorkflowWorkItemSummary(
 ): WorkflowWorkItemSummary {
   const totalWorkItems = workItems.length;
   const openWorkItems = workItems.filter((item) => isBoardItemOpen(item, terminalColumns));
-  const gateActiveStages = workflowStages
-    .filter((stage) => isActiveContinuousGateState(stage.gate_status))
-    .map((stage) => stage.name);
   const activeStageNames = orderStageNames(
-    uniqueStageNames([
-      ...openWorkItems.map((item) => item.stage_name),
-      ...gateActiveStages,
-    ]),
+    uniqueStageNames(openWorkItems.map((item) => item.stage_name)),
     workflowStages,
   );
   const awaitingGateCount = workflowStages.filter((stage) => stage.gate_status === 'awaiting_approval').length;
@@ -1108,8 +1110,4 @@ function readCount(value: unknown) {
     }
   }
   return 0;
-}
-
-function isActiveContinuousGateState(gateStatus: unknown) {
-  return gateStatus === 'awaiting_approval' || gateStatus === 'changes_requested' || gateStatus === 'rejected';
 }

@@ -60,6 +60,9 @@ describe('WorkflowService continuous workflow reads', () => {
     expect(listSql).not.toContain('template_id');
     expect(listSql).not.toContain('current_phase');
     expect(listSql).not.toContain('w.current_stage');
+    expect(listSql).toContain("WHEN w.lifecycle = 'continuous'");
+    expect(listSql).toContain("THEN COALESCE(work_item_summary.active_stage_count, 0)");
+    expect(listSql).toContain("THEN COALESCE(to_jsonb(work_item_summary.active_stage_names), '[]'::jsonb)");
     expect(result.data[0].active_stages).toEqual(['triage', 'implementation']);
     expect(result.data[0]).not.toHaveProperty('playbook_definition');
     expect(result.data[0].work_item_summary).toEqual({
@@ -566,7 +569,7 @@ describe('WorkflowService continuous workflow reads', () => {
 
     const board = await service.getWorkflowBoard('tenant-1', 'wf-1');
 
-    expect(board.active_stages).toEqual(['triage', 'review']);
+    expect(board.active_stages).toEqual(['triage']);
     expect(board.awaiting_gate_count).toBe(1);
     expect(board.work_items).toEqual(
       expect.arrayContaining([
@@ -598,6 +601,83 @@ describe('WorkflowService continuous workflow reads', () => {
         completed_count: 1,
       }),
     ]);
+  });
+
+  it('keeps continuous detail active stages work-item driven while preserving gate counts', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              id: 'wf-1',
+              tenant_id: 'tenant-1',
+              playbook_id: 'pb-1',
+              lifecycle: 'continuous',
+              current_stage: 'legacy-stage',
+              metadata: {},
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: {
+                  columns: [
+                    { id: 'queued', label: 'Queued' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [
+                  { name: 'triage', goal: 'Sort work' },
+                  { name: 'review', goal: 'Review work' },
+                ],
+              },
+            },
+          ],
+        }),
+    };
+
+    const service = new WorkflowService(pool as never, { emit: vi.fn() } as never, config as never);
+    (service as unknown as { workItemService: { listWorkflowWorkItems: ReturnType<typeof vi.fn> } }).workItemService = {
+      listWorkflowWorkItems: vi.fn().mockResolvedValue([
+        { id: 'wi-1', stage_name: 'triage', column_id: 'queued', completed_at: null },
+        { id: 'wi-2', stage_name: 'review', column_id: 'done', completed_at: '2026-03-11T00:00:00.000Z' },
+      ]),
+    };
+    (service as unknown as { activationService: { listWorkflowActivations: ReturnType<typeof vi.fn> } }).activationService = {
+      listWorkflowActivations: vi.fn().mockResolvedValue([]),
+    };
+    (service as unknown as { stageService: { listStages: ReturnType<typeof vi.fn> } }).stageService = {
+      listStages: vi.fn().mockResolvedValue([
+        { name: 'triage', goal: 'Sort work', gate_status: 'not_requested' },
+        { name: 'review', goal: 'Review work', gate_status: 'awaiting_approval' },
+      ]),
+    };
+
+    const workflow = await service.getWorkflow('tenant-1', 'wf-1');
+
+    expect(workflow.active_stages).toEqual(['triage']);
+    expect(workflow.work_item_summary).toEqual({
+      total_work_items: 2,
+      open_work_item_count: 1,
+      completed_work_item_count: 1,
+      active_stage_count: 1,
+      awaiting_gate_count: 1,
+      active_stage_names: ['triage'],
+    });
+    expect(workflow.workflow_stages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'review',
+          gate_status: 'awaiting_approval',
+        }),
+      ]),
+    );
   });
 
   it('reuses normalized workflow stage counts and gate posture for continuous board summaries', async () => {
