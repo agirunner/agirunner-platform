@@ -168,7 +168,7 @@ describe('WorkItemService work-item memory support', () => {
 
     expect(result.entries[0]?.value).toEqual({
       token: 'redacted://project-memory-secret',
-      secret_ref: 'secret:API_TOKEN',
+      secret_ref: 'redacted://project-memory-secret',
     });
   });
 
@@ -213,7 +213,7 @@ describe('WorkItemService work-item memory support', () => {
 
     expect(result.history[0]?.value).toEqual({
       password: 'redacted://project-memory-secret',
-      secret_ref: 'secret:DB_PASSWORD',
+      secret_ref: 'redacted://project-memory-secret',
     });
   });
 

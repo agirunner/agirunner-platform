@@ -99,7 +99,7 @@ describe('ProjectService memory scope events', () => {
           key: 'api_token',
           value: {
             token: 'redacted://project-memory-secret',
-            secret_ref: 'secret:API_TOKEN',
+            secret_ref: 'redacted://project-memory-secret',
             nested: {
               authorization: 'redacted://project-memory-secret',
               note: 'redacted://project-memory-secret',
@@ -151,7 +151,7 @@ describe('ProjectService memory scope events', () => {
           key: 'credentials',
           deleted_value: {
             password: 'redacted://project-memory-secret',
-            secret_ref: 'secret:DB_PASSWORD',
+            secret_ref: 'redacted://project-memory-secret',
           },
         }),
       }),

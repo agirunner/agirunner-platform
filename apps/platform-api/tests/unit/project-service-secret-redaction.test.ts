@@ -57,7 +57,7 @@ describe('ProjectService secret redaction', () => {
       deployment: {
         api_token: 'redacted://project-settings-secret',
         endpoint: 'https://example.com',
-        ref: 'secret:DEPLOY_TOKEN',
+        ref: 'redacted://project-settings-secret',
       },
     });
     expect(result.memory).toEqual({
@@ -65,7 +65,7 @@ describe('ProjectService secret redaction', () => {
       apiKey: 'redacted://project-memory-secret',
       nested: {
         authorization: 'redacted://project-memory-secret',
-        preserved_ref: 'secret:RUNTIME_API_KEY',
+        preserved_ref: 'redacted://project-memory-secret',
       },
     });
   });
@@ -92,7 +92,7 @@ describe('ProjectService secret redaction', () => {
       deployment: {
         api_token: 'redacted://project-settings-secret',
         endpoint: 'https://example.com',
-        ref: 'secret:DEPLOY_TOKEN',
+        ref: 'redacted://project-settings-secret',
       },
     });
     expect(result.data[0]?.memory).toEqual({
@@ -100,7 +100,7 @@ describe('ProjectService secret redaction', () => {
       apiKey: 'redacted://project-memory-secret',
       nested: {
         authorization: 'redacted://project-memory-secret',
-        preserved_ref: 'secret:RUNTIME_API_KEY',
+        preserved_ref: 'redacted://project-memory-secret',
       },
     });
   });

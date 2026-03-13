@@ -52,12 +52,15 @@ function normalizeRecord(value: unknown): Record<string, unknown> {
 function sanitizeMemoryEventValue(key: string, value: unknown): unknown {
   return sanitizeSecretLikeRecord(
     { [key]: value },
-    { redactionValue: PROJECT_MEMORY_SECRET_REDACTION },
+    { redactionValue: PROJECT_MEMORY_SECRET_REDACTION, allowSecretReferences: false },
   )[key];
 }
 
 function sanitizeProjectRecordValue(key: string, value: unknown, redactionValue: string): unknown {
-  return sanitizeSecretLikeRecord({ [key]: value }, { redactionValue })[key];
+  return sanitizeSecretLikeRecord(
+    { [key]: value },
+    { redactionValue, allowSecretReferences: false },
+  )[key];
 }
 
 function isUniqueViolation(error: unknown, constraint: string): boolean {

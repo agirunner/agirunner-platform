@@ -174,6 +174,6 @@ function readNullableString(value: unknown): string | null {
 function sanitizeMemoryValue(key: string, value: unknown): unknown {
   return sanitizeSecretLikeRecord(
     { [key]: value },
-    { redactionValue: PROJECT_MEMORY_SECRET_REDACTION },
+    { redactionValue: PROJECT_MEMORY_SECRET_REDACTION, allowSecretReferences: false },
   )[key];
 }
