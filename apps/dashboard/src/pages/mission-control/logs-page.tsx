@@ -231,6 +231,24 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
     () => buildRecentLogActivityPackets(entries),
     [entries],
   );
+  const surfaceSummary = rawFirstSurface ? 'Raw-first operator surface' : 'Workflow inspector surface';
+  const scopeSummary = scopedWorkflowId ? 'Single workflow board' : 'Cross-workflow execution';
+  const activeTabLabel =
+    selectedView === 'raw'
+      ? rawFirstSurface
+        ? 'Log stream'
+        : 'Raw logs'
+      : selectedView === 'summary'
+        ? rawFirstSurface
+          ? 'Activity summary'
+          : 'Summary'
+        : selectedView === 'detailed'
+          ? rawFirstSurface
+            ? 'Delivery packets'
+            : 'Delivery'
+          : rawFirstSurface
+            ? 'Trace detail'
+            : 'Debug';
 
   async function handleExport(): Promise<void> {
     const blob = await dashboardApi.exportLogs(baseFilters);
@@ -246,45 +264,63 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
 
   return (
     <div data-testid="operator-log-surface" className="flex flex-col gap-6 p-6">
-      <section className="flex flex-col gap-3 rounded-3xl border border-border/70 bg-card/80 p-6 shadow-sm lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">Operator Log</h1>
-          <p className="text-sm text-muted">
-            {rawFirstSurface
-              ? 'Raw logs and events are always visible. Use the summary, delivery, and trace tabs for curated views when you need them.'
-              : 'Browse execution traces with summary, delivery, and debug views. Raw logs stay accessible in the first tab.'}
-          </p>
-          {scopedWorkflowId ? (
-            <div className="text-sm">
-              <Link className="underline-offset-4 hover:underline" to={`/work/boards/${scopedWorkflowId}`}>
-                Back to Workflow Board
-              </Link>
+      <section className="grid gap-4 rounded-3xl border border-border/70 bg-card/80 p-6 shadow-sm xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]">
+        <div className="grid gap-4">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-bold tracking-tight">Operator Log</h1>
+            <p className="text-sm text-muted">
+              {rawFirstSurface
+                ? 'Raw logs and events are always visible. Use the summary, delivery, and trace tabs for curated views when you need them.'
+                : 'Browse execution traces with summary, delivery, and debug views. Raw logs stay accessible in the first tab.'}
+            </p>
+            {scopedWorkflowId ? (
+              <div className="text-sm">
+                <Link className="underline-offset-4 hover:underline" to={`/work/boards/${scopedWorkflowId}`}>
+                  Back to Workflow Board
+                </Link>
+              </div>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {rawFirstSurface || selectedView !== 'raw' ? (
+              <Button variant="outline" onClick={() => void handleExport()}>
+                <Download className="h-4 w-4" />
+                Export
+              </Button>
+            ) : null}
+            {workflowContextLink ? (
+              <Button variant="outline" asChild>
+                <Link to={workflowContextLink}>Board context</Link>
+              </Button>
+            ) : null}
+            {taskRecordLink ? (
+              <Button variant="outline" asChild>
+                <Link to={taskRecordLink}>Step record</Link>
+              </Button>
+            ) : null}
+            {selectedEntryPermalink ? (
+              <Button variant="outline" asChild>
+                <a href={selectedEntryPermalink}>Permalink</a>
+              </Button>
+            ) : null}
+          </div>
+        </div>
+        <Card className="border-border/70 bg-background/80 shadow-none">
+          <CardContent className="grid gap-3 p-4">
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+              Current surface
             </div>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {rawFirstSurface || selectedView !== 'raw' ? (
-            <Button variant="outline" onClick={() => void handleExport()}>
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
-          ) : null}
-          {workflowContextLink ? (
-            <Button variant="outline" asChild>
-              <Link to={workflowContextLink}>Board context</Link>
-            </Button>
-          ) : null}
-          {taskRecordLink ? (
-            <Button variant="outline" asChild>
-              <Link to={taskRecordLink}>Step record</Link>
-            </Button>
-          ) : null}
-          {selectedEntryPermalink ? (
-            <Button variant="outline" asChild>
-              <a href={selectedEntryPermalink}>Permalink</a>
-            </Button>
-          ) : null}
-        </div>
+            <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+              <SurfaceFact label="Mode" value={surfaceSummary} />
+              <SurfaceFact label="Scope" value={scopeSummary} />
+              <SurfaceFact label="Open tab" value={activeTabLabel} />
+            </div>
+            <p className="text-sm leading-6 text-muted">
+              Stay in the raw stream until one packet clearly explains the current execution story,
+              then move into delivery or trace detail for that single slice.
+            </p>
+          </CardContent>
+        </Card>
       </section>
 
       {scopedWorkflowId ? (
@@ -363,20 +399,22 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
           </TabsList>
         </div>
 
-        <TabsContent value="raw">
+        <TabsContent value="raw" id="operator-log-raw-stream">
           <div className="space-y-4">
             <LogViewer compact scope={scopedWorkflowId ? { workflowId: scopedWorkflowId } : undefined} />
-            <LogsPageActivityPackets
-              packets={recentActivityPackets}
-              onOpenTrace={(logId) => {
-                updateSelection(logId);
-                updateView('detailed');
-              }}
-            />
+            <section id="operator-log-activity-packets">
+              <LogsPageActivityPackets
+                packets={recentActivityPackets}
+                onOpenTrace={(logId) => {
+                  updateSelection(logId);
+                  updateView('detailed');
+                }}
+              />
+            </section>
           </div>
         </TabsContent>
 
-        <TabsContent value="summary">
+        <TabsContent value="summary" id="operator-log-summary">
           <ExecutionInspectorSummaryView
             stats={statsQuery.data}
             operations={operationsQuery.data?.data ?? []}
@@ -392,7 +430,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
           />
         </TabsContent>
 
-        <TabsContent value="detailed" className="space-y-4">
+        <TabsContent value="detailed" id="operator-log-delivery" className="space-y-4">
           {logsQuery.error ? (
             <Card>
               <CardContent className="p-5 text-sm text-red-600">
@@ -413,7 +451,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
           />
         </TabsContent>
 
-        <TabsContent value="debug">
+        <TabsContent value="debug" id="operator-log-trace-detail">
           {selectedEntryQuery.isLoading && !selectedEntrySummary ? (
             <Card>
               <CardContent className="p-5 text-sm text-muted">
@@ -445,4 +483,18 @@ function buildInspectorPermalink(
 
 function buildWorkflowContextLink(entry: LogEntry): string {
   return buildLogWorkflowContextLink(entry) ?? `/work/boards/${entry.workflow_id}`;
+}
+
+function SurfaceFact(props: {
+  label: string;
+  value: string;
+}): JSX.Element {
+  return (
+    <div className="rounded-xl border border-border/70 bg-card/80 p-3">
+      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+        {props.label}
+      </div>
+      <div className="mt-2 text-sm font-medium text-foreground">{props.value}</div>
+    </div>
+  );
 }

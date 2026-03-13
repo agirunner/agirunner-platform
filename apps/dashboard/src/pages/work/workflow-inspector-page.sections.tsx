@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
+import { Badge } from '../../components/ui/badge.js';
 
 export function InspectorMetric(props: {
   label: string;
@@ -31,6 +32,66 @@ export function TraceCoverageNote(props: {
       </div>
       <p className="mt-2 text-sm leading-6 text-foreground">{props.value}</p>
     </div>
+  );
+}
+
+export interface InspectorSectionJump {
+  id: string;
+  label: string;
+  value: string;
+  detail: string;
+  buttonLabel: string;
+}
+
+export function InspectorSectionJumpStrip(props: {
+  sections: InspectorSectionJump[];
+}): JSX.Element {
+  return (
+    <nav aria-label="Workflow inspector sections" className="grid gap-3 xl:grid-cols-3">
+      {props.sections.map((section) => (
+        <article
+          key={section.id}
+          className="rounded-2xl border border-border/70 bg-background/70 p-4 shadow-sm"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+                {section.label}
+              </div>
+              <div className="text-base font-semibold text-foreground">{section.value}</div>
+            </div>
+            <Badge variant="outline">Jump</Badge>
+          </div>
+          <p className="mt-3 text-sm leading-6 text-muted">{section.detail}</p>
+          <Button asChild variant="outline" className="mt-4 w-full justify-between">
+            <a href={`#${section.id}`}>{section.buttonLabel}</a>
+          </Button>
+        </article>
+      ))}
+    </nav>
+  );
+}
+
+export function InspectorLinkCard(props: {
+  label: string;
+  href: string;
+  detail: string;
+}): JSX.Element {
+  return (
+    <Card className="border-border/70 bg-card/70 shadow-none">
+      <CardContent className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+        <div className="space-y-1">
+          <div className="text-sm font-medium text-foreground">{props.label}</div>
+          <p className="text-sm leading-6 text-muted">{props.detail}</p>
+        </div>
+        <Button asChild variant="ghost" className="h-auto justify-start px-0 lg:justify-end">
+          <Link to={props.href}>
+            Open link
+            <ExternalLink className="h-4 w-4" />
+          </Link>
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -120,11 +120,37 @@ describe('logs page support', () => {
       emphasisTone: 'warning',
       narrativeHeadline: 'QA Agent completed Review smoke result',
       summary: 'board Board Alpha • stage qa • work item workitem • activation activati • Recorded by QA Agent • via runtime • task lifecycle',
+      whyItMatters:
+        'This packet carries review pressure that can turn into gate or board drag if it sits unresolved.',
       outcomeLabel: 'Execution completed without runtime errors.',
       nextAction: 'Review this warning before it turns into a gate or board blocker.',
       scopeSummary: 'Board Alpha • Stage qa • Work item workitem • Activation activati',
+      facts: [
+        {
+          label: 'Outcome',
+          value: 'Execution completed without runtime errors.',
+        },
+        {
+          label: 'Scope',
+          value: 'Board Alpha • Stage qa • Work item workitem • Activation activati',
+        },
+        {
+          label: 'Next step',
+          value: 'Review this warning before it turns into a gate or board blocker.',
+        },
+      ],
       context: ['board Board Alpha', 'step Review smoke result', 'stage qa', 'work item workitem', 'activation activati'],
       signals: ['Activation', 'Work item', 'Stage'],
+      supportingContext: [
+        'Activation',
+        'Work item',
+        'Stage',
+        'board Board Alpha',
+        'step Review smoke result',
+        'stage qa',
+        'work item workitem',
+        'activation activati',
+      ],
       createdAtLabel: '15m ago',
       createdAtIso: '2026-03-12T22:00:00.000Z',
       createdAtDetail: new Date('2026-03-12T22:00:00.000Z').toLocaleString(),

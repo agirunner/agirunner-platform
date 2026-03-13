@@ -22,6 +22,7 @@ describe('logs page source', () => {
     expect(source).toContain(
       "Raw logs and events are always visible. Use the summary, delivery, and trace tabs for curated views when you need them.",
     );
+    expect(source).toContain('Current surface');
     expect(source).toContain("rawFirstSurface ? 'Log Stream' : 'Raw Logs'");
     expect(source).toContain("rawFirstSurface ? 'Activity Summary' : 'Summary'");
     expect(source).toContain("rawFirstSurface ? 'Delivery Packets' : 'Delivery'");
@@ -72,8 +73,11 @@ describe('logs page source', () => {
     expect(packetsSource).toContain('packet.actorLabel');
     expect(packetsSource).toContain('packet.emphasisLabel');
     expect(packetsSource).toContain('packet.narrativeHeadline');
-    expect(packetsSource).toContain('packet.outcomeLabel');
-    expect(packetsSource).toContain('packet.scopeSummary');
+    expect(packetsSource).toContain('Why surfaced');
+    expect(packetsSource).toContain('packet.whyItMatters');
+    expect(packetsSource).toContain('packet.facts.map((fact)');
+    expect(packetsSource).toContain('Trace context');
+    expect(packetsSource).toContain('packet.supportingContext.map((item)');
     expect(packetsSource).toContain('packet.actions.map((action)');
     expect(packetsSource).toContain('Open trace detail');
     expect(packetsSource).toContain('dateTime={packet.createdAtIso}');
@@ -97,5 +101,6 @@ describe('logs page source', () => {
     expect(source).toContain('isSelectedOutsideSegment');
     expect(source).toContain('loadedCount={entries.length}');
     expect(source).toContain('md:grid-cols-3');
+    expect(source).toContain('operator-log-activity-packets');
   });
 });

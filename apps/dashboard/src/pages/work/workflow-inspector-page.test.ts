@@ -23,10 +23,15 @@ describe('workflow inspector page source', () => {
     expect(source).toContain('Workflow Board Inspector');
     expect(source).toContain('Workflow Board');
     expect(source).toContain('Current operator scope');
+    expect(source).toContain('InspectorSectionJumpStrip');
+    expect(source).toContain('Board posture');
     expect(source).toContain('Current board stage in the scoped workflow shell');
     expect(source).toContain('Operator focus');
     expect(source).toContain('Best next step:');
     expect(source).toContain('Trace coverage');
+    expect(source).toContain('Scoped log trace');
+    expect(source).toContain('Workflow telemetry');
+    expect(source).toContain('Trace drill-in posture');
     expect(source).toContain('WorkflowInspectorTelemetryPanel');
     expect(source).toContain('telemetry={telemetryModel}');
     expect(source).toContain('Project Memory');
@@ -35,6 +40,7 @@ describe('workflow inspector page source', () => {
     expect(source).toContain('Latest activation packet');
     expect(source).toContain('gate lanes');
     expect(source).toContain('InspectorMetric');
+    expect(source).toContain('InspectorLinkCard');
     expect(source).toContain('buildWorkflowInspectorTraceModel');
     expect(source).toContain('buildWorkflowInspectorFocusSummary');
     expect(source).toContain('InspectorFocusCard');

@@ -30,11 +30,14 @@ export interface RecentLogActivityPacket {
   emphasisTone: 'secondary' | 'warning' | 'destructive' | 'success';
   narrativeHeadline: string;
   summary: string;
+  whyItMatters: string;
   outcomeLabel: string | null;
   nextAction: string;
   scopeSummary: string | null;
+  facts: RecentLogActivityFact[];
   context: string[];
   signals: string[];
+  supportingContext: string[];
   createdAtLabel: string;
   createdAtIso: string;
   createdAtDetail: string;
@@ -44,6 +47,11 @@ export interface RecentLogActivityPacket {
 export interface RecentLogActivityAction {
   href: string;
   label: string;
+}
+
+export interface RecentLogActivityFact {
+  label: string;
+  value: string;
 }
 
 export function buildInspectorOverviewCards(
@@ -83,6 +91,11 @@ export function buildRecentLogActivityPackets(
     const emphasisTone = describeLogEmphasisTone(entry);
     const workflowContextHref = buildLogWorkflowContextLink(entry);
     const taskRecordHref = entry.task_id ? `/work/tasks/${entry.task_id}` : null;
+    const outcomeLabel = describeLogOutcomeLabel(entry);
+    const nextAction = describeExecutionNextAction(entry);
+    const scopeSummary = buildLogScopeSummary(entry);
+    const context = summarizeLogContext(entry);
+    const signals = readExecutionSignals(entry);
     return {
       id: entry.id,
       actorLabel,
@@ -90,11 +103,18 @@ export function buildRecentLogActivityPackets(
       emphasisTone,
       narrativeHeadline: buildLogNarrativeHeadline(entry, actorLabel),
       summary: describeExecutionSummary(entry),
-      outcomeLabel: describeLogOutcomeLabel(entry),
-      nextAction: describeExecutionNextAction(entry),
-      scopeSummary: buildLogScopeSummary(entry),
-      context: summarizeLogContext(entry),
-      signals: readExecutionSignals(entry),
+      whyItMatters: describeLogWhyItMatters(entry),
+      outcomeLabel,
+      nextAction,
+      scopeSummary,
+      facts: buildRecentLogActivityFacts({
+        outcomeLabel,
+        nextAction,
+        scopeSummary,
+      }),
+      context,
+      signals,
+      supportingContext: dedupeActivityContext([...signals, ...context]),
       createdAtLabel: formatRecentActivityAge(entry.created_at, now),
       createdAtIso: entry.created_at,
       createdAtDetail: new Date(entry.created_at).toLocaleString(),
@@ -276,6 +296,56 @@ function describeLogOutcomeLabel(entry: LogEntry): string | null {
     return 'Execution was skipped for this scope.';
   }
   return null;
+}
+
+function describeLogWhyItMatters(entry: LogEntry): string {
+  if (entry.error?.message || entry.status === 'failed') {
+    return 'This is the clearest recovery signal in the recent stream. Start here before scanning lower-severity activity.';
+  }
+  if (entry.level === 'warn' || entry.status === 'skipped') {
+    return 'This packet carries review pressure that can turn into gate or board drag if it sits unresolved.';
+  }
+  if (entry.status === 'started') {
+    return 'This packet marks an active execution slice, which makes it the fastest way to explain current in-flight work.';
+  }
+  if (entry.status === 'completed') {
+    return 'This packet closes a visible execution step and gives you the cleanest handoff into board or step diagnostics.';
+  }
+  return 'This packet is the newest scoped execution signal available for operator review.';
+}
+
+function buildRecentLogActivityFacts(input: {
+  outcomeLabel: string | null;
+  nextAction: string;
+  scopeSummary: string | null;
+}): RecentLogActivityFact[] {
+  return [
+    {
+      label: 'Outcome',
+      value: input.outcomeLabel ?? 'Awaiting more runtime detail.',
+    },
+    {
+      label: 'Scope',
+      value: input.scopeSummary ?? 'No board or activation scope is attached.',
+    },
+    {
+      label: 'Next step',
+      value: input.nextAction,
+    },
+  ];
+}
+
+function dedupeActivityContext(entries: string[]): string[] {
+  const seen = new Set<string>();
+  const values: string[] = [];
+  for (const entry of entries) {
+    if (seen.has(entry)) {
+      continue;
+    }
+    seen.add(entry);
+    values.push(entry);
+  }
+  return values;
 }
 
 function humanizeActorToken(value: string): string {
