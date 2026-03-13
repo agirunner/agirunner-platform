@@ -52,6 +52,8 @@ export interface LiveBoardFleetSummary {
   assignedSteps: number;
 }
 
+type BoardStageSummary = DashboardWorkflowBoardResponse['stage_summary'][number];
+
 function readLiveStageNames(workflow: LiveBoardWorkflowRecord): string[] {
   const activeStages = workflow.active_stages?.filter((stage): stage is string => stage.trim().length > 0) ?? [];
   const summaryStages =
@@ -159,7 +161,42 @@ export function isLiveWorkflow(workflow: LiveBoardWorkflowRecord): boolean {
   return posture === 'active' || posture === 'awaiting gate' || posture === 'blocked';
 }
 
-export function describeBoardProgress(workflow: LiveBoardWorkflowRecord): string {
+function readCompletedStageCount(board?: DashboardWorkflowBoardResponse): {
+  completedCount: number;
+  totalCount: number;
+} | null {
+  const stageSummary = board?.stage_summary ?? [];
+  if (stageSummary.length === 0) {
+    return null;
+  }
+  return {
+    completedCount: stageSummary.filter(isCompletedBoardStage).length,
+    totalCount: stageSummary.length,
+  };
+}
+
+function isCompletedBoardStage(stage: BoardStageSummary): boolean {
+  if (stage.gate_status === 'requested' || stage.gate_status === 'awaiting_approval') {
+    return false;
+  }
+  if (stage.is_active) {
+    return false;
+  }
+  if (stage.status === 'completed' || stage.status === 'done') {
+    return true;
+  }
+  return stage.completed_count > 0 && stage.open_work_item_count === 0;
+}
+
+export function describeBoardProgress(
+  workflow: LiveBoardWorkflowRecord,
+  board?: DashboardWorkflowBoardResponse,
+): string {
+  const standardStageProgress =
+    workflow.lifecycle !== 'continuous' ? readCompletedStageCount(board) : null;
+  if (standardStageProgress && standardStageProgress.totalCount > 0) {
+    return `${standardStageProgress.completedCount} of ${standardStageProgress.totalCount} stages complete`;
+  }
   const summary = workflow.work_item_summary;
   if (!summary || summary.total_work_items === 0) {
     return 'No work items queued';
@@ -168,9 +205,19 @@ export function describeBoardProgress(workflow: LiveBoardWorkflowRecord): string
   return `${completedCount} of ${summary.total_work_items} work items complete`;
 }
 
-export function readBoardProgressPercent(workflow: LiveBoardWorkflowRecord): number | null {
+export function readBoardProgressPercent(
+  workflow: LiveBoardWorkflowRecord,
+  board?: DashboardWorkflowBoardResponse,
+): number | null {
   if (workflow.lifecycle === 'continuous') {
     return null;
+  }
+  const stageProgress = readCompletedStageCount(board);
+  if (stageProgress && stageProgress.totalCount > 0) {
+    return Math.min(
+      100,
+      Math.max(0, Math.round((stageProgress.completedCount / stageProgress.totalCount) * 100)),
+    );
   }
   const summary = workflow.work_item_summary;
   if (!summary || summary.total_work_items <= 0) {

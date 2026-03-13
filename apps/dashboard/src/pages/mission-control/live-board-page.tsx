@@ -1763,7 +1763,7 @@ function WorkflowProgressPanel(props: {
   board?: DashboardWorkflowBoardResponse;
   compact?: boolean;
 }): JSX.Element {
-  const percent = readBoardProgressPercent(props.workflow);
+  const percent = readBoardProgressPercent(props.workflow, props.board);
   const stageSteps = buildWorkflowStageProgressSteps(props.workflow, props.board);
   const progressSummary = describeWorkflowStageProgressSummary(props.workflow, props.board);
   const detailClass = props.compact
@@ -1804,7 +1804,7 @@ function WorkflowProgressPanel(props: {
           />
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs leading-5 text-muted">
-          <span>{describeBoardProgress(props.workflow)}</span>
+          <span>{describeBoardProgress(props.workflow, props.board)}</span>
           <span>
             {props.workflow.lifecycle === 'continuous'
               ? 'Continuous intake'

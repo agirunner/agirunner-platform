@@ -167,6 +167,59 @@ describe('live board support', () => {
     ).toBe('15m ago');
   });
 
+  it('aligns standard-workflow percent and summary with stage progress when board stage summary exists', () => {
+    const boardWithStages = {
+      columns: [],
+      work_items: [],
+      stage_summary: [
+        {
+          name: 'requirements',
+          goal: 'Capture requirements',
+          status: 'completed',
+          is_active: false,
+          gate_status: 'approved',
+          work_item_count: 2,
+          open_work_item_count: 0,
+          completed_count: 2,
+        },
+        {
+          name: 'implementation',
+          goal: 'Build feature',
+          status: 'in_progress',
+          is_active: true,
+          gate_status: 'not_required',
+          work_item_count: 3,
+          open_work_item_count: 2,
+          completed_count: 1,
+        },
+        {
+          name: 'verification',
+          goal: 'Review output',
+          status: 'ready',
+          is_active: false,
+          gate_status: 'requested',
+          work_item_count: 1,
+          open_work_item_count: 1,
+          completed_count: 0,
+        },
+      ],
+    };
+
+    const workflow = {
+      work_item_summary: {
+        total_work_items: 1,
+        completed_work_item_count: 0,
+        open_work_item_count: 1,
+        awaiting_gate_count: 0,
+      },
+    };
+
+    expect(describeBoardProgress(workflow, boardWithStages as never)).toBe(
+      '1 of 3 stages complete',
+    );
+    expect(readBoardProgressPercent(workflow, boardWithStages as never)).toBe(33);
+  });
+
   it('summarizes orchestrator health, specialist posture, and token rollups for triage', () => {
     const tasks = [
       { status: 'ready', is_orchestrator_task: false, retry_count: 0 },
