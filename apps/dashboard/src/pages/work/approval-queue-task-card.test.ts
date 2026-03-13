@@ -21,6 +21,11 @@ describe('approval queue task card source', () => {
     expect(source).toContain('Open Board Stage Flow');
     expect(source).toContain('Open Step Record');
     expect(source).toContain('usesWorkItemOperatorFlow');
+    expect(source).toContain('buildApprovalDecisionPacket');
+    expect(source).toContain('buildApprovalRecoveryPacket');
+    expect(source).toContain('buildApprovalOutputPacket');
+    expect(source).toContain('ReviewPacketCard');
+    expect(source).toContain('View output preview');
     expect(source).toContain('DialogContent className="sm:max-w-lg"');
     expect(source).toContain('max-h-[75vh]');
     expect(source).toContain('overflow-y-auto');

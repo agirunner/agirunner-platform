@@ -34,7 +34,6 @@ import {
   buildTaskApprovalBreadcrumbs,
   computeWaitingTime,
   readTaskOperatorFlowLabel,
-  truncateOutput,
 } from './approval-queue-support.js';
 import { QueueInfoTile } from './approval-queue-layout.js';
 import { OperatorBreadcrumbTrail } from './operator-breadcrumb-trail.js';
@@ -44,6 +43,12 @@ import {
   usesWorkItemOperatorFlow,
   usesWorkflowOperatorFlow,
 } from './task-operator-flow.js';
+import {
+  buildApprovalDecisionPacket,
+  buildApprovalOutputPacket,
+  buildApprovalRecoveryPacket,
+  truncateOutput,
+} from './approval-queue-task-card-support.js';
 
 function invalidateApprovalWorkflowQueries(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -101,6 +106,9 @@ export function TaskApprovalCard(props: {
     rejectMutation.isPending ||
     requestChangesMutation.isPending;
   const outputPreview = truncateOutput(task.output);
+  const decisionPacket = buildApprovalDecisionPacket(task);
+  const recoveryPacket = buildApprovalRecoveryPacket(task);
+  const outputPacket = buildApprovalOutputPacket(task);
   const taskLabel = task.title ?? task.id;
   const workItemFlow = usesWorkItemOperatorFlow(task);
   const workflowOperatorFlow = usesWorkflowOperatorFlow(task);
@@ -235,14 +243,29 @@ export function TaskApprovalCard(props: {
             <QueueInfoTile label="Step record" value={task.id} monospace />
           </div>
 
-          {outputPreview ? (
-            <div className="rounded-md border border-border/70 bg-border/10 p-3">
-              <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
-                Output preview
-              </div>
-              <p className="text-xs text-muted">{outputPreview}</p>
-            </div>
-          ) : null}
+          <div className="grid gap-3 lg:grid-cols-3">
+            <ReviewPacketCard
+              title={decisionPacket.title}
+              summary={decisionPacket.summary}
+            />
+            <ReviewPacketCard
+              title={recoveryPacket.title}
+              summary={recoveryPacket.summary}
+            />
+            <ReviewPacketCard
+              title={outputPacket.title}
+              summary={outputPacket.summary}
+            >
+              {outputPreview ? (
+                <details className="mt-3 rounded-xl border border-border/70 bg-surface p-3">
+                  <summary className="cursor-pointer text-sm font-medium">
+                    View output preview
+                  </summary>
+                  <p className="mt-3 text-sm leading-6 text-muted">{outputPreview}</p>
+                </details>
+              ) : null}
+            </ReviewPacketCard>
+          </div>
 
           {(approveMutation.isError || rejectMutation.isError) && (
             <p className="text-xs text-red-600">Action failed. Please try again.</p>
@@ -285,5 +308,23 @@ export function TaskApprovalCard(props: {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function ReviewPacketCard({
+  title,
+  summary,
+  children,
+}: {
+  title: string;
+  summary: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-border/70 bg-border/10 p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-muted">{summary}</p>
+      {children}
+    </div>
   );
 }

@@ -20,13 +20,6 @@ export function computeWaitingTime(createdAt: string): string {
   return `${days}d ${hours % 24}h`;
 }
 
-export function truncateOutput(output: unknown): string {
-  if (output === undefined || output === null) return '';
-  const text = typeof output === 'string' ? output : JSON.stringify(output);
-  if (text.length <= 200) return text;
-  return `${text.slice(0, 200)}...`;
-}
-
 export function summarizeOldestWaiting(
   stageGates: DashboardApprovalStageGateRecord[],
   taskApprovals: DashboardApprovalTaskRecord[],
