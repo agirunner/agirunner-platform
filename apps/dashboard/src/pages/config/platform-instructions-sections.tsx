@@ -28,8 +28,30 @@ import {
 } from '../../components/ui/select.js';
 import {
   buildPlatformInstructionVersionLabel,
+  type PlatformInstructionDraftStatus,
+  type PlatformInstructionSummaryCard,
   renderPlatformInstructionSnapshot,
 } from './platform-instructions-support.js';
+
+export function PlatformInstructionSummaryCards(props: {
+  cards: PlatformInstructionSummaryCard[];
+}): JSX.Element {
+  return (
+    <div className="grid gap-4 md:grid-cols-3">
+      {props.cards.map((card) => (
+        <Card key={card.label} className="border-border/70 shadow-sm">
+          <CardHeader className="space-y-1">
+            <p className="text-sm font-medium text-muted">{card.label}</p>
+            <CardTitle className="text-2xl">{card.value}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm leading-6 text-muted">{card.detail}</p>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
 
 export function PlatformInstructionOverviewCards(props: {
   currentInstruction: DashboardPlatformInstructionRecord;
@@ -122,6 +144,79 @@ export function PlatformInstructionOverviewCards(props: {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export function PlatformInstructionDraftControls(props: {
+  status: PlatformInstructionDraftStatus;
+  canSave: boolean;
+  canClear: boolean;
+  canRestore: boolean;
+  selectedVersionLabel: string;
+  isBusy: boolean;
+  isSaving: boolean;
+  isRestoring: boolean;
+  onSave(): void;
+  onClear(): void;
+  onRestore(): void;
+}): JSX.Element {
+  return (
+    <Card className="xl:sticky xl:top-6">
+      <CardHeader>
+        <CardTitle>Draft controls</CardTitle>
+        <p className="text-sm text-muted">
+          Keep save, restore, and clear actions visible while you review long instructions.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div
+          className={
+            props.status.tone === 'warning'
+              ? 'rounded-lg bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300'
+              : props.status.tone === 'ready'
+                ? 'rounded-lg bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300'
+                : 'rounded-lg bg-muted/10 px-4 py-3 text-sm text-muted'
+          }
+        >
+          <p className="font-medium text-foreground">{props.status.title}</p>
+          <p className="mt-1">{props.status.detail}</p>
+        </div>
+        <div className="rounded-lg border border-border/70 bg-muted/10 px-4 py-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted">
+            Selected compare version
+          </p>
+          <p className="mt-1 text-sm text-foreground">{props.selectedVersionLabel}</p>
+        </div>
+        <div className="grid gap-2">
+          <Button onClick={props.onSave} disabled={props.isBusy || !props.canSave}>
+            {props.isSaving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : null}
+            Save Current Draft
+          </Button>
+          <Button
+            variant="outline"
+            onClick={props.onRestore}
+            disabled={props.isBusy || !props.canRestore}
+          >
+            {props.isRestoring ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RotateCcw className="h-4 w-4" />
+            )}
+            Restore Selected Version
+          </Button>
+          <Button
+            variant="outline"
+            onClick={props.onClear}
+            disabled={props.isBusy || !props.canClear}
+          >
+            <Trash2 className="h-4 w-4" />
+            Clear Current
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

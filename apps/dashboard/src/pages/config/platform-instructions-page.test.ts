@@ -7,7 +7,13 @@ function readSource() {
 }
 
 function readSectionSource() {
-  return readFileSync(resolve(import.meta.dirname, './platform-instructions-sections.tsx'), 'utf8');
+  return [
+    './platform-instructions-sections.tsx',
+    './platform-instructions-page.content.tsx',
+    './platform-instructions-support.ts',
+  ]
+    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
+    .join('\n');
 }
 
 describe('platform instructions page source', () => {
@@ -28,5 +34,9 @@ describe('platform instructions page source', () => {
     expect(source).toContain('Saved Version Diff');
     expect(source).toContain('DiffViewer');
     expect(source).toContain('renderPlatformInstructionSnapshot');
+    expect(source).toContain('PlatformInstructionSummaryCards');
+    expect(source).toContain('Draft controls');
+    expect(source).toContain('Selected compare version');
+    expect(source).toContain('Draft posture');
   });
 });

@@ -1,33 +1,29 @@
-import type { ComponentType } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import MonacoEditor from '@monaco-editor/react';
-import { FileText, Loader2, Save, Trash2 } from 'lucide-react';
+import { Loader2, Save, Trash2 } from 'lucide-react';
 
-import { DiffViewer } from '../../components/diff-viewer.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '../../components/ui/card.js';
+import { Card, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
-import { chooseComparedPlatformInstructionVersion } from './platform-instructions-support.js';
+import {
+  buildPlatformInstructionDraftStatus,
+  buildPlatformInstructionSummaryCards,
+  chooseComparedPlatformInstructionVersion,
+  buildPlatformInstructionVersionLabel,
+} from './platform-instructions-support.js';
 import {
   ClearPlatformInstructionsDialog,
+  PlatformInstructionDraftControls,
   PlatformInstructionOverviewCards,
+  PlatformInstructionSummaryCards,
 } from './platform-instructions-sections.js';
-
-const Editor = MonacoEditor as unknown as ComponentType<{
-  height: string;
-  language: string;
-  value: string;
-  onChange?: (value: string | undefined) => void;
-  options?: Record<string, unknown>;
-}>;
+import {
+  PlatformInstructionDiffCard,
+  PlatformInstructionEditorCard,
+  PlatformInstructionEmptyState,
+} from './platform-instructions-page.content.js';
 
 export function PlatformInstructionsPage(): JSX.Element {
   const queryClient = useQueryClient();
@@ -156,6 +152,20 @@ export function PlatformInstructionsPage(): JSX.Element {
   const canRestore =
     comparedVersion !== null && comparedVersion.version !== currentInstruction.version;
   const diffTarget = comparedVersion ?? currentInstruction;
+  const summaryCards = buildPlatformInstructionSummaryCards(
+    currentInstruction,
+    versions,
+    editorContent,
+    hasUnsavedChanges,
+  );
+  const draftStatus = buildPlatformInstructionDraftStatus(
+    currentInstruction,
+    editorContent,
+    hasUnsavedChanges,
+  );
+  const selectedVersionLabel = comparedVersion
+    ? buildPlatformInstructionVersionLabel(comparedVersion, currentInstruction.version)
+    : 'No saved version selected';
 
   return (
     <div className="space-y-6 p-6">
@@ -171,7 +181,7 @@ export function PlatformInstructionsPage(): JSX.Element {
             Version history, restore, and clear operations are persisted and auditable.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 xl:hidden">
           <Button
             variant="outline"
             onClick={() => setShowClearDialog(true)}
@@ -194,86 +204,58 @@ export function PlatformInstructionsPage(): JSX.Element {
         </div>
       </div>
 
-      <PlatformInstructionOverviewCards
-        currentInstruction={currentInstruction}
-        comparedVersion={comparedVersion}
-        versions={versions}
-        selectedVersion={selectedVersion}
-        onSelectedVersionChange={setSelectedVersion}
-        onRestore={() => restoreMutation.mutate()}
-        isBusy={isBusy}
-        canRestore={canRestore}
-        isRestoring={restoreMutation.isPending}
-      />
+      <PlatformInstructionSummaryCards cards={summaryCards} />
 
-      {editorContent.length === 0 && !hasUnsavedChanges ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center text-muted">
-            <FileText className="h-12 w-12" />
-            <div className="space-y-1">
-              <p className="font-medium text-foreground">No active platform instructions</p>
-              <p className="text-sm">
-                Draft the baseline operator guidance below, then save it as a persisted platform
-                version.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-6">
+          <PlatformInstructionOverviewCards
+            currentInstruction={currentInstruction}
+            comparedVersion={comparedVersion}
+            versions={versions}
+            selectedVersion={selectedVersion}
+            onSelectedVersionChange={setSelectedVersion}
+            onRestore={() => restoreMutation.mutate()}
+            isBusy={isBusy}
+            canRestore={canRestore}
+            isRestoring={restoreMutation.isPending}
+          />
 
-      <Card>
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-base">Instructions Editor</CardTitle>
-          <p className="text-sm text-muted">
-            Edit the live draft directly. Unsaved changes are diffed against the selected saved
-            version below.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-hidden rounded-lg border border-border">
-            <Editor
-              height="55vh"
-              language="markdown"
-              value={editorContent}
-              onChange={(value) => {
-                const nextValue = value ?? '';
-                setEditorContent(nextValue);
-                setHasUnsavedChanges(nextValue !== currentInstruction.content);
-              }}
-              options={{
-                minimap: { enabled: false },
-                fontSize: 13,
-                lineNumbers: 'on',
-                scrollBeyondLastLine: false,
-                automaticLayout: true,
-                tabSize: 2,
-                wordWrap: 'on',
-              }}
-            />
-          </div>
-          {hasUnsavedChanges ? (
-            <p className="mt-3 text-xs text-amber-600">You have unsaved changes in the current draft.</p>
-          ) : null}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-base">Saved Version Diff</CardTitle>
-          <p className="text-sm text-muted">
-            Review how the selected saved version differs from the current editor state before
-            saving or restoring.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <DiffViewer
+          <PlatformInstructionEmptyState
+            show={editorContent.length === 0 && !hasUnsavedChanges}
+          />
+          <PlatformInstructionEditorCard
+            value={editorContent}
+            hasUnsavedChanges={hasUnsavedChanges}
+            currentContent={currentInstruction.content}
+            onChange={(nextValue) => {
+              setEditorContent(nextValue);
+              setHasUnsavedChanges(nextValue !== currentInstruction.content);
+            }}
+          />
+          <PlatformInstructionDiffCard
             oldText={diffTarget.content}
             newText={editorContent}
             oldLabel={comparedVersion ? `v${comparedVersion.version}` : 'Saved version'}
             newLabel={hasUnsavedChanges ? 'Current draft' : `v${currentInstruction.version} current`}
           />
-        </CardContent>
-      </Card>
+        </div>
+
+        <div className="space-y-6">
+          <PlatformInstructionDraftControls
+            status={draftStatus}
+            canSave={hasUnsavedChanges}
+            canClear={currentInstruction.content.length > 0}
+            canRestore={canRestore}
+            selectedVersionLabel={selectedVersionLabel}
+            isBusy={isBusy}
+            isSaving={saveMutation.isPending}
+            isRestoring={restoreMutation.isPending}
+            onSave={() => saveMutation.mutate()}
+            onClear={() => setShowClearDialog(true)}
+            onRestore={() => restoreMutation.mutate()}
+          />
+        </div>
+      </div>
 
       <ClearPlatformInstructionsDialog
         open={showClearDialog}
