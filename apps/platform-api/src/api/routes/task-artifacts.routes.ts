@@ -7,8 +7,11 @@ import { buildArtifactStorageConfig } from '../../content/storage-config.js';
 import { createArtifactStorage } from '../../content/storage-factory.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
 import { ArtifactService } from '../../services/artifact-service.js';
+import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
+import { runIdempotentTaskRouteAction } from './task-route-idempotency.js';
 
 const artifactUploadSchema = z.object({
+  request_id: z.string().min(1).max(255).optional(),
   path: z.string().min(1).max(1024),
   content_base64: z.string().min(1),
   content_type: z.string().min(1).max(255).optional(),
@@ -23,6 +26,8 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const taskArtifactRoutes: FastifyPluginAsync = async (app) => {
+  const taskService = app.taskService;
+  const toolResultService = new WorkflowToolResultService(app.pgPool);
   const artifactService = new ArtifactService(
     app.pgPool,
     createArtifactStorage(buildArtifactStorageConfig(app.config)),
@@ -51,12 +56,23 @@ export const taskArtifactRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(artifactUploadSchema.safeParse(request.body));
-      const artifact = await artifactService.uploadTaskArtifact(request.auth!, params.id, {
-        path: body.path,
-        contentBase64: body.content_base64,
-        contentType: body.content_type,
-        metadata: body.metadata,
-      });
+      const uploadArtifact = async () =>
+        (await artifactService.uploadTaskArtifact(request.auth!, params.id, {
+          path: body.path,
+          contentBase64: body.content_base64,
+          contentType: body.content_type,
+          metadata: body.metadata,
+        })) as unknown as Record<string, unknown>;
+      const artifact = await runIdempotentTaskRouteAction(
+        app,
+        toolResultService,
+        taskService.getTask.bind(taskService),
+        request.auth!.tenantId,
+        params.id,
+        'task_artifact_upload',
+        body.request_id,
+        uploadArtifact,
+      );
       return reply.status(201).send({ data: artifact });
     },
   );
