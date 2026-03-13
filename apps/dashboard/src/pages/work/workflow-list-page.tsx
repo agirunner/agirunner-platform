@@ -55,6 +55,10 @@ import {
   type ViewMode,
   type WorkflowListRecord,
 } from './workflow-list-support.js';
+import {
+  describeWorkflowStageFootnote,
+  describeWorkflowStageLabel,
+} from './workflow-list-stage-presentation.js';
 import { WorkflowSummaryCards } from './workflow-list-summary-cards.js';
 
 export function WorkflowListPage(): JSX.Element {
@@ -399,7 +403,10 @@ function WorkflowListCard({ workflow }: { workflow: WorkflowListRecord }): JSX.E
         </div>
         <p className="text-sm text-foreground">{describeOperatorSignal(workflow)}</p>
         <div className="grid gap-3 rounded-lg border border-border/60 bg-muted/20 p-3 sm:grid-cols-2">
-          <WorkflowInfo label="Live stages" value={describeWorkflowStage(workflow)} />
+          <WorkflowInfo
+            label={describeWorkflowStageLabel(workflow)}
+            value={describeWorkflowStage(workflow)}
+          />
           <WorkflowInfo label="Progress" value={describeWorkflowProgress(workflow)} />
           <WorkflowInfo label="Gates" value={describeGateSummary(workflow)} />
           <WorkflowInfo label="Spend" value={describeWorkflowCost(workflow)} />
@@ -481,7 +488,10 @@ function BoardColumnView(props: {
                 </div>
                 <p className="text-xs text-foreground">{describeOperatorSignal(workflow)}</p>
                 <div className="grid gap-2 rounded-lg border border-border/60 bg-muted/20 p-3 text-xs sm:grid-cols-2">
-                  <WorkflowInfo label="Stage" value={describeWorkflowStage(workflow)} />
+                  <WorkflowInfo
+                    label={describeWorkflowStageLabel(workflow)}
+                    value={describeWorkflowStage(workflow)}
+                  />
                   <WorkflowInfo label="Progress" value={describeWorkflowProgress(workflow)} />
                   <WorkflowInfo label="Gates" value={describeGateSummary(workflow)} />
                   <WorkflowInfo label="Spend" value={describeWorkflowCost(workflow)} />
@@ -569,12 +579,4 @@ function describeColumnSummary(column: BoardColumn, count: number): string {
     default:
       return `${count} board run${count === 1 ? '' : 's'} planned but not moving yet`;
   }
-}
-
-function describeWorkflowStageFootnote(workflow: WorkflowListRecord): string {
-  const activeCount = workflow.work_item_summary?.active_stage_count ?? 0;
-  if (activeCount > 0) {
-    return `${activeCount} live stage${activeCount === 1 ? '' : 's'}`;
-  }
-  return describeWorkflowProgress(workflow);
 }

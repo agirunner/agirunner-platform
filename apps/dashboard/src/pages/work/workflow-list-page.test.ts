@@ -30,6 +30,7 @@ describe('workflow board page source', () => {
     expect(source).toContain('Board posture view');
     expect(source).toContain('describeWorkflowProgress');
     expect(source).toContain('describeWorkflowCost');
+    expect(source).toContain('describeWorkflowStageLabel(workflow)');
     expect(source).toContain('formatRelativeRunAge');
     expect(source).toContain('Search: {props.searchQuery}');
   });

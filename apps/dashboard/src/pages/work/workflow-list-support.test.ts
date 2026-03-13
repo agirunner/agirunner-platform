@@ -119,7 +119,7 @@ describe('workflow list support', () => {
       },
     };
 
-    expect(describeWorkflowStage(workflow)).toBe('-');
+    expect(describeWorkflowStage(workflow)).toBe('No live stages');
   });
 
   it('treats standard workflows as the default active type', () => {
@@ -139,6 +139,17 @@ describe('workflow list support', () => {
     expect(formatTaskProgress(workflow.task_counts)).toBe('2/3');
     expect(resolveStatus(workflow)).toBe('planned');
     expect(resolveTypeFilter(workflow)).toBe('standard');
+  });
+
+  it('uses a readable standard fallback when no stage is assigned', () => {
+    expect(
+      describeWorkflowStage({
+        id: 'workflow-1b',
+        name: 'No Stage',
+        status: 'pending',
+        created_at: '2026-03-11',
+      }),
+    ).toBe('No stage assigned');
   });
 
   it('prioritizes live work posture before raw workflow state', () => {

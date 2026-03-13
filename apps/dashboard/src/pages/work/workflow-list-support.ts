@@ -136,7 +136,7 @@ export function describeWorkflowType(workflow: WorkflowListRecord): string {
 export function describeWorkflowStage(workflow: WorkflowListRecord): string {
   const liveStages = readLiveStageNames(workflow);
   if (workflow.lifecycle === 'continuous') {
-    return liveStages.length > 0 ? liveStages.join(', ') : '-';
+    return liveStages.length > 0 ? liveStages.join(', ') : 'No live stages';
   }
   if (workflow.current_stage) {
     return workflow.current_stage;
@@ -144,7 +144,7 @@ export function describeWorkflowStage(workflow: WorkflowListRecord): string {
   if (liveStages.length > 0) {
     return liveStages.join(', ');
   }
-  return '-';
+  return 'No stage assigned';
 }
 
 export function describeOperatorSignal(workflow: WorkflowListRecord): string {
