@@ -13,6 +13,12 @@ import { Badge } from '../../components/ui/badge.js';
 import { Input } from '../../components/ui/input.js';
 import { Switch } from '../../components/ui/switch.js';
 import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '../../components/ui/card.js';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -27,6 +33,12 @@ import {
   TableHead,
   TableCell,
 } from '../../components/ui/table.js';
+import {
+  describeWebhookCoverage,
+  summarizeWebhookCollection,
+  validateWebhookForm,
+  type CreateWebhookFormState,
+} from './webhooks-page.support.js';
 
 interface WebhookRecord {
   id: string;
@@ -34,12 +46,6 @@ interface WebhookRecord {
   event_types: string[];
   is_active: boolean;
   created_at?: string;
-}
-
-interface CreateWebhookForm {
-  url: string;
-  event_types: string[];
-  secret: string;
 }
 
 interface WebhookDeleteTarget {
@@ -133,7 +139,7 @@ async function deleteWebhook(id: string): Promise<void> {
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
 }
 
-const INITIAL_FORM: CreateWebhookForm = {
+const INITIAL_FORM: CreateWebhookFormState = {
   url: '',
   event_types: [],
   secret: '',
@@ -142,7 +148,8 @@ const INITIAL_FORM: CreateWebhookForm = {
 function CreateWebhookDialog(): JSX.Element {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
-  const [form, setForm] = useState<CreateWebhookForm>(INITIAL_FORM);
+  const [form, setForm] = useState<CreateWebhookFormState>(INITIAL_FORM);
+  const validation = validateWebhookForm(form);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -180,25 +187,69 @@ function CreateWebhookDialog(): JSX.Element {
       <DialogContent className="max-h-[80vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Webhook</DialogTitle>
+          <DialogDescription>
+            Configure a structured outbound endpoint with explicit event coverage and delivery safeguards.
+          </DialogDescription>
         </DialogHeader>
         <form
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
+            if (!validation.isValid) {
+              return;
+            }
             mutation.mutate();
           }}
         >
+          <section
+            className={
+              validation.isValid
+                ? 'rounded-xl border border-emerald-300 bg-emerald-50/70 p-4'
+                : 'rounded-xl border border-amber-300 bg-amber-50/80 p-4'
+            }
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold">Save readiness</h3>
+                <p className="text-sm text-muted">
+                  {validation.isValid
+                    ? 'This webhook is ready to create with the current delivery settings.'
+                    : 'Resolve the items below before creating this webhook.'}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline">{describeWebhookCoverage(form.event_types)}</Badge>
+                <Badge variant="outline">
+                  {form.secret.trim() ? 'Secret will be stored' : 'No secret configured'}
+                </Badge>
+              </div>
+            </div>
+            {!validation.isValid ? (
+              <ul className="mt-3 space-y-1 text-sm text-amber-950">
+                {validation.issues.map((issue) => (
+                  <li key={issue}>• {issue}</li>
+                ))}
+              </ul>
+            ) : null}
+          </section>
+
           <div className="space-y-2">
             <label className="text-sm font-medium">URL</label>
             <Input
               placeholder="https://example.com/webhook"
               value={form.url}
+              className={validation.fieldErrors.url ? 'border-red-300 focus-visible:ring-red-500' : undefined}
+              aria-invalid={validation.fieldErrors.url ? true : undefined}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, url: e.target.value }))
               }
-              required
               data-testid="webhook-url-input"
             />
+            {validation.fieldErrors.url ? (
+              <p className="text-sm text-red-600">{validation.fieldErrors.url}</p>
+            ) : (
+              <p className="text-sm text-muted">Use an http:// or https:// endpoint reachable by the platform.</p>
+            )}
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Event Types</label>
@@ -228,11 +279,18 @@ function CreateWebhookDialog(): JSX.Element {
               type="password"
               placeholder="webhook-secret"
               value={form.secret}
+              className={validation.fieldErrors.secret ? 'border-red-300 focus-visible:ring-red-500' : undefined}
+              aria-invalid={validation.fieldErrors.secret ? true : undefined}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, secret: e.target.value }))
               }
               data-testid="webhook-secret-input"
             />
+            {validation.fieldErrors.secret ? (
+              <p className="text-sm text-red-600">{validation.fieldErrors.secret}</p>
+            ) : (
+              <p className="text-sm text-muted">Optional. Add a signing secret when the receiving endpoint verifies authenticity.</p>
+            )}
           </div>
           {mutation.error && (
             <p className="text-sm text-red-600">{String(mutation.error)}</p>
@@ -245,7 +303,7 @@ function CreateWebhookDialog(): JSX.Element {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={mutation.isPending} data-testid="submit-webhook">
+            <Button type="submit" disabled={mutation.isPending || !validation.isValid} data-testid="submit-webhook">
               {mutation.isPending && (
                 <Loader2 className="h-4 w-4 animate-spin" />
               )}
@@ -295,11 +353,7 @@ function DeleteWebhookDialog({
               <Badge variant={webhook.is_active ? 'default' : 'secondary'}>
                 {webhook.is_active ? 'Active' : 'Inactive'}
               </Badge>
-              <Badge variant="outline">
-                {webhook.event_types.length > 0
-                  ? `${webhook.event_types.length} event filter${webhook.event_types.length === 1 ? '' : 's'}`
-                  : 'All events'}
-              </Badge>
+              <Badge variant="outline">{describeWebhookCoverage(webhook.event_types)}</Badge>
             </div>
           </div>
           <p className="text-sm text-muted">
@@ -330,11 +384,7 @@ function DeleteWebhookDialog({
   );
 }
 
-function WebhookRow({
-  webhook,
-}: {
-  webhook: WebhookRecord;
-}): JSX.Element {
+function useWebhookEntryState(webhook: WebhookRecord) {
   const queryClient = useQueryClient();
   const [deleteTarget, setDeleteTarget] = useState<WebhookDeleteTarget | null>(null);
 
@@ -349,6 +399,27 @@ function WebhookRow({
       toast.error('Failed to update webhook');
     },
   });
+
+  return {
+    deleteTarget,
+    toggleMutation,
+    dismissDelete: () => setDeleteTarget(null),
+    openDelete: () =>
+      setDeleteTarget({
+        id: webhook.id,
+        url: webhook.url,
+        event_types: webhook.event_types,
+        is_active: webhook.is_active,
+      }),
+  };
+}
+
+function WebhookTableRow({
+  webhook,
+}: {
+  webhook: WebhookRecord;
+}): JSX.Element {
+  const controls = useWebhookEntryState(webhook);
 
   return (
     <>
@@ -365,15 +436,15 @@ function WebhookRow({
                 </Badge>
               ))
             ) : (
-              <span className="text-sm text-muted">All events</span>
+              <span className="text-sm text-muted">{describeWebhookCoverage(webhook.event_types)}</span>
             )}
           </div>
         </TableCell>
         <TableCell>
           <Switch
             checked={webhook.is_active}
-            onCheckedChange={(checked) => toggleMutation.mutate(checked)}
-            disabled={toggleMutation.isPending}
+            onCheckedChange={(checked) => controls.toggleMutation.mutate(checked)}
+            disabled={controls.toggleMutation.isPending}
           />
         </TableCell>
         <TableCell>
@@ -381,26 +452,79 @@ function WebhookRow({
             size="sm"
             variant="ghost"
             className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30"
-            onClick={() =>
-              setDeleteTarget({
-                id: webhook.id,
-                url: webhook.url,
-                event_types: webhook.event_types,
-                is_active: webhook.is_active,
-              })
-            }
+            onClick={controls.openDelete}
           >
             <Trash2 className="h-4 w-4" />
             Delete Webhook
           </Button>
         </TableCell>
       </TableRow>
-      {deleteTarget && (
+      {controls.deleteTarget && (
         <DeleteWebhookDialog
-          webhook={deleteTarget}
-          onClose={() => setDeleteTarget(null)}
+          webhook={controls.deleteTarget}
+          onClose={controls.dismissDelete}
         />
       )}
+    </>
+  );
+}
+
+function WebhookCard({
+  webhook,
+}: {
+  webhook: WebhookRecord;
+}): JSX.Element {
+  const controls = useWebhookEntryState(webhook);
+
+  return (
+    <>
+      <Card className="lg:hidden">
+        <CardHeader className="gap-3">
+          <div className="space-y-2">
+            <CardTitle className="break-all font-mono text-sm">{webhook.url}</CardTitle>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant={webhook.is_active ? 'default' : 'secondary'}>
+                {webhook.is_active ? 'Active' : 'Paused'}
+              </Badge>
+              <Badge variant="outline">{describeWebhookCoverage(webhook.event_types)}</Badge>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            {webhook.event_types.length > 0 ? (
+              webhook.event_types.map((eventType) => (
+                <Badge key={eventType} variant="outline" className="text-xs">
+                  {eventType}
+                </Badge>
+              ))
+            ) : (
+              <p className="text-sm text-muted">This endpoint receives all supported events.</p>
+            )}
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3 rounded-md border border-border/70 px-3 py-2">
+              <span className="text-sm font-medium">Active delivery</span>
+              <Switch
+                checked={webhook.is_active}
+                onCheckedChange={(checked) => controls.toggleMutation.mutate(checked)}
+                disabled={controls.toggleMutation.isPending}
+              />
+            </div>
+            <Button
+              variant="outline"
+              className="justify-start text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30 sm:justify-center"
+              onClick={controls.openDelete}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete Webhook
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      {controls.deleteTarget ? (
+        <DeleteWebhookDialog webhook={controls.deleteTarget} onClose={controls.dismissDelete} />
+      ) : null}
     </>
   );
 }
@@ -430,6 +554,7 @@ export function WebhooksPage(): JSX.Element {
   }
 
   const webhooks = Array.isArray(data) ? data : [];
+  const summaryCards = summarizeWebhookCollection(webhooks);
 
   return (
     <div className="p-6 space-y-6">
@@ -443,30 +568,55 @@ export function WebhooksPage(): JSX.Element {
         <CreateWebhookDialog />
       </div>
 
+      <div className="grid gap-4 md:grid-cols-3">
+        {summaryCards.map((summary) => (
+          <Card key={summary.label}>
+            <CardHeader className="space-y-1">
+              <p className="text-sm font-medium text-muted">{summary.label}</p>
+              <CardTitle className="text-2xl">{summary.value}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted">{summary.detail}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
       {webhooks.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-muted">
-          <Webhook className="h-12 w-12 mb-4" />
-          <p className="font-medium">No webhooks configured</p>
-          <p className="text-sm mt-1">
-            Add a webhook endpoint to receive event notifications.
-          </p>
-        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center text-muted">
+            <Webhook className="mb-4 h-12 w-12" />
+            <p className="font-medium">No webhooks configured</p>
+            <p className="mt-1 text-sm">
+              Add a webhook endpoint to receive event notifications.
+            </p>
+          </CardContent>
+        </Card>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>URL</TableHead>
-              <TableHead>Event Types</TableHead>
-              <TableHead>Active</TableHead>
-              <TableHead className="w-[180px] text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+        <>
+          <div className="space-y-4 lg:hidden">
             {webhooks.map((webhook) => (
-              <WebhookRow key={webhook.id} webhook={webhook} />
+              <WebhookCard key={webhook.id} webhook={webhook} />
             ))}
-          </TableBody>
-        </Table>
+          </div>
+          <div className="hidden overflow-x-auto lg:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>URL</TableHead>
+                  <TableHead>Event Types</TableHead>
+                  <TableHead>Active</TableHead>
+                  <TableHead className="w-[180px] text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {webhooks.map((webhook) => (
+                  <WebhookTableRow key={webhook.id} webhook={webhook} />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
     </div>
   );
