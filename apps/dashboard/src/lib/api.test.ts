@@ -1678,8 +1678,8 @@ describe('dashboard api auth/session behavior', () => {
     expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
       'http://localhost:8080/api/v1/workflows/pipe-1/documents/project_brief',
     );
-    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
-      'http://localhost:8080/api/v1/workflows/pipe-1/documents/project_brief',
+    expect(String(vi.mocked(fetcher).mock.calls[2][0])).toMatch(
+      /^http:\/\/localhost:8080\/api\/v1\/workflows\/pipe-1\/documents\/project_brief\?request_id=/,
     );
     expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
       'http://localhost:8080/api/v1/tasks/task-1/artifacts',
