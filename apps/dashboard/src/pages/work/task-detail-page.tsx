@@ -10,10 +10,8 @@ import {
   User,
   Cpu,
   Workflow,
-  FileText,
 } from 'lucide-react';
-import { dashboardApi, type DashboardTaskArtifactRecord } from '../../lib/api.js';
-import { buildArtifactPermalink } from '../../components/artifact-preview-support.js';
+import { dashboardApi } from '../../lib/api.js';
 import { StructuredRecordView } from '../../components/structured-data.js';
 import { LogViewer } from '../../components/log-viewer/log-viewer.js';
 import { Badge } from '../../components/ui/badge.js';
@@ -39,6 +37,7 @@ import {
   usesWorkItemOperatorFlow,
   usesWorkflowOperatorFlow,
 } from './task-operator-flow.js';
+import { TaskDetailArtifactsPanel } from './task-detail-artifacts-panel.js';
 
 interface Task {
   id: string;
@@ -133,12 +132,6 @@ function formatDuration(task: Task): string {
   const seconds = (end - start) / 1000;
   if (seconds < 60) return `${Math.round(seconds)}s`;
   return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function InfoCard({
@@ -712,52 +705,6 @@ function SignalListItem({ label, value }: { label: string; value: string }): JSX
   );
 }
 
-function ArtifactList({ taskId }: { taskId: string }): JSX.Element {
-  const { data, isLoading } = useQuery({
-    queryKey: ['task-artifacts', taskId],
-    queryFn: () => dashboardApi.listTaskArtifacts(taskId),
-  });
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center gap-2 py-4 text-sm text-muted">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Loading artifacts...
-      </div>
-    );
-  }
-
-  const artifacts: DashboardTaskArtifactRecord[] = data ?? [];
-
-  if (artifacts.length === 0) {
-    return <p className="text-sm text-muted">No artifacts produced by this task.</p>;
-  }
-
-  return (
-    <div className="space-y-2">
-      {artifacts.map((artifact) => (
-        <div
-          key={artifact.id}
-          className="flex items-center justify-between rounded-md border p-3"
-        >
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium">{artifact.logical_path}</p>
-            <p className="text-xs text-muted">
-              {artifact.content_type} &middot; {formatFileSize(artifact.size_bytes)}
-            </p>
-          </div>
-          <Button asChild variant="ghost" size="sm">
-            <Link to={buildArtifactPermalink(artifact.task_id, artifact.id)}>
-              <FileText className="h-4 w-4" />
-              Preview
-            </Link>
-          </Button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export function TaskDetailPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
 
@@ -880,7 +827,7 @@ export function TaskDetailPage(): JSX.Element {
               <CardTitle>Artifacts</CardTitle>
             </CardHeader>
             <CardContent>
-              <ArtifactList taskId={task.id} />
+              <TaskDetailArtifactsPanel taskId={task.id} />
             </CardContent>
           </Card>
         </TabsContent>
