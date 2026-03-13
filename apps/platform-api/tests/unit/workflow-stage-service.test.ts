@@ -141,4 +141,50 @@ describe('WorkflowStageService', () => {
       }),
     ]);
   });
+
+  it('does not mark an approved continuous stage as completed without work items', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 'workflow-1' }] })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              id: 'stage-1',
+              lifecycle: 'continuous',
+              name: 'review',
+              position: 1,
+              goal: 'Review',
+              guidance: null,
+              human_gate: true,
+              status: 'completed',
+              gate_status: 'approved',
+              iteration_count: 0,
+              summary: null,
+              started_at: new Date('2026-03-11T01:00:00Z'),
+              completed_at: new Date('2026-03-11T02:00:00Z'),
+              open_work_item_count: 0,
+              total_work_item_count: 0,
+              first_work_item_at: null,
+              last_completed_work_item_at: null,
+            },
+          ],
+        }),
+    };
+
+    const service = new WorkflowStageService(pool as never);
+    const stages = await service.listStages('tenant-1', 'workflow-1');
+
+    expect(stages).toEqual([
+      expect.objectContaining({
+        name: 'review',
+        status: 'pending',
+        is_active: false,
+        started_at: '2026-03-11T01:00:00.000Z',
+        completed_at: null,
+        total_work_item_count: 0,
+      }),
+    ]);
+  });
 });

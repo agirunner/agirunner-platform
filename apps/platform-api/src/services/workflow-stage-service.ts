@@ -218,7 +218,7 @@ function deriveContinuousStageStatus(row: WorkflowStageViewInput) {
   if (row.open_work_item_count > 0 || row.gate_status === 'changes_requested') {
     return 'active';
   }
-  if (row.total_work_item_count > 0 || row.gate_status === 'approved') {
+  if (row.total_work_item_count > 0) {
     return 'completed';
   }
   return 'pending';

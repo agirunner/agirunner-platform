@@ -310,7 +310,7 @@ function deriveContinuousStageStatus(
   if (openWorkItemCount > 0 || stage.gate_status === 'changes_requested') {
     return 'active';
   }
-  if (stageItems.length > 0 || stage.gate_status === 'approved') {
+  if (stageItems.length > 0) {
     return 'completed';
   }
   return 'pending';

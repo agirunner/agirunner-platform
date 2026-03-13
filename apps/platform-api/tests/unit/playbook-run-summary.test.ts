@@ -652,6 +652,68 @@ describe('buildPlaybookRunSummary', () => {
     expect(summary).not.toHaveProperty('chain');
   });
 
+  it('does not mark an approved continuous stage as completed without work items', () => {
+    const summary = buildPlaybookRunSummary({
+      workflow: {
+        id: 'wf-3',
+        name: 'Continuous approvals',
+        lifecycle: 'continuous',
+        state: 'active',
+        created_at: '2026-03-10T00:00:00.000Z',
+        started_at: '2026-03-10T00:05:00.000Z',
+        completed_at: null,
+        metadata: {},
+      },
+      tasks: [],
+      stages: [
+        {
+          name: 'review',
+          goal: 'Approve work',
+          human_gate: true,
+          status: 'completed',
+          gate_status: 'approved',
+          iteration_count: 0,
+          summary: 'Approved without work',
+          started_at: new Date('2026-03-10T00:10:00.000Z'),
+          completed_at: new Date('2026-03-10T00:20:00.000Z'),
+        },
+      ],
+      workItems: [],
+      events: [],
+      artifacts: [],
+      activations: [],
+      gates: [
+        {
+          id: 'gate-1',
+          stage_name: 'review',
+          status: 'approved',
+          request_summary: 'Ready',
+          recommendation: 'approve',
+          concerns: [],
+          key_artifacts: [],
+          requested_by_type: 'agent',
+          requested_by_id: 'agent-1',
+          requested_at: new Date('2026-03-10T00:12:00.000Z'),
+          decision_feedback: 'Approved',
+          decided_by_type: 'admin',
+          decided_by_id: 'admin-1',
+          decided_at: new Date('2026-03-10T00:18:00.000Z'),
+        },
+      ],
+    });
+
+    expect(summary.stage_activity).toEqual([
+      expect.objectContaining({
+        name: 'review',
+        status: 'pending',
+        total_work_item_count: 0,
+        open_work_item_count: 0,
+        completed_work_item_count: 0,
+        gate_status: 'approved',
+      }),
+    ]);
+  });
+
   it('redacts secret-bearing values from workflow summary packets', () => {
     const summary = buildPlaybookRunSummary({
       workflow: {
