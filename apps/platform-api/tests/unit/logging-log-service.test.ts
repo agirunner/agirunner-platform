@@ -16,6 +16,16 @@ function getPartitionCalls(pool: ReturnType<typeof createMockPool>) {
   );
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 describe('LogService', () => {
   describe('insert', () => {
     it('insertsLogEntryWithAllFields', async () => {
@@ -184,6 +194,81 @@ describe('LogService', () => {
 
       expect(getPartitionCalls(pool)).toHaveLength(1);
       expect(pool.query).toHaveBeenCalledTimes(3);
+    });
+
+    it('treats duplicate partition creation races as success', async () => {
+      const pool = createMockPool();
+      pool.query
+        .mockRejectedValueOnce(
+          Object.assign(new Error('relation "execution_logs_2026_03_13" already exists'), {
+            code: '42P07',
+          }),
+        )
+        .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+      const service = new LogService(pool as never);
+
+      await service.insert({
+        tenantId: 'tenant-1',
+        traceId: 'trace-1',
+        spanId: 'span-1',
+        source: 'platform',
+        category: 'api',
+        level: 'info',
+        operation: 'api.partition-race',
+        status: 'completed',
+        createdAt: '2026-03-13T11:28:01.888699Z',
+      });
+
+      expect(getPartitionCalls(pool)).toHaveLength(1);
+      expect(getInsertCall(pool)).toBeDefined();
+    });
+
+    it('deduplicates concurrent partition creation for the same date', async () => {
+      const deferred = createDeferred<{ rowCount: number; rows: never[] }>();
+      const pool = {
+        query: vi.fn(async (sql: unknown) => {
+          if (String(sql).includes('create_execution_logs_partition')) {
+            return deferred.promise;
+          }
+          return { rowCount: 1, rows: [] };
+        }),
+      };
+      const service = new LogService(pool as never);
+
+      const firstInsert = service.insert({
+        tenantId: 'tenant-1',
+        traceId: 'trace-1',
+        spanId: 'span-1',
+        source: 'platform',
+        category: 'api',
+        level: 'info',
+        operation: 'api.concurrent-first',
+        status: 'completed',
+        createdAt: '2026-03-13T11:28:01.888699Z',
+      });
+      const secondInsert = service.insert({
+        tenantId: 'tenant-1',
+        traceId: 'trace-2',
+        spanId: 'span-2',
+        source: 'platform',
+        category: 'api',
+        level: 'info',
+        operation: 'api.concurrent-second',
+        status: 'completed',
+        createdAt: '2026-03-13T12:28:01.888699Z',
+      });
+
+      await Promise.resolve();
+      expect(getPartitionCalls(pool as ReturnType<typeof createMockPool>)).toHaveLength(1);
+
+      deferred.resolve({ rowCount: 1, rows: [] });
+      await Promise.all([firstInsert, secondInsert]);
+
+      const insertCalls = pool.query.mock.calls.filter(([sql]) =>
+        String(sql).includes('INSERT INTO execution_logs'),
+      );
+      expect(insertCalls).toHaveLength(2);
+      expect(getPartitionCalls(pool as ReturnType<typeof createMockPool>)).toHaveLength(1);
     });
 
     it('retriesInsertAfterCreatingMissingPartition', async () => {

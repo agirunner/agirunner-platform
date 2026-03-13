@@ -191,6 +191,7 @@ export interface LogLevelFilter {
 export class LogService {
   private levelFilter: LogLevelFilter | null = null;
   private readonly ensuredPartitionDates = new Set<string>();
+  private readonly ensuringPartitionDates = new Map<string, Promise<void>>();
   constructor(private readonly pool: DatabasePool) {}
 
   /** Attach a write-side level filter. Entries below the tenant threshold are silently dropped. */
@@ -531,8 +532,31 @@ export class LogService {
     if (this.ensuredPartitionDates.has(partitionDate)) {
       return;
     }
-    await this.pool.query(`SELECT create_execution_logs_partition($1::date)`, [partitionDate]);
-    this.ensuredPartitionDates.add(partitionDate);
+    const existing = this.ensuringPartitionDates.get(partitionDate);
+    if (existing) {
+      await existing;
+      return;
+    }
+
+    const ensurePromise = this.createPartition(partitionDate);
+    this.ensuringPartitionDates.set(partitionDate, ensurePromise);
+
+    try {
+      await ensurePromise;
+      this.ensuredPartitionDates.add(partitionDate);
+    } finally {
+      this.ensuringPartitionDates.delete(partitionDate);
+    }
+  }
+
+  private async createPartition(partitionDate: string): Promise<void> {
+    try {
+      await this.pool.query(`SELECT create_execution_logs_partition($1::date)`, [partitionDate]);
+    } catch (error) {
+      if (!isDuplicateExecutionLogPartitionError(error)) {
+        throw error;
+      }
+    }
   }
 
   private applyFilters(conditions: string[], values: unknown[], filters: LogFilters): void {
@@ -762,6 +786,17 @@ function isMissingExecutionLogPartitionError(error: unknown): boolean {
     return false;
   }
   return error.message.includes('no partition of relation "execution_logs" found for row');
+}
+
+function isDuplicateExecutionLogPartitionError(error: unknown): boolean {
+  if (!isDatabaseError(error)) {
+    return false;
+  }
+  return error.code === '42P07' || error.message.includes('already exists');
+}
+
+function isDatabaseError(error: unknown): error is Error & { code?: string } {
+  return error instanceof Error;
 }
 
 function buildAgg(row: {
