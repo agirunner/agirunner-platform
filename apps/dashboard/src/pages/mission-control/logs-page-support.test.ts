@@ -79,7 +79,7 @@ describe('logs page support', () => {
     expect(cards[1]).toEqual({
       title: 'Attention',
       value: 'Healthy slice',
-      detail: 'llm.chat leads with 9 entries',
+      detail: 'LLM chat leads with 9 entries',
     });
   });
 });

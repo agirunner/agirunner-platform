@@ -147,7 +147,7 @@ export function WorkflowInspectorPage(): JSX.Element {
                 <div className="grid gap-1">
                   <div className="text-sm font-medium text-foreground">Trace coverage</div>
                   <p className="text-sm leading-6 text-muted">
-                    Follow activations, work items, gates, artifacts, and memory handoff without leaving the workflow inspector shell.
+                    Follow activations, work items, gate lanes, artifacts, memory handoff, and scoped log drill-ins without leaving the workflow inspector shell.
                   </p>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">

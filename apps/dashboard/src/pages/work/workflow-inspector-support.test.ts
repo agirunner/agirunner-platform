@@ -34,6 +34,16 @@ describe('workflow inspector support', () => {
             total_work_item_count: 2,
           },
         ],
+        work_items: [
+          {
+            id: 'work-item-1',
+            workflow_id: 'workflow-1',
+            stage_name: 'review',
+            title: 'Review release notes',
+            column_id: 'review',
+            priority: 'high',
+          },
+        ],
         activations: [
           {
             id: 'activation-1',
@@ -110,6 +120,21 @@ describe('workflow inspector support', () => {
         label: 'Board trace',
         href: '/work/workflows/workflow-1',
         detail: 'Open activations, work items, gates, and specialist steps in one board view.',
+      },
+      {
+        label: 'Activation drill-in',
+        href: '/work/workflows/workflow-1/inspector?view=detailed&activation=activation-1',
+        detail: 'Queued follow-up review work.',
+      },
+      {
+        label: 'Open work item',
+        href: '/work/workflows/workflow-1?work_item=work-item-1',
+        detail: 'Review release notes is still open in review.',
+      },
+      {
+        label: 'Gate review lane',
+        href: '/work/workflows/workflow-1?stage=review',
+        detail: 'review is carrying the current gate posture for this workflow.',
       },
       {
         label: 'Project memory',

@@ -20,6 +20,7 @@ describe('workflow inspector page source', () => {
     expect(source).toContain('Project Artifacts');
     expect(source).toContain('Highest reported stage spend');
     expect(source).toContain('Latest activation packet');
+    expect(source).toContain('gate lanes');
     expect(source).toContain('InspectorMetric');
     expect(source).toContain('buildWorkflowInspectorTraceModel');
     expect(source).toContain('TraceCoverageNote');

@@ -15,6 +15,8 @@ describe('execution inspector secondary surfaces', () => {
     expect(source).toContain('Operator packet');
     expect(source).toContain('Diagnostic payload');
     expect(source).toContain('Diagnostic handles');
+    expect(source).toContain('Recorded activity');
+    expect(source).toContain('Activity key');
     expect(source).toContain('Trace handle');
     expect(source).toContain('Span handle');
     expect(source).not.toContain('inspect raw payloads and identifiers');

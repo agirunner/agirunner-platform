@@ -1,6 +1,7 @@
 import type { LogOperationRecord, LogStatsResponse } from '../../lib/api.js';
 import type { InspectorFilters } from '../../components/execution-inspector-support.js';
 import {
+  describeExecutionOperationLabel,
   formatCost,
   formatDuration,
   formatNumber,
@@ -109,7 +110,7 @@ function describeAttentionDetail(
   if (!topOperation) {
     return 'No failing records in the current slice';
   }
-  return `${topOperation.operation} leads with ${formatNumber(topOperation.count)} entries`;
+  return `${describeExecutionOperationLabel(topOperation.operation)} leads with ${formatNumber(topOperation.count)} entries`;
 }
 
 function sumCost(stats?: LogStatsResponse): number {

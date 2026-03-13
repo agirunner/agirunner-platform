@@ -16,6 +16,7 @@ import { WorkflowBudgetCard } from '../../components/workflow-budget-card.js';
 import {
   buildLogFilters,
   DEFAULT_INSPECTOR_FILTERS,
+  describeExecutionOperationOption,
   type InspectorView,
   readInspectorFilters,
   readInspectorView,
@@ -294,7 +295,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
             filters={filters}
             operationOptions={(operationsQuery.data?.data ?? []).map((item) => ({
               value: item.operation,
-              label: item.operation,
+              label: describeExecutionOperationOption(item.operation),
             }))}
             roleOptions={(rolesQuery.data?.data ?? []).map((item) => ({
               value: item.role,

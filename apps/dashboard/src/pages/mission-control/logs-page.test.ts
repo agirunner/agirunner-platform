@@ -30,6 +30,7 @@ describe('execution inspector page source', () => {
     expect(source).toContain('dashboardApi.getWorkflowBudget(scopedWorkflowId)');
     expect(source).toContain('buildInspectorOverviewCards');
     expect(source).toContain('WorkflowBudgetCard');
+    expect(source).toContain('describeExecutionOperationOption');
     expect(source).toContain('context="inspector"');
     expect(source).toContain('selectedView !== \'raw\'');
     expect(source).toContain('LogViewer compact');

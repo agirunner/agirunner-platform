@@ -5,6 +5,7 @@ import { StructuredRecordView } from './structured-data.js';
 import {
   describeExecutionHeadline,
   describeExecutionNextAction,
+  describeExecutionOperationLabel,
   describeExecutionSummary,
   readExecutionSignals,
   shortId,
@@ -49,7 +50,9 @@ export function ExecutionInspectorDebugView(
               <InspectorMeta label="Origin">
                 {props.entry.source} / {props.entry.category}
               </InspectorMeta>
-              <InspectorMeta label="Recorded operation">{props.entry.operation}</InspectorMeta>
+              <InspectorMeta label="Recorded activity">
+                {describeExecutionOperationLabel(props.entry.operation)}
+              </InspectorMeta>
               {props.entry.resource_type || props.entry.resource_id ? (
                 <InspectorMeta label="Resource">
                   {props.entry.resource_type ?? 'resource'} {shortId(props.entry.resource_id)}
@@ -101,6 +104,7 @@ export function ExecutionInspectorDebugView(
               <div className="grid gap-3 md:grid-cols-2">
                 <InspectorMeta label="Trace handle">{props.entry.trace_id}</InspectorMeta>
                 <InspectorMeta label="Span handle">{props.entry.span_id}</InspectorMeta>
+                <InspectorMeta label="Activity key">{props.entry.operation}</InspectorMeta>
                 {props.entry.parent_span_id ? (
                   <InspectorMeta label="Parent span handle">
                     {props.entry.parent_span_id}

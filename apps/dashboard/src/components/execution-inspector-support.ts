@@ -30,6 +30,15 @@ export const DEFAULT_INSPECTOR_FILTERS: InspectorFilters = {
   timeWindowHours: '24',
 };
 
+const INSPECTOR_ACRONYMS: Record<string, string> = {
+  api: 'API',
+  git: 'Git',
+  llm: 'LLM',
+  qa: 'QA',
+  sse: 'SSE',
+  ui: 'UI',
+};
+
 const FILTER_PARAM_KEYS = {
   search: 'search',
   workflowId: 'workflow',
@@ -158,7 +167,7 @@ export function summarizeLogContext(entry: LogEntry): string[] {
 
 export function describeExecutionHeadline(entry: LogEntry): string {
   const subject = readExecutionSubject(entry);
-  const action = humanizeOperation(entry.operation);
+  const action = describeExecutionOperationLabel(entry.operation);
 
   if (entry.error?.message || entry.status === 'failed') {
     return `${subject} failed during ${action}`;
@@ -191,6 +200,26 @@ export function describeExecutionSummary(entry: LogEntry): string {
   return [scope || null, `Recorded by ${actor}`, origin ? `via ${origin}` : null]
     .filter((item): item is string => Boolean(item))
     .join(' • ');
+}
+
+export function describeExecutionOperationLabel(value: string): string {
+  const parts = value
+    .split('.')
+    .map((part) => humanizeToken(part))
+    .filter((part) => part.length > 0);
+  const visible = parts.length > 2 ? parts.slice(-2) : parts;
+  const sentence = visible.join(' ').trim();
+  return sentence.length > 0
+    ? sentence.charAt(0).toUpperCase() + sentence.slice(1)
+    : 'Activity';
+}
+
+export function describeExecutionOperationOption(value: string): string {
+  const label = describeExecutionOperationLabel(value);
+  if (value.trim().length === 0) {
+    return label;
+  }
+  return `${label} · ${value}`;
 }
 
 export function describeExecutionNextAction(entry: LogEntry): string {
@@ -327,20 +356,13 @@ function readExecutionSubject(entry: LogEntry): string {
   return 'Execution activity';
 }
 
-function humanizeOperation(value: string): string {
-  const parts = value
-    .split('.')
-    .map((part) => humanizeToken(part))
-    .filter((part) => part.length > 0);
-  const visible = parts.length > 2 ? parts.slice(-2) : parts;
-  const sentence = visible.join(' ').trim();
-  return sentence.length > 0
-    ? sentence.charAt(0).toUpperCase() + sentence.slice(1)
-    : 'activity';
-}
-
 function humanizeToken(value: string): string {
-  return value.replace(/[_-]+/g, ' ').trim();
+  return value
+    .replace(/[_-]+/g, ' ')
+    .trim()
+    .split(' ')
+    .map((part) => INSPECTOR_ACRONYMS[part.toLowerCase()] ?? part)
+    .join(' ');
 }
 
 function containsSignalKeyword(entry: LogEntry, needle: string): boolean {

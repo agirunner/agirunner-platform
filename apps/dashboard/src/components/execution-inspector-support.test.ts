@@ -5,6 +5,8 @@ import {
   DEFAULT_INSPECTOR_FILTERS,
   describeExecutionHeadline,
   describeExecutionNextAction,
+  describeExecutionOperationLabel,
+  describeExecutionOperationOption,
   describeExecutionSummary,
   readInspectorFilters,
   readInspectorView,
@@ -102,6 +104,13 @@ describe('execution inspector support', () => {
       'Work item',
       'Stage',
     ]);
+  });
+
+  it('humanizes execution activity labels for filters and summaries', () => {
+    expect(describeExecutionOperationLabel('task_lifecycle.workflow.activation_failed')).toBe(
+      'Workflow activation failed',
+    );
+    expect(describeExecutionOperationOption('tool.exec')).toBe('Tool exec · tool.exec');
   });
 
   it('reads and writes inspector filters from url search params', () => {

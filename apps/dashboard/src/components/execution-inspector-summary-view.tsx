@@ -8,7 +8,13 @@ import type {
 } from '../lib/api.js';
 import { Badge } from './ui/badge.js';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card.js';
-import { formatCost, formatDuration, formatNumber, topGroups } from './execution-inspector-support.js';
+import {
+  describeExecutionOperationLabel,
+  formatCost,
+  formatDuration,
+  formatNumber,
+  topGroups,
+} from './execution-inspector-support.js';
 
 interface ExecutionInspectorSummaryViewProps {
   stats?: LogStatsResponse;
@@ -71,8 +77,9 @@ export function ExecutionInspectorSummaryView(
           title="Top Operations"
           description="Most active execution paths"
           items={topGroups(props.operations, 10).map((item) => ({
-            label: item.operation,
+            label: describeExecutionOperationLabel(item.operation),
             count: item.count,
+            meta: item.operation,
           }))}
           isLoading={props.isLoading}
         />
