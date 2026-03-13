@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const sourceRoot =
   '/home/mark/codex/agirunner-platform/apps/platform-api/src';
+const apiRoutesRoot = path.join(sourceRoot, 'api', 'routes');
 const workflowRuntimePath = path.join(sourceRoot, 'orchestration', 'workflow-runtime.ts');
 const projectRunSummaryPath = path.join(sourceRoot, 'services', 'project-run-summary.ts');
 const projectTimelineSummaryLoaderPath = path.join(
@@ -31,8 +32,9 @@ describe('v2 runtime/summary legacy removal', () => {
     expect(existsSync(projectTimelineSummaryLoaderPath)).toBe(true);
   });
 
-  it('does not reintroduce template or phase summary markers in active orchestration or service code', () => {
+  it('does not reintroduce template or phase summary markers in active orchestration, service, or route code', () => {
     const files = [
+      ...readTypeScriptFiles(apiRoutesRoot),
       ...readTypeScriptFiles(path.join(sourceRoot, 'orchestration')),
       ...readTypeScriptFiles(path.join(sourceRoot, 'services')),
     ];
