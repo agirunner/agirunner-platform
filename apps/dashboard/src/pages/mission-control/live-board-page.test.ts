@@ -94,6 +94,8 @@ describe('live board page source', () => {
     expect(source).toContain('describeOrchestratorPool');
     expect(source).toContain('describeSpecialistPool');
     expect(source).toContain('describeRiskPosture');
+    expect(source).toContain('describeWorkflowStageLabel(workflow)');
+    expect(source).toContain('describeWorkflowStageSummary(workflow)');
     expect(source).toContain('formatRelativeTimestamp');
     expect(source).toContain('Compare board posture, pool pressure, progress, spend and tokens, and risk');
     expect(source).toContain('Each card highlights board posture first, then pool posture, progress, spend, and risk.');

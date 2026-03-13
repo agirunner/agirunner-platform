@@ -67,8 +67,8 @@ describe('live board support', () => {
         lifecycle: 'continuous',
         current_stage: 'legacy-stage',
       }),
-    ).toBe('--');
-    expect(describeWorkflowStage({})).toBe('--');
+    ).toBe('No live stages');
+    expect(describeWorkflowStage({})).toBe('No stage assigned');
   });
 
   it('prefers blocked and gate posture before generic active state', () => {

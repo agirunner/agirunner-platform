@@ -70,6 +70,10 @@ import {
   countReworkHeavySteps,
   countSpecialistReviewQueue,
 } from './live-board-support.js';
+import {
+  describeWorkflowStageLabel,
+  describeWorkflowStageSummary,
+} from './live-board-stage-presentation.js';
 
 interface WorkflowRecord {
   id: string;
@@ -1272,7 +1276,10 @@ function BoardSnapshotTable(props: {
                   <Badge variant={statusBadgeVariant(posture)}>{posture}</Badge>
                 </div>
                 <div className="grid gap-3 rounded-lg border border-border/60 bg-background/70 p-3 sm:grid-cols-2 xl:grid-cols-3">
-                  <SnapshotMetric label="Live stages" value={describeWorkflowStage(workflow)} />
+                  <SnapshotMetric
+                    label={describeWorkflowStageLabel(workflow)}
+                    value={describeWorkflowStage(workflow)}
+                  />
                   <SnapshotMetric label="Progress" value={describeBoardProgress(workflow)} />
                   <SnapshotMetric
                     label="Orchestrator pool"
@@ -1329,7 +1336,9 @@ function BoardSnapshotTable(props: {
                         >
                           {workflow.name}
                         </Link>
-                        <p className="text-xs text-muted">{describeWorkflowStage(workflow)}</p>
+                        <p className="text-xs text-muted">
+                          {describeWorkflowStageSummary(workflow)}
+                        </p>
                       </div>
                     </TableCell>
                     <TableCell className="align-top">
@@ -1430,7 +1439,10 @@ function ActivePlaybookBoards(props: {
                   </Badge>
                 </div>
                 <div className="grid gap-3 rounded-lg border border-border/60 bg-background/80 p-3 sm:grid-cols-2 xl:grid-cols-3">
-                  <SnapshotMetric label="Live stages" value={describeWorkflowStage(workflow)} />
+                  <SnapshotMetric
+                    label={describeWorkflowStageLabel(workflow)}
+                    value={describeWorkflowStage(workflow)}
+                  />
                   <SnapshotMetric label="Progress" value={describeBoardProgress(workflow)} />
                   <SnapshotMetric
                     label="Spend & tokens"

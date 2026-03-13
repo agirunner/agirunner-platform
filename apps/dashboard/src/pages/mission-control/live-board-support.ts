@@ -63,7 +63,7 @@ function readLiveStageNames(workflow: LiveBoardWorkflowRecord): string[] {
 export function describeWorkflowStage(workflow: LiveBoardWorkflowRecord): string {
   const liveStages = readLiveStageNames(workflow);
   if (workflow.lifecycle === 'continuous') {
-    return liveStages.length > 0 ? liveStages.join(', ') : '--';
+    return liveStages.length > 0 ? liveStages.join(', ') : 'No live stages';
   }
   if (workflow.current_stage) {
     return workflow.current_stage;
@@ -71,7 +71,7 @@ export function describeWorkflowStage(workflow: LiveBoardWorkflowRecord): string
   if (liveStages.length > 0) {
     return liveStages.join(', ');
   }
-  return '--';
+  return 'No stage assigned';
 }
 
 export function countOpenBoardItems(board?: DashboardWorkflowBoardResponse): number {
