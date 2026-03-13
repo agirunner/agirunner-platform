@@ -1,26 +1,26 @@
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Sparkles, Send, Check, User } from 'lucide-react';
-import { readSession } from '../../lib/session.js';
+import { Loader2, Send, Sparkles } from 'lucide-react';
+
 import { Button } from '../../components/ui/button.js';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { Input } from '../../components/ui/input.js';
-import { Card, CardContent } from '../../components/ui/card.js';
+import { readSession } from '../../lib/session.js';
+import {
+  ASSISTANT_STARTER_PROMPTS,
+  resolveSuggestionDestination,
+  summarizeAssistantSession,
+  type AssistantMessageRecord,
+  type ConfigSuggestion,
+} from './ai-config-assistant-page.support.js';
+import {
+  AssistantQuickPrompts,
+  AssistantSummaryCards,
+  ChatBubble,
+  SuggestionCard,
+} from './ai-config-assistant-page.sections.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
-
-interface AssistantMessage {
-  id: number;
-  role: 'user' | 'assistant';
-  content: string;
-  suggestions?: ConfigSuggestion[];
-}
-
-interface ConfigSuggestion {
-  path: string;
-  current_value?: string;
-  suggested_value: string;
-  description: string;
-}
 
 interface AssistantResponse {
   reply: string;
@@ -29,13 +29,10 @@ interface AssistantResponse {
 
 function authHeaders(): Record<string, string> {
   const session = readSession();
-  const headers: Record<string, string> = {
+  return {
     'Content-Type': 'application/json',
+    ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
   };
-  if (session?.accessToken) {
-    headers.Authorization = `Bearer ${session.accessToken}`;
-  }
-  return headers;
 }
 
 async function askAssistant(question: string): Promise<AssistantResponse> {
@@ -52,89 +49,16 @@ async function askAssistant(question: string): Promise<AssistantResponse> {
   return (body.data ?? body) as AssistantResponse;
 }
 
-function ChatBubble({ message }: { message: AssistantMessage }): JSX.Element {
-  const isUser = message.role === 'user';
-
-  return (
-    <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
-      {!isUser && (
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-accent/10">
-          <Sparkles className="h-4 w-4 text-accent" />
-        </div>
-      )}
-      <div
-        className={`max-w-[80%] rounded-lg px-4 py-2.5 text-sm ${
-          isUser
-            ? 'bg-accent text-white'
-            : 'border border-border bg-surface'
-        }`}
-      >
-        <p className="whitespace-pre-wrap">{message.content}</p>
-      </div>
-      {isUser && (
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-border">
-          <User className="h-4 w-4 text-muted" />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SuggestionCard({
-  suggestion,
-  onApply,
-  isApplied,
-}: {
-  suggestion: ConfigSuggestion;
-  onApply: () => void;
-  isApplied: boolean;
-}): JSX.Element {
-  return (
-    <Card className="border-accent/30">
-      <CardContent className="p-3 space-y-2">
-        <div className="flex items-center justify-between">
-          <code className="rounded bg-border/30 px-1.5 py-0.5 text-xs font-mono">
-            {suggestion.path}
-          </code>
-          <Button
-            size="sm"
-            variant={isApplied ? 'outline' : 'default'}
-            className="h-7 px-2 text-xs"
-            disabled={isApplied}
-            onClick={onApply}
-          >
-            {isApplied ? (
-              <>
-                <Check className="h-3 w-3" />
-                Applied
-              </>
-            ) : (
-              'Apply'
-            )}
-          </Button>
-        </div>
-        <p className="text-xs text-muted-foreground">{suggestion.description}</p>
-        {suggestion.current_value && (
-          <div className="text-xs">
-            <span className="text-muted-foreground">Current: </span>
-            <code className="text-red-600">{suggestion.current_value}</code>
-          </div>
-        )}
-        <div className="text-xs">
-          <span className="text-muted-foreground">Suggested: </span>
-          <code className="text-green-600">{suggestion.suggested_value}</code>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 export function AiConfigAssistantPage(): JSX.Element {
-  const [messages, setMessages] = useState<AssistantMessage[]>([]);
+  const [messages, setMessages] = useState<AssistantMessageRecord[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [appliedSuggestions, setAppliedSuggestions] = useState<Set<string>>(new Set());
+  const [reviewedSuggestions, setReviewedSuggestions] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const nextIdRef = useRef(0);
+  const summaryCards = useMemo(
+    () => summarizeAssistantSession(messages, reviewedSuggestions.size),
+    [messages, reviewedSuggestions],
+  );
 
   const mutation = useMutation({
     mutationFn: askAssistant,
@@ -167,97 +91,137 @@ export function AiConfigAssistantPage(): JSX.Element {
     }
   }, [messages]);
 
-  function handleSend(): void {
-    const question = inputValue.trim();
-    if (!question) return;
-
+  function sendQuestion(question: string): void {
+    const trimmed = question.trim();
+    if (!trimmed) {
+      return;
+    }
     setMessages((prev) => [
       ...prev,
-      { id: nextIdRef.current++, role: 'user', content: question },
+      { id: nextIdRef.current++, role: 'user', content: trimmed },
     ]);
     setInputValue('');
-    mutation.mutate(question);
-  }
-
-  function handleApplySuggestion(suggestion: ConfigSuggestion): void {
-    setAppliedSuggestions((prev) => new Set([...prev, suggestion.path]));
+    mutation.mutate(trimmed);
   }
 
   return (
-    <div className="flex h-[calc(100vh-6rem)] flex-col p-6">
-      <div className="mb-4">
-        <h1 className="flex items-center gap-2 text-2xl font-semibold">
-          <Sparkles className="h-6 w-6" />
-          AI Config Assistant
-        </h1>
-        <p className="text-sm text-muted">
-          Ask questions about platform configuration and get suggestions grounded in the current runtime and playbook model.
-        </p>
-      </div>
-
-      <div
-        ref={scrollRef}
-        className="flex-1 space-y-4 overflow-y-auto rounded-lg border border-border bg-surface/50 p-4"
-      >
-        {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-12 text-muted">
-            <Sparkles className="mb-3 h-10 w-10" />
-            <p className="font-medium">How can I help with your configuration?</p>
-            <p className="mt-1 text-sm">
-              Ask about LLM providers, runtime settings, playbooks, work items, and operator controls.
-            </p>
-          </div>
-        )}
-
-        {messages.map((msg) => (
-          <div key={msg.id} className="space-y-2">
-            <ChatBubble message={msg} />
-            {msg.suggestions && msg.suggestions.length > 0 && (
-              <div className="ml-11 space-y-2">
-                {msg.suggestions.map((suggestion) => (
-                  <SuggestionCard
-                    key={suggestion.path}
-                    suggestion={suggestion}
-                    isApplied={appliedSuggestions.has(suggestion.path)}
-                    onApply={() => handleApplySuggestion(suggestion)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-
-        {mutation.isPending && (
-          <div className="flex gap-3">
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-accent/10">
-              <Sparkles className="h-4 w-4 animate-pulse text-accent" />
+    <div className="space-y-6 p-6">
+      <Card>
+        <CardHeader className="gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-accent" />
+              <CardTitle className="text-2xl">AI Config Assistant</CardTitle>
             </div>
-            <div className="rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-muted-foreground">
-              Thinking...
-            </div>
+            <CardDescription className="max-w-3xl text-sm leading-6">
+              Ask configuration questions, get advisory suggestions grounded in the current runtime and playbook model, and open the matching settings surfaces to review them.
+            </CardDescription>
           </div>
-        )}
-      </div>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={mutation.isPending}
+            onClick={() => sendQuestion(ASSISTANT_STARTER_PROMPTS[0]?.prompt ?? '')}
+          >
+            <Sparkles className="h-4 w-4" />
+            Run quick audit
+          </Button>
+        </CardHeader>
+      </Card>
 
-      <form
-        className="mt-3 flex items-center gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSend();
-        }}
-      >
-        <Input
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Ask about configuration..."
-          disabled={mutation.isPending}
-          className="flex-1"
-        />
-        <Button type="submit" disabled={mutation.isPending || !inputValue.trim()}>
-          <Send className="h-4 w-4" />
-          Send
-        </Button>
-      </form>
+      <AssistantSummaryCards cards={summaryCards} />
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <Card className="border-border/70 shadow-sm">
+          <CardHeader className="space-y-2">
+            <CardTitle>Assistant session</CardTitle>
+            <CardDescription>
+              Suggestions are advisory only. Review the linked configuration page before making changes.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div
+              ref={scrollRef}
+              className="space-y-4 overflow-y-auto rounded-lg border border-border bg-surface/50 p-4"
+              style={{ maxHeight: 'min(60vh, 700px)' }}
+            >
+              {messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center text-muted">
+                  <Sparkles className="mb-3 h-10 w-10" />
+                  <p className="font-medium text-foreground">How can I help with your configuration?</p>
+                  <p className="mt-1 max-w-xl text-sm leading-6">
+                    Start with a quick audit or ask about runtimes, providers, playbooks, integrations, work items, and operator controls.
+                  </p>
+                </div>
+              ) : null}
+
+              {messages.map((message) => (
+                <div key={message.id} className="space-y-2">
+                  <ChatBubble message={message} />
+                  {message.suggestions?.length ? (
+                    <div className="ml-0 space-y-2 md:ml-11">
+                      {message.suggestions.map((suggestion) => {
+                        const destination = resolveSuggestionDestination(suggestion.path);
+                        return (
+                          <SuggestionCard
+                            key={`${message.id}-${suggestion.path}`}
+                            suggestion={suggestion}
+                            isReviewed={reviewedSuggestions.has(suggestion.path)}
+                            destinationHref={destination?.href}
+                            destinationLabel={destination?.label}
+                            onMarkReviewed={() =>
+                              setReviewedSuggestions((current) => new Set([...current, suggestion.path]))
+                            }
+                          />
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+
+              {mutation.isPending ? (
+                <div className="flex gap-3">
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-accent/10">
+                    <Sparkles className="h-4 w-4 animate-pulse text-accent" />
+                  </div>
+                  <div className="rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-muted">
+                    Thinking through the configuration state...
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <form
+              className="flex flex-col gap-2 sm:flex-row"
+              onSubmit={(event) => {
+                event.preventDefault();
+                sendQuestion(inputValue);
+              }}
+            >
+              <Input
+                value={inputValue}
+                onChange={(event) => setInputValue(event.target.value)}
+                placeholder="Ask about runtime defaults, model posture, playbooks, or integrations..."
+                disabled={mutation.isPending}
+                className="flex-1"
+              />
+              <Button type="submit" disabled={mutation.isPending || !inputValue.trim()}>
+                {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                Send
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-6">
+          <AssistantQuickPrompts
+            prompts={ASSISTANT_STARTER_PROMPTS}
+            disabled={mutation.isPending}
+            onSelect={sendQuestion}
+          />
+        </div>
+      </div>
     </div>
   );
 }
