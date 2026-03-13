@@ -6,6 +6,7 @@ import {
   buildWorkflowItems,
   describeAgentOption,
   describeSelectedAgent,
+  describeSelectedWorkflow,
   describeWorkflowOption,
   findAgent,
   findWorkflow,
@@ -14,6 +15,7 @@ import {
   normalizeGrantFilters,
   permissionVariant,
   readGrantFilters,
+  sortGrants,
   sortWorkflows,
   sortAgents,
   summarizeGrants,
@@ -157,6 +159,12 @@ describe('orchestrator grants support', () => {
     ]);
     expect(findWorkflow(sorted, 'workflow-2')?.name).toBe('Zulu Run');
     expect(findWorkflow(sorted, 'missing')).toBeNull();
+    expect(describeSelectedWorkflow(sorted[1])).toEqual([
+      { label: 'State', value: 'active' },
+      { label: 'Project', value: 'Project Z' },
+      { label: 'Playbook', value: 'Incident' },
+      { label: 'Lifecycle', value: 'continuous' },
+    ]);
   });
 
   it('reads and writes grant filters through URL search params', () => {
@@ -180,5 +188,45 @@ describe('orchestrator grants support', () => {
     });
     expect(hasGrantFilters({ workflowId: null, agentId: 'agent-2' })).toBe(true);
     expect(hasGrantFilters({ workflowId: null, agentId: null })).toBe(false);
+  });
+
+  it('sorts elevated grants first before falling back to newest creation time', () => {
+    const grants: OrchestratorGrant[] = [
+      {
+        id: 'grant-read',
+        workflow_id: 'workflow-a',
+        agent_id: 'agent-a',
+        permissions: ['read'],
+        created_at: '2026-03-10T00:00:00.000Z',
+      },
+      {
+        id: 'grant-write',
+        workflow_id: 'workflow-a',
+        agent_id: 'agent-a',
+        permissions: ['write'],
+        created_at: '2026-03-09T00:00:00.000Z',
+      },
+      {
+        id: 'grant-execute',
+        workflow_id: 'workflow-a',
+        agent_id: 'agent-a',
+        permissions: ['execute'],
+        created_at: '2026-03-08T00:00:00.000Z',
+      },
+      {
+        id: 'grant-read-new',
+        workflow_id: 'workflow-a',
+        agent_id: 'agent-a',
+        permissions: ['read'],
+        created_at: '2026-03-12T00:00:00.000Z',
+      },
+    ];
+
+    expect(sortGrants(grants).map((grant) => grant.id)).toEqual([
+      'grant-execute',
+      'grant-write',
+      'grant-read-new',
+      'grant-read',
+    ]);
   });
 });

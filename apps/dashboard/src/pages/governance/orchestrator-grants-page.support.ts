@@ -75,6 +75,16 @@ export function findWorkflow(
   return workflows.find((workflow) => workflow.id === workflowId) ?? null;
 }
 
+export function sortGrants(grants: OrchestratorGrant[]): OrchestratorGrant[] {
+  return [...grants].sort((left, right) => {
+    const permissionOrder = grantRiskWeight(right.permissions) - grantRiskWeight(left.permissions);
+    if (permissionOrder !== 0) {
+      return permissionOrder;
+    }
+    return right.created_at.localeCompare(left.created_at);
+  });
+}
+
 export function agentDisplayName(agent: DashboardAgentRecord): string {
   return agent.name?.trim() || agent.id;
 }
@@ -122,6 +132,28 @@ export function describeSelectedAgent(agent: DashboardAgentRecord | null): Array
   }
   if (agent.capabilities && agent.capabilities.length > 0) {
     details.push({ label: 'Capabilities', value: agent.capabilities.join(', ') });
+  }
+  return details;
+}
+
+export function describeSelectedWorkflow(
+  workflow: DashboardWorkflowRecord | null,
+): Array<{ label: string; value: string }> {
+  if (!workflow) {
+    return [];
+  }
+
+  const details: Array<{ label: string; value: string }> = [
+    { label: 'State', value: workflow.state || 'unknown' },
+  ];
+  if (workflow.project_name) {
+    details.push({ label: 'Project', value: workflow.project_name });
+  }
+  if (workflow.playbook_name) {
+    details.push({ label: 'Playbook', value: workflow.playbook_name });
+  }
+  if (workflow.lifecycle) {
+    details.push({ label: 'Lifecycle', value: workflow.lifecycle });
   }
   return details;
 }
@@ -216,6 +248,19 @@ export function permissionVariant(
     return 'success';
   }
   return 'secondary';
+}
+
+function grantRiskWeight(permissions: string[]): number {
+  if (permissions.includes('execute')) {
+    return 3;
+  }
+  if (permissions.includes('write')) {
+    return 2;
+  }
+  if (permissions.includes('read')) {
+    return 1;
+  }
+  return 0;
 }
 
 function normalizeAgentStatus(status: string | null | undefined): string {

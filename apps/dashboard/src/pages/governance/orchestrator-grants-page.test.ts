@@ -28,26 +28,27 @@ describe('orchestrator grants page source', () => {
     expect(source).toContain('All agents');
     expect(source).toContain('Clear filters');
     expect(source).toContain('SearchableCombobox');
-    expect(source).toContain('SelectTrigger');
-    expect(source).toContain('SelectItem');
+    expect(source).toContain('Retry workflow inventory');
     expect(source).not.toContain('<select');
     expect(source).not.toContain('placeholder="agent-uuid"');
     expect(source).not.toContain('Agent ID');
     expect(source).not.toContain('Permissions (comma-separated)');
   });
 
-  it('renders summary packets, responsive cards, and loading or recovery states for inventory-backed flows', () => {
+  it('renders summary packets, responsive cards, and typed destructive review states for inventory-backed flows', () => {
     const source = readSource();
     expect(source).toContain('Grant coverage');
     expect(source).toContain('grid gap-3 lg:hidden');
     expect(source).toContain('hidden lg:block');
     expect(source).toContain('Filter visible grants');
     expect(source).toContain('No grants match the current filters');
-    expect(source).toContain('max-h-[80vh] max-w-3xl overflow-y-auto');
+    expect(source).toContain('max-h-[calc(100vh-4rem)] max-w-4xl overflow-y-auto');
     expect(source).toContain('Revoke grant');
     expect(source).toContain('Loading agents from the live inventory');
     expect(source).toContain('Retry agent inventory');
     expect(source).toContain('No registered agents are available for grants yet');
     expect(source).toContain('Selected agent');
+    expect(source).toContain('Selected workflow');
+    expect(source).toContain('Confirm by typing {expectedValue}');
   });
 });

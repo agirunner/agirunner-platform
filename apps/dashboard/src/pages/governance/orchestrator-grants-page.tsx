@@ -16,21 +16,26 @@ import {
   buildAgentItems,
   buildWorkflowItems,
   fetchGrants,
+  findAgent,
+  findWorkflow,
   hasGrantFilters,
   readGrantFilters,
   revokeGrant,
+  sortGrants,
   sortAgents,
   sortWorkflows,
   summarizeGrants,
   writeGrantFilters,
 } from './orchestrator-grants-page.support.js';
 import { GrantsTableSection } from './orchestrator-grants-page.table.js';
-import { CreateGrantDialog } from './orchestrator-grants-page.dialog.js';
+import { CreateGrantDialog, RevokeGrantDialog } from './orchestrator-grants-page.dialog.js';
+import { toast } from '../../lib/toast.js';
 
 export function OrchestratorGrantsPage(): JSX.Element {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [revokeTargetId, setRevokeTargetId] = useState<string | null>(null);
   const filters = readGrantFilters(searchParams);
   const grantsQuery = useQuery({
     queryKey: ['orchestrator-grants', filters.workflowId, filters.agentId],
@@ -50,7 +55,12 @@ export function OrchestratorGrantsPage(): JSX.Element {
   const revokeMutation = useMutation({
     mutationFn: revokeGrant,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orchestrator-grants'] });
+      void queryClient.invalidateQueries({ queryKey: ['orchestrator-grants'] });
+      setRevokeTargetId(null);
+      toast.success('Grant revoked');
+    },
+    onError: () => {
+      toast.error('Failed to revoke grant');
     },
   });
 
@@ -62,10 +72,11 @@ export function OrchestratorGrantsPage(): JSX.Element {
     return <GrantsErrorState error={grantsQuery.error} />;
   }
 
-  const grants = grantsQuery.data ?? [];
+  const grants = sortGrants(grantsQuery.data ?? []);
   const hasFiltersApplied = hasGrantFilters(filters);
   const agents = sortAgents(agentsQuery.data ?? []);
   const workflows = sortWorkflows(workflowsQuery.data?.data ?? []);
+  const revokeTarget = grants.find((grant) => grant.id === revokeTargetId) ?? null;
 
   function updateFilters(nextFilters: Partial<typeof filters>): void {
     setSearchParams(
@@ -106,11 +117,24 @@ export function OrchestratorGrantsPage(): JSX.Element {
       ) : (
         <GrantsTableSection
           grants={grants}
+          agents={agents}
+          workflows={workflows}
           isRevoking={revokeMutation.isPending}
-          onRevoke={(grantId) => revokeMutation.mutate(grantId)}
+          onRevoke={(grantId) => setRevokeTargetId(grantId)}
         />
       )}
       <CreateGrantDialog isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
+      {revokeTarget ? (
+        <RevokeGrantDialog
+          isOpen
+          onClose={() => setRevokeTargetId(null)}
+          grant={revokeTarget}
+          agent={findAgent(agents, revokeTarget.agent_id)}
+          workflow={findWorkflow(workflows, revokeTarget.workflow_id)}
+          isRevoking={revokeMutation.isPending}
+          onConfirm={(grantId) => revokeMutation.mutateAsync(grantId)}
+        />
+      ) : null}
     </div>
   );
 }
