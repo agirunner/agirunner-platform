@@ -35,6 +35,9 @@ export function WorkItemEventHistorySection(props: {
   }
 
   const overview = buildWorkItemHistoryOverview(props.events);
+  const focusLabel = normalizeDisplayText(overview.focusLabel) ?? 'Latest activity';
+  const focusDetail =
+    normalizeDisplayText(overview.focusDetail) ?? 'Latest activity is ready for operator review.';
 
   return (
     <section className="grid gap-4 rounded-xl border border-border/70 bg-surface p-4 shadow-sm">
@@ -54,10 +57,10 @@ export function WorkItemEventHistorySection(props: {
             Latest operator signal
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="text-sm font-semibold text-foreground">{overview.focusLabel}</div>
-            <Badge variant={overview.focusTone}>{overview.focusLabel}</Badge>
+            <div className="text-sm font-semibold text-foreground">{focusLabel}</div>
+            <Badge variant={overview.focusTone}>{focusLabel}</Badge>
           </div>
-          <p className="text-sm leading-6 text-muted">{overview.focusDetail}</p>
+          <p className="text-sm leading-6 text-muted">{focusDetail}</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:w-[28rem]">
           {overview.metrics.map((metric) => (
@@ -66,10 +69,14 @@ export function WorkItemEventHistorySection(props: {
               className="grid gap-1 rounded-xl border border-border/70 bg-background/80 p-4"
             >
               <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
-                {metric.label}
+                {normalizeDisplayText(metric.label) ?? 'Metric'}
               </div>
-              <div className="text-sm font-semibold text-foreground">{metric.value}</div>
-              <div className="text-xs leading-5 text-muted">{metric.detail}</div>
+              <div className="text-sm font-semibold text-foreground">
+                {normalizeDisplayText(metric.value) ?? '—'}
+              </div>
+              <div className="text-xs leading-5 text-muted">
+                {normalizeDisplayText(metric.detail) ?? 'No operator detail available.'}
+              </div>
             </div>
           ))}
         </div>
@@ -78,6 +85,17 @@ export function WorkItemEventHistorySection(props: {
       <ul className="grid gap-3" data-testid="work-item-history-list">
         {props.events.map((event) => {
           const packet = buildWorkItemHistoryPacket(event);
+          const headline = normalizeDisplayText(packet.headline) ?? 'Recorded activity';
+          const summary = normalizeDisplayText(packet.summary);
+          const scopeSummary = normalizeDisplayText(packet.scopeSummary);
+          const emphasisLabel = normalizeDisplayText(packet.emphasisLabel) ?? 'Activity';
+          const signalBadges = normalizeDisplayList(packet.signalBadges);
+          const stageName = normalizeDisplayText(packet.stageName);
+          const actor = normalizeDisplayText(packet.actor);
+          const workItemId = normalizeDisplayText(packet.workItemId);
+          const taskId = normalizeDisplayText(packet.taskId);
+          const createdAtLabel = normalizeDisplayText(packet.createdAtLabel) ?? 'recently';
+          const createdAtTitle = normalizeDisplayText(packet.createdAtTitle) ?? createdAtLabel;
           return (
             <li
               key={packet.id}
@@ -86,37 +104,37 @@ export function WorkItemEventHistorySection(props: {
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="grid gap-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <strong>{packet.headline}</strong>
-                    <Badge variant={packet.emphasisTone}>{packet.emphasisLabel}</Badge>
+                    <strong>{headline}</strong>
+                    <Badge variant={packet.emphasisTone}>{emphasisLabel}</Badge>
                   </div>
-                  {packet.summary ? <p className="text-sm leading-6 text-muted">{packet.summary}</p> : null}
-                  {packet.scopeSummary ? (
-                    <p className="text-xs leading-5 text-muted">{packet.scopeSummary}</p>
+                  {summary ? <p className="text-sm leading-6 text-muted">{summary}</p> : null}
+                  {scopeSummary ? (
+                    <p className="text-xs leading-5 text-muted">{scopeSummary}</p>
                   ) : null}
                 </div>
-                <div className="text-xs text-muted" title={packet.createdAtTitle}>
-                  {packet.createdAtLabel}
+                <div className="text-xs text-muted" title={createdAtTitle}>
+                  {createdAtLabel}
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {packet.signalBadges.map((badge) => (
+                {signalBadges.map((badge) => (
                   <Badge key={`${packet.id}:${badge}`} variant="outline">
                     {badge}
                   </Badge>
                 ))}
-                {packet.stageName ? <Badge variant="outline">{packet.stageName}</Badge> : null}
-                {packet.actor ? <Badge variant="outline">{packet.actor}</Badge> : null}
-                {packet.workItemId ? (
-                  <Badge variant="outline">work item {packet.workItemId.slice(0, 8)}</Badge>
+                {stageName ? <Badge variant="outline">{stageName}</Badge> : null}
+                {actor ? <Badge variant="outline">{actor}</Badge> : null}
+                {workItemId ? (
+                  <Badge variant="outline">work item {workItemId.slice(0, 8)}</Badge>
                 ) : null}
-                {packet.taskId ? <Badge variant="outline">step {packet.taskId.slice(0, 8)}</Badge> : null}
+                {taskId ? <Badge variant="outline">step {taskId.slice(0, 8)}</Badge> : null}
               </div>
 
               <div className="flex flex-wrap gap-2">
-                {packet.taskId ? (
+                {taskId ? (
                   <Button asChild variant="outline" size="sm">
-                    <Link to={`/work/tasks/${packet.taskId}`}>Open linked step</Link>
+                    <Link to={`/work/tasks/${taskId}`}>Open linked step</Link>
                   </Button>
                 ) : null}
               </div>
@@ -133,6 +151,62 @@ export function WorkItemEventHistorySection(props: {
       </ul>
     </section>
   );
+}
+
+function normalizeDisplayList(values: readonly unknown[]): string[] {
+  return values
+    .map((value) => normalizeDisplayText(value))
+    .filter((value): value is string => Boolean(value));
+}
+
+function normalizeDisplayText(value: unknown, depth = 0): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    const entries = normalizeDisplayList(value);
+    return entries.length > 0 ? entries.join(', ') : null;
+  }
+  const record = asRecord(value);
+  if (depth < 2) {
+    const preferredValues = [
+      record.label,
+      record.title,
+      record.name,
+      record.summary,
+      record.message,
+      record.id,
+      record.count,
+    ];
+    for (const preferredValue of preferredValues) {
+      const normalized = normalizeDisplayText(preferredValue, depth + 1);
+      if (normalized) {
+        return normalized;
+      }
+    }
+  }
+  const keys = Object.keys(record);
+  if (keys.length === 0) {
+    return null;
+  }
+  return `Structured ${humanizeDisplayKey(keys[0])}`;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function humanizeDisplayKey(value: string): string {
+  return value
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function StructuredValueReview(props: {

@@ -1,10 +1,18 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router-dom';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 function readSource() {
   return readFileSync(resolve(import.meta.dirname, './workflow-work-item-history-section.tsx'), 'utf8');
 }
+
+afterEach(() => {
+  vi.doUnmock('./workflow-work-item-history-support.js');
+  vi.resetModules();
+});
 
 describe('workflow work-item history section source', () => {
   it('renders operator history packets with overview metrics and linked-step drill-ins', () => {
@@ -21,5 +29,98 @@ describe('workflow work-item history section source', () => {
     expect(source).toContain('Open linked step');
     expect(source).toContain('Operator review packet');
     expect(source).toContain('Open full event payload');
+  });
+
+  it('serializes object-valued event history fields instead of rendering raw objects', async () => {
+    vi.doMock('./workflow-work-item-history-support.js', () => ({
+      buildWorkItemHistoryOverview: (events: Array<{ data?: Record<string, unknown> }>) => ({
+        focusLabel: events[0]?.data?.status_label ?? { label: 'Needs review' },
+        focusTone: 'warning',
+        focusDetail: events[0]?.data?.focus_detail ?? { message: 'Inspect the gate packet first.' },
+        metrics: [
+          {
+            label: events[0]?.data?.metric_label ?? { label: 'Activity packets' },
+            value: events[0]?.data?.metric_value ?? { count: 3 },
+            detail: events[0]?.data?.metric_detail ?? { message: 'Newest activity is listed first.' },
+          },
+        ],
+      }),
+      buildWorkItemHistoryPacket: (event: { data?: Record<string, unknown> }) => ({
+        id: 'event-1',
+        headline: event.data?.headline ?? { title: 'Gate review requested' },
+        summary: event.data?.summary ?? { message: 'Operator approval is required.' },
+        scopeSummary: event.data?.scope_summary ?? { label: 'Stage qa' },
+        emphasisLabel: event.data?.emphasis_label ?? { label: 'Gate review' },
+        emphasisTone: 'warning',
+        signalBadges: event.data?.signal_badges ?? [{ label: 'awaiting review' }, { name: 'qa' }],
+        stageName: event.data?.stage_badge ?? { name: 'qa' },
+        workItemId: event.data?.work_item_badge ?? { id: 'workitem-12345678' },
+        taskId: event.data?.task_badge ?? { id: 'task-abcdef12' },
+        actor: event.data?.actor_badge ?? { label: 'Agent agent-7' },
+        createdAtLabel: event.data?.created_label ?? { label: '5m ago' },
+        createdAtTitle: event.data?.created_title ?? { label: '2026-03-13T00:00:00Z' },
+        payload: event.data?.payload ?? {
+          recommendation: {
+            summary: 'Hold for operator sign-off',
+          },
+        },
+      }),
+    }));
+
+    const { WorkItemEventHistorySection } = await import('./workflow-work-item-history-section.js');
+    const markup = renderToStaticMarkup(
+      createElement(
+        MemoryRouter,
+        null,
+        createElement(WorkItemEventHistorySection, {
+          isLoading: false,
+          hasError: false,
+          events: [
+            {
+              id: 'event-1',
+              type: 'stage.gate_requested',
+              entity_type: 'work_item',
+              entity_id: 'workitem-12345678',
+              actor_type: 'agent',
+              actor_id: 'agent-7',
+              created_at: '2026-03-13T00:00:00Z',
+              data: {
+                status_label: { label: 'Needs review' },
+                focus_detail: { message: 'Inspect the gate packet first.' },
+                metric_label: { label: 'Activity packets' },
+                metric_value: { count: 3 },
+                metric_detail: { message: 'Newest activity is listed first.' },
+                headline: { title: 'Gate review requested' },
+                summary: { message: 'Operator approval is required.' },
+                scope_summary: { label: 'Stage qa' },
+                emphasis_label: { label: 'Gate review' },
+                signal_badges: [{ label: 'awaiting review' }, { name: 'qa' }],
+                stage_badge: { name: 'qa' },
+                work_item_badge: { id: 'workitem-12345678' },
+                task_badge: { id: 'task-abcdef12' },
+                actor_badge: { label: 'Agent agent-7' },
+                created_label: { label: '5m ago' },
+                created_title: { label: '2026-03-13T00:00:00Z' },
+                payload: {
+                  recommendation: {
+                    summary: 'Hold for operator sign-off',
+                  },
+                },
+              },
+            },
+          ],
+        }),
+      ),
+    );
+
+    expect(markup).toContain('Needs review');
+    expect(markup).toContain('Inspect the gate packet first.');
+    expect(markup).toContain('Gate review requested');
+    expect(markup).toContain('Operator approval is required.');
+    expect(markup).toContain('Gate review');
+    expect(markup).toContain('awaiting review');
+    expect(markup).toContain('5m ago');
+    expect(markup).toContain('work item workitem');
+    expect(markup).not.toContain('[object Object]');
   });
 });
