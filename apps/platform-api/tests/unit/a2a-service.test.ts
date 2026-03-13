@@ -84,14 +84,14 @@ describe('a2a service mapping', () => {
           api_key: 'redacted://a2a-secret',
           nested: {
             authorization: 'redacted://a2a-secret',
-            secret_ref: 'secret:SAFE_REF',
+            secret_ref: 'redacted://a2a-secret',
           },
         },
         metadata: expect.objectContaining({
           protocol_ingress: {
             protocol: 'a2a',
             external_task_id: 'external-1',
-            secret_ref: 'secret:SAFE_REF',
+            secret_ref: 'redacted://a2a-secret',
           },
         }),
       }),
@@ -117,7 +117,7 @@ describe('a2a service mapping', () => {
           access_token: 'redacted://a2a-secret',
           nested: {
             password: 'redacted://a2a-secret',
-            token_ref: 'secret:SAFE_REF',
+            token_ref: 'redacted://a2a-secret',
           },
         },
       }),

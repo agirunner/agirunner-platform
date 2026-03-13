@@ -67,7 +67,7 @@ export function mapA2ATaskToCreateInput(task: A2ATaskPayload): CreateTaskInput {
 export function buildA2ATaskResponse(task: Record<string, unknown>) {
   const metadata = sanitizeSecretLikeRecord(
     asRecord(task.metadata).protocol_ingress ? { protocol_ingress: asRecord(task.metadata).protocol_ingress } : {},
-    { redactionValue: 'redacted://a2a-secret' },
+    { redactionValue: 'redacted://a2a-secret', allowSecretReferences: false },
   );
   return {
     id: String(task.id),
@@ -75,7 +75,10 @@ export function buildA2ATaskResponse(task: Record<string, unknown>) {
     title: readString(task.title),
     created_at: readString(task.created_at),
     updated_at: readString(task.updated_at),
-    result: sanitizeSecretLikeValue(task.output ?? null, { redactionValue: 'redacted://a2a-secret' }),
+    result: sanitizeSecretLikeValue(task.output ?? null, {
+      redactionValue: 'redacted://a2a-secret',
+      allowSecretReferences: false,
+    }),
     metadata: {
       ...metadata,
       task_id: task.id,
@@ -98,7 +101,10 @@ export function buildA2AStreamEvent(event: {
     event_type: event.type,
     status: mapTaskStateToA2AStatus(asRecord(event.data).to_state ?? asRecord(event.data).state),
     created_at: event.created_at,
-    data: sanitizeSecretLikeRecord(event.data ?? {}, { redactionValue: 'redacted://a2a-secret' }),
+    data: sanitizeSecretLikeRecord(event.data ?? {}, {
+      redactionValue: 'redacted://a2a-secret',
+      allowSecretReferences: false,
+    }),
   };
 }
 
