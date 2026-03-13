@@ -479,6 +479,48 @@ describe('tasks routes', () => {
     expect(failTask).toHaveBeenCalledTimes(1);
     expect(second.json()).toEqual(first.json());
   });
+
+  it('deduplicates repeated complete requests by request_id for standalone tasks', async () => {
+    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const completeTask = vi.fn(async () => ({
+      id: 'task-standalone-complete-1',
+      workflow_id: null,
+      state: 'completed',
+      output: { summary: 'Standalone completed once' },
+    }));
+
+    app = buildTaskRouteApp(
+      {
+        getTask: vi.fn(async () => ({ id: 'task-standalone-complete-1', workflow_id: null })),
+        completeTask,
+      },
+      createTaskReplayPool('task-standalone-complete-1', 'task_complete'),
+    );
+    await app.register(taskRoutes);
+
+    const payload = {
+      request_id: 'standalone-complete-1',
+      output: { summary: 'Standalone completed once' },
+    };
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-standalone-complete-1/complete',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-standalone-complete-1/complete',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(completeTask).toHaveBeenCalledTimes(1);
+    expect(second.json()).toEqual(first.json());
+  });
 });
 
 function buildTaskRouteApp(
@@ -560,6 +602,49 @@ function createWorkflowReplayPool(
         return { rowCount: 1, rows: [{ response }] };
       }
       throw new Error(`Unexpected SQL in replay pool: ${sql}`);
+    }),
+    release: vi.fn(),
+  };
+
+  return {
+    connect: vi.fn(async () => client),
+    query: vi.fn(),
+  };
+}
+
+function createTaskReplayPool(
+  taskId: string,
+  toolName: string,
+) {
+  const storedResults = new Map<string, Record<string, unknown>>();
+  const client = {
+    query: vi.fn(async (sql: string, params?: unknown[]) => {
+      if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('pg_advisory_xact_lock')) {
+        return { rowCount: 1, rows: [] };
+      }
+      if (sql.includes('SELECT response') && sql.includes('FROM task_tool_results')) {
+        expect(params).toEqual(['tenant-1', taskId, toolName, expect.any(String)]);
+        const key = `${params?.[0]}:${params?.[1]}:${params?.[2]}:${params?.[3]}`;
+        const response = storedResults.get(key);
+        return response
+          ? { rowCount: 1, rows: [{ response }] }
+          : { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('INSERT INTO task_tool_results')) {
+        expect(params).toEqual(['tenant-1', taskId, toolName, expect.any(String), expect.any(Object)]);
+        const key = `${params?.[0]}:${params?.[1]}:${params?.[2]}:${params?.[3]}`;
+        const response = params?.[4] as Record<string, unknown>;
+        const existing = storedResults.get(key);
+        if (existing) {
+          return { rowCount: 0, rows: [] };
+        }
+        storedResults.set(key, response);
+        return { rowCount: 1, rows: [{ response }] };
+      }
+      throw new Error(`Unexpected SQL in task replay pool: ${sql}`);
     }),
     release: vi.fn(),
   };

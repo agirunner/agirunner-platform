@@ -8,7 +8,7 @@ import type { PublicTaskState } from '../../services/task-service.types.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
 import {
   runIdempotentPublicTaskOperatorAction,
-  runIdempotentWorkflowBackedTaskRouteAction,
+  runIdempotentTaskRouteAction,
 } from './task-route-idempotency.js';
 
 
@@ -201,14 +201,14 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       requestId,
       run,
     );
-  const runWorkflowBackedTaskRouteAction = <T extends Record<string, unknown>>(
+  const runTaskRouteAction = <T extends Record<string, unknown>>(
     tenantId: string,
     taskId: string,
     toolName: string,
     requestId: string | undefined,
     run: (client: import('../../db/database.js').DatabaseClient | undefined) => Promise<T>,
   ) =>
-    runIdempotentWorkflowBackedTaskRouteAction(
+    runIdempotentTaskRouteAction(
       app,
       toolResultService,
       taskService.getTask.bind(taskService),
@@ -355,7 +355,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(completeSchema.safeParse(request.body));
       const requestId = body.request_id;
-      const task = await runWorkflowBackedTaskRouteAction(
+      const task = await runTaskRouteAction(
         request.auth!.tenantId,
         params.id,
         'task_complete',
@@ -381,7 +381,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(failSchema.safeParse(request.body));
       const requestId = body.request_id;
-      const task = await runWorkflowBackedTaskRouteAction(
+      const task = await runTaskRouteAction(
         request.auth!.tenantId,
         params.id,
         'task_fail',

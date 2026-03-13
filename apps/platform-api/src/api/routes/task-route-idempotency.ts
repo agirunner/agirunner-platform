@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 
 import type { DatabaseClient } from '../../db/database.js';
+import { TaskToolResultService } from '../../services/task-tool-result-service.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
 
 export async function loadTaskWorkflowId(
@@ -79,7 +80,7 @@ export async function runIdempotentPublicTaskOperatorAction<T extends Record<str
   requestId: string | undefined,
   run: (client: DatabaseClient | undefined) => Promise<T>,
 ): Promise<T> {
-  return runIdempotentWorkflowBackedTaskRouteAction(
+  return runIdempotentTaskRouteAction(
     app,
     toolResultService,
     loadTask,
@@ -91,7 +92,7 @@ export async function runIdempotentPublicTaskOperatorAction<T extends Record<str
   );
 }
 
-export async function runIdempotentWorkflowBackedTaskRouteAction<T extends Record<string, unknown>>(
+export async function runIdempotentTaskRouteAction<T extends Record<string, unknown>>(
   app: FastifyInstance,
   toolResultService: WorkflowToolResultService,
   loadTask: (tenantId: string, taskId: string) => Promise<unknown>,
@@ -101,16 +102,83 @@ export async function runIdempotentWorkflowBackedTaskRouteAction<T extends Recor
   requestId: string | undefined,
   run: (client: DatabaseClient | undefined) => Promise<T>,
 ): Promise<T> {
+  const normalizedRequestId = requestId?.trim();
+  if (!normalizedRequestId) {
+    return run(undefined);
+  }
+
   const workflowId = requestId
     ? await loadTaskWorkflowId(loadTask, tenantId, taskId)
     : null;
+  if (!workflowId) {
+    return runIdempotentTaskBackedTaskAction(
+      app,
+      new TaskToolResultService(app.pgPool),
+      tenantId,
+      taskId,
+      toolName,
+      normalizedRequestId,
+      run,
+    );
+  }
+
   return runIdempotentWorkflowBackedTaskAction(
     app,
     toolResultService,
     tenantId,
     workflowId,
     toolName,
-    requestId,
+    normalizedRequestId,
     run,
   );
+}
+
+async function runIdempotentTaskBackedTaskAction<T extends Record<string, unknown>>(
+  app: FastifyInstance,
+  toolResultService: TaskToolResultService,
+  tenantId: string,
+  taskId: string,
+  toolName: string,
+  requestId: string,
+  run: (client: DatabaseClient | undefined) => Promise<T>,
+): Promise<T> {
+  const client = await app.pgPool.connect();
+  try {
+    await client.query('BEGIN');
+    await toolResultService.lockRequest(
+      tenantId,
+      taskId,
+      toolName,
+      requestId,
+      client,
+    );
+    const existing = await toolResultService.getResult(
+      tenantId,
+      taskId,
+      toolName,
+      requestId,
+      client,
+    );
+    if (existing) {
+      await client.query('COMMIT');
+      return existing as T;
+    }
+
+    const response = await run(client);
+    const stored = await toolResultService.storeResult(
+      tenantId,
+      taskId,
+      toolName,
+      requestId,
+      response,
+      client,
+    );
+    await client.query('COMMIT');
+    return stored as T;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
