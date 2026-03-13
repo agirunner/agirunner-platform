@@ -10,12 +10,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select.js';
+import type { IntegrationHeaderValidation } from './integrations-editor-validation.js';
 import type { IntegrationFormState, IntegrationHeaderDraft } from './integrations-page.support.js';
 
 export function IntegrationSelectField(props: {
   label: string;
   value: string;
   disabled?: boolean;
+  description?: string;
+  error?: string;
   options: Array<{ value: string; label: string }>;
   onValueChange(value: string): void;
 }) {
@@ -23,7 +26,7 @@ export function IntegrationSelectField(props: {
     <label className="space-y-1">
       <span className="text-xs font-medium">{props.label}</span>
       <Select value={props.value} disabled={props.disabled} onValueChange={props.onValueChange}>
-        <SelectTrigger>
+        <SelectTrigger className={props.error ? 'border-red-300 focus:ring-red-500' : undefined}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -34,12 +37,15 @@ export function IntegrationSelectField(props: {
           ))}
         </SelectContent>
       </Select>
+      {props.description ? <p className="text-xs text-muted">{props.description}</p> : null}
+      {props.error ? <p className="text-xs text-red-600">{props.error}</p> : null}
     </label>
   );
 }
 
 export function IntegrationHeaderEditor(props: {
   headers: IntegrationHeaderDraft[];
+  errorsByHeaderId?: Record<string, IntegrationHeaderValidation>;
   onAddHeader(): void;
   onUpdateHeader(id: string, patch: Partial<IntegrationHeaderDraft>): void;
   onRemoveHeader(id: string): void;
@@ -60,33 +66,44 @@ export function IntegrationHeaderEditor(props: {
       </div>
       {props.headers.length === 0 ? <p className="text-sm text-muted">No custom headers configured.</p> : null}
       <div className="space-y-3">
-        {props.headers.map((header) => (
-          <div key={header.id} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-            <Input
-              value={header.key}
-              placeholder="Authorization"
-              onChange={(event) => props.onUpdateHeader(header.id, { key: event.target.value })}
-            />
-            <div className="space-y-1">
-              <Input
-                value={header.value}
-                placeholder={header.hasStoredSecret ? 'Stored secret preserved until replaced' : 'Header value'}
-                onChange={(event) =>
-                  props.onUpdateHeader(header.id, {
-                    value: event.target.value,
-                    hasStoredSecret: header.hasStoredSecret && event.target.value.trim().length === 0,
-                  })}
-              />
-              {header.hasStoredSecret ? (
-                <p className="text-xs text-muted">Leave blank to keep the stored secret value for this header.</p>
-              ) : null}
+        {props.headers.map((header) => {
+          const rowErrors = props.errorsByHeaderId?.[header.id];
+          return (
+            <div key={header.id} className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+              <div className="space-y-1">
+                <Input
+                  value={header.key}
+                  placeholder="Authorization"
+                  className={rowErrors?.key ? 'border-red-300 focus-visible:ring-red-500' : undefined}
+                  aria-invalid={rowErrors?.key ? true : undefined}
+                  onChange={(event) => props.onUpdateHeader(header.id, { key: event.target.value })}
+                />
+                {rowErrors?.key ? <p className="text-xs text-red-600">{rowErrors.key}</p> : null}
+              </div>
+              <div className="space-y-1">
+                <Input
+                  value={header.value}
+                  placeholder={header.hasStoredSecret ? 'Stored secret preserved until replaced' : 'Header value'}
+                  className={rowErrors?.value ? 'border-red-300 focus-visible:ring-red-500' : undefined}
+                  aria-invalid={rowErrors?.value ? true : undefined}
+                  onChange={(event) =>
+                    props.onUpdateHeader(header.id, {
+                      value: event.target.value,
+                      hasStoredSecret: header.hasStoredSecret && event.target.value.trim().length === 0,
+                    })}
+                />
+                {header.hasStoredSecret ? (
+                  <p className="text-xs text-muted">Leave blank to keep the stored secret value for this header.</p>
+                ) : null}
+                {rowErrors?.value ? <p className="text-xs text-red-600">{rowErrors.value}</p> : null}
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={() => props.onRemoveHeader(header.id)}>
+                <Trash2 className="h-4 w-4" />
+                Remove
+              </Button>
             </div>
-            <Button type="button" variant="outline" size="sm" onClick={() => props.onRemoveHeader(header.id)}>
-              <Trash2 className="h-4 w-4" />
-              Remove
-            </Button>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

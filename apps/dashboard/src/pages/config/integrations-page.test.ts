@@ -19,8 +19,12 @@ describe('integrations page source', () => {
     const dialogSource = readSource('./integrations-editor-dialog.tsx');
     const sectionsSource = readSource('./integrations-editor-sections.tsx');
     expect(dialogSource).toContain('fieldsForIntegrationKind');
+    expect(dialogSource).toContain('validateIntegrationForm');
     expect(dialogSource).toContain('Workflow scope');
+    expect(dialogSource).toContain('Save readiness');
+    expect(dialogSource).toContain('Resolve the items below before saving this integration.');
     expect(dialogSource).toContain('Subscribed events');
+    expect(dialogSource).toContain('Global integrations receive subscribed events from every workflow.');
     expect(dialogSource).not.toContain('config: {}');
     expect(sectionsSource).toContain('Stored secret headers remain preserved until you replace them.');
     expect(sectionsSource).toContain('Repository labels');

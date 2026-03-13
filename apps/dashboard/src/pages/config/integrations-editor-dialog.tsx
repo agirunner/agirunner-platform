@@ -16,7 +16,6 @@ import {
   KIND_LABELS,
   buildCreateIntegrationPayload,
   buildUpdateIntegrationPayload,
-  canSubmitIntegration,
   createHeaderDraft,
   createIntegrationFormState,
   fieldsForIntegrationKind,
@@ -26,6 +25,7 @@ import {
   type IntegrationFormState,
   type IntegrationHeaderDraft,
 } from './integrations-page.support.js';
+import { validateIntegrationForm } from './integrations-editor-validation.js';
 import {
   IntegrationHeaderEditor,
   IntegrationLabelsEditor,
@@ -65,6 +65,7 @@ export function IntegrationEditorDialog({
 
   const fields = fieldsForIntegrationKind(form.kind);
   const isCreate = mode === 'create';
+  const validation = validateIntegrationForm(form, mode);
 
   function updateConfig(key: string, value: string): void {
     setForm((current) => ({
@@ -146,6 +147,7 @@ export function IntegrationEditorDialog({
           <div className="grid gap-4 md:grid-cols-2">
             <IntegrationSelectField
               label="Integration kind"
+              description={isCreate ? 'Choose the supported delivery type. The kind stays fixed after creation.' : 'Integration kind is fixed after creation.'}
               value={form.kind}
               disabled={!isCreate}
               onValueChange={(value) => handleKindChange(value as IntegrationFormState['kind'])}
@@ -153,6 +155,7 @@ export function IntegrationEditorDialog({
             />
             <IntegrationSelectField
               label="Workflow scope"
+              description="Global integrations receive subscribed events from every workflow. Pick a workflow to limit delivery."
               value={form.workflowId || '__global__'}
               onValueChange={(value) =>
                 setForm((current) => ({
@@ -165,6 +168,37 @@ export function IntegrationEditorDialog({
               ]}
             />
           </div>
+
+          <section
+            className={
+              validation.isValid
+                ? 'rounded-xl border border-emerald-300 bg-emerald-50/70 p-4'
+                : 'rounded-xl border border-amber-300 bg-amber-50/80 p-4'
+            }
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold">Save readiness</h3>
+                <p className="text-sm text-muted">
+                  {validation.isValid
+                    ? 'This integration is ready to save with the current delivery settings.'
+                    : 'Resolve the items below before saving this integration.'}
+                </p>
+              </div>
+              <span className="rounded-full border border-current/10 bg-background/70 px-3 py-1 text-xs font-medium">
+                {validation.isValid
+                  ? 'Ready to save'
+                  : `${validation.issues.length} item${validation.issues.length === 1 ? '' : 's'} to fix`}
+              </span>
+            </div>
+            {!validation.isValid ? (
+              <ul className="mt-3 space-y-1 text-sm text-amber-950">
+                {validation.issues.map((issue) => (
+                  <li key={issue}>• {issue}</li>
+                ))}
+              </ul>
+            ) : null}
+          </section>
 
           <section className="space-y-3">
             <div>
@@ -199,24 +233,31 @@ export function IntegrationEditorDialog({
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              {fields.map((field) => (
-                <label key={field.key} className="space-y-1">
-                  <span className="text-xs font-medium">{field.label}</span>
-                  <Input
-                    type={field.type}
-                    value={form.config[field.key] ?? ''}
-                    placeholder={field.placeholder}
-                    onChange={(event) => updateConfig(field.key, event.target.value)}
-                  />
-                  {renderIntegrationFieldHint(form, field.key, isCreate)}
-                </label>
-              ))}
+              {fields.map((field) => {
+                const fieldError = validation.fieldErrors[field.key];
+                return (
+                  <label key={field.key} className="space-y-1">
+                    <span className="text-xs font-medium">{field.label}</span>
+                    <Input
+                      type={field.type}
+                      value={form.config[field.key] ?? ''}
+                      placeholder={field.placeholder}
+                      className={fieldError ? 'border-red-300 focus-visible:ring-red-500' : undefined}
+                      aria-invalid={fieldError ? true : undefined}
+                      onChange={(event) => updateConfig(field.key, event.target.value)}
+                    />
+                    {renderIntegrationFieldHint(form, field.key, isCreate)}
+                    {fieldError ? <p className="text-xs text-red-600">{fieldError}</p> : null}
+                  </label>
+                );
+              })}
             </div>
           </section>
 
           {supportsHeaderEditor(form.kind) ? (
             <IntegrationHeaderEditor
               headers={form.headers}
+              errorsByHeaderId={validation.headerErrors}
               onAddHeader={addHeader}
               onUpdateHeader={updateHeader}
               onRemoveHeader={removeHeader}
@@ -239,7 +280,7 @@ export function IntegrationEditorDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="button" disabled={isPending || !canSubmitIntegration(form, mode)} onClick={submit}>
+            <Button type="button" disabled={isPending || !validation.isValid} onClick={submit}>
               {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : isCreate ? <Plus className="h-4 w-4" /> : <Save className="h-4 w-4" />}
               {isCreate ? 'Create integration' : 'Save integration'}
             </Button>
