@@ -1112,6 +1112,9 @@ export class WorkflowActivationDispatchService {
         return { requeued: 0, redispatched: 0, reported: 0, details: [] };
       }
 
+      const recoveredAnchor = findActivationAnchor(staleState.id, recovered.rows);
+      const recoveredReason = deriveActivationReason(recovered.rows);
+      const recoveredPrimaryEvent = derivePrimaryActivationEvent(recoveredAnchor, recovered.rows);
       await this.deps.eventService.emit(
         {
           tenantId,
@@ -1122,9 +1125,9 @@ export class WorkflowActivationDispatchService {
           actorId: 'workflow_activation_dispatcher',
           data: {
             activation_id: staleState.id,
-            event_type: staleState.event_type,
-            reason: staleState.reason,
-            event_count: recovered.rows.length,
+            event_type: recoveredPrimaryEvent.event_type,
+            reason: recoveredReason,
+            event_count: countDispatchableEvents(recovered.rows),
           },
         },
         client,
