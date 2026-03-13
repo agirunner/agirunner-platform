@@ -13,6 +13,7 @@ export interface LogFilters {
   activation: string | null;
   trace: string | null;
   sources: string[];
+  statuses: string[];
   categories: string[];
   level: LogLevel;
   time: TimeRange;
@@ -47,6 +48,7 @@ function parseTimeRange(params: URLSearchParams): TimeRange {
 
 const PLURAL_TO_PARAM: Partial<Record<keyof LogFilters, string>> = {
   sources: 'source',
+  statuses: 'status',
   categories: 'category',
   operations: 'operation',
   roles: 'role',
@@ -66,6 +68,7 @@ export function useLogFilters() {
       activation: searchParams.get('activation'),
       trace: searchParams.get('trace'),
       sources: parseList(searchParams.get('source')),
+      statuses: parseList(searchParams.get('status')),
       categories: parseList(searchParams.get('category')),
       level: (searchParams.get('level') as LogLevel) ?? DEFAULT_LEVEL,
       time: parseTimeRange(searchParams),
@@ -191,6 +194,7 @@ export function useLogFilters() {
     if (filters.activation) params.activation_id = filters.activation;
     if (filters.trace) params.trace_id = filters.trace;
     if (filters.sources.length > 0) params.source = filters.sources.join(',');
+    if (filters.statuses.length > 0) params.status = filters.statuses.join(',');
     if (filters.categories.length > 0) params.category = filters.categories.join(',');
     params.level = filters.level;
     if (filters.search) params.search = filters.search;

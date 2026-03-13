@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { LogEntry } from '../../lib/api.js';
 import { LogFilters } from './log-filters.js';
 import { LogTable } from './log-table.js';
@@ -8,11 +8,14 @@ import { LogIterationGroupedTable } from './log-iteration-grouped-table.js';
 import { LogTaskGroupedTable } from './log-task-grouped-table.js';
 import { useLogQuery } from './hooks/use-log-query.js';
 import { useLogFilters } from './hooks/use-log-filters.js';
+import { useLogStream } from './hooks/use-log-stream.js';
 import { applyLogScope, type LogScope } from './log-scope.js';
+import { LogStreamIndicator } from './log-stream-indicator.js';
 
 const QUERY_REFETCH_INTERVAL_MS = 5_000;
 const FLAT_PAGE_SIZE = 100;
 const GROUPED_PAGE_SIZE = 500;
+const LIVE_ENTRY_LIMIT = 100;
 
 export interface LogViewerProps {
   scope?: LogScope;
@@ -22,6 +25,8 @@ export interface LogViewerProps {
 export function LogViewer({ scope, compact = false }: LogViewerProps): JSX.Element {
   const [cursor, setCursor] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<LogViewMode>('flat');
+  const [isLive, setIsLive] = useState(false);
+  const [liveEntries, setLiveEntries] = useState<LogEntry[]>([]);
 
   const { filters, setFilter, toQueryParams } = useLogFilters();
 
@@ -34,9 +39,24 @@ export function LogViewer({ scope, compact = false }: LogViewerProps): JSX.Eleme
     queryParams,
     cursor,
     true,
-    QUERY_REFETCH_INTERVAL_MS,
+    isLive ? undefined : QUERY_REFETCH_INTERVAL_MS,
     pageSize,
   );
+
+  useEffect(() => {
+    setLiveEntries([]);
+  }, [cursor, isLive, queryParams, viewMode]);
+
+  const liveStream = useLogStream({
+    enabled: isLive && viewMode === 'flat',
+    filters: queryParams,
+    onEntry: (entry) => {
+      setLiveEntries((current) => {
+        const next = [entry, ...current.filter((existing) => existing.id !== entry.id)];
+        return next.slice(0, LIVE_ENTRY_LIMIT);
+      });
+    },
+  });
 
   const handleLoadMore = useCallback((nextCursor: string) => {
     setCursor(nextCursor);
@@ -68,7 +88,13 @@ export function LogViewer({ scope, compact = false }: LogViewerProps): JSX.Eleme
     [setFilter],
   );
 
-  const displayEntries = logData?.data ?? [];
+  const displayEntries = useMemo(() => {
+    if (viewMode !== 'flat' || liveEntries.length === 0) {
+      return logData?.data ?? [];
+    }
+    const seen = new Set(liveEntries.map((entry) => entry.id));
+    return [...liveEntries, ...(logData?.data ?? []).filter((entry) => !seen.has(entry.id))];
+  }, [liveEntries, logData?.data, viewMode]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -81,7 +107,18 @@ export function LogViewer({ scope, compact = false }: LogViewerProps): JSX.Eleme
       />
 
       {/* Toolbar: view toggle */}
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <LogStreamIndicator
+          isLive={isLive}
+          isConnected={liveStream.isConnected}
+          entriesPerSecond={liveStream.entriesPerSecond}
+          bufferedCount={liveStream.bufferedCount}
+          error={liveStream.error}
+          onToggle={() => {
+            setCursor(null);
+            setIsLive((current) => !current);
+          }}
+        />
         <LogViewToggle mode={viewMode} onChange={handleViewModeChange} />
       </div>
 

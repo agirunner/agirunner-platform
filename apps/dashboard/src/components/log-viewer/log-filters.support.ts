@@ -1,0 +1,107 @@
+import { useCallback, useEffect, useRef } from 'react';
+import type { ComboboxItem } from './ui/searchable-combobox.js';
+import type { SavedViewFilters } from '../saved-views.js';
+
+export const DEBOUNCE_MS = 300;
+
+export function useDebounced(
+  value: string,
+  delayMs: number,
+  onDebounced: (value: string) => void,
+): void {
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    timerRef.current = setTimeout(() => onDebounced(value), delayMs);
+    return () => clearTimeout(timerRef.current);
+  }, [value, delayMs, onDebounced]);
+}
+
+export function useArrayToggle(
+  current: string[],
+  setFilter: (key: 'operations' | 'roles' | 'actors', value: string[]) => void,
+  filterKey: 'operations' | 'roles' | 'actors',
+) {
+  return useCallback(
+    (id: string | null) => {
+      if (!id) return;
+      const next = current.includes(id) ? current.filter((value) => value !== id) : [...current, id];
+      setFilter(filterKey, next);
+    },
+    [current, setFilter, filterKey],
+  );
+}
+
+export function mapSavedViewToUrlParams(saved: SavedViewFilters): Record<string, string> {
+  const urlParams: Record<string, string> = {};
+  for (const [key, value] of Object.entries(saved)) {
+    if (!value || key === 'viewMode') continue;
+    const urlKey =
+      key === 'project_id'
+        ? 'project'
+        : key === 'workflow_id'
+          ? 'workflow'
+          : key === 'task_id'
+            ? 'task'
+            : key === 'work_item_id'
+              ? 'work_item'
+              : key === 'stage_name'
+                ? 'stage'
+                : key === 'activation_id'
+                  ? 'activation'
+                  : key === 'trace_id'
+                    ? 'trace'
+                    : key;
+    urlParams[urlKey] = value;
+  }
+  return urlParams;
+}
+
+export function toOperationItems(
+  data: { data: { operation: string; count: number }[] } | undefined,
+): ComboboxItem[] {
+  if (!data?.data) return [];
+  return data.data.map((row) => ({
+    id: row.operation,
+    label: row.operation,
+    subtitle: `${row.count} entries`,
+  }));
+}
+
+export function toRoleItems(
+  data: { data: { role: string; count: number }[] } | undefined,
+): ComboboxItem[] {
+  if (!data?.data) return [];
+  return data.data.map((row) => ({
+    id: row.role,
+    label: row.role.charAt(0).toUpperCase() + row.role.slice(1),
+    subtitle: `${row.count} entries`,
+  }));
+}
+
+export function toActorItems(
+  data: {
+    data: { actor_id: string; actor_name: string; actor_type: string; count: number }[];
+  } | undefined,
+): ComboboxItem[] {
+  if (!data?.data) return [];
+  return data.data.map((row) => ({
+    id: row.actor_id,
+    label: row.actor_name || `${row.actor_type}:${row.actor_id}`,
+    subtitle: `${row.count} entries`,
+  }));
+}
+
+export const SOURCE_ITEMS: ComboboxItem[] = [
+  { id: 'runtime', label: 'Runtime', subtitle: 'Worker runtime loop' },
+  { id: 'task_container', label: 'Task container', subtitle: 'Sandbox and task process logs' },
+  { id: 'container_manager', label: 'Container manager', subtitle: 'Container orchestration' },
+  { id: 'platform', label: 'Platform', subtitle: 'Platform and API service logs' },
+];
+
+export const STATUS_ITEMS: ComboboxItem[] = [
+  { id: 'started', label: 'Started', subtitle: 'Work began' },
+  { id: 'completed', label: 'Completed', subtitle: 'Work finished successfully' },
+  { id: 'failed', label: 'Failed', subtitle: 'Execution or delivery failure' },
+  { id: 'skipped', label: 'Skipped', subtitle: 'Execution intentionally skipped' },
+];

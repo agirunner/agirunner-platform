@@ -1,74 +1,35 @@
-import { useCallback, useEffect, useRef, useState, useMemo, type ChangeEvent } from 'react';
+import { useCallback, useState, useMemo, type ChangeEvent } from 'react';
 import { RotateCcw, Search, X } from 'lucide-react';
 import { LogEntityScope } from './log-entity-scope.js';
 import { LogClassificationTabs } from './log-classification-tabs.js';
 import { MultiSelectChips, CATEGORY_OPTIONS } from './ui/multi-select-chips.js';
 import { LevelSelector } from './ui/level-selector.js';
 import { TimeRangePicker } from './ui/time-range-picker.js';
-import { SearchableCombobox, type ComboboxItem } from './ui/searchable-combobox.js';
+import { SearchableCombobox } from './ui/searchable-combobox.js';
 import { useLogFilters, type LogFilters as LogFilterState } from './hooks/use-log-filters.js';
 import { useLogOperations } from './hooks/use-log-operations.js';
 import { useLogRoles } from './hooks/use-log-roles.js';
+import { useLogActors } from './hooks/use-log-actors.js';
+import {
+  DEBOUNCE_MS,
+  SOURCE_ITEMS,
+  STATUS_ITEMS,
+  mapSavedViewToUrlParams,
+  toActorItems,
+  toOperationItems,
+  toRoleItems,
+  useArrayToggle,
+  useDebounced,
+} from './log-filters.support.js';
 import { SavedViews, type SavedViewFilters } from '../saved-views.js';
 import { Button } from '../ui/button.js';
 import { Input } from '../ui/input.js';
 import { applyLogScope, type LogScope } from './log-scope.js';
 
-const DEBOUNCE_MS = 300;
-
-function useDebounced(value: string, delayMs: number, onDebounced: (value: string) => void): void {
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
-
-  useEffect(() => {
-    timerRef.current = setTimeout(() => onDebounced(value), delayMs);
-    return () => clearTimeout(timerRef.current);
-  }, [value, delayMs, onDebounced]);
-}
-
-function toOperationItems(
-  data: { data: { operation: string; count: number }[] } | undefined,
-): ComboboxItem[] {
-  if (!data?.data) return [];
-  return data.data.map((r) => ({
-    id: r.operation,
-    label: r.operation,
-    subtitle: `${r.count} entries`,
-  }));
-}
-
-function toRoleItems(
-  data: { data: { role: string; count: number }[] } | undefined,
-): ComboboxItem[] {
-  if (!data?.data) return [];
-  return data.data.map((r) => ({
-    id: r.role,
-    label: r.role.charAt(0).toUpperCase() + r.role.slice(1),
-    subtitle: `${r.count} entries`,
-  }));
-}
-
-type ArrayFilterKey = 'operations' | 'roles';
-
-function useArrayToggle(
-  current: string[],
-  setFilter: (key: ArrayFilterKey, value: string[]) => void,
-  filterKey: ArrayFilterKey,
-) {
-  return useCallback(
-    (id: string | null) => {
-      if (!id) return;
-      const next = current.includes(id) ? current.filter((v) => v !== id) : [...current, id];
-      setFilter(filterKey, next);
-    },
-    [current, setFilter, filterKey],
-  );
-}
-
 interface LogFiltersComponentProps {
   hideEntityScope?: boolean;
   compact?: boolean;
-  viewMode?: string;
-  onViewModeChange?: (mode: string) => void;
+  viewMode?: string; onViewModeChange?: (mode: string) => void;
   scope?: LogScope;
 }
 
@@ -84,6 +45,7 @@ export function LogFilters({
   const scopedFilters = useMemo(() => applyLogScope({}, scope), [scope]);
   const { data: operationsData } = useLogOperations(undefined, scopedFilters);
   const { data: rolesData } = useLogRoles(scopedFilters);
+  const { data: actorsData } = useLogActors(scopedFilters);
 
   const [searchDraft, setSearchDraft] = useState(filters.search);
 
@@ -107,8 +69,39 @@ export function LogFilters({
   const clearRoles = useCallback(() => setFilter('roles', []), [setFilter]);
   const selectedRoleIds = useMemo(() => new Set(filters.roles), [filters.roles]);
 
+  const toggleActor = useArrayToggle(filters.actors, setFilter, 'actors');
+  const clearActors = useCallback(() => setFilter('actors', []), [setFilter]);
+  const selectedActorIds = useMemo(() => new Set(filters.actors), [filters.actors]);
+
+  const toggleSource = useCallback(
+    (id: string | null) => {
+      if (!id) return;
+      const next = filters.sources.includes(id)
+        ? filters.sources.filter((value) => value !== id)
+        : [...filters.sources, id];
+      setFilter('sources', next);
+    },
+    [filters.sources, setFilter],
+  );
+  const clearSources = useCallback(() => setFilter('sources', []), [setFilter]);
+  const selectedSourceIds = useMemo(() => new Set(filters.sources), [filters.sources]);
+
+  const toggleStatus = useCallback(
+    (id: string | null) => {
+      if (!id) return;
+      const next = filters.statuses.includes(id)
+        ? filters.statuses.filter((value) => value !== id)
+        : [...filters.statuses, id];
+      setFilter('statuses', next);
+    },
+    [filters.statuses, setFilter],
+  );
+  const clearStatuses = useCallback(() => setFilter('statuses', []), [setFilter]);
+  const selectedStatusIds = useMemo(() => new Set(filters.statuses), [filters.statuses]);
+
   const operationItems = toOperationItems(operationsData);
   const roleItems = toRoleItems(rolesData);
+  const actorItems = toActorItems(actorsData);
 
   const savedViewFilters = useMemo((): SavedViewFilters => {
     const params = toQueryParams();
@@ -124,30 +117,7 @@ export function LogFilters({
 
   const applyFromSavedView = useCallback(
     (saved: SavedViewFilters) => {
-      // Map query param keys back to URL param keys in one shot
-      const urlParams: Record<string, string> = {};
-      for (const [key, value] of Object.entries(saved)) {
-        if (!value || key === 'viewMode') continue;
-        const urlKey =
-          key === 'project_id'
-            ? 'project'
-            : key === 'workflow_id'
-              ? 'workflow'
-              : key === 'task_id'
-                ? 'task'
-                : key === 'work_item_id'
-                  ? 'work_item'
-                  : key === 'stage_name'
-                    ? 'stage'
-                    : key === 'activation_id'
-                      ? 'activation'
-                  : key === 'trace_id'
-                    ? 'trace'
-                    : key;
-        urlParams[urlKey] = value;
-      }
-
-      replaceAllParams(urlParams);
+      replaceAllParams(mapSavedViewToUrlParams(saved));
       setSearchDraft(saved.search ?? '');
       if (saved.viewMode) onViewModeChange?.(saved.viewMode);
     },
@@ -204,6 +174,22 @@ export function LogFilters({
           onClearAll={clearRoles}
         />
         <SearchableCombobox
+          items={actorItems}
+          value={null}
+          onChange={toggleActor}
+          placeholder={
+            filters.actors.length > 0
+              ? `${filters.actors.length} actor${filters.actors.length > 1 ? 's' : ''}`
+              : 'Actors'
+          }
+          searchPlaceholder="Search actors..."
+          allGroupLabel="Actors"
+          className="w-40"
+          multiSelect
+          selectedIds={selectedActorIds}
+          onClearAll={clearActors}
+        />
+        <SearchableCombobox
           items={operationItems}
           value={null}
           onChange={toggleOperation}
@@ -218,6 +204,38 @@ export function LogFilters({
           multiSelect
           selectedIds={selectedOperationIds}
           onClearAll={clearOperations}
+        />
+        <SearchableCombobox
+          items={SOURCE_ITEMS}
+          value={null}
+          onChange={toggleSource}
+          placeholder={
+            filters.sources.length > 0
+              ? `${filters.sources.length} source${filters.sources.length > 1 ? 's' : ''}`
+              : 'Sources'
+          }
+          searchPlaceholder="Search sources..."
+          allGroupLabel="Sources"
+          className="w-40"
+          multiSelect
+          selectedIds={selectedSourceIds}
+          onClearAll={clearSources}
+        />
+        <SearchableCombobox
+          items={STATUS_ITEMS}
+          value={null}
+          onChange={toggleStatus}
+          placeholder={
+            filters.statuses.length > 0
+              ? `${filters.statuses.length} status${filters.statuses.length > 1 ? 'es' : ''}`
+              : 'Statuses'
+          }
+          searchPlaceholder="Search statuses..."
+          allGroupLabel="Statuses"
+          className="w-40"
+          multiSelect
+          selectedIds={selectedStatusIds}
+          onClearAll={clearStatuses}
         />
       </div>
 
