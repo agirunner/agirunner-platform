@@ -130,6 +130,26 @@ describe('RuntimeDefaultsService', () => {
         }),
       ).rejects.toThrow('tools.web_search_api_key_secret_ref must use secret: references');
     });
+
+    it('rejects invalid runtime agent count defaults', async () => {
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'agent.history_max_messages',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('agent.history_max_messages must be at least 1');
+    });
+
+    it('rejects out-of-range runtime compaction defaults', async () => {
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'agent.context_compaction_threshold',
+          configValue: '1.4',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('agent.context_compaction_threshold must be between 0 and 1');
+    });
   });
 
   describe('updateDefault', () => {
@@ -169,6 +189,17 @@ describe('RuntimeDefaultsService', () => {
       await expect(
         service.updateDefault(TENANT_ID, DEFAULT_ID, { configValue: 'ftp://bad.example.test' }),
       ).rejects.toThrow('tools.web_search_base_url must be a valid http or https URL');
+    });
+
+    it('rejects invalid runtime safeguard updates', async () => {
+      pool.query.mockResolvedValueOnce({
+        rows: [{ ...sampleDefault, config_key: 'agent.max_iterations', config_value: '25', config_type: 'number' }],
+        rowCount: 1,
+      });
+
+      await expect(
+        service.updateDefault(TENANT_ID, DEFAULT_ID, { configValue: '0' }),
+      ).rejects.toThrow('agent.max_iterations must be at least 1');
     });
   });
 

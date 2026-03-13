@@ -2,38 +2,51 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './runtime-defaults-page.tsx'), 'utf8');
+import { FIELD_DEFINITIONS, SECTION_DEFINITIONS } from './runtime-defaults.schema.js';
+
+function readSource(fileName: string) {
+  return readFileSync(resolve(import.meta.dirname, fileName), 'utf8');
 }
 
 describe('runtime defaults page source', () => {
-  it('provides the canonical structured runtime configuration surface', () => {
-    const source = readSource();
-    expect(source).toContain("CardTitle className=\"text-2xl\">Runtimes</CardTitle>");
-    expect(source).toContain('Agent container defaults');
-    expect(source).toContain('Fleet limits');
-    expect(source).toContain('Web research');
+  it('exposes the supported runtime configuration sections and agent fields through structured schema exports', () => {
+    expect(SECTION_DEFINITIONS.map((section) => section.key)).toEqual([
+      'containers',
+      'agent_context',
+      'orchestrator_context',
+      'agent_safeguards',
+      'fleet',
+      'search',
+    ]);
+    expect(FIELD_DEFINITIONS.map((field) => field.key)).toEqual(
+      expect.arrayContaining([
+        'default_runtime_image',
+        'default_pull_policy',
+        'agent.history_max_messages',
+        'agent.context_compaction_threshold',
+        'agent.orchestrator_context_compaction_threshold',
+        'agent.max_iterations',
+        'agent.llm_max_retries',
+        'tools.web_search_provider',
+      ]),
+    );
+  });
+
+  it('composes the page from schema, validation, shared fields, and runtime status cards', () => {
+    const source = readSource('./runtime-defaults-page.tsx');
+    expect(source).toContain('RuntimeDefaultsSection');
+    expect(source).toContain('SECTION_DEFINITIONS.map');
+    expect(source).toContain('buildValidationErrors');
+    expect(source).toContain('ActiveRuntimeImageCard');
+    expect(source).toContain('BuildHistoryCard');
     expect(source).not.toContain('JSON.parse');
   });
 
   it('uses the supported runtime-defaults API routes, including delete for clearing values', () => {
-    const source = readSource();
+    const source = readSource('./runtime-defaults.api.ts');
     expect(source).toContain('/api/v1/config/runtime-defaults');
     expect(source).toContain("method: 'POST'");
     expect(source).toContain("method: 'DELETE'");
     expect(source).not.toContain("method: 'PATCH'");
-  });
-
-  it('keeps runtime status and build visibility on the canonical page', () => {
-    const source = readSource();
-    expect(source).toContain('ActiveRuntimeImageCard');
-    expect(source).toContain('BuildHistoryCard');
-    expect(source).toContain('Clear a value and save to fall back to the platform default.');
-    expect(source).toContain('tools.web_search_provider');
-    expect(source).toContain('tools.web_search_base_url');
-    expect(source).toContain('tools.web_search_api_key_secret_ref');
-    expect(source).toContain('WEB_SEARCH_PROVIDER_OPTIONS');
-    expect(source).toContain('DuckDuckGo remains the built-in fallback');
-    expect(source).toContain('Use platform default');
   });
 });

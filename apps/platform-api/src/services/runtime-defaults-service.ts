@@ -6,6 +6,24 @@ import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 
 const CONFIG_TYPES = ['string', 'number', 'boolean', 'json'] as const;
 const WEB_SEARCH_PROVIDERS = new Set(['duckduckgo', 'serper', 'tavily']);
+const INTEGER_DEFAULT_RULES = new Map([
+  ['default_grace_period', { min: 1 }],
+  ['global_max_runtimes', { min: 1 }],
+  ['agent.history_max_messages', { min: 1 }],
+  ['agent.history_preserve_recent', { min: 1 }],
+  ['agent.context_compaction_chars_per_token', { min: 1 }],
+  ['agent.orchestrator_history_preserve_recent', { min: 0 }],
+  ['agent.loop_detection_repeat', { min: 1 }],
+  ['agent.response_repeat_threshold', { min: 1 }],
+  ['agent.no_file_change_threshold', { min: 1 }],
+  ['agent.max_stuck_interventions', { min: 0 }],
+  ['agent.max_iterations', { min: 1 }],
+  ['agent.llm_max_retries', { min: 0 }],
+]);
+const DECIMAL_DEFAULT_RULES = new Map([
+  ['agent.context_compaction_threshold', { min: 0, max: 1 }],
+  ['agent.orchestrator_context_compaction_threshold', { min: 0, max: 1 }],
+]);
 
 const createDefaultSchema = z.object({
   configKey: z.string().min(1).max(200),
@@ -149,6 +167,8 @@ export class RuntimeDefaultsService {
 }
 
 function validateKnownRuntimeDefault(input: CreateRuntimeDefaultInput): void {
+  validateNumericRuntimeDefault(input);
+
   switch (input.configKey) {
     case 'tools.web_search_provider': {
       const provider = input.configValue.trim().toLowerCase();
@@ -194,5 +214,39 @@ function validateKnownRuntimeDefault(input: CreateRuntimeDefaultInput): void {
     }
     default:
       return;
+  }
+}
+
+function validateNumericRuntimeDefault(input: CreateRuntimeDefaultInput): void {
+  const integerRule = INTEGER_DEFAULT_RULES.get(input.configKey);
+  if (integerRule) {
+    if (input.configType !== 'number') {
+      throw new Error(`${input.configKey} must use number config type`);
+    }
+    const parsed = Number(input.configValue);
+    if (!Number.isInteger(parsed)) {
+      throw new Error(`${input.configKey} must be a whole number`);
+    }
+    if (parsed < integerRule.min) {
+      throw new Error(`${input.configKey} must be at least ${integerRule.min}`);
+    }
+    return;
+  }
+
+  const decimalRule = DECIMAL_DEFAULT_RULES.get(input.configKey);
+  if (!decimalRule) {
+    return;
+  }
+  if (input.configType !== 'number') {
+    throw new Error(`${input.configKey} must use number config type`);
+  }
+  const parsed = Number(input.configValue);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`${input.configKey} must be a number`);
+  }
+  if (parsed < decimalRule.min || parsed > decimalRule.max) {
+    throw new Error(
+      `${input.configKey} must be between ${decimalRule.min} and ${decimalRule.max}`,
+    );
   }
 }
