@@ -81,6 +81,7 @@ const workItemCreateSchema = z.object({
 });
 
 const workItemUpdateSchema = z.object({
+  request_id: z.string().min(1).max(255).optional(),
   parent_work_item_id: z.string().uuid().nullable().optional(),
   title: z.string().min(1).max(500).optional(),
   goal: z.string().max(4000).optional(),
@@ -330,7 +331,15 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(workItemCreateSchema.safeParse(request.body));
-      const workItem = await workflowService.createWorkflowWorkItem(request.auth!, params.id, body);
+      const workItem = await runIdempotentTransactionalWorkflowAction(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        params.id,
+        'operator_create_workflow_work_item',
+        body.request_id,
+        (client) => workflowService.createWorkflowWorkItem(request.auth!, params.id, body, client),
+      );
       return reply.status(201).send({ data: workItem });
     },
   );
@@ -431,12 +440,22 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string; workItemId: string };
       const body = parseOrThrow(workItemUpdateSchema.safeParse(request.body));
+      const { request_id: requestId, ...input } = body;
       return {
-        data: await workflowService.updateWorkflowWorkItem(
-          request.auth!,
+        data: await runIdempotentTransactionalWorkflowAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
           params.id,
-          params.workItemId,
-          body,
+          'operator_update_workflow_work_item',
+          requestId,
+          (client) => workflowService.updateWorkflowWorkItem(
+            request.auth!,
+            params.id,
+            params.workItemId,
+            input,
+            client,
+          ),
         ),
       };
     },

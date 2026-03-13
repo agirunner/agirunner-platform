@@ -602,8 +602,9 @@ export class WorkflowService {
     workflowId: string,
     workItemId: string,
     input: UpdateWorkflowWorkItemInput,
+    client?: DatabaseClient,
   ) {
-    return this.playbookControlService.updateWorkItem(identity, workflowId, workItemId, input);
+    return this.playbookControlService.updateWorkItem(identity, workflowId, workItemId, input, client);
   }
 
   listWorkflowStages(tenantId: string, workflowId: string) {
