@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { ValidationError } from '../../errors/domain-errors.js';
+import { sanitizeSecretLikeValue } from '../../services/secret-redaction.js';
 import {
   RuntimeCustomizationProxyClient,
   type RuntimeCustomizationProxyResponse,
@@ -10,6 +11,7 @@ import {
 
 const requestBodySchema = z.record(z.unknown());
 const buildIdSchema = z.object({ id: z.string().min(1) });
+const RUNTIME_CUSTOMIZATION_SECRET_REDACTION = 'redacted://runtime-customization-secret';
 
 function parseRequestBody(body: unknown): Record<string, unknown> {
   const parsed = requestBodySchema.safeParse(body);
@@ -42,7 +44,7 @@ async function sendProxyResponse(
     return reply.status(response.statusCode).send(toErrorEnvelope(response));
   }
 
-  return reply.status(response.statusCode).send({ data: response.body });
+  return reply.status(response.statusCode).send({ data: sanitizeProxyBody(response.body) });
 }
 
 function toErrorEnvelope(
@@ -50,16 +52,25 @@ function toErrorEnvelope(
 ): { error: Record<string, unknown> } | Record<string, unknown> {
   const existingError = response.body.error;
   if (existingError && typeof existingError === 'object' && !Array.isArray(existingError)) {
-    return response.body;
+    return sanitizeProxyBody(response.body);
   }
 
   return {
     error: {
       code: 'RUNTIME_CUSTOMIZATION_PROXY_ERROR',
       message: `Runtime customization request failed with HTTP ${response.statusCode}`,
-      details: response.body,
+      details: sanitizeProxyBody(response.body),
     },
   };
+}
+
+function sanitizeProxyBody(body: Record<string, unknown>): Record<string, unknown> {
+  const sanitized = sanitizeSecretLikeValue(body, {
+    redactionValue: RUNTIME_CUSTOMIZATION_SECRET_REDACTION,
+  });
+  return sanitized && typeof sanitized === 'object' && !Array.isArray(sanitized)
+    ? (sanitized as Record<string, unknown>)
+    : {};
 }
 
 export const runtimeCustomizationRoutes: FastifyPluginAsync = async (app) => {
