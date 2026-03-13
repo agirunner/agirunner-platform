@@ -59,4 +59,30 @@ describe('integration editor validation', () => {
       'header-c': { key: 'Add a header name or remove this row.' },
     });
   });
+
+  it('rejects malformed github owner and repository targets with recovery guidance', () => {
+    const result = validateIntegrationForm(
+      {
+        ...createIntegrationFormState('github_issues'),
+        config: {
+          owner: 'agisnap/agirunner',
+          repo: 'agirunner.git',
+          token: 'secret',
+        },
+      },
+      'create',
+    );
+
+    expect(result.isValid).toBe(false);
+    expect(result.fieldErrors).toMatchObject({
+      owner: 'Enter only the repository owner, not owner/repo.',
+      repo: 'Use the repository name without the .git suffix.',
+    });
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        'Enter only the repository owner, not owner/repo.',
+        'Use the repository name without the .git suffix.',
+      ]),
+    );
+  });
 });

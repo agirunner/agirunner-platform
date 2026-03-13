@@ -160,6 +160,29 @@ export function renderIntegrationFieldHint(
   key: string,
   isCreate: boolean,
 ) {
+  if (form.kind === 'github_issues') {
+    if (key === 'owner') {
+      return (
+        <p className="text-xs text-muted">
+          GitHub owner or organization, for example <span className="font-mono">agisnap</span>.
+        </p>
+      );
+    }
+    if (key === 'repo') {
+      return (
+        <p className="text-xs text-muted">
+          Repository name only, for example <span className="font-mono">agirunner</span>.
+        </p>
+      );
+    }
+    if (key === 'api_base_url') {
+      return (
+        <p className="text-xs text-muted">
+          Leave the hosted GitHub API default unless you use GitHub Enterprise.
+        </p>
+      );
+    }
+  }
   if (isCreate) {
     return null;
   }

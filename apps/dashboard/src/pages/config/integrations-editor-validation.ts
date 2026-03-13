@@ -57,7 +57,58 @@ function buildFieldErrors(
     }
   }
 
+  if (form.kind === 'github_issues') {
+    mergeGithubFieldErrors(errors, form.config);
+  }
+
   return errors;
+}
+
+function mergeGithubFieldErrors(
+  errors: Record<string, string>,
+  config: Record<string, string>,
+): void {
+  const owner = config.owner?.trim() ?? '';
+  const repo = config.repo?.trim() ?? '';
+
+  const ownerError = readGithubOwnerError(owner);
+  if (ownerError) {
+    errors.owner = ownerError;
+  }
+
+  const repoError = readGithubRepoError(repo);
+  if (repoError) {
+    errors.repo = repoError;
+  }
+}
+
+function readGithubOwnerError(value: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  if (value.includes('/')) {
+    return 'Enter only the repository owner, not owner/repo.';
+  }
+  if (/\s/.test(value)) {
+    return 'Repository owner cannot contain spaces.';
+  }
+  return undefined;
+}
+
+function readGithubRepoError(value: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  if (value.includes('/')) {
+    return 'Enter only the repository name, not owner/repo.';
+  }
+  if (/\s/.test(value)) {
+    return 'Repository name cannot contain spaces.';
+  }
+  if (value.endsWith('.git')) {
+    return 'Use the repository name without the .git suffix.';
+  }
+  return undefined;
 }
 
 function buildHeaderErrors(

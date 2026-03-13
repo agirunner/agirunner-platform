@@ -42,6 +42,9 @@ describe('integrations page source', () => {
     expect(dialogSource).not.toContain('config: {}');
     expect(sectionsSource).toContain('Stored secret headers remain preserved until you replace them.');
     expect(sectionsSource).toContain('Repository labels');
+    expect(sectionsSource).toContain('GitHub owner or organization, for example');
+    expect(sectionsSource).toContain('Repository name only, for example');
+    expect(sectionsSource).toContain('Leave the hosted GitHub API default unless you use GitHub Enterprise.');
   });
 
   it('keeps destructive and editor dialogs scrollable on smaller viewports', () => {
