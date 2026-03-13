@@ -72,6 +72,13 @@ export interface LaunchValidationResult {
   isValid: boolean;
 }
 
+export interface LaunchParameterMappingState {
+  badgeLabel: string;
+  detail: string;
+  mappedValue: string | undefined;
+  canRestoreMappedValue: boolean;
+}
+
 let draftCounter = 0;
 
 export function readLaunchDefinition(playbook: DashboardPlaybookRecord | null): LaunchDefinitionSummary {
@@ -242,6 +249,66 @@ export function readMappedProjectParameterDraft(
     return undefined;
   }
   return defaultParameterDraftValue(mappedValue, spec.inputType);
+}
+
+export function describeMappedProjectPath(mapsTo: string | undefined): string {
+  const normalized = mapsTo?.trim().replace(/^project\./, '') ?? '';
+  if (!normalized) {
+    return 'project field';
+  }
+  return normalized
+    .split('.')
+    .filter(Boolean)
+    .map((segment, index) => {
+      const label = segment.replace(/_/g, ' ');
+      if (index === 0) {
+        return label;
+      }
+      return label;
+    })
+    .join(' → ');
+}
+
+export function describeLaunchParameterMapping(input: {
+  spec: LaunchParameterSpec;
+  project: DashboardProjectRecord | null;
+  currentValue: string;
+}): LaunchParameterMappingState | null {
+  if (!input.spec.mapsTo) {
+    return null;
+  }
+  const sourceLabel = describeMappedProjectPath(input.spec.mapsTo);
+  const mappedValue = readMappedProjectParameterDraft(input.spec, input.project);
+  if (!input.project) {
+    return {
+      badgeLabel: 'Project autofill available',
+      detail: `Select a project to autofill this parameter from ${sourceLabel}.`,
+      mappedValue: undefined,
+      canRestoreMappedValue: false,
+    };
+  }
+  if (mappedValue === undefined) {
+    return {
+      badgeLabel: 'Project value missing',
+      detail: `${input.project.name} does not currently provide a value for ${sourceLabel}.`,
+      mappedValue: undefined,
+      canRestoreMappedValue: false,
+    };
+  }
+  if (input.currentValue === mappedValue) {
+    return {
+      badgeLabel: 'Using project value',
+      detail: `Autofilled from ${input.project.name} → ${sourceLabel}.`,
+      mappedValue,
+      canRestoreMappedValue: false,
+    };
+  }
+  return {
+    badgeLabel: 'Custom launch override',
+    detail: `Project value from ${input.project.name} → ${sourceLabel} is available if you want to restore it.`,
+    mappedValue,
+    canRestoreMappedValue: true,
+  };
 }
 
 export function createWorkflowBudgetDraft(): WorkflowBudgetDraft {

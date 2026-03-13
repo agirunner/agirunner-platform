@@ -7,6 +7,8 @@ import {
   buildStructuredObject,
   buildWorkflowBudgetInput,
   createWorkflowBudgetDraft,
+  describeLaunchParameterMapping,
+  describeMappedProjectPath,
   defaultParameterDraftValue,
   readMappedProjectParameterDraft,
   readLaunchDefinition,
@@ -190,6 +192,61 @@ describe('playbook launch support', () => {
 
     expect(repositoryDraft).toBe('https://github.com/agisnap/agirunner-test-fixtures');
     expect(branchDraft).toBe('main');
+  });
+
+  it('describes project-mapped launch parameter posture for the UI', () => {
+    expect(describeMappedProjectPath('project.settings.default_branch')).toBe(
+      'settings → default branch',
+    );
+    expect(
+      describeLaunchParameterMapping({
+        spec: {
+          key: 'repository_url',
+          label: 'Repository URL',
+          description: '',
+          inputType: 'string',
+          options: [],
+          mapsTo: 'project.repository_url',
+        },
+        project: {
+          id: 'project-1',
+          name: 'Demo',
+          slug: 'demo',
+          repository_url: 'https://github.com/agisnap/agirunner-test-fixtures',
+        },
+        currentValue: 'https://github.com/agisnap/agirunner-test-fixtures',
+      }),
+    ).toEqual({
+      badgeLabel: 'Using project value',
+      detail: 'Autofilled from Demo → repository url.',
+      mappedValue: 'https://github.com/agisnap/agirunner-test-fixtures',
+      canRestoreMappedValue: false,
+    });
+    expect(
+      describeLaunchParameterMapping({
+        spec: {
+          key: 'repository_url',
+          label: 'Repository URL',
+          description: '',
+          inputType: 'string',
+          options: [],
+          mapsTo: 'project.repository_url',
+        },
+        project: {
+          id: 'project-1',
+          name: 'Demo',
+          slug: 'demo',
+          repository_url: 'https://github.com/agisnap/agirunner-test-fixtures',
+        },
+        currentValue: 'https://github.com/example/custom',
+      }),
+    ).toEqual({
+      badgeLabel: 'Custom launch override',
+      detail:
+        'Project value from Demo → repository url is available if you want to restore it.',
+      mappedValue: 'https://github.com/agisnap/agirunner-test-fixtures',
+      canRestoreMappedValue: true,
+    });
   });
 
   it('builds structured workflow budget input from bounded launch fields', () => {

@@ -6,6 +6,8 @@ function readSource() {
   return [
     './playbook-launch-page.tsx',
     './playbook-launch-page.sections.tsx',
+    './playbook-launch-parameters.tsx',
+    './playbook-launch-support.ts',
   ]
     .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
     .join('\n');
@@ -34,6 +36,10 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('Archived revision selected - restore first');
     expect(source).toContain('This playbook revision is archived. Restore it from the playbook detail page');
     expect(source).toContain('Playbook Parameters');
+    expect(source).toContain('Project autofill available');
+    expect(source).toContain('Using project value');
+    expect(source).toContain('Custom launch override');
+    expect(source).toContain('Use project value');
     expect(source).toContain('Metadata Entries');
     expect(source).toContain('Workflow Budget Policy');
     expect(source).toContain('WorkflowBudgetEditor');
