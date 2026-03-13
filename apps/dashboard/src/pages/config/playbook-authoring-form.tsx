@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { Badge } from '../../components/ui/badge.js';
@@ -21,10 +22,12 @@ interface PlaybookAuthoringFormProps {
   draft: PlaybookAuthoringDraft;
   onChange(next: PlaybookAuthoringDraft): void;
   onClearError(): void;
+  onValidationChange?(issues: string[]): void;
 }
 
 export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.Element {
   const summary = summarizePlaybookAuthoringDraft(props.draft);
+  const [parameterDefaultIssues, setParameterDefaultIssues] = useState<Record<number, string>>({});
   const roleDefinitionsQuery = useQuery({
     queryKey: ['role-definitions', 'active'],
     queryFn: () => dashboardApi.listRoleDefinitions(),
@@ -43,6 +46,35 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
   function updateDraft(updater: (current: PlaybookAuthoringDraft) => PlaybookAuthoringDraft): void {
     props.onClearError();
     props.onChange(updater(props.draft));
+  }
+
+  useEffect(() => {
+    setParameterDefaultIssues((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([index]) => Number(index) < props.draft.parameters.length),
+      ),
+    );
+  }, [props.draft.parameters.length]);
+
+  useEffect(() => {
+    props.onValidationChange?.(Object.values(parameterDefaultIssues).filter(Boolean));
+  }, [parameterDefaultIssues, props.onValidationChange]);
+
+  function updateParameterDefaultIssue(index: number, issue?: string): void {
+    setParameterDefaultIssues((current) => {
+      if (!issue) {
+        if (!(index in current)) {
+          return current;
+        }
+        const next = { ...current };
+        delete next[index];
+        return next;
+      }
+      if (current[index] === issue) {
+        return current;
+      }
+      return { ...current, [index]: issue };
+    });
   }
 
   return (
@@ -136,7 +168,11 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
         </TabsContent>
 
         <TabsContent value="launch-and-runtime" className="space-y-4">
-          <RuntimeAndParametersSection draft={props.draft} onChange={updateDraft} />
+          <RuntimeAndParametersSection
+            draft={props.draft}
+            onChange={updateDraft}
+            onParameterDefaultIssueChange={updateParameterDefaultIssue}
+          />
         </TabsContent>
       </Tabs>
     </div>

@@ -41,5 +41,6 @@ describe('playbook list page source', () => {
     expect(source).toContain('validatePlaybookCreateDraft');
     expect(source).toContain('Resolve these blockers before creating the playbook.');
     expect(source).toContain('Slug preview:');
+    expect(source).toContain('onValidationChange={setAuthoringValidationIssues}');
   });
 });

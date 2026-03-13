@@ -53,6 +53,7 @@ export function PlaybookListPage(): JSX.Element {
   const [draft, setDraft] = useState<PlaybookAuthoringDraft>(() =>
     createDefaultAuthoringDraft(DEFAULT_LIFECYCLE),
   );
+  const [authoringValidationIssues, setAuthoringValidationIssues] = useState<string[]>([]);
   const [definitionError, setDefinitionError] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -63,6 +64,10 @@ export function PlaybookListPage(): JSX.Element {
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      const authoringIssue = authoringValidationIssues[0];
+      if (authoringIssue) {
+        throw new Error(authoringIssue);
+      }
       const definition = buildPlaybookDefinition(lifecycle, draft);
       if (definition.ok === false) {
         throw new Error(definition.error);
@@ -122,6 +127,10 @@ export function PlaybookListPage(): JSX.Element {
       }),
     [name, slug, outcome, allPlaybooks],
   );
+  const createReadinessIssues = useMemo(
+    () => Array.from(new Set([...createValidation.blockingIssues, ...authoringValidationIssues])),
+    [authoringValidationIssues, createValidation.blockingIssues],
+  );
 
   function resetForm() {
     setName('');
@@ -130,17 +139,19 @@ export function PlaybookListPage(): JSX.Element {
     setOutcome('');
     setLifecycle(DEFAULT_LIFECYCLE);
     setDraft(createDefaultAuthoringDraft(DEFAULT_LIFECYCLE));
+    setAuthoringValidationIssues([]);
     setDefinitionError(null);
   }
 
   function handleLifecycleChange(next: 'standard' | 'continuous') {
     setLifecycle(next);
     setDraft(createDefaultAuthoringDraft(next));
+    setAuthoringValidationIssues([]);
     setDefinitionError(null);
   }
 
   const summary = summarizePlaybookAuthoringDraft(draft);
-  const canCreate = createValidation.isValid && !createMutation.isPending;
+  const canCreate = createReadinessIssues.length === 0 && !createMutation.isPending;
 
   function openCreateWorkspace() {
     resetForm();
@@ -280,6 +291,7 @@ export function PlaybookListPage(): JSX.Element {
                 draft={draft}
                 onChange={setDraft}
                 onClearError={() => setDefinitionError(null)}
+                onValidationChange={setAuthoringValidationIssues}
               />
 
               {definitionError ? <p className="text-sm text-red-600">{definitionError}</p> : null}
@@ -295,11 +307,11 @@ export function PlaybookListPage(): JSX.Element {
                 </p>
               </CardHeader>
               <CardContent className="grid gap-3 text-sm">
-                {createValidation.blockingIssues.length > 0 ? (
+                {createReadinessIssues.length > 0 ? (
                   <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
                     <div className="font-medium">Resolve these blockers before creating the playbook.</div>
                     <ul className="mt-2 list-disc space-y-1 pl-5">
-                      {createValidation.blockingIssues.map((issue) => (
+                      {createReadinessIssues.map((issue) => (
                         <li key={issue}>{issue}</li>
                       ))}
                     </ul>
@@ -333,7 +345,7 @@ export function PlaybookListPage(): JSX.Element {
                 <ReadinessRow
                   label="Launch inputs"
                   value={`${summary.parameterCount} parameters • ${summary.secretParameterCount} secret`}
-                  ready
+                  ready={authoringValidationIssues.length === 0}
                 />
               </CardContent>
             </Card>

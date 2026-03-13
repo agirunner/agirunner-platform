@@ -3,10 +3,12 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return readFileSync(
-    resolve(import.meta.dirname, './playbook-authoring-form-sections.tsx'),
-    'utf8',
-  );
+  return [
+    './playbook-authoring-form-sections.tsx',
+    './playbook-authoring-structured-controls.tsx',
+  ]
+    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
+    .join('\n');
 }
 
 describe('playbook authoring form sections source', () => {
@@ -35,6 +37,10 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('project.repository_url');
     expect(source).toContain('project.settings.default_branch');
     expect(source).toContain('project.credentials.git_token');
+    expect(source).toContain('Structured object fields');
+    expect(source).toContain('Structured list items');
+    expect(source).toContain('Add object field');
+    expect(source).toContain('Add list item');
     expect(source).not.toContain('type="checkbox"');
   });
 });

@@ -1,3 +1,5 @@
+import { validateStructuredParameterDefaultValue } from './playbook-authoring-structured-controls.support.js';
+
 export type PlaybookLifecycle = 'standard' | 'continuous';
 
 export interface RoleDraft {
@@ -285,6 +287,14 @@ export function buildPlaybookDefinition(
   }
   if (hasDuplicates(parameters.map((parameter) => parameter.name))) {
     return { ok: false, error: 'Playbook parameter names must be unique.' };
+  }
+  const defaultValueIssue = parameters
+    .map((parameter) =>
+      validateStructuredParameterDefaultValue(parameter.type, parameter.default),
+    )
+    .find((issue): issue is string => Boolean(issue));
+  if (defaultValueIssue) {
+    return { ok: false, error: defaultValueIssue };
   }
 
   const definition: Record<string, unknown> = {

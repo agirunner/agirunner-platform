@@ -574,7 +574,11 @@ export function OrchestratorSection(
   );
 }
 
-export function RuntimeAndParametersSection(props: SectionProps): JSX.Element {
+export function RuntimeAndParametersSection(
+  props: SectionProps & {
+    onParameterDefaultIssueChange(index: number, issue?: string): void;
+  },
+): JSX.Element {
   return (
     <div className="grid gap-4">
       <SectionCard
@@ -693,6 +697,9 @@ export function RuntimeAndParametersSection(props: SectionProps): JSX.Element {
                 <TypedParameterValueControl
                   valueType={parameter.type}
                   value={parameter.default_value}
+                  onValidationChange={(issue) =>
+                    props.onParameterDefaultIssueChange(index, issue)
+                  }
                   onChange={(value) =>
                     updateParameter(props.onChange, index, 'default_value', value)
                   }

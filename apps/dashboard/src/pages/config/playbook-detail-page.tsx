@@ -61,6 +61,7 @@ export function PlaybookDetailPage(): JSX.Element {
   const [draft, setDraft] = useState<PlaybookAuthoringDraft>(() =>
     hydratePlaybookAuthoringDraft(DEFAULT_LIFECYCLE, {}),
   );
+  const [authoringValidationIssues, setAuthoringValidationIssues] = useState<string[]>([]);
   const [definitionError, setDefinitionError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loadedPlaybookId, setLoadedPlaybookId] = useState<string | null>(null);
@@ -98,6 +99,7 @@ export function PlaybookDetailPage(): JSX.Element {
     setOutcome(playbook.outcome);
     setLifecycle(nextLifecycle);
     setDraft(hydratePlaybookAuthoringDraft(nextLifecycle, playbook.definition));
+    setAuthoringValidationIssues([]);
     setLoadedPlaybookId(playbook.id);
   }
 
@@ -148,6 +150,10 @@ export function PlaybookDetailPage(): JSX.Element {
 
   const updateMutation = useMutation({
     mutationFn: async () => {
+      const authoringIssue = authoringValidationIssues[0];
+      if (authoringIssue) {
+        throw new Error(authoringIssue);
+      }
       const definition = buildPlaybookDefinition(lifecycle, draft);
       if (definition.ok === false) {
         throw new Error(definition.error);
@@ -235,8 +241,8 @@ export function PlaybookDetailPage(): JSX.Element {
   });
 
   const canSave = useMemo(
-    () => Boolean(playbookId && name.trim() && outcome.trim()),
-    [name, outcome, playbookId],
+    () => Boolean(playbookId && name.trim() && outcome.trim() && authoringValidationIssues.length === 0),
+    [authoringValidationIssues.length, name, outcome, playbookId],
   );
 
   if (playbookQuery.isLoading) {
@@ -469,8 +475,19 @@ export function PlaybookDetailPage(): JSX.Element {
           setDefinitionError(null);
           setMessage(null);
         }}
+        onValidationChange={setAuthoringValidationIssues}
       />
 
+      {authoringValidationIssues.length > 0 ? (
+        <div className="rounded-xl border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+          <div className="font-medium">Resolve these authoring blockers before saving.</div>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {authoringValidationIssues.map((issue) => (
+              <li key={issue}>{issue}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {definitionError ? (
         <div className="rounded-xl border border-red-300 bg-red-50/80 px-4 py-3 text-sm text-red-700">
           {definitionError}

@@ -34,7 +34,9 @@ describe('playbook detail page source', () => {
     expect(source).toContain('grid gap-2 sm:grid-cols-2');
     expect(source).toContain("variant={selected ? 'secondary' : 'outline'}");
     expect(source).toContain('rounded-xl border border-red-300 bg-red-50/80');
+    expect(source).toContain('Resolve these authoring blockers before saving.');
     expect(source).toContain('rounded-xl border border-emerald-300 bg-emerald-50/80');
+    expect(source).toContain('onValidationChange={setAuthoringValidationIssues}');
     expect(source).toContain("href: '#playbook-team-roles'");
     expect(source).toContain("href: '#playbook-revision-history'");
     expect(source).toContain('Save Playbook');

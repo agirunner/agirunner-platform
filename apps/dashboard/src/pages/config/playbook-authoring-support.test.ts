@@ -106,6 +106,46 @@ describe('playbook authoring support', () => {
     });
   });
 
+  it('rejects invalid persisted object and list defaults before submit', () => {
+    const objectDraft = createDefaultAuthoringDraft('continuous');
+    objectDraft.parameters = [
+      {
+        name: 'context',
+        type: 'object',
+        required: false,
+        secret: false,
+        category: 'input',
+        maps_to: '',
+        description: '',
+        default_value: '[1,2,3]',
+      },
+    ];
+
+    expect(buildPlaybookDefinition('continuous', objectDraft)).toEqual({
+      ok: false,
+      error: 'Object defaults must be valid structured object data.',
+    });
+
+    const arrayDraft = createDefaultAuthoringDraft('continuous');
+    arrayDraft.parameters = [
+      {
+        name: 'branches',
+        type: 'array',
+        required: false,
+        secret: false,
+        category: 'input',
+        maps_to: '',
+        description: '',
+        default_value: '{"branch":"main"}',
+      },
+    ];
+
+    expect(buildPlaybookDefinition('continuous', arrayDraft)).toEqual({
+      ok: false,
+      error: 'Array defaults must be valid structured list data.',
+    });
+  });
+
   it('validates board columns inline while operators edit the draft', () => {
     const draft = createDefaultAuthoringDraft('standard');
     draft.columns = [
