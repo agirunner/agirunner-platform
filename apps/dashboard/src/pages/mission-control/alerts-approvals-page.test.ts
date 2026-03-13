@@ -33,10 +33,11 @@ describe('alerts approvals page source', () => {
 
   it('routes workflow-owned task interventions through the grouped work-item flow instead of task-first actions', () => {
     const source = readSource();
-    expect(source).toContain('buildWorkflowDetailPermalink');
+    expect(source).toContain('buildTaskContextPacket');
     expect(source).toContain('usesWorkItemOperatorFlow');
     expect(source).toContain('WorkItemFlowActionBlock');
-    expect(source).toContain('Open Work Item Flow');
+    expect(source).toContain("contextPacket.links.find((link) => link.label === 'Open work item flow')");
+    expect(source).toContain('contextPacket.links.map((link) =>');
     expect(source).toContain('Use the grouped work-item flow first. Open the step record later from the work-item view');
     expect(source).toContain('workflow-owned specialist step must be approved, reworked, bypassed, or rejected from the grouped work-item flow');
     expect(source).toContain('workflow-owned output gate must be handled from the grouped work-item flow');
@@ -49,8 +50,9 @@ describe('alerts approvals page source', () => {
     expect(source).toContain('active boards');
     expect(source).toContain('Step Approvals');
     expect(source).toContain('Output Gates');
-    expect(source).toContain('Board:');
-    expect(source).toContain('Upstream steps:');
+    expect(source).toContain('TaskContextPacket');
+    expect(source).toContain('buildTaskContextPacket(task)');
+    expect(source).toContain('{fact.label}: {fact.value}');
     expect(source).toContain('Awaiting Operator Decision');
     expect(source).toContain('dismissedEscalationTaskIds');
     expect(source).toContain('dismissedFailureTaskIds');

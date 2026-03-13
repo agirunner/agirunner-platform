@@ -28,8 +28,10 @@ import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs.js';
 import { GateDetailCard } from '../work/gate-detail-card.js';
-import { buildApprovalQueueSummary } from './alerts-approvals-page.support.js';
-import { buildWorkflowDetailPermalink } from '../workflow-detail-permalinks.js';
+import {
+  buildApprovalQueueSummary,
+  buildTaskContextPacket,
+} from './alerts-approvals-page.support.js';
 
 interface TaskRecord {
   id: string;
@@ -101,16 +103,6 @@ function usesWorkItemOperatorFlow(task: TaskRecord): boolean {
   return Boolean(task.workflow_id && task.work_item_id);
 }
 
-function buildTaskWorkItemPermalink(task: TaskRecord): string | null {
-  if (!task.workflow_id || !task.work_item_id) {
-    return null;
-  }
-  return buildWorkflowDetailPermalink(task.workflow_id, {
-    workItemId: task.work_item_id,
-    activationId: task.activation_id ?? null,
-  });
-}
-
 function QueueSummaryCard({
   label,
   value,
@@ -138,8 +130,9 @@ function WorkItemFlowActionBlock({
   task: TaskRecord;
   message: string;
 }): JSX.Element | null {
-  const workItemPermalink = buildTaskWorkItemPermalink(task);
-  if (!workItemPermalink) {
+  const contextPacket = buildTaskContextPacket(task);
+  const workItemLink = contextPacket.links.find((link) => link.label === 'Open work item flow');
+  if (!workItemLink) {
     return null;
   }
 
@@ -152,9 +145,16 @@ function WorkItemFlowActionBlock({
         <p className="text-xs text-muted">{message}</p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" asChild>
-          <Link to={workItemPermalink}>Open Work Item Flow</Link>
-        </Button>
+        {contextPacket.links.map((link) => (
+          <Button
+            key={`${task.id}:${link.label}`}
+            size="sm"
+            variant={link.priority === 'primary' ? 'default' : 'outline'}
+            asChild
+          >
+            <Link to={link.to}>{link.label}</Link>
+          </Button>
+        ))}
       </div>
       <p className="text-xs text-muted">
         Use the grouped work-item flow first. Open the step record later from the work-item view
@@ -1036,7 +1036,6 @@ function EscalationCard({ task, onResolve, onSkip, onCancel, isLoading }: Escala
   const maxDepth = (task.metadata?.max_escalation_depth as number | undefined) ?? 5;
   const instructions = extractInstructions(task.input);
   const workItemFlow = usesWorkItemOperatorFlow(task);
-  const workItemPermalink = buildTaskWorkItemPermalink(task);
 
   return (
     <Card className="border-l-4 border-l-purple-500">
@@ -1087,27 +1086,10 @@ function EscalationCard({ task, onResolve, onSkip, onCancel, isLoading }: Escala
         )}
 
         <div className="flex flex-wrap items-center gap-3 text-[10px] text-muted">
-          {task.workflow_id && <span>Board: {task.workflow_id.slice(0, 8)}</span>}
           <span>Escalation depth: {escalationDepth}/{maxDepth}</span>
-          <span className="font-mono">Step {task.id.slice(0, 8)}</span>
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-xs">
-          {workItemPermalink ? (
-            <Link to={workItemPermalink} className="underline-offset-4 hover:underline">
-              Open work item flow
-            </Link>
-          ) : null}
-          {task.workflow_id ? (
-            <Link to={`/work/workflows/${task.workflow_id}`} className="underline-offset-4 hover:underline">
-              Open board
-            </Link>
-          ) : null}
-          {!workItemPermalink ? (
-            <Link to={`/work/tasks/${task.id}`} className="underline-offset-4 hover:underline">
-              Open step detail
-            </Link>
-          ) : null}
-        </div>
+
+        <TaskContextPacket task={task} />
 
         {workItemFlow ? (
           <WorkItemFlowActionBlock
@@ -1146,19 +1128,43 @@ function EscalationCard({ task, onResolve, onSkip, onCancel, isLoading }: Escala
 // ---------------------------------------------------------------------------
 
 function TaskMetaRow({ task }: { task: TaskRecord }): JSX.Element {
-  const workItemFlow = usesWorkItemOperatorFlow(task);
+  const contextPacket = buildTaskContextPacket(task);
+  if (contextPacket.facts.length === 0 && contextPacket.links.length === 0) {
+    return <></>;
+  }
+
   return (
-    <div className="flex flex-wrap items-center gap-3 text-[10px] text-muted">
-      {task.workflow_id && <span>Board: {task.workflow_id.slice(0, 8)}</span>}
-      {workItemFlow && task.work_item_id ? <span>Work item: {task.work_item_id.slice(0, 8)}</span> : null}
-      {task.stage_name ? <span>Stage: {task.stage_name}</span> : null}
-      {(task.depends_on ?? []).length > 0 && (
-        <span>Upstream steps: {task.depends_on!.length}</span>
-      )}
-      {(task.assigned_worker_id ?? task.assigned_worker) && (
-        <span>Assigned worker: {(task.assigned_worker_id ?? task.assigned_worker)!.slice(0, 8)}</span>
-      )}
-      <span className="font-mono">Step {task.id.slice(0, 8)}</span>
+    <TaskContextPacket task={task} />
+  );
+}
+
+function TaskContextPacket({ task }: { task: TaskRecord }): JSX.Element {
+  const contextPacket = buildTaskContextPacket(task);
+
+  return (
+    <div className="space-y-2 rounded-md border border-border/70 bg-border/10 p-3">
+      {contextPacket.facts.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {contextPacket.facts.map((fact) => (
+            <Badge key={`${task.id}:${fact.label}`} variant="outline" className="text-[10px]">
+              {fact.label}: {fact.value}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
+      {contextPacket.links.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-3 text-xs">
+          {contextPacket.links.map((link) => (
+            <Link
+              key={`${task.id}:${link.label}`}
+              to={link.to}
+              className="underline-offset-4 hover:underline"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

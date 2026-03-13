@@ -1,3 +1,5 @@
+import { buildWorkflowDetailPermalink } from '../workflow-detail-permalinks.js';
+
 interface TimestampedTaskLike {
   created_at?: string | null;
 }
@@ -5,6 +7,33 @@ interface TimestampedTaskLike {
 interface TimestampedGateLike {
   requested_at?: string | null;
   updated_at?: string | null;
+}
+
+export interface QueueTaskContextLike {
+  id: string;
+  workflow_id?: string | null;
+  work_item_id?: string | null;
+  activation_id?: string | null;
+  stage_name?: string | null;
+  depends_on?: string[];
+  assigned_worker_id?: string | null;
+  assigned_worker?: string | null;
+}
+
+export interface TaskContextFact {
+  label: string;
+  value: string;
+}
+
+export interface TaskContextLink {
+  label: string;
+  to: string;
+  priority: 'primary' | 'secondary';
+}
+
+export interface TaskContextPacket {
+  facts: TaskContextFact[];
+  links: TaskContextLink[];
 }
 
 export interface ApprovalQueueSummary {
@@ -103,4 +132,51 @@ export function buildApprovalQueueSummary(input: {
     primaryLane: resolvePrimaryLane(summaryBase),
     oldestAgeLabel: formatRelativeAge(oldestAgeMs),
   };
+}
+
+export function buildTaskContextPacket(task: QueueTaskContextLike): TaskContextPacket {
+  const facts: TaskContextFact[] = [];
+  const links: TaskContextLink[] = [];
+
+  if (task.stage_name) {
+    facts.push({ label: 'Stage', value: task.stage_name });
+  }
+  if (task.work_item_id) {
+    facts.push({ label: 'Work item', value: task.work_item_id.slice(0, 8) });
+  }
+  if ((task.depends_on ?? []).length > 0) {
+    facts.push({ label: 'Upstream steps', value: String(task.depends_on?.length ?? 0) });
+  }
+
+  const assignedWorker = task.assigned_worker_id ?? task.assigned_worker;
+  if (assignedWorker) {
+    facts.push({ label: 'Assigned worker', value: assignedWorker.slice(0, 8) });
+  }
+
+  if (task.workflow_id && task.work_item_id) {
+    links.push({
+      label: 'Open work item flow',
+      to: buildWorkflowDetailPermalink(task.workflow_id, {
+        workItemId: task.work_item_id,
+        activationId: task.activation_id ?? null,
+      }),
+      priority: 'primary',
+    });
+  }
+
+  if (task.workflow_id) {
+    links.push({
+      label: 'Open board context',
+      to: `/work/workflows/${task.workflow_id}`,
+      priority: task.work_item_id ? 'secondary' : 'primary',
+    });
+  }
+
+  links.push({
+    label: task.workflow_id && task.work_item_id ? 'Open step diagnostics' : 'Open step detail',
+    to: `/work/tasks/${task.id}`,
+    priority: 'secondary',
+  });
+
+  return { facts, links };
 }
