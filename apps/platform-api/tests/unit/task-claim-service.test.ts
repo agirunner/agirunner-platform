@@ -819,7 +819,140 @@ describe('TaskClaimService', () => {
     expect(task?.credentials).not.toHaveProperty('llm_api_key_secret_ref');
   });
 
-  it('resolves task-bound claim handles only for the assigned agent', async () => {
+  it('issues opaque claim handles and resolves them only for the assigned agent', async () => {
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
+    const encryptedApiKey = storeProviderSecret('provider-api-key');
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-opaque',
+              workflow_id: 'wf-1',
+              state: 'ready',
+              role: 'developer',
+              project_id: null,
+              role_config: {},
+              metadata: {},
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-opaque',
+              workflow_id: 'wf-1',
+              state: 'claimed',
+              role: 'developer',
+              role_config: {},
+              metadata: {},
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT api_key_secret_ref')) {
+          return {
+            rowCount: 1,
+            rows: [{ api_key_secret_ref: encryptedApiKey }],
+          };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT assigned_agent_id')) {
+          expect(params).toEqual(['tenant-1', 'task-opaque']);
+          return {
+            rowCount: 1,
+            rows: [{ assigned_agent_id: 'agent-1' }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql} :: ${JSON.stringify(params ?? [])}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskClaimService({
+      pool: { connect: vi.fn(async () => client), query: client.query } as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => ({
+        provider: {
+          name: 'OpenAI',
+          providerId: 'provider-1',
+          providerType: 'openai',
+          authMode: 'api_key',
+          apiKeySecretRef: encryptedApiKey,
+          baseUrl: 'https://api.openai.test/v1',
+        },
+        model: {
+          modelId: 'gpt-5',
+          contextWindow: null,
+          endpointType: 'responses',
+          reasoningConfig: null,
+        },
+        reasoningConfig: null,
+      })),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['llm-api'],
+    });
+
+    const handle = (task?.credentials as Record<string, unknown>).llm_api_key_claim_handle as string;
+    const legacyPayload = Buffer.from(JSON.stringify({
+      task_id: 'task-opaque',
+      kind: 'llm_api_key',
+      stored_secret: encryptedApiKey,
+    }), 'utf8').toString('base64url');
+
+    expect(handle).toMatch(/^claim:v1:/);
+    expect(handle).not.toContain('task-opaque');
+    expect(handle).not.toContain(encryptedApiKey);
+    expect(handle).not.toContain(legacyPayload);
+    expect(handle.slice('claim:v1:'.length).split('.')).toHaveLength(3);
+
+    const credentials = await service.resolveClaimCredentials(
+      { ...identity, ownerId: 'agent-1' },
+      'task-opaque',
+      { llm_api_key_claim_handle: handle },
+    );
+
+    expect(credentials).toEqual({
+      llm_api_key: 'provider-api-key',
+    });
+  });
+
+  it('continues to resolve legacy task-bound claim handles for assigned agents', async () => {
     process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
     const encryptedApiKey = storeProviderSecret('provider-api-key');
     const encryptedHeaders = storeProviderSecret(JSON.stringify({ Authorization: 'Bearer secret-token' }));

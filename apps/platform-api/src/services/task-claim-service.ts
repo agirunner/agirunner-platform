@@ -1,4 +1,11 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from 'node:crypto';
 
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
@@ -11,7 +18,7 @@ import {
 import { assertValidTransition, type TaskState } from '../orchestration/task-state-machine.js';
 import { EventService } from './event-service.js';
 import type { ResolvedRoleConfig } from './model-catalog-service.js';
-import { OAuthService, type ResolvedOAuthToken } from './oauth-service.js';
+import { OAuthService } from './oauth-service.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
 import { flattenInstructionLayers } from './task-context-service.js';
 import { computeToolMatch, readAgentToolRequirements, resolveProjectToolTags } from './tool-tag-service.js';
@@ -30,7 +37,14 @@ const claimRoleConfigSecretKeys = new Set([
   'authorization',
 ]);
 const CLAIM_CREDENTIAL_HANDLE_VERSION = 'v1';
+const CLAIM_CREDENTIAL_HANDLE_ENCRYPTION_ALGORITHM = 'aes-256-gcm';
+const CLAIM_CREDENTIAL_HANDLE_IV_LENGTH_BYTES = 12;
 type ClaimCredentialKind = 'llm_api_key' | 'llm_extra_headers';
+interface ClaimCredentialPayload {
+  task_id?: string;
+  kind?: string;
+  stored_secret?: string;
+}
 
 interface TaskClaimDependencies {
   pool: DatabasePool;
@@ -773,16 +787,25 @@ function createClaimCredentialHandle(
   storedSecret: string,
   claimHandleSecret: string,
 ): string {
-  const payload = Buffer.from(
-    JSON.stringify({
-      task_id: taskId,
-      kind,
-      stored_secret: storedSecret,
-    }),
-    'utf8',
-  ).toString('base64url');
-  const signature = createHmac('sha256', claimHandleSecret).update(payload).digest('base64url');
-  return `claim:${CLAIM_CREDENTIAL_HANDLE_VERSION}:${payload}.${signature}`;
+  const iv = randomBytes(CLAIM_CREDENTIAL_HANDLE_IV_LENGTH_BYTES);
+  const cipher = createCipheriv(
+    CLAIM_CREDENTIAL_HANDLE_ENCRYPTION_ALGORITHM,
+    deriveClaimHandleKey(claimHandleSecret),
+    iv,
+  );
+  const encrypted = Buffer.concat([
+    cipher.update(
+      JSON.stringify({
+        task_id: taskId,
+        kind,
+        stored_secret: storedSecret,
+      }),
+      'utf8',
+    ),
+    cipher.final(),
+  ]);
+  const authTag = cipher.getAuthTag();
+  return `claim:${CLAIM_CREDENTIAL_HANDLE_VERSION}:${iv.toString('base64url')}.${encrypted.toString('base64url')}.${authTag.toString('base64url')}`;
 }
 
 function parseClaimCredentialHandle(
@@ -796,6 +819,39 @@ function parseClaimCredentialHandle(
     throw new ValidationError('Invalid claim credential handle.');
   }
   const encoded = handle.slice(prefix.length);
+  const decoded = readClaimCredentialPayload(encoded, claimHandleSecret);
+  if (
+    decoded.task_id !== expectedTaskId
+    || decoded.kind !== expectedKind
+    || typeof decoded.stored_secret !== 'string'
+  ) {
+    throw new ValidationError('Invalid claim credential handle.');
+  }
+  return decoded.stored_secret;
+}
+
+function deriveClaimHandleKey(claimHandleSecret: string): Buffer {
+  return createHash('sha256').update(claimHandleSecret, 'utf8').digest();
+}
+
+function readClaimCredentialPayload(
+  encoded: string,
+  claimHandleSecret: string,
+): ClaimCredentialPayload {
+  const segments = encoded.split('.');
+  if (segments.length === 2) {
+    return readLegacyClaimCredentialPayload(encoded, claimHandleSecret);
+  }
+  if (segments.length === 3) {
+    return readOpaqueClaimCredentialPayload(segments, claimHandleSecret);
+  }
+  throw new ValidationError('Invalid claim credential handle.');
+}
+
+function readLegacyClaimCredentialPayload(
+  encoded: string,
+  claimHandleSecret: string,
+): ClaimCredentialPayload {
   const separator = encoded.lastIndexOf('.');
   if (separator <= 0 || separator === encoded.length - 1) {
     throw new ValidationError('Invalid claim credential handle.');
@@ -810,13 +866,38 @@ function parseClaimCredentialHandle(
   ) {
     throw new ValidationError('Invalid claim credential handle.');
   }
-  const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as {
-    task_id?: string;
-    kind?: string;
-    stored_secret?: string;
-  };
-  if (decoded.task_id !== expectedTaskId || decoded.kind !== expectedKind || typeof decoded.stored_secret !== 'string') {
+  return parseClaimCredentialPayload(Buffer.from(payload, 'base64url').toString('utf8'));
+}
+
+function readOpaqueClaimCredentialPayload(
+  segments: string[],
+  claimHandleSecret: string,
+): ClaimCredentialPayload {
+  const [ivBase64, encryptedBase64, authTagBase64] = segments;
+  if (!ivBase64 || !encryptedBase64 || !authTagBase64) {
     throw new ValidationError('Invalid claim credential handle.');
   }
-  return decoded.stored_secret;
+  try {
+    const decipher = createDecipheriv(
+      CLAIM_CREDENTIAL_HANDLE_ENCRYPTION_ALGORITHM,
+      deriveClaimHandleKey(claimHandleSecret),
+      Buffer.from(ivBase64, 'base64url'),
+    );
+    decipher.setAuthTag(Buffer.from(authTagBase64, 'base64url'));
+    const decrypted = Buffer.concat([
+      decipher.update(Buffer.from(encryptedBase64, 'base64url')),
+      decipher.final(),
+    ]);
+    return parseClaimCredentialPayload(decrypted.toString('utf8'));
+  } catch {
+    throw new ValidationError('Invalid claim credential handle.');
+  }
+}
+
+function parseClaimCredentialPayload(payload: string): ClaimCredentialPayload {
+  try {
+    return JSON.parse(payload) as ClaimCredentialPayload;
+  } catch {
+    throw new ValidationError('Invalid claim credential handle.');
+  }
 }
