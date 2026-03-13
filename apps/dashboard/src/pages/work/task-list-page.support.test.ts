@@ -11,6 +11,7 @@ import {
   formatTaskDuration,
   formatStatusLabel,
   normalizeTaskListRecords,
+  readTaskRecoveryCue,
   resolveTaskStatus,
   statusBadgeVariant,
   summarizeTaskPosture,
@@ -147,6 +148,37 @@ describe('task list page support', () => {
     });
     expect(buildTaskSearchText(tasks[4])).toContain('release train');
     expect(buildTaskSearchText(tasks[4])).toContain('verify');
+  });
+
+  it('reads recovery cues that match the current operator posture', () => {
+    expect(
+      readTaskRecoveryCue({
+        id: 'task-failed',
+        status: 'failed',
+        created_at: '2026-03-12T12:00:00.000Z',
+      }),
+    ).toBe(
+      'Failure is blocking downstream work. Inspect diagnostics, then choose retry, rework, or escalation.',
+    );
+    expect(
+      readTaskRecoveryCue({
+        id: 'task-review',
+        status: 'output_pending_review',
+        created_at: '2026-03-12T12:00:00.000Z',
+      }),
+    ).toBe(
+      'Output is ready for review. Validate the packet, then approve or request targeted changes.',
+    );
+    expect(
+      readTaskRecoveryCue({
+        id: 'task-orchestrator',
+        status: 'in_progress',
+        is_orchestrator_task: true,
+        created_at: '2026-03-12T12:00:00.000Z',
+      }),
+    ).toBe(
+      'Watch this orchestrator turn for new work items, gates, or retries before leaving the queue.',
+    );
   });
 
   it('exports the shared page constants and task normalization helpers', () => {

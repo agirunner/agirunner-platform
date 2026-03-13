@@ -1,6 +1,4 @@
-import {
-  readTaskOperatorFlowDescription,
-} from './task-list-page.actions.js';
+import { readTaskOperatorFlowDescription } from './task-list-page.actions.js';
 
 export interface TaskListRecord {
   id: string;
@@ -76,19 +74,17 @@ export function resolveTaskStatus(task: TaskListRecord): string {
 export function statusBadgeVariant(
   status: string,
 ): 'success' | 'default' | 'destructive' | 'warning' | 'secondary' {
-  const variants: Record<
-    string,
-    'success' | 'default' | 'destructive' | 'warning' | 'secondary'
-  > = {
-    completed: 'success',
-    in_progress: 'default',
-    failed: 'destructive',
-    output_pending_review: 'warning',
-    awaiting_approval: 'warning',
-    escalated: 'destructive',
-    ready: 'secondary',
-    pending: 'secondary',
-  };
+  const variants: Record<string, 'success' | 'default' | 'destructive' | 'warning' | 'secondary'> =
+    {
+      completed: 'success',
+      in_progress: 'default',
+      failed: 'destructive',
+      output_pending_review: 'warning',
+      awaiting_approval: 'warning',
+      escalated: 'destructive',
+      ready: 'secondary',
+      pending: 'secondary',
+    };
   return variants[status] ?? 'secondary';
 }
 
@@ -156,6 +152,29 @@ export function describeTaskNextAction(task: TaskListRecord): string {
   return operatorFlow
     ? `Open the ${operatorFlow} for full board context and recent activity.`
     : 'Open the step for full context and recent activity.';
+}
+
+export function readTaskRecoveryCue(task: TaskListRecord): string {
+  const status = resolveTaskStatus(task);
+  if (status === 'failed') {
+    return 'Failure is blocking downstream work. Inspect diagnostics, then choose retry, rework, or escalation.';
+  }
+  if (status === 'escalated') {
+    return 'An operator decision is holding this step. Resolve the escalation to let workflow progress resume.';
+  }
+  if (status === 'awaiting_approval') {
+    return 'An approval decision is waiting. Approve, reject, or request changes so the board can move again.';
+  }
+  if (status === 'output_pending_review') {
+    return 'Output is ready for review. Validate the packet, then approve or request targeted changes.';
+  }
+  if (status === 'ready') {
+    return 'This step is ready but unclaimed. Watch for worker-capacity buildup if more steps stack here.';
+  }
+  if (task.is_orchestrator_task) {
+    return 'Watch this orchestrator turn for new work items, gates, or retries before leaving the queue.';
+  }
+  return 'Use the linked operator flow so the next decision stays attached to the right board context.';
 }
 
 export function formatTaskDuration(task: TaskListRecord, now = Date.now()): string {

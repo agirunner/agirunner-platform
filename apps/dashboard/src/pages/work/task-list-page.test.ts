@@ -35,6 +35,7 @@ describe('task list page source', () => {
     expect(source).toContain('describeTaskNextAction');
     expect(source).toContain('describeTaskScope');
     expect(source).toContain('buildTaskSearchText');
+    expect(source).toContain('readTaskRecoveryCue');
     expect(source).not.toContain("status === 'running' || status === 'claimed'");
     expect(source).toContain('Visible execution steps');
   });
@@ -50,6 +51,8 @@ describe('task list page source', () => {
     expect(source).toContain('Open board stage flow');
     expect(source).toContain('Open step diagnostics');
     expect(source).toContain('Open failed step diagnostics');
-    expect(source).toContain('Every row or card leads with current posture, board context, and the correct operator');
+    expect(source).toContain('TaskListOperatorCue');
+    expect(source).toContain('Review next, then recover');
+    expect(source).toContain('This page keeps posture, recovery cues, board context');
   });
 });

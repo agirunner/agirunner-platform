@@ -1,4 +1,12 @@
-import { AlertTriangle, Bot, CheckCircle2, ChevronLeft, ChevronRight, Loader2, Search } from 'lucide-react';
+import {
+  AlertTriangle,
+  Bot,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Search,
+} from 'lucide-react';
 
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -16,6 +24,8 @@ import {
   STATUS_FILTERS,
   TASK_LIST_PAGE_SIZE,
   formatStatusLabel,
+  readTaskRecoveryCue,
+  resolveTaskStatus,
   summarizeTaskPosture,
   type StatusFilter,
   type TaskListRecord,
@@ -32,20 +42,38 @@ export function TaskListFilters(props: {
   return (
     <Card className="border-border/70 shadow-sm">
       <CardContent className="grid gap-4 p-4">
-        <div className="flex flex-col gap-2 xl:flex-row xl:items-end xl:justify-between">
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-foreground">Filter the execution queue</p>
-            <p className="text-xs text-muted">
-              {props.filteredCount} step{props.filteredCount === 1 ? '' : 's'} in the current
-              operator view.
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,0.8fr)]">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-medium text-foreground">Filter the execution queue</p>
+              <Badge variant="outline">
+                {props.filteredCount} visible step{props.filteredCount === 1 ? '' : 's'}
+              </Badge>
+            </div>
+            <p className="text-sm leading-6 text-muted">
+              Narrow the queue by posture or search term, then keep review and recovery work in the
+              linked board flow instead of hopping between raw step records.
             </p>
           </div>
-          <Badge variant="outline">
-            {props.searchQuery ? `Search: ${props.searchQuery}` : formatStatusLabel(props.statusFilter)}
-          </Badge>
+          <div className="rounded-2xl border border-border/70 bg-muted/10 p-4">
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+              Active view
+            </div>
+            <p className="mt-2 text-sm font-medium">
+              {props.searchQuery
+                ? `Search: ${props.searchQuery}`
+                : formatStatusLabel(props.statusFilter)}
+            </p>
+            <p className="mt-2 text-sm text-muted">
+              Saved views keep the same queue slice ready for future recovery or approval passes.
+            </p>
+          </div>
         </div>
         <div className="grid gap-3 xl:grid-cols-[220px_minmax(0,1fr)_auto]">
-          <Select value={props.statusFilter} onValueChange={(value) => props.onStatusChange(value as StatusFilter)}>
+          <Select
+            value={props.statusFilter}
+            onValueChange={(value) => props.onStatusChange(value as StatusFilter)}
+          >
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -68,7 +96,9 @@ export function TaskListFilters(props: {
           </div>
           <SavedViews
             storageKey="task-list"
-            currentFilters={{ status: props.statusFilter, search: props.searchQuery } as SavedViewFilters}
+            currentFilters={
+              { status: props.statusFilter, search: props.searchQuery } as SavedViewFilters
+            }
             onApply={(filters: SavedViewFilters) => {
               props.onStatusChange((filters.status as StatusFilter) ?? 'all');
               props.onSearchChange(filters.search ?? '');
@@ -113,8 +143,8 @@ export function TaskPostureSection(props: {
   return (
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
       {packets.map((packet) => (
-        <Card key={packet.title} className="border-border/70 shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <Card key={packet.title} className="border-border/70 bg-card/90 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted">{packet.title}</CardTitle>
             <packet.icon className="h-4 w-4 text-muted" />
           </CardHeader>
@@ -125,6 +155,54 @@ export function TaskPostureSection(props: {
         </Card>
       ))}
     </div>
+  );
+}
+
+export function TaskListOperatorCue(props: {
+  tasks: TaskListRecord[];
+  hasFilters: boolean;
+}): JSX.Element {
+  const posture = summarizeTaskPosture(props.tasks);
+  const highlightedTask =
+    props.tasks.find((task) => ['failed', 'escalated'].includes(resolveTaskStatus(task))) ??
+    props.tasks.find((task) =>
+      ['awaiting_approval', 'output_pending_review'].includes(resolveTaskStatus(task)),
+    ) ??
+    props.tasks.find((task) => resolveTaskStatus(task) === 'ready') ??
+    props.tasks.find((task) => task.is_orchestrator_task) ??
+    props.tasks[0];
+  const reviewPressure = posture.review > 0;
+  const recoveryPressure = posture.recovery > 0;
+  const cueTitle = recoveryPressure ? 'Recovery cue' : reviewPressure ? 'Approval cue' : 'Flow cue';
+  const cueBody = readTaskRecoveryCue(highlightedTask);
+  const cueFootnote = recoveryPressure
+    ? `${posture.recovery} step${posture.recovery === 1 ? '' : 's'} still need intervention before lower-risk execution work matters.`
+    : reviewPressure
+      ? `${posture.review} step${posture.review === 1 ? '' : 's'} are waiting on review, so approvals will unblock flow fastest.`
+      : 'The current page is mostly execution and orchestration work, so use the linked board flow only when you need deeper context.';
+  const filterBody = props.hasFilters
+    ? 'A saved or ad-hoc filter is active, so counts and cues reflect only the current slice.'
+    : 'No extra filters are active, so the cues reflect the full visible operator queue.';
+
+  return (
+    <Card className="border-border/70 bg-muted/10 shadow-sm">
+      <CardContent className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,0.8fr)]">
+        <div className="space-y-2">
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+            {cueTitle}
+          </div>
+          <p className="text-base font-semibold">Review next, then recover</p>
+          <p className="text-sm leading-6 text-muted">{cueBody}</p>
+          <p className="text-xs leading-5 text-muted">{cueFootnote}</p>
+        </div>
+        <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+            Queue focus
+          </div>
+          <p className="mt-2 text-sm text-muted">{filterBody}</p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -142,8 +220,8 @@ export function TaskListContent(props: {
       <CardHeader className="space-y-2">
         <CardTitle>Visible execution steps</CardTitle>
         <p className="text-sm text-muted">
-          Every row or card leads with current posture, board context, and the correct operator
-          flow instead of a raw step dump.
+          This page keeps posture, recovery cues, board context, and the correct operator flow in
+          view instead of falling back to a raw step dump.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -151,6 +229,7 @@ export function TaskListContent(props: {
           <TaskListEmptyState hasFilters={props.hasFilters} />
         ) : (
           <>
+            <TaskListOperatorCue tasks={props.tasks} hasFilters={props.hasFilters} />
             <div className="grid gap-3 lg:hidden">
               {props.tasks.map((task) => (
                 <TaskMobileCard key={task.id} task={task} />
@@ -175,7 +254,9 @@ function TaskListEmptyState(props: { hasFilters: boolean }): JSX.Element {
   return (
     <div className="grid gap-2 rounded-xl border border-dashed border-border/70 bg-muted/10 p-6 text-center">
       <p className="text-sm font-medium">
-        {props.hasFilters ? 'No execution steps match the current filters.' : 'No execution steps yet.'}
+        {props.hasFilters
+          ? 'No execution steps match the current filters.'
+          : 'No execution steps yet.'}
       </p>
       <p className="text-sm text-muted">
         {props.hasFilters
@@ -208,7 +289,12 @@ function TaskPagination(props: {
           <ChevronLeft className="h-4 w-4" />
           Previous
         </Button>
-        <Button variant="outline" size="sm" disabled={props.page >= props.totalPages - 1} onClick={props.onNext}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={props.page >= props.totalPages - 1}
+          onClick={props.onNext}
+        >
           Next
           <ChevronRight className="h-4 w-4" />
         </Button>
