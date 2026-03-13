@@ -31,7 +31,13 @@ export function LogsPageActivityPackets(props: {
             <div className="flex items-start justify-between gap-3">
               <div className="grid gap-1">
                 <div className="text-sm font-medium text-foreground">{packet.headline}</div>
-                <div className="text-xs text-muted">{packet.createdAtLabel}</div>
+                <time
+                  className="text-xs text-muted"
+                  dateTime={packet.createdAtIso}
+                  title={packet.createdAtDetail}
+                >
+                  {packet.createdAtLabel}
+                </time>
               </div>
               <Button size="sm" variant="outline" onClick={() => props.onOpenTrace(packet.id)}>
                 Open trace detail

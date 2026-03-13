@@ -31,6 +31,8 @@ export interface RecentLogActivityPacket {
   context: string[];
   signals: string[];
   createdAtLabel: string;
+  createdAtIso: string;
+  createdAtDetail: string;
   workflowContextHref: string | null;
   taskRecordHref: string | null;
 }
@@ -65,6 +67,7 @@ export function buildInspectorOverviewCards(
 export function buildRecentLogActivityPackets(
   entries: LogEntry[],
   limit = 3,
+  now = Date.now(),
 ): RecentLogActivityPacket[] {
   return entries.slice(0, limit).map((entry) => ({
     id: entry.id,
@@ -73,7 +76,9 @@ export function buildRecentLogActivityPackets(
     nextAction: describeExecutionNextAction(entry),
     context: summarizeLogContext(entry),
     signals: readExecutionSignals(entry),
-    createdAtLabel: new Date(entry.created_at).toLocaleString(),
+    createdAtLabel: formatRecentActivityAge(entry.created_at, now),
+    createdAtIso: entry.created_at,
+    createdAtDetail: new Date(entry.created_at).toLocaleString(),
     workflowContextHref: buildLogWorkflowContextLink(entry),
     taskRecordHref: entry.task_id ? `/work/tasks/${entry.task_id}` : null,
   }));
@@ -182,4 +187,27 @@ function sumCost(stats?: LogStatsResponse): number {
     (sum, group) => sum + Number(group.agg.total_cost_usd ?? 0),
     0,
   );
+}
+
+function formatRecentActivityAge(createdAt: string, now: number): string {
+  const created = new Date(createdAt).getTime();
+  if (!Number.isFinite(created)) {
+    return 'Unknown time';
+  }
+
+  const elapsedMinutes = Math.max(0, Math.floor((now - created) / 60_000));
+  if (elapsedMinutes < 1) {
+    return 'Just now';
+  }
+  if (elapsedMinutes < 60) {
+    return `${elapsedMinutes}m ago`;
+  }
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) {
+    return `${elapsedHours}h ago`;
+  }
+
+  const elapsedDays = Math.floor(elapsedHours / 24);
+  return `${elapsedDays}d ago`;
 }

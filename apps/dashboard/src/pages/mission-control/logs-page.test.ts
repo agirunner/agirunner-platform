@@ -52,6 +52,8 @@ describe('logs page source', () => {
     expect(packetsSource).toContain('Open trace detail');
     expect(packetsSource).toContain('Board context');
     expect(packetsSource).toContain('Step record');
+    expect(packetsSource).toContain('dateTime={packet.createdAtIso}');
+    expect(packetsSource).toContain('title={packet.createdAtDetail}');
     expect(packetsSource).toContain('Use these human-readable summaries to decide whether to stay in the raw stream');
   });
 

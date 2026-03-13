@@ -110,7 +110,7 @@ describe('logs page support', () => {
         actor_name: 'QA Agent',
         created_at: '2026-03-12T22:00:00.000Z',
       },
-    ]);
+    ], 3, new Date('2026-03-12T22:15:00.000Z').getTime());
 
     expect(packets).toHaveLength(1);
     expect(packets[0]).toMatchObject({
@@ -120,6 +120,9 @@ describe('logs page support', () => {
       nextAction: 'Review this warning before it turns into a gate or board blocker.',
       context: ['board Board Alpha', 'step Review smoke result', 'stage qa', 'work item workitem', 'activation activati'],
       signals: ['Activation', 'Work item', 'Stage'],
+      createdAtLabel: '15m ago',
+      createdAtIso: '2026-03-12T22:00:00.000Z',
+      createdAtDetail: new Date('2026-03-12T22:00:00.000Z').toLocaleString(),
       workflowContextHref:
         '/work/workflows/workflow-12345678?work_item=workitem-88888888&activation=activation-9999',
       taskRecordHref: '/work/tasks/task-abcdef12',
