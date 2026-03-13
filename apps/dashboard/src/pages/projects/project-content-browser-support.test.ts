@@ -8,7 +8,9 @@ import {
   normalizeProjectList,
   normalizeTaskOptions,
   normalizeWorkItemOptions,
+  summarizeArtifactExecutionScope,
   summarizeArtifactInventory,
+  summarizeArtifactUploadPosture,
   summarizeDocumentInventory,
 } from './project-content-browser-support.js';
 
@@ -293,5 +295,63 @@ describe('project content browser support', () => {
     ).toBe('15m ago');
     expect(formatContentRelativeTimestamp(null)).toBe('No timestamp recorded');
     expect(formatContentFileSize(5248)).toBe('5.1 KB');
+  });
+
+  it('summarizes artifact execution scope and upload readiness for operator guidance', () => {
+    expect(
+      summarizeArtifactExecutionScope({
+        selectedWorkflow: {
+          id: 'workflow-1',
+          name: 'Delivery board',
+          state: 'active',
+          createdAt: '2026-03-12T10:00:00.000Z',
+        },
+        selectedWorkItem: {
+          id: 'work-item-1',
+          workflowId: 'workflow-1',
+          title: 'Implement billing webhooks',
+          stageName: 'implementation',
+          columnId: 'doing',
+          priority: 'high',
+          completedAt: null,
+        },
+        selectedTask: {
+          id: 'task-1',
+          workflowId: 'workflow-1',
+          title: 'Publish webhook artifact',
+          state: 'in_progress',
+          stageName: 'implementation',
+          workItemId: 'work-item-1',
+          activationId: 'activation-1',
+          role: 'developer',
+          isOrchestratorTask: false,
+          createdAt: undefined,
+        },
+        filteredTaskCount: 3,
+      }),
+    ).toEqual({
+      headline: 'Publish webhook artifact',
+      detail: 'implementation • developer • in_progress',
+      nextAction: 'Upload or review artifacts for the selected execution step.',
+    });
+
+    expect(
+      summarizeArtifactUploadPosture({
+        selectedTask: null,
+        fileName: null,
+        logicalPath: '',
+        metadataError: null,
+      }),
+    ).toEqual({
+      isReady: false,
+      headline: 'Action required before upload',
+      detail:
+        'Resolve the blockers below so the artifact packet is scoped, named, and valid before upload.',
+      blockers: [
+        'Select a task for the artifact upload target.',
+        'Choose a source file to upload.',
+        'Add a logical artifact path.',
+      ],
+    });
   });
 });

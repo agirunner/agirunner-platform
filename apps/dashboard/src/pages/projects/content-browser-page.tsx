@@ -31,7 +31,9 @@ import {
   normalizeProjectList,
   normalizeTaskOptions,
   normalizeWorkItemOptions,
+  summarizeArtifactExecutionScope,
   summarizeArtifactInventory,
+  summarizeArtifactUploadPosture,
   summarizeDocumentInventory,
 } from './project-content-browser-support.js';
 import {
@@ -151,6 +153,26 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
   const artifactSummary = useMemo(
     () => summarizeArtifactInventory(artifactsQuery.data ?? []),
     [artifactsQuery.data],
+  );
+  const artifactScopeSummary = useMemo(
+    () =>
+      summarizeArtifactExecutionScope({
+        selectedWorkflow,
+        selectedWorkItem,
+        selectedTask,
+        filteredTaskCount: filteredTasks.length,
+      }),
+    [filteredTasks.length, selectedTask, selectedWorkflow, selectedWorkItem],
+  );
+  const artifactUploadPosture = useMemo(
+    () =>
+      summarizeArtifactUploadPosture({
+        selectedTask,
+        fileName: artifactFile?.name ?? null,
+        logicalPath: artifactPath,
+        metadataError: parsedArtifactMetadata.error,
+      }),
+    [artifactFile?.name, artifactPath, parsedArtifactMetadata.error, selectedTask],
   );
 
   useEffect(() => {
@@ -904,216 +926,389 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
               </TabsContent>
 
               <TabsContent value="artifacts" className="space-y-4">
+                <div className="grid gap-4 xl:grid-cols-3">
+                  <ArtifactFlowPacket
+                    label="Execution target"
+                    title={artifactScopeSummary.headline}
+                    detail={artifactScopeSummary.detail}
+                    helper={artifactScopeSummary.nextAction}
+                    badgeLabel={
+                      selectedTask
+                        ? selectedTask.state
+                        : selectedWorkItem
+                          ? selectedWorkItem.columnId
+                          : selectedWorkflow?.state ?? 'scope required'
+                    }
+                  />
+                  <ArtifactFlowPacket
+                    label="Upload readiness"
+                    title={artifactUploadPosture.headline}
+                    detail={artifactUploadPosture.detail}
+                    helper={
+                      artifactUploadPosture.blockers.length > 0
+                        ? artifactUploadPosture.blockers.join(' • ')
+                        : 'The upload packet is complete enough to publish from this page.'
+                    }
+                    badgeLabel={
+                      artifactUploadPosture.isReady
+                        ? 'ready'
+                        : `${artifactUploadPosture.blockers.length} blocker${artifactUploadPosture.blockers.length === 1 ? '' : 's'}`
+                    }
+                    tone={artifactUploadPosture.isReady ? 'success' : 'warning'}
+                  />
+                  <ArtifactFlowPacket
+                    label="Artifact inventory"
+                    title={
+                      selectedTask
+                        ? `${artifactSummary.totalArtifacts} artifacts`
+                        : 'Waiting for task scope'
+                    }
+                    detail={
+                      selectedTask
+                        ? `${artifactSummary.metadataBackedArtifacts} with metadata • ${artifactSummary.uniqueContentTypes} content types`
+                        : 'Pick a task before the browser can load artifact inventory.'
+                    }
+                    helper={
+                      selectedTask && artifactSummary.totalArtifacts > 0
+                        ? `Latest artifact ${formatContentRelativeTimestamp(artifactSummary.latestCreatedAt)} • ${artifactSummary.totalBytes.toLocaleString()} bytes total`
+                        : selectedTask
+                          ? 'This task has not published artifacts yet.'
+                          : 'Inventory updates once a task is selected.'
+                    }
+                    badgeLabel={selectedTask ? (selectedTask.role ?? 'unassigned role') : 'task required'}
+                  />
+                </div>
                 <Card>
                   <CardHeader>
                     <CardTitle>Execution Scope</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Narrow artifact work to a specific board work item and execution step before
+                      uploading or deleting outputs.
+                    </p>
                   </CardHeader>
-                  <CardContent className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_240px]">
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium">Work item</label>
-                      {workItemsQuery.isLoading ? (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Loading workflow work items...
-                        </div>
-                      ) : workItems.length > 0 ? (
-                        <Select
-                          value={selectedWorkItemId || '__all__'}
-                          onValueChange={(value) =>
-                            setSelectedWorkItemId(value === '__all__' ? '' : value)
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="All work items" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__all__">All work items</SelectItem>
-                            {workItems.map((workItem) => (
-                              <SelectItem key={workItem.id} value={workItem.id}>
-                                {workItem.title}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          No work items found for this workflow yet.
-                        </p>
-                      )}
-                      <InlineStatusNotice
-                        tone="error"
-                        show={Boolean(workItemsQuery.error)}
-                        title="Work-item scope unavailable"
-                        message="The dashboard could not load work items for this workflow."
+                  <CardContent className="grid gap-4">
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <ArtifactScopeStep
+                        label="1. Pick board scope"
+                        detail={
+                          selectedWorkItem
+                            ? selectedWorkItem.title
+                            : 'Choose a work item when you want uploads tied to one board outcome.'
+                        }
+                      />
+                      <ArtifactScopeStep
+                        label="2. Pick execution step"
+                        detail={
+                          selectedTask
+                            ? `${selectedTask.title} • ${selectedTask.role ?? 'unassigned role'}`
+                            : 'Select the task that should own the artifact packet and history.'
+                        }
+                      />
+                      <ArtifactScopeStep
+                        label="3. Publish or review"
+                        detail={
+                          selectedTask
+                            ? 'Upload, review, or remove task outputs from the selected execution step.'
+                            : 'Artifact inventory and upload controls unlock once a task is selected.'
+                        }
                       />
                     </div>
-
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium">Task</label>
-                      {tasksQuery.isLoading ? (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Loading workflow tasks...
-                        </div>
-                      ) : filteredTasks.length > 0 ? (
-                        <Select value={selectedTaskId} onValueChange={setSelectedTaskId}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a task" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {filteredTasks.map((task) => (
-                              <SelectItem key={task.id} value={task.id}>
-                                {task.title}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          {selectedWorkItemId
-                            ? 'No tasks found for this work item yet.'
-                            : 'No tasks found for this workflow yet.'}
-                        </p>
-                      )}
-                      <InlineStatusNotice
-                        tone="error"
-                        show={Boolean(tasksQuery.error)}
-                        title="Task scope unavailable"
-                        message="The dashboard could not load tasks for this workflow."
-                      />
-                    </div>
-
-                    {selectedTask || selectedWorkItem ? (
-                      <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
-                        <div className="flex items-center justify-between gap-2">
-                          <Badge variant="secondary">
-                            {selectedTask?.state ?? selectedWorkItem?.columnId ?? 'scoped'}
-                          </Badge>
-                          {selectedTask ? (
-                            <Link
-                              className="text-sm text-accent hover:underline"
-                              to={`/work/tasks/${selectedTask.id}`}
-                            >
-                              Open task
-                            </Link>
-                          ) : (
-                            <Link
-                              className="text-sm text-accent hover:underline"
-                              to={`/work/workflows/${selectedWorkflowId}`}
-                            >
-                              Open workflow
-                            </Link>
-                          )}
-                        </div>
-                        <p className="mt-2 text-sm font-medium">
-                          {selectedTask?.title ?? selectedWorkItem?.title}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {selectedTask?.stageName ??
-                            selectedWorkItem?.stageName ??
-                            'No stage attached'}
-                        </p>
-                        {selectedTask ? (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            {selectedTask.workItemId
-                              ? `Work item ${selectedTask.workItemId}`
-                              : 'No work item linked'}
-                            {selectedTask.activationId
-                              ? ` • Activation ${selectedTask.activationId}`
-                              : ''}
+                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_240px]">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium">Work item</label>
+                        {workItemsQuery.isLoading ? (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Loading workflow work items...
+                          </div>
+                        ) : workItems.length > 0 ? (
+                          <Select
+                            value={selectedWorkItemId || '__all__'}
+                            onValueChange={(value) =>
+                              setSelectedWorkItemId(value === '__all__' ? '' : value)
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="All work items" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__all__">All work items</SelectItem>
+                              {workItems.map((workItem) => (
+                                <SelectItem key={workItem.id} value={workItem.id}>
+                                  {workItem.title}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            No work items found for this workflow yet.
                           </p>
-                        ) : null}
+                        )}
+                        <InlineStatusNotice
+                          tone="error"
+                          show={Boolean(workItemsQuery.error)}
+                          title="Work-item scope unavailable"
+                          message="The dashboard could not load work items for this workflow."
+                        />
                       </div>
-                    ) : null}
+
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium">Task</label>
+                        {tasksQuery.isLoading ? (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Loading workflow tasks...
+                          </div>
+                        ) : filteredTasks.length > 0 ? (
+                          <Select value={selectedTaskId} onValueChange={setSelectedTaskId}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a task" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {filteredTasks.map((task) => (
+                                <SelectItem key={task.id} value={task.id}>
+                                  {task.title}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            {selectedWorkItemId
+                              ? 'No tasks found for this work item yet.'
+                              : 'No tasks found for this workflow yet.'}
+                          </p>
+                        )}
+                        <InlineStatusNotice
+                          tone="error"
+                          show={Boolean(tasksQuery.error)}
+                          title="Task scope unavailable"
+                          message="The dashboard could not load tasks for this workflow."
+                        />
+                      </div>
+
+                      {selectedTask || selectedWorkItem ? (
+                        <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
+                          <div className="flex items-center justify-between gap-2">
+                            <Badge variant="secondary">
+                              {selectedTask?.state ?? selectedWorkItem?.columnId ?? 'scoped'}
+                            </Badge>
+                            {selectedTask ? (
+                              <Link
+                                className="text-sm text-accent hover:underline"
+                                to={`/work/tasks/${selectedTask.id}`}
+                              >
+                                Open task
+                              </Link>
+                            ) : (
+                              <Link
+                                className="text-sm text-accent hover:underline"
+                                to={`/work/workflows/${selectedWorkflowId}`}
+                              >
+                                Open workflow
+                              </Link>
+                            )}
+                          </div>
+                          <p className="mt-2 text-sm font-medium">
+                            {selectedTask?.title ?? selectedWorkItem?.title}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {selectedTask?.stageName ??
+                              selectedWorkItem?.stageName ??
+                              'No stage attached'}
+                          </p>
+                          {selectedTask ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {selectedTask.workItemId
+                                ? `Work item ${selectedTask.workItemId}`
+                                : 'No work item linked'}
+                              {selectedTask.activationId
+                                ? ` • Activation ${selectedTask.activationId}`
+                                : ''}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
                   </CardContent>
                 </Card>
 
                 {selectedTaskId ? (
                   <>
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Artifact Operator Controls</CardTitle>
-                      </CardHeader>
-                      <CardContent className="grid gap-4">
-                        <p className="text-sm text-muted-foreground">
-                          Upload and remove task artifacts here. Artifact rename or metadata edit is
-                          not exposed by the current backend contract, so artifact management is
-                          create/delete plus preview/download.
-                        </p>
-                        <div className="grid gap-4 lg:grid-cols-2">
-                          <label className="grid gap-2 lg:col-span-2">
-                            <span className="text-sm font-medium">Source file</span>
-                            <Input
-                              type="file"
-                              onChange={(event) => {
-                                const nextFile = event.target.files?.[0] ?? null;
-                                setArtifactFile(nextFile);
-                                if (nextFile) {
-                                  setArtifactPath((current) => current || nextFile.name);
-                                  setArtifactContentType((current) => current || nextFile.type);
-                                }
-                              }}
+                    <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_320px]">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Artifact Operator Controls</CardTitle>
+                          <p className="text-sm text-muted-foreground">
+                            Publish or remove task artifacts from the selected execution target.
+                            Rename and in-place metadata editing are still outside the current
+                            backend contract, so this surface focuses on clean upload packets and
+                            safe delete.
+                          </p>
+                        </CardHeader>
+                        <CardContent className="grid gap-4">
+                          <div className="grid gap-4 lg:grid-cols-2">
+                            <div className="grid gap-4 rounded-xl border border-border/70 bg-background/60 p-4 lg:col-span-2">
+                              <div className="space-y-1">
+                                <div className="text-sm font-medium text-foreground">
+                                  Upload source
+                                </div>
+                                <p className="text-xs leading-5 text-muted-foreground">
+                                  Choose the source file first. The browser will prefill the
+                                  logical path and content type when it can.
+                                </p>
+                              </div>
+                              <label className="grid gap-2">
+                                <span className="text-sm font-medium">Source file</span>
+                                <Input
+                                  type="file"
+                                  onChange={(event) => {
+                                    const nextFile = event.target.files?.[0] ?? null;
+                                    setArtifactFile(nextFile);
+                                    if (nextFile) {
+                                      setArtifactPath((current) => current || nextFile.name);
+                                      setArtifactContentType(
+                                        (current) => current || nextFile.type,
+                                      );
+                                    }
+                                  }}
+                                />
+                              </label>
+                            </div>
+                            <div className="grid gap-4 rounded-xl border border-border/70 bg-background/60 p-4">
+                              <div className="space-y-1">
+                                <div className="text-sm font-medium text-foreground">
+                                  Artifact packet
+                                </div>
+                                <p className="text-xs leading-5 text-muted-foreground">
+                                  Name the artifact the way operators and downstream tasks should
+                                  see it in the browser and review flows.
+                                </p>
+                              </div>
+                              <label className="grid gap-2">
+                                <span className="text-sm font-medium">Logical path</span>
+                                <Input
+                                  value={artifactPath}
+                                  onChange={(event) => setArtifactPath(event.target.value)}
+                                  placeholder="artifact:task-id/report.md"
+                                />
+                              </label>
+                              <label className="grid gap-2">
+                                <span className="text-sm font-medium">Content type</span>
+                                <Input
+                                  value={artifactContentType}
+                                  onChange={(event) => setArtifactContentType(event.target.value)}
+                                  placeholder="text/markdown"
+                                />
+                              </label>
+                            </div>
+                            <MetadataEntryEditor
+                              title="Metadata"
+                              description="Attach structured artifact metadata as typed key/value entries."
+                              drafts={artifactMetadataDrafts}
+                              onChange={setArtifactMetadataDrafts}
                             />
-                          </label>
-                          <label className="grid gap-2">
-                            <span className="text-sm font-medium">Logical path</span>
-                            <Input
-                              value={artifactPath}
-                              onChange={(event) => setArtifactPath(event.target.value)}
-                              placeholder="artifact:task-id/report.md"
-                            />
-                          </label>
-                          <label className="grid gap-2">
-                            <span className="text-sm font-medium">Content type</span>
-                            <Input
-                              value={artifactContentType}
-                              onChange={(event) => setArtifactContentType(event.target.value)}
-                              placeholder="text/markdown"
-                            />
-                          </label>
-                          <MetadataEntryEditor
-                            title="Metadata"
-                            description="Attach structured artifact metadata as typed key/value entries."
-                            drafts={artifactMetadataDrafts}
-                            onChange={setArtifactMetadataDrafts}
-                          />
-                        </div>
-                        <InlineStatusNotice
-                          tone="error"
-                          show={Boolean(parsedArtifactMetadata.error)}
-                          title="Metadata needs attention"
-                          message={parsedArtifactMetadata.error}
-                        />
-                        <InlineStatusNotice
-                          tone="error"
-                          show={Boolean(artifactError)}
-                          title="Artifact action failed"
-                          message={artifactError}
-                        />
-                        <InlineStatusNotice
-                          tone="success"
-                          show={Boolean(artifactMessage)}
-                          title="Artifact action complete"
-                          message={artifactMessage}
-                        />
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="text-sm text-muted-foreground">
-                            Selected task: {selectedTask?.title ?? selectedTaskId}
                           </div>
-                          <Button
-                            onClick={() => uploadArtifactMutation.mutate()}
-                            disabled={
-                              uploadArtifactMutation.isPending ||
-                              !artifactFile ||
-                              artifactPath.trim().length === 0 ||
-                              Boolean(parsedArtifactMetadata.error)
-                            }
-                          >
-                            {uploadArtifactMutation.isPending ? 'Uploading…' : 'Upload Artifact'}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
+                          <InlineStatusNotice
+                            tone="error"
+                            show={Boolean(parsedArtifactMetadata.error)}
+                            title="Metadata needs attention"
+                            message={parsedArtifactMetadata.error}
+                          />
+                          <InlineStatusNotice
+                            tone="error"
+                            show={Boolean(artifactError)}
+                            title="Artifact action failed"
+                            message={artifactError}
+                          />
+                          <InlineStatusNotice
+                            tone="success"
+                            show={Boolean(artifactMessage)}
+                            title="Artifact action complete"
+                            message={artifactMessage}
+                          />
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="text-sm text-muted-foreground">
+                              Selected task: {selectedTask?.title ?? selectedTaskId}
+                            </div>
+                            <Button
+                              onClick={() => uploadArtifactMutation.mutate()}
+                              disabled={
+                                uploadArtifactMutation.isPending ||
+                                !artifactFile ||
+                                artifactPath.trim().length === 0 ||
+                                Boolean(parsedArtifactMetadata.error)
+                              }
+                            >
+                              {uploadArtifactMutation.isPending ? 'Uploading…' : 'Upload Artifact'}
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <div className="grid gap-4 self-start">
+                        <ArtifactFlowPacket
+                          label="Current execution packet"
+                          title={selectedTask?.title ?? selectedTaskId}
+                          detail={`${selectedTask?.stageName ?? 'No stage'} • ${selectedTask?.role ?? 'unassigned role'} • ${selectedTask?.state ?? 'unknown state'}`}
+                          helper={
+                            selectedTask?.activationId
+                              ? `Activation ${selectedTask.activationId} is currently linked to this execution step.`
+                              : 'This task owns the artifact history shown below.'
+                          }
+                          badgeLabel={selectedTask?.state ?? 'task scoped'}
+                        />
+                        <Card className="border-border/70 bg-card/70 shadow-sm">
+                          <CardHeader className="space-y-2">
+                            <CardTitle className="text-base">Upload readiness</CardTitle>
+                            <p className="text-sm text-muted-foreground">
+                              Confirm the execution target, file, path, and metadata posture before
+                              publishing a new artifact packet.
+                            </p>
+                          </CardHeader>
+                          <CardContent className="grid gap-3">
+                            <Badge
+                              className="w-fit"
+                              variant={artifactUploadPosture.isReady ? 'success' : 'warning'}
+                            >
+                              {artifactUploadPosture.isReady
+                                ? 'Ready to upload'
+                                : 'Action required'}
+                            </Badge>
+                            {artifactUploadPosture.blockers.length > 0 ? (
+                              <ArtifactRecoveryList blockers={artifactUploadPosture.blockers} />
+                            ) : (
+                              <p className="text-sm text-muted-foreground">
+                                The selected task, upload source, logical path, and metadata packet
+                                are ready for publish.
+                              </p>
+                            )}
+                          </CardContent>
+                        </Card>
+                        <Card className="border-border/70 bg-card/70 shadow-sm">
+                          <CardHeader className="space-y-2">
+                            <CardTitle className="text-base">Operator flow</CardTitle>
+                            <p className="text-sm text-muted-foreground">
+                              Use this order when the packet needs recovery or clarification.
+                            </p>
+                          </CardHeader>
+                          <CardContent className="grid gap-3 text-sm text-muted-foreground">
+                            <ArtifactFlowNote
+                              title="Start with the task"
+                              detail="Keep uploads attached to the execution step that produced or reviewed the output."
+                            />
+                            <ArtifactFlowNote
+                              title="Name for downstream review"
+                              detail="Logical paths should tell specialists and approvers what they are opening."
+                            />
+                            <ArtifactFlowNote
+                              title="Add metadata when handoff matters"
+                              detail="Structured metadata is the fastest way to expose provenance, retention, or review signals."
+                            />
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </div>
                     <ArtifactsTable
                       artifacts={artifactsQuery.data ?? []}
                       isLoading={artifactsQuery.isLoading}
@@ -1123,9 +1318,27 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                     />
                   </>
                 ) : (
-                  <div className="flex flex-col items-center rounded-md border py-12 text-muted-foreground">
+                  <div className="flex flex-col items-center rounded-xl border border-dashed border-border/70 py-12 text-center text-muted-foreground">
                     <FileText className="mb-3 h-10 w-10" />
-                    <p className="font-medium">Select a task to browse artifacts</p>
+                    <p className="font-medium">Select a task to unlock artifact management</p>
+                    <p className="mt-1 max-w-md text-sm">
+                      Start with workflow scope, then pick a work item and task so uploads,
+                      previews, and deletes stay anchored to a real execution step.
+                    </p>
+                    <div className="mt-6 grid max-w-3xl gap-3 px-4 text-left md:grid-cols-3">
+                      <ArtifactScopeStep
+                        label="Choose board scope"
+                        detail="Select the work item when artifact review should stay tied to one board outcome."
+                      />
+                      <ArtifactScopeStep
+                        label="Choose task ownership"
+                        detail="Artifact inventory and uploads attach to the task that produced or reviewed the output."
+                      />
+                      <ArtifactScopeStep
+                        label="Review the packet"
+                        detail="Once a task is selected, use the readiness packet to confirm file, path, and metadata."
+                      />
+                    </div>
                   </div>
                 )}
               </TabsContent>
@@ -1413,6 +1626,75 @@ function InlineStatusNotice(props: {
     <div className={`rounded-md border p-3 text-sm ${className}`}>
       <div className="font-medium">{props.title}</div>
       <div className="mt-1 text-muted-foreground">{props.message}</div>
+    </div>
+  );
+}
+
+function ArtifactFlowPacket(props: {
+  label: string;
+  title: string;
+  detail: string;
+  helper: string;
+  badgeLabel: string;
+  tone?: 'default' | 'success' | 'warning';
+}): JSX.Element {
+  const badgeVariant =
+    props.tone === 'success'
+      ? 'success'
+      : props.tone === 'warning'
+        ? 'warning'
+        : 'outline';
+
+  return (
+    <Card className="border-border/70 bg-card/70 shadow-sm">
+      <CardContent className="grid gap-3 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              {props.label}
+            </div>
+            <div className="text-base font-semibold text-foreground">{props.title}</div>
+          </div>
+          <Badge variant={badgeVariant}>{props.badgeLabel}</Badge>
+        </div>
+        <p className="text-sm text-foreground/90">{props.detail}</p>
+        <p className="text-xs leading-5 text-muted-foreground">{props.helper}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ArtifactRecoveryList(props: { blockers: string[] }): JSX.Element {
+  return (
+    <ul className="grid gap-2 text-sm text-muted-foreground">
+      {props.blockers.map((blocker) => (
+        <li
+          key={blocker}
+          className="rounded-lg border border-amber-300/70 bg-amber-50/80 px-3 py-2 text-amber-900 dark:border-amber-900/70 dark:bg-amber-950/20 dark:text-amber-100"
+        >
+          {blocker}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ArtifactScopeStep(props: { label: string; detail: string }): JSX.Element {
+  return (
+    <div className="rounded-xl border border-border/70 bg-background/60 p-4">
+      <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+        {props.label}
+      </div>
+      <p className="mt-2 text-sm text-foreground/90">{props.detail}</p>
+    </div>
+  );
+}
+
+function ArtifactFlowNote(props: { title: string; detail: string }): JSX.Element {
+  return (
+    <div className="rounded-xl border border-border/70 bg-background/60 p-3">
+      <div className="text-sm font-medium text-foreground">{props.title}</div>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">{props.detail}</p>
     </div>
   );
 }

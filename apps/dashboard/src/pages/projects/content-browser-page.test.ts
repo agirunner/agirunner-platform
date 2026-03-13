@@ -21,6 +21,8 @@ describe('content browser page source', () => {
     const source = readSource();
     expect(source).toContain('listWorkflowWorkItems');
     expect(source).toContain('Execution Scope');
+    expect(source).toContain('Execution target');
+    expect(source).toContain('Upload readiness');
     expect(source).toContain('Work item');
     expect(source).toContain('filterTasksByWorkItem');
   });
@@ -41,6 +43,8 @@ describe('content browser page source', () => {
     expect(source).toContain('Create Workflow Document');
     expect(source).toContain('Save Document Changes');
     expect(source).toContain('Upload Artifact');
+    expect(source).toContain('Current execution packet');
+    expect(source).toContain('Operator flow');
   });
 
   it('uses structured task and artifact selectors for artifact-backed documents', () => {
@@ -60,5 +64,6 @@ describe('content browser page source', () => {
     expect(source).toContain('scopedProjectId');
     expect(source).toContain('preferredTab');
     expect(source).toContain('Back to Project');
+    expect(source).toContain('Select a task to unlock artifact management');
   });
 });

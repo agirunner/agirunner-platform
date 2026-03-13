@@ -55,6 +55,19 @@ export interface ArtifactInventorySummary {
   latestCreatedAt: string | null;
 }
 
+export interface ArtifactExecutionScopeSummary {
+  headline: string;
+  detail: string;
+  nextAction: string;
+}
+
+export interface ArtifactUploadPosture {
+  isReady: boolean;
+  headline: string;
+  detail: string;
+  blockers: string[];
+}
+
 export function normalizeProjectList(
   response: { data: DashboardProjectRecord[] } | DashboardProjectRecord[] | undefined,
 ): DashboardProjectRecord[] {
@@ -260,6 +273,80 @@ export function summarizeArtifactInventory(
     metadataBackedArtifacts,
     uniqueContentTypes: contentTypes.size,
     latestCreatedAt,
+  };
+}
+
+export function summarizeArtifactExecutionScope(input: {
+  selectedWorkflow: ProjectWorkflowOption | null;
+  selectedWorkItem: ProjectWorkItemOption | null;
+  selectedTask: ProjectTaskOption | null;
+  filteredTaskCount: number;
+}): ArtifactExecutionScopeSummary {
+  if (input.selectedTask) {
+    return {
+      headline: input.selectedTask.title,
+      detail: `${input.selectedTask.stageName ?? 'No stage'} • ${input.selectedTask.role ?? 'Unassigned role'} • ${input.selectedTask.state}`,
+      nextAction: 'Upload or review artifacts for the selected execution step.',
+    };
+  }
+  if (input.selectedWorkItem) {
+    return {
+      headline: input.selectedWorkItem.title,
+      detail: `${input.selectedWorkItem.stageName} • ${input.selectedWorkItem.priority} priority • ${input.filteredTaskCount} scoped tasks`,
+      nextAction: 'Choose a task in this work item to unlock uploads and artifact review.',
+    };
+  }
+  if (input.selectedWorkflow) {
+    return {
+      headline: input.selectedWorkflow.name,
+      detail: `${input.selectedWorkflow.state} workflow • ${input.filteredTaskCount} visible tasks`,
+      nextAction: 'Pick a work item or task to anchor artifact management to live board context.',
+    };
+  }
+  return {
+    headline: 'No execution scope selected',
+    detail: 'Choose a workflow before artifact management becomes available.',
+    nextAction: 'Start with workflow scope, then narrow to a work item and task.',
+  };
+}
+
+export function summarizeArtifactUploadPosture(input: {
+  selectedTask: ProjectTaskOption | null;
+  fileName: string | null;
+  logicalPath: string;
+  metadataError: string | null | undefined;
+}): ArtifactUploadPosture {
+  const blockers: string[] = [];
+
+  if (!input.selectedTask) {
+    blockers.push('Select a task for the artifact upload target.');
+  }
+  if (!input.fileName) {
+    blockers.push('Choose a source file to upload.');
+  }
+  if (input.logicalPath.trim().length === 0) {
+    blockers.push('Add a logical artifact path.');
+  }
+  if (input.metadataError) {
+    blockers.push(input.metadataError);
+  }
+
+  if (blockers.length > 0) {
+    return {
+      isReady: false,
+      headline: 'Action required before upload',
+      detail: 'Resolve the blockers below so the artifact packet is scoped, named, and valid before upload.',
+      blockers,
+    };
+  }
+
+  return {
+    isReady: true,
+    headline: 'Ready to upload',
+    detail: input.selectedTask
+      ? `Upload is scoped to ${input.selectedTask.title} and the artifact packet is complete.`
+      : 'Upload is ready.',
+    blockers: [],
   };
 }
 
