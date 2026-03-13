@@ -64,7 +64,10 @@ export function toPublicScheduledTrigger(row: ScheduledWorkItemTriggerRow) {
 }
 
 function sanitizeTriggerDefaults(value: unknown) {
-  return sanitizeSecretLikeRecord(value, { redactionValue: 'redacted://trigger-secret' });
+  return sanitizeSecretLikeRecord(value, {
+    redactionValue: 'redacted://trigger-secret',
+    allowSecretReferences: false,
+  });
 }
 
 export function buildScheduledWorkItem(

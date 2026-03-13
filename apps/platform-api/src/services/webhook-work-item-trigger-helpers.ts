@@ -86,7 +86,10 @@ export function toPublicTrigger(row: WorkItemTriggerRow) {
 }
 
 function sanitizeTriggerConfig(value: unknown) {
-  return sanitizeSecretLikeRecord(value, { redactionValue: 'redacted://trigger-secret' });
+  return sanitizeSecretLikeRecord(value, {
+    redactionValue: 'redacted://trigger-secret',
+    allowSecretReferences: false,
+  });
 }
 
 export function verifyTriggerSignature(

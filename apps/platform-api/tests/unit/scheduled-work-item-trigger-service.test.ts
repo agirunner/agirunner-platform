@@ -160,7 +160,7 @@ describe('ScheduledWorkItemTriggerService', () => {
             title: 'Run inbox triage',
             metadata: {
               api_key: 'redacted://trigger-secret',
-              secret_ref: 'secret:SCHEDULE_TRIGGER_SECRET',
+              secret_ref: 'redacted://trigger-secret',
             },
           },
         }),

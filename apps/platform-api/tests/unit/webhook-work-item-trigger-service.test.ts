@@ -339,7 +339,7 @@ describe('WebhookWorkItemTriggerService', () => {
             owner_role: 'triager',
             metadata: {
               webhook_secret: 'redacted://trigger-secret',
-              secret_ref: 'secret:TRIGGER_SECRET',
+              secret_ref: 'redacted://trigger-secret',
             },
           },
           secret_configured: true,
