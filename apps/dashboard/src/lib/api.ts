@@ -1,4 +1,10 @@
-import { PlatformApiClient } from '@agirunner/sdk';
+import {
+  PlatformApiClient,
+  type ApiListResponse,
+  type Task,
+  type TaskState,
+  type WorkflowState,
+} from '@agirunner/sdk';
 
 import { clearSession, readSession, writeSession } from './session.js';
 
@@ -17,6 +23,9 @@ interface NamedRecord {
   state?: string;
   status?: string;
 }
+
+export type DashboardTaskState = TaskState;
+export type DashboardWorkflowState = WorkflowState;
 
 export interface DashboardAgentRecord {
   id: string;
@@ -322,7 +331,7 @@ export interface DashboardWorkflowBoardResponse {
 export interface DashboardWorkflowRelationRef {
   workflow_id: string;
   name?: string | null;
-  state: string;
+  state: DashboardWorkflowState;
   playbook_id?: string | null;
   playbook_name?: string | null;
   created_at?: string | null;
@@ -348,7 +357,7 @@ export interface DashboardWorkflowRelations {
 export interface DashboardWorkflowRecord {
   id: string;
   name: string;
-  state: string;
+  state: DashboardWorkflowState;
   created_at: string;
   project_id?: string | null;
   project_name?: string | null;
@@ -377,7 +386,7 @@ export interface DashboardWorkflowRecord {
 export interface DashboardApprovalTaskRecord {
   id: string;
   title: string;
-  state: string;
+  state: DashboardTaskState;
   workflow_id?: string | null;
   workflow_name?: string | null;
   work_item_id?: string | null;
@@ -477,7 +486,7 @@ export interface DashboardProjectTimelineEntry {
   kind?: string;
   workflow_id: string;
   name: string;
-  state: string;
+  state: DashboardWorkflowState;
   created_at: string;
   started_at?: string | null;
   completed_at?: string | null;
@@ -516,6 +525,22 @@ export interface DashboardProjectSpecRecord {
   config?: Record<string, unknown>;
   instructions?: Record<string, unknown>;
   updated_at?: string;
+}
+
+export interface DashboardTaskWorkflowRef {
+  id: string;
+  name?: string | null;
+  project_id?: string | null;
+}
+
+export interface DashboardTaskRecord extends Task {
+  workflow?: DashboardTaskWorkflowRef | null;
+  workflow_name?: string | null;
+  project_name?: string | null;
+  work_item_id?: string | null;
+  work_item_title?: string | null;
+  stage_name?: string | null;
+  activation_id?: string | null;
 }
 
 export interface DashboardPlatformInstructionRecord {
@@ -1322,8 +1347,8 @@ export interface DashboardApi {
       parameters?: Record<string, unknown>;
     },
   ): Promise<unknown>;
-  listTasks(filters?: Record<string, string>): Promise<unknown>;
-  getTask(id: string): Promise<unknown>;
+  listTasks(filters?: Record<string, string>): Promise<ApiListResponse<DashboardTaskRecord>>;
+  getTask(id: string): Promise<DashboardTaskRecord>;
   listTaskArtifacts(taskId: string): Promise<DashboardTaskArtifactRecord[]>;
   uploadTaskArtifact(
     taskId: string,

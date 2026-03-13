@@ -145,7 +145,7 @@ describe('project memory support', () => {
         {
           workflow_id: 'workflow-1',
           name: 'Planning',
-          state: 'running',
+          state: 'active',
           created_at: '2026-03-10T10:00:00.000Z',
         },
         {

@@ -1,33 +1,44 @@
 import { useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { dashboardApi } from '../../../lib/api.js';
+import type {
+  DashboardTaskRecord,
+  DashboardTaskState,
+  DashboardWorkflowRecord,
+  DashboardWorkflowState,
+} from '../../../lib/api.js';
 import type { ComboboxItem } from '../ui/searchable-combobox.js';
 
-interface WorkflowRecord {
+interface WorkflowRecord extends Partial<Pick<DashboardWorkflowRecord, 'id' | 'name' | 'project_id'>> {
   id: string;
-  name?: string;
+  state?: DashboardWorkflowState;
   status?: string;
-  project_id?: string;
   project?: { id: string; name: string } | null;
 }
 
-interface TaskRecord {
+interface TaskRecord
+  extends Partial<Pick<DashboardTaskRecord, 'id' | 'title' | 'description' | 'workflow_id' | 'role'>> {
   id: string;
-  title?: string;
-  description?: string;
+  state?: DashboardTaskState;
   status?: string;
-  workflow_id?: string;
-  workflow?: { id: string; name: string; project_id?: string } | null;
-  role?: string;
+  workflow?: { id: string; name?: string | null; project_id?: string | null } | null;
 }
 
-function normalizeStatus(status?: string): ComboboxItem['status'] {
+export function normalizeEntityStatus(status?: string): ComboboxItem['status'] {
   if (!status) return undefined;
   const s = status.toLowerCase();
-  if (s === 'active' || s === 'running' || s === 'in_progress') return 'active';
+  if (s === 'active' || s === 'in_progress') return 'active';
   if (s === 'completed' || s === 'succeeded') return 'completed';
   if (s === 'failed' || s === 'error') return 'failed';
   return 'pending';
+}
+
+export function readWorkflowEntityStatus(workflow: WorkflowRecord): ComboboxItem['status'] {
+  return normalizeEntityStatus(workflow.state ?? workflow.status);
+}
+
+export function readTaskEntityStatus(task: TaskRecord): ComboboxItem['status'] {
+  return normalizeEntityStatus(task.state ?? task.status);
 }
 
 export interface CascadingEntityState {
@@ -103,7 +114,7 @@ export function useCascadingEntities(
         id: w.id,
         label: w.name ?? w.id,
         subtitle: w.project?.name ?? undefined,
-        status: normalizeStatus(w.status),
+        status: readWorkflowEntityStatus(w),
       })),
     [workflowsQuery.data],
   );
@@ -114,7 +125,7 @@ export function useCascadingEntities(
         id: t.id,
         label: t.title ?? t.description ?? t.id,
         subtitle: t.role ?? undefined,
-        status: normalizeStatus(t.status),
+        status: readTaskEntityStatus(t),
       })),
     [tasksQuery.data],
   );

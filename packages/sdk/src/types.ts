@@ -13,6 +13,14 @@ export type TaskState =
   | 'awaiting_approval'
   | 'output_pending_review';
 
+export type WorkflowState =
+  | 'pending'
+  | 'active'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'paused';
+
 export interface ApiListResponse<T> {
   data: T[];
   pagination: {
@@ -97,7 +105,7 @@ export interface ProjectTimelineEntry {
   kind?: string;
   workflow_id: string;
   name: string;
-  state: string;
+  state: WorkflowState;
   created_at: string;
   started_at?: string | null;
   completed_at?: string | null;
@@ -114,7 +122,7 @@ export interface ProjectTimelineEntry {
 export interface WorkflowRelationRef {
   workflow_id: string;
   name?: string | null;
-  state: string;
+  state: WorkflowState;
   playbook_id?: string | null;
   playbook_name?: string | null;
   created_at?: string | null;
@@ -217,7 +225,7 @@ export interface Workflow {
   playbook_id?: string | null;
   playbook_version?: number | null;
   name: string;
-  state: string;
+  state: WorkflowState;
   lifecycle?: 'standard' | 'continuous' | null;
   parameters?: Record<string, unknown>;
   context: Record<string, unknown>;
@@ -369,7 +377,7 @@ export interface WorkflowBoard {
 export interface ApprovalTaskRecord {
   id: string;
   title: string;
-  state: string;
+  state: TaskState;
   workflow_id?: string | null;
   workflow_name?: string | null;
   created_at: string;

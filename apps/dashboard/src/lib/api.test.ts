@@ -59,6 +59,17 @@ describe('dashboard api auth/session behavior', () => {
     expect(workflowBlock).not.toContain('phases');
   });
 
+  it('keeps dashboard workflow and task records on canonical state aliases', () => {
+    const source = readApiSource();
+    const workflowBlock = readInterfaceBlock(source, 'DashboardWorkflowRecord');
+    const approvalTaskBlock = readInterfaceBlock(source, 'DashboardApprovalTaskRecord');
+
+    expect(source).toContain('export type DashboardTaskState = TaskState;');
+    expect(source).toContain('export type DashboardWorkflowState = WorkflowState;');
+    expect(workflowBlock).toContain('state: DashboardWorkflowState;');
+    expect(approvalTaskBlock).toContain('state: DashboardTaskState;');
+  });
+
   it('refreshes token and retries request when access token is expired', async () => {
     writeSession({ accessToken: 'expired-token', tenantId: 'tenant-1' });
 
