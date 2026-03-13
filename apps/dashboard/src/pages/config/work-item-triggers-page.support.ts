@@ -3,6 +3,154 @@ import type {
   DashboardWebhookWorkItemTriggerRecord,
 } from '../../lib/api.js';
 
+export interface WebhookTriggerFormState {
+  name: string;
+  source: string;
+  projectId: string;
+  workflowId: string;
+  eventHeader: string;
+  eventTypes: string;
+  signatureHeader: string;
+  signatureMode: 'hmac_sha256' | 'shared_secret';
+  secret: string;
+  fieldMappings: string;
+  defaults: string;
+  isActive: boolean;
+}
+
+export interface WebhookTriggerValidation {
+  isValid: boolean;
+  issues: string[];
+  fieldErrors: Record<string, string>;
+}
+
+export function createWebhookTriggerFormState(): WebhookTriggerFormState {
+  return {
+    name: '',
+    source: '',
+    projectId: '',
+    workflowId: '',
+    eventHeader: '',
+    eventTypes: '',
+    signatureHeader: 'x-hub-signature-256',
+    signatureMode: 'hmac_sha256',
+    secret: '',
+    fieldMappings: '{}',
+    defaults: '{}',
+    isActive: true,
+  };
+}
+
+export function hydrateWebhookTriggerForm(
+  trigger: DashboardWebhookWorkItemTriggerRecord,
+): WebhookTriggerFormState {
+  return {
+    name: trigger.name,
+    source: trigger.source,
+    projectId: trigger.project_id ?? '',
+    workflowId: trigger.workflow_id,
+    eventHeader: trigger.event_header ?? '',
+    eventTypes: (trigger.event_types ?? []).join(', '),
+    signatureHeader: trigger.signature_header,
+    signatureMode: trigger.signature_mode,
+    secret: '',
+    fieldMappings: JSON.stringify(trigger.field_mappings ?? {}, null, 2),
+    defaults: JSON.stringify(trigger.defaults ?? {}, null, 2),
+    isActive: trigger.is_active,
+  };
+}
+
+export function validateWebhookTriggerForm(
+  form: WebhookTriggerFormState,
+  mode: 'create' | 'edit',
+): WebhookTriggerValidation {
+  const issues: string[] = [];
+  const fieldErrors: Record<string, string> = {};
+
+  if (!form.name.trim()) {
+    issues.push('Name is required');
+    fieldErrors['name'] = 'Required';
+  }
+  if (!form.source.trim()) {
+    issues.push('Source is required');
+    fieldErrors['source'] = 'Required';
+  }
+  if (!form.workflowId) {
+    issues.push('Target workflow is required');
+    fieldErrors['workflowId'] = 'Required';
+  }
+  if (!form.signatureHeader.trim()) {
+    issues.push('Signature header is required');
+    fieldErrors['signatureHeader'] = 'Required';
+  }
+  if (mode === 'create' && !form.secret.trim()) {
+    issues.push('Secret is required for new triggers');
+    fieldErrors['secret'] = 'Required';
+  }
+  if (form.fieldMappings.trim()) {
+    try { JSON.parse(form.fieldMappings); } catch {
+      issues.push('Field mappings must be valid JSON');
+      fieldErrors['fieldMappings'] = 'Invalid JSON';
+    }
+  }
+  if (form.defaults.trim()) {
+    try { JSON.parse(form.defaults); } catch {
+      issues.push('Defaults must be valid JSON');
+      fieldErrors['defaults'] = 'Invalid JSON';
+    }
+  }
+
+  return { isValid: issues.length === 0, issues, fieldErrors };
+}
+
+export function buildWebhookTriggerCreatePayload(form: WebhookTriggerFormState) {
+  const eventTypes = form.eventTypes
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return {
+    name: form.name.trim(),
+    source: form.source.trim(),
+    ...(form.projectId ? { project_id: form.projectId } : {}),
+    workflow_id: form.workflowId,
+    ...(form.eventHeader.trim() ? { event_header: form.eventHeader.trim() } : {}),
+    ...(eventTypes.length > 0 ? { event_types: eventTypes } : {}),
+    signature_header: form.signatureHeader.trim(),
+    signature_mode: form.signatureMode,
+    secret: form.secret,
+    field_mappings: parseJsonOrEmpty(form.fieldMappings),
+    defaults: parseJsonOrEmpty(form.defaults),
+    is_active: form.isActive,
+  };
+}
+
+export function buildWebhookTriggerUpdatePayload(form: WebhookTriggerFormState) {
+  const eventTypes = form.eventTypes
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return {
+    name: form.name.trim(),
+    source: form.source.trim(),
+    project_id: form.projectId || null,
+    workflow_id: form.workflowId,
+    event_header: form.eventHeader.trim() || null,
+    event_types: eventTypes,
+    signature_header: form.signatureHeader.trim(),
+    signature_mode: form.signatureMode,
+    ...(form.secret.trim() ? { secret: form.secret } : {}),
+    field_mappings: parseJsonOrEmpty(form.fieldMappings),
+    defaults: parseJsonOrEmpty(form.defaults),
+    is_active: form.isActive,
+  };
+}
+
+function parseJsonOrEmpty(value: string): Record<string, unknown> {
+  try { return JSON.parse(value.trim() || '{}') as Record<string, unknown>; } catch {
+    return {};
+  }
+}
+
 export interface TriggerOverviewSummaryCard {
   label: string;
   value: string;

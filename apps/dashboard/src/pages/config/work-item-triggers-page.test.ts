@@ -22,21 +22,62 @@ describe('trigger overview page source', () => {
     expect(source).toContain('buildTriggerOperatorFocus');
   });
 
-  it('directs operators back to project settings for scheduled trigger management', () => {
-    const source = readSource();
-    expect(source).toContain('Open project settings');
-    expect(source).toContain('/projects');
-  });
-
   it('uses responsive cards, action guidance, and direct scope links instead of a table-only dump', () => {
     const source = readSource();
     expect(source).toContain('space-y-4 lg:hidden');
     expect(source).toContain('hidden overflow-x-auto lg:block');
     expect(source).toContain('Review cadence, next-run posture, and the owning project');
-    expect(source).toContain('Review inbound trigger coverage, signature mode, and the owning project');
+    expect(source).toContain('Manage inbound webhook trigger rules');
     expect(source).toContain('Operator focus');
-    expect(source).toContain('Next action');
-    expect(source).toContain('Open project');
-    expect(source).toContain('Open board');
+  });
+
+  it('supports create, edit, toggle, inspect, and delete flows for webhook triggers', () => {
+    const source = readSource();
+    expect(source).toContain('createWebhookWorkItemTrigger');
+    expect(source).toContain('updateWebhookWorkItemTrigger');
+    expect(source).toContain('deleteWebhookWorkItemTrigger');
+    expect(source).toContain('WebhookTriggerEditorDialog');
+    expect(source).toContain('WebhookTriggerDeleteDialog');
+    expect(source).toContain('WebhookTriggerInspectDialog');
+    expect(source).toContain('onCreateClick');
+    expect(source).toContain('onEditClick');
+    expect(source).toContain('onToggle');
+    expect(source).toContain('onDeleteClick');
+    expect(source).toContain('onInspectClick');
+  });
+
+  it('uses inline toggle switches for enable and disable', () => {
+    const source = readSource();
+    expect(source).toContain('Switch');
+    expect(source).toContain('toggleMutation');
+    expect(source).toContain('is_active');
+  });
+
+  it('renders empty state with CTA when no webhook triggers exist', () => {
+    const source = readSource();
+    expect(source).toContain('No webhook triggers configured');
+    expect(source).toContain('Create first trigger');
+  });
+
+  it('uses destructive styling for delete confirmation', () => {
+    const source = readSource();
+    expect(source).toContain('variant="destructive"');
+    expect(source).toContain('permanently removes the trigger');
+  });
+
+  it('renders inspect dialog with field mappings and defaults', () => {
+    const source = readSource();
+    expect(source).toContain('Field mappings');
+    expect(source).toContain('Defaults');
+    expect(source).toContain('Secret configured');
+    expect(source).toContain('Event header');
+    expect(source).toContain('Event types');
+  });
+
+  it('uses save-readiness validation in the editor dialog', () => {
+    const source = readSource();
+    expect(source).toContain('Save readiness');
+    expect(source).toContain('validateWebhookTriggerForm');
+    expect(source).toContain('Ready to save');
   });
 });
