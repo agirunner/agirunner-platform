@@ -48,10 +48,14 @@ import {
   TableCell,
 } from '../../components/ui/table.js';
 import { Switch } from '../../components/ui/switch.js';
+import {
+  describeProviderTypeSetup,
+  validateAddProviderDraft,
+  type AddProviderDraft,
+  type ProviderType,
+} from './llm-providers-page.support.js';
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
-
-type ProviderType = 'openai' | 'anthropic' | 'google' | 'openai-compatible' | 'openai-codex';
 
 interface ReasoningConfigSchema {
   type: 'reasoning_effort' | 'effort' | 'thinking_level' | 'thinking_budget';
@@ -124,13 +128,6 @@ interface AssignmentRoleRow {
   source: 'catalog' | 'assignment' | 'system';
 }
 
-interface AddProviderForm {
-  providerType: ProviderType;
-  name: string;
-  baseUrl: string;
-  apiKey: string;
-}
-
 interface ProviderDeleteTarget {
   provider: LlmProvider;
   modelCount: number;
@@ -149,7 +146,7 @@ const PROVIDER_TYPE_DEFAULTS: Record<ProviderType, { name: string; baseUrl: stri
   'openai-codex': { name: 'OpenAI (Subscription)', baseUrl: 'https://chatgpt.com/backend-api' },
 };
 
-const INITIAL_FORM: AddProviderForm = {
+const INITIAL_FORM: AddProviderDraft = {
   providerType: 'openai',
   name: 'OpenAI',
   baseUrl: 'https://api.openai.com/v1',
@@ -310,7 +307,7 @@ async function fetchRoleDefinitions(): Promise<RoleDefinitionSummary[]> {
   return body.data ?? body;
 }
 
-async function createProvider(payload: AddProviderForm): Promise<LlmProvider> {
+async function createProvider(payload: AddProviderDraft): Promise<LlmProvider> {
   const response = await fetch(
     `${API_BASE_URL}/api/v1/config/llm/providers`,
     {
@@ -659,7 +656,9 @@ function OAuthProviderCard({
 function AddProviderDialog(): JSX.Element {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
-  const [form, setForm] = useState<AddProviderForm>(INITIAL_FORM);
+  const [form, setForm] = useState<AddProviderDraft>(INITIAL_FORM);
+  const validation = validateAddProviderDraft(form);
+  const providerSetup = describeProviderTypeSetup(form.providerType);
 
   function handleProviderTypeChange(providerType: ProviderType) {
     const defaults = PROVIDER_TYPE_DEFAULTS[providerType];
@@ -698,14 +697,48 @@ function AddProviderDialog(): JSX.Element {
       <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add LLM Provider</DialogTitle>
+          <DialogDescription>
+            Choose the provider type first. The dialog pre-fills the supported endpoint and shows what still needs operator input.
+          </DialogDescription>
         </DialogHeader>
         <form
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
+            if (!validation.isValid) {
+              return;
+            }
             mutation.mutate();
           }}
         >
+          <section
+            className={
+              validation.isValid
+                ? 'rounded-xl border border-emerald-300 bg-emerald-50/70 p-4'
+                : 'rounded-xl border border-amber-300 bg-amber-50/80 p-4'
+            }
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold">Provider setup</h3>
+                <p className="text-sm text-muted">{providerSetup.detail}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline">{providerSetup.title}</Badge>
+                <Badge variant="outline">{providerSetup.authLabel}</Badge>
+              </div>
+            </div>
+            {!validation.isValid ? (
+              <ul className="mt-3 space-y-1 text-sm text-amber-950">
+                {validation.issues.map((issue) => (
+                  <li key={issue}>• {issue}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-3 text-sm text-muted">This provider is ready to save with the current settings.</p>
+            )}
+          </section>
+
           <div className="space-y-2">
             <label className="text-sm font-medium">Provider Type</label>
             <Select
@@ -722,28 +755,45 @@ function AddProviderDialog(): JSX.Element {
                 <SelectItem value="openai-compatible">OpenAI-Compatible (Ollama, vLLM, etc.)</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted">Selecting a provider type auto-fills the recommended name and base URL.</p>
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Name</label>
             <Input
               placeholder="My Provider"
               value={form.name}
+              className={validation.fieldErrors.name ? 'border-red-300 focus-visible:ring-red-500' : undefined}
+              aria-invalid={validation.fieldErrors.name ? true : undefined}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, name: e.target.value }))
               }
-              required
             />
+            {validation.fieldErrors.name ? (
+              <p className="text-xs text-red-600">{validation.fieldErrors.name}</p>
+            ) : (
+              <p className="text-xs text-muted">Use a short operator-facing label that will still make sense in assignment and fleet views.</p>
+            )}
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Base URL</label>
             <Input
               placeholder={form.providerType === 'openai-compatible' ? 'http://localhost:11434/v1' : 'https://api.openai.com/v1'}
               value={form.baseUrl}
+              className={validation.fieldErrors.baseUrl ? 'border-red-300 focus-visible:ring-red-500' : undefined}
+              aria-invalid={validation.fieldErrors.baseUrl ? true : undefined}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, baseUrl: e.target.value }))
               }
-              required
             />
+            {validation.fieldErrors.baseUrl ? (
+              <p className="text-xs text-red-600">{validation.fieldErrors.baseUrl}</p>
+            ) : (
+              <p className="text-xs text-muted">
+                {form.providerType === 'openai-compatible'
+                  ? 'Compatible gateways may use either http:// or https:// endpoints.'
+                  : 'Hosted providers should use a secure https:// endpoint.'}
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">
@@ -756,12 +806,17 @@ function AddProviderDialog(): JSX.Element {
               type="password"
               placeholder={form.providerType === 'openai-compatible' ? 'Set API key (optional)' : 'Paste API key'}
               value={form.apiKey}
+              className={validation.fieldErrors.apiKey ? 'border-red-300 focus-visible:ring-red-500' : undefined}
+              aria-invalid={validation.fieldErrors.apiKey ? true : undefined}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, apiKey: e.target.value }))
               }
-              required={form.providerType !== 'openai-compatible'}
             />
-            <p className="text-xs text-muted">Stored write-only. Existing keys are never shown again.</p>
+            {validation.fieldErrors.apiKey ? (
+              <p className="text-xs text-red-600">{validation.fieldErrors.apiKey}</p>
+            ) : (
+              <p className="text-xs text-muted">Stored write-only. Existing keys are never shown again.</p>
+            )}
           </div>
           {mutation.error && (
             <p className="text-sm text-red-600">
@@ -776,7 +831,7 @@ function AddProviderDialog(): JSX.Element {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={mutation.isPending}>
+            <Button type="submit" disabled={mutation.isPending || !validation.isValid}>
               {mutation.isPending && (
                 <Loader2 className="h-4 w-4 animate-spin" />
               )}

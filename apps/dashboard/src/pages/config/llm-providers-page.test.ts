@@ -41,6 +41,9 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('Add Provider');
     expect(source).toContain('ProviderCard');
     expect(source).toContain('max-h-[85vh] max-w-2xl overflow-y-auto');
+    expect(source).toContain('Choose the provider type first.');
+    expect(source).toContain('Provider setup');
+    expect(source).toContain('Selecting a provider type auto-fills the recommended name and base URL.');
   });
 
   it('uses a confirmed destructive flow for provider deletion and labeled responsive actions', () => {
