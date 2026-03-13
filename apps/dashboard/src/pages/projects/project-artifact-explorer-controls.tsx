@@ -17,8 +17,8 @@ import type {
   ProjectWorkflowOption,
   ProjectWorkItemOption,
 } from './project-content-browser-support.js';
+import type { ProjectArtifactScopeChip } from './project-artifact-explorer-adaptive-support.js';
 import type {
-  ProjectArtifactScopeChip,
   ProjectArtifactSort,
 } from './project-artifact-explorer-support.js';
 

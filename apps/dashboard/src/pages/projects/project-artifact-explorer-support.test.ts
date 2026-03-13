@@ -1,16 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  buildProjectArtifactScopeChips,
   buildArtifactContentTypeOptions,
   buildArtifactStageOptions,
   buildProjectArtifactEntries,
-  describeProjectArtifactNextAction,
   filterProjectArtifactEntries,
   formatArtifactFileSize,
   summarizeProjectArtifactEntries,
   type ProjectArtifactEntry,
 } from './project-artifact-explorer-support.js';
+import {
+  buildProjectArtifactScopeChips,
+  describeProjectArtifactNextAction,
+} from './project-artifact-explorer-adaptive-support.js';
 
 describe('project artifact explorer support', () => {
   const entries = buildProjectArtifactEntries({

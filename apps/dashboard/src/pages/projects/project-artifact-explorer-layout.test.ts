@@ -21,5 +21,8 @@ describe('project artifact explorer adaptive layout source', () => {
     expect(source).toContain('hidden gap-6 xl:grid');
     expect(source).toContain('artifactCount');
     expect(source).toContain('selectedArtifactName');
+    expect(source).toContain('renderArtifactPreviewMarkup');
+    expect(source).toContain('formatArtifactPreviewText');
+    expect(source).toContain('ProjectArtifactQuickInspector');
   });
 });

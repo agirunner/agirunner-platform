@@ -1,16 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 
 import {
   MAX_INLINE_ARTIFACT_PREVIEW_BYTES,
   describeArtifactPreview,
-  formatArtifactPreviewText,
-  renderArtifactPreviewMarkup,
 } from '../../components/artifact-preview-support.js';
-import { Button } from '../../components/ui/button.js';
-import { Card, CardContent } from '../../components/ui/card.js';
 import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import {
@@ -22,23 +16,23 @@ import {
   ProjectArtifactBulkActionBar,
   ProjectArtifactFilterCard,
 } from './project-artifact-explorer-controls.js';
-import { ProjectArtifactExplorerAdaptiveLayout } from './project-artifact-explorer-layout.js';
 import {
   buildProjectArtifactScopeChips,
+  describeProjectArtifactNextAction,
+} from './project-artifact-explorer-adaptive-support.js';
+import { ProjectArtifactExplorerAdaptiveLayout } from './project-artifact-explorer-layout.js';
+import {
   buildArtifactContentTypeOptions,
   buildArtifactStageOptions,
   buildProjectArtifactEntries,
-  describeProjectArtifactNextAction,
   filterProjectArtifactEntries,
   summarizeProjectArtifactEntries,
   type ProjectArtifactSort,
 } from './project-artifact-explorer-support.js';
 import {
-  ProjectArtifactExplorerList,
-  ProjectArtifactExplorerSummary,
-  ProjectArtifactQuickInspector,
   ProjectArtifactExplorerSkeleton,
 } from './project-artifact-explorer-presentation.js';
+import { ProjectArtifactExplorerShell } from './project-artifact-explorer-shell.js';
 
 export function ProjectArtifactExplorerPanel(props: {
   projectId: string;
@@ -156,11 +150,6 @@ export function ProjectArtifactExplorerPanel(props: {
     () => summarizeProjectArtifactEntries(filteredArtifacts),
     [filteredArtifacts],
   );
-  const selectedWorkflow =
-    workflows.find((workflow) => workflow.id === selectedWorkflowId) ?? null;
-  const selectedWorkItem =
-    workItems.find((workItem) => workItem.id === selectedWorkItemId) ?? null;
-  const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
   const scopeChips = useMemo(
     () =>
       buildProjectArtifactScopeChips({
@@ -310,115 +299,96 @@ export function ProjectArtifactExplorerPanel(props: {
     artifactQueries.some((queryResult) => queryResult.isLoading);
 
   return (
-    <div className="space-y-6">
-      {props.showHeader ? (
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-semibold">Project Artifact Explorer</h1>
-              <p className="text-sm text-muted">
-                Review delivery artifacts across workflows, work items, and tasks without leaving the project scope.
-              </p>
-            </div>
-            <Button asChild variant="outline" size="sm">
-              <Link to={`/projects/${props.projectId}`}>Back to Project</Link>
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
-      <ProjectArtifactExplorerSummary summary={summary} />
-
-      <ProjectArtifactFilterCard
-        visibleArtifactCount={filteredArtifacts.length}
-        selectedArtifactCount={selectedArtifactIds.length}
-        nextAction={nextAction}
-        scopeChips={scopeChips}
-        query={query}
-        selectedWorkflowId={selectedWorkflowId}
-        selectedStageName={selectedStageName}
-        selectedWorkItemId={selectedWorkItemId}
-        selectedTaskId={selectedTaskId}
-        selectedContentType={selectedContentType}
-        createdFrom={createdFrom}
-        createdTo={createdTo}
-        sort={sort}
-        workflows={workflows}
-        stageOptions={stageOptions}
-        workItems={visibleWorkItems}
-        tasks={visibleTasks}
-        contentTypeOptions={contentTypeOptions}
-        onQueryChange={setQuery}
-        onWorkflowChange={setSelectedWorkflowId}
-        onStageChange={setSelectedStageName}
-        onWorkItemChange={setSelectedWorkItemId}
-        onTaskChange={setSelectedTaskId}
-        onContentTypeChange={setSelectedContentType}
-        onCreatedFromChange={setCreatedFrom}
-        onCreatedToChange={setCreatedTo}
-        onSortChange={setSort}
-        onReset={() => {
-          setQuery('');
-          setSelectedWorkflowId('');
-          setSelectedWorkItemId('');
-          setSelectedTaskId('');
-          setSelectedStageName('');
-          setSelectedContentType('');
-          setCreatedFrom('');
-          setCreatedTo('');
-          setSort('newest');
-        }}
-      />
-
-      <ProjectArtifactBulkActionBar
-        selectedCount={selectedArtifactIds.length}
-        isDownloading={isBulkDownloading}
-        onClear={() => setSelectedArtifactIds([])}
-        onDownload={() => void handleBulkDownload()}
-      />
-
-      {timelineQuery.error ? (
-        <Card><CardContent className="pt-6 text-sm text-red-600">Failed to load project artifact scope.</CardContent></Card>
-      ) : (
+    <ProjectArtifactExplorerShell
+      projectId={props.projectId}
+      showHeader={props.showHeader ?? false}
+      summary={summary}
+      filteredArtifacts={filteredArtifacts}
+      selectedArtifact={selectedArtifact}
+      selectedArtifactId={selectedArtifactId}
+      selectedArtifactIds={selectedArtifactIds}
+      isBulkDownloading={isBulkDownloading}
+      isLoading={isLoading}
+      timelineError={timelineQuery.error}
+      scopeChips={scopeChips}
+      nextAction={nextAction}
+      filterCard={
+        <ProjectArtifactFilterCard
+          visibleArtifactCount={filteredArtifacts.length}
+          selectedArtifactCount={selectedArtifactIds.length}
+          nextAction={nextAction}
+          scopeChips={scopeChips}
+          query={query}
+          selectedWorkflowId={selectedWorkflowId}
+          selectedStageName={selectedStageName}
+          selectedWorkItemId={selectedWorkItemId}
+          selectedTaskId={selectedTaskId}
+          selectedContentType={selectedContentType}
+          createdFrom={createdFrom}
+          createdTo={createdTo}
+          sort={sort}
+          workflows={workflows}
+          stageOptions={stageOptions}
+          workItems={visibleWorkItems}
+          tasks={visibleTasks}
+          contentTypeOptions={contentTypeOptions}
+          onQueryChange={setQuery}
+          onWorkflowChange={setSelectedWorkflowId}
+          onStageChange={setSelectedStageName}
+          onWorkItemChange={setSelectedWorkItemId}
+          onTaskChange={setSelectedTaskId}
+          onContentTypeChange={setSelectedContentType}
+          onCreatedFromChange={setCreatedFrom}
+          onCreatedToChange={setCreatedTo}
+          onSortChange={setSort}
+          onReset={() => {
+            setQuery('');
+            setSelectedWorkflowId('');
+            setSelectedWorkItemId('');
+            setSelectedTaskId('');
+            setSelectedStageName('');
+            setSelectedContentType('');
+            setCreatedFrom('');
+            setCreatedTo('');
+            setSort('newest');
+          }}
+        />
+      }
+      bulkActionBar={
+        <ProjectArtifactBulkActionBar
+          selectedCount={selectedArtifactIds.length}
+          isDownloading={isBulkDownloading}
+          onClear={() => setSelectedArtifactIds([])}
+          onDownload={() => void handleBulkDownload()}
+        />
+      }
+      adaptiveLayout={
         <ProjectArtifactExplorerAdaptiveLayout
           artifactCount={filteredArtifacts.length}
           selectedArtifactName={selectedArtifact?.fileName ?? null}
-          list={
-            <ProjectArtifactExplorerList
-              artifacts={filteredArtifacts}
-              isLoading={isLoading}
-              selectedArtifactId={selectedArtifactId}
-              selectedArtifactIds={selectedArtifactIds}
-              onSelectArtifact={setSelectedArtifactId}
-              onToggleArtifact={(artifactId) =>
-                setSelectedArtifactIds((current) =>
-                  current.includes(artifactId)
-                    ? current.filter((value) => value !== artifactId)
-                    : [...current, artifactId],
-                )
-              }
-            />
-          }
-          inspector={
-            <ProjectArtifactQuickInspector
-              artifact={selectedArtifact}
-              previewMarkup={
-                previewDescriptor && previewQuery.data
-                  ? renderArtifactPreviewMarkup(previewQuery.data.content_text, previewDescriptor)
-                  : ''
-              }
-              previewText={
-                previewDescriptor && previewQuery.data
-                  ? formatArtifactPreviewText(previewQuery.data.content_text, previewDescriptor)
-                  : ''
-              }
-              previewKind={previewDescriptor?.kind ?? 'binary'}
-              isPreviewLoading={previewQuery.isLoading}
-              previewError={previewQuery.error instanceof Error ? previewQuery.error.message : null}
-            />
-          }
+          selectedArtifact={selectedArtifact}
+          previewDescriptor={previewDescriptor}
+          previewContentText={previewQuery.data?.content_text ?? null}
+          listSelection={{
+            selectedArtifactId,
+            selectedArtifactIds,
+            onSelectArtifact: setSelectedArtifactId,
+            onToggleArtifact: (artifactId) =>
+              setSelectedArtifactIds((current) =>
+                current.includes(artifactId)
+                  ? current.filter((value) => value !== artifactId)
+                  : [...current, artifactId],
+              ),
+          }}
+          artifacts={filteredArtifacts}
+          isLoading={isLoading}
+          previewState={{
+            isLoading: previewQuery.isLoading,
+            error:
+              previewQuery.error instanceof Error ? previewQuery.error.message : null,
+          }}
         />
-      )}
-    </div>
+      }
+    />
   );
 }

@@ -31,11 +31,9 @@ describe('project artifact explorer panel source', () => {
 
   it('supports quick inspection with inline preview and bulk download', () => {
     const source = readSource();
-    expect(source).toContain('ProjectArtifactQuickInspector');
     expect(source).toContain('ProjectArtifactExplorerAdaptiveLayout');
+    expect(source).toContain('ProjectArtifactExplorerShell');
     expect(source).toContain('dashboardApi.readTaskArtifactContent');
-    expect(source).toContain('renderArtifactPreviewMarkup');
-    expect(source).toContain('formatArtifactPreviewText');
     expect(source).toContain('dashboardApi.downloadTaskArtifact');
     expect(source).toContain('Downloaded ${artifactsToDownload.length} artifacts');
   });
