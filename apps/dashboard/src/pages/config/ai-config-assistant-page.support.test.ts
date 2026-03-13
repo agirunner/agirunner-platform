@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ASSISTANT_STARTER_PROMPTS,
+  buildAssistantReviewBuckets,
+  buildAssistantSessionStage,
   resolveSuggestionDestination,
   summarizeAssistantSession,
 } from './ai-config-assistant-page.support.js';
@@ -70,5 +72,88 @@ describe('ai config assistant support', () => {
       label: 'Open integrations',
     });
     expect(resolveSuggestionDestination('unknown.path')).toBeNull();
+  });
+
+  it('describes empty, review, and handoff stages for the advisory session', () => {
+    expect(buildAssistantSessionStage([], 0)).toEqual({
+      badge: 'Empty session',
+      title: 'Start with a bounded operator audit',
+      detail:
+        'Ask one concrete question about runtimes, providers, playbooks, integrations, or work items so the assistant can return a reviewable packet instead of vague advice.',
+      nextAction: 'Run a quick audit or choose one of the preset asks to start the handoff.',
+    });
+
+    expect(
+      buildAssistantSessionStage(
+        [
+          { id: 1, role: 'user', content: 'Review runtime posture' },
+          {
+            id: 2,
+            role: 'assistant',
+            content: 'Review runtime defaults next',
+            suggestions: [
+              {
+                path: 'runtime.default_runtime_image',
+                suggested_value: 'agirunner-runtime:stable',
+                description: 'Pin the runtime image.',
+              },
+            ],
+          },
+        ],
+        0,
+      ),
+    ).toEqual({
+      badge: 'Review needed',
+      title: 'Move suggestions into config review',
+      detail:
+        'The assistant has produced advisory changes. Review the linked settings pages, confirm the current state, then mark each suggestion reviewed to complete the handoff.',
+      nextAction: 'Open the suggested config surfaces and resolve the remaining pending items.',
+    });
+  });
+
+  it('groups review queue buckets by destination surface', () => {
+    expect(
+      buildAssistantReviewBuckets(
+        [
+          {
+            id: 1,
+            role: 'assistant',
+            content: 'Review runtime and webhook posture',
+            suggestions: [
+              {
+                path: 'runtime.default_runtime_image',
+                suggested_value: 'agirunner-runtime:stable',
+                description: 'Pin the runtime image.',
+              },
+              {
+                path: 'webhook.delivery_scope',
+                suggested_value: 'workflow.failed',
+                description: 'Narrow event coverage.',
+              },
+            ],
+          },
+        ],
+        new Set(['runtime.default_runtime_image']),
+      ),
+    ).toEqual([
+      {
+        key: '/config/webhooks',
+        label: 'Open webhooks',
+        href: '/config/webhooks',
+        actionLabel: 'Open webhooks',
+        pendingCount: 1,
+        reviewedCount: 0,
+        detail: '1 suggestion still needs review on this surface.',
+      },
+      {
+        key: '/config/runtimes',
+        label: 'Open runtime defaults',
+        href: '/config/runtimes',
+        actionLabel: 'Open runtime defaults',
+        pendingCount: 0,
+        reviewedCount: 1,
+        detail: 'Everything grouped under this surface has been reviewed in the current session.',
+      },
+    ]);
   });
 });

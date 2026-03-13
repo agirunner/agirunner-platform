@@ -3,11 +3,19 @@ import { useMutation } from '@tanstack/react-query';
 import { Loader2, Send, Sparkles } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card.js';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../../components/ui/card.js';
 import { Input } from '../../components/ui/input.js';
 import { readSession } from '../../lib/session.js';
 import {
   ASSISTANT_STARTER_PROMPTS,
+  buildAssistantReviewBuckets,
+  buildAssistantSessionStage,
   resolveSuggestionDestination,
   summarizeAssistantSession,
   type AssistantMessageRecord,
@@ -15,6 +23,8 @@ import {
 } from './ai-config-assistant-page.support.js';
 import {
   AssistantQuickPrompts,
+  AssistantReviewQueue,
+  AssistantSessionStateCard,
   AssistantSummaryCards,
   ChatBubble,
   SuggestionCard,
@@ -59,6 +69,14 @@ export function AiConfigAssistantPage(): JSX.Element {
     () => summarizeAssistantSession(messages, reviewedSuggestions.size),
     [messages, reviewedSuggestions],
   );
+  const sessionStage = useMemo(
+    () => buildAssistantSessionStage(messages, reviewedSuggestions.size),
+    [messages, reviewedSuggestions],
+  );
+  const reviewBuckets = useMemo(
+    () => buildAssistantReviewBuckets(messages, reviewedSuggestions),
+    [messages, reviewedSuggestions],
+  );
 
   const mutation = useMutation({
     mutationFn: askAssistant,
@@ -79,7 +97,8 @@ export function AiConfigAssistantPage(): JSX.Element {
         {
           id: nextIdRef.current++,
           role: 'assistant',
-          content: 'Sorry, I could not process your request. Please try again.',
+          content:
+            'I could not process that request. Retry with a narrower question or open the target config page directly to continue the review.',
         },
       ]);
     },
@@ -96,10 +115,7 @@ export function AiConfigAssistantPage(): JSX.Element {
     if (!trimmed) {
       return;
     }
-    setMessages((prev) => [
-      ...prev,
-      { id: nextIdRef.current++, role: 'user', content: trimmed },
-    ]);
+    setMessages((prev) => [...prev, { id: nextIdRef.current++, role: 'user', content: trimmed }]);
     setInputValue('');
     mutation.mutate(trimmed);
   }
@@ -114,7 +130,8 @@ export function AiConfigAssistantPage(): JSX.Element {
               <CardTitle className="text-2xl">AI Config Assistant</CardTitle>
             </div>
             <CardDescription className="max-w-3xl text-sm leading-6">
-              Ask configuration questions, get advisory suggestions grounded in the current runtime and playbook model, and open the matching settings surfaces to review them.
+              Ask configuration questions, get advisory suggestions grounded in the current runtime
+              and playbook model, and open the matching settings surfaces to review them.
             </CardDescription>
           </div>
           <Button
@@ -136,10 +153,12 @@ export function AiConfigAssistantPage(): JSX.Element {
           <CardHeader className="space-y-2">
             <CardTitle>Assistant session</CardTitle>
             <CardDescription>
-              Suggestions are advisory only. Review the linked configuration page before making changes.
+              Suggestions are advisory only. Review the linked configuration page before making
+              changes.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <AssistantSessionStateCard stage={sessionStage} />
             <div
               ref={scrollRef}
               className="space-y-4 overflow-y-auto rounded-lg border border-border bg-surface/50 p-4"
@@ -148,10 +167,21 @@ export function AiConfigAssistantPage(): JSX.Element {
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center text-muted">
                   <Sparkles className="mb-3 h-10 w-10" />
-                  <p className="font-medium text-foreground">How can I help with your configuration?</p>
-                  <p className="mt-1 max-w-xl text-sm leading-6">
-                    Start with a quick audit or ask about runtimes, providers, playbooks, integrations, work items, and operator controls.
+                  <p className="font-medium text-foreground">
+                    How can I help with your configuration?
                   </p>
+                  <p className="mt-1 max-w-xl text-sm leading-6">
+                    Start with a quick audit or ask about runtimes, providers, playbooks,
+                    integrations, work items, and operator controls.
+                  </p>
+                  <Button
+                    type="button"
+                    className="mt-4"
+                    onClick={() => sendQuestion(ASSISTANT_STARTER_PROMPTS[0]?.prompt ?? '')}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Run quick audit
+                  </Button>
                 </div>
               ) : null}
 
@@ -170,7 +200,9 @@ export function AiConfigAssistantPage(): JSX.Element {
                             destinationHref={destination?.href}
                             destinationLabel={destination?.label}
                             onMarkReviewed={() =>
-                              setReviewedSuggestions((current) => new Set([...current, suggestion.path]))
+                              setReviewedSuggestions(
+                                (current) => new Set([...current, suggestion.path]),
+                              )
                             }
                           />
                         );
@@ -207,14 +239,23 @@ export function AiConfigAssistantPage(): JSX.Element {
                 className="flex-1"
               />
               <Button type="submit" disabled={mutation.isPending || !inputValue.trim()}>
-                {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {mutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
                 Send
               </Button>
             </form>
+            <p className="text-xs leading-5 text-muted">
+              Keep prompts narrow. Ask for one operator decision at a time so the review handoff
+              stays tied to a specific config surface.
+            </p>
           </CardContent>
         </Card>
 
         <div className="space-y-6">
+          <AssistantReviewQueue buckets={reviewBuckets} />
           <AssistantQuickPrompts
             prompts={ASSISTANT_STARTER_PROMPTS}
             disabled={mutation.isPending}

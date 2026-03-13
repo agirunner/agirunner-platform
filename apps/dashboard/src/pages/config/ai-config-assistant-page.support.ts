@@ -23,6 +23,23 @@ export interface AssistantStarterPrompt {
   prompt: string;
 }
 
+export interface AssistantSessionStageSummary {
+  badge: string;
+  title: string;
+  detail: string;
+  nextAction: string;
+}
+
+export interface AssistantReviewBucket {
+  key: string;
+  label: string;
+  href?: string;
+  actionLabel?: string;
+  pendingCount: number;
+  reviewedCount: number;
+  detail: string;
+}
+
 export interface SuggestionDestination {
   href: string;
   label: string;
@@ -55,11 +72,7 @@ export function summarizeAssistantSession(
   messages: AssistantMessageRecord[],
   reviewedSuggestionCount: number,
 ): AssistantSummaryCard[] {
-  const assistantReplies = messages.filter((message) => message.role === 'assistant').length;
-  const suggestionCount = messages.reduce(
-    (count, message) => count + (message.suggestions?.length ?? 0),
-    0,
-  );
+  const { assistantReplies, suggestionCount } = collectAssistantSessionStats(messages);
   return [
     {
       label: 'Conversation',
@@ -80,15 +93,115 @@ export function summarizeAssistantSession(
     {
       label: 'Review posture',
       value:
-        reviewedSuggestionCount === 0
-          ? 'Nothing reviewed'
-          : `${reviewedSuggestionCount} reviewed`,
+        reviewedSuggestionCount === 0 ? 'Nothing reviewed' : `${reviewedSuggestionCount} reviewed`,
       detail:
         reviewedSuggestionCount === 0
           ? 'Mark suggestions as reviewed once you have checked the underlying settings.'
           : 'Reviewed suggestions stay visible so you can keep the session context intact.',
     },
   ];
+}
+
+export function buildAssistantSessionStage(
+  messages: AssistantMessageRecord[],
+  reviewedSuggestionCount: number,
+): AssistantSessionStageSummary {
+  const { suggestionCount } = collectAssistantSessionStats(messages);
+  if (messages.length === 0) {
+    return {
+      badge: 'Empty session',
+      title: 'Start with a bounded operator audit',
+      detail:
+        'Ask one concrete question about runtimes, providers, playbooks, integrations, or work items so the assistant can return a reviewable packet instead of vague advice.',
+      nextAction: 'Run a quick audit or choose one of the preset asks to start the handoff.',
+    };
+  }
+  if (suggestionCount === 0) {
+    return {
+      badge: 'Conversation active',
+      title: 'Capture the answer, then ask for the next gap',
+      detail:
+        'The session is still in discovery. Keep the question narrow so follow-up guidance stays tied to one config surface at a time.',
+      nextAction:
+        'Ask the assistant to name the highest-risk next review surface if you need a tighter handoff.',
+    };
+  }
+  if (reviewedSuggestionCount < suggestionCount) {
+    return {
+      badge: 'Review needed',
+      title: 'Move suggestions into config review',
+      detail:
+        'The assistant has produced advisory changes. Review the linked settings pages, confirm the current state, then mark each suggestion reviewed to complete the handoff.',
+      nextAction: 'Open the suggested config surfaces and resolve the remaining pending items.',
+    };
+  }
+  return {
+    badge: 'Ready for handoff',
+    title: 'Session context is ready to hand off',
+    detail:
+      'Every suggestion in this session has been reviewed. Keep the transcript for context, then continue in the destination config pages for any actual changes.',
+    nextAction: 'Use the reviewed suggestions below as a launch checklist for the next operator.',
+  };
+}
+
+export function buildAssistantReviewBuckets(
+  messages: AssistantMessageRecord[],
+  reviewedSuggestionPaths: ReadonlySet<string>,
+): AssistantReviewBucket[] {
+  const grouped = new Map<
+    string,
+    {
+      label: string;
+      href?: string;
+      actionLabel?: string;
+      pendingCount: number;
+      reviewedCount: number;
+    }
+  >();
+
+  messages.forEach((message) => {
+    message.suggestions?.forEach((suggestion) => {
+      const destination = resolveSuggestionDestination(suggestion.path);
+      const key = destination?.href ?? `manual:${suggestion.path}`;
+      const current = grouped.get(key) ?? {
+        label: destination?.label ?? 'Review manually',
+        href: destination?.href,
+        actionLabel: destination?.label,
+        pendingCount: 0,
+        reviewedCount: 0,
+      };
+
+      if (reviewedSuggestionPaths.has(suggestion.path)) {
+        current.reviewedCount += 1;
+      } else {
+        current.pendingCount += 1;
+      }
+
+      grouped.set(key, current);
+    });
+  });
+
+  return Array.from(grouped.entries())
+    .map(([key, bucket]) => ({
+      key,
+      label: bucket.label,
+      href: bucket.href,
+      actionLabel: bucket.actionLabel,
+      pendingCount: bucket.pendingCount,
+      reviewedCount: bucket.reviewedCount,
+      detail:
+        bucket.pendingCount > 0
+          ? bucket.pendingCount === 1
+            ? '1 suggestion still needs review on this surface.'
+            : `${bucket.pendingCount} suggestions still need review on this surface.`
+          : 'Everything grouped under this surface has been reviewed in the current session.',
+    }))
+    .sort((left, right) => {
+      if (left.pendingCount !== right.pendingCount) {
+        return right.pendingCount - left.pendingCount;
+      }
+      return left.label.localeCompare(right.label);
+    });
 }
 
 export function resolveSuggestionDestination(path: string): SuggestionDestination | null {
@@ -118,4 +231,17 @@ export function resolveSuggestionDestination(path: string): SuggestionDestinatio
     return { href: '/config/webhooks', label: 'Open webhooks' };
   }
   return null;
+}
+
+function collectAssistantSessionStats(messages: AssistantMessageRecord[]): {
+  assistantReplies: number;
+  suggestionCount: number;
+} {
+  return {
+    assistantReplies: messages.filter((message) => message.role === 'assistant').length,
+    suggestionCount: messages.reduce(
+      (count, message) => count + (message.suggestions?.length ?? 0),
+      0,
+    ),
+  };
 }

@@ -4,6 +4,14 @@ export interface CreateWebhookFormState {
   secret: string;
 }
 
+export interface WebhookRecord {
+  id: string;
+  url: string;
+  event_types: string[];
+  is_active: boolean;
+  created_at?: string;
+}
+
 export interface WebhookSummaryRecord {
   is_active: boolean;
   event_types: string[];
@@ -26,6 +34,19 @@ export interface WebhookEventGroup {
 }
 
 export interface WebhookSelectionSummaryCard {
+  label: string;
+  value: string;
+  detail: string;
+}
+
+export interface WebhookOperatorFocus {
+  heading: string;
+  summary: string;
+  nextAction: string;
+  packets: WebhookSelectionSummaryCard[];
+}
+
+export interface WebhookInspectPacket {
   label: string;
   value: string;
   detail: string;
@@ -64,9 +85,7 @@ export const WEBHOOK_EVENT_GROUPS: WebhookEventGroup[] = [
   },
 ];
 
-export function validateWebhookForm(
-  form: CreateWebhookFormState,
-): WebhookValidationResult {
+export function validateWebhookForm(form: CreateWebhookFormState): WebhookValidationResult {
   const fieldErrors: WebhookValidationResult['fieldErrors'] = {};
 
   if (!form.url.trim()) {
@@ -109,7 +128,10 @@ export function summarizeWebhookCollection(
     {
       label: 'Configured endpoints',
       value: String(total),
-      detail: total === 1 ? '1 outbound destination configured' : `${total} outbound destinations configured`,
+      detail:
+        total === 1
+          ? '1 outbound destination configured'
+          : `${total} outbound destinations configured`,
     },
     {
       label: 'Delivery posture',
@@ -127,9 +149,7 @@ export function summarizeWebhookCollection(
   ];
 }
 
-export function summarizeWebhookSelection(
-  eventTypes: string[],
-): WebhookSelectionSummaryCard[] {
+export function summarizeWebhookSelection(eventTypes: string[]): WebhookSelectionSummaryCard[] {
   const selectedGroups = WEBHOOK_EVENT_GROUPS.filter((group) =>
     group.eventTypes.some((eventType) => eventTypes.includes(eventType)),
   );
@@ -155,6 +175,105 @@ export function summarizeWebhookSelection(
       label: 'Selected events',
       value: eventTypes.length === 0 ? 'All supported' : String(eventTypes.length),
       detail: describeWebhookCoverage(eventTypes),
+    },
+  ];
+}
+
+export function createWebhookFormState(
+  webhook?: Pick<WebhookRecord, 'url' | 'event_types'> | null,
+): CreateWebhookFormState {
+  return {
+    url: webhook?.url ?? '',
+    event_types: [...(webhook?.event_types ?? [])],
+    secret: '',
+  };
+}
+
+export function buildWebhookOperatorFocus(webhooks: WebhookSummaryRecord[]): WebhookOperatorFocus {
+  const total = webhooks.length;
+  const active = webhooks.filter((webhook) => webhook.is_active).length;
+  const paused = total - active;
+  const broadCoverage = webhooks.filter((webhook) => webhook.event_types.length === 0).length;
+  const filtered = total - broadCoverage;
+
+  if (total === 0) {
+    return {
+      heading: 'No outbound destinations are live yet',
+      summary:
+        'Create the first outbound webhook to send platform events into downstream operator systems, incident workflows, or external automation.',
+      nextAction:
+        'Add one endpoint with a known signing secret, inspect the event scope, and validate the receiver before launch.',
+      packets: summarizeWebhookCollection(webhooks),
+    };
+  }
+
+  if (paused > 0) {
+    return {
+      heading: 'Delivery posture needs review',
+      summary:
+        paused === 1
+          ? 'One endpoint is paused, which can silently block notifications the operator expects to receive.'
+          : `${paused} endpoints are paused, which can silently block notifications the operator expects to receive.`,
+      nextAction:
+        'Inspect paused endpoints first. Reactivate anything still in service, then delete stale destinations so the catalog reflects reality.',
+      packets: summarizeWebhookCollection(webhooks),
+    };
+  }
+
+  if (broadCoverage > 0) {
+    return {
+      heading: 'Review broad event delivery before launch',
+      summary:
+        broadCoverage === 1
+          ? 'One endpoint receives every supported event. That is valid, but it should be an explicit operator choice.'
+          : `${broadCoverage} endpoints receive every supported event. That is valid, but it should be an explicit operator choice.`,
+      nextAction:
+        'Inspect broad-coverage endpoints and narrow the filters when the downstream system only needs a subset of workflow or task events.',
+      packets: summarizeWebhookCollection(webhooks),
+    };
+  }
+
+  return {
+    heading: 'Outbound webhook coverage is configured',
+    summary:
+      filtered === 1
+        ? 'The configured endpoint is scoped to explicit event filters and ready for operator review.'
+        : `${filtered} configured endpoints are scoped to explicit event filters and ready for operator review.`,
+    nextAction:
+      'Open each endpoint, confirm the URL, store the signing secret out-of-band, and verify the receiver returns 2xx for the selected events.',
+    packets: summarizeWebhookCollection(webhooks),
+  };
+}
+
+export function buildWebhookInspectPackets(
+  webhook: Pick<WebhookRecord, 'event_types' | 'is_active' | 'created_at'>,
+): WebhookInspectPacket[] {
+  const selectedFamilies = WEBHOOK_EVENT_GROUPS.filter((group) =>
+    group.eventTypes.some((eventType) => webhook.event_types.includes(eventType)),
+  );
+
+  return [
+    {
+      label: 'Delivery state',
+      value: webhook.is_active ? 'Active delivery' : 'Paused delivery',
+      detail: webhook.is_active
+        ? 'The platform can deliver matching outbound events to this endpoint now.'
+        : 'The endpoint is stored but will not receive outbound events until it is re-enabled.',
+    },
+    {
+      label: 'Coverage',
+      value: describeWebhookCoverage(webhook.event_types),
+      detail:
+        webhook.event_types.length === 0
+          ? 'Every supported webhook event can be delivered to this endpoint.'
+          : `${selectedFamilies.length} event famil${selectedFamilies.length === 1 ? 'y is' : 'ies are'} explicitly selected.`,
+    },
+    {
+      label: 'Created',
+      value: webhook.created_at ? 'Timestamp recorded' : 'Timestamp unavailable',
+      detail: webhook.created_at
+        ? 'Use the created timestamp to confirm whether this endpoint predates the current workflow rollout.'
+        : 'This record does not include a created timestamp.',
     },
   ];
 }

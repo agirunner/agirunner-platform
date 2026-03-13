@@ -15,8 +15,10 @@ function readSource() {
 describe('ai config assistant page source', () => {
   it('uses playbook and runtime terminology consistently', () => {
     const source = readSource();
-    expect(source).toContain('runtime and playbook model');
-    expect(source).toContain('providers, playbooks, integrations, work items, and operator controls');
+    expect(source).toContain('playbook model');
+    expect(source).toContain('runtime defaults');
+    expect(source).toContain('providers, playbooks');
+    expect(source).toContain('work items, and operator controls');
     expect(source).not.toContain('templates, and more');
   });
 
@@ -27,6 +29,10 @@ describe('ai config assistant page source', () => {
     expect(source).toContain('Quick asks');
     expect(source).toContain('Run quick audit');
     expect(source).toContain('Open runtime defaults');
+    expect(source).toContain('Review queue');
+    expect(source).toContain('Start with a bounded operator audit');
+    expect(source).toContain('never applies changes from this page.');
+    expect(source).toContain('Keep prompts narrow.');
     expect(source).not.toContain('Apply');
   });
 });
