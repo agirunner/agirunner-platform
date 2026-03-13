@@ -55,6 +55,7 @@ import {
   WorkflowStagesCard,
 } from './workflow-detail-sections.js';
 import {
+  buildTimelineContext,
   describeTimelineEvent,
   WorkflowInteractionTimelineCard,
 } from './workflow-history-card.js';
@@ -297,14 +298,31 @@ export function WorkflowDetailPage(): JSX.Element {
     () => historyQuery.data?.pages.flatMap((page) => page.data) ?? [],
     [historyQuery.data],
   );
+  const timelineContext = useMemo(
+    () =>
+      buildTimelineContext({
+        activations: activationsQuery.data ?? [],
+        childWorkflows: workflowQuery.data?.workflow_relations?.children ?? [],
+        stages: stagesQuery.data ?? [],
+        tasks: taskQuery.data?.data ?? [],
+        workItems: boardQuery.data?.work_items ?? [],
+      }),
+    [
+      activationsQuery.data,
+      boardQuery.data?.work_items,
+      stagesQuery.data,
+      taskQuery.data?.data,
+      workflowQuery.data?.workflow_relations?.children,
+    ],
+  );
   const latestActivitySummary = useMemo(() => {
     const latestEvent = historyEvents[0];
     if (!latestEvent) {
       return null;
     }
-    const descriptor = describeTimelineEvent(latestEvent);
+    const descriptor = describeTimelineEvent(latestEvent, timelineContext);
     return descriptor.summary ? `${descriptor.headline} — ${descriptor.summary}` : descriptor.headline;
-  }, [historyEvents]);
+  }, [historyEvents, timelineContext]);
   const costSummary = useMemo(() => {
     const tasks = taskQuery.data?.data ?? [];
     return tasks.reduce(
@@ -1053,6 +1071,7 @@ export function WorkflowDetailPage(): JSX.Element {
               />
 
               <WorkflowInteractionTimelineCard
+                context={timelineContext}
                 workflowId={workflowId}
                 isLoading={historyQuery.isLoading}
                 hasError={Boolean(historyQuery.error)}

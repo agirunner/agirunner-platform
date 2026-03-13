@@ -146,6 +146,8 @@ describe('workflow detail interaction timeline', () => {
     );
 
     expect(source).toContain('WorkflowInteractionTimelineCard');
+    expect(source).toContain('buildTimelineContext');
+    expect(source).toContain('context={timelineContext}');
     expect(source).not.toContain('WorkflowHistoryCard');
   });
 

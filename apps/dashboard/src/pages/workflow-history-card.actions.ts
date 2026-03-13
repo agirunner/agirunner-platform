@@ -4,6 +4,10 @@ export interface TimelineEntryAction {
 }
 
 export function buildTimelineEntryActions(input: {
+  activationId: string | null;
+  childWorkflowHref?: string | null;
+  childWorkflowId: string | null;
+  gateStageName: string | null;
   workflowId: string;
   workItemId: string | null;
   taskId: string | null;
@@ -14,6 +18,29 @@ export function buildTimelineEntryActions(input: {
     actions.push({
       label: 'Open work item flow',
       href: `/work/workflows/${input.workflowId}?work_item=${encodeURIComponent(input.workItemId)}`,
+    });
+  }
+
+  if (input.gateStageName) {
+    actions.push({
+      label: 'Open gate focus',
+      href: `/work/workflows/${input.workflowId}?gate=${encodeURIComponent(input.gateStageName)}#gate-${encodeURIComponent(input.gateStageName)}`,
+    });
+  }
+
+  if (input.activationId) {
+    actions.push({
+      label: 'Open activation packet',
+      href: `/work/workflows/${input.workflowId}?activation=${encodeURIComponent(input.activationId)}#activation-${encodeURIComponent(input.activationId)}`,
+    });
+  }
+
+  if (input.childWorkflowHref || input.childWorkflowId) {
+    actions.push({
+      label: 'Open child board',
+      href:
+        input.childWorkflowHref ??
+        `/work/workflows/${input.workflowId}?child=${encodeURIComponent(input.childWorkflowId ?? '')}#child-workflow-${encodeURIComponent(input.childWorkflowId ?? '')}`,
     });
   }
 
