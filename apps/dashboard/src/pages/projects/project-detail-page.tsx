@@ -62,6 +62,7 @@ import { ProjectArtifactExplorerPanel } from './project-artifact-explorer-panel.
 import { ProjectDeliveryHistory } from './project-delivery-history.js';
 import { ProjectDetailMemoryTab } from './project-detail-memory-tab.js';
 import { ScheduledTriggersCard } from './project-scheduled-triggers-card.js';
+import { WebhookTriggersCard } from './project-webhook-triggers-card.js';
 
 /* ------------------------------------------------------------------ */
 /*  Spec Tab                                                           */
@@ -512,6 +513,7 @@ function AutomationTab({ project }: { project: DashboardProjectRecord }): JSX.El
   return (
     <div className="space-y-4">
       <ScheduledTriggersCard project={project} />
+      <WebhookTriggersCard project={project} />
       <GitWebhookTab project={project} />
     </div>
   );

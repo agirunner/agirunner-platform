@@ -354,6 +354,7 @@ export function WebhookTriggerEditorDialog(props: {
   mode: 'create' | 'edit';
   trigger?: DashboardWebhookWorkItemTriggerRecord | null;
   open: boolean;
+  defaultProjectId?: string;
   projects: DashboardProjectRecord[];
   workflows: DashboardWorkflowRecord[];
   isPending: boolean;
@@ -365,8 +366,16 @@ export function WebhookTriggerEditorDialog(props: {
 
   useEffect(() => {
     if (!props.open) return;
-    setForm(props.trigger ? hydrateWebhookTriggerForm(props.trigger) : createWebhookTriggerFormState());
-  }, [props.trigger, props.open]);
+    if (props.trigger) {
+      setForm(hydrateWebhookTriggerForm(props.trigger));
+    } else {
+      const initial = createWebhookTriggerFormState();
+      if (props.defaultProjectId) {
+        initial.projectId = props.defaultProjectId;
+      }
+      setForm(initial);
+    }
+  }, [props.trigger, props.open, props.defaultProjectId]);
 
   const isCreate = props.mode === 'create';
   const validation = validateWebhookTriggerForm(form, props.mode);
