@@ -6,6 +6,7 @@ function readSource() {
   return [
     './cost-dashboard-page.tsx',
     './cost-dashboard-page.support.ts',
+    './cost-dashboard-breakdown-cards.tsx',
   ]
     .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
     .join('\n');
@@ -36,10 +37,21 @@ describe('cost dashboard page source', () => {
     expect(source).toContain('Mission control operator surface');
     expect(source).toContain('Best next step:');
     expect(source).toContain('Open live board');
+    expect(source).toContain('Open logs');
     expect(source).toContain('Immediate spend');
     expect(source).toContain('Budget posture');
     expect(source).toContain('Top board driver');
     expect(source).toContain('Model mix');
     expect(source).toContain('buildCostPosture');
+  });
+
+  it('adds summary-first driver packets so operators can scan spend without relying on charts alone', () => {
+    const source = readSource();
+    expect(source).toContain('CostDashboardBreakdownCards');
+    expect(source).toContain('Board spend leaders');
+    expect(source).toContain('Model spend leaders');
+    expect(source).toContain('Peak spend day');
+    expect(source).toContain('buildCostBreakdownSummary');
+    expect(source).toContain('phone-friendly scan');
   });
 });

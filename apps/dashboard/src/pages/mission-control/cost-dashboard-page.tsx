@@ -24,9 +24,9 @@ import { Badge } from '../../components/ui/badge.js';
 import {
   buildCostPosture,
   budgetPercentUsed,
-  formatCurrency,
   type CostSummaryRecord,
 } from './cost-dashboard-page.support.js';
+import { CostDashboardBreakdownCards } from './cost-dashboard-breakdown-cards.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 
@@ -217,6 +217,15 @@ export function CostDashboardPage(): JSX.Element {
           ) : null}
           <Button
             size="sm"
+            variant="outline"
+            onClick={() => navigate('/mission-control/logs')}
+            className="gap-2"
+          >
+            Open logs
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
             onClick={() => navigate('/mission-control/live')}
             className="gap-2"
           >
@@ -244,6 +253,8 @@ export function CostDashboardPage(): JSX.Element {
           </div>
         </CardContent>
       </Card>
+
+      <CostDashboardBreakdownCards summary={summary} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

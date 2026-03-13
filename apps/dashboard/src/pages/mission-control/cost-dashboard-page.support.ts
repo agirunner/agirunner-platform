@@ -23,6 +23,18 @@ export interface CostPostureSummary {
   packets: CostPosturePacket[];
 }
 
+export interface CostBreakdownEntry {
+  label: string;
+  value: string;
+  detail: string;
+}
+
+export interface CostBreakdownSummary {
+  boardDrivers: CostBreakdownEntry[];
+  modelDrivers: CostBreakdownEntry[];
+  peakSpendDay: CostBreakdownEntry | null;
+}
+
 export function formatCurrency(amount: number): string {
   return `$${amount.toFixed(2)}`;
 }
@@ -91,6 +103,22 @@ export function buildCostPosture(summary: CostSummaryRecord): CostPostureSummary
   };
 }
 
+export function buildCostBreakdownSummary(summary: CostSummaryRecord): CostBreakdownSummary {
+  return {
+    boardDrivers: buildTopCostEntries(
+      summary.by_workflow,
+      (entry) => entry.name,
+      'No board drivers published yet',
+    ),
+    modelDrivers: buildTopCostEntries(
+      summary.by_model,
+      (entry) => entry.model,
+      'No model drivers published yet',
+    ),
+    peakSpendDay: buildPeakSpendDay(summary.daily_trend),
+  };
+}
+
 function findHighestCost<T extends { cost: number }>(
   items: T[],
   emptyLabel: string,
@@ -111,6 +139,56 @@ function findHighestCost<T extends { cost: number }>(
     label: getLabel(highest),
     detail: `${formatCurrency(highest.cost)} reported so far`,
   };
+}
+
+function buildTopCostEntries<T extends { cost: number }>(
+  items: T[],
+  getLabel: (item: T) => string,
+  emptyLabel: string,
+): CostBreakdownEntry[] {
+  if (items.length === 0) {
+    return [
+      {
+        label: emptyLabel,
+        value: formatCurrency(0),
+        detail: 'This list will populate after the next spend-reporting cycle.',
+      },
+    ];
+  }
+
+  const totalCost = items.reduce((sum, item) => sum + item.cost, 0);
+  return [...items]
+    .sort((left, right) => right.cost - left.cost)
+    .slice(0, 3)
+    .map((item) => ({
+      label: getLabel(item),
+      value: formatCurrency(item.cost),
+      detail: `${formatPercent(item.cost, totalCost)} of reported spend in this lane`,
+    }));
+}
+
+function buildPeakSpendDay(
+  dailyTrend: Array<{ date: string; cost: number }>,
+): CostBreakdownEntry | null {
+  if (dailyTrend.length === 0) {
+    return null;
+  }
+
+  const totalCost = dailyTrend.reduce((sum, item) => sum + item.cost, 0);
+  const peakDay = [...dailyTrend].sort((left, right) => right.cost - left.cost)[0]!;
+
+  return {
+    label: peakDay.date,
+    value: formatCurrency(peakDay.cost),
+    detail: `${formatPercent(peakDay.cost, totalCost)} of the visible daily trend`,
+  };
+}
+
+function formatPercent(value: number, total: number): string {
+  if (total <= 0) {
+    return '0%';
+  }
+  return `${Math.round((value / total) * 100)}%`;
 }
 
 function buildPostureDetail(input: {
