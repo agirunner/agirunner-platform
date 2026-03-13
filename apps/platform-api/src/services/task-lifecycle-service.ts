@@ -151,6 +151,19 @@ function hasMatchingManualEscalation(
     && metadata.review_feedback === reason;
 }
 
+function hasMatchingReviewRejection(
+  task: Record<string, unknown>,
+  feedback: string,
+): boolean {
+  const error = asRecord(task.error);
+  return (
+    task.state === 'failed'
+    && matchesReviewMetadata(task, { action: 'reject', feedback })
+    && error.category === 'review_rejected'
+    && error.message === feedback
+  );
+}
+
 export class TaskLifecycleService {
   constructor(private readonly deps: TaskLifecycleDependencies) {}
 
@@ -850,6 +863,11 @@ export class TaskLifecycleService {
   }
 
   async rejectTask(identity: ApiKeyIdentity, taskId: string, payload: { feedback: string }) {
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+    if (hasMatchingReviewRejection(task, payload.feedback)) {
+      return this.deps.toTaskResponse(task);
+    }
+
     return this.applyStateTransition(identity, taskId, 'failed', {
       expectedStates: ['awaiting_approval', 'output_pending_review', 'in_progress', 'claimed'],
       clearAssignment: true,

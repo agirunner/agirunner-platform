@@ -475,6 +475,54 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(client.query).not.toHaveBeenCalled();
   });
 
+  it('treats a repeated reject action as idempotent once the task already reflects the rejection', async () => {
+    const client = {
+      query: vi.fn(async () => ({ rows: [], rowCount: 0 })),
+      release: vi.fn(),
+    };
+    const existingTask = {
+      id: 'task-review-rejected',
+      state: 'failed',
+      workflow_id: null,
+      error: {
+        category: 'review_rejected',
+        message: 'Fix the failing assertions',
+        recoverable: true,
+      },
+      metadata: {
+        review_action: 'reject',
+        review_feedback: 'Fix the failing assertions',
+      },
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue(existingTask),
+      toTaskResponse: (task) => task,
+    });
+
+    const result = await service.rejectTask(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'task-review-rejected',
+      {
+        feedback: 'Fix the failing assertions',
+      },
+    );
+
+    expect(result).toEqual(existingTask);
+    expect(client.query).not.toHaveBeenCalled();
+  });
+
   it('fails and escalates when request-changes exceeds the configured max rework count', async () => {
     const eventService = { emit: vi.fn() };
     const client = {
