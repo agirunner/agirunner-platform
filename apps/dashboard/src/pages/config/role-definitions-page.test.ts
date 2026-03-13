@@ -44,6 +44,9 @@ describe('role definitions page source', () => {
     const source = readCombinedSource();
     expect(source).toContain('listAvailableTools');
     expect(source).toContain('Existing grants that are no longer in the standard catalog');
+    expect(source).toContain('No catalog tools enabled.');
+    expect(source).toContain('ToggleCard');
+    expect(source).not.toContain('type="checkbox"');
   });
 
   it('exposes structured model and active-state controls in the dialog', () => {

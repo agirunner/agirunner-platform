@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '../../components/ui/select.js';
 import { Textarea } from '../../components/ui/textarea.js';
+import { ToggleCard } from '../../components/ui/toggle-card.js';
 import {
   createEmptyColumnDraft,
   createEmptyParameterDraft,
@@ -394,6 +395,9 @@ export function OrchestratorSection(
   const availableToolOptions = props.availableToolOptions ?? [];
   const requiredTools = availableToolOptions.filter((tool) => tool.required);
   const optionalTools = availableToolOptions.filter((tool) => !tool.required);
+  const enabledOptionalToolCount = optionalTools.filter((tool) =>
+    props.draft.orchestrator.tools.includes(tool.id),
+  ).length;
 
   return (
     <SectionCard
@@ -437,25 +441,21 @@ export function OrchestratorSection(
               Enable the specialist-grade tools the orchestrator may use when it needs to inspect
               files, run git checks, fetch the web, or escalate.
             </p>
+            <div className="rounded-md border border-border/70 bg-surface px-3 py-3 text-xs text-muted">
+              {enabledOptionalToolCount > 0
+                ? `${enabledOptionalToolCount} optional verification tool${enabledOptionalToolCount === 1 ? '' : 's'} enabled for direct orchestrator inspection.`
+                : 'No optional verification tools enabled. The orchestrator will rely on core management tools and specialist tasks for deeper inspection.'}
+            </div>
             <div className="grid gap-2 md:grid-cols-2">
               {optionalTools.map((tool) => (
-                <label
+                <ToggleCard
                   key={tool.id}
-                  className="flex items-start gap-3 rounded-md border border-border/70 bg-muted/10 px-3 py-3"
-                >
-                  <input
-                    type="checkbox"
-                    checked={props.draft.orchestrator.tools.includes(tool.id)}
-                    onChange={() => toggleOrchestratorTool(props.onChange, tool.id)}
-                    className="mt-1 rounded"
-                  />
-                  <div className="grid gap-1">
-                    <div className="font-medium">{tool.name}</div>
-                    {tool.description ? (
-                      <div className="text-xs text-muted">{tool.description}</div>
-                    ) : null}
-                  </div>
-                </label>
+                  label={tool.name}
+                  description={tool.description ?? undefined}
+                  meta={tool.category ? `Category: ${tool.category}` : undefined}
+                  checked={props.draft.orchestrator.tools.includes(tool.id)}
+                  onCheckedChange={() => toggleOrchestratorTool(props.onChange, tool.id)}
+                />
               ))}
             </div>
           </div>

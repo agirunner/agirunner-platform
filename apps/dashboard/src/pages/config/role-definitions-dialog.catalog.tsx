@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from '../../components/ui/card.js';
 import { Input } from '../../components/ui/input.js';
+import { ToggleCard } from '../../components/ui/toggle-card.js';
 import { cn } from '../../lib/utils.js';
 import type {
   CapabilityOption,
@@ -90,6 +91,8 @@ export function RoleToolGrantsSection(props: {
   toggleTool(value: string): void;
   addCustomTool(): void;
 }) {
+  const enabledToolCount = props.tools.filter((tool) => props.form.allowedTools.includes(tool)).length;
+
   return (
     <Card>
       <CardHeader>
@@ -102,20 +105,19 @@ export function RoleToolGrantsSection(props: {
         <p className="text-xs text-muted">
           Existing grants that are no longer in the standard catalog still stay editable here.
         </p>
+        <div className="rounded-md border border-border/70 bg-surface px-3 py-3 text-xs text-muted">
+          {enabledToolCount > 0
+            ? `${enabledToolCount} catalog tool grant${enabledToolCount === 1 ? '' : 's'} enabled for this role.`
+            : 'No catalog tools enabled. Add grants here or confirm that the role should stay read-only.'}
+        </div>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {props.tools.map((tool) => (
-            <label
+            <ToggleCard
               key={tool}
-              className="flex items-center gap-2 rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-sm"
-            >
-              <input
-                type="checkbox"
-                checked={props.form.allowedTools.includes(tool)}
-                onChange={() => props.toggleTool(tool)}
-                className="rounded"
-              />
-              <span>{tool}</span>
-            </label>
+              label={tool}
+              checked={props.form.allowedTools.includes(tool)}
+              onCheckedChange={() => props.toggleTool(tool)}
+            />
           ))}
         </div>
         <div className="flex flex-wrap gap-2">
