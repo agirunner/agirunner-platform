@@ -27,9 +27,12 @@ import { StructuredRecordView } from '../../components/structured-data.js';
 import {
   buildWorkflowOptions,
   filterTasksByWorkItem,
+  formatContentRelativeTimestamp,
   normalizeProjectList,
   normalizeTaskOptions,
   normalizeWorkItemOptions,
+  summarizeArtifactInventory,
+  summarizeDocumentInventory,
 } from './project-content-browser-support.js';
 import {
   buildMetadataRecord,
@@ -39,6 +42,7 @@ import {
   type MetadataValueType,
   updateMetadataDraft,
 } from './content-browser-metadata-support.js';
+import { ContentBrowserOverview } from './project-content-browser-presentation.js';
 import { ArtifactsTable, DocumentsTable } from './project-content-tables.js';
 
 interface ContentBrowserPageProps {
@@ -57,8 +61,12 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
   const scopedProjectId = props.scopedProjectId?.trim() ?? '';
   const scopedWorkflowId = props.scopedWorkflowId?.trim() ?? '';
   const preferredTab = props.preferredTab ?? 'documents';
-  const [selectedProjectId, setSelectedProjectId] = useState(scopedProjectId || (searchParams.get('project') ?? ''));
-  const [selectedWorkflowId, setSelectedWorkflowId] = useState(scopedWorkflowId || (searchParams.get('workflow') ?? ''));
+  const [selectedProjectId, setSelectedProjectId] = useState(
+    scopedProjectId || (searchParams.get('project') ?? ''),
+  );
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState(
+    scopedWorkflowId || (searchParams.get('workflow') ?? ''),
+  );
   const [selectedWorkItemId, setSelectedWorkItemId] = useState(searchParams.get('work_item') ?? '');
   const [selectedTaskId, setSelectedTaskId] = useState(searchParams.get('task') ?? '');
   const [documentMode, setDocumentMode] = useState<'create' | 'edit'>('create');
@@ -124,8 +132,7 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
   const selectedWorkflow = workflows.find((workflow) => workflow.id === selectedWorkflowId) ?? null;
   const selectedWorkItem = workItems.find((workItem) => workItem.id === selectedWorkItemId) ?? null;
   const selectedTask = filteredTasks.find((task) => task.id === selectedTaskId) ?? null;
-  const selectedDocumentTask =
-    tasks.find((task) => task.id === documentDraft.taskId) ?? null;
+  const selectedDocumentTask = tasks.find((task) => task.id === documentDraft.taskId) ?? null;
   const documentArtifactOptions = documentArtifactOptionsQuery.data ?? [];
   const selectedDocumentArtifact =
     documentArtifactOptions.find((artifact) => artifact.id === documentDraft.artifactId) ?? null;
@@ -136,6 +143,14 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
   const parsedArtifactMetadata = useMemo(
     () => buildMetadataRecord(artifactMetadataDrafts),
     [artifactMetadataDrafts],
+  );
+  const documentSummary = useMemo(
+    () => summarizeDocumentInventory(documentsQuery.data ?? []),
+    [documentsQuery.data],
+  );
+  const artifactSummary = useMemo(
+    () => summarizeArtifactInventory(artifactsQuery.data ?? []),
+    [artifactsQuery.data],
   );
 
   useEffect(() => {
@@ -187,7 +202,9 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
     },
     onError: (error) => {
       setDocumentMessage(null);
-      setDocumentError(error instanceof Error ? error.message : 'Failed to save workflow document.');
+      setDocumentError(
+        error instanceof Error ? error.message : 'Failed to save workflow document.',
+      );
     },
   });
 
@@ -273,15 +290,31 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
 
   useEffect(() => {
     const next = new URLSearchParams();
-    if (!scopedProjectId && selectedProjectId) next.set('project', selectedProjectId); else next.delete('project');
-    if (!scopedWorkflowId && selectedWorkflowId) next.set('workflow', selectedWorkflowId); else next.delete('workflow');
-    if (selectedWorkItemId) next.set('work_item', selectedWorkItemId); else next.delete('work_item');
-    if (selectedTaskId) next.set('task', selectedTaskId); else next.delete('task');
-    if (activeTab !== preferredTab) next.set('tab', activeTab); else next.delete('tab');
+    if (!scopedProjectId && selectedProjectId) next.set('project', selectedProjectId);
+    else next.delete('project');
+    if (!scopedWorkflowId && selectedWorkflowId) next.set('workflow', selectedWorkflowId);
+    else next.delete('workflow');
+    if (selectedWorkItemId) next.set('work_item', selectedWorkItemId);
+    else next.delete('work_item');
+    if (selectedTaskId) next.set('task', selectedTaskId);
+    else next.delete('task');
+    if (activeTab !== preferredTab) next.set('tab', activeTab);
+    else next.delete('tab');
     if (next.toString() !== searchParams.toString()) {
       setSearchParams(next, { replace: true });
     }
-  }, [activeTab, preferredTab, scopedProjectId, scopedWorkflowId, searchParams, selectedProjectId, selectedTaskId, selectedWorkflowId, selectedWorkItemId, setSearchParams]);
+  }, [
+    activeTab,
+    preferredTab,
+    scopedProjectId,
+    scopedWorkflowId,
+    searchParams,
+    selectedProjectId,
+    selectedTaskId,
+    selectedWorkflowId,
+    selectedWorkItemId,
+    setSearchParams,
+  ]);
 
   useEffect(() => {
     if (workflows.length === 0) {
@@ -347,7 +380,13 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
         logicalPath: '',
       }));
     }
-  }, [documentArtifactOptions, documentDraft.artifactId, documentDraft.logicalPath, documentDraft.source, documentDraft.taskId]);
+  }, [
+    documentArtifactOptions,
+    documentDraft.artifactId,
+    documentDraft.logicalPath,
+    documentDraft.source,
+    documentDraft.taskId,
+  ]);
 
   useEffect(() => {
     if (
@@ -377,15 +416,22 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
       <div>
         <h1 className="text-2xl font-semibold">Content Browser</h1>
         <p className="text-sm text-muted-foreground">
-          Browse workflow documents and work-item scoped artifacts with deep-linkable project, workflow, work item, and task filters.
+          Browse workflow documents and work-item scoped artifacts with deep-linkable project,
+          workflow, work item, and task filters.
         </p>
         {scopedProjectId ? (
           <div className="mt-2 flex flex-wrap gap-2 text-sm">
-            <Link className="underline-offset-4 hover:underline" to={`/projects/${scopedProjectId}`}>
+            <Link
+              className="underline-offset-4 hover:underline"
+              to={`/projects/${scopedProjectId}`}
+            >
               Back to Project
             </Link>
             {selectedWorkflowId ? (
-              <Link className="underline-offset-4 hover:underline" to={`/work/workflows/${selectedWorkflowId}`}>
+              <Link
+                className="underline-offset-4 hover:underline"
+                to={`/work/workflows/${selectedWorkflowId}`}
+              >
                 Open Workflow Board
               </Link>
             ) : null}
@@ -406,7 +452,7 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                 Loading projects...
               </div>
             ) : (
-            <Select
+              <Select
                 disabled={scopedProjectId.length > 0}
                 value={selectedProjectId}
                 onValueChange={(value) => {
@@ -474,7 +520,9 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                     </SelectContent>
                   </Select>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No workflows found for this project yet.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No workflows found for this project yet.
+                  </p>
                 )}
                 <InlineStatusNotice
                   tone="error"
@@ -485,7 +533,7 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
               </div>
 
               {selectedWorkflow ? (
-                <div className="rounded-md border p-3">
+                <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
                   <div className="flex items-center justify-between gap-2">
                     <Badge variant="secondary">{selectedWorkflow.state}</Badge>
                     <Link
@@ -497,7 +545,7 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                   </div>
                   <p className="mt-2 text-sm font-medium">{selectedWorkflow.name}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Created {new Date(selectedWorkflow.createdAt).toLocaleString()}
+                    Created {formatContentRelativeTimestamp(selectedWorkflow.createdAt)}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {workItems.length} work items • {tasks.length} tasks
@@ -520,6 +568,15 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                 setSearchParams(next, { replace: true });
               }}
             >
+              <ContentBrowserOverview
+                activeTab={activeTab}
+                workflowId={selectedWorkflowId}
+                selectedWorkflow={selectedWorkflow}
+                selectedWorkItem={selectedWorkItem}
+                selectedTask={selectedTask}
+                documentSummary={documentSummary}
+                artifactSummary={artifactSummary}
+              />
               <TabsList>
                 <TabsTrigger value="documents">Documents</TabsTrigger>
                 <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
@@ -538,7 +595,8 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                   </CardHeader>
                   <CardContent className="grid gap-4">
                     <p className="text-sm text-muted-foreground">
-                      Create, edit, and delete resolved workflow references without leaving the operator content browser.
+                      Create, edit, and delete resolved workflow references without leaving the
+                      operator content browser.
                     </p>
                     <div className="grid gap-4 lg:grid-cols-2">
                       <label className="grid gap-2">
@@ -677,12 +735,14 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                               </Select>
                             ) : (
                               <p className="text-sm text-muted-foreground">
-                                No workflow tasks available yet. Create or run a task before linking an artifact-backed document.
+                                No workflow tasks available yet. Create or run a task before linking
+                                an artifact-backed document.
                               </p>
                             )}
                             {selectedDocumentTask ? (
                               <p className="text-xs text-muted-foreground">
-                                {selectedDocumentTask.stageName ?? 'No stage'} • {selectedDocumentTask.state}
+                                {selectedDocumentTask.stageName ?? 'No stage'} •{' '}
+                                {selectedDocumentTask.state}
                               </p>
                             ) : null}
                           </label>
@@ -708,7 +768,7 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                                         logicalPath:
                                           value === '__unset__'
                                             ? ''
-                                            : artifact?.logical_path ?? current.logicalPath,
+                                            : (artifact?.logical_path ?? current.logicalPath),
                                       };
                                     })
                                   }
@@ -737,7 +797,8 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                             )}
                             {selectedDocumentArtifact ? (
                               <p className="text-xs text-muted-foreground">
-                                {selectedDocumentArtifact.content_type} • {selectedDocumentArtifact.size_bytes.toLocaleString()} bytes
+                                {selectedDocumentArtifact.content_type} •{' '}
+                                {selectedDocumentArtifact.size_bytes.toLocaleString()} bytes
                               </p>
                             ) : null}
                             <InlineStatusNotice
@@ -760,7 +821,8 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                               placeholder="artifact:task-id/brief.md"
                             />
                             <p className="text-xs text-muted-foreground">
-                              Auto-filled from the selected artifact. Override only if the operator-facing path should differ.
+                              Auto-filled from the selected artifact. Override only if the
+                              operator-facing path should differ.
                             </p>
                           </label>
                         </>
@@ -808,7 +870,9 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                       ) : null}
                       <Button
                         onClick={() => saveDocumentMutation.mutate()}
-                        disabled={saveDocumentMutation.isPending || Boolean(parsedDocumentMetadata.error)}
+                        disabled={
+                          saveDocumentMutation.isPending || Boolean(parsedDocumentMetadata.error)
+                        }
                       >
                         {saveDocumentMutation.isPending
                           ? 'Saving…'
@@ -829,7 +893,9 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                     setDocumentMode('edit');
                     setEditingLogicalName(document.logical_name);
                     setDocumentDraft(createDocumentDraft(document));
-                    setDocumentMetadataDrafts(createMetadataDraftsFromRecord(document.metadata ?? {}));
+                    setDocumentMetadataDrafts(
+                      createMetadataDraftsFromRecord(document.metadata ?? {}),
+                    );
                     setDocumentError(null);
                     setDocumentMessage(null);
                   }}
@@ -851,7 +917,12 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                           Loading workflow work items...
                         </div>
                       ) : workItems.length > 0 ? (
-                        <Select value={selectedWorkItemId || '__all__'} onValueChange={(value) => setSelectedWorkItemId(value === '__all__' ? '' : value)}>
+                        <Select
+                          value={selectedWorkItemId || '__all__'}
+                          onValueChange={(value) =>
+                            setSelectedWorkItemId(value === '__all__' ? '' : value)
+                          }
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="All work items" />
                           </SelectTrigger>
@@ -865,7 +936,9 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                           </SelectContent>
                         </Select>
                       ) : (
-                        <p className="text-sm text-muted-foreground">No work items found for this workflow yet.</p>
+                        <p className="text-sm text-muted-foreground">
+                          No work items found for this workflow yet.
+                        </p>
                       )}
                       <InlineStatusNotice
                         tone="error"
@@ -911,7 +984,7 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                     </div>
 
                     {selectedTask || selectedWorkItem ? (
-                      <div className="rounded-md border p-3">
+                      <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
                         <div className="flex items-center justify-between gap-2">
                           <Badge variant="secondary">
                             {selectedTask?.state ?? selectedWorkItem?.columnId ?? 'scoped'}
@@ -936,12 +1009,18 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                           {selectedTask?.title ?? selectedWorkItem?.title}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {selectedTask?.stageName ?? selectedWorkItem?.stageName ?? 'No stage attached'}
+                          {selectedTask?.stageName ??
+                            selectedWorkItem?.stageName ??
+                            'No stage attached'}
                         </p>
                         {selectedTask ? (
                           <p className="mt-1 text-xs text-muted-foreground">
-                            {selectedTask.workItemId ? `Work item ${selectedTask.workItemId}` : 'No work item linked'}
-                            {selectedTask.activationId ? ` • Activation ${selectedTask.activationId}` : ''}
+                            {selectedTask.workItemId
+                              ? `Work item ${selectedTask.workItemId}`
+                              : 'No work item linked'}
+                            {selectedTask.activationId
+                              ? ` • Activation ${selectedTask.activationId}`
+                              : ''}
                           </p>
                         ) : null}
                       </div>
@@ -957,7 +1036,9 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                       </CardHeader>
                       <CardContent className="grid gap-4">
                         <p className="text-sm text-muted-foreground">
-                          Upload and remove task artifacts here. Artifact rename or metadata edit is not exposed by the current backend contract, so artifact management is create/delete plus preview/download.
+                          Upload and remove task artifacts here. Artifact rename or metadata edit is
+                          not exposed by the current backend contract, so artifact management is
+                          create/delete plus preview/download.
                         </p>
                         <div className="grid gap-4 lg:grid-cols-2">
                           <label className="grid gap-2 lg:col-span-2">
@@ -1207,51 +1288,80 @@ function MetadataEntryEditor(props: {
         <p className="text-sm text-muted-foreground">No metadata entries added.</p>
       ) : (
         props.drafts.map((draft) => (
-          <div key={draft.id} className="grid gap-3 rounded-md border border-border/70 p-3 md:grid-cols-[1fr,160px,1fr,auto]">
+          <div
+            key={draft.id}
+            className="grid gap-3 rounded-md border border-border/70 p-3 md:grid-cols-[1fr,160px,1fr,auto]"
+          >
             <label className="grid gap-1">
               <span className="text-xs font-medium">Key</span>
               <Input
                 value={draft.key}
-                onChange={(event) => props.onChange(updateMetadataDraft(props.drafts, draft.id, { key: event.target.value }))}
+                onChange={(event) =>
+                  props.onChange(
+                    updateMetadataDraft(props.drafts, draft.id, { key: event.target.value }),
+                  )
+                }
               />
             </label>
             <label className="grid gap-1">
               <span className="text-xs font-medium">Type</span>
-              <select
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              <Select
                 value={draft.valueType}
-                onChange={(event) =>
-                  props.onChange(updateMetadataDraft(props.drafts, draft.id, { valueType: event.target.value as MetadataValueType }))
+                onValueChange={(value) =>
+                  props.onChange(
+                    updateMetadataDraft(props.drafts, draft.id, {
+                      valueType: value as MetadataValueType,
+                    }),
+                  )
                 }
               >
-                <option value="string">String</option>
-                <option value="number">Number</option>
-                <option value="boolean">Boolean</option>
-                <option value="json">JSON object</option>
-              </select>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="string">String</SelectItem>
+                  <SelectItem value="number">Number</SelectItem>
+                  <SelectItem value="boolean">Boolean</SelectItem>
+                  <SelectItem value="json">JSON object</SelectItem>
+                </SelectContent>
+              </Select>
             </label>
             <label className="grid gap-1">
               <span className="text-xs font-medium">Value</span>
               {draft.valueType === 'boolean' ? (
-                <select
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                <Select
                   value={draft.value}
-                  onChange={(event) => props.onChange(updateMetadataDraft(props.drafts, draft.id, { value: event.target.value }))}
+                  onValueChange={(value) =>
+                    props.onChange(updateMetadataDraft(props.drafts, draft.id, { value }))
+                  }
                 >
-                  <option value="true">True</option>
-                  <option value="false">False</option>
-                </select>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">True</SelectItem>
+                    <SelectItem value="false">False</SelectItem>
+                  </SelectContent>
+                </Select>
               ) : draft.valueType === 'json' ? (
                 <Textarea
                   rows={4}
                   className="font-mono text-xs"
                   value={draft.value}
-                  onChange={(event) => props.onChange(updateMetadataDraft(props.drafts, draft.id, { value: event.target.value }))}
+                  onChange={(event) =>
+                    props.onChange(
+                      updateMetadataDraft(props.drafts, draft.id, { value: event.target.value }),
+                    )
+                  }
                 />
               ) : (
                 <Input
                   value={draft.value}
-                  onChange={(event) => props.onChange(updateMetadataDraft(props.drafts, draft.id, { value: event.target.value }))}
+                  onChange={(event) =>
+                    props.onChange(
+                      updateMetadataDraft(props.drafts, draft.id, { value: event.target.value }),
+                    )
+                  }
                 />
               )}
             </label>
@@ -1260,7 +1370,9 @@ function MetadataEntryEditor(props: {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => props.onChange(props.drafts.filter((entry) => entry.id !== draft.id))}
+                onClick={() =>
+                  props.onChange(props.drafts.filter((entry) => entry.id !== draft.id))
+                }
               >
                 Remove
               </Button>
@@ -1268,9 +1380,15 @@ function MetadataEntryEditor(props: {
           </div>
         ))
       )}
-      {preview.value ? <StructuredRecordView data={preview.value} emptyMessage="No metadata entries added." /> : null}
+      {preview.value ? (
+        <StructuredRecordView data={preview.value} emptyMessage="No metadata entries added." />
+      ) : null}
       <div className="flex justify-between gap-2">
-        <Button type="button" variant="outline" onClick={() => props.onChange([...props.drafts, createMetadataDraft()])}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => props.onChange([...props.drafts, createMetadataDraft()])}
+        >
           Add metadata entry
         </Button>
       </div>

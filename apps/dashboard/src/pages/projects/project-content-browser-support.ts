@@ -1,6 +1,8 @@
 import type {
   DashboardProjectRecord,
   DashboardProjectTimelineEntry,
+  DashboardResolvedDocumentReference,
+  DashboardTaskArtifactRecord,
   DashboardWorkflowWorkItemRecord,
 } from '../../lib/api.js';
 import { normalizeTaskState as normalizeCanonicalTaskState } from '../../lib/task-state.js';
@@ -33,6 +35,24 @@ export interface ProjectWorkItemOption {
   columnId: string;
   priority: string;
   completedAt?: string | null;
+}
+
+export interface DocumentInventorySummary {
+  totalDocuments: number;
+  repositoryDocuments: number;
+  artifactDocuments: number;
+  externalDocuments: number;
+  describedDocuments: number;
+  metadataBackedDocuments: number;
+  latestCreatedAt: string | null;
+}
+
+export interface ArtifactInventorySummary {
+  totalArtifacts: number;
+  totalBytes: number;
+  metadataBackedArtifacts: number;
+  uniqueContentTypes: number;
+  latestCreatedAt: string | null;
 }
 
 export function normalizeProjectList(
@@ -139,6 +159,146 @@ export function filterTasksByWorkItem(
     return tasks;
   }
   return tasks.filter((task) => task.workItemId === workItemId);
+}
+
+export function summarizeDocumentInventory(
+  documents: DashboardResolvedDocumentReference[] | undefined,
+): DocumentInventorySummary {
+  if (!Array.isArray(documents) || documents.length === 0) {
+    return {
+      totalDocuments: 0,
+      repositoryDocuments: 0,
+      artifactDocuments: 0,
+      externalDocuments: 0,
+      describedDocuments: 0,
+      metadataBackedDocuments: 0,
+      latestCreatedAt: null,
+    };
+  }
+
+  let repositoryDocuments = 0;
+  let artifactDocuments = 0;
+  let externalDocuments = 0;
+  let describedDocuments = 0;
+  let metadataBackedDocuments = 0;
+  let latestCreatedAt: string | null = null;
+  let latestTimestamp = 0;
+
+  for (const document of documents) {
+    if (document.source === 'repository') {
+      repositoryDocuments += 1;
+    } else if (document.source === 'artifact') {
+      artifactDocuments += 1;
+    } else {
+      externalDocuments += 1;
+    }
+
+    if ((document.description ?? '').trim().length > 0) {
+      describedDocuments += 1;
+    }
+
+    if (Object.keys(document.metadata ?? {}).length > 0) {
+      metadataBackedDocuments += 1;
+    }
+
+    const timestamp = Date.parse(document.created_at ?? '');
+    if (!Number.isNaN(timestamp) && timestamp >= latestTimestamp) {
+      latestTimestamp = timestamp;
+      latestCreatedAt = document.created_at ?? null;
+    }
+  }
+
+  return {
+    totalDocuments: documents.length,
+    repositoryDocuments,
+    artifactDocuments,
+    externalDocuments,
+    describedDocuments,
+    metadataBackedDocuments,
+    latestCreatedAt,
+  };
+}
+
+export function summarizeArtifactInventory(
+  artifacts: DashboardTaskArtifactRecord[] | undefined,
+): ArtifactInventorySummary {
+  if (!Array.isArray(artifacts) || artifacts.length === 0) {
+    return {
+      totalArtifacts: 0,
+      totalBytes: 0,
+      metadataBackedArtifacts: 0,
+      uniqueContentTypes: 0,
+      latestCreatedAt: null,
+    };
+  }
+
+  let totalBytes = 0;
+  let metadataBackedArtifacts = 0;
+  let latestCreatedAt: string | null = null;
+  let latestTimestamp = 0;
+  const contentTypes = new Set<string>();
+
+  for (const artifact of artifacts) {
+    totalBytes += artifact.size_bytes;
+    if (Object.keys(artifact.metadata ?? {}).length > 0) {
+      metadataBackedArtifacts += 1;
+    }
+    if (artifact.content_type.trim().length > 0) {
+      contentTypes.add(artifact.content_type);
+    }
+
+    const timestamp = Date.parse(artifact.created_at ?? '');
+    if (!Number.isNaN(timestamp) && timestamp >= latestTimestamp) {
+      latestTimestamp = timestamp;
+      latestCreatedAt = artifact.created_at;
+    }
+  }
+
+  return {
+    totalArtifacts: artifacts.length,
+    totalBytes,
+    metadataBackedArtifacts,
+    uniqueContentTypes: contentTypes.size,
+    latestCreatedAt,
+  };
+}
+
+export function formatContentRelativeTimestamp(
+  value: string | null | undefined,
+  now = Date.now(),
+): string {
+  if (!value) {
+    return 'No timestamp recorded';
+  }
+
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) {
+    return value;
+  }
+
+  const deltaMinutes = Math.max(0, Math.round((now - timestamp) / 60000));
+  if (deltaMinutes < 1) {
+    return 'just now';
+  }
+  if (deltaMinutes < 60) {
+    return `${deltaMinutes}m ago`;
+  }
+  const deltaHours = Math.round(deltaMinutes / 60);
+  if (deltaHours < 24) {
+    return `${deltaHours}h ago`;
+  }
+  const deltaDays = Math.round(deltaHours / 24);
+  return `${deltaDays}d ago`;
+}
+
+export function formatContentFileSize(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function normalizeWorkflowState(state: string | null | undefined): string {

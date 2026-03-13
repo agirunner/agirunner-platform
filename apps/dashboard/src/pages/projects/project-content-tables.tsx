@@ -1,40 +1,14 @@
-import { FileText, Loader2, Package } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { FileText, Package } from 'lucide-react';
 
 import type {
   DashboardResolvedDocumentReference,
   DashboardTaskArtifactRecord,
 } from '../../lib/api.js';
-import { buildArtifactPermalink } from '../../components/artifact-preview-support.js';
-import { Badge } from '../../components/ui/badge.js';
-import { Button } from '../../components/ui/button.js';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../../components/ui/table.js';
+import { Table, TableBody, TableHead, TableHeader, TableRow } from '../../components/ui/table.js';
+import { ArtifactCard, ArtifactDesktopRow } from './project-content-artifact-records.js';
+import { DocumentCard, DocumentDesktopRow } from './project-content-document-records.js';
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatDate(dateStr?: string | null): string {
-  if (!dateStr) {
-    return '-';
-  }
-  return new Date(dateStr).toLocaleDateString();
-}
-
-export function DocumentsTable(props: {
+interface DocumentsTableProps {
   documents: DashboardResolvedDocumentReference[];
   isLoading: boolean;
   workflowId: string;
@@ -42,191 +16,143 @@ export function DocumentsTable(props: {
   deletingLogicalName?: string | null;
   onEdit?(document: DashboardResolvedDocumentReference): void;
   onDelete?(document: DashboardResolvedDocumentReference): void;
-}): JSX.Element {
-  if (props.isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (props.documents.length === 0) {
-    return (
-      <div className="flex flex-col items-center py-12 text-muted-foreground">
-        <FileText className="mb-3 h-10 w-10" />
-        <p className="font-medium">No documents found</p>
-        <p className="mt-1 text-sm">This workflow has not published any resolved documents yet.</p>
-      </div>
-    );
-  }
-
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead>Source</TableHead>
-          <TableHead>Created</TableHead>
-          <TableHead>Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {props.documents.map((doc, index) => (
-          <TableRow key={`${doc.logical_name}-${index}`}>
-            <TableCell className="font-medium">
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <span className="max-w-[320px] truncate">{doc.title ?? doc.logical_name}</span>
-              </div>
-            </TableCell>
-            <TableCell>
-              <Badge variant="outline">{doc.source}</Badge>
-            </TableCell>
-            <TableCell>
-              <Badge variant="secondary">{doc.scope}</Badge>
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {formatDate(doc.created_at)}
-            </TableCell>
-            <TableCell>
-              <div className="flex flex-wrap gap-2">
-                {props.onEdit ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => props.onEdit?.(doc)}
-                    disabled={props.deletingLogicalName === doc.logical_name}
-                  >
-                    {props.activeLogicalName === doc.logical_name ? 'Editing' : 'Edit'}
-                  </Button>
-                ) : null}
-                {props.onDelete ? (
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => props.onDelete?.(doc)}
-                    disabled={props.deletingLogicalName === doc.logical_name}
-                  >
-                    {props.deletingLogicalName === doc.logical_name ? 'Deleting…' : 'Delete'}
-                  </Button>
-                ) : null}
-              </div>
-            </TableCell>
-          </TableRow>
-        ))}
-        <TableRow>
-          <TableCell colSpan={5}>
-            <Link
-              className="text-sm text-accent hover:underline"
-              to={`/work/workflows/${props.workflowId}`}
-            >
-              Open workflow details
-            </Link>
-          </TableCell>
-        </TableRow>
-      </TableBody>
-    </Table>
-  );
 }
 
-export function ArtifactsTable(props: {
+interface ArtifactsTableProps {
   artifacts: DashboardTaskArtifactRecord[];
   isLoading: boolean;
   taskId: string;
   deletingArtifactId?: string | null;
   onDelete?(artifact: DashboardTaskArtifactRecord): void;
-}): JSX.Element {
+}
+
+export function DocumentsTable(props: DocumentsTableProps): JSX.Element {
   if (props.isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <CenteredLoader />;
   }
 
-  if (props.artifacts.length === 0) {
+  if (props.documents.length === 0) {
     return (
-      <div className="flex flex-col items-center py-12 text-muted-foreground">
-        <Package className="mb-3 h-10 w-10" />
-        <p className="font-medium">No artifacts found</p>
-        <p className="mt-1 text-sm">This task has not uploaded any artifacts yet.</p>
-      </div>
+      <EmptyState
+        icon={<FileText className="mb-3 h-10 w-10" />}
+        title="No documents found"
+        message="This workflow has not published any resolved documents yet."
+      />
     );
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Logical Path</TableHead>
-          <TableHead>Content Type</TableHead>
-          <TableHead>Size</TableHead>
-          <TableHead>Created</TableHead>
-          <TableHead>Preview</TableHead>
-          <TableHead>Manage</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {props.artifacts.map((artifact) => (
-          <TableRow key={artifact.id}>
-            <TableCell className="font-medium">
-              <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <span className="max-w-[320px] truncate font-mono text-sm">
-                  {artifact.logical_path}
-                </span>
-              </div>
-            </TableCell>
-            <TableCell>
-              <Badge variant="outline">{artifact.content_type}</Badge>
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {formatBytes(artifact.size_bytes)}
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {formatDate(artifact.created_at)}
-            </TableCell>
-            <TableCell>
-              <Link
-                className="inline-flex items-center gap-1 text-sm text-accent hover:underline"
-                to={buildArtifactPermalink(artifact.task_id, artifact.id)}
-              >
-                <FileText className="h-3.5 w-3.5" />
-                Preview
-              </Link>
-            </TableCell>
-            <TableCell>
-              <div className="flex flex-wrap gap-2">
-                <Button asChild size="sm" variant="outline">
-                  <a href={artifact.download_url}>Download</a>
-                </Button>
-                {props.onDelete ? (
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => props.onDelete?.(artifact)}
-                    disabled={props.deletingArtifactId === artifact.id}
-                  >
-                    {props.deletingArtifactId === artifact.id ? 'Deleting…' : 'Delete'}
-                  </Button>
-                ) : null}
-              </div>
-            </TableCell>
-          </TableRow>
+    <div className="space-y-4">
+      <div className="grid gap-3 lg:hidden">
+        {props.documents.map((document) => (
+          <DocumentCard
+            key={document.logical_name}
+            activeLogicalName={props.activeLogicalName}
+            deletingLogicalName={props.deletingLogicalName}
+            document={document}
+            workflowId={props.workflowId}
+            onDelete={props.onDelete}
+            onEdit={props.onEdit}
+          />
         ))}
-        <TableRow>
-          <TableCell colSpan={6}>
-            <Link
-              className="text-sm text-accent hover:underline"
-              to={`/work/tasks/${props.taskId}`}
-            >
-              Open task details
-            </Link>
-          </TableCell>
-        </TableRow>
-      </TableBody>
-    </Table>
+      </div>
+      <div className="hidden overflow-x-auto lg:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Document</TableHead>
+              <TableHead>Source packet</TableHead>
+              <TableHead>Added</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {props.documents.map((document) => (
+              <DocumentDesktopRow
+                key={document.logical_name}
+                activeLogicalName={props.activeLogicalName}
+                deletingLogicalName={props.deletingLogicalName}
+                document={document}
+                workflowId={props.workflowId}
+                onDelete={props.onDelete}
+                onEdit={props.onEdit}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+export function ArtifactsTable(props: ArtifactsTableProps): JSX.Element {
+  if (props.isLoading) {
+    return <CenteredLoader />;
+  }
+
+  if (props.artifacts.length === 0) {
+    return (
+      <EmptyState
+        icon={<Package className="mb-3 h-10 w-10" />}
+        title="No artifacts found"
+        message="This task has not uploaded any artifacts yet."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 lg:hidden">
+        {props.artifacts.map((artifact) => (
+          <ArtifactCard
+            key={artifact.id}
+            artifact={artifact}
+            deletingArtifactId={props.deletingArtifactId}
+            onDelete={props.onDelete}
+          />
+        ))}
+      </div>
+      <div className="hidden overflow-x-auto lg:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Artifact</TableHead>
+              <TableHead>Delivery packet</TableHead>
+              <TableHead>Added</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {props.artifacts.map((artifact) => (
+              <ArtifactDesktopRow
+                key={artifact.id}
+                artifact={artifact}
+                taskId={props.taskId}
+                deletingArtifactId={props.deletingArtifactId}
+                onDelete={props.onDelete}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+function CenteredLoader(): JSX.Element {
+  return (
+    <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+      Loading…
+    </div>
+  );
+}
+
+function EmptyState(props: { icon: JSX.Element; title: string; message: string }): JSX.Element {
+  return (
+    <div className="flex flex-col items-center rounded-2xl border border-dashed border-border/70 py-12 text-center text-muted-foreground">
+      {props.icon}
+      <p className="font-medium">{props.title}</p>
+      <p className="mt-1 max-w-md text-sm">{props.message}</p>
+    </div>
   );
 }

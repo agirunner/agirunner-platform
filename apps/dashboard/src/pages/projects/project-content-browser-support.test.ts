@@ -3,16 +3,20 @@ import { describe, expect, it } from 'vitest';
 import {
   filterTasksByWorkItem,
   buildWorkflowOptions,
+  formatContentFileSize,
+  formatContentRelativeTimestamp,
   normalizeProjectList,
   normalizeTaskOptions,
   normalizeWorkItemOptions,
+  summarizeArtifactInventory,
+  summarizeDocumentInventory,
 } from './project-content-browser-support.js';
 
 describe('project content browser support', () => {
   it('normalizes projects from wrapped responses', () => {
-    expect(normalizeProjectList({ data: [{ id: 'project-1', name: 'Alpha', slug: 'alpha' }] })).toEqual([
-      { id: 'project-1', name: 'Alpha', slug: 'alpha' },
-    ]);
+    expect(
+      normalizeProjectList({ data: [{ id: 'project-1', name: 'Alpha', slug: 'alpha' }] }),
+    ).toEqual([{ id: 'project-1', name: 'Alpha', slug: 'alpha' }]);
   });
 
   it('deduplicates timeline workflows while preserving first-seen order', () => {
@@ -207,5 +211,87 @@ describe('project content browser support', () => {
         createdAt: undefined,
       },
     ]);
+  });
+
+  it('summarizes document coverage for operator inventory packets', () => {
+    expect(
+      summarizeDocumentInventory([
+        {
+          logical_name: 'project_brief',
+          scope: 'workflow',
+          source: 'repository',
+          description: 'Primary implementation brief',
+          metadata: { owner: 'delivery' },
+          created_at: '2026-03-12T10:00:00.000Z',
+        },
+        {
+          logical_name: 'test_report',
+          scope: 'workflow',
+          source: 'artifact',
+          metadata: {},
+          created_at: '2026-03-12T12:00:00.000Z',
+        },
+        {
+          logical_name: 'external_spec',
+          scope: 'workflow',
+          source: 'external',
+          metadata: { source: 'vendor' },
+        },
+      ]),
+    ).toEqual({
+      totalDocuments: 3,
+      repositoryDocuments: 1,
+      artifactDocuments: 1,
+      externalDocuments: 1,
+      describedDocuments: 1,
+      metadataBackedDocuments: 2,
+      latestCreatedAt: '2026-03-12T12:00:00.000Z',
+    });
+  });
+
+  it('summarizes artifact coverage and formats operator-facing timestamps and sizes', () => {
+    expect(
+      summarizeArtifactInventory([
+        {
+          id: 'artifact-1',
+          task_id: 'task-1',
+          logical_path: 'docs/brief.md',
+          content_type: 'text/markdown',
+          size_bytes: 3200,
+          checksum_sha256: 'sha',
+          metadata: { review: true },
+          retention_policy: {},
+          created_at: '2026-03-12T11:45:00.000Z',
+          download_url: '/download/1',
+        },
+        {
+          id: 'artifact-2',
+          task_id: 'task-1',
+          logical_path: 'docs/report.json',
+          content_type: 'application/json',
+          size_bytes: 2048,
+          checksum_sha256: 'sha-2',
+          metadata: {},
+          retention_policy: {},
+          created_at: '2026-03-12T11:55:00.000Z',
+          download_url: '/download/2',
+        },
+      ]),
+    ).toEqual({
+      totalArtifacts: 2,
+      totalBytes: 5248,
+      metadataBackedArtifacts: 1,
+      uniqueContentTypes: 2,
+      latestCreatedAt: '2026-03-12T11:55:00.000Z',
+    });
+
+    expect(
+      formatContentRelativeTimestamp(
+        '2026-03-12T11:45:00.000Z',
+        new Date('2026-03-12T12:00:00.000Z').getTime(),
+      ),
+    ).toBe('15m ago');
+    expect(formatContentRelativeTimestamp(null)).toBe('No timestamp recorded');
+    expect(formatContentFileSize(5248)).toBe('5.1 KB');
   });
 });

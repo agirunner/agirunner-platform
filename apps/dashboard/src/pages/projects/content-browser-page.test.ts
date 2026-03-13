@@ -29,6 +29,7 @@ describe('content browser page source', () => {
     const source = readSource();
     expect(source).toContain('Document Operator Controls');
     expect(source).toContain('Artifact Operator Controls');
+    expect(source).toContain('ContentBrowserOverview');
     expect(source).toContain('MetadataEntryEditor');
     expect(source).toContain('Add metadata entry');
     expect(source).not.toContain('Metadata (JSON)');
@@ -48,6 +49,8 @@ describe('content browser page source', () => {
     expect(source).toContain('Select a source task');
     expect(source).toContain('Select an artifact');
     expect(source).toContain('Auto-filled from the selected artifact');
+    expect(source).toContain('SelectItem value="json">JSON object');
+    expect(source).not.toContain('<select');
     expect(source).not.toContain('placeholder="Task UUID"');
     expect(source).not.toContain('placeholder="Artifact UUID"');
   });
