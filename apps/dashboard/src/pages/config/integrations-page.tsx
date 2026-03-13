@@ -17,10 +17,18 @@ import { dashboardApi, type DashboardIntegrationRecord } from '../../lib/api.js'
 import { toast } from '../../lib/toast.js';
 import { IntegrationEditorDialog } from './integrations-editor-dialog.js';
 import {
+  filterIntegrations,
   KIND_LABELS,
+  summarizeIntegrationLibrary,
   summarizeIntegrationConfig,
+  type IntegrationScopeFilter,
+  type IntegrationStatusFilter,
   type IntegrationKind,
 } from './integrations-page.support.js';
+import {
+  IntegrationFilters,
+  IntegrationSummaryCards,
+} from './integrations-page.sections.js';
 
 function kindVariant(kind: IntegrationKind) {
   const map: Record<IntegrationKind, 'default' | 'secondary' | 'outline' | 'warning'> = {
@@ -34,6 +42,9 @@ function kindVariant(kind: IntegrationKind) {
 
 export function IntegrationsPage(): JSX.Element {
   const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<IntegrationStatusFilter>('all');
+  const [scopeFilter, setScopeFilter] = useState<IntegrationScopeFilter>('all');
   const [editorTarget, setEditorTarget] = useState<DashboardIntegrationRecord | 'create' | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DashboardIntegrationRecord | null>(null);
 
@@ -119,6 +130,21 @@ export function IntegrationsPage(): JSX.Element {
   }
 
   const integrations = integrationsQuery.data ?? [];
+  const summaryCards = useMemo(
+    () => summarizeIntegrationLibrary(integrations),
+    [integrations],
+  );
+  const filteredIntegrations = useMemo(
+    () =>
+      filterIntegrations(
+        integrations,
+        search,
+        statusFilter,
+        scopeFilter,
+        workflowNameById,
+      ),
+    [integrations, search, statusFilter, scopeFilter, workflowNameById],
+  );
 
   return (
     <div className="space-y-6 p-6">
@@ -134,6 +160,16 @@ export function IntegrationsPage(): JSX.Element {
         </CardHeader>
       </Card>
 
+      <IntegrationSummaryCards cards={summaryCards} />
+      <IntegrationFilters
+        search={search}
+        statusFilter={statusFilter}
+        scopeFilter={scopeFilter}
+        onSearchChange={setSearch}
+        onStatusFilterChange={setStatusFilter}
+        onScopeFilterChange={setScopeFilter}
+      />
+
       {integrations.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
@@ -147,7 +183,7 @@ export function IntegrationsPage(): JSX.Element {
         </Card>
       ) : (
         <div className="space-y-4">
-          {integrations.map((integration) => (
+          {filteredIntegrations.map((integration) => (
             <IntegrationCard
               key={integration.id}
               integration={integration}
@@ -158,6 +194,13 @@ export function IntegrationsPage(): JSX.Element {
               onToggle={(isActive) => toggleMutation.mutate({ integrationId: integration.id, isActive })}
             />
           ))}
+          {filteredIntegrations.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-sm text-muted">
+                No integrations match the current filters.
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
       )}
 

@@ -24,6 +24,15 @@ export interface IntegrationSummaryField {
   value: string;
 }
 
+export type IntegrationStatusFilter = 'all' | 'active' | 'paused';
+export type IntegrationScopeFilter = 'all' | 'global' | 'workflow';
+
+export interface IntegrationLibrarySummaryCard {
+  label: string;
+  value: string;
+  detail: string;
+}
+
 export interface IntegrationFieldDefinition {
   key: string;
   label: string;
@@ -206,6 +215,73 @@ export function summarizeIntegrationConfig(integration: DashboardIntegrationReco
   ];
 }
 
+export function summarizeIntegrationLibrary(
+  integrations: DashboardIntegrationRecord[],
+): IntegrationLibrarySummaryCard[] {
+  const activeCount = integrations.filter((integration) => integration.is_active).length;
+  const pausedCount = integrations.length - activeCount;
+  const globalCount = integrations.filter((integration) => !integration.workflow_id).length;
+  const workflowCount = integrations.length - globalCount;
+
+  return [
+    {
+      label: 'Active destinations',
+      value: activeCount === 0 ? 'None active' : `${activeCount} active`,
+      detail:
+        activeCount === 0
+          ? 'Enable an integration before outbound delivery is available.'
+          : `${activeCount} integration destination${activeCount === 1 ? '' : 's'} can deliver events right now.`,
+    },
+    {
+      label: 'Paused destinations',
+      value: pausedCount === 0 ? 'No paused' : `${pausedCount} paused`,
+      detail:
+        pausedCount === 0
+          ? 'No integrations are waiting on operator review.'
+          : 'Paused integrations stay configured for review, but they do not deliver outbound events.',
+    },
+    {
+      label: 'Scope coverage',
+      value:
+        integrations.length === 0
+          ? 'No integrations'
+          : `${globalCount} global / ${workflowCount} workflow-scoped`,
+      detail:
+        integrations.length === 0
+          ? 'Add an integration to connect workflow activity to downstream systems.'
+          : 'Use scope coverage to confirm whether delivery is shared across all workflows or isolated to specific ones.',
+    },
+  ];
+}
+
+export function filterIntegrations(
+  integrations: DashboardIntegrationRecord[],
+  search: string,
+  statusFilter: IntegrationStatusFilter,
+  scopeFilter: IntegrationScopeFilter,
+  workflowNameById: Map<string, string>,
+): DashboardIntegrationRecord[] {
+  const normalized = search.trim().toLowerCase();
+  return integrations.filter((integration) => {
+    if (normalized && !buildIntegrationSearchText(integration, workflowNameById).includes(normalized)) {
+      return false;
+    }
+    if (statusFilter === 'active' && !integration.is_active) {
+      return false;
+    }
+    if (statusFilter === 'paused' && integration.is_active) {
+      return false;
+    }
+    if (scopeFilter === 'global' && integration.workflow_id) {
+      return false;
+    }
+    if (scopeFilter === 'workflow' && !integration.workflow_id) {
+      return false;
+    }
+    return true;
+  });
+}
+
 function buildConfigPayload(form: IntegrationFormState): Record<string, unknown> {
   const fields = fieldsForIntegrationKind(form.kind);
   const config: Record<string, unknown> = Object.fromEntries(
@@ -273,6 +349,23 @@ function describeRepo(config: Record<string, unknown>): string {
   const owner = readString(config.owner);
   const repo = readString(config.repo);
   return owner && repo ? `${owner}/${repo}` : 'Not configured';
+}
+
+function buildIntegrationSearchText(
+  integration: DashboardIntegrationRecord,
+  workflowNameById: Map<string, string>,
+): string {
+  const workflowName = integration.workflow_id
+    ? workflowNameById.get(integration.workflow_id) ?? integration.workflow_id
+    : 'global integration';
+  return [
+    KIND_LABELS[integration.kind],
+    integration.kind,
+    workflowName,
+    integration.subscriptions.join(' '),
+  ]
+    .join(' ')
+    .toLowerCase();
 }
 
 function countLabel(record: Record<string, unknown>, noun: string): string {

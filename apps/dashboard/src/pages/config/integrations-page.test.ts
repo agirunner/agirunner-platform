@@ -8,10 +8,24 @@ function readSource(filename: string) {
 
 describe('integrations page source', () => {
   it('exposes structured create and edit integration flows from the main page', () => {
-    const source = readSource('./integrations-page.tsx');
+    const source = [
+      './integrations-page.tsx',
+      './integrations-page.sections.tsx',
+      './integrations-page.support.ts',
+    ]
+      .map(readSource)
+      .join('\n');
     expect(source).toContain('<IntegrationEditorDialog');
     expect(source).toContain('Edit integration');
     expect(source).toContain('Delete integration');
+    expect(source).toContain('Active destinations');
+    expect(source).toContain('Paused destinations');
+    expect(source).toContain('Scope coverage');
+    expect(source).toContain('Library filters');
+    expect(source).toContain('statusFilter');
+    expect(source).toContain('scopeFilter');
+    expect(source).toContain('Search integrations...');
+    expect(source).toContain('No integrations match the current filters.');
     expect(source).not.toContain('size="icon"');
   });
 

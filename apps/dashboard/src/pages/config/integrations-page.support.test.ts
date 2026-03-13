@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
+import type { DashboardIntegrationRecord } from '../../lib/api.js';
 import {
   buildCreateIntegrationPayload,
   buildUpdateIntegrationPayload,
   canSubmitIntegration,
   createHeaderDraft,
   createIntegrationFormState,
+  filterIntegrations,
   fieldsForIntegrationKind,
   hydrateIntegrationForm,
+  summarizeIntegrationLibrary,
   summarizeIntegrationConfig,
 } from './integrations-page.support.js';
 
@@ -164,5 +167,52 @@ describe('integrations page support', () => {
       { label: 'Labels', value: 'bug' },
       { label: 'Token', value: 'Configured' },
     ]);
+  });
+
+  it('summarizes integration library posture and filters the visible list', () => {
+    const integrations: DashboardIntegrationRecord[] = [
+      {
+        id: 'integration-1',
+        kind: 'webhook',
+        workflow_id: null,
+        subscriptions: ['workflow.failed'],
+        is_active: true,
+        config: {},
+      },
+      {
+        id: 'integration-2',
+        kind: 'slack',
+        workflow_id: 'workflow-1',
+        subscriptions: ['task.failed'],
+        is_active: false,
+        config: {},
+      },
+    ];
+    const workflowNameById = new Map([['workflow-1', 'Incident workflow']]);
+
+    expect(summarizeIntegrationLibrary([...integrations])).toEqual([
+      {
+        label: 'Active destinations',
+        value: '1 active',
+        detail: '1 integration destination can deliver events right now.',
+      },
+      {
+        label: 'Paused destinations',
+        value: '1 paused',
+        detail: 'Paused integrations stay configured for review, but they do not deliver outbound events.',
+      },
+      {
+        label: 'Scope coverage',
+        value: '1 global / 1 workflow-scoped',
+        detail: 'Use scope coverage to confirm whether delivery is shared across all workflows or isolated to specific ones.',
+      },
+    ]);
+
+    expect(
+      filterIntegrations([...integrations], 'incident', 'all', 'workflow', workflowNameById),
+    ).toEqual([integrations[1]]);
+    expect(
+      filterIntegrations([...integrations], '', 'active', 'global', workflowNameById),
+    ).toEqual([integrations[0]]);
   });
 });
