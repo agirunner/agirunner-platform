@@ -46,6 +46,7 @@ describe('startLifecycleMonitor', () => {
           },
         ],
       })),
+      enqueueHeartbeatActivations: vi.fn(async () => 2),
       dispatchQueuedActivations: vi.fn(async () => 0),
     };
     const scheduledWorkItemTriggerService = {
@@ -101,6 +102,12 @@ describe('startLifecycleMonitor', () => {
       },
       'workflow_activation_recovery_enforced',
     );
+    expect(workflowActivationDispatchService.enqueueHeartbeatActivations).toHaveBeenCalledTimes(1);
+    expect(logger.info).toHaveBeenCalledWith(
+      { enqueued: 2 },
+      'workflow_activation_heartbeats_enqueued',
+    );
+    expect(workflowActivationDispatchService.dispatchQueuedActivations).toHaveBeenCalledTimes(1);
 
     monitor.stop();
   });
@@ -117,6 +124,7 @@ describe('startLifecycleMonitor', () => {
         reported: 0,
         details: [],
       })),
+      enqueueHeartbeatActivations: vi.fn(async () => 1),
       dispatchQueuedActivations: vi.fn(async () => 1),
     };
     const scheduledWorkItemTriggerService = {
@@ -136,10 +144,15 @@ describe('startLifecycleMonitor', () => {
 
     expect(scheduledWorkItemTriggerService.fireDueTriggers).toHaveBeenCalledTimes(1);
     expect(workflowActivationDispatchService.recoverStaleActivations).toHaveBeenCalledTimes(1);
+    expect(workflowActivationDispatchService.enqueueHeartbeatActivations).toHaveBeenCalledTimes(1);
     expect(workflowActivationDispatchService.dispatchQueuedActivations).toHaveBeenCalledTimes(1);
     expect(logger.info).toHaveBeenCalledWith(
       { claimed: 0, fired: 2, duplicates: 0, failed: 0 },
       'scheduled_work_item_triggers_processed',
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      { enqueued: 1 },
+      'workflow_activation_heartbeats_enqueued',
     );
   });
 });

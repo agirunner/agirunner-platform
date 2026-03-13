@@ -3,6 +3,89 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowActivationDispatchService } from '../../src/services/workflow-activation-dispatch-service.js';
 
 describe('WorkflowActivationDispatchService', () => {
+  it('enqueues only fresh heartbeat activations for idle workflows', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-03-13T12:00:00Z').getTime());
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflows w')) {
+          expect(params).toEqual([
+            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+            300_000,
+            2,
+          ]);
+          return {
+            rowCount: 2,
+            rows: [
+              { tenant_id: 'tenant-1', workflow_id: 'workflow-1' },
+              { tenant_id: 'tenant-1', workflow_id: 'workflow-2' },
+            ],
+          };
+        }
+        if (sql.includes('INSERT INTO workflow_activations')) {
+          const requestId = params?.[2];
+          if (requestId === 'heartbeat:workflow-1:5911344') {
+            return {
+              rowCount: 1,
+              rows: [{
+                id: 'activation-heartbeat-1',
+                tenant_id: 'tenant-1',
+                workflow_id: 'workflow-1',
+                activation_id: null,
+                request_id: requestId,
+                reason: 'heartbeat',
+                event_type: 'heartbeat',
+                payload: {},
+                state: 'queued',
+                dispatch_attempt: 0,
+                dispatch_token: null,
+                queued_at: new Date('2026-03-13T12:00:00Z'),
+                started_at: null,
+                consumed_at: null,
+                completed_at: null,
+                summary: null,
+                error: null,
+              }],
+            };
+          }
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      connect: vi.fn(),
+    };
+    const service = new WorkflowActivationDispatchService({
+      pool: pool as never,
+      eventService: eventService as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_HEARTBEAT_INTERVAL_MS: 300_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+
+    try {
+      const enqueued = await service.enqueueHeartbeatActivations(2);
+
+      expect(enqueued).toBe(1);
+      expect(eventService.emit).toHaveBeenCalledTimes(1);
+      expect(eventService.emit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'workflow.activation_queued',
+          entityId: 'workflow-1',
+          data: expect.objectContaining({
+            activation_id: 'activation-heartbeat-1',
+            event_type: 'heartbeat',
+            reason: 'heartbeat',
+          }),
+        }),
+      );
+    } finally {
+      now.mockRestore();
+    }
+  });
+
   it('dispatches queued activations with a bounded workflow batch and counts only created orchestrator tasks', async () => {
     const pool = {
       query: vi.fn(async (_sql: string, params?: unknown[]) => {
@@ -112,6 +195,288 @@ describe('WorkflowActivationDispatchService', () => {
 
     expect(dispatchSpy).toHaveBeenCalledTimes(3);
     expect(dispatched).toBe(1);
+  });
+
+  it('dispatches a heartbeat-only activation with empty events and heartbeat telemetry', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes("state = 'processing'") && sql.includes('id = activation_id')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes('FOR UPDATE SKIP LOCKED')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-heartbeat',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'heartbeat:workflow-1:5911344',
+              reason: 'heartbeat',
+              event_type: 'heartbeat',
+              payload: {},
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date('2026-03-13T12:00:00Z'),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = true')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              name: 'Workflow One',
+              project_id: 'project-1',
+              lifecycle: 'continuous',
+              current_stage: null,
+              active_stages: ['triage'],
+              playbook_id: 'playbook-1',
+              playbook_name: 'SDLC',
+              playbook_outcome: 'Ship tested code',
+            }],
+          };
+        }
+        if (sql.includes('SET activation_id = $3')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-heartbeat',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: 'activation-heartbeat',
+              request_id: 'heartbeat:workflow-1:5911344',
+              reason: 'heartbeat',
+              event_type: 'heartbeat',
+              payload: {},
+              state: 'processing',
+              dispatch_attempt: 1,
+              dispatch_token: 'dispatch-token-heartbeat',
+              queued_at: new Date('2026-03-13T12:00:00Z'),
+              started_at: new Date('2026-03-13T12:00:05Z'),
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('INSERT INTO tasks')) {
+          expect(params?.[5]).toBe('triage');
+          expect(params?.[6]).toEqual(
+            expect.objectContaining({
+              activation_id: 'activation-heartbeat',
+              activation_reason: 'heartbeat',
+              activation_dispatch_attempt: 1,
+              activation_dispatch_token: 'dispatch-token-heartbeat',
+              active_stages: ['triage'],
+              events: [],
+            }),
+          );
+          expect(params?.[14]).toEqual(
+            expect.objectContaining({
+              activation_event_type: 'heartbeat',
+              activation_reason: 'heartbeat',
+              activation_event_count: 0,
+            }),
+          );
+          return { rowCount: 1, rows: [{ id: 'task-heartbeat' }] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkflowActivationDispatchService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+
+    const taskId = await service.dispatchActivation('tenant-1', 'activation-heartbeat');
+
+    expect(taskId).toBe('task-heartbeat');
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'workflow.activation_started',
+        data: expect.objectContaining({
+          activation_id: 'activation-heartbeat',
+          event_type: 'heartbeat',
+          reason: 'heartbeat',
+          event_count: 0,
+          task_id: 'task-heartbeat',
+        }),
+      }),
+      client,
+    );
+  });
+
+  it('treats heartbeat-anchor batches with queued events as queued-event activations', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes("state = 'processing'") && sql.includes('id = activation_id')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes('FOR UPDATE SKIP LOCKED')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-heartbeat',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'heartbeat:workflow-1:5911344',
+              reason: 'heartbeat',
+              event_type: 'heartbeat',
+              payload: {},
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date('2026-03-13T12:00:00Z'),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = true')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              name: 'Workflow One',
+              project_id: 'project-1',
+              lifecycle: 'continuous',
+              current_stage: null,
+              active_stages: ['implementation'],
+              playbook_id: 'playbook-1',
+              playbook_name: 'SDLC',
+              playbook_outcome: 'Ship tested code',
+            }],
+          };
+        }
+        if (sql.includes('SET activation_id = $3')) {
+          return {
+            rowCount: 2,
+            rows: [
+              {
+                id: 'activation-heartbeat',
+                tenant_id: 'tenant-1',
+                workflow_id: 'workflow-1',
+                activation_id: 'activation-heartbeat',
+                request_id: 'heartbeat:workflow-1:5911344',
+                reason: 'heartbeat',
+                event_type: 'heartbeat',
+                payload: {},
+                state: 'processing',
+                dispatch_attempt: 1,
+                dispatch_token: 'dispatch-token-heartbeat',
+                queued_at: new Date('2026-03-13T12:00:00Z'),
+                started_at: new Date('2026-03-13T12:00:05Z'),
+                consumed_at: null,
+                completed_at: null,
+                summary: null,
+                error: null,
+              },
+              {
+                id: 'activation-task-completed',
+                tenant_id: 'tenant-1',
+                workflow_id: 'workflow-1',
+                activation_id: 'activation-heartbeat',
+                request_id: 'req-task-completed',
+                reason: 'task.completed',
+                event_type: 'task.completed',
+                payload: { task_id: 'task-9', work_item_id: 'wi-9', stage_name: 'implementation' },
+                state: 'queued',
+                dispatch_attempt: 1,
+                dispatch_token: 'dispatch-token-heartbeat',
+                queued_at: new Date('2026-03-13T12:00:06Z'),
+                started_at: new Date('2026-03-13T12:00:05Z'),
+                consumed_at: null,
+                completed_at: null,
+                summary: null,
+                error: null,
+              },
+            ],
+          };
+        }
+        if (sql.includes('INSERT INTO tasks')) {
+          expect(params?.[6]).toEqual(
+            expect.objectContaining({
+              activation_id: 'activation-heartbeat',
+              activation_reason: 'queued_events',
+              events: [
+                expect.objectContaining({
+                  queue_id: 'activation-task-completed',
+                  type: 'task.completed',
+                }),
+              ],
+            }),
+          );
+          expect(params?.[14]).toEqual(
+            expect.objectContaining({
+              activation_event_type: 'task.completed',
+              activation_reason: 'queued_events',
+              activation_event_count: 1,
+            }),
+          );
+          return { rowCount: 1, rows: [{ id: 'task-mixed' }] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkflowActivationDispatchService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+
+    const taskId = await service.dispatchActivation('tenant-1', 'activation-heartbeat');
+
+    expect(taskId).toBe('task-mixed');
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'workflow.activation_started',
+        data: expect.objectContaining({
+          activation_id: 'activation-heartbeat',
+          event_type: 'task.completed',
+          reason: 'queued_events',
+          event_count: 1,
+          task_id: 'task-mixed',
+        }),
+      }),
+      client,
+    );
   });
 
   it('dispatches an idle work item activation immediately into a batched orchestrator task', async () => {

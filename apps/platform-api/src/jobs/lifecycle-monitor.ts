@@ -83,6 +83,10 @@ export async function runWorkflowActivationDispatchTick(
       'workflow_activation_recovery_enforced',
     );
   }
+  const heartbeats = await workflowActivationDispatchService.enqueueHeartbeatActivations();
+  if (heartbeats > 0) {
+    logger.info({ enqueued: heartbeats }, 'workflow_activation_heartbeats_enqueued');
+  }
   await workflowActivationDispatchService.dispatchQueuedActivations();
 }
 

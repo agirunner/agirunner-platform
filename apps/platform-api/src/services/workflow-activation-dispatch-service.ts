@@ -96,6 +96,11 @@ interface DispatchCandidateRow {
   workflow_id: string;
 }
 
+interface HeartbeatCandidateRow {
+  tenant_id: string;
+  workflow_id: string;
+}
+
 interface RecoveryCandidateRow {
   id: string;
   tenant_id: string;
@@ -131,11 +136,63 @@ interface DispatchDependencies {
   pool: DatabasePool;
   eventService: EventService;
   config: Pick<AppEnv, 'TASK_DEFAULT_TIMEOUT_MINUTES'> &
-    Partial<Pick<AppEnv, 'WORKFLOW_ACTIVATION_DELAY_MS' | 'WORKFLOW_ACTIVATION_STALE_AFTER_MS'>>;
+    Partial<
+      Pick<
+        AppEnv,
+        | 'WORKFLOW_ACTIVATION_DELAY_MS'
+        | 'WORKFLOW_ACTIVATION_HEARTBEAT_INTERVAL_MS'
+        | 'WORKFLOW_ACTIVATION_STALE_AFTER_MS'
+      >
+    >;
 }
 
 export class WorkflowActivationDispatchService {
   constructor(private readonly deps: DispatchDependencies) {}
+
+  async enqueueHeartbeatActivations(limit = 20): Promise<number> {
+    const result = await this.deps.pool.query<HeartbeatCandidateRow>(
+      `SELECT w.tenant_id, w.id AS workflow_id
+         FROM workflows w
+        WHERE w.state IN ('pending', 'active')
+          AND NOT EXISTS (
+            SELECT 1
+              FROM tasks t
+             WHERE t.tenant_id = w.tenant_id
+               AND t.workflow_id = w.id
+               AND t.is_orchestrator_task = true
+               AND t.state = ANY($1::task_state[])
+          )
+          AND NOT EXISTS (
+            SELECT 1
+              FROM workflow_activations wa
+             WHERE wa.tenant_id = w.tenant_id
+               AND wa.workflow_id = w.id
+               AND wa.consumed_at IS NULL
+          )
+          AND NOT EXISTS (
+            SELECT 1
+              FROM workflow_activations wa
+             WHERE wa.tenant_id = w.tenant_id
+               AND wa.workflow_id = w.id
+               AND wa.event_type = 'heartbeat'
+               AND COALESCE(wa.completed_at, wa.queued_at) >= now() - ($2 * interval '1 millisecond')
+          )
+        ORDER BY w.updated_at ASC, w.id ASC
+        LIMIT $3`,
+      [ACTIVE_ORCHESTRATOR_TASK_STATES, this.getHeartbeatIntervalMs(), limit],
+    );
+
+    let enqueued = 0;
+    for (const row of result.rows) {
+      const requestId = buildHeartbeatRequestId(row.workflow_id, this.getHeartbeatIntervalMs());
+      const activation = await this.insertHeartbeatActivation(row.tenant_id, row.workflow_id, requestId);
+      if (activation) {
+        enqueued += 1;
+      }
+    }
+
+    return enqueued;
+  }
 
   async dispatchQueuedActivations(limit = 20): Promise<number> {
     const result = await this.deps.pool.query<DispatchCandidateRow>(
@@ -153,6 +210,7 @@ export class WorkflowActivationDispatchService {
           AND w.state IN ('pending', 'active')
           AND (
             wa.event_type = 'work_item.created'
+            OR wa.event_type = 'heartbeat'
             OR wa.queued_at <= now() - ($2 * interval '1 millisecond')
           )
           AND NOT EXISTS (
@@ -172,7 +230,9 @@ export class WorkflowActivationDispatchService {
                AND active.consumed_at IS NULL
                AND active.id = active.activation_id
           )
-        ORDER BY wa.workflow_id, wa.queued_at ASC
+        ORDER BY wa.workflow_id,
+                 CASE WHEN wa.event_type = 'heartbeat' THEN 1 ELSE 0 END ASC,
+                 wa.queued_at ASC
         LIMIT $3`,
       [ACTIVE_ORCHESTRATOR_TASK_STATES, this.getActivationDelayMs(), limit],
     );
@@ -330,6 +390,8 @@ export class WorkflowActivationDispatchService {
     }
 
     const activation = findActivationAnchor(String(task.activation_id), activationResult.rows);
+    const activationReason = deriveActivationReason(activationResult.rows);
+    const primaryEvent = derivePrimaryActivationEvent(activation, activationResult.rows);
     await this.deps.eventService.emit(
       {
         tenantId,
@@ -340,10 +402,10 @@ export class WorkflowActivationDispatchService {
         actorId: 'workflow_activation_dispatcher',
         data: {
           activation_id: activation.id,
-          event_type: activation.event_type,
-          reason: activation.reason,
+          event_type: primaryEvent.event_type,
+          reason: activationReason,
           task_id: task.id ?? null,
-          event_count: activationResult.rows.length,
+          event_count: countDispatchableEvents(activationResult.rows),
         },
       },
       client,
@@ -425,6 +487,8 @@ export class WorkflowActivationDispatchService {
         return null;
       }
       const activationAnchor = findActivationAnchor(activation.id, activationBatch);
+      const activationReason = deriveActivationReason(activationBatch);
+      const primaryEvent = derivePrimaryActivationEvent(activationAnchor, activationBatch);
       const taskRequestId = buildActivationTaskRequestId(activationAnchor);
       const taskDefinition = buildActivationTaskDefinition(workflow, activationAnchor, activationBatch);
       const taskResult = await client.query<ActivationTaskRow>(
@@ -555,10 +619,10 @@ export class WorkflowActivationDispatchService {
           actorId: 'workflow_activation_dispatcher',
           data: {
             activation_id: activationAnchor.id,
-            event_type: activationAnchor.event_type,
-            reason: 'queued_events',
+            event_type: primaryEvent.event_type,
+            reason: activationReason,
             task_id: taskId,
-            event_count: activationBatch.length,
+            event_count: countDispatchableEvents(activationBatch),
           },
         },
         client,
@@ -788,6 +852,42 @@ export class WorkflowActivationDispatchService {
       [tenantId, workflowId],
     );
     return result.rows[0] ?? null;
+  }
+
+  private async insertHeartbeatActivation(
+    tenantId: string,
+    workflowId: string,
+    requestId: string,
+  ): Promise<QueuedActivationRow | null> {
+    const result = await this.deps.pool.query<QueuedActivationRow>(
+      `INSERT INTO workflow_activations (tenant_id, workflow_id, request_id, reason, event_type, payload)
+       VALUES ($1, $2, $3, 'heartbeat', 'heartbeat', '{}'::jsonb)
+       ON CONFLICT (tenant_id, workflow_id, request_id)
+       WHERE request_id IS NOT NULL
+       DO NOTHING
+       RETURNING id, tenant_id, workflow_id, activation_id, request_id, reason, event_type, payload,
+                 state, dispatch_attempt, dispatch_token, queued_at, started_at, consumed_at, completed_at, summary, error`,
+      [tenantId, workflowId, requestId],
+    );
+    const activation = result.rows[0] ?? null;
+    if (!activation) {
+      return null;
+    }
+
+    await this.deps.eventService.emit({
+      tenantId,
+      type: 'workflow.activation_queued',
+      entityType: 'workflow',
+      entityId: workflowId,
+      actorType: 'system',
+      actorId: 'workflow_activation_dispatcher',
+      data: {
+        activation_id: activation.id,
+        event_type: 'heartbeat',
+        reason: 'heartbeat',
+      },
+    });
+    return activation;
   }
 
   private async claimActivationBatch(
@@ -1177,6 +1277,10 @@ export class WorkflowActivationDispatchService {
     return this.deps.config.WORKFLOW_ACTIVATION_DELAY_MS ?? 10_000;
   }
 
+  private getHeartbeatIntervalMs(): number {
+    return this.deps.config.WORKFLOW_ACTIVATION_HEARTBEAT_INTERVAL_MS ?? 300_000;
+  }
+
   private getStaleActivationThresholdMs(): number {
     return this.deps.config.WORKFLOW_ACTIVATION_STALE_AFTER_MS ?? 300_000;
   }
@@ -1195,18 +1299,20 @@ function buildActivationTaskDefinition(
   activationBatch: QueuedActivationRow[],
 ): ActivationTaskDefinition {
   const repository = resolveWorkflowRepositoryContext(workflow);
+  const activationReason = deriveActivationReason(activationBatch);
+  const primaryEvent = derivePrimaryActivationEvent(activation, activationBatch);
   return {
-    title: buildActivationTaskTitle(workflow, activation),
+    title: buildActivationTaskTitle(workflow, primaryEvent),
     stageName: activationTaskStageName(workflow, activationBatch),
-    input: buildActivationTaskInput(workflow, activation, activationBatch),
+    input: buildActivationTaskInput(workflow, activation, primaryEvent, activationBatch),
     roleConfig: buildActivationRoleConfig(),
     environment: buildActivationEnvironment(repository),
     resourceBindings: buildActivationResourceBindings(repository),
     metadata: {
-      activation_event_type: activation.event_type,
-      activation_reason: 'queued_events',
-      activation_request_id: activation.request_id,
-      activation_event_count: activationBatch.length,
+      activation_event_type: primaryEvent.event_type,
+      activation_reason: activationReason,
+      activation_request_id: primaryEvent.request_id,
+      activation_event_count: countDispatchableEvents(activationBatch),
       activation_dispatch_attempt: activation.dispatch_attempt,
       activation_dispatch_token: activation.dispatch_token,
     },
@@ -1216,32 +1322,42 @@ function buildActivationTaskDefinition(
 function buildActivationTaskInput(
   workflow: WorkflowDispatchRow,
   activation: QueuedActivationRow,
+  primaryEvent: QueuedActivationRow,
   activationBatch: QueuedActivationRow[],
 ): Record<string, unknown> {
   const repository = resolveWorkflowRepositoryContext(workflow);
+  const activationReason = deriveActivationReason(activationBatch);
+  const queuedEvents =
+    activationReason === 'heartbeat'
+      ? []
+      : activationBatch
+        .filter((event) => event.event_type !== 'heartbeat')
+        .map((event) => ({
+          queue_id: event.id,
+          type: event.event_type,
+          reason: event.reason,
+          payload: event.payload,
+          work_item_id: asNullableString(event.payload.work_item_id),
+          stage_name: asNullableString(event.payload.stage_name),
+          timestamp: event.queued_at.toISOString(),
+        }));
   return {
     activation_id: activation.id,
-    activation_reason: 'queued_events',
+    activation_reason: activationReason,
     activation_dispatch_attempt: activation.dispatch_attempt,
     activation_dispatch_token: activation.dispatch_token,
     lifecycle: workflow.lifecycle,
     ...(workflow.lifecycle !== 'continuous' ? { current_stage: workflow.current_stage } : {}),
     active_stages: workflow.active_stages,
     repository: buildActivationRepositoryInput(repository),
-    events: activationBatch.map((event) => ({
-      queue_id: event.id,
-      type: event.event_type,
-      reason: event.reason,
-      payload: event.payload,
-      work_item_id: asNullableString(event.payload.work_item_id),
-      stage_name: asNullableString(event.payload.stage_name),
-      timestamp: event.queued_at.toISOString(),
-    })),
+    events: queuedEvents,
     description: [
       `You are the workflow orchestrator for "${workflow.name}" (${workflow.playbook_name}).`,
-      'Reason for this activation: queued_events.',
-      `Queued events in this batch: ${activationBatch.length}.`,
-      `Primary trigger event: ${activation.event_type}.`,
+      `Reason for this activation: ${activationReason}.`,
+      activationReason === 'heartbeat'
+        ? 'No queued events were present. Proactively inspect stale tasks, blocked work, and overall workflow health.'
+        : `Queued events in this batch: ${queuedEvents.length}.`,
+      `Primary trigger event: ${primaryEvent.event_type}.`,
       workflow.active_stages.length > 0
         ? `Active stages in open work: ${workflow.active_stages.join(', ')}.`
         : null,
@@ -1272,6 +1388,21 @@ function buildActivationTaskInput(
       'State the next recommended workflow action clearly.',
     ],
   };
+}
+
+function deriveActivationReason(activationBatch: QueuedActivationRow[]): 'queued_events' | 'heartbeat' {
+  return activationBatch.some((event) => event.event_type !== 'heartbeat') ? 'queued_events' : 'heartbeat';
+}
+
+function countDispatchableEvents(activationBatch: QueuedActivationRow[]): number {
+  return activationBatch.filter((event) => event.event_type !== 'heartbeat').length;
+}
+
+function derivePrimaryActivationEvent(
+  activation: QueuedActivationRow,
+  activationBatch: QueuedActivationRow[],
+): QueuedActivationRow {
+  return activationBatch.find((event) => event.event_type !== 'heartbeat') ?? activation;
 }
 
 function buildActivationTaskRequestId(activation: QueuedActivationRow): string {
@@ -1481,11 +1612,16 @@ function readTaskDispatchToken(task: Record<string, unknown>): string | null {
 }
 
 function isReadyForDispatch(activation: QueuedActivationRow, activationDelayMs: number): boolean {
-  if (activation.event_type === 'work_item.created') {
+  if (activation.event_type === 'work_item.created' || activation.event_type === 'heartbeat') {
     return true;
   }
 
   return Date.now() - activation.queued_at.getTime() >= activationDelayMs;
+}
+
+function buildHeartbeatRequestId(workflowId: string, heartbeatIntervalMs: number): string {
+  const bucket = Math.floor(Date.now() / heartbeatIntervalMs);
+  return `heartbeat:${workflowId}:${bucket}`;
 }
 
 function hasReportedStaleRecovery(
