@@ -331,6 +331,50 @@ describe('tasks routes', () => {
     );
   });
 
+  it('deduplicates repeated patch requests by request_id for workflow-backed tasks', async () => {
+    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const updateTask = vi.fn(async () => ({
+      id: 'task-patch-1',
+      workflow_id: 'workflow-patch-1',
+      metadata: { note: 'patched once' },
+    }));
+
+    app = buildTaskRouteApp(
+      {
+        getTask: vi.fn(async () => ({ id: 'task-patch-1', workflow_id: 'workflow-patch-1' })),
+        updateTask,
+      },
+      createWorkflowReplayPool('workflow-patch-1', 'task_update'),
+    );
+    await app.register(taskRoutes);
+
+    const payload = {
+      request_id: 'task-patch-request-1',
+      metadata: { note: 'patched once' },
+    };
+
+    const first = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/tasks/task-patch-1',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+    const second = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/tasks/task-patch-1',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(updateTask).toHaveBeenCalledTimes(1);
+    expect(updateTask).toHaveBeenCalledWith('tenant-1', 'task-patch-1', {
+      metadata: { note: 'patched once' },
+    });
+    expect(second.json()).toEqual(first.json());
+  });
+
   it('deduplicates repeated approve requests by request_id for workflow-backed tasks', async () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const approveTask = vi.fn(async () => ({

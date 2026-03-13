@@ -46,6 +46,7 @@ const taskCreateSchema = z.object({
 });
 
 const taskPatchSchema = z.object({
+  request_id: z.string().min(1).max(255).optional(),
   title: z.string().min(1).max(500).optional(),
   description: z.string().max(5000).optional(),
   priority: z.enum(['critical', 'high', 'normal', 'low']).optional(),
@@ -284,7 +285,14 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(taskPatchSchema.safeParse(request.body));
-      const task = await taskService.updateTask(request.auth!.tenantId, params.id, body);
+      const { request_id: requestId, ...payload } = body;
+      const task = await runTaskRouteAction(
+        request.auth!.tenantId,
+        params.id,
+        'task_update',
+        requestId,
+        () => taskService.updateTask(request.auth!.tenantId, params.id, payload),
+      );
       return { data: task };
     },
   );
