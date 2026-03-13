@@ -25,13 +25,13 @@ export function QueueMetricCard(props: {
   detail?: string;
 }): JSX.Element {
   return (
-    <article className="rounded-xl border border-border/70 bg-card p-4 shadow-sm">
+    <article className="rounded-xl border border-border/70 bg-card p-3.5 shadow-sm">
       <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted">
         {props.icon}
         {props.label}
       </div>
-      <div className="mt-2 break-words text-2xl font-semibold">{props.value}</div>
-      {props.detail ? <p className="mt-2 text-xs leading-5 text-muted">{props.detail}</p> : null}
+      <div className="mt-2 break-words text-xl font-semibold sm:text-2xl">{props.value}</div>
+      {props.detail ? <p className="mt-1.5 text-xs leading-5 text-muted">{props.detail}</p> : null}
     </article>
   );
 }
@@ -68,8 +68,8 @@ export function ApprovalQueueSectionJumpStrip(props: {
       label: 'Stage gate queue',
       count: props.stageGateCount,
       summary: props.firstGateSummary,
-      detail: 'Jump straight to the oldest gate packets and operator follow-up context.',
-      buttonLabel: 'Jump to stage gates',
+      detail: 'Start here when the queue feels long. Gates are already ordered oldest first.',
+      buttonLabel: 'Review stage gates',
     },
     {
       id: 'approval-step-approvals',
@@ -79,8 +79,9 @@ export function ApprovalQueueSectionJumpStrip(props: {
         props.taskApprovalCount > 0
           ? `${props.taskApprovalCount} grouped work-item or direct step reviews waiting.`
           : 'No step approvals are waiting right now.',
-      detail: 'Review specialist steps from grouped work-item context instead of hunting through the full queue.',
-      buttonLabel: 'Jump to step approvals',
+      detail:
+        'Use this lane after the blocking gates are clear or when a direct operator decision is all that is left.',
+      buttonLabel: 'Review step approvals',
     },
   ];
 
@@ -98,7 +99,9 @@ export function ApprovalQueueSectionJumpStrip(props: {
               </div>
               <div className="text-base font-semibold">{section.count} waiting</div>
             </div>
-            <Badge variant="outline">{section.id === 'approval-stage-gates' ? props.oldestWaiting : 'Work-item aware'}</Badge>
+            <Badge variant="outline">
+              {section.id === 'approval-stage-gates' ? props.oldestWaiting : 'Work-item aware'}
+            </Badge>
           </div>
           <div className="mt-3 rounded-xl border border-border/70 bg-muted/10 p-3 text-sm text-muted">
             {section.summary}

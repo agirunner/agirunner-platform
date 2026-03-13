@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildGateRecoveryPacket,
   buildGateBreadcrumbs,
   buildApprovalQueueGatePermalink,
   buildWorkflowGatePermalink,
@@ -113,7 +114,61 @@ describe('gate detail support', () => {
           },
         },
       }),
-    ).toContain('processing • gate decision recorded • activation activation-1 • Resume QA orchestration • in progress');
+    ).toContain(
+      'processing • gate decision recorded • activation activation-1 • Resume QA orchestration • in progress',
+    );
+  });
+
+  it('builds recovery packets for waiting, stalled, and in-flight follow-up states', () => {
+    expect(
+      buildGateRecoveryPacket({
+        gate_status: 'awaiting_approval',
+      }),
+    ).toEqual({
+      tone: 'warning',
+      title: 'Decision is blocking this stage',
+      summary:
+        'Review the packet, then approve, request changes, or reject so the board can continue or recover with clear direction.',
+    });
+
+    expect(
+      buildGateRecoveryPacket({
+        human_decision: { action: 'approve' },
+      }),
+    ).toEqual({
+      tone: 'warning',
+      title: 'Decision recorded; follow-up not visible yet',
+      summary:
+        'Refresh the board gate or approval queue first. If the gate stays stalled, inspect the linked activation flow before recording another decision.',
+    });
+
+    expect(
+      buildGateRecoveryPacket({
+        orchestrator_resume: {
+          state: 'processing',
+          activation_id: 'activation-1',
+        },
+      }),
+    ).toEqual({
+      tone: 'secondary',
+      title: 'Follow-up is running',
+      summary:
+        'Stay on the board gate or activation flow for recovery. Use step diagnostics only if the follow-up stalls or errors.',
+    });
+
+    expect(
+      buildGateRecoveryPacket({
+        orchestrator_resume: {
+          state: 'failed',
+          error: { message: 'network timeout' },
+        },
+      }),
+    ).toEqual({
+      tone: 'destructive',
+      title: 'Follow-up stalled after the decision',
+      summary:
+        'Open the linked activation or follow-up step diagnostics, capture the error details, then retry from the board gate once the blocker is clear.',
+    });
   });
 
   it('builds operator timeline rows for request and decision context', () => {

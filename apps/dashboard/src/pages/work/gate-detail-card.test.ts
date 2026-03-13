@@ -11,9 +11,13 @@ describe('gate detail card source', () => {
     const source = readSource();
     expect(source).toContain('Operator breadcrumbs');
     expect(source).toContain('OperatorBreadcrumbTrail');
-    expect(source).toContain('Review packet');
+    expect(source).toContain('Gate review packet');
     expect(source).toContain('Lifecycle trail');
     expect(source).toContain('GateSignalCard');
+    expect(source).toContain('GatePanel');
+    expect(source).toContain('Recovery lane');
+    expect(source).toContain('Next operator move');
+    expect(source).toContain('buildGateRecoveryPacket');
     expect(source).toContain('Decision');
     expect(source).toContain('Follow-up');
     expect(source).toContain('Artifacts');
@@ -21,6 +25,7 @@ describe('gate detail card source', () => {
     expect(source).toContain('Gate summary');
     expect(source).toContain('Recommendation');
     expect(source).toContain('Concerns');
+    expect(source).toContain('Decision and follow-up');
     expect(source).toContain('Human decision');
     expect(source).toContain('Orchestrator follow-up');
     expect(source).toContain('GateHandoffTrail');
@@ -49,7 +54,7 @@ describe('gate detail card source', () => {
   it('uses stage-name highlighting inside workflow detail to match workflow permalinks', () => {
     const source = readSource();
     expect(source).toContain("props.source === 'workflow-detail'");
-    expect(source).toContain("location.hash === `#gate-${props.gate.stage_name}`");
+    expect(source).toContain('location.hash === `#gate-${props.gate.stage_name}`');
   });
 
   it('keeps the request-changes dialog scroll-safe for long review packets', () => {
@@ -59,5 +64,6 @@ describe('gate detail card source', () => {
     expect(source).toContain('overflow-y-auto');
     expect(source).toContain('className="min-h-[140px]"');
     expect(source).toContain('className="w-full sm:w-auto"');
+    expect(source).toContain('flex flex-wrap justify-end gap-2');
   });
 });

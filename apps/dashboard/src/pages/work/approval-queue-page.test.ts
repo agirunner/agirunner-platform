@@ -3,10 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return readFileSync(
-    resolve(import.meta.dirname, './approval-queue-page.tsx'),
-    'utf8',
-  );
+  return readFileSync(resolve(import.meta.dirname, './approval-queue-page.tsx'), 'utf8');
 }
 
 describe('approval queue page source', () => {
@@ -14,9 +11,9 @@ describe('approval queue page source', () => {
     const source = readSource();
     expect(source).toContain('Review stage gates first');
     expect(source).toContain('Oldest wait');
-    expect(source).toContain('First up');
-    expect(source).toContain('Awaiting follow-up');
+    expect(source).toContain('Recovery watch');
     expect(source).toContain('Stage gates');
+    expect(source).toContain('Step reviews');
     expect(source).toContain('Step Approvals');
     expect(source).toContain('QueueMetricCard');
     expect(source).toContain('QueueSectionHeader');
@@ -24,6 +21,7 @@ describe('approval queue page source', () => {
     expect(source).toContain('approval-stage-gates');
     expect(source).toContain('approval-step-approvals');
     expect(source).toContain('Human review packets waiting by stage.');
+    expect(source).not.toContain('First up');
   });
 
   it('delegates stage-gate and step packets to focused queue components', () => {
@@ -39,7 +37,7 @@ describe('approval queue page source', () => {
     expect(source).toContain("searchParams.get('q')");
     expect(source).toContain("searchParams.get('view')");
     expect(source).toContain('SavedViews');
-    expect(source).toContain("storageKey=\"approval-queue\"");
+    expect(source).toContain('storageKey="approval-queue"');
   });
 
   it('subscribes to realtime updates and invalidates workflow detail queries after decisions', () => {

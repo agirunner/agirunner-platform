@@ -80,6 +80,12 @@ export interface GateIdentityShape {
   key_artifacts?: Array<Record<string, unknown>> | null;
 }
 
+export interface GateRecoveryPacket {
+  tone: 'secondary' | 'warning' | 'destructive' | 'success';
+  title: string;
+  summary: string;
+}
+
 export function readGateId(gate: GateIdentityShape): string | null {
   const candidate = gate.gate_id ?? gate.id ?? null;
   return typeof candidate === 'string' && candidate.trim().length > 0 ? candidate : null;
@@ -146,13 +152,93 @@ export function readGatePacketSummary(gate: GateIdentityShape): string[] {
   return summary;
 }
 
+export function buildGateRecoveryPacket(gate: GateIdentityShape): GateRecoveryPacket {
+  const status = readNonEmpty(gate.orchestrator_resume?.state);
+  const activationId = readNonEmpty(gate.orchestrator_resume?.activation_id);
+  const hasDecision = Boolean(readNonEmpty(gate.human_decision?.action));
+  const isAwaitingApproval =
+    readNonEmpty(gate.gate_status) === 'awaiting_approval' ||
+    readNonEmpty(gate.status) === 'awaiting_approval';
+
+  if (gate.orchestrator_resume?.error) {
+    return {
+      tone: 'destructive',
+      title: 'Follow-up stalled after the decision',
+      summary:
+        'Open the linked activation or follow-up step diagnostics, capture the error details, then retry from the board gate once the blocker is clear.',
+    };
+  }
+
+  if (status === 'failed' || status === 'error') {
+    return {
+      tone: 'destructive',
+      title: 'Follow-up failed',
+      summary:
+        'Recover from the board gate or activation flow first so the next retry is attached to the correct stage context.',
+    };
+  }
+
+  if (hasDecision && !status && !activationId) {
+    return {
+      tone: 'warning',
+      title: 'Decision recorded; follow-up not visible yet',
+      summary:
+        'Refresh the board gate or approval queue first. If the gate stays stalled, inspect the linked activation flow before recording another decision.',
+    };
+  }
+
+  if (status === 'queued' || status === 'pending') {
+    return {
+      tone: 'secondary',
+      title: 'Follow-up is queued',
+      summary:
+        'The operator decision is already recorded. Monitor the board gate or activation instead of repeating the decision here.',
+    };
+  }
+
+  if (status === 'processing' || status === 'running' || status === 'in_progress') {
+    return {
+      tone: 'secondary',
+      title: 'Follow-up is running',
+      summary:
+        'Stay on the board gate or activation flow for recovery. Use step diagnostics only if the follow-up stalls or errors.',
+    };
+  }
+
+  if (status === 'completed' || status === 'succeeded') {
+    return {
+      tone: 'success',
+      title: 'Follow-up completed',
+      summary:
+        'Return to the board or linked work item to confirm downstream state moved before taking another operator action.',
+    };
+  }
+
+  if (isAwaitingApproval) {
+    return {
+      tone: 'warning',
+      title: 'Decision is blocking this stage',
+      summary:
+        'Review the packet, then approve, request changes, or reject so the board can continue or recover with clear direction.',
+    };
+  }
+
+  return {
+    tone: 'secondary',
+    title: 'Keep recovery on the gate flow',
+    summary:
+      'Use this gate packet as the operator source of truth, and fall back to step diagnostics only when you need execution evidence.',
+  };
+}
+
 export function readGateRequestSourceSummary(gate: GateIdentityShape): string[] {
   const summary: string[] = [];
   const workItemTitle = readNonEmpty(gate.requested_by_task?.work_item_title);
   if (workItemTitle) {
     summary.push(`work item: ${workItemTitle}`);
   }
-  const taskLabel = readNonEmpty(gate.requested_by_task?.title) ?? readNonEmpty(gate.requested_by_task?.id);
+  const taskLabel =
+    readNonEmpty(gate.requested_by_task?.title) ?? readNonEmpty(gate.requested_by_task?.id);
   const taskRole = readNonEmpty(gate.requested_by_task?.role);
   if (taskLabel) {
     summary.push(taskRole ? `step: ${taskLabel} • ${taskRole}` : `step: ${taskLabel}`);
@@ -174,11 +260,9 @@ export function readGateDecisionSummary(gate: GateIdentityShape): string {
     gate.human_decision?.decided_by_id ?? gate.decided_by_id,
   );
   const when = readTimeLabel(gate.human_decision?.decided_at ?? gate.decided_at);
-  return [
-    action.replaceAll('_', ' '),
-    actor ? `by ${actor}` : null,
-    when ? `at ${when}` : null,
-  ].filter(Boolean).join(' ');
+  return [action.replaceAll('_', ' '), actor ? `by ${actor}` : null, when ? `at ${when}` : null]
+    .filter(Boolean)
+    .join(' ');
 }
 
 export function readGateResumptionSummary(gate: GateIdentityShape): string {
@@ -189,13 +273,9 @@ export function readGateResumptionSummary(gate: GateIdentityShape): string {
     const activationId = readNonEmpty(resume.activation_id);
     const task = readResumeTaskLabel(resume);
     const timing = readResumeTimingSummary(resume);
-    return [
-      state,
-      eventType,
-      activationId ? `activation ${activationId}` : null,
-      task,
-      timing,
-    ].filter(Boolean).join(' • ');
+    return [state, eventType, activationId ? `activation ${activationId}` : null, task, timing]
+      .filter(Boolean)
+      .join(' • ');
   }
   if (readNonEmpty(gate.human_decision?.action)) {
     return 'Decision recorded • follow-up activation not visible yet';
@@ -203,7 +283,9 @@ export function readGateResumptionSummary(gate: GateIdentityShape): string {
   return 'Follow-up not queued';
 }
 
-export function readGateTimelineRows(gate: GateIdentityShape): Array<{ label: string; value: string }> {
+export function readGateTimelineRows(
+  gate: GateIdentityShape,
+): Array<{ label: string; value: string }> {
   const rows: Array<{ label: string; value: string }> = [];
   const requestedBy = readGateActorLabel(gate.requested_by_type, gate.requested_by_id);
   const decidedBy = readGateActorLabel(gate.decided_by_type, gate.decided_by_id);
@@ -293,7 +375,10 @@ function readTimeLabel(timestamp: string | null | undefined): string | null {
   return parsed.toLocaleString();
 }
 
-function readGateActorLabel(type: string | null | undefined, id: string | null | undefined): string | null {
+function readGateActorLabel(
+  type: string | null | undefined,
+  id: string | null | undefined,
+): string | null {
   const actorType = readNonEmpty(type);
   const actorId = readNonEmpty(id);
   if (!actorType && !actorId) {
@@ -309,15 +394,13 @@ function readGateActorLabel(type: string | null | undefined, id: string | null |
 }
 
 function readResumeValue(
-  resume:
-    | {
-        activation_id?: string | null;
-        state?: string | null;
-        queued_at?: string | null;
-        started_at?: string | null;
-        completed_at?: string | null;
-      }
-    | null,
+  resume: {
+    activation_id?: string | null;
+    state?: string | null;
+    queued_at?: string | null;
+    started_at?: string | null;
+    completed_at?: string | null;
+  } | null,
 ): string {
   if (!resume) {
     return 'not queued';
@@ -325,17 +408,17 @@ function readResumeValue(
   const state = readNonEmpty(resume.state)?.replaceAll('_', ' ') ?? 'queued';
   const activationId = readNonEmpty(resume.activation_id);
   const timing = readResumeTimingSummary(resume);
-  return [state, activationId ? `activation ${activationId}` : null, timing].filter(Boolean).join(' • ');
+  return [state, activationId ? `activation ${activationId}` : null, timing]
+    .filter(Boolean)
+    .join(' • ');
 }
 
-function readResumeTimingSummary(
-  resume: {
-    queued_at?: string | null;
-    started_at?: string | null;
-    completed_at?: string | null;
-    latest_event_at?: string | null;
-  },
-): string | null {
+function readResumeTimingSummary(resume: {
+  queued_at?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  latest_event_at?: string | null;
+}): string | null {
   const completed = readTimeLabel(resume.completed_at);
   if (completed) {
     return `completed ${completed}`;
@@ -360,11 +443,15 @@ function readGateRequestSourceValue(gate: GateIdentityShape): string | null {
   const taskTitle = readNonEmpty(gate.requested_by_task?.title);
   const taskRole = readNonEmpty(gate.requested_by_task?.role);
   const actor = readGateActorLabel(gate.requested_by_type, gate.requested_by_id);
-  return [
-    workItemTitle ? `work item ${workItemTitle}` : null,
-    taskTitle ? (taskRole ? `${taskTitle} • ${taskRole}` : taskTitle) : null,
-    actor ? `requested by ${actor}` : null,
-  ].filter(Boolean).join(' • ') || null;
+  return (
+    [
+      workItemTitle ? `work item ${workItemTitle}` : null,
+      taskTitle ? (taskRole ? `${taskTitle} • ${taskRole}` : taskTitle) : null,
+      actor ? `requested by ${actor}` : null,
+    ]
+      .filter(Boolean)
+      .join(' • ') || null
+  );
 }
 
 function readNonEmpty(value: string | null | undefined): string | null {
@@ -372,15 +459,13 @@ function readNonEmpty(value: string | null | undefined): string | null {
 }
 
 function readResumeTaskLabel(
-  resume:
-    | {
-        task?: {
-          id?: string | null;
-          title?: string | null;
-          state?: string | null;
-        } | null;
-      }
-    | null,
+  resume: {
+    task?: {
+      id?: string | null;
+      title?: string | null;
+      state?: string | null;
+    } | null;
+  } | null,
 ): string | null {
   const taskId = readNonEmpty(resume?.task?.id);
   if (!taskId) {

@@ -18,9 +18,10 @@ describe('approval queue stage gate card source', () => {
     expect(source).toContain('readGateResumptionSummary');
     expect(source).toContain('readGateResumeTaskSummary');
     expect(source).toContain('readGateRequestSourceSummary');
+    expect(source).toContain('buildGateRecoveryPacket');
     expect(source).toContain('Gate packet');
     expect(source).toContain('Request source');
-    expect(source).toContain('Orchestrator follow-up');
+    expect(source).toContain('Next operator move');
     expect(source).toContain('Gate review packet');
     expect(source).toContain('Open board gate');
     expect(source).toContain('Open work-item flow');

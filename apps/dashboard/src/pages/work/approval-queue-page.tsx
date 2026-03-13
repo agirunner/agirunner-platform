@@ -1,21 +1,9 @@
 import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import {
-  Clock3,
-  FileText,
-  GitBranch,
-  Inbox,
-  Loader2,
-  Search,
-  ShieldAlert,
-  Workflow,
-} from 'lucide-react';
+import { Clock3, FileText, GitBranch, Inbox, Loader2, Search, Workflow } from 'lucide-react';
 
-import {
-  dashboardApi,
-  type DashboardApprovalQueueResponse,
-} from '../../lib/api.js';
+import { dashboardApi, type DashboardApprovalQueueResponse } from '../../lib/api.js';
 import { subscribeToEvents } from '../../lib/sse.js';
 import { SavedViews, type SavedViewFilters } from '../../components/saved-views.js';
 import { Badge } from '../../components/ui/badge.js';
@@ -118,9 +106,7 @@ export function ApprovalQueuePage(): JSX.Element {
 
   if (error) {
     return (
-      <div className="p-6 text-red-600">
-        Failed to load approval queue. Please try again later.
-      </div>
+      <div className="p-6 text-red-600">Failed to load approval queue. Please try again later.</div>
     );
   }
 
@@ -134,7 +120,8 @@ export function ApprovalQueuePage(): JSX.Element {
               <Badge variant="secondary">{totalApprovals}</Badge>
             </div>
             <p className="text-sm text-muted">
-              Review stage gates first, then specialist step approvals and output gates that remain after orchestration.
+              Review stage gates first, then specialist step approvals and output gates that remain
+              after orchestration.
             </p>
           </div>
           <div className="flex w-full flex-col gap-3 md:max-w-3xl">
@@ -206,7 +193,7 @@ export function ApprovalQueuePage(): JSX.Element {
                 />
               </div>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
               <QueueMetricCard
                 icon={<Workflow className="h-3.5 w-3.5" />}
                 label="Stage gates"
@@ -215,27 +202,21 @@ export function ApprovalQueuePage(): JSX.Element {
               />
               <QueueMetricCard
                 icon={<FileText className="h-3.5 w-3.5" />}
-                label="Specialist step reviews"
+                label="Step reviews"
                 value={taskApprovals.length}
-                detail="Direct approvals or output reviews still owned by operators."
+                detail="Specialist approvals or output reviews still owned by operators."
               />
               <QueueMetricCard
                 icon={<GitBranch className="h-3.5 w-3.5" />}
-                label="Awaiting follow-up"
+                label="Recovery watch"
                 value={`${pendingFollowUpCount} gates`}
-                detail="Human decisions recorded without a visible orchestrator follow-up yet."
+                detail="Decision recorded, but no visible orchestrator follow-up yet."
               />
               <QueueMetricCard
                 icon={<Clock3 className="h-3.5 w-3.5" />}
                 label="Oldest wait"
                 value={oldestWaiting}
                 detail="Use this to clear stale queue items first."
-              />
-              <QueueMetricCard
-                icon={<ShieldAlert className="h-3.5 w-3.5" />}
-                label="First up"
-                value={firstGateSummary}
-                detail="The oldest stage gate currently waiting."
               />
             </div>
           </div>

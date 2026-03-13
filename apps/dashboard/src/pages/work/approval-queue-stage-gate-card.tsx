@@ -1,10 +1,5 @@
 import { Link } from 'react-router-dom';
-import {
-  Clock3,
-  GitBranch,
-  ShieldAlert,
-  Workflow,
-} from 'lucide-react';
+import { Clock3, GitBranch, ShieldAlert, Workflow } from 'lucide-react';
 
 import type { DashboardApprovalStageGateRecord } from '../../lib/api.js';
 import { Badge } from '../../components/ui/badge.js';
@@ -27,6 +22,7 @@ import {
 import { QueueInfoTile } from './approval-queue-layout.js';
 import { OperatorBreadcrumbTrail } from './operator-breadcrumb-trail.js';
 import {
+  buildGateRecoveryPacket,
   buildGateBreadcrumbs,
   readGateDecisionSummary,
   readGatePacketSummary,
@@ -40,24 +36,23 @@ export function StageGateQueueCard(props: {
   index: number;
 }): JSX.Element {
   const { gate, index } = props;
-  const requestedWorkItemPermalink =
-    gate.requested_by_task?.work_item_id
-      ? buildWorkflowDetailPermalink(gate.workflow_id, {
-          workItemId: gate.requested_by_task.work_item_id,
-        })
-      : null;
-  const resumePermalink =
-    gate.orchestrator_resume?.activation_id
-      ? buildWorkflowDetailPermalink(gate.workflow_id, {
-          activationId: gate.orchestrator_resume.activation_id,
-        })
-      : null;
+  const requestedWorkItemPermalink = gate.requested_by_task?.work_item_id
+    ? buildWorkflowDetailPermalink(gate.workflow_id, {
+        workItemId: gate.requested_by_task.work_item_id,
+      })
+    : null;
+  const resumePermalink = gate.orchestrator_resume?.activation_id
+    ? buildWorkflowDetailPermalink(gate.workflow_id, {
+        activationId: gate.orchestrator_resume.activation_id,
+      })
+    : null;
   const breadcrumbs = buildGateBreadcrumbs(gate);
   const packetSummary = readGatePacketSummary(gate);
   const requestSource = readGateRequestSourceSummary(gate);
   const decisionSummary = readGateDecisionSummary(gate);
   const resumptionSummary = readGateResumptionSummary(gate);
   const resumeTaskSummary = readGateResumeTaskSummary(gate);
+  const recoveryPacket = buildGateRecoveryPacket(gate);
 
   return (
     <Card className="border-border/80">
@@ -120,39 +115,58 @@ export function StageGateQueueCard(props: {
                 <GitBranch className="h-3.5 w-3.5" />
                 Gate packet
               </div>
-              <div className="flex flex-wrap gap-2">
-                {packetSummary.map((item) => (
-                  <Badge
-                    key={`${gate.workflow_id}:${gate.stage_name}:packet:${item}`}
-                    variant="secondary"
-                  >
-                    {item}
-                  </Badge>
-                ))}
-              </div>
+              {packetSummary.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {packetSummary.map((item) => (
+                    <Badge
+                      key={`${gate.workflow_id}:${gate.stage_name}:packet:${item}`}
+                      variant="secondary"
+                    >
+                      {item}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted">
+                  Open the full review packet for the full request summary, concerns, and linked
+                  evidence.
+                </p>
+              )}
             </div>
             <div className="rounded-md border border-border/70 bg-border/10 p-3">
               <div className="mb-2 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted">
                 <ShieldAlert className="h-3.5 w-3.5" />
                 Request source
               </div>
-              <div className="flex flex-wrap gap-2">
-                {requestSource.map((item) => (
-                  <Badge
-                    key={`${gate.workflow_id}:${gate.stage_name}:source:${item}`}
-                    variant="outline"
-                  >
-                    {item}
-                  </Badge>
-                ))}
-              </div>
+              {requestSource.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {requestSource.map((item) => (
+                    <Badge
+                      key={`${gate.workflow_id}:${gate.stage_name}:source:${item}`}
+                      variant="outline"
+                    >
+                      {item}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted">
+                  This gate is already the best operator view. Step diagnostics are only needed when
+                  you want source execution evidence.
+                </p>
+              )}
             </div>
             <div className="rounded-md border border-border/70 bg-border/10 p-3">
               <div className="mb-2 flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-muted">
                 <Workflow className="h-3.5 w-3.5" />
-                Orchestrator follow-up
+                Next operator move
               </div>
-              <p className="text-xs text-muted">{resumptionSummary}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={recoveryPacket.tone}>{recoveryPacket.title}</Badge>
+                <Badge variant="outline">{decisionSummary}</Badge>
+              </div>
+              <p className="mt-2 text-xs text-muted">{recoveryPacket.summary}</p>
+              <p className="mt-2 text-xs text-muted">{resumptionSummary}</p>
               {gate.orchestrator_resume?.reason ? (
                 <p className="mt-2 text-xs text-muted">{gate.orchestrator_resume.reason}</p>
               ) : null}
@@ -164,7 +178,7 @@ export function StageGateQueueCard(props: {
         ) : null}
         <ApprovalQueueReviewDisclosure
           title="Gate review packet"
-          summary="Open the full review packet for the decision trail, key artifacts, and orchestrator follow-up context before acting."
+          summary={`${recoveryPacket.title}. Open the full review packet for the decision trail, key artifacts, and recovery evidence before acting.`}
         >
           <GateDetailCard gate={gate} source="approval-queue" />
         </ApprovalQueueReviewDisclosure>
