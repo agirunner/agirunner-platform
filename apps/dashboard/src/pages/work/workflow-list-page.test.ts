@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 function readSource() {
   return [
     './workflow-list-page.tsx',
+    './workflow-list-board-view.tsx',
+    './workflow-list-layouts.tsx',
     './workflow-list-view-toggle.tsx',
   ]
     .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
@@ -42,5 +44,10 @@ describe('workflow board page source', () => {
     expect(source).toContain('Board layout mode');
     expect(source).toContain('List view');
     expect(source).toContain('Board view');
+    expect(source).toContain('Jump to posture');
+    expect(source).toContain('Review the board sections in posture order without horizontal scrolling.');
+    expect(source).toContain('xl:hidden');
+    expect(source).toContain('hidden gap-4 xl:grid xl:grid-cols-2 2xl:grid-cols-5');
+    expect(source).toContain('workflow-posture-');
   });
 });
