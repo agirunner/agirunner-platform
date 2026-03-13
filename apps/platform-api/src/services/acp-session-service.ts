@@ -4,6 +4,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
+import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 
 interface CreateSessionInput {
   agent_id: string;
@@ -19,6 +20,8 @@ interface SessionHeartbeatInput {
   status?: 'initializing' | 'active' | 'idle' | 'closed';
   metadata?: Record<string, unknown>;
 }
+
+const ACP_SESSION_SECRET_REDACTION = 'redacted://acp-session-secret';
 
 export class AcpSessionService {
   constructor(
@@ -50,11 +53,11 @@ export class AcpSessionService {
         input.transport,
         input.mode,
         input.workspace_path ?? null,
-        {
+        sanitizeAcpSessionMetadata({
           ...(input.metadata ?? {}),
           protocol: 'acp',
           capabilities: readAcpCapabilities(agent.metadata),
-        },
+        }),
       ],
     );
 
@@ -82,7 +85,12 @@ export class AcpSessionService {
         WHERE tenant_id = $1
           AND id = $2
         RETURNING *`,
-      [identity.tenantId, sessionId, input.status ?? null, input.metadata ?? {}],
+      [
+        identity.tenantId,
+        sessionId,
+        input.status ?? null,
+        sanitizeAcpSessionMetadata(input.metadata ?? {}),
+      ],
     );
 
     await this.pool.query(
@@ -188,11 +196,18 @@ function toSessionResponse(row: Record<string, unknown>) {
     mode: String(row.mode),
     status: String(row.status),
     workspace_path: readString(row.workspace_path),
-    metadata: asRecord(row.metadata),
+    metadata: sanitizeAcpSessionMetadata(row.metadata),
     last_heartbeat_at: readString(row.last_heartbeat_at),
     created_at: readString(row.created_at),
     updated_at: readString(row.updated_at),
   };
+}
+
+function sanitizeAcpSessionMetadata(value: unknown): Record<string, unknown> {
+  return sanitizeSecretLikeRecord(value, {
+    redactionValue: ACP_SESSION_SECRET_REDACTION,
+    allowSecretReferences: false,
+  });
 }
 
 function readAcpCapabilities(metadata: unknown) {
