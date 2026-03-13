@@ -170,11 +170,11 @@ function redactEnvironmentValue(value: unknown, inheritedSecret: boolean): unkno
   }
 
   const normalized = value.trim();
-  if (normalized.length === 0 || isSecretReference(normalized)) {
+  if (normalized.length === 0) {
     return value;
   }
 
-  if (inheritedSecret || isSecretLikeValue(normalized)) {
+  if (inheritedSecret || isSecretReference(normalized) || isSecretLikeValue(normalized)) {
     return FLEET_ENV_SECRET_REDACTION;
   }
 

@@ -111,7 +111,7 @@ describe('FleetService', () => {
         },
         nested: {
           authorization: 'redacted://fleet-environment-secret',
-          keep_ref: 'secret:RUNTIME_KEY',
+          keep_ref: 'redacted://fleet-environment-secret',
         },
       });
     });
@@ -147,7 +147,7 @@ describe('FleetService', () => {
         },
         nested: {
           authorization: 'redacted://fleet-environment-secret',
-          keep_ref: 'secret:RUNTIME_KEY',
+          keep_ref: 'redacted://fleet-environment-secret',
         },
       });
     });
@@ -196,7 +196,7 @@ describe('FleetService', () => {
         },
         nested: {
           authorization: 'redacted://fleet-environment-secret',
-          keep_ref: 'secret:RUNTIME_KEY',
+          keep_ref: 'redacted://fleet-environment-secret',
         },
       });
       const params = pool.query.mock.calls[0][1] as unknown[];
