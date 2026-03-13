@@ -236,6 +236,7 @@ export function AiConfigAssistantPage(): JSX.Element {
                 onChange={(event) => setInputValue(event.target.value)}
                 placeholder="Ask about runtime defaults, model posture, playbooks, or integrations..."
                 disabled={mutation.isPending}
+                aria-label="Configuration question"
                 className="flex-1"
               />
               <Button type="submit" disabled={mutation.isPending || !inputValue.trim()}>

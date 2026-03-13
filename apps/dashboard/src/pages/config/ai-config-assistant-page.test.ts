@@ -35,4 +35,27 @@ describe('ai config assistant page source', () => {
     expect(source).toContain('Keep prompts narrow.');
     expect(source).not.toContain('Apply');
   });
+
+  it('resolves destinations for all shipped config surfaces', () => {
+    const source = readSource();
+    expect(source).toContain("'/config/tools'");
+    expect(source).toContain("'Open tools'");
+    expect(source).toContain("'/config/instructions'");
+    expect(source).toContain("'Open platform instructions'");
+    expect(source).toContain("'/config/triggers'");
+    expect(source).toContain("'Open work-item triggers'");
+    expect(source).toContain("'/config/roles'");
+    expect(source).toContain("'Open role definitions'");
+  });
+
+  it('exposes quick prompts for tool catalog and platform instructions', () => {
+    const source = readSource();
+    expect(source).toContain('Tool catalog');
+    expect(source).toContain('Platform instructions');
+  });
+
+  it('marks the chat input with an accessible label', () => {
+    const source = readSource();
+    expect(source).toContain('aria-label="Configuration question"');
+  });
 });

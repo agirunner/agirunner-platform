@@ -66,6 +66,16 @@ export const ASSISTANT_STARTER_PROMPTS: AssistantStarterPrompt[] = [
     prompt:
       'Review webhook, trigger, and integration settings and explain what should be validated before launch.',
   },
+  {
+    label: 'Tool catalog',
+    prompt:
+      'Review the tool catalog posture and highlight tools that are missing descriptions, mis-categorized, or not yet granted to the roles that need them.',
+  },
+  {
+    label: 'Platform instructions',
+    prompt:
+      'Check the current platform instructions for gaps, stale guidance, or missing role-specific context that could affect agent behavior.',
+  },
 ];
 
 export function summarizeAssistantSession(
@@ -229,6 +239,18 @@ export function resolveSuggestionDestination(path: string): SuggestionDestinatio
   }
   if (normalized.startsWith('webhook.')) {
     return { href: '/config/webhooks', label: 'Open webhooks' };
+  }
+  if (normalized.startsWith('tool.') || normalized.startsWith('tools.')) {
+    return { href: '/config/tools', label: 'Open tools' };
+  }
+  if (normalized.startsWith('instruction.') || normalized.startsWith('instructions.')) {
+    return { href: '/config/instructions', label: 'Open platform instructions' };
+  }
+  if (normalized.startsWith('trigger.') || normalized.startsWith('work_item_trigger.')) {
+    return { href: '/config/triggers', label: 'Open work-item triggers' };
+  }
+  if (normalized.startsWith('role.') || normalized.startsWith('roles.')) {
+    return { href: '/config/roles', label: 'Open role definitions' };
   }
   return null;
 }

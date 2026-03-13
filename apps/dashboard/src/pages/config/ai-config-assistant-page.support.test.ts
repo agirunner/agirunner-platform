@@ -15,6 +15,8 @@ describe('ai config assistant support', () => {
       'Provider posture',
       'Playbook review',
       'Integration hygiene',
+      'Tool catalog',
+      'Platform instructions',
     ]);
   });
 
@@ -70,6 +72,42 @@ describe('ai config assistant support', () => {
     expect(resolveSuggestionDestination('integration.github.token')).toEqual({
       href: '/config/integrations',
       label: 'Open integrations',
+    });
+    expect(resolveSuggestionDestination('tool.shell_exec')).toEqual({
+      href: '/config/tools',
+      label: 'Open tools',
+    });
+    expect(resolveSuggestionDestination('tools.catalog_posture')).toEqual({
+      href: '/config/tools',
+      label: 'Open tools',
+    });
+    expect(resolveSuggestionDestination('tools.web_search')).toEqual({
+      href: '/config/runtimes',
+      label: 'Open runtime defaults',
+    });
+    expect(resolveSuggestionDestination('instruction.system_prompt')).toEqual({
+      href: '/config/instructions',
+      label: 'Open platform instructions',
+    });
+    expect(resolveSuggestionDestination('instructions.role_context')).toEqual({
+      href: '/config/instructions',
+      label: 'Open platform instructions',
+    });
+    expect(resolveSuggestionDestination('trigger.on_push')).toEqual({
+      href: '/config/triggers',
+      label: 'Open work-item triggers',
+    });
+    expect(resolveSuggestionDestination('work_item_trigger.on_pr')).toEqual({
+      href: '/config/triggers',
+      label: 'Open work-item triggers',
+    });
+    expect(resolveSuggestionDestination('role.developer')).toEqual({
+      href: '/config/roles',
+      label: 'Open role definitions',
+    });
+    expect(resolveSuggestionDestination('roles.reviewer')).toEqual({
+      href: '/config/roles',
+      label: 'Open role definitions',
     });
     expect(resolveSuggestionDestination('unknown.path')).toBeNull();
   });
