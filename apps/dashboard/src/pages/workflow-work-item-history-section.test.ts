@@ -21,7 +21,7 @@ afterEach(() => {
 });
 
 describe('workflow work-item history section source', () => {
-  it('renders operator history packets with overview metrics and linked-step drill-ins', () => {
+  it('renders operator history packets with overview metrics and linked-step diagnostics', () => {
     const source = readSource();
 
     expect(source).toContain('buildWorkItemHistoryOverview(filteredEvents)');
@@ -37,7 +37,8 @@ describe('workflow work-item history section source', () => {
     expect(source).toContain('Showing {start}-{end} of {props.visibleCount} visible events.');
     expect(source).toContain('WORK_ITEM_HISTORY_PAGE_SIZE');
     expect(source).toContain('data-testid="work-item-history-list"');
-    expect(source).toContain('Open linked step');
+    expect(source).toContain('Stay in the work-item flow first');
+    expect(source).toContain('Open linked step diagnostics');
     expect(source).toContain('Operator review packet');
     expect(source).toContain('Open full event payload');
   });
