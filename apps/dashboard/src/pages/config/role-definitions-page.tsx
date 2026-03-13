@@ -17,9 +17,20 @@ import {
   TableHeader,
   TableRow,
 } from '../../components/ui/table.js';
+import { dashboardApi } from '../../lib/api.js';
 import { readSession } from '../../lib/session.js';
 import { toast } from '../../lib/toast.js';
 import { DeleteRoleDialog } from './role-definitions-delete-dialog.js';
+import {
+  OrchestratorControlPlane,
+} from './role-definitions-orchestrator.js';
+import {
+  summarizeOrchestratorModel,
+  summarizeOrchestratorPool,
+  summarizeOrchestratorPrompt,
+  type RoleAssignmentRecord,
+  type SystemDefaultRecord,
+} from './role-definitions-orchestrator.support.js';
 import {
   buildRolePayload,
   countRoleStateSummary,
@@ -55,6 +66,8 @@ async function requestData<T>(path: string, init?: RequestInit): Promise<T> {
 const fetchRoles = () => requestData<RoleDefinition[]>('/api/v1/config/roles');
 const fetchProviders = () => requestData<LlmProviderRecord[]>('/api/v1/config/llm/providers');
 const fetchModels = () => requestData<LlmModelRecord[]>('/api/v1/config/llm/models');
+const fetchSystemDefault = () => requestData<SystemDefaultRecord>('/api/v1/config/llm/system-default');
+const fetchAssignments = () => requestData<RoleAssignmentRecord[]>('/api/v1/config/llm/assignments');
 
 function saveRole(roleId: string | null, form: RoleFormState) {
   return requestData<RoleDefinition>(roleId ? `/api/v1/config/roles/${roleId}` : '/api/v1/config/roles', {
@@ -71,6 +84,26 @@ export function RoleDefinitionsPage(): JSX.Element {
   const rolesQuery = useQuery({ queryKey: ['roles'], queryFn: fetchRoles });
   const providersQuery = useQuery({ queryKey: ['llm-providers'], queryFn: fetchProviders });
   const modelsQuery = useQuery({ queryKey: ['llm-models'], queryFn: fetchModels });
+  const instructionsQuery = useQuery({
+    queryKey: ['platform-instructions', 'roles-page'],
+    queryFn: () => dashboardApi.getPlatformInstructions(),
+  });
+  const systemDefaultQuery = useQuery({
+    queryKey: ['llm-system-default', 'roles-page'],
+    queryFn: fetchSystemDefault,
+  });
+  const assignmentsQuery = useQuery({
+    queryKey: ['llm-assignments', 'roles-page'],
+    queryFn: fetchAssignments,
+  });
+  const fleetStatusQuery = useQuery({
+    queryKey: ['fleet-status', 'roles-page'],
+    queryFn: () => dashboardApi.fetchFleetStatus(),
+  });
+  const fleetWorkersQuery = useQuery({
+    queryKey: ['fleet-workers', 'roles-page'],
+    queryFn: () => dashboardApi.fetchFleetWorkers(),
+  });
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!deletingRole) {
@@ -110,6 +143,23 @@ export function RoleDefinitionsPage(): JSX.Element {
   const roles = rolesQuery.data ?? [];
   const summary = countRoleStateSummary(roles);
   const modelCatalogError = modelsQuery.error || providersQuery.error ? String(modelsQuery.error ?? providersQuery.error) : null;
+  const orchestratorPromptSummary = summarizeOrchestratorPrompt(instructionsQuery.data);
+  const orchestratorModelSummary = summarizeOrchestratorModel(
+    assignmentsQuery.data,
+    systemDefaultQuery.data,
+    modelsQuery.data ?? [],
+  );
+  const orchestratorPoolSummary = summarizeOrchestratorPool(
+    fleetStatusQuery.data,
+    fleetWorkersQuery.data,
+  );
+  const orchestratorQueries = [
+    instructionsQuery,
+    systemDefaultQuery,
+    assignmentsQuery,
+    fleetStatusQuery,
+    fleetWorkersQuery,
+  ];
   const dialogProps = {
     roles,
     providers: providersQuery.data ?? [],
@@ -125,12 +175,23 @@ export function RoleDefinitionsPage(): JSX.Element {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-accent" />
-            <h1 className="text-2xl font-semibold">Role Definitions</h1>
+            <h1 className="text-2xl font-semibold">Roles &amp; Orchestrator</h1>
           </div>
-          <p className="max-w-3xl text-sm text-muted">Configure prompts, model defaults, capabilities, tool grants, active state, and deletion posture for specialist and orchestrator-facing roles.</p>
+          <p className="max-w-3xl text-sm text-muted">
+            Configure specialist roles here, and use the orchestrator control plane below to keep
+            prompt, model routing, and worker pool posture discoverable from one operator surface.
+          </p>
         </div>
         <Button onClick={() => setIsCreating(true)}><Plus className="h-4 w-4" />Create Role</Button>
       </div>
+
+      <OrchestratorControlPlane
+        promptSummary={orchestratorPromptSummary}
+        modelSummary={orchestratorModelSummary}
+        poolSummary={orchestratorPoolSummary}
+        isLoading={orchestratorQueries.some((query) => query.isLoading)}
+        hasError={orchestratorQueries.some((query) => query.isError)}
+      />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Total roles" value={summary.total} />
@@ -144,14 +205,14 @@ export function RoleDefinitionsPage(): JSX.Element {
           <ShieldCheck className="h-12 w-12" />
           <div>
             <p className="font-medium">No roles defined</p>
-            <p className="text-sm">Create the first role definition to configure specialists and orchestrator behavior.</p>
+            <p className="text-sm">Create the first specialist role definition here. Orchestrator prompt, model, and pool posture stay in the control plane above.</p>
           </div>
         </div>
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Configured roles</CardTitle>
-            <CardDescription>Review current role posture at a glance, then expand any row for the full prompt, grants, and escalation details.</CardDescription>
+            <CardTitle>Specialist role catalog</CardTitle>
+            <CardDescription>Review current specialist role posture at a glance, then expand any row for the full prompt, grants, and escalation details.</CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <Table>

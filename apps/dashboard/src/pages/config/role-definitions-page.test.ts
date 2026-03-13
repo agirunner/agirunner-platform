@@ -12,6 +12,8 @@ function readCombinedSource() {
     readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.tsx'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-delete-dialog.tsx'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-lifecycle.ts'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-orchestrator.tsx'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-orchestrator.support.ts'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-list.tsx'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-page.support.ts'), 'utf8'),
   ].join('\n');
@@ -51,6 +53,18 @@ describe('role definitions page source', () => {
     expect(source).toContain('Create Role');
     expect(source).toContain("method: roleId ? 'PUT' : 'POST'");
     expect(source).not.toContain("method: 'PATCH'");
+  });
+
+  it('adds a first-class orchestrator control plane with prompt, model, and pool links', () => {
+    const source = readCombinedSource();
+    expect(source).toContain('OrchestratorControlPlane');
+    expect(source).toContain('Roles &amp; Orchestrator');
+    expect(source).toContain('dashboardApi.getPlatformInstructions()');
+    expect(source).toContain('dashboardApi.fetchFleetStatus()');
+    expect(source).toContain('dashboardApi.fetchFleetWorkers()');
+    expect(source).toContain('/config/instructions');
+    expect(source).toContain('/config/llm');
+    expect(source).toContain('/fleet/workers');
   });
 
   it('exposes a first-class delete role flow for custom roles with built-in protection', () => {
