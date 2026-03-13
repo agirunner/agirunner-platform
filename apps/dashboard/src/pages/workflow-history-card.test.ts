@@ -115,6 +115,7 @@ describe('workflow interaction timeline', () => {
     expect(source).toContain('describeReviewPacket');
     expect(source).toContain('readPacketScalarFacts');
     expect(source).toContain('Open event packet');
+    expect(source).toContain('buildTimelineEntryActions');
     expect(source).not.toContain('>Event payload<');
   });
 });

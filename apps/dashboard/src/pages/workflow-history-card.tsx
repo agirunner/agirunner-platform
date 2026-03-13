@@ -15,6 +15,7 @@ import {
   describeReviewPacket,
   toStructuredDetailViewData,
 } from './workflow-detail-presentation.js';
+import { buildTimelineEntryActions } from './workflow-history-card.actions.js';
 import { readPacketScalarFacts } from './workflow-detail-support.js';
 
 export interface TimelineDescriptor {
@@ -248,6 +249,11 @@ export function describeTimelineEvent(event: DashboardEventRecord): TimelineDesc
 
 function TimelineEntry(props: { workflowId: string; event: DashboardEventRecord }) {
   const descriptor = describeTimelineEvent(props.event);
+  const actions = buildTimelineEntryActions({
+    workflowId: props.workflowId,
+    workItemId: descriptor.workItemId,
+    taskId: descriptor.taskId,
+  });
 
   return (
     <li className={timelineEntryClassName(descriptor.emphasisTone)}>
@@ -271,16 +277,15 @@ function TimelineEntry(props: { workflowId: string; event: DashboardEventRecord 
         <p className="text-xs leading-5 text-muted">{descriptor.scopeSummary}</p>
       ) : null}
       <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
-        {descriptor.workItemId ? (
-          <Link to={`/work/workflows/${props.workflowId}?work_item=${descriptor.workItemId}`} className="underline-offset-4 hover:underline">
-            Open work item
+        {actions.map((action) => (
+          <Link
+            key={`${props.event.id}:${action.label}`}
+            to={action.href}
+            className="underline-offset-4 hover:underline"
+          >
+            {action.label}
           </Link>
-        ) : null}
-        {descriptor.taskId ? (
-          <Link to={`/work/tasks/${descriptor.taskId}`} className="underline-offset-4 hover:underline">
-            Open step
-          </Link>
-        ) : null}
+        ))}
       </div>
       <TimelineEventPacket event={props.event} />
     </li>
