@@ -25,6 +25,7 @@ import {
   OrchestratorControlPlane,
 } from './role-definitions-orchestrator.js';
 import {
+  summarizeOrchestratorReadiness,
   summarizeOrchestratorModel,
   summarizeOrchestratorPool,
   summarizeOrchestratorPrompt,
@@ -153,6 +154,11 @@ export function RoleDefinitionsPage(): JSX.Element {
     fleetStatusQuery.data,
     fleetWorkersQuery.data,
   );
+  const orchestratorReadiness = summarizeOrchestratorReadiness(
+    orchestratorPromptSummary,
+    orchestratorModelSummary,
+    orchestratorPoolSummary,
+  );
   const orchestratorQueries = [
     instructionsQuery,
     systemDefaultQuery,
@@ -189,6 +195,7 @@ export function RoleDefinitionsPage(): JSX.Element {
         promptSummary={orchestratorPromptSummary}
         modelSummary={orchestratorModelSummary}
         poolSummary={orchestratorPoolSummary}
+        readiness={orchestratorReadiness}
         isLoading={orchestratorQueries.some((query) => query.isLoading)}
         hasError={orchestratorQueries.some((query) => query.isError)}
       />

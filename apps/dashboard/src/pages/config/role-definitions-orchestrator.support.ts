@@ -37,6 +37,19 @@ export interface OrchestratorPoolSummary {
   modelLabel: string;
 }
 
+export interface OrchestratorControlIssue {
+  id: 'prompt' | 'model' | 'pool';
+  title: string;
+  detail: string;
+}
+
+export interface OrchestratorControlReadiness {
+  headline: string;
+  detail: string;
+  issues: OrchestratorControlIssue[];
+  isReady: boolean;
+}
+
 const EMPTY_MODEL_SUMMARY: OrchestratorModelSummary = {
   modelLabel: 'Use system default',
   reasoningLabel: 'No explicit reasoning profile',
@@ -114,6 +127,60 @@ export function summarizeOrchestratorPool(
       orchestratorWorkers.reduce((sum, worker) => sum + worker.actual.length, 0),
     runtimeLabel: runtimeImages.length > 0 ? runtimeImages.join(', ') : 'Use worker desired state',
     modelLabel: modelPins.length > 0 ? modelPins.join(', ') : 'Inherited from LLM assignments',
+  };
+}
+
+export function summarizeOrchestratorReadiness(
+  prompt: OrchestratorPromptSummary,
+  model: OrchestratorModelSummary,
+  pool: OrchestratorPoolSummary,
+): OrchestratorControlReadiness {
+  const issues: OrchestratorControlIssue[] = [];
+
+  if (prompt.statusLabel === 'No active prompt') {
+    issues.push({
+      id: 'prompt',
+      title: 'Add the orchestrator baseline prompt.',
+      detail: 'Operators should activate a platform-instructions version before new workflows depend on orchestration decisions.',
+    });
+  }
+
+  if (model.modelLabel === EMPTY_MODEL_SUMMARY.modelLabel) {
+    issues.push({
+      id: 'model',
+      title: 'Assign an orchestrator model.',
+      detail: 'Choose a system default or orchestrator override so the control plane does not rely on an unset model route.',
+    });
+  }
+
+  if (pool.enabledWorkers === 0 || pool.desiredWorkers === 0 || pool.desiredReplicas === 0) {
+    issues.push({
+      id: 'pool',
+      title: 'Enable the orchestrator worker pool.',
+      detail: 'Set at least one enabled worker with desired replicas so orchestrator tasks have capacity to run.',
+    });
+  } else if (pool.runningContainers === 0) {
+    issues.push({
+      id: 'pool',
+      title: 'Review orchestrator pool capacity.',
+      detail: 'Workers are configured but no orchestrator containers are running yet. Confirm the pool can actually start work.',
+    });
+  }
+
+  if (issues.length === 0) {
+    return {
+      headline: 'Control plane ready',
+      detail: 'Prompt, model routing, and worker pool posture are configured for live orchestration.',
+      issues,
+      isReady: true,
+    };
+  }
+
+  return {
+    headline: 'Needs attention',
+    detail: 'Resolve these orchestrator setup blockers before relying on this control plane for live workflows.',
+    issues,
+    isReady: false,
   };
 }
 

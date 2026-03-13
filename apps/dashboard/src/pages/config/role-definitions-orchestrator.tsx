@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from '../../components/ui/card.js';
 import type {
+  OrchestratorControlReadiness,
   OrchestratorModelSummary,
   OrchestratorPoolSummary,
   OrchestratorPromptSummary,
@@ -21,6 +22,7 @@ export function OrchestratorControlPlane(props: {
   promptSummary: OrchestratorPromptSummary;
   modelSummary: OrchestratorModelSummary;
   poolSummary: OrchestratorPoolSummary;
+  readiness: OrchestratorControlReadiness;
   isLoading: boolean;
   hasError: boolean;
 }): JSX.Element {
@@ -70,7 +72,65 @@ export function OrchestratorControlPlane(props: {
           </div>
         ) : null}
       </CardHeader>
-      <CardContent className="grid gap-4 xl:grid-cols-3">
+      <CardContent className="space-y-4">
+        <div
+          className={
+            props.readiness.isReady
+              ? 'rounded-xl bg-emerald-500/10 p-4'
+              : 'rounded-xl bg-amber-500/10 p-4'
+          }
+        >
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-semibold text-foreground">{props.readiness.headline}</p>
+                <Badge variant={props.readiness.isReady ? 'success' : 'warning'}>
+                  {props.readiness.isReady ? 'Ready' : `${props.readiness.issues.length} blockers`}
+                </Badge>
+              </div>
+              <p className="max-w-3xl text-sm leading-6 text-muted">{props.readiness.detail}</p>
+            </div>
+            {!props.readiness.isReady ? (
+              <div className="flex flex-wrap gap-2">
+                {props.readiness.issues.some((issue) => issue.id === 'prompt') ? (
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/config/instructions">
+                      <FilePenLine className="h-4 w-4" />
+                      Fix prompt baseline
+                    </Link>
+                  </Button>
+                ) : null}
+                {props.readiness.issues.some((issue) => issue.id === 'model') ? (
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/config/llm">
+                      <Bot className="h-4 w-4" />
+                      Fix model routing
+                    </Link>
+                  </Button>
+                ) : null}
+                {props.readiness.issues.some((issue) => issue.id === 'pool') ? (
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/fleet/workers">
+                      <Cpu className="h-4 w-4" />
+                      Fix worker pool
+                    </Link>
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+          {props.readiness.issues.length > 0 ? (
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              {props.readiness.issues.map((issue) => (
+                <div key={issue.id} className="rounded-lg bg-background/80 p-3">
+                  <p className="text-sm font-medium text-foreground">{issue.title}</p>
+                  <p className="mt-1 text-sm leading-6 text-muted">{issue.detail}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        <div className="grid gap-4 xl:grid-cols-3">
         <ControlPacket
           icon={FilePenLine}
           title="Prompt baseline"
@@ -103,6 +163,7 @@ export function OrchestratorControlPlane(props: {
           secondaryHref="/config/runtimes"
           isLoading={props.isLoading}
         />
+        </div>
       </CardContent>
     </Card>
   );

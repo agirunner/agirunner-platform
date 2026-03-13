@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  summarizeOrchestratorReadiness,
   summarizeOrchestratorModel,
   summarizeOrchestratorPool,
   summarizeOrchestratorPrompt,
@@ -118,5 +119,73 @@ describe('role definitions orchestrator support', () => {
     expect(summarizeReasoningConfig({ thinking_level: 'medium' })).toBe(
       'thinking_level: medium',
     );
+  });
+
+  it('reports orchestrator setup blockers with explicit recovery guidance', () => {
+    expect(
+      summarizeOrchestratorReadiness(
+        summarizeOrchestratorPrompt(undefined),
+        summarizeOrchestratorModel([], { modelId: null, reasoningConfig: null }, []),
+        {
+          desiredWorkers: 0,
+          desiredReplicas: 0,
+          enabledWorkers: 0,
+          runningContainers: 0,
+          runtimeLabel: 'Use worker desired state',
+          modelLabel: 'Inherited from LLM assignments',
+        },
+      ),
+    ).toEqual({
+      headline: 'Needs attention',
+      detail: 'Resolve these orchestrator setup blockers before relying on this control plane for live workflows.',
+      issues: [
+        {
+          id: 'prompt',
+          title: 'Add the orchestrator baseline prompt.',
+          detail: 'Operators should activate a platform-instructions version before new workflows depend on orchestration decisions.',
+        },
+        {
+          id: 'model',
+          title: 'Assign an orchestrator model.',
+          detail: 'Choose a system default or orchestrator override so the control plane does not rely on an unset model route.',
+        },
+        {
+          id: 'pool',
+          title: 'Enable the orchestrator worker pool.',
+          detail: 'Set at least one enabled worker with desired replicas so orchestrator tasks have capacity to run.',
+        },
+      ],
+      isReady: false,
+    });
+  });
+
+  it('marks the control plane ready when prompt, model, and pool posture are configured', () => {
+    expect(
+      summarizeOrchestratorReadiness(
+        {
+          statusLabel: 'Prompt configured',
+          versionLabel: 'v3',
+          excerpt: 'Coordinate work and request review when a stage gate requires it.',
+        },
+        {
+          modelLabel: 'gpt-5.4 (OpenAI)',
+          reasoningLabel: 'effort: medium',
+          sourceLabel: 'System default',
+        },
+        {
+          desiredWorkers: 1,
+          desiredReplicas: 2,
+          enabledWorkers: 1,
+          runningContainers: 1,
+          runtimeLabel: 'ghcr.io/agirunner/runtime:latest',
+          modelLabel: 'gpt-5.4',
+        },
+      ),
+    ).toEqual({
+      headline: 'Control plane ready',
+      detail: 'Prompt, model routing, and worker pool posture are configured for live orchestration.',
+      issues: [],
+      isReady: true,
+    });
   });
 });
