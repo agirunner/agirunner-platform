@@ -58,14 +58,12 @@ describe('live board page source', () => {
     expect(source).not.toContain("t.status === 'failed'");
   });
 
-  it('uses truthful KPI cards and triage-first operator copy instead of placeholder metrics', () => {
+  it('uses truthful KPI cards without a redundant triage posture section', () => {
     const source = readSource();
     expect(source).toContain('Filter the live operator view');
-    expect(source).toContain('Visible Board Triage Posture');
-    expect(source).toContain('Orchestrator pool posture');
-    expect(source).toContain('Specialist pool posture');
-    expect(source).toContain('Escalation and stale attention');
-    expect(source).toContain('Spend and token posture');
+    expect(source).not.toContain('Visible Board Triage Posture');
+    expect(source).not.toContain('TriagePostureSection');
+    expect(source).not.toContain('TriagePacket');
     expect(source).toContain('Visible board scope');
     expect(source).toContain('Delivery progress');
     expect(source).toContain('Attention posture');
@@ -89,6 +87,14 @@ describe('live board page source', () => {
     expect(source).toContain('Use this to spot capacity gaps before work starts queueing.');
     expect(source).toContain('assigned');
     expect(source).not.toContain('All Clear');
+  });
+
+  it('surfaces fleet health in the page header and per-board risk posture', () => {
+    const source = readSource();
+    expect(source).toContain('Fleet healthy');
+    expect(source).toContain('describeFleetAttention(fleetSummary)');
+    expect(source).toContain('fleetAttentionCount > 0');
+    expect(source).toContain('fleetIssues: props.fleetAttentionCount');
   });
 
   it('uses human-readable progress, spend, and relative timing in board summaries', () => {
@@ -115,13 +121,12 @@ describe('live board page source', () => {
     );
   });
 
-  it('shows rework-aware work-item cards and richer attention packets on the operations board', () => {
+  it('shows rework-aware work-item cards and attention signals on the operations board', () => {
     const source = readSource();
     expect(source).toContain('BoardWorkItemCard');
     expect(source).toContain('countWorkItemReworks');
     expect(source).toContain('describeWorkItemOperatorSummary');
     expect(source).toContain('rework');
-    expect(source).toContain('chips={[');
     expect(source).toContain('stale turns');
     expect(source).toContain('No stale turns');
     expect(source).toContain('No escalations');

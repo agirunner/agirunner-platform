@@ -709,6 +709,11 @@ export function LiveBoardPage(): JSX.Element {
               ? `${visibleGateReviews} gate reviews`
               : 'No gate reviews'}
           </Badge>
+          <Badge variant={fleetAttentionCount > 0 ? 'destructive' : 'outline'}>
+            {fleetAttentionCount > 0
+              ? describeFleetAttention(fleetSummary)
+              : 'Fleet healthy'}
+          </Badge>
         </div>
       </div>
 
@@ -783,20 +788,6 @@ export function LiveBoardPage(): JSX.Element {
         }
       />
 
-      <TriagePostureSection
-        entries={boardEntries}
-        visibleSpend={visibleSpend}
-        visibleTokenPosture={visibleTokenPosture}
-        visibleActivationSummary={visibleActivationSummary}
-        visibleSpecialistSummary={visibleSpecialistSummary}
-        visibleBlockedWorkItems={visibleBlockedWorkItems}
-        visibleGateReviews={visibleGateReviews}
-        visibleFailedSteps={visibleFailedSteps}
-        fleetSummary={fleetSummary}
-        visibleFleetAttention={fleetAttentionCount}
-        visibleNeedsAttention={visibleNeedsAttention}
-      />
-
       <NeedsAttentionSection
         approvalTasks={filteredApprovalTasks}
         failedTasks={filteredFailedTasks}
@@ -814,7 +805,7 @@ export function LiveBoardPage(): JSX.Element {
         onNext={() => setBoardPage((current) => current + 1)}
       />
 
-      <ActivePlaybookBoards entries={boardEntries} />
+      <ActivePlaybookBoards entries={boardEntries} fleetAttentionCount={fleetAttentionCount} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <FleetStatusPanel workers={workers} />
@@ -970,173 +961,6 @@ function KpiCards(props: KpiCardsProps): JSX.Element {
           </CardContent>
         </Card>
       ))}
-    </div>
-  );
-}
-
-interface TriagePostureSectionProps {
-  entries: LiveBoardEntry[];
-  visibleSpend: number;
-  visibleTokenPosture: string;
-  visibleActivationSummary: ReturnType<typeof summarizeActivationHealth>;
-  visibleSpecialistSummary: ReturnType<typeof summarizeSpecialistPosture>;
-  visibleBlockedWorkItems: number;
-  visibleGateReviews: number;
-  visibleFailedSteps: number;
-  fleetSummary: ReturnType<typeof summarizeWorkerFleet>;
-  visibleFleetAttention: number;
-  visibleNeedsAttention: number;
-}
-
-function TriagePostureSection(props: TriagePostureSectionProps): JSX.Element {
-  const hasBoards = props.entries.length > 0;
-  const pageScopeLabel = hasBoards
-    ? `${props.entries.length} board${props.entries.length === 1 ? '' : 's'} on the visible page`
-    : 'No boards on the current page';
-  const riskPosture = describeRiskPosture({
-    blocked: props.visibleBlockedWorkItems,
-    gates: props.visibleGateReviews,
-    failed: props.visibleFailedSteps,
-    escalated: props.visibleSpecialistSummary.escalations,
-    reworkHeavy: props.visibleSpecialistSummary.reworkHeavy,
-    staleActivations: props.visibleActivationSummary.stale,
-    fleetIssues: props.visibleFleetAttention,
-  });
-  const hasLoadingBoards = props.entries.some((entry) => entry.isLoading);
-  const hasBoardErrors = props.entries.some((entry) => entry.hasError);
-
-  return (
-    <Card className="border-border/70 shadow-sm">
-      <CardHeader className="space-y-2">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-1">
-            <CardTitle>Visible Board Triage Posture</CardTitle>
-            <p className="text-sm text-muted">
-              Self-sufficient triage for the current board page: pool posture, stale recovery,
-              spend and tokens, and blocked or rework-heavy signals without extra drill-in.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">{pageScopeLabel}</Badge>
-            <Badge variant={props.visibleNeedsAttention > 0 ? 'warning' : 'success'}>
-              {props.visibleNeedsAttention > 0
-                ? `${props.visibleNeedsAttention} attention signals`
-                : 'Page is stable'}
-            </Badge>
-          </div>
-        </div>
-        {hasLoadingBoards ? (
-          <p className="text-xs text-muted">Refreshing visible board telemetry…</p>
-        ) : null}
-        {hasBoardErrors ? (
-          <p className="text-xs text-red-600">
-            Some activation or board telemetry is temporarily unavailable.
-          </p>
-        ) : null}
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <TriagePacket
-            title="Orchestrator pool posture"
-            headline={describeOrchestratorPool(props.visibleActivationSummary)}
-            detail={`${props.visibleActivationSummary.queuedEvents} queued event batches, ${props.visibleActivationSummary.stale} stale turns, and ${props.visibleActivationSummary.recovered} recovered turns across visible boards.`}
-            chips={[
-              `${props.visibleActivationSummary.inFlight} active turns`,
-              `${props.visibleActivationSummary.queuedEvents} queued batches`,
-              props.visibleActivationSummary.stale > 0
-                ? `${props.visibleActivationSummary.stale} stale`
-                : 'No stale turns',
-              props.visibleActivationSummary.recovered > 0
-                ? `${props.visibleActivationSummary.recovered} recovered`
-                : 'No recoveries',
-            ]}
-            emphasis={
-              props.visibleActivationSummary.needsAttention > 0 ? 'destructive' : 'neutral'
-            }
-          />
-          <TriagePacket
-            title="Specialist pool posture"
-            headline={describeSpecialistPool(props.visibleSpecialistSummary)}
-            detail={`${props.visibleSpecialistSummary.active} active specialist steps and ${props.visibleSpecialistSummary.reviews} review packets currently visible.`}
-            chips={[
-              `${props.visibleSpecialistSummary.active} active`,
-              `${props.visibleSpecialistSummary.reviews} reviews`,
-              props.visibleSpecialistSummary.escalations > 0
-                ? `${props.visibleSpecialistSummary.escalations} escalated`
-                : 'No escalations',
-              props.visibleSpecialistSummary.reworkHeavy > 0
-                ? `${props.visibleSpecialistSummary.reworkHeavy} rework-heavy`
-                : 'No rework hotspots',
-            ]}
-            emphasis={
-              props.visibleSpecialistSummary.escalations > 0 ||
-              props.visibleSpecialistSummary.reworkHeavy > 0
-                ? 'warning'
-                : 'neutral'
-            }
-          />
-          <TriagePacket
-            title="Escalation and stale attention"
-            headline={riskPosture}
-            detail={`${props.visibleGateReviews} gates, ${props.visibleBlockedWorkItems} blocked items, ${props.visibleFailedSteps} failed specialist steps, ${props.visibleActivationSummary.stale} stale orchestrator turns, and ${describeFleetAttention(props.fleetSummary).toLowerCase()} in scope.`}
-            chips={[
-              `${props.visibleGateReviews} gates`,
-              `${props.visibleBlockedWorkItems} blocked`,
-              `${props.visibleFailedSteps} failed`,
-              `${props.visibleSpecialistSummary.escalations} escalated`,
-              `${props.visibleActivationSummary.stale} stale`,
-              props.visibleFleetAttention > 0 ? `${props.visibleFleetAttention} fleet` : 'Fleet stable',
-            ]}
-            emphasis={props.visibleNeedsAttention > 0 ? 'destructive' : 'neutral'}
-          />
-          <TriagePacket
-            title="Spend and token posture"
-            headline={props.visibleSpend > 0 ? `$${props.visibleSpend.toFixed(2)} reported` : 'No spend reported'}
-            detail={props.visibleTokenPosture}
-            chips={[
-              `${props.entries.length} visible boards`,
-              props.visibleSpend > 0 ? 'Spend telemetry live' : 'No spend telemetry',
-              props.visibleTokenPosture,
-            ]}
-            emphasis={props.visibleSpend > 0 || props.visibleTokenPosture !== 'No token telemetry' ? 'success' : 'neutral'}
-          />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function TriagePacket(props: {
-  title: string;
-  headline: string;
-  detail: string;
-  chips?: string[];
-  emphasis: 'neutral' | 'success' | 'warning' | 'destructive';
-}): JSX.Element {
-  const accentClass =
-    props.emphasis === 'destructive'
-      ? 'border-rose-300/80 bg-rose-500/5'
-      : props.emphasis === 'warning'
-        ? 'border-amber-300/80 bg-amber-500/5'
-        : props.emphasis === 'success'
-          ? 'border-emerald-300/80 bg-emerald-500/5'
-          : 'border-border/70 bg-muted/10';
-  return (
-    <div className={cn('grid gap-2 rounded-xl border p-4 shadow-sm', accentClass)}>
-      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
-        {props.title}
-      </p>
-      <p className="text-sm font-semibold leading-6 text-foreground">{props.headline}</p>
-      <p className="text-xs leading-5 text-muted">{props.detail}</p>
-      {props.chips && props.chips.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {props.chips.map((chip) => (
-            <Badge key={`${props.title}:${chip}`} variant="outline">
-              {chip}
-            </Badge>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -1478,6 +1302,7 @@ function SpecialistQueueCard(props: { task: TaskRecord }): JSX.Element {
 
 function ActivePlaybookBoards(props: {
   entries: LiveBoardEntry[];
+  fleetAttentionCount: number;
 }): JSX.Element {
   if (props.entries.length === 0) {
     return (
@@ -1520,6 +1345,7 @@ function ActivePlaybookBoards(props: {
               escalated: specialistSummary.escalations,
               reworkHeavy: specialistSummary.reworkHeavy,
               staleActivations: activationSummary.stale,
+              fleetIssues: props.fleetAttentionCount,
             });
             const visibleActiveItems = activeItems.slice(0, 3);
             const remainingActiveItems = activeItems.slice(3);

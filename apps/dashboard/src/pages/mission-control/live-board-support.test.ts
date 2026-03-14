@@ -310,6 +310,49 @@ describe('live board support', () => {
     expect(describeFleetHeadline(summary)).toBe('2 worker heartbeat issues');
   });
 
+  it('detects heartbeat_missed and other failure statuses as heartbeat failures', () => {
+    const summary = summarizeWorkerFleet([
+      { status: 'heartbeat_missed', current_tasks: 0 },
+      { status: 'missing', current_tasks: 0 },
+      { status: 'heartbeat_failure', current_tasks: 0 },
+      { status: 'stale', current_tasks: 0 },
+      { status: 'degraded', current_tasks: 0 },
+      { status: 'online', current_tasks: 1 },
+    ]);
+
+    expect(summary.heartbeatFailures).toBe(5);
+    expect(summary.offline).toBe(5);
+    expect(summary.online).toBe(1);
+    expect(describeWorkerCapacity({ status: 'heartbeat_missed', current_tasks: 0 })).toBe('Heartbeat missing');
+    expect(describeWorkerCapacity({ status: 'missing', current_tasks: 0 })).toBe('Heartbeat missing');
+    expect(describeWorkerCapacity({ status: 'stale', current_tasks: 0 })).toBe('Heartbeat missing');
+  });
+
+  it('surfaces fleet issues in risk posture when fleetIssues is provided', () => {
+    expect(
+      describeRiskPosture({
+        blocked: 0,
+        gates: 0,
+        failed: 0,
+        escalated: 0,
+        reworkHeavy: 0,
+        staleActivations: 0,
+        fleetIssues: 3,
+      }),
+    ).toBe('3 fleet');
+    expect(
+      describeRiskPosture({
+        blocked: 0,
+        gates: 0,
+        failed: 0,
+        escalated: 0,
+        reworkHeavy: 0,
+        staleActivations: 0,
+        fleetIssues: 0,
+      }),
+    ).toBe('Stable');
+  });
+
   it('surfaces work-item rework counts and operator summary packets from linked specialist steps', () => {
     const tasks = [
       {

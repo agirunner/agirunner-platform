@@ -540,7 +540,7 @@ export function describeRiskPosture(summary: {
   escalated: number;
   reworkHeavy: number;
   staleActivations: number;
-  fleetIssues?: number;
+  fleetIssues: number;
 }): string {
   const parts: string[] = [];
   if (summary.blocked > 0) {
@@ -561,7 +561,7 @@ export function describeRiskPosture(summary: {
   if (summary.staleActivations > 0) {
     parts.push(`${summary.staleActivations} stale`);
   }
-  if ((summary.fleetIssues ?? 0) > 0) {
+  if (summary.fleetIssues > 0) {
     parts.push(`${summary.fleetIssues} fleet`);
   }
   return parts.length > 0 ? parts.join(' • ') : 'Stable';
@@ -592,7 +592,15 @@ function readWorkerStatus(status: string | null | undefined): string {
 }
 
 function isHeartbeatFailureStatus(status: string): boolean {
-  return status === 'offline' || status === 'disconnected' || status === 'degraded';
+  return (
+    status === 'offline' ||
+    status === 'disconnected' ||
+    status === 'degraded' ||
+    status === 'heartbeat_missed' ||
+    status === 'missing' ||
+    status === 'heartbeat_failure' ||
+    status === 'stale'
+  );
 }
 
 function formatCompactCount(value: number): string {
