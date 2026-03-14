@@ -40,7 +40,6 @@ export function WorkItemHistoryFilterBar(props: {
   totalCount: number;
   visibleCount: number;
   filters: WorkItemHistoryFilters;
-  displayQuery: string;
   savedViewFilters: SavedViewFilters;
   savedViewStorageKey: string;
   onQueryChange(value: string): void;
