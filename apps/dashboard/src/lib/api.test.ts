@@ -451,6 +451,137 @@ describe('dashboard api auth/session behavior', () => {
     expect(activation.event_type).toBe('operator.manual_enqueue');
   });
 
+  it('posts workflow cancellation with a generated request id', async () => {
+    writeSession({ accessToken: 'workflow-token', tenantId: 'tenant-1' });
+    vi.stubGlobal('crypto', {
+      randomUUID: () => 'cancel-request-123',
+    });
+
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            id: 'workflow-1',
+            state: 'paused',
+            metadata: { cancel_requested_at: '2026-03-13T12:00:00.000Z' },
+          },
+        }),
+        { status: 200 },
+      ),
+    ) as unknown as typeof fetch;
+
+    const api = createDashboardApi({
+      client: {} as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    await api.cancelWorkflow('workflow-1');
+
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://localhost:8080/api/v1/workflows/workflow-1/cancel',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer workflow-token',
+          'Content-Type': 'application/json',
+        }),
+      }),
+    );
+    expect(
+      JSON.parse(String(vi.mocked(fetcher).mock.calls[0]?.[1]?.body ?? '{}')),
+    ).toEqual({
+      request_id: 'cancel-request-123',
+    });
+  });
+
+  it('posts workflow pause with a generated request id', async () => {
+    writeSession({ accessToken: 'workflow-token', tenantId: 'tenant-1' });
+    vi.stubGlobal('crypto', {
+      randomUUID: () => 'pause-request-123',
+    });
+
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            id: 'workflow-1',
+            state: 'paused',
+            metadata: { pause_requested_at: '2026-03-13T12:00:00.000Z' },
+          },
+        }),
+        { status: 200 },
+      ),
+    ) as unknown as typeof fetch;
+
+    const api = createDashboardApi({
+      client: {} as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    await api.pauseWorkflow('workflow-1');
+
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://localhost:8080/api/v1/workflows/workflow-1/pause',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer workflow-token',
+          'Content-Type': 'application/json',
+        }),
+      }),
+    );
+    expect(
+      JSON.parse(String(vi.mocked(fetcher).mock.calls[0]?.[1]?.body ?? '{}')),
+    ).toEqual({
+      request_id: 'pause-request-123',
+    });
+  });
+
+  it('posts workflow resume with a generated request id', async () => {
+    writeSession({ accessToken: 'workflow-token', tenantId: 'tenant-1' });
+    vi.stubGlobal('crypto', {
+      randomUUID: () => 'resume-request-123',
+    });
+
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            id: 'workflow-1',
+            state: 'active',
+          },
+        }),
+        { status: 200 },
+      ),
+    ) as unknown as typeof fetch;
+
+    const api = createDashboardApi({
+      client: {} as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    await api.resumeWorkflow('workflow-1');
+
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://localhost:8080/api/v1/workflows/workflow-1/resume',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer workflow-token',
+          'Content-Type': 'application/json',
+        }),
+      }),
+    );
+    expect(
+      JSON.parse(String(vi.mocked(fetcher).mock.calls[0]?.[1]?.body ?? '{}')),
+    ).toEqual({
+      request_id: 'resume-request-123',
+    });
+  });
+
   it('updates playbooks through the dashboard api surface', async () => {
     writeSession({ accessToken: 'api-token', tenantId: 'tenant-1' });
 

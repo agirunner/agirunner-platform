@@ -1876,6 +1876,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     return response.data;
   }
 
+  function requestWorkflowControlAction(path: string): Promise<unknown> {
+    return requestData<unknown>(path, {
+      body: buildRequestBodyWithRequestId({}),
+    });
+  }
+
   function normalizeEventPage(page: {
     data?: DashboardEventRecord[];
     meta?: { has_more?: boolean; next_after?: string | number | null };
@@ -2363,7 +2369,8 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           },
         ),
       ),
-    cancelWorkflow: (workflowId) => withRefresh(() => client.cancelWorkflow(workflowId)),
+    cancelWorkflow: (workflowId) =>
+      withRefresh(() => requestWorkflowControlAction(`/api/v1/workflows/${workflowId}/cancel`)),
     chainWorkflow: (workflowId, payload) =>
       withRefresh(() =>
         requestJson(`/api/v1/workflows/${workflowId}/chain`, {
@@ -2446,9 +2453,9 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     overrideTaskOutput: (taskId, payload) =>
       withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/output-override`, { body: payload })),
     pauseWorkflow: (workflowId) =>
-      withRefresh(() => requestJson(`/api/v1/workflows/${workflowId}/pause`)),
+      withRefresh(() => requestWorkflowControlAction(`/api/v1/workflows/${workflowId}/pause`)),
     resumeWorkflow: (workflowId) =>
-      withRefresh(() => requestJson(`/api/v1/workflows/${workflowId}/resume`)),
+      withRefresh(() => requestWorkflowControlAction(`/api/v1/workflows/${workflowId}/resume`)),
     actOnStageGate: (workflowId, stageName, payload) =>
       withRefresh(() =>
         requestJson(`/api/v1/workflows/${workflowId}/stages/${stageName}/gate`, {
